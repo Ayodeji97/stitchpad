@@ -1,19 +1,41 @@
-*.iml
-.kotlin
-.gradle
-**/build/
-xcuserdata
+# Gradle
+.gradle/
+build/
 !src/**/build/
-local.properties
-.idea
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+
+# macOS
 .DS_Store
-captures
-.externalNativeBuild
-.cxx
+
+# Android
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# iOS / Xcode
+xcuserdata/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
+Pods/
+*.xcworkspace
+
+# Secrets — NEVER commit these
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Node (if any tooling uses it)
 node_modules/
+
+# Misc
+*.log
+*.tmp
