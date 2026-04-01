@@ -1,21 +1,20 @@
 package com.danzucker.stitchpad
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
+import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.navigation.StitchPadNavHost
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import org.koin.compose.koinInject
 
 @Composable
 fun App() {
-    MaterialTheme {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("StitchPad")
-        }
+    StitchPadTheme {
+        val navController = rememberNavController()
+        val authRepository: AuthRepository = koinInject()
+        StitchPadNavHost(
+            navController = navController,
+            isLoggedIn = authRepository.isLoggedIn
+        )
     }
 }
