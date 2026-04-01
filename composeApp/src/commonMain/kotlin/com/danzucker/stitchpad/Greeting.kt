@@ -1,9 +1,0 @@
-package com.danzucker.stitchpad
-
-class Greeting {
-    private val platform = getPlatform()
-
-    fun greet(): String {
-        return "Hello, ${platform.name}!"
-    }
-}
