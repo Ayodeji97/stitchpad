@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">StitchPad</string>
+
+    <!-- Auth errors -->
+    <string name="error_invalid_credentials">Invalid email or password</string>
+    <string name="error_email_in_use">This email is already registered</string>
+    <string name="error_weak_password">Password must be at least 6 characters</string>
+    <string name="error_user_not_found">No account found with this email</string>
+    <string name="error_too_many_requests">Too many attempts. Please try again later</string>
+    <string name="error_no_internet">No internet connection</string>
+    <string name="error_unknown">Something went wrong. Please try again</string>
+
+    <!-- Login screen -->
+    <string name="login_title">Welcome back</string>
+    <string name="login_subtitle">Sign in to StitchPad</string>
+    <string name="login_email_label">Email</string>
+    <string name="login_password_label">Password</string>
+    <string name="login_button">Sign In</string>
+    <string name="login_no_account">Don\'t have an account?</string>
+    <string name="login_sign_up">Sign Up</string>
+
+    <!-- Sign up screen -->
+    <string name="signup_title">Create account</string>
+    <string name="signup_name_label">Full name</string>
+    <string name="signup_email_label">Email</string>
+    <string name="signup_password_label">Password</string>
+    <string name="signup_confirm_password_label">Confirm password</string>
+    <string name="signup_button">Create Account</string>
+    <string name="signup_have_account">Already have an account?</string>
+    <string name="signup_sign_in">Sign In</string>
+</resources>
