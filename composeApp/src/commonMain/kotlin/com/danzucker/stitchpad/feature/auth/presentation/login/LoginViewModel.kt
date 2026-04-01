@@ -48,11 +48,21 @@ class LoginViewModel(
         val currentState = _state.value
 
         if (!emailValidator.matches(currentState.email)) {
-            _state.update { it.copy(emailError = com.danzucker.stitchpad.core.presentation.UiText.DynamicString("Invalid email format")) }
+            _state.update {
+                it.copy(
+                    emailError = com.danzucker.stitchpad.core.presentation.UiText
+                        .DynamicString("Invalid email format"),
+                )
+            }
             return
         }
         if (currentState.password.length < 6) {
-            _state.update { it.copy(passwordError = com.danzucker.stitchpad.core.presentation.UiText.DynamicString("Password must be at least 6 characters")) }
+            _state.update {
+                it.copy(
+                    passwordError = com.danzucker.stitchpad.core.presentation.UiText
+                        .DynamicString("Password must be at least 6 characters"),
+                )
+            }
             return
         }
 

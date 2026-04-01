@@ -67,12 +67,12 @@ object DesignTokens {
     val infoDarkText = Color(0xFF7BB8F0)
 
     // Order Status Colors
-    val statusReceived = Color(0xFF2B7FD4)   // Blue
-    val statusCutting = Color(0xFFE07B20)     // Orange
-    val statusSewing = Color(0xFFE8A800)      // Saffron
-    val statusReady = Color(0xFF2D9E6B)       // Green
-    val statusDelivered = Color(0xFF7D7970)   // Gray
-    val statusOverdue = Color(0xFFD93B3B)     // Red
+    val statusReceived = Color(0xFF2B7FD4) // Blue
+    val statusCutting = Color(0xFFE07B20) // Orange
+    val statusSewing = Color(0xFFE8A800) // Saffron
+    val statusReady = Color(0xFF2D9E6B) // Green
+    val statusDelivered = Color(0xFF7D7970) // Gray
+    val statusOverdue = Color(0xFFD93B3B) // Red
 
     // Primary Button Border
     val primaryButtonBorder = Color(0xFFC48E00)
@@ -91,7 +91,7 @@ object DesignTokens {
         AvatarColor(Color(0xFFE8F7F1), Color(0xFF2D9E6B), Color(0xFF0E3D2A), Color(0xFF5EDBA0)), // Green
         AvatarColor(Color(0xFFFEF3E8), Color(0xFFE07B20), Color(0xFF3D2510), Color(0xFFF0AA60)), // Orange
         AvatarColor(Color(0xFFF3EAFA), Color(0xFF7B4DB5), Color(0xFF2D1F3D), Color(0xFFC4A0E8)), // Purple
-        AvatarColor(Color(0xFFFBEAF0), Color(0xFFC4447A), Color(0xFF3D152A), Color(0xFFE890B0))  // Pink
+        AvatarColor(Color(0xFFFBEAF0), Color(0xFFC4447A), Color(0xFF3D152A), Color(0xFFE890B0)) // Pink
     )
 
     // Typography Sizes

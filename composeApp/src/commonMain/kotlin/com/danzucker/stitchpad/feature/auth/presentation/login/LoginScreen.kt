@@ -29,8 +29,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -102,7 +102,9 @@ fun LoginScreen(
                 label = { Text("Email") },
                 isError = state.emailError != null,
                 supportingText = state.emailError?.let { error ->
-                    { Text(error.asString()) }
+                    {
+                        Text(error.asString())
+                    }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -119,7 +121,9 @@ fun LoginScreen(
                 label = { Text("Password") },
                 isError = state.passwordError != null,
                 supportingText = state.passwordError?.let { error ->
-                    { Text(error.asString()) }
+                    {
+                        Text(error.asString())
+                    }
                 },
                 visualTransformation = if (state.isPasswordVisible) {
                     VisualTransformation.None

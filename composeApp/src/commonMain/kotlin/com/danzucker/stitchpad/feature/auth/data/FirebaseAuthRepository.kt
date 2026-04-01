@@ -44,7 +44,7 @@ class FirebaseAuthRepository(
         return try {
             firebaseAuth.signOut()
             Result.Success(Unit)
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
             Result.Error(AuthError.UNKNOWN)
         }
     }

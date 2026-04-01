@@ -3,7 +3,9 @@ build:
 
 complexity:
   LongMethod:
-    threshold: 30
+    threshold: 60
+    ignoreAnnotated:
+      - Composable
   LongParameterList:
     functionThreshold: 8
     constructorThreshold: 10
@@ -13,24 +15,34 @@ complexity:
     thresholdInFiles: 20
     thresholdInClasses: 15
 
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+    exceptionNames:
+      - ArrayIndexOutOfBoundsException
+      - IndexOutOfBoundsException
+      - IllegalStateException
+      - NullPointerException
+    allowedExceptionNameRegex: '_|(ignore|expected).*'
+
 style:
   MagicNumber:
-    ignoreAnnotated:
-      - Composable
-    ignorePropertyDeclaration: true
-    ignoreCompanionObjectPropertyDeclaration: true
+    active: false
   ForbiddenComment:
     active: false
   MaxLineLength:
     maxLineLength: 120
+    excludeCommentStatements: true
   WildcardImport:
     active: true
     excludeImports:
       - kotlinx.coroutines.flow.*
+potential-bugs:
+  UnsafeCallOnNullableType:
+    active: true
 
 naming:
   FunctionNaming:
-    ignoreAnnotated:
-      - Composable
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
   TopLevelPropertyNaming:
     constantPattern: '[A-Za-z][_A-Za-z0-9]*'

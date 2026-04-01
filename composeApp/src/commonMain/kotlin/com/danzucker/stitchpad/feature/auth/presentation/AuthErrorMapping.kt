@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.feature.auth.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
-import org.jetbrains.compose.resources.StringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_email_in_use
 import stitchpad.composeapp.generated.resources.error_invalid_credentials

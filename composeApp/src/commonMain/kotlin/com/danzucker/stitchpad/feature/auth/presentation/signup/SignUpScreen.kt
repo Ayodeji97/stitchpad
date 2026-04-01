@@ -100,7 +100,9 @@ fun SignUpScreen(
                 label = { Text("Full name") },
                 isError = state.displayNameError != null,
                 supportingText = state.displayNameError?.let { error ->
-                    { Text(error.asString()) }
+                    {
+                        Text(error.asString())
+                    }
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 singleLine = true,
@@ -114,7 +116,9 @@ fun SignUpScreen(
                 label = { Text("Email") },
                 isError = state.emailError != null,
                 supportingText = state.emailError?.let { error ->
-                    { Text(error.asString()) }
+                    {
+                        Text(error.asString())
+                    }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -131,7 +135,9 @@ fun SignUpScreen(
                 label = { Text("Password") },
                 isError = state.passwordError != null,
                 supportingText = state.passwordError?.let { error ->
-                    { Text(error.asString()) }
+                    {
+                        Text(error.asString())
+                    }
                 },
                 visualTransformation = if (state.isPasswordVisible) {
                     VisualTransformation.None
@@ -153,7 +159,9 @@ fun SignUpScreen(
                 label = { Text("Confirm password") },
                 isError = state.confirmPasswordError != null,
                 supportingText = state.confirmPasswordError?.let { error ->
-                    { Text(error.asString()) }
+                    {
+                        Text(error.asString())
+                    }
                 },
                 visualTransformation = if (state.isPasswordVisible) {
                     VisualTransformation.None

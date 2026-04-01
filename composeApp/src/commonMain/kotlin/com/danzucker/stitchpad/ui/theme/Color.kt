@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 
 val LightColorScheme = lightColorScheme(
     primary = DesignTokens.primary500,
-    onPrimary = DesignTokens.neutral800,           // Dark text on saffron — NOT white
+    onPrimary = DesignTokens.neutral800, // Dark text on saffron — NOT white
     primaryContainer = DesignTokens.primary50,
     onPrimaryContainer = DesignTokens.primary900,
     secondary = DesignTokens.primary600,
@@ -29,7 +29,7 @@ val LightColorScheme = lightColorScheme(
 
 val DarkColorScheme = darkColorScheme(
     primary = DesignTokens.primary500,
-    onPrimary = Color.White,                        // White text on saffron in dark mode
+    onPrimary = Color.White, // White text on saffron in dark mode
     primaryContainer = DesignTokens.primary900,
     onPrimaryContainer = DesignTokens.primary100,
     secondary = DesignTokens.primary400,
