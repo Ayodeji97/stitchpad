@@ -31,8 +31,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -206,5 +208,32 @@ fun SignUpScreen(
             }
             Spacer(modifier = Modifier.height(DesignTokens.space10))
         }
+    }
+}
+
+@Composable
+@Preview
+private fun SignUpScreenPreview() {
+    StitchPadTheme {
+        SignUpScreen(
+            state = SignUpState(),
+            onAction = {}
+        )
+    }
+}
+
+@Composable
+@Preview
+private fun SignUpScreenFilledPreview() {
+    StitchPadTheme {
+        SignUpScreen(
+            state = SignUpState(
+                displayName = "Ade Fashions",
+                email = "ade@gmail.com",
+                password = "password123",
+                confirmPassword = "password123"
+            ),
+            onAction = {}
+        )
     }
 }

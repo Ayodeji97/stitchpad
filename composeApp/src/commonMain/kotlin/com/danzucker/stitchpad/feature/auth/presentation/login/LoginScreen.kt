@@ -29,8 +29,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -167,5 +169,45 @@ fun LoginScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+@Preview
+private fun LoginScreenPreview() {
+    StitchPadTheme {
+        LoginScreen(
+            state = LoginState(),
+            onAction = {}
+        )
+    }
+}
+
+@Composable
+@Preview
+private fun LoginScreenFilledPreview() {
+    StitchPadTheme {
+        LoginScreen(
+            state = LoginState(
+                email = "tailor@stitchpad.app",
+                password = "password123"
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Composable
+@Preview
+private fun LoginScreenLoadingPreview() {
+    StitchPadTheme {
+        LoginScreen(
+            state = LoginState(
+                email = "tailor@stitchpad.app",
+                password = "password123",
+                isLoading = true
+            ),
+            onAction = {}
+        )
     }
 }
