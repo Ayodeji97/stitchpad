@@ -1,10 +1,13 @@
 package com.danzucker.stitchpad
 
 import android.app.Application
+import org.koin.android.ext.koin.androidContext
 
 class StitchPadApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        initKoin()
+        initKoin {
+            androidContext(this@StitchPadApplication)
+        }
     }
 }
