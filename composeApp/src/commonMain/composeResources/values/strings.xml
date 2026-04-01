@@ -28,4 +28,16 @@
     <string name="signup_button">Create Account</string>
     <string name="signup_have_account">Already have an account?</string>
     <string name="signup_sign_in">Sign In</string>
+    <!-- Splash -->
+    <string name="splash_tagline">Your tailor\'s notebook</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title_1">Never lose a customer\'s measurements again</string>
+    <string name="onboarding_subtitle_1">Store chest, waist, hip and all body measurements safely in one place.</string>
+    <string name="onboarding_title_2">Track orders from cutting to delivery</string>
+    <string name="onboarding_subtitle_2">Know exactly which orders are pending, in progress, or ready for pickup.</string>
+    <string name="onboarding_title_3">Your tailor\'s notebook</string>
+    <string name="onboarding_subtitle_3">Simple, fast, and built for fashion designers who work on their phones.</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_get_started">Get Started</string>
 </resources>

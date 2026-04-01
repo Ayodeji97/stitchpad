@@ -36,6 +36,9 @@ Pods/
 # Node (if any tooling uses it)
 node_modules/
 
+# Superpowers brainstorm mockups
+.superpowers/
+
 # Misc
 *.log
 *.tmp

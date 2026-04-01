@@ -3,6 +3,12 @@ package com.danzucker.stitchpad.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
+data object SplashRoute
+
+@Serializable
+data object OnboardingRoute
+
+@Serializable
 data object LoginRoute
 
 @Serializable
