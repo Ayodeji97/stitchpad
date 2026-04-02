@@ -1,18 +1,24 @@
 package com.danzucker.stitchpad.feature.auth.presentation.login
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -24,13 +30,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.onboarding.presentation.components.StitchPadLogo
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -74,6 +83,11 @@ fun LoginScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (LoginAction) -> Unit
 ) {
+    val inputColors = OutlinedTextFieldDefaults.colors(
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -81,108 +95,150 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = DesignTokens.space4),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "Welcome back",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(DesignTokens.space2))
-            Text(
-                text = "Sign in to StitchPad",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(DesignTokens.space8))
-
-            OutlinedTextField(
-                value = state.email,
-                onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
-                label = { Text("Email") },
-                isError = state.emailError != null,
-                supportingText = state.emailError?.let { error ->
-                    {
-                        Text(error.asString())
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(DesignTokens.space3))
-
-            OutlinedTextField(
-                value = state.password,
-                onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
-                label = { Text("Password") },
-                isError = state.passwordError != null,
-                supportingText = state.passwordError?.let { error ->
-                    {
-                        Text(error.asString())
-                    }
-                },
-                visualTransformation = if (state.isPasswordVisible) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(DesignTokens.space6))
-
-            Button(
-                onClick = { onAction(LoginAction.OnLoginClick) },
-                enabled = !state.isLoading,
-                modifier = Modifier.fillMaxWidth()
+            // Saffron header with logo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(DesignTokens.primary500),
+                contentAlignment = Alignment.Center
             ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("Sign In")
-                }
+                StitchPadLogo(size = 64.dp)
             }
-            Spacer(modifier = Modifier.height(DesignTokens.space4))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            // White card overlapping header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = (-24).dp)
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = DesignTokens.space4, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Don't have an account?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Welcome back!",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                TextButton(onClick = { onAction(LoginAction.OnSignUpClick) }) {
-                    Text("Sign Up")
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Email field
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Email",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = state.email,
+                        onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
+                        placeholder = { Text("tailor@gmail.com") },
+                        isError = state.emailError != null,
+                        supportingText = state.emailError?.let { error ->
+                            {
+                                Text(error.asString())
+                            }
+                        },
+                        colors = inputColors,
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.height(DesignTokens.space3))
+
+                // Password field
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Password",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = state.password,
+                        onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
+                        placeholder = { Text("••••••••") },
+                        isError = state.passwordError != null,
+                        supportingText = state.passwordError?.let { error ->
+                            {
+                                Text(error.asString())
+                            }
+                        } ?: {
+                            Text(
+                                text = "At least 6 characters",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        colors = inputColors,
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        visualTransformation = if (state.isPasswordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Sign In button
+                Button(
+                    onClick = { onAction(LoginAction.OnLoginClick) },
+                    enabled = !state.isLoading,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Sign In")
+                    }
+                }
+                Spacer(modifier = Modifier.height(DesignTokens.space4))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Don't have an account?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { onAction(LoginAction.OnSignUpClick) }) {
+                        Text("Sign Up")
+                    }
                 }
             }
         }
     }
 }
 
+@Suppress("UnusedPrivateMember")
 @Composable
 @Preview
 private fun LoginScreenPreview() {
     StitchPadTheme {
-        LoginScreen(
-            state = LoginState(),
-            onAction = {}
-        )
+        LoginScreen(state = LoginState(), onAction = {})
     }
 }
 
+@Suppress("UnusedPrivateMember")
 @Composable
 @Preview
 private fun LoginScreenFilledPreview() {
@@ -191,21 +247,6 @@ private fun LoginScreenFilledPreview() {
             state = LoginState(
                 email = "tailor@stitchpad.app",
                 password = "password123"
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Composable
-@Preview
-private fun LoginScreenLoadingPreview() {
-    StitchPadTheme {
-        LoginScreen(
-            state = LoginState(
-                email = "tailor@stitchpad.app",
-                password = "password123",
-                isLoading = true
             ),
             onAction = {}
         )

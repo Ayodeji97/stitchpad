@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -88,8 +87,11 @@ fun OnboardingScreen(
                             .width(if (isActive) 24.dp else 8.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(
-                                if (isActive) DesignTokens.primary500
-                                else DesignTokens.neutral200
+                                if (isActive) {
+                                    DesignTokens.primary500
+                                } else {
+                                    DesignTokens.neutral200
+                                }
                             )
                     )
                 }
