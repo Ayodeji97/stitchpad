@@ -14,8 +14,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -193,9 +197,17 @@ fun SignUpScreen(
                             IconButton(
                                 onClick = { onAction(SignUpAction.OnTogglePasswordVisibility) }
                             ) {
-                                Text(
-                                    text = if (state.isPasswordVisible) "🙈" else "👁",
-                                    style = MaterialTheme.typography.bodyLarge
+                                Icon(
+                                    imageVector = if (state.isPasswordVisible) {
+                                        Icons.Outlined.VisibilityOff
+                                    } else {
+                                        Icons.Outlined.Visibility
+                                    },
+                                    contentDescription = if (state.isPasswordVisible) {
+                                        "Hide password"
+                                    } else {
+                                        "Show password"
+                                    }
                                 )
                             }
                         },
@@ -232,9 +244,17 @@ fun SignUpScreen(
                             IconButton(
                                 onClick = { onAction(SignUpAction.OnTogglePasswordVisibility) }
                             ) {
-                                Text(
-                                    text = if (state.isPasswordVisible) "🙈" else "👁",
-                                    style = MaterialTheme.typography.bodyLarge
+                                Icon(
+                                    imageVector = if (state.isPasswordVisible) {
+                                        Icons.Outlined.VisibilityOff
+                                    } else {
+                                        Icons.Outlined.Visibility
+                                    },
+                                    contentDescription = if (state.isPasswordVisible) {
+                                        "Hide password"
+                                    } else {
+                                        "Show password"
+                                    }
                                 )
                             }
                         },
