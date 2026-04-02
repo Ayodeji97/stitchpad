@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -84,8 +85,8 @@ fun SignUpScreen(
     onAction: (SignUpAction) -> Unit
 ) {
     val inputColors = OutlinedTextFieldDefaults.colors(
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+        focusedContainerColor = MaterialTheme.colorScheme.surface
     )
 
     Scaffold(
@@ -112,6 +113,7 @@ fun SignUpScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .offset(y = (-24).dp)
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .background(MaterialTheme.colorScheme.surface)
@@ -187,6 +189,16 @@ fun SignUpScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { onAction(SignUpAction.OnTogglePasswordVisibility) }
+                            ) {
+                                Text(
+                                    text = if (state.isPasswordVisible) "🙈" else "👁",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        },
                         colors = inputColors,
                         shape = RoundedCornerShape(DesignTokens.radiusMd),
                         visualTransformation = if (state.isPasswordVisible) {
@@ -214,6 +226,16 @@ fun SignUpScreen(
                         supportingText = state.confirmPasswordError?.let { error ->
                             {
                                 Text(error.asString())
+                            }
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { onAction(SignUpAction.OnTogglePasswordVisibility) }
+                            ) {
+                                Text(
+                                    text = if (state.isPasswordVisible) "🙈" else "👁",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                             }
                         },
                         colors = inputColors,
