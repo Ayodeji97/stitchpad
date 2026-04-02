@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.auth.presentation.signup
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -296,14 +297,21 @@ fun SignUpScreen(
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space4))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = "Already have an account?",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     TextButton(onClick = { onAction(SignUpAction.OnLoginClick) }) {
-                        Text("Log in")
+                        Text(
+                            text = "Log in",
+                            color = DesignTokens.primary500
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space12))
