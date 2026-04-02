@@ -20,7 +20,7 @@ kover = "0.9.1"
 kotlin = "2.3.20"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
-material3 = "1.10.0-alpha05"
+material3 = "1.11.0-alpha05"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
