@@ -311,12 +311,12 @@ fun SignUpScreen(
                         text = "Log in",
                         style = MaterialTheme.typography.labelLarge,
                         color = DesignTokens.primary500,
-                        modifier = Modifier.clickable {
-                            onAction(SignUpAction.OnLoginClick)
-                        }
+                        modifier = Modifier
+                            .clickable { onAction(SignUpAction.OnLoginClick) }
+                            .padding(DesignTokens.space2)
                     )
                 }
-                Spacer(modifier = Modifier.height(DesignTokens.space12))
+                Spacer(modifier = Modifier.height(DesignTokens.space10))
             }
         }
     }
