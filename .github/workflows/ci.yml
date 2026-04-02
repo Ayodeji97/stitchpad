@@ -10,6 +10,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   detekt:
     runs-on: ubuntu-latest
@@ -32,6 +37,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+
       - name: Create google-services.json for CI
         run: |
           cat > composeApp/google-services.json << 'GSEOF'
@@ -41,8 +47,57 @@ jobs:
             "configuration_version": "1"
           }
           GSEOF
-      - run: ./gradlew :composeApp:assembleDebug
-      - run: ./gradlew :composeApp:allTests
+
+      - name: Build Android debug APK
+        run: ./gradlew :composeApp:assembleDebug
+
+      - name: Run tests
+        run: ./gradlew :composeApp:allTests
+
+      - name: Generate coverage report
+        run: ./gradlew :composeApp:koverXmlReport :composeApp:koverHtmlReport
+        if: always()
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: composeApp/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: composeApp/build/reports/tests/
+          retention-days: 14
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: composeApp/build/reports/kover/
+          retention-days: 14
+
+      - name: Test results summary
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Tests
+          path: composeApp/build/test-results/**/TEST-*.xml
+          reporter: java-junit
+
+      - name: Coverage PR comment
+        uses: mi-kas/kover-report@v1
+        if: github.event_name == 'pull_request'
+        with:
+          path: composeApp/build/reports/kover/report.xml
+          title: Code Coverage
+          update-comment: true
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
 
   build-ios:
     runs-on: macos-14
@@ -54,4 +109,25 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Cache Kotlin/Native compiler
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      - name: Build iOS framework
+        run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Run iOS tests
+        run: ./gradlew :composeApp:iosSimulatorArm64Test
+        continue-on-error: true
+
+      - name: Upload iOS test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-reports
+          path: composeApp/build/reports/tests/iosSimulatorArm64Test/
+          retention-days: 14

@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -101,4 +102,20 @@ android {
 
 dependencies {
     debugImplementation(libs.compose.uiTooling)
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                packages(
+                    "com.danzucker.stitchpad.di",
+                    "com.danzucker.stitchpad.navigation",
+                    "com.danzucker.stitchpad.ui.theme",
+                    "com.danzucker.stitchpad.core.data.dto"
+                )
+                annotatedBy("androidx.compose.runtime.Composable")
+            }
+        }
+    }
 }

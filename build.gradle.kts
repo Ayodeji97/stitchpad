@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlinx.serialization) apply false
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.detekt)
+    alias(libs.plugins.kover) apply false
 }
 
 detekt {
