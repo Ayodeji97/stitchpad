@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingScreen
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashScreen
+import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -80,8 +81,17 @@ fun StitchPadNavHost(
             SignUpRoot(
                 onNavigateToLogin = { navController.navigateUp() },
                 onNavigateToHome = {
-                    navController.navigate(HomeRoute) {
+                    navController.navigate(WorkshopSetupRoute) {
                         popUpTo(LoginRoute) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable<WorkshopSetupRoute> {
+            WorkshopSetupRoot(
+                onNavigateToHome = {
+                    navController.navigate(HomeRoute) {
+                        popUpTo(WorkshopSetupRoute) { inclusive = true }
                     }
                 }
             )
