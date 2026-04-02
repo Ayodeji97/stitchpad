@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.feature.auth.data.EmailPatternValidator
 import com.danzucker.stitchpad.feature.auth.data.FirebaseAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -13,6 +15,7 @@ import org.koin.dsl.module
 
 val authDataModule = module {
     singleOf(::FirebaseAuthRepository) bind AuthRepository::class
+    singleOf(::FirebaseUserRepository) bind UserRepository::class
     singleOf(::EmailPatternValidator) bind PatternValidator::class
 }
 
