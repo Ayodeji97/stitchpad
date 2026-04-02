@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpViewModel
+import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupViewModel
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
@@ -22,4 +23,5 @@ val authDataModule = module {
 val authPresentationModule = module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::SignUpViewModel)
+    viewModelOf(::WorkshopSetupViewModel)
 }

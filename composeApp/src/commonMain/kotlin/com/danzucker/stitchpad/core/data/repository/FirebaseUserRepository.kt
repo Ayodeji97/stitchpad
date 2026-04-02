@@ -4,8 +4,8 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
-import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.FieldValue
+import dev.gitlive.firebase.firestore.FirebaseFirestore
 
 class FirebaseUserRepository(
     private val firestore: FirebaseFirestore
@@ -30,7 +30,7 @@ class FirebaseUserRepository(
                 merge = true
             )
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
