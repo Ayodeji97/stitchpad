@@ -306,7 +306,7 @@ fun SignUpScreen(
                         Text("Log in")
                     }
                 }
-                Spacer(modifier = Modifier.height(DesignTokens.space6))
+                Spacer(modifier = Modifier.height(DesignTokens.space12))
             }
         }
     }
