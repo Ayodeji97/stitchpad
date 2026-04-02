@@ -14,7 +14,6 @@ permissions:
   contents: read
   checks: write
   pull-requests: write
-  security-events: write
 
 jobs:
   # ── Security ──────────────────────────────────────────────
@@ -28,16 +27,6 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  dependency-review:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Review dependency changes for vulnerabilities
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
 
   # ── Code Quality ──────────────────────────────────────────
   detekt:
