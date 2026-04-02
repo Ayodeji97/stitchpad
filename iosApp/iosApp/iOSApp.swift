@@ -4,7 +4,7 @@ import ComposeApp
 @main
 struct iOSApp: App {
     init() {
-        StitchPadAppKt.doInitKoin()
+        StitchPadAppKt.doInitKoin(platformConfig: { _ in })
     }
 
     var body: some Scene {
