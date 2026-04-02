@@ -1,11 +1,21 @@
 import SwiftUI
 import ComposeApp
+import FirebaseCore
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        FirebaseApp.configure()
+        StitchPadAppKt.doInitKoin(platformConfig: { _ in })
+        return true
+    }
+}
 
 @main
 struct iOSApp: App {
-    init() {
-        StitchPadAppKt.doInitKoin(platformConfig: { _ in })
-    }
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
         WindowGroup {
