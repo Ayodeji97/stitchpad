@@ -198,7 +198,8 @@ fun LoginScreen(
                                         "Hide password"
                                     } else {
                                         "Show password"
-                                    }
+                                    },
+                                    tint = DesignTokens.neutral400
                                 )
                             }
                         },

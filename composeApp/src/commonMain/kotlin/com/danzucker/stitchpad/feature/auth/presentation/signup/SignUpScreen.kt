@@ -207,7 +207,8 @@ fun SignUpScreen(
                                         "Hide password"
                                     } else {
                                         "Show password"
-                                    }
+                                    },
+                                    tint = DesignTokens.neutral400
                                 )
                             }
                         },
@@ -254,7 +255,8 @@ fun SignUpScreen(
                                         "Hide password"
                                     } else {
                                         "Show password"
-                                    }
+                                    },
+                                    tint = DesignTokens.neutral400
                                 )
                             }
                         },
