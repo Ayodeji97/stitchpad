@@ -129,13 +129,21 @@ fun WorkshopSetupScreen(
                 LabeledField(label = "Business name") {
                     OutlinedTextField(
                         value = state.businessName,
-                        onValueChange = { onAction(WorkshopSetupAction.OnBusinessNameChange(it)) },
+                        onValueChange = { if (it.length <= 50) onAction(WorkshopSetupAction.OnBusinessNameChange(it)) },
                         placeholder = { Text("e.g. Ade Fashions") },
+                        isError = state.businessNameError != null,
                         supportingText = {
-                            Text(
-                                text = "Shown on your dashboard. You can change this later.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (state.businessNameError != null) {
+                                Text(
+                                    text = state.businessNameError,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Text(
+                                    text = "Shown on your dashboard. You can change this later.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         },
                         colors = inputColors,
                         shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -151,11 +159,19 @@ fun WorkshopSetupScreen(
                         value = state.phone,
                         onValueChange = { onAction(WorkshopSetupAction.OnPhoneChange(it)) },
                         placeholder = { Text("+234 801 234 5678") },
+                        isError = state.phoneError != null,
                         supportingText = {
-                            Text(
-                                text = "For your profile, not shared with customers.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (state.phoneError != null) {
+                                Text(
+                                    text = state.phoneError,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Text(
+                                    text = "For your profile, not shared with customers.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         },
                         colors = inputColors,
                         shape = RoundedCornerShape(DesignTokens.radiusMd),

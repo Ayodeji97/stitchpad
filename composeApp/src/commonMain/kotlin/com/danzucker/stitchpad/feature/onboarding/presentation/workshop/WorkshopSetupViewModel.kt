@@ -27,10 +27,10 @@ class WorkshopSetupViewModel(
     fun onAction(action: WorkshopSetupAction) {
         when (action) {
             is WorkshopSetupAction.OnBusinessNameChange -> {
-                _state.update { it.copy(businessName = action.name) }
+                _state.update { it.copy(businessName = action.name, businessNameError = null) }
             }
             is WorkshopSetupAction.OnPhoneChange -> {
-                _state.update { it.copy(phone = action.phone) }
+                _state.update { it.copy(phone = action.phone, phoneError = null) }
             }
             WorkshopSetupAction.OnContinueClick -> onContinue()
             WorkshopSetupAction.OnSkipClick -> {
@@ -41,7 +41,40 @@ class WorkshopSetupViewModel(
         }
     }
 
+    private fun validate(): Boolean {
+        val currentState = _state.value
+        var isValid = true
+
+        if (currentState.businessName.isNotBlank() && currentState.businessName.trim().length < 2) {
+            _state.update { it.copy(businessNameError = "Business name must be at least 2 characters") }
+            isValid = false
+        }
+
+        if (currentState.phone.isNotBlank()) {
+            val digitsOnly = currentState.phone.filter { it.isDigit() }
+            val hasInvalidChars = currentState.phone.any { !it.isDigit() && it !in "+- ()" }
+            when {
+                hasInvalidChars -> {
+                    _state.update { it.copy(phoneError = "Enter a valid phone number") }
+                    isValid = false
+                }
+                digitsOnly.length < 7 -> {
+                    _state.update { it.copy(phoneError = "Phone number is too short") }
+                    isValid = false
+                }
+                digitsOnly.length > 15 -> {
+                    _state.update { it.copy(phoneError = "Phone number is too long") }
+                    isValid = false
+                }
+            }
+        }
+
+        return isValid
+    }
+
     private fun onContinue() {
+        if (!validate()) return
+
         val currentState = _state.value
         val hasData = currentState.businessName.isNotBlank() || currentState.phone.isNotBlank()
 

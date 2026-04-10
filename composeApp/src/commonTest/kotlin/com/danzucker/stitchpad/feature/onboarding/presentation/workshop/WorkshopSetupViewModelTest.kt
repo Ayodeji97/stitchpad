@@ -81,13 +81,13 @@ class WorkshopSetupViewModelTest {
 
         viewModel = WorkshopSetupViewModel(userRepository, authRepository)
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
-        viewModel.onAction(WorkshopSetupAction.OnPhoneChange("+234801"))
+        viewModel.onAction(WorkshopSetupAction.OnPhoneChange("+2348012345678"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
 
         val event = viewModel.events.first()
         assertIs<WorkshopSetupEvent.NavigateToHome>(event)
         assertEquals("Ade Fashions", userRepository.lastBusinessName)
-        assertEquals("+234801", userRepository.lastPhone)
+        assertEquals("+2348012345678", userRepository.lastPhone)
     }
 
     @Test
