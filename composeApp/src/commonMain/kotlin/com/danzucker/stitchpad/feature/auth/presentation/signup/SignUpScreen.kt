@@ -67,11 +67,13 @@ fun SignUpRoot(
             SignUpEvent.NavigateToLogin -> onNavigateToLogin()
             SignUpEvent.NavigateToHome -> onNavigateToHome()
             is SignUpEvent.ShowError -> {
-                val message = when (val text = event.message) {
-                    is UiText.DynamicString -> text.value
-                    is UiText.StringResourceText -> text.id.toString()
+                scope.launch {
+                    val message = when (val text = event.message) {
+                        is UiText.DynamicString -> text.value
+                        is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
+                    }
+                    snackbarHostState.showSnackbar(message)
                 }
-                scope.launch { snackbarHostState.showSnackbar(message) }
             }
         }
     }
