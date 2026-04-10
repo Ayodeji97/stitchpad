@@ -137,7 +137,7 @@ fun SignUpScreen(
                 LabeledField(label = "Full name") {
                     OutlinedTextField(
                         value = state.displayName,
-                        onValueChange = { onAction(SignUpAction.OnDisplayNameChange(it)) },
+                        onValueChange = { if (it.length <= 50) onAction(SignUpAction.OnDisplayNameChange(it)) },
                         placeholder = { Text("Ade Fashions") },
                         isError = state.displayNameError != null,
                         supportingText = state.displayNameError?.let { error ->

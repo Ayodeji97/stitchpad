@@ -55,9 +55,26 @@ class SignUpViewModel(
         val currentState = _state.value
         var hasError = false
 
-        if (currentState.displayName.isBlank()) {
-            _state.update { it.copy(displayNameError = UiText.DynamicString("Name is required")) }
-            hasError = true
+        val namePattern = Regex("^[\\p{L} '\\-]+$")
+        when {
+            currentState.displayName.isBlank() -> {
+                _state.update { it.copy(displayNameError = UiText.DynamicString("Full name is required")) }
+                hasError = true
+            }
+            currentState.displayName.trim().length < 2 -> {
+                _state.update { it.copy(displayNameError = UiText.DynamicString("Name must be at least 2 characters")) }
+                hasError = true
+            }
+            !namePattern.matches(currentState.displayName.trim()) -> {
+                _state.update {
+                    it.copy(
+                        displayNameError = UiText.DynamicString(
+                            "Name can only contain letters, spaces, hyphens, and apostrophes"
+                        )
+                    )
+                }
+                hasError = true
+            }
         }
         if (!emailValidator.matches(currentState.email)) {
             _state.update { it.copy(emailError = UiText.DynamicString("Invalid email format")) }
