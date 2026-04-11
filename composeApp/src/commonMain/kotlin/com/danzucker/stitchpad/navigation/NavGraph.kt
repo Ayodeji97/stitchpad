@@ -117,7 +117,7 @@ fun StitchPadNavHost(
                 },
                 onNavigateToLogin = {
                     navController.navigate(LoginRoute) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo<LoginRoute> { inclusive = true }
                     }
                 }
             )
