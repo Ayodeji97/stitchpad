@@ -117,19 +117,25 @@ fun StitchPadNavHost(
                 },
                 onNavigateToLogin = {
                     navController.navigate(LoginRoute) {
-                        popUpTo<LoginRoute> { inclusive = true }
+                        popUpTo<WorkshopSetupRoute> { inclusive = true }
                     }
                 }
             )
         }
         composable<HomeRoute> {
-            HomePlaceholder()
+            HomePlaceholder(
+                onSignedOut = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo(HomeRoute) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
 
 @Composable
-private fun HomePlaceholder() {
+private fun HomePlaceholder(onSignedOut: () -> Unit) {
     val authRepository: AuthRepository = koinInject()
     val scope = rememberCoroutineScope()
 
@@ -144,7 +150,10 @@ private fun HomePlaceholder() {
             )
             Button(
                 onClick = {
-                    scope.launch { authRepository.signOut() }
+                    scope.launch {
+                        authRepository.signOut()
+                        onSignedOut()
+                    }
                 },
                 modifier = Modifier.padding(top = DesignTokens.space4)
             ) {
