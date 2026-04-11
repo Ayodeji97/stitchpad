@@ -114,6 +114,11 @@ fun StitchPadNavHost(
                     navController.navigate(HomeRoute) {
                         popUpTo(WorkshopSetupRoute) { inclusive = true }
                     }
+                },
+                onNavigateToLogin = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

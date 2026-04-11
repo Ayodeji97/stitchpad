@@ -62,6 +62,7 @@ import stitchpad.composeapp.generated.resources.workshop_title
 @Composable
 fun WorkshopSetupRoot(
     onNavigateToHome: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: WorkshopSetupViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -71,6 +72,7 @@ fun WorkshopSetupRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             WorkshopSetupEvent.NavigateToHome -> onNavigateToHome()
+            WorkshopSetupEvent.NavigateToLogin -> onNavigateToLogin()
             is WorkshopSetupEvent.ShowError -> {
                 scope.launch {
                     val message = when (val text = event.message) {

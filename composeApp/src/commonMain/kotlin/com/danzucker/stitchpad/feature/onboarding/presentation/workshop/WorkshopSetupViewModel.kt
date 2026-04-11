@@ -17,6 +17,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_phone_too_long
 import stitchpad.composeapp.generated.resources.error_phone_too_short
+import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
 
 class WorkshopSetupViewModel(
@@ -105,9 +106,10 @@ class WorkshopSetupViewModel(
                 if (user == null) {
                     _events.send(
                         WorkshopSetupEvent.ShowError(
-                            UiText.StringResourceText(Res.string.error_unknown)
+                            UiText.StringResourceText(Res.string.error_session_expired)
                         )
                     )
+                    _events.send(WorkshopSetupEvent.NavigateToLogin)
                     return@launch
                 }
 
