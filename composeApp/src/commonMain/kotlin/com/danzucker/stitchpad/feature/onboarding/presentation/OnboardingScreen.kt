@@ -29,6 +29,16 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.components.Onboar
 import com.danzucker.stitchpad.feature.onboarding.presentation.components.OrderTrackingIllustration
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.onboarding_get_started
+import stitchpad.composeapp.generated.resources.onboarding_next
+import stitchpad.composeapp.generated.resources.onboarding_subtitle_1
+import stitchpad.composeapp.generated.resources.onboarding_subtitle_2
+import stitchpad.composeapp.generated.resources.onboarding_subtitle_3
+import stitchpad.composeapp.generated.resources.onboarding_title_1
+import stitchpad.composeapp.generated.resources.onboarding_title_2
+import stitchpad.composeapp.generated.resources.onboarding_title_3
 
 private const val PAGE_COUNT = 3
 
@@ -51,18 +61,18 @@ fun OnboardingScreen(
             when (page) {
                 0 -> OnboardingPage(
                     illustration = { MeasurementIllustration() },
-                    title = "Never lose a customer's measurements again",
-                    subtitle = "Store chest, waist, hip and all body measurements safely in one place."
+                    title = stringResource(Res.string.onboarding_title_1),
+                    subtitle = stringResource(Res.string.onboarding_subtitle_1)
                 )
                 1 -> OnboardingPage(
                     illustration = { OrderTrackingIllustration() },
-                    title = "Track orders from cutting to delivery",
-                    subtitle = "Know exactly which orders are pending, in progress, or ready for pickup."
+                    title = stringResource(Res.string.onboarding_title_2),
+                    subtitle = stringResource(Res.string.onboarding_subtitle_2)
                 )
                 2 -> OnboardingPage(
                     illustration = { NotebookIllustration() },
-                    title = "Your tailor's notebook",
-                    subtitle = "Simple, fast, and built for fashion designers who work on their phones."
+                    title = stringResource(Res.string.onboarding_title_3),
+                    subtitle = stringResource(Res.string.onboarding_subtitle_3)
                 )
             }
         }
@@ -110,13 +120,18 @@ fun OnboardingScreen(
                         onFinished()
                     }
                 },
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = DesignTokens.space4)
                     .height(52.dp)
             ) {
                 Text(
-                    text = if (pagerState.currentPage < PAGE_COUNT - 1) "Next" else "Get Started"
+                    text = if (pagerState.currentPage < PAGE_COUNT - 1) {
+                        stringResource(Res.string.onboarding_next)
+                    } else {
+                        stringResource(Res.string.onboarding_get_started)
+                    }
                 )
             }
         }

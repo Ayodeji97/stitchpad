@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginRoot
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
@@ -23,7 +24,11 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.SplashScreen
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.home_placeholder_title
+import stitchpad.composeapp.generated.resources.home_sign_out
 
 @Composable
 fun StitchPadNavHost(
@@ -42,8 +47,10 @@ fun StitchPadNavHost(
                 onSplashFinished = {
                     scope.launch {
                         val hasSeenOnboarding = onboardingPreferences.hasSeenOnboarding()
+                        val hasCompletedWorkshop = onboardingPreferences.hasCompletedWorkshopSetup()
                         val destination = when {
                             !hasSeenOnboarding -> OnboardingRoute
+                            authRepository.isLoggedIn && !hasCompletedWorkshop -> WorkshopSetupRoute
                             authRepository.isLoggedIn -> HomeRoute
                             else -> LoginRoute
                         }
@@ -70,11 +77,17 @@ fun StitchPadNavHost(
         composable<LoginRoute> {
             LoginRoot(
                 onNavigateToSignUp = { navController.navigate(SignUpRoute) },
+                onNavigateToForgotPassword = { navController.navigate(ForgotPasswordRoute) },
                 onNavigateToHome = {
                     navController.navigate(HomeRoute) {
                         popUpTo(LoginRoute) { inclusive = true }
                     }
                 }
+            )
+        }
+        composable<ForgotPasswordRoute> {
+            ForgotPasswordRoot(
+                onNavigateToLogin = { navController.navigateUp() }
             )
         }
         composable<SignUpRoute> {
@@ -113,7 +126,7 @@ private fun HomePlaceholder() {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Welcome to StitchPad!",
+                text = stringResource(Res.string.home_placeholder_title),
                 style = MaterialTheme.typography.headlineLarge
             )
             Button(
@@ -122,7 +135,7 @@ private fun HomePlaceholder() {
                 },
                 modifier = Modifier.padding(top = DesignTokens.space4)
             ) {
-                Text("Sign Out")
+                Text(stringResource(Res.string.home_sign_out))
             }
         }
     }

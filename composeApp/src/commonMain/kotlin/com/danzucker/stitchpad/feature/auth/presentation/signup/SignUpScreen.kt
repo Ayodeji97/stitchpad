@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,11 +33,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,7 +54,23 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.cd_password_hide
+import stitchpad.composeapp.generated.resources.cd_password_show
+import stitchpad.composeapp.generated.resources.placeholder_email
+import stitchpad.composeapp.generated.resources.placeholder_password
+import stitchpad.composeapp.generated.resources.signup_button
+import stitchpad.composeapp.generated.resources.signup_confirm_password_label
+import stitchpad.composeapp.generated.resources.signup_email_label
+import stitchpad.composeapp.generated.resources.signup_have_account
+import stitchpad.composeapp.generated.resources.signup_log_in
+import stitchpad.composeapp.generated.resources.signup_name_label
+import stitchpad.composeapp.generated.resources.signup_name_placeholder
+import stitchpad.composeapp.generated.resources.signup_password_hint
+import stitchpad.composeapp.generated.resources.signup_password_label
+import stitchpad.composeapp.generated.resources.signup_title
 
 @Composable
 fun SignUpRoot(
@@ -85,6 +105,7 @@ fun SignUpRoot(
     )
 }
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun SignUpScreen(
     state: SignUpState,
@@ -95,6 +116,10 @@ fun SignUpScreen(
         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
         focusedContainerColor = MaterialTheme.colorScheme.surface
     )
+    var hasNameFocused by remember { mutableStateOf(false) }
+    var hasEmailFocused by remember { mutableStateOf(false) }
+    var hasPasswordFocused by remember { mutableStateOf(false) }
+    var hasConfirmPasswordFocused by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -127,18 +152,18 @@ fun SignUpScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Create account",
+                    text = stringResource(Res.string.signup_title),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(28.dp))
 
                 // Full name field
-                LabeledField(label = "Full name") {
+                LabeledField(label = stringResource(Res.string.signup_name_label)) {
                     OutlinedTextField(
                         value = state.displayName,
                         onValueChange = { if (it.length <= 50) onAction(SignUpAction.OnDisplayNameChange(it)) },
-                        placeholder = { Text("Ade Fashions") },
+                        placeholder = { Text(stringResource(Res.string.signup_name_placeholder)) },
                         isError = state.displayNameError != null,
                         supportingText = state.displayNameError?.let { error ->
                             {
@@ -149,17 +174,25 @@ fun SignUpScreen(
                         shape = RoundedCornerShape(DesignTokens.radiusMd),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    hasNameFocused = true
+                                } else if (hasNameFocused) {
+                                    onAction(SignUpAction.OnDisplayNameBlur)
+                                }
+                            }
                     )
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space3))
 
                 // Email field
-                LabeledField(label = "Email") {
+                LabeledField(label = stringResource(Res.string.signup_email_label)) {
                     OutlinedTextField(
                         value = state.email,
                         onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
-                        placeholder = { Text("tailor@gmail.com") },
+                        placeholder = { Text(stringResource(Res.string.placeholder_email)) },
                         isError = state.emailError != null,
                         supportingText = state.emailError?.let { error ->
                             {
@@ -173,17 +206,25 @@ fun SignUpScreen(
                             imeAction = ImeAction.Next
                         ),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    hasEmailFocused = true
+                                } else if (hasEmailFocused) {
+                                    onAction(SignUpAction.OnEmailBlur)
+                                }
+                            }
                     )
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space3))
 
                 // Password field
-                LabeledField(label = "Password") {
+                LabeledField(label = stringResource(Res.string.signup_password_label)) {
                     OutlinedTextField(
                         value = state.password,
                         onValueChange = { onAction(SignUpAction.OnPasswordChange(it)) },
-                        placeholder = { Text("••••••••") },
+                        placeholder = { Text(stringResource(Res.string.placeholder_password)) },
                         isError = state.passwordError != null,
                         supportingText = state.passwordError?.let { error ->
                             {
@@ -191,7 +232,7 @@ fun SignUpScreen(
                             }
                         } ?: {
                             Text(
-                                text = "At least 6 characters",
+                                text = stringResource(Res.string.signup_password_hint),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
@@ -206,9 +247,9 @@ fun SignUpScreen(
                                         Icons.Outlined.Visibility
                                     },
                                     contentDescription = if (state.isPasswordVisible) {
-                                        "Hide password"
+                                        stringResource(Res.string.cd_password_hide)
                                     } else {
-                                        "Show password"
+                                        stringResource(Res.string.cd_password_show)
                                     },
                                     tint = DesignTokens.neutral400
                                 )
@@ -226,17 +267,25 @@ fun SignUpScreen(
                             imeAction = ImeAction.Next
                         ),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    hasPasswordFocused = true
+                                } else if (hasPasswordFocused) {
+                                    onAction(SignUpAction.OnPasswordBlur)
+                                }
+                            }
                     )
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space3))
 
                 // Confirm password field
-                LabeledField(label = "Confirm password") {
+                LabeledField(label = stringResource(Res.string.signup_confirm_password_label)) {
                     OutlinedTextField(
                         value = state.confirmPassword,
                         onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
-                        placeholder = { Text("••••••••") },
+                        placeholder = { Text(stringResource(Res.string.placeholder_password)) },
                         isError = state.confirmPasswordError != null,
                         supportingText = state.confirmPasswordError?.let { error ->
                             {
@@ -245,18 +294,18 @@ fun SignUpScreen(
                         },
                         trailingIcon = {
                             IconButton(
-                                onClick = { onAction(SignUpAction.OnTogglePasswordVisibility) }
+                                onClick = { onAction(SignUpAction.OnToggleConfirmPasswordVisibility) }
                             ) {
                                 Icon(
-                                    imageVector = if (state.isPasswordVisible) {
+                                    imageVector = if (state.isConfirmPasswordVisible) {
                                         Icons.Outlined.VisibilityOff
                                     } else {
                                         Icons.Outlined.Visibility
                                     },
-                                    contentDescription = if (state.isPasswordVisible) {
-                                        "Hide password"
+                                    contentDescription = if (state.isConfirmPasswordVisible) {
+                                        stringResource(Res.string.cd_password_hide)
                                     } else {
-                                        "Show password"
+                                        stringResource(Res.string.cd_password_show)
                                     },
                                     tint = DesignTokens.neutral400
                                 )
@@ -264,7 +313,7 @@ fun SignUpScreen(
                         },
                         colors = inputColors,
                         shape = RoundedCornerShape(DesignTokens.radiusMd),
-                        visualTransformation = if (state.isPasswordVisible) {
+                        visualTransformation = if (state.isConfirmPasswordVisible) {
                             VisualTransformation.None
                         } else {
                             PasswordVisualTransformation()
@@ -274,7 +323,15 @@ fun SignUpScreen(
                             imeAction = ImeAction.Done
                         ),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    hasConfirmPasswordFocused = true
+                                } else if (hasConfirmPasswordFocused) {
+                                    onAction(SignUpAction.OnConfirmPasswordBlur)
+                                }
+                            }
                     )
                 }
                 Spacer(modifier = Modifier.height(28.dp))
@@ -290,10 +347,12 @@ fun SignUpScreen(
                 ) {
                     if (state.isLoading) {
                         CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Register")
+                        Text(stringResource(Res.string.signup_button))
                     }
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space4))
@@ -304,12 +363,12 @@ fun SignUpScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Already have an account? ",
+                        text = stringResource(Res.string.signup_have_account),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Log in",
+                        text = stringResource(Res.string.signup_log_in),
                         style = MaterialTheme.typography.labelLarge,
                         color = DesignTokens.primary500,
                         modifier = Modifier

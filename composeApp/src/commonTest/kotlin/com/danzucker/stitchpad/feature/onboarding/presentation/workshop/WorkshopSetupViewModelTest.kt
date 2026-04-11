@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -24,14 +25,16 @@ class WorkshopSetupViewModelTest {
     private lateinit var viewModel: WorkshopSetupViewModel
     private lateinit var userRepository: FakeUserRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var onboardingPreferences: FakeOnboardingPreferences
 
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         userRepository = FakeUserRepository()
         authRepository = FakeAuthRepository()
+        onboardingPreferences = FakeOnboardingPreferences()
         authRepository.shouldReturnError = null
-        viewModel = WorkshopSetupViewModel(userRepository, authRepository)
+        viewModel = WorkshopSetupViewModel(userRepository, authRepository, onboardingPreferences)
     }
 
     @AfterTest
@@ -79,7 +82,7 @@ class WorkshopSetupViewModelTest {
     fun continueWithDataWritesToRepositoryAndNavigates() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
 
-        viewModel = WorkshopSetupViewModel(userRepository, authRepository)
+        viewModel = WorkshopSetupViewModel(userRepository, authRepository, onboardingPreferences)
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnPhoneChange("+2348012345678"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -102,7 +105,7 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithOnlyBusinessNameWritesToRepository() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(userRepository, authRepository)
+        viewModel = WorkshopSetupViewModel(userRepository, authRepository, onboardingPreferences)
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -116,7 +119,7 @@ class WorkshopSetupViewModelTest {
     fun continueWithRepositoryErrorEmitsShowError() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         userRepository.shouldReturnError = DataError.Network.UNKNOWN
-        viewModel = WorkshopSetupViewModel(userRepository, authRepository)
+        viewModel = WorkshopSetupViewModel(userRepository, authRepository, onboardingPreferences)
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)

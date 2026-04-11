@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.auth.data
 
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
@@ -7,6 +8,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 
 class FakeAuthRepository : AuthRepository {
     var shouldReturnError: AuthError? = null
+    var resetEmailSentTo: String? = null
     private var currentUser: User? = null
 
     override suspend fun signUpWithEmail(
@@ -34,6 +36,12 @@ class FakeAuthRepository : AuthRepository {
         shouldReturnError?.let { return Result.Error(it) }
         val user = currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
         return Result.Success(user)
+    }
+
+    override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        resetEmailSentTo = email
+        return Result.Success(Unit)
     }
 
     override suspend fun signOut(): Result<Unit, AuthError> {

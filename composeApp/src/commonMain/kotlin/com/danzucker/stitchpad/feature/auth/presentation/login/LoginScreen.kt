@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -31,11 +32,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -49,11 +53,26 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.cd_password_hide
+import stitchpad.composeapp.generated.resources.cd_password_show
+import stitchpad.composeapp.generated.resources.login_button
+import stitchpad.composeapp.generated.resources.login_email_label
+import stitchpad.composeapp.generated.resources.login_forgot_password
+import stitchpad.composeapp.generated.resources.login_no_account
+import stitchpad.composeapp.generated.resources.login_password_hint
+import stitchpad.composeapp.generated.resources.login_password_label
+import stitchpad.composeapp.generated.resources.login_sign_up
+import stitchpad.composeapp.generated.resources.login_title
+import stitchpad.composeapp.generated.resources.placeholder_email
+import stitchpad.composeapp.generated.resources.placeholder_password
 
 @Composable
 fun LoginRoot(
     onNavigateToSignUp: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     onNavigateToHome: () -> Unit,
     viewModel: LoginViewModel = koinViewModel()
 ) {
@@ -64,6 +83,7 @@ fun LoginRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             LoginEvent.NavigateToSignUp -> onNavigateToSignUp()
+            LoginEvent.NavigateToForgotPassword -> onNavigateToForgotPassword()
             LoginEvent.NavigateToHome -> onNavigateToHome()
             is LoginEvent.ShowError -> {
                 scope.launch {
@@ -94,6 +114,8 @@ fun LoginScreen(
         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
         focusedContainerColor = MaterialTheme.colorScheme.surface
     )
+    var hasEmailFocused by remember { mutableStateOf(false) }
+    var hasPasswordFocused by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -127,7 +149,7 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Welcome back!",
+                    text = stringResource(Res.string.login_title),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -136,7 +158,7 @@ fun LoginScreen(
                 // Email field
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Email",
+                        text = stringResource(Res.string.login_email_label),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -144,7 +166,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = state.email,
                         onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
-                        placeholder = { Text("tailor@gmail.com") },
+                        placeholder = { Text(stringResource(Res.string.placeholder_email)) },
                         isError = state.emailError != null,
                         supportingText = state.emailError?.let { error ->
                             {
@@ -158,7 +180,15 @@ fun LoginScreen(
                             imeAction = ImeAction.Next
                         ),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    hasEmailFocused = true
+                                } else if (hasEmailFocused) {
+                                    onAction(LoginAction.OnEmailBlur)
+                                }
+                            }
                     )
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space3))
@@ -166,7 +196,7 @@ fun LoginScreen(
                 // Password field
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Password",
+                        text = stringResource(Res.string.login_password_label),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -174,7 +204,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = state.password,
                         onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
-                        placeholder = { Text("••••••••") },
+                        placeholder = { Text(stringResource(Res.string.placeholder_password)) },
                         isError = state.passwordError != null,
                         supportingText = state.passwordError?.let { error ->
                             {
@@ -182,7 +212,7 @@ fun LoginScreen(
                             }
                         } ?: {
                             Text(
-                                text = "At least 6 characters",
+                                text = stringResource(Res.string.login_password_hint),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
@@ -197,9 +227,9 @@ fun LoginScreen(
                                         Icons.Outlined.Visibility
                                     },
                                     contentDescription = if (state.isPasswordVisible) {
-                                        "Hide password"
+                                        stringResource(Res.string.cd_password_hide)
                                     } else {
-                                        "Show password"
+                                        stringResource(Res.string.cd_password_show)
                                     },
                                     tint = DesignTokens.neutral400
                                 )
@@ -217,10 +247,30 @@ fun LoginScreen(
                             imeAction = ImeAction.Done
                         ),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    hasPasswordFocused = true
+                                } else if (hasPasswordFocused) {
+                                    onAction(LoginAction.OnPasswordBlur)
+                                }
+                            }
                     )
                 }
-                Spacer(modifier = Modifier.height(28.dp))
+
+                // Forgot password link
+                TextButton(
+                    onClick = { onAction(LoginAction.OnForgotPasswordClick) },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(
+                        text = stringResource(Res.string.login_forgot_password),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DesignTokens.primary500
+                    )
+                }
+                Spacer(modifier = Modifier.height(DesignTokens.space3))
 
                 // Sign In button
                 Button(
@@ -233,22 +283,24 @@ fun LoginScreen(
                 ) {
                     if (state.isLoading) {
                         CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Sign In")
+                        Text(stringResource(Res.string.login_button))
                     }
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space4))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Don't have an account?",
+                        text = stringResource(Res.string.login_no_account),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     TextButton(onClick = { onAction(LoginAction.OnSignUpClick) }) {
-                        Text("Sign Up")
+                        Text(stringResource(Res.string.login_sign_up))
                     }
                 }
             }

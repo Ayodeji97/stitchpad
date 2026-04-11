@@ -22,6 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import org.jetbrains.compose.resources.stringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.onboarding_status_ready
+import stitchpad.composeapp.generated.resources.onboarding_status_sewing
 
 @Composable
 fun MeasurementIllustration(modifier: Modifier = Modifier) {
@@ -67,8 +71,8 @@ fun OrderTrackingIllustration(modifier: Modifier = Modifier) {
             Text(text = "✂\uFE0F", fontSize = 48.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                StatusBadge(text = "Ready", color = DesignTokens.success500)
-                StatusBadge(text = "Sewing", color = DesignTokens.warning500)
+                StatusBadge(text = stringResource(Res.string.onboarding_status_ready), color = DesignTokens.success500)
+                StatusBadge(text = stringResource(Res.string.onboarding_status_sewing), color = DesignTokens.warning500)
             }
         }
     }
