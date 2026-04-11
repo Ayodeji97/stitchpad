@@ -150,7 +150,11 @@ fun WorkshopSetupScreen(
                 LabeledField(label = stringResource(Res.string.workshop_business_name_label)) {
                     OutlinedTextField(
                         value = state.businessName,
-                        onValueChange = { if (it.length <= 50) onAction(WorkshopSetupAction.OnBusinessNameChange(it)) },
+                        onValueChange = {
+                            if (it.length <= 50) {
+                                onAction(WorkshopSetupAction.OnBusinessNameChange(it))
+                            }
+                        },
                         placeholder = { Text(stringResource(Res.string.workshop_business_name_placeholder)) },
                         isError = state.businessNameError != null,
                         supportingText = {

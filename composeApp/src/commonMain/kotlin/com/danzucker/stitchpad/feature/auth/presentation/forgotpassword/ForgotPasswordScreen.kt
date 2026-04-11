@@ -236,7 +236,10 @@ private fun SuccessContent(
     onBackToLogin: () -> Unit
 ) {
     Spacer(modifier = Modifier.height(16.dp))
-    Text(text = stringResource(Res.string.forgot_password_email_icon), style = MaterialTheme.typography.displayMedium)
+    Text(
+        text = stringResource(Res.string.forgot_password_email_icon),
+        style = MaterialTheme.typography.displayMedium
+    )
     Spacer(modifier = Modifier.height(16.dp))
     Text(
         text = stringResource(Res.string.forgot_password_success_title),

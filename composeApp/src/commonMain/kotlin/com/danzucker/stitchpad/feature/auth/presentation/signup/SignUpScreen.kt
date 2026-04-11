@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation.Companion.keyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Visibility
@@ -162,7 +163,11 @@ fun SignUpScreen(
                 LabeledField(label = stringResource(Res.string.signup_name_label)) {
                     OutlinedTextField(
                         value = state.displayName,
-                        onValueChange = { if (it.length <= 50) onAction(SignUpAction.OnDisplayNameChange(it)) },
+                        onValueChange = {
+                            if (it.length <= 50) {
+                                onAction(SignUpAction.OnDisplayNameChange(it))
+                            }
+                        },
                         placeholder = { Text(stringResource(Res.string.signup_name_placeholder)) },
                         isError = state.displayNameError != null,
                         supportingText = state.displayNameError?.let { error ->
