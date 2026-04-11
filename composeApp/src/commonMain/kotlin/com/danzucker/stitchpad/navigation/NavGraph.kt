@@ -75,12 +75,20 @@ fun StitchPadNavHost(
             )
         }
         composable<LoginRoute> {
+            val scope = rememberCoroutineScope()
             LoginRoot(
                 onNavigateToSignUp = { navController.navigate(SignUpRoute) },
                 onNavigateToForgotPassword = { navController.navigate(ForgotPasswordRoute) },
                 onNavigateToHome = {
-                    navController.navigate(HomeRoute) {
-                        popUpTo(LoginRoute) { inclusive = true }
+                    scope.launch {
+                        val destination = if (!onboardingPreferences.hasCompletedWorkshopSetup()) {
+                            WorkshopSetupRoute
+                        } else {
+                            HomeRoute
+                        }
+                        navController.navigate(destination) {
+                            popUpTo(LoginRoute) { inclusive = true }
+                        }
                     }
                 }
             )

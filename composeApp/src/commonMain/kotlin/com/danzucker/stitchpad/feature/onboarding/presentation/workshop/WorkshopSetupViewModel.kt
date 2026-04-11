@@ -103,7 +103,11 @@ class WorkshopSetupViewModel(
             try {
                 val user = authRepository.getCurrentUser()
                 if (user == null) {
-                    _events.send(WorkshopSetupEvent.NavigateToHome)
+                    _events.send(
+                        WorkshopSetupEvent.ShowError(
+                            UiText.StringResourceText(Res.string.error_unknown)
+                        )
+                    )
                     return@launch
                 }
 
