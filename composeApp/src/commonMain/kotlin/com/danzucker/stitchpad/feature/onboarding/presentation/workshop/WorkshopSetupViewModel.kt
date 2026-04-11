@@ -115,8 +115,8 @@ class WorkshopSetupViewModel(
 
                 val result = userRepository.createUserProfile(
                     userId = user.id,
-                    businessName = currentState.businessName.ifBlank { null },
-                    phone = currentState.phone.ifBlank { null }
+                    businessName = currentState.businessName.trim().ifBlank { null },
+                    phone = currentState.phone.trim().ifBlank { null }
                 )
                 when (result) {
                     is Result.Success -> {

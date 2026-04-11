@@ -18,19 +18,25 @@ class FirebaseUserRepository(
         phone: String?
     ): EmptyResult<DataError.Network> {
         return try {
-            val data = mutableMapOf<String, Any>(
-                "subscriptionTier" to "free",
-                "subscriptionStatus" to "active",
-                "customerCount" to 0,
-                "createdAt" to FieldValue.serverTimestamp,
-                "updatedAt" to FieldValue.serverTimestamp
-            )
+            val document = firestore.collection("users").document(userId)
+            val exists = document.get().exists
+
+            val data = if (exists) {
+                mutableMapOf<String, Any>(
+                    "updatedAt" to FieldValue.serverTimestamp
+                )
+            } else {
+                mutableMapOf(
+                    "subscriptionTier" to "free",
+                    "subscriptionStatus" to "active",
+                    "customerCount" to 0,
+                    "createdAt" to FieldValue.serverTimestamp,
+                    "updatedAt" to FieldValue.serverTimestamp
+                )
+            }
             businessName?.let { data["businessName"] = it }
             phone?.let { data["phone"] = it }
-            firestore.collection("users").document(userId).set(
-                data,
-                merge = true
-            )
+            document.set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
             Result.Error(DataError.Network.UNKNOWN)
