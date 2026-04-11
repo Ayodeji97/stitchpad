@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
-import stitchpad.composeapp.generated.resources.error_phone_invalid
 import stitchpad.composeapp.generated.resources.error_phone_too_long
 import stitchpad.composeapp.generated.resources.error_phone_too_short
 import stitchpad.composeapp.generated.resources.error_unknown
@@ -70,12 +69,7 @@ class WorkshopSetupViewModel(
         val phone = _state.value.phone
         if (phone.isBlank()) return true
         val digitsOnly = phone.filter { it.isDigit() }
-        val hasInvalidChars = phone.any { !it.isDigit() && it !in "+- ()" }
         return when {
-            hasInvalidChars -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_invalid) }
-                false
-            }
             digitsOnly.length < 7 -> {
                 _state.update { it.copy(phoneError = Res.string.error_phone_too_short) }
                 false

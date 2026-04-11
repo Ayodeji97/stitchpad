@@ -18,16 +18,17 @@ class FirebaseUserRepository(
         phone: String?
     ): EmptyResult<DataError.Network> {
         return try {
+            val data = mutableMapOf<String, Any>(
+                "subscriptionTier" to "free",
+                "subscriptionStatus" to "active",
+                "customerCount" to 0,
+                "createdAt" to FieldValue.serverTimestamp,
+                "updatedAt" to FieldValue.serverTimestamp
+            )
+            businessName?.let { data["businessName"] = it }
+            phone?.let { data["phone"] = it }
             firestore.collection("users").document(userId).set(
-                mapOf(
-                    "businessName" to businessName,
-                    "phone" to phone,
-                    "subscriptionTier" to "free",
-                    "subscriptionStatus" to "active",
-                    "customerCount" to 0,
-                    "createdAt" to FieldValue.serverTimestamp,
-                    "updatedAt" to FieldValue.serverTimestamp
-                ),
+                data,
                 merge = true
             )
             Result.Success(Unit)
