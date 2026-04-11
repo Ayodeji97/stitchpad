@@ -22,6 +22,27 @@ detekt {
     )
 }
 
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektFormat") {
+    description = "Auto-corrects Kotlin formatting issues using ktlint rules."
+    autoCorrect = true
+    buildUponDefaultConfig = true
+    config.setFrom("$rootDir/config/detekt/detekt.yml")
+    setSource(
+        files(
+            "composeApp/src/commonMain/kotlin",
+            "composeApp/src/androidMain/kotlin",
+            "composeApp/src/iosMain/kotlin"
+        )
+    )
+    include("**/*.kt", "**/*.kts")
+    reports {
+        html.required.set(false)
+        xml.required.set(false)
+        txt.required.set(false)
+        sarif.required.set(false)
+    }
+}
+
 dependencies {
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${libs.versions.detekt.get()}")
 }

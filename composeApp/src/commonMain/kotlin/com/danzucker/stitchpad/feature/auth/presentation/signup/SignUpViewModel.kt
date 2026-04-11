@@ -13,6 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_invalid_email
+import stitchpad.composeapp.generated.resources.error_name_invalid_chars
+import stitchpad.composeapp.generated.resources.error_name_required
+import stitchpad.composeapp.generated.resources.error_name_too_short
+import stitchpad.composeapp.generated.resources.error_password_too_short
+import stitchpad.composeapp.generated.resources.error_passwords_mismatch
 
 class SignUpViewModel(
     private val authRepository: AuthRepository,
@@ -25,6 +32,9 @@ class SignUpViewModel(
     private val _events = Channel<SignUpEvent>()
     val events = _events.receiveAsFlow()
 
+    private val namePattern = Regex("^[\\p{L} '\\-]+$")
+
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: SignUpAction) {
         when (action) {
             is SignUpAction.OnDisplayNameChange -> {
@@ -42,6 +52,21 @@ class SignUpViewModel(
             SignUpAction.OnTogglePasswordVisibility -> {
                 _state.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
             }
+            SignUpAction.OnToggleConfirmPasswordVisibility -> {
+                _state.update { it.copy(isConfirmPasswordVisible = !it.isConfirmPasswordVisible) }
+            }
+            SignUpAction.OnDisplayNameBlur -> {
+                if (_state.value.displayName.isNotBlank()) validateDisplayName()
+            }
+            SignUpAction.OnEmailBlur -> {
+                if (_state.value.email.isNotBlank()) validateEmail()
+            }
+            SignUpAction.OnPasswordBlur -> {
+                if (_state.value.password.isNotBlank()) validatePassword()
+            }
+            SignUpAction.OnConfirmPasswordBlur -> {
+                if (_state.value.confirmPassword.isNotBlank()) validateConfirmPassword()
+            }
             SignUpAction.OnSignUpClick -> signUp()
             SignUpAction.OnLoginClick -> {
                 viewModelScope.launch {
@@ -51,40 +76,79 @@ class SignUpViewModel(
         }
     }
 
-    private fun signUp() {
-        val currentState = _state.value
-        var hasError = false
+    private fun validateDisplayName(): Boolean {
+        val name = _state.value.displayName
+        return when {
+            name.isBlank() -> {
+                _state.update {
+                    it.copy(displayNameError = UiText.StringResourceText(Res.string.error_name_required))
+                }
+                false
+            }
+            name.trim().length < 2 -> {
+                _state.update {
+                    it.copy(displayNameError = UiText.StringResourceText(Res.string.error_name_too_short))
+                }
+                false
+            }
+            !namePattern.matches(name.trim()) -> {
+                _state.update {
+                    it.copy(displayNameError = UiText.StringResourceText(Res.string.error_name_invalid_chars))
+                }
+                false
+            }
+            else -> true
+        }
+    }
 
-        if (currentState.displayName.isBlank()) {
-            _state.update { it.copy(displayNameError = UiText.DynamicString("Name is required")) }
-            hasError = true
+    private fun validateEmail(): Boolean {
+        if (!emailValidator.matches(_state.value.email)) {
+            _state.update { it.copy(emailError = UiText.StringResourceText(Res.string.error_invalid_email)) }
+            return false
         }
-        if (!emailValidator.matches(currentState.email)) {
-            _state.update { it.copy(emailError = UiText.DynamicString("Invalid email format")) }
-            hasError = true
+        return true
+    }
+
+    private fun validatePassword(): Boolean {
+        if (_state.value.password.length < 6) {
+            _state.update {
+                it.copy(passwordError = UiText.StringResourceText(Res.string.error_password_too_short))
+            }
+            return false
         }
-        if (currentState.password.length < 6) {
-            _state.update { it.copy(passwordError = UiText.DynamicString("Password must be at least 6 characters")) }
-            hasError = true
+        return true
+    }
+
+    private fun validateConfirmPassword(): Boolean {
+        if (_state.value.password != _state.value.confirmPassword) {
+            _state.update {
+                it.copy(
+                    confirmPasswordError = UiText.StringResourceText(Res.string.error_passwords_mismatch)
+                )
+            }
+            return false
         }
-        if (currentState.password != currentState.confirmPassword) {
-            _state.update { it.copy(confirmPasswordError = UiText.DynamicString("Passwords do not match")) }
-            hasError = true
-        }
-        if (hasError) return
+        return true
+    }
+
+    private fun signUp() {
+        val results = listOf(validateDisplayName(), validateEmail(), validatePassword(), validateConfirmPassword())
+        if (results.any { !it }) return
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = authRepository.signUpWithEmail(
-                currentState.email,
-                currentState.password,
-                currentState.displayName
-            )
-            _state.update { it.copy(isLoading = false) }
-
-            when (result) {
-                is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
-                is Result.Error -> _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+            try {
+                val result = authRepository.signUpWithEmail(
+                    _state.value.email,
+                    _state.value.password,
+                    _state.value.displayName
+                )
+                when (result) {
+                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Error -> _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+                }
+            } finally {
+                _state.update { it.copy(isLoading = false) }
             }
         }
     }

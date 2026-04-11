@@ -1,10 +1,14 @@
 package com.danzucker.stitchpad.feature.auth.data
 
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
+import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
+import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
 import kotlin.math.abs
 
@@ -22,7 +26,7 @@ class FirebaseAuthRepository(
             val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
             firebaseUser.updateProfile(displayName = displayName)
             Result.Success(firebaseUser.toDomainUser())
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Result.Error(e.toAuthError())
         }
     }
@@ -35,7 +39,16 @@ class FirebaseAuthRepository(
             val authResult = firebaseAuth.signInWithEmailAndPassword(email, password)
             val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
             Result.Success(firebaseUser.toDomainUser())
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            Result.Error(e.toAuthError())
+        }
+    }
+
+    override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {
+        return try {
+            firebaseAuth.sendPasswordResetEmail(email)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Result.Error(e.toAuthError())
         }
     }
@@ -67,7 +80,12 @@ private fun FirebaseUser.toDomainUser(): User = User(
 )
 
 private fun Exception.toAuthError(): AuthError = when {
+    this is FirebaseAuthUserCollisionException -> AuthError.EMAIL_ALREADY_IN_USE
+    this is FirebaseAuthWeakPasswordException -> AuthError.WEAK_PASSWORD
+    this is FirebaseAuthInvalidCredentialsException -> AuthError.INVALID_CREDENTIALS
     message?.contains("EMAIL_ALREADY_IN_USE", ignoreCase = true) == true -> AuthError.EMAIL_ALREADY_IN_USE
+    message?.contains("email-already-in-use", ignoreCase = true) == true -> AuthError.EMAIL_ALREADY_IN_USE
+    message?.contains("already in use", ignoreCase = true) == true -> AuthError.EMAIL_ALREADY_IN_USE
     message?.contains("WRONG_PASSWORD", ignoreCase = true) == true -> AuthError.INVALID_CREDENTIALS
     message?.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true) == true -> AuthError.INVALID_CREDENTIALS
     message?.contains("USER_NOT_FOUND", ignoreCase = true) == true -> AuthError.USER_NOT_FOUND

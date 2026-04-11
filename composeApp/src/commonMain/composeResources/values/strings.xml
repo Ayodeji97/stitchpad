@@ -9,35 +9,85 @@
     <string name="error_too_many_requests">Too many attempts. Please try again later</string>
     <string name="error_no_internet">No internet connection</string>
     <string name="error_unknown">Something went wrong. Please try again</string>
+    <string name="error_session_expired">Your session has expired. Please sign in again</string>
+
+    <!-- Validation errors -->
+    <string name="error_invalid_email">Invalid email format</string>
+    <string name="error_password_too_short">Password must be at least 6 characters</string>
+    <string name="error_passwords_mismatch">Passwords do not match</string>
+    <string name="error_name_required">Full name is required</string>
+    <string name="error_name_too_short">Name must be at least 2 characters</string>
+    <string name="error_name_invalid_chars">Name can only contain letters, spaces, hyphens, and apostrophes</string>
+    <string name="error_business_name_too_short">Business name must be at least 2 characters</string>
+    <string name="error_phone_invalid">Enter a valid phone number</string>
+    <string name="error_phone_too_short">Phone number is too short</string>
+    <string name="error_phone_too_long">Phone number is too long</string>
+
+    <!-- Common -->
+    <string name="cd_password_show">Show password</string>
+    <string name="cd_password_hide">Hide password</string>
+    <string name="placeholder_email">tailor@gmail.com</string>
+    <string name="placeholder_password">••••••••</string>
 
     <!-- Login screen -->
-    <string name="login_title">Welcome back</string>
-    <string name="login_subtitle">Sign in to StitchPad</string>
+    <string name="login_title">Welcome back!</string>
     <string name="login_email_label">Email</string>
     <string name="login_password_label">Password</string>
+    <string name="login_password_hint">At least 6 characters</string>
     <string name="login_button">Sign In</string>
-    <string name="login_no_account">Don\'t have an account?</string>
+    <string name="login_no_account">Don't have an account?</string>
     <string name="login_sign_up">Sign Up</string>
 
     <!-- Sign up screen -->
     <string name="signup_title">Create account</string>
     <string name="signup_name_label">Full name</string>
+    <string name="signup_name_placeholder">Ade Fashions</string>
     <string name="signup_email_label">Email</string>
     <string name="signup_password_label">Password</string>
+    <string name="signup_password_hint">At least 6 characters</string>
     <string name="signup_confirm_password_label">Confirm password</string>
-    <string name="signup_button">Create Account</string>
+    <string name="signup_button">Register</string>
     <string name="signup_have_account">Already have an account?</string>
-    <string name="signup_sign_in">Sign In</string>
-    <!-- Splash -->
-    <string name="splash_tagline">Your tailor\'s notebook</string>
+    <string name="signup_log_in">Log in</string>
 
-    <!-- Onboarding -->
-    <string name="onboarding_title_1">Never lose a customer\'s measurements again</string>
+    <!-- Workshop setup screen -->
+    <string name="workshop_title">Set up your workshop</string>
+    <string name="workshop_subtitle">Personalise StitchPad for your brand</string>
+    <string name="workshop_business_name_label">Business name</string>
+    <string name="workshop_business_name_placeholder">e.g. Ade Fashions</string>
+    <string name="workshop_business_name_hint">Shown on your dashboard. You can change this later.</string>
+    <string name="workshop_phone_label">Phone number</string>
+    <string name="workshop_phone_placeholder">+234 801 234 5678</string>
+    <string name="workshop_phone_hint">For your profile, not shared with customers.</string>
+    <string name="workshop_continue_button">Continue</string>
+    <string name="workshop_skip">Skip for now</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">Your tailor's notebook</string>
+
+    <!-- Onboarding carousel -->
+    <string name="onboarding_title_1">Never lose a customer's measurements again</string>
     <string name="onboarding_subtitle_1">Store chest, waist, hip and all body measurements safely in one place.</string>
     <string name="onboarding_title_2">Track orders from cutting to delivery</string>
     <string name="onboarding_subtitle_2">Know exactly which orders are pending, in progress, or ready for pickup.</string>
-    <string name="onboarding_title_3">Your tailor\'s notebook</string>
+    <string name="onboarding_title_3">Your tailor's notebook</string>
     <string name="onboarding_subtitle_3">Simple, fast, and built for fashion designers who work on their phones.</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_status_ready">Ready</string>
+    <string name="onboarding_status_sewing">Sewing</string>
+
+    <!-- Forgot password screen -->
+    <string name="forgot_password_email_icon">📧</string>
+    <string name="forgot_password_title">Forgot password?</string>
+    <string name="forgot_password_subtitle">Enter your email and we'll send a reset link</string>
+    <string name="forgot_password_button">Send reset link</string>
+    <string name="forgot_password_back_to_login">Back to login</string>
+    <string name="forgot_password_success_title">Check your inbox</string>
+    <string name="forgot_password_success_message">We've sent a password reset link to %1$s</string>
+    <string name="login_forgot_password">Forgot password?</string>
+
+    <!-- Home placeholder -->
+    <string name="home_placeholder_title">Welcome to StitchPad!</string>
+    <string name="home_sign_out">Sign Out</string>
 </resources>

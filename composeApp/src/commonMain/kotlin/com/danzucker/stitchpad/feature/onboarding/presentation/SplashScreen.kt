@@ -24,6 +24,10 @@ import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.feature.onboarding.presentation.components.StitchPadLogo
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.app_name
+import stitchpad.composeapp.generated.resources.splash_tagline
 
 @Composable
 fun SplashScreen(
@@ -53,14 +57,14 @@ fun SplashScreen(
         StitchPadLogo(size = 100.dp)
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "StitchPad",
+            text = stringResource(Res.string.app_name),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = DesignTokens.neutral800
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Your tailor's notebook",
+            text = stringResource(Res.string.splash_tagline),
             fontSize = 14.sp,
             color = DesignTokens.neutral800.copy(alpha = 0.6f)
         )
