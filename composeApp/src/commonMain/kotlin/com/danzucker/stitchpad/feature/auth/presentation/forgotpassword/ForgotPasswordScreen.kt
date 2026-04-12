@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.auth.presentation.forgotpassword
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,12 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -36,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -140,6 +143,7 @@ fun ForgotPasswordScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormContent(
     state: ForgotPasswordState,
@@ -172,23 +176,19 @@ private fun FormContent(
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(6.dp))
-        OutlinedTextField(
+        val emailInteractionSource = remember { MutableInteractionSource() }
+        BasicTextField(
             value = state.email,
             onValueChange = { onAction(ForgotPasswordAction.OnEmailChange(it)) },
-            placeholder = { Text(stringResource(Res.string.placeholder_email)) },
-            isError = state.emailError != null,
-            supportingText = state.emailError?.let { error ->
-                {
-                    Text(error.asString())
-                }
-            },
-            colors = inputColors,
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                color = MaterialTheme.colorScheme.onSurface
+            ),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Done
             ),
-            singleLine = true,
+            interactionSource = emailInteractionSource,
             modifier = Modifier
                 .fillMaxWidth()
                 .onFocusChanged { focusState ->
@@ -197,7 +197,32 @@ private fun FormContent(
                     } else if (hasEmailFocused) {
                         onAction(ForgotPasswordAction.OnEmailBlur)
                     }
-                }
+                },
+            decorationBox = { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = state.email,
+                    innerTextField = innerTextField,
+                    enabled = true,
+                    singleLine = true,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = emailInteractionSource,
+                    isError = state.emailError != null,
+                    placeholder = { Text(stringResource(Res.string.placeholder_email)) },
+                    supportingText = state.emailError?.let { error -> { Text(error.asString()) } },
+                    colors = inputColors,
+                    container = {
+                        OutlinedTextFieldDefaults.ContainerBox(
+                            enabled = true,
+                            isError = state.emailError != null,
+                            interactionSource = emailInteractionSource,
+                            colors = inputColors,
+                            shape = RoundedCornerShape(DesignTokens.radiusMd),
+                            focusedBorderThickness = 1.dp,
+                            unfocusedBorderThickness = 1.dp
+                        )
+                    }
+                )
+            }
         )
     }
     Spacer(modifier = Modifier.height(28.dp))

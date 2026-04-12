@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — UI Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens ─────────────────────────────────────────────── */
+    :root {
+      /* Raw palette */
+      --p50:  #FFF8E7; --p100: #FDEFC4; --p200: #FBDF8A; --p300: #F9CC50;
+      --p400: #F7BB2A; --p500: #E8A800; --p600: #C48E00; --p700: #9E7200;
+      --p800: #7A5800; --p900: #4F3800;
+      --n0:   #FFFFFF; --n50:  #F9F9F8; --n100: #F2F1EF; --n200: #E5E3DF;
+      --n300: #C9C6C0; --n400: #A8A49D; --n500: #7D7970; --n600: #57534C;
+      --n700: #3A3731; --n800: #252320; --n900: #121110;
+      --dk-bg:  #121110; --dk-surf:  #1E1C1A; --dk-surf2: #2A2825;
+      --dk-bdr: #3A3731;
+      --dk-txt: #E5E3DF; --dk-txt2: #A8A49D; --dk-txt3: #7D7970;
+      --err: #D93B3B; --err50: #FCEAEA; --err-dk: #E89090; --err-dk-bg: #3D1515;
+      --suc: #2D9E6B; --suc50: #E8F7F1;
+      /* Spacing */
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s8:32px; --s10:40px; --s12:48px;
+      /* Radius */
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px;
+      /* Typography */
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      /* Durations */
+      --dt:150ms; --dt2:300ms;
+
+      /* ── Semantic (light) ── */
+      --bg:        var(--n50);
+      --surf:      var(--n0);
+      --surf2:     var(--n100);
+      --on-surf:   var(--n800);
+      --on-surf2:  var(--n600);
+      --on-surf3:  var(--n400);
+      --bdr:       var(--n200);
+      --bdr2:      var(--n100);
+      --primary:   var(--p500);
+      --on-pri:    var(--n800);
+      --pri-cont:  var(--p50);
+      --on-pri-c:  var(--p900);
+      --pri-pill:  rgba(232,168,0,.1);
+      --err-c:     var(--err);
+      --err-bg:    var(--err50);
+      --topbar-bg: var(--n0);
+      --nav-bg:    var(--n0);
+      --srch-bg:   var(--n100);
+      --item-bg:   var(--n0);
+      --item-hov:  var(--n50);
+      --field-bg:  var(--n0);
+      --dlg-bg:    var(--n0);
+      --status-col: var(--n800);
+    }
+
+    /* ── Semantic overrides: dark ── */
+    .dark {
+      --bg:        var(--dk-bg);
+      --surf:      var(--dk-surf);
+      --surf2:     var(--dk-surf2);
+      --on-surf:   var(--dk-txt);
+      --on-surf2:  var(--dk-txt2);
+      --on-surf3:  var(--dk-txt3);
+      --bdr:       var(--dk-bdr);
+      --bdr2:      var(--dk-surf2);
+      --primary:   var(--p500);
+      --on-pri:    #ffffff;
+      --pri-cont:  var(--p900);
+      --on-pri-c:  var(--p100);
+      --pri-pill:  rgba(79,56,0,.5);
+      --err-c:     var(--err-dk);
+      --err-bg:    var(--err-dk-bg);
+      --topbar-bg: var(--dk-surf);
+      --nav-bg:    var(--dk-surf);
+      --srch-bg:   var(--dk-surf2);
+      --item-bg:   var(--dk-surf);
+      --item-hov:  var(--dk-surf2);
+      --field-bg:  var(--dk-surf);
+      --dlg-bg:    var(--dk-surf);
+      --status-col: var(--dk-txt);
+    }
+
+    /* ─── Reset & Base ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: var(--font-body); }
+    body { background: #0f0e0d; display: flex; flex-direction: column; align-items: center;
+           min-height: 100vh; padding: var(--s8) var(--s4) var(--s12); gap: var(--s6); }
+
+    /* ─── Page header ────────────────────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; gap: var(--s3);
+      color: #fff; font-size: 13px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; opacity: .65;
+    }
+    .page-header .logo { font-size: 22px; font-weight: 700; color: var(--p500); letter-spacing: -.01em; opacity: 1; }
+
+    /* ─── Screen selector nav ────────────────────────────────────────── */
+    .screen-nav {
+      display: flex; gap: var(--s2); flex-wrap: wrap; justify-content: center;
+    }
+    .screen-btn {
+      padding: 8px 16px; border-radius: var(--r-full);
+      font-family: var(--font-body); font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1.5px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05); color: rgba(255,255,255,.55);
+      transition: all var(--dt); letter-spacing: .04em;
+    }
+    .screen-btn:hover { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.22); }
+    .screen-btn.active { background: var(--p500); color: var(--n800); border-color: var(--p600); }
+
+    /* ─── Phones row ─────────────────────────────────────────────────── */
+    .phones-row {
+      display: flex; gap: var(--s10); flex-wrap: wrap; justify-content: center; align-items: flex-start;
+    }
+    .phone { display: flex; flex-direction: column; align-items: center; gap: var(--s3); }
+    .phone-mode-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,255,255,.35);
+    }
+    .phone-mode-label.light-label { color: rgba(255,220,100,.5); }
+    .phone-mode-label.dark-label  { color: rgba(160,150,255,.45); }
+
+    /* ─── Phone shell ────────────────────────────────────────────────── */
+    .phone-shell {
+      width: 375px; height: 812px; border-radius: 44px;
+      padding: 12px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 32px 80px rgba(0,0,0,.65);
+    }
+    .phone-shell.light-shell { background: var(--n800); }
+    .phone-shell.dark-shell  { background: #0a0908; }
+
+    /* notch */
+    .phone-shell::before {
+      content: ''; position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+      width: 120px; height: 34px; background: #080807; border-radius: var(--r-full); z-index: 10;
+    }
+
+    .phone-screen {
+      width: 100%; height: 100%; border-radius: 34px;
+      background: var(--bg); overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    /* ─── Status bar ─────────────────────────────────────────────────── */
+    .status-bar {
+      height: 52px; padding: 14px var(--s5) 0;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      flex-shrink: 0; background: var(--topbar-bg);
+    }
+    .status-time { font-size: 15px; font-weight: 600; color: var(--status-col); }
+    .status-icons { display: flex; gap: 6px; align-items: center; }
+    .status-icons .material-icons-round { font-size: 16px; color: var(--on-surf2); }
+
+    /* ─── Top App Bar ────────────────────────────────────────────────── */
+    .top-bar {
+      padding: var(--s3) var(--s4) var(--s2);
+      display: flex; align-items: center; gap: var(--s3);
+      background: var(--topbar-bg); border-bottom: 1px solid var(--bdr2);
+      flex-shrink: 0;
+    }
+    .top-bar-title { font-size: 22px; font-weight: 700; color: var(--on-surf); flex: 1; }
+    .top-bar-back {
+      width: 40px; height: 40px; border-radius: var(--r-full);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background var(--dt);
+    }
+    .top-bar-back:hover { background: var(--surf2); }
+    .top-bar-back .material-icons-round { font-size: 24px; color: var(--on-surf); }
+
+    /* ─── Screen content area ────────────────────────────────────────── */
+    .screen-content { flex: 1; overflow-y: auto; scrollbar-width: none; background: var(--bg); }
+    .screen-content::-webkit-scrollbar { display: none; }
+
+    /* ─── Search bar ─────────────────────────────────────────────────── */
+    .search-wrap {
+      padding: var(--s2) var(--s4); background: var(--topbar-bg);
+      border-bottom: 1px solid var(--bdr2); flex-shrink: 0;
+    }
+    .search-field {
+      display: flex; align-items: center; gap: var(--s2);
+      background: var(--srch-bg); border-radius: var(--r-lg);
+      padding: 10px var(--s3); border: 1.5px solid transparent;
+      transition: border-color var(--dt), background var(--dt);
+    }
+    .search-field:focus-within { background: var(--surf); border-color: var(--primary); }
+    .search-field .material-icons-round { font-size: 20px; color: var(--on-surf3); }
+    .search-field input {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-family: var(--font-body); font-size: 15px; color: var(--on-surf);
+    }
+    .search-field input::placeholder { color: var(--on-surf3); }
+
+    /* ─── Customer list ──────────────────────────────────────────────── */
+    .customer-list { display: flex; flex-direction: column; }
+
+    .customer-item {
+      display: flex; align-items: center; gap: var(--s3);
+      padding: var(--s3) var(--s4);
+      background: var(--item-bg);
+      border-bottom: 1px solid var(--bdr2);
+      cursor: pointer;
+      transition: background var(--dt);
+      position: relative; overflow: hidden;
+    }
+    .customer-item:hover { background: var(--item-hov); }
+
+    /* avatar */
+    .avatar {
+      width: 44px; height: 44px; border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700; flex-shrink: 0; letter-spacing: -.01em;
+    }
+    /* Light avatars */
+    .phone-screen:not(.dark) .av-saffron { background: var(--p50);   color: var(--p700); }
+    .phone-screen:not(.dark) .av-blue    { background: #E7F2FC;      color: #2B7FD4; }
+    .phone-screen:not(.dark) .av-green   { background: var(--suc50); color: var(--suc); }
+    .phone-screen:not(.dark) .av-orange  { background: #FEF3E8;      color: #E07B20; }
+    .phone-screen:not(.dark) .av-purple  { background: #F3EAFA;      color: #7B4DB5; }
+    .phone-screen:not(.dark) .av-pink    { background: #FBEAF0;      color: #C4447A; }
+    /* Dark avatars */
+    .phone-screen.dark .av-saffron { background: var(--p900); color: var(--p300); }
+    .phone-screen.dark .av-blue    { background: #0C2A4A;     color: #7BB8F0; }
+    .phone-screen.dark .av-green   { background: #0E3D2A;     color: #5EDBA0; }
+    .phone-screen.dark .av-orange  { background: #3D2510;     color: #F0AA60; }
+    .phone-screen.dark .av-purple  { background: #2D1F3D;     color: #C4A0E8; }
+    .phone-screen.dark .av-pink    { background: #3D152A;     color: #E890B0; }
+
+    .customer-info { flex: 1; min-width: 0; }
+    .customer-name {
+      font-size: 15px; font-weight: 600; color: var(--on-surf);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .customer-phone { font-size: 13px; color: var(--on-surf2); margin-top: 2px; }
+    .chevron { font-size: 20px; color: var(--bdr); }
+
+    /* swipe delete reveal */
+    .swipe-delete {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+      background: var(--err-bg); display: flex; align-items: center; justify-content: center;
+      transform: translateX(100%); transition: transform var(--dt2);
+    }
+    .swipe-delete .material-icons-round { font-size: 22px; color: var(--err-c); }
+    .customer-item.swiped .swipe-delete { transform: translateX(0); }
+    .customer-item.swiped { padding-right: 84px; }
+
+    /* section header */
+    .list-section-header {
+      padding: var(--s2) var(--s4) var(--s1);
+      font-size: 11px; font-weight: 700; color: var(--on-surf3);
+      letter-spacing: .08em; text-transform: uppercase;
+      background: var(--bg);
+    }
+
+    /* ─── Empty state ────────────────────────────────────────────────── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: var(--s4);
+      padding: var(--s12) var(--s8); text-align: center;
+    }
+    .empty-icon {
+      width: 72px; height: 72px; border-radius: var(--r-xl);
+      background: var(--pri-cont);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .empty-icon .material-icons-round { font-size: 36px; color: var(--primary); }
+    .empty-title { font-size: 17px; font-weight: 700; color: var(--on-surf); }
+    .empty-sub   { font-size: 14px; color: var(--on-surf2); line-height: 1.5; }
+
+    /* ─── FAB ────────────────────────────────────────────────────────── */
+    .fab {
+      position: absolute; bottom: 96px; right: var(--s4);
+      width: 60px; height: 60px; border-radius: var(--r-full);
+      background: var(--primary); border: 2px solid var(--p600);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(232,168,0,.4);
+      cursor: pointer; transition: transform var(--dt), box-shadow var(--dt); z-index: 5;
+    }
+    .fab:hover { transform: scale(1.06); box-shadow: 0 6px 22px rgba(232,168,0,.5); }
+    .fab .material-icons-round { font-size: 26px; color: var(--on-pri); font-weight: 700; }
+
+    /* ─── Bottom Navigation ──────────────────────────────────────────── */
+    .bottom-nav {
+      height: 82px; background: var(--nav-bg);
+      border-top: 1px solid var(--bdr2);
+      display: flex; align-items: flex-start; padding-top: var(--s2);
+      flex-shrink: 0;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: var(--s1) 0; cursor: pointer;
+    }
+    .nav-item .material-icons-round { font-size: 24px; color: var(--on-surf3); transition: color var(--dt); }
+    .nav-item span.nav-label { font-size: 11px; font-weight: 600; color: var(--on-surf3); letter-spacing: .01em; }
+    .nav-item .nav-pill {
+      width: 52px; height: 32px; border-radius: var(--r-full);
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--dt);
+    }
+    .nav-item.active .nav-pill { background: var(--pri-pill); }
+    .nav-item.active .material-icons-round { color: var(--p600); }
+    .nav-item.active span.nav-label { color: var(--p600); }
+
+    /* ─── Form fields ────────────────────────────────────────────────── */
+    .form-scroll { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s4); background: var(--bg); }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 11px; font-weight: 700; color: var(--on-surf2); letter-spacing: .06em; }
+    .field-label.error { color: var(--err-c); }
+
+    .text-field {
+      display: flex; align-items: flex-start; gap: var(--s2);
+      border: 1.5px solid var(--bdr); border-radius: var(--r-md);
+      padding: 13px var(--s3); background: var(--field-bg);
+      transition: border-color var(--dt), box-shadow var(--dt);
+    }
+    .text-field:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232,168,0,.12); }
+    .text-field.error-field { border-color: var(--err-c); box-shadow: 0 0 0 3px rgba(217,59,59,.10); }
+    .phone-screen.dark .text-field:focus-within { box-shadow: 0 0 0 3px rgba(232,168,0,.08); }
+    .text-field input, .text-field textarea {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-family: var(--font-body); font-size: 15px; color: var(--on-surf);
+      resize: none;
+    }
+    .text-field input::placeholder, .text-field textarea::placeholder { color: var(--on-surf3); }
+
+    .field-error { font-size: 12px; color: var(--err-c); display: flex; align-items: center; gap: 4px; }
+    .field-error .material-icons-round { font-size: 14px; }
+
+    /* select / dropdown */
+    .select-field {
+      border: 1.5px solid var(--bdr); border-radius: var(--r-md);
+      padding: 13px var(--s3); background: var(--field-bg);
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; transition: border-color var(--dt);
+    }
+    .select-field:hover { border-color: var(--on-surf3); }
+    .select-value { font-size: 15px; color: var(--on-surf); }
+    .select-field .material-icons-round { font-size: 20px; color: var(--on-surf2); }
+
+    /* save button */
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: var(--s2);
+      background: var(--p500); border: 2px solid var(--p600);
+      border-radius: var(--r-lg); padding: 0 var(--s6); height: 54px; width: 100%;
+      font-family: var(--font-body); font-size: 16px; font-weight: 700;
+      color: var(--on-pri); cursor: pointer;
+      box-shadow: 0 2px 8px rgba(232,168,0,.3);
+      transition: transform var(--dt), box-shadow var(--dt);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(232,168,0,.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary.disabled { background: var(--surf2); border-color: var(--bdr); color: var(--on-surf3); box-shadow: none; cursor: not-allowed; }
+
+    /* ─── Delete dialog ──────────────────────────────────────────────── */
+    .dialog-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,.55);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 20; border-radius: 34px;
+    }
+    .dialog {
+      width: 300px; background: var(--dlg-bg); border-radius: var(--r-xl);
+      padding: var(--s6); box-shadow: 0 6px 24px rgba(0,0,0,.3);
+    }
+    .dialog-title { font-size: 18px; font-weight: 700; color: var(--on-surf); margin-bottom: var(--s2); }
+    .dialog-body  { font-size: 14px; color: var(--on-surf2); line-height: 1.5; margin-bottom: var(--s5); }
+    .dialog-body strong { color: var(--on-surf); }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: var(--s3); }
+    .btn-cancel {
+      padding: 9px 14px; border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; background: transparent; color: var(--on-surf2);
+      transition: background var(--dt);
+    }
+    .btn-cancel:hover { background: var(--surf2); }
+    .btn-delete {
+      padding: 9px 14px; border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; background: var(--err-c); color: #fff;
+      transition: opacity var(--dt);
+    }
+    .btn-delete:hover { opacity: .85; }
+
+    /* ─── Snackbar ───────────────────────────────────────────────────── */
+    .snackbar {
+      position: absolute; bottom: 100px; left: var(--s4); right: var(--s4);
+      background: var(--n800); color: #fff;
+      padding: 12px var(--s4); border-radius: var(--r-lg);
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: var(--s2);
+      z-index: 15; box-shadow: 0 4px 16px rgba(0,0,0,.4);
+    }
+    .dark .snackbar { background: var(--n700); }
+    .snackbar .material-icons-round { font-size: 18px; color: var(--p500); }
+
+    /* ─── Screen show/hide ───────────────────────────────────────────── */
+    .screen { display: none; flex-direction: column; height: 100%; }
+    .screen.active { display: flex; }
+
+    /* no-results hidden */
+    .no-results-hint { display: none; }
+    .no-results-hint.visible { display: flex; }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <span class="logo">StitchPad</span>
+    &nbsp;·&nbsp; UI Preview &nbsp;·&nbsp; Customer Management
+  </header>
+
+  <!-- ── Screen selector ── -->
+  <nav class="screen-nav">
+    <button class="screen-btn active" data-screen="list-filled">Customer List</button>
+    <button class="screen-btn" data-screen="list-empty">Empty State</button>
+    <button class="screen-btn" data-screen="form-add">Add Customer</button>
+    <button class="screen-btn" data-screen="form-edit">Edit Customer</button>
+    <button class="screen-btn" data-screen="form-error">Validation</button>
+    <button class="screen-btn" data-screen="delete-dialog">Delete Dialog</button>
+  </nav>
+
+  <div class="phones-row">
+
+    <!-- ══════════════════ LIGHT PHONE ══════════════════ -->
+    <div class="phone" id="light-phone">
+      <div class="phone-mode-label light-label">☀ Light Mode</div>
+      <div class="phone-shell light-shell">
+        <div class="phone-screen" id="screen-root-light">
+
+          <!-- STATUS BAR -->
+          <div class="status-bar">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <span class="material-icons-round">signal_cellular_alt</span>
+              <span class="material-icons-round">wifi</span>
+              <span class="material-icons-round">battery_full</span>
+            </div>
+          </div>
+
+          <!-- ── SCREEN: Customer List (filled) ── -->
+          <div class="screen active" data-key="list-filled">
+            <div class="top-bar">
+              <span class="top-bar-title">Customers</span>
+            </div>
+            <div class="search-wrap">
+              <div class="search-field">
+                <span class="material-icons-round">search</span>
+                <input type="text" placeholder="Search by name or phone…" id="search-input" oninput="filterList(this.value)" />
+              </div>
+            </div>
+            <div class="screen-content">
+              <div class="list-section-header" id="list-count">6 customers</div>
+              <div class="customer-list" id="customer-list">
+                <div class="customer-item" onclick="goTo('form-edit')" data-name="Amina Bello" data-phone="+234 803 123 4567">
+                  <div class="avatar av-saffron">AB</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Amina Bello</div>
+                    <div class="customer-phone">+234 803 123 4567</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+                <div class="customer-item" data-name="Chukwuemeka Obi" data-phone="+234 701 987 6543">
+                  <div class="avatar av-blue">CO</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Chukwuemeka Obi</div>
+                    <div class="customer-phone">+234 701 987 6543</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+                <div class="customer-item" data-name="Fatima Al-Hassan" data-phone="+234 812 456 7890">
+                  <div class="avatar av-green">FA</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Fatima Al-Hassan</div>
+                    <div class="customer-phone">+234 812 456 7890</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+                <div class="customer-item" data-name="Taiwo Adeyemi" data-phone="+234 906 234 5678">
+                  <div class="avatar av-orange">TA</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Taiwo Adeyemi</div>
+                    <div class="customer-phone">+234 906 234 5678</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+                <div class="customer-item" data-name="Ngozi Eze" data-phone="+234 815 678 9012">
+                  <div class="avatar av-purple">NE</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Ngozi Eze</div>
+                    <div class="customer-phone">+234 815 678 9012</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+                <div class="customer-item" data-name="Yakubu Ibrahim" data-phone="+234 704 321 0987">
+                  <div class="avatar av-pink">YI</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Yakubu Ibrahim</div>
+                    <div class="customer-phone">+234 704 321 0987</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+              </div>
+              <div id="no-results" class="empty-state no-results-hint">
+                <div class="empty-icon"><span class="material-icons-round">search_off</span></div>
+                <div class="empty-title">No results found</div>
+                <div class="empty-sub">Try a different name or phone number</div>
+              </div>
+            </div>
+            <div class="fab" onclick="goTo('form-add')"><span class="material-icons-round">add</span></div>
+            <div class="bottom-nav">
+              <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">person</span></div><span class="nav-label">Customers</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">shopping_cart</span></div><span class="nav-label">Orders</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">home</span></div><span class="nav-label">Dashboard</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">settings</span></div><span class="nav-label">Settings</span></div>
+            </div>
+          </div>
+          <!-- /list-filled -->
+
+          <!-- ── SCREEN: Empty state ── -->
+          <div class="screen" data-key="list-empty">
+            <div class="top-bar"><span class="top-bar-title">Customers</span></div>
+            <div class="search-wrap">
+              <div class="search-field">
+                <span class="material-icons-round">search</span>
+                <input type="text" placeholder="Search by name or phone…" />
+              </div>
+            </div>
+            <div class="screen-content">
+              <div class="empty-state" style="padding-top:60px">
+                <div class="empty-icon"><span class="material-icons-round">group</span></div>
+                <div class="empty-title">No customers yet</div>
+                <div class="empty-sub">Tap the + button to add your first customer</div>
+              </div>
+            </div>
+            <div class="fab" onclick="goTo('form-add')"><span class="material-icons-round">add</span></div>
+            <div class="bottom-nav">
+              <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">person</span></div><span class="nav-label">Customers</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">shopping_cart</span></div><span class="nav-label">Orders</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">home</span></div><span class="nav-label">Dashboard</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">settings</span></div><span class="nav-label">Settings</span></div>
+            </div>
+          </div>
+          <!-- /list-empty -->
+
+          <!-- ── SCREEN: Add Customer ── -->
+          <div class="screen" data-key="form-add">
+            <div class="top-bar">
+              <div class="top-bar-back" onclick="goTo('list-filled')"><span class="material-icons-round">arrow_back</span></div>
+              <span class="top-bar-title">Add Customer</span>
+            </div>
+            <div class="screen-content">
+              <div class="form-scroll">
+                <div class="field-group">
+                  <label class="field-label">FULL NAME</label>
+                  <div class="text-field"><input type="text" placeholder="e.g. Amina Bello" /></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">PHONE NUMBER</label>
+                  <div class="text-field"><input type="tel" placeholder="+234 801 234 5678" /></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">EMAIL (OPTIONAL)</label>
+                  <div class="text-field"><input type="email" placeholder="e.g. amina@gmail.com" /></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">ADDRESS (OPTIONAL)</label>
+                  <div class="text-field"><textarea rows="2" placeholder="15 Adeola Odeku St, Victoria Island…"></textarea></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">DELIVERY PREFERENCE</label>
+                  <div class="select-field">
+                    <span class="select-value">Pickup</span>
+                    <span class="material-icons-round">expand_more</span>
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">NOTES (OPTIONAL)</label>
+                  <div class="text-field"><textarea rows="3" placeholder="Prefers ankara fabric, usually picks up Saturdays…"></textarea></div>
+                </div>
+                <button class="btn-primary" onclick="saveAndReturn()">
+                  <span class="material-icons-round">check</span>Save Customer
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- /form-add -->
+
+          <!-- ── SCREEN: Edit Customer ── -->
+          <div class="screen" data-key="form-edit">
+            <div class="top-bar">
+              <div class="top-bar-back" onclick="goTo('list-filled')"><span class="material-icons-round">arrow_back</span></div>
+              <span class="top-bar-title">Edit Customer</span>
+            </div>
+            <div class="screen-content">
+              <div class="form-scroll">
+                <div class="field-group">
+                  <label class="field-label">FULL NAME</label>
+                  <div class="text-field"><input type="text" value="Amina Bello" /></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">PHONE NUMBER</label>
+                  <div class="text-field"><input type="tel" value="+234 803 123 4567" /></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">EMAIL (OPTIONAL)</label>
+                  <div class="text-field"><input type="email" value="amina.bello@gmail.com" /></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">ADDRESS (OPTIONAL)</label>
+                  <div class="text-field"><textarea rows="2">15 Adeola Odeku St, Victoria Island, Lagos</textarea></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">DELIVERY PREFERENCE</label>
+                  <div class="select-field">
+                    <span class="select-value">Delivery</span>
+                    <span class="material-icons-round">expand_more</span>
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">NOTES (OPTIONAL)</label>
+                  <div class="text-field"><textarea rows="3">Prefers ankara fabric. Usually picks up Saturday mornings.</textarea></div>
+                </div>
+                <button class="btn-primary" onclick="saveAndReturn()">
+                  <span class="material-icons-round">check</span>Save Customer
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- /form-edit -->
+
+          <!-- ── SCREEN: Form Validation ── -->
+          <div class="screen" data-key="form-error">
+            <div class="top-bar">
+              <div class="top-bar-back" onclick="goTo('list-filled')"><span class="material-icons-round">arrow_back</span></div>
+              <span class="top-bar-title">Add Customer</span>
+            </div>
+            <div class="screen-content">
+              <div class="form-scroll">
+                <div class="field-group">
+                  <label class="field-label error">FULL NAME</label>
+                  <div class="text-field error-field"><input type="text" placeholder="e.g. Amina Bello" /></div>
+                  <div class="field-error"><span class="material-icons-round">error_outline</span>Full name is required</div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label error">PHONE NUMBER</label>
+                  <div class="text-field error-field"><input type="tel" value="abc-not-valid" /></div>
+                  <div class="field-error"><span class="material-icons-round">error_outline</span>Enter a valid phone number</div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label error">EMAIL (OPTIONAL)</label>
+                  <div class="text-field error-field"><input type="email" value="not-an-email" /></div>
+                  <div class="field-error"><span class="material-icons-round">error_outline</span>Invalid email format</div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">ADDRESS (OPTIONAL)</label>
+                  <div class="text-field"><textarea rows="2" placeholder="15 Adeola Odeku St…"></textarea></div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">DELIVERY PREFERENCE</label>
+                  <div class="select-field">
+                    <span class="select-value">Pickup</span>
+                    <span class="material-icons-round">expand_more</span>
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">NOTES (OPTIONAL)</label>
+                  <div class="text-field"><textarea rows="3" placeholder="Prefers ankara fabric…"></textarea></div>
+                </div>
+                <button class="btn-primary disabled">
+                  <span class="material-icons-round">check</span>Save Customer
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- /form-error -->
+
+          <!-- ── SCREEN: Delete Dialog ── -->
+          <div class="screen" data-key="delete-dialog">
+            <div class="top-bar"><span class="top-bar-title">Customers</span></div>
+            <div class="search-wrap">
+              <div class="search-field">
+                <span class="material-icons-round">search</span>
+                <input type="text" placeholder="Search by name or phone…" />
+              </div>
+            </div>
+            <div class="screen-content" style="position:relative">
+              <div class="list-section-header">6 customers</div>
+              <div class="customer-list">
+                <div class="customer-item swiped">
+                  <div class="avatar av-saffron">AB</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Amina Bello</div>
+                    <div class="customer-phone">+234 803 123 4567</div>
+                  </div>
+                  <div class="swipe-delete"><span class="material-icons-round">delete</span></div>
+                </div>
+                <div class="customer-item">
+                  <div class="avatar av-blue">CO</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Chukwuemeka Obi</div>
+                    <div class="customer-phone">+234 701 987 6543</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                </div>
+                <div class="customer-item">
+                  <div class="avatar av-green">FA</div>
+                  <div class="customer-info">
+                    <div class="customer-name">Fatima Al-Hassan</div>
+                    <div class="customer-phone">+234 812 456 7890</div>
+                  </div>
+                  <span class="material-icons-round chevron">chevron_right</span>
+                </div>
+              </div>
+              <div class="dialog-overlay">
+                <div class="dialog">
+                  <div class="dialog-title">Delete customer?</div>
+                  <div class="dialog-body">Remove <strong>Amina Bello</strong> from your customer list? This cannot be undone.</div>
+                  <div class="dialog-actions">
+                    <button class="btn-cancel" onclick="goTo('list-filled')">Cancel</button>
+                    <button class="btn-delete" onclick="deleteAndReturn()">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bottom-nav">
+              <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">person</span></div><span class="nav-label">Customers</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">shopping_cart</span></div><span class="nav-label">Orders</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">home</span></div><span class="nav-label">Dashboard</span></div>
+              <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">settings</span></div><span class="nav-label">Settings</span></div>
+            </div>
+          </div>
+          <!-- /delete-dialog -->
+
+        </div><!-- /phone-screen light -->
+      </div><!-- /phone-shell light -->
+    </div><!-- /light-phone -->
+
+
+    <!-- ══════════════════ DARK PHONE ══════════════════ -->
+    <div class="phone" id="dark-phone">
+      <div class="phone-mode-label dark-label">🌙 Dark Mode</div>
+      <div class="phone-shell dark-shell">
+        <div class="phone-screen dark" id="screen-root-dark">
+          <!-- Populated by JS clone -->
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /phones-row -->
+
+  <script>
+    // ── Screen order (must match data-key order in light phone) ──────
+    const SCREEN_KEYS = ['list-filled','list-empty','form-add','form-edit','form-error','delete-dialog'];
+    let currentKey = 'list-filled';
+
+    // ── Clone light phone content into dark phone ─────────────────────
+    function buildDarkPhone() {
+      const lightRoot = document.getElementById('screen-root-light');
+      const darkRoot  = document.getElementById('screen-root-dark');
+      const clone = lightRoot.cloneNode(true);
+      // Remove IDs to avoid duplicates (dark phone is display-only)
+      clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+      // Remove interactive attributes from dark clone
+      clone.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
+      clone.querySelectorAll('input, textarea').forEach(el => el.setAttribute('tabindex', '-1'));
+      // Move children across
+      darkRoot.innerHTML = '';
+      Array.from(clone.childNodes).forEach(n => darkRoot.appendChild(n));
+    }
+
+    // ── Switch visible screen in a phone root ────────────────────────
+    function applyScreen(rootEl, key) {
+      const idx = SCREEN_KEYS.indexOf(key);
+      const screens = rootEl.querySelectorAll('.screen');
+      screens.forEach((s, i) => s.classList.toggle('active', i === idx));
+    }
+
+    // ── Public: navigate to a screen key ────────────────────────────
+    function showScreen(key) {
+      currentKey = key;
+      applyScreen(document.getElementById('screen-root-light'), key);
+      applyScreen(document.getElementById('screen-root-dark'),  key);
+      // Sync nav buttons
+      document.querySelectorAll('.screen-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.screen === key);
+      });
+      // Reset search
+      const si = document.getElementById('search-input');
+      if (si) { si.value = ''; filterList(''); }
+    }
+
+    // Alias used inside onclick attributes
+    function goTo(key) { showScreen(key); }
+
+    // ── Nav button clicks ────────────────────────────────────────────
+    document.querySelectorAll('.screen-btn').forEach(btn => {
+      btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+    });
+
+    // ── Search (light phone only) ─────────────────────────────────────
+    function filterList(query) {
+      const items = document.querySelectorAll('#customer-list .customer-item');
+      const noResults = document.getElementById('no-results');
+      const countEl = document.getElementById('list-count');
+      const q = query.toLowerCase().trim();
+      let visible = 0;
+      items.forEach(item => {
+        const name  = (item.dataset.name  || '').toLowerCase();
+        const phone = (item.dataset.phone || '');
+        const match = !q || name.includes(q) || phone.includes(q);
+        item.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      noResults.classList.toggle('visible', visible === 0 && !!q);
+      if (countEl) countEl.textContent = q ? `${visible} result${visible !== 1 ? 's' : ''}` : '6 customers';
+    }
+
+    // ── Snackbar ──────────────────────────────────────────────────────
+    function showSnackbar(msg) {
+      document.querySelectorAll('.snackbar').forEach(s => s.remove());
+      ['screen-root-light', 'screen-root-dark'].forEach(rootId => {
+        const root = document.getElementById(rootId);
+        if (!root) return;
+        const activeScreen = root.querySelector('.screen.active');
+        if (!activeScreen) return;
+        const snack = document.createElement('div');
+        snack.className = 'snackbar';
+        snack.innerHTML = `<span class="material-icons-round">check_circle</span>${msg}`;
+        activeScreen.appendChild(snack);
+        setTimeout(() => snack.remove(), 2800);
+      });
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────
+    function saveAndReturn()   { showScreen('list-filled'); showSnackbar('Customer saved'); }
+    function deleteAndReturn() { showScreen('list-filled'); showSnackbar('Customer deleted'); }
+
+    // ── Init ──────────────────────────────────────────────────────────
+    buildDarkPhone();
+  </script>
+</body>
+</html>

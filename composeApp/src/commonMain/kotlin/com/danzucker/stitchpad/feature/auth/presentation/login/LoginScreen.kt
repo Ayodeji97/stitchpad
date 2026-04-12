@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.auth.presentation.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,10 +22,10 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -104,6 +106,7 @@ fun LoginRoot(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     state: LoginState,
@@ -163,23 +166,19 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
+                    val emailInteractionSource = remember { MutableInteractionSource() }
+                    BasicTextField(
                         value = state.email,
                         onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
-                        placeholder = { Text(stringResource(Res.string.placeholder_email)) },
-                        isError = state.emailError != null,
-                        supportingText = state.emailError?.let { error ->
-                            {
-                                Text(error.asString())
-                            }
-                        },
-                        colors = inputColors,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
-                        singleLine = true,
+                        interactionSource = emailInteractionSource,
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
@@ -188,7 +187,32 @@ fun LoginScreen(
                                 } else if (hasEmailFocused) {
                                     onAction(LoginAction.OnEmailBlur)
                                 }
-                            }
+                            },
+                        decorationBox = { innerTextField ->
+                            OutlinedTextFieldDefaults.DecorationBox(
+                                value = state.email,
+                                innerTextField = innerTextField,
+                                enabled = true,
+                                singleLine = true,
+                                visualTransformation = VisualTransformation.None,
+                                interactionSource = emailInteractionSource,
+                                isError = state.emailError != null,
+                                placeholder = { Text(stringResource(Res.string.placeholder_email)) },
+                                supportingText = state.emailError?.let { error -> { Text(error.asString()) } },
+                                colors = inputColors,
+                                container = {
+                                    OutlinedTextFieldDefaults.ContainerBox(
+                                        enabled = true,
+                                        isError = state.emailError != null,
+                                        interactionSource = emailInteractionSource,
+                                        colors = inputColors,
+                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                                        focusedBorderThickness = 1.dp,
+                                        unfocusedBorderThickness = 1.dp
+                                    )
+                                }
+                            )
+                        }
                     )
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space3))
@@ -201,52 +225,25 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
+                    val passwordVisualTransformation = if (state.isPasswordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    }
+                    val passwordInteractionSource = remember { MutableInteractionSource() }
+                    BasicTextField(
                         value = state.password,
                         onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
-                        placeholder = { Text(stringResource(Res.string.placeholder_password)) },
-                        isError = state.passwordError != null,
-                        supportingText = state.passwordError?.let { error ->
-                            {
-                                Text(error.asString())
-                            }
-                        } ?: {
-                            Text(
-                                text = stringResource(Res.string.login_password_hint),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = { onAction(LoginAction.OnTogglePasswordVisibility) }
-                            ) {
-                                Icon(
-                                    imageVector = if (state.isPasswordVisible) {
-                                        Icons.Outlined.VisibilityOff
-                                    } else {
-                                        Icons.Outlined.Visibility
-                                    },
-                                    contentDescription = if (state.isPasswordVisible) {
-                                        stringResource(Res.string.cd_password_hide)
-                                    } else {
-                                        stringResource(Res.string.cd_password_show)
-                                    },
-                                    tint = DesignTokens.neutral400
-                                )
-                            }
-                        },
-                        colors = inputColors,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                        visualTransformation = if (state.isPasswordVisible) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),
-                        singleLine = true,
+                        visualTransformation = passwordVisualTransformation,
+                        interactionSource = passwordInteractionSource,
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
@@ -255,7 +252,60 @@ fun LoginScreen(
                                 } else if (hasPasswordFocused) {
                                     onAction(LoginAction.OnPasswordBlur)
                                 }
-                            }
+                            },
+                        decorationBox = { innerTextField ->
+                            OutlinedTextFieldDefaults.DecorationBox(
+                                value = state.password,
+                                innerTextField = innerTextField,
+                                enabled = true,
+                                singleLine = true,
+                                visualTransformation = passwordVisualTransformation,
+                                interactionSource = passwordInteractionSource,
+                                isError = state.passwordError != null,
+                                placeholder = { Text(stringResource(Res.string.placeholder_password)) },
+                                supportingText = state.passwordError?.let { error ->
+                                    {
+                                        Text(error.asString())
+                                    }
+                                } ?: {
+                                    Text(
+                                        text = stringResource(Res.string.login_password_hint),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { onAction(LoginAction.OnTogglePasswordVisibility) }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (state.isPasswordVisible) {
+                                                Icons.Outlined.VisibilityOff
+                                            } else {
+                                                Icons.Outlined.Visibility
+                                            },
+                                            contentDescription = if (state.isPasswordVisible) {
+                                                stringResource(Res.string.cd_password_hide)
+                                            } else {
+                                                stringResource(Res.string.cd_password_show)
+                                            },
+                                            tint = DesignTokens.neutral400
+                                        )
+                                    }
+                                },
+                                colors = inputColors,
+                                container = {
+                                    OutlinedTextFieldDefaults.ContainerBox(
+                                        enabled = true,
+                                        isError = state.passwordError != null,
+                                        interactionSource = passwordInteractionSource,
+                                        colors = inputColors,
+                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                                        focusedBorderThickness = 1.dp,
+                                        unfocusedBorderThickness = 1.dp
+                                    )
+                                }
+                            )
+                        }
                     )
                 }
 
