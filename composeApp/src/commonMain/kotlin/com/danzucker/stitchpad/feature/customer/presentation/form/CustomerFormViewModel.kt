@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import kotlinx.coroutines.channels.Channel
@@ -25,7 +26,8 @@ import stitchpad.composeapp.generated.resources.error_phone_invalid
 class CustomerFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val emailValidator: PatternValidator
 ) : ViewModel() {
 
     private val route: CustomerFormRoute = savedStateHandle.toRoute()
@@ -166,7 +168,7 @@ class CustomerFormViewModel(
 
     private fun validateEmail(): Boolean {
         val email = _state.value.email.trim()
-        val isValid = email.isBlank() || (email.contains('@') && email.contains('.'))
+        val isValid = email.isBlank() || emailValidator.matches(email)
         if (!isValid) {
             _state.update {
                 it.copy(emailError = UiText.StringResourceText(Res.string.error_invalid_email))

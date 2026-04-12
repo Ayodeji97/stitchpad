@@ -14,8 +14,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
-import kotlin.math.abs
-
 @Composable
 fun CustomerAvatar(
     name: String,
@@ -23,7 +21,7 @@ fun CustomerAvatar(
     size: Dp = DesignTokens.space10
 ) {
     val isDark = isSystemInDarkTheme()
-    val colorIndex = abs(name.hashCode()) % DesignTokens.avatarColors.size
+    val colorIndex = name.hashCode().and(Int.MAX_VALUE) % DesignTokens.avatarColors.size
     val pair = DesignTokens.avatarColors[colorIndex]
     val bg = if (isDark) pair.darkBg else pair.lightBg
     val fg = if (isDark) pair.darkText else pair.lightText

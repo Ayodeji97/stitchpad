@@ -3,7 +3,7 @@ package com.danzucker.stitchpad.core.data.mapper
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
     id = id,
@@ -18,14 +18,17 @@ fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
     createdAt = createdAt
 )
 
-fun Customer.toCustomerDto(): CustomerDto = CustomerDto(
-    id = id,
-    name = name,
-    phone = phone,
-    email = email,
-    address = address,
-    deliveryPreference = deliveryPreference.name,
-    notes = notes,
-    createdAt = createdAt,
-    updatedAt = Clock.System.now().toEpochMilliseconds()
-)
+fun Customer.toCustomerDto(): CustomerDto {
+    val now = Clock.System.now().toEpochMilliseconds()
+    return CustomerDto(
+        id = id,
+        name = name,
+        phone = phone,
+        email = email,
+        address = address,
+        deliveryPreference = deliveryPreference.name,
+        notes = notes,
+        createdAt = if (createdAt == 0L) now else createdAt,
+        updatedAt = now
+    )
+}
