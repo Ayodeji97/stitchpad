@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,12 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -34,8 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -92,6 +96,7 @@ fun WorkshopSetupRoot(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkshopSetupScreen(
     state: WorkshopSetupState,
@@ -148,32 +153,21 @@ fun WorkshopSetupScreen(
                 Spacer(modifier = Modifier.height(28.dp))
 
                 LabeledField(label = stringResource(Res.string.workshop_business_name_label)) {
-                    OutlinedTextField(
+                    val businessNameInteractionSource = remember { MutableInteractionSource() }
+                    BasicTextField(
                         value = state.businessName,
                         onValueChange = {
                             if (it.length <= 50) {
                                 onAction(WorkshopSetupAction.OnBusinessNameChange(it))
                             }
                         },
-                        placeholder = { Text(stringResource(Res.string.workshop_business_name_placeholder)) },
-                        isError = state.businessNameError != null,
-                        supportingText = {
-                            if (state.businessNameError != null) {
-                                Text(
-                                    text = stringResource(state.businessNameError),
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(Res.string.workshop_business_name_hint),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        },
-                        colors = inputColors,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        interactionSource = businessNameInteractionSource,
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
@@ -182,37 +176,66 @@ fun WorkshopSetupScreen(
                                 } else if (hasBusinessNameFocused) {
                                     onAction(WorkshopSetupAction.OnBusinessNameBlur)
                                 }
-                            }
+                            },
+                        decorationBox = { innerTextField ->
+                            OutlinedTextFieldDefaults.DecorationBox(
+                                value = state.businessName,
+                                innerTextField = innerTextField,
+                                enabled = true,
+                                singleLine = true,
+                                visualTransformation = VisualTransformation.None,
+                                interactionSource = businessNameInteractionSource,
+                                isError = state.businessNameError != null,
+                                placeholder = { Text(stringResource(Res.string.workshop_business_name_placeholder)) },
+                                supportingText = {
+                                    if (state.businessNameError != null) {
+                                        Text(
+                                            text = stringResource(state.businessNameError),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else {
+                                        Text(
+                                            text = stringResource(Res.string.workshop_business_name_hint),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                colors = inputColors,
+                                container = {
+                                    OutlinedTextFieldDefaults.ContainerBox(
+                                        enabled = true,
+                                        isError = state.businessNameError != null,
+                                        interactionSource = businessNameInteractionSource,
+                                        colors = inputColors,
+                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                                        focusedBorderThickness = 1.dp,
+                                        unfocusedBorderThickness = 1.dp
+                                    )
+                                }
+                            )
+                        }
                     )
                 }
                 Spacer(modifier = Modifier.height(DesignTokens.space3))
 
                 LabeledField(label = stringResource(Res.string.workshop_phone_label)) {
-                    OutlinedTextField(
+                    val phoneInteractionSource = remember { MutableInteractionSource() }
+                    BasicTextField(
                         value = state.phone,
-                        onValueChange = { onAction(WorkshopSetupAction.OnPhoneChange(it)) },
-                        placeholder = { Text(stringResource(Res.string.workshop_phone_placeholder)) },
-                        isError = state.phoneError != null,
-                        supportingText = {
-                            if (state.phoneError != null) {
-                                Text(
-                                    text = stringResource(state.phoneError),
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(Res.string.workshop_phone_hint),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        onValueChange = { newValue ->
+                            val filtered = newValue.filter { c -> c.isDigit() || c == '+' || c == ' ' || c == '-' }
+                            if (filtered.length <= 20) onAction(WorkshopSetupAction.OnPhoneChange(filtered))
                         },
-                        colors = inputColors,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Done
                         ),
-                        singleLine = true,
+                        interactionSource = phoneInteractionSource,
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
@@ -221,7 +244,44 @@ fun WorkshopSetupScreen(
                                 } else if (hasPhoneFocused) {
                                     onAction(WorkshopSetupAction.OnPhoneBlur)
                                 }
-                            }
+                            },
+                        decorationBox = { innerTextField ->
+                            OutlinedTextFieldDefaults.DecorationBox(
+                                value = state.phone,
+                                innerTextField = innerTextField,
+                                enabled = true,
+                                singleLine = true,
+                                visualTransformation = VisualTransformation.None,
+                                interactionSource = phoneInteractionSource,
+                                isError = state.phoneError != null,
+                                placeholder = { Text(stringResource(Res.string.workshop_phone_placeholder)) },
+                                supportingText = {
+                                    if (state.phoneError != null) {
+                                        Text(
+                                            text = stringResource(state.phoneError),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else {
+                                        Text(
+                                            text = stringResource(Res.string.workshop_phone_hint),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                colors = inputColors,
+                                container = {
+                                    OutlinedTextFieldDefaults.ContainerBox(
+                                        enabled = true,
+                                        isError = state.phoneError != null,
+                                        interactionSource = phoneInteractionSource,
+                                        colors = inputColors,
+                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                                        focusedBorderThickness = 1.dp,
+                                        unfocusedBorderThickness = 1.dp
+                                    )
+                                }
+                            )
+                        }
                     )
                 }
                 Spacer(modifier = Modifier.height(28.dp))

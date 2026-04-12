@@ -1,16 +1,7 @@
 package com.danzucker.stitchpad.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,17 +9,13 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginRoot
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpRoot
+import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingScreen
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashScreen
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
-import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.home_placeholder_title
-import stitchpad.composeapp.generated.resources.home_sign_out
 
 @Composable
 fun StitchPadNavHost(
@@ -123,42 +110,17 @@ fun StitchPadNavHost(
             )
         }
         composable<HomeRoute> {
-            HomePlaceholder(
+            val scope = rememberCoroutineScope()
+            MainRoot(
                 onSignedOut = {
-                    navController.navigate(LoginRoute) {
-                        popUpTo(HomeRoute) { inclusive = true }
+                    scope.launch {
+                        authRepository.signOut()
+                        navController.navigate(LoginRoute) {
+                            popUpTo(HomeRoute) { inclusive = true }
+                        }
                     }
                 }
             )
-        }
-    }
-}
-
-@Composable
-private fun HomePlaceholder(onSignedOut: () -> Unit) {
-    val authRepository: AuthRepository = koinInject()
-    val scope = rememberCoroutineScope()
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(Res.string.home_placeholder_title),
-                style = MaterialTheme.typography.headlineLarge
-            )
-            Button(
-                onClick = {
-                    scope.launch {
-                        authRepository.signOut()
-                        onSignedOut()
-                    }
-                },
-                modifier = Modifier.padding(top = DesignTokens.space4)
-            ) {
-                Text(stringResource(Res.string.home_sign_out))
-            }
         }
     }
 }

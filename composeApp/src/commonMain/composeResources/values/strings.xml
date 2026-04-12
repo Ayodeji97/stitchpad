@@ -90,4 +90,53 @@
     <!-- Home placeholder -->
     <string name="home_placeholder_title">Welcome to StitchPad!</string>
     <string name="home_sign_out">Sign Out</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_customers">Customers</string>
+    <string name="nav_orders">Orders</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Customer list screen -->
+    <string name="customer_list_title">Customers</string>
+    <string name="customer_search_hint">Search by name or phone…</string>
+    <string name="customer_empty_state">No customers yet. Tap + to add one.</string>
+    <string name="customer_empty_state_title">No customers yet</string>
+    <string name="customer_empty_state_subtitle">Tap the + button to add your first customer</string>
+    <string name="customer_search_clear_cd">Clear search</string>
+    <string name="customer_fab_cd">Add customer</string>
+
+    <!-- Customer delete dialog -->
+    <string name="customer_delete_title">Delete customer?</string>
+    <string name="customer_delete_message">Remove %1$s from your customer list? This cannot be undone.</string>
+    <string name="customer_delete_confirm">Delete</string>
+    <string name="customer_delete_cancel">Cancel</string>
+
+    <!-- Customer form screen -->
+    <string name="customer_form_title_add">Add Customer</string>
+    <string name="customer_form_title_edit">Edit Customer</string>
+    <string name="customer_form_name_label">Full name</string>
+    <string name="customer_form_name_placeholder">e.g. Amina Bello</string>
+    <string name="customer_form_phone_label">Phone number</string>
+    <string name="customer_form_phone_placeholder">+234 801 234 5678</string>
+    <string name="customer_form_email_label">Email (optional)</string>
+    <string name="customer_form_email_placeholder">e.g. amina@gmail.com</string>
+    <string name="customer_form_address_label">Address (optional)</string>
+    <string name="customer_form_address_placeholder">15 Adeola Odeku St, Lagos…</string>
+    <string name="customer_form_delivery_label">Delivery preference</string>
+    <string name="customer_form_notes_label">Notes (optional)</string>
+    <string name="customer_form_notes_placeholder">Prefers ankara fabric, usually picks up Saturdays…</string>
+    <string name="customer_form_save_button">Save Customer</string>
+
+    <!-- Customer list filters -->
+    <string name="customer_filter_all">All</string>
+
+    <!-- Delivery preference options -->
+    <string name="delivery_pickup">Pickup</string>
+    <string name="delivery_delivery">Delivery</string>
+    <string name="delivery_either">Either</string>
+
+    <!-- Customer errors -->
+    <string name="error_customer_not_found">Customer not found</string>
+    <string name="error_customer_already_exists">A customer with this name already exists</string>
 </resources>
