@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.feature.customer.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -11,7 +10,6 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
-import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,8 +28,7 @@ class CustomerFormViewModel(
     private val emailValidator: PatternValidator
 ) : ViewModel() {
 
-    private val route: CustomerFormRoute = savedStateHandle.toRoute()
-    private val customerId: String? = route.customerId
+    private val customerId: String? = savedStateHandle["customerId"]
 
     private val _state = MutableStateFlow(CustomerFormState(isEditMode = customerId != null))
     val state = _state.asStateFlow()
