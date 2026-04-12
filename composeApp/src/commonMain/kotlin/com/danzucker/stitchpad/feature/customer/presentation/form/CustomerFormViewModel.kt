@@ -89,6 +89,7 @@ class CustomerFormViewModel(
                             address = c.address ?: "",
                             deliveryPreference = c.deliveryPreference,
                             notes = c.notes ?: "",
+                            createdAt = c.createdAt,
                             isLoading = false
                         )
                     }
@@ -123,7 +124,8 @@ class CustomerFormViewModel(
                 email = s.email.trim().ifBlank { null },
                 address = s.address.trim().ifBlank { null },
                 deliveryPreference = s.deliveryPreference,
-                notes = s.notes.trim().ifBlank { null }
+                notes = s.notes.trim().ifBlank { null },
+                createdAt = s.createdAt
             )
             val result = if (customerId != null) {
                 customerRepository.updateCustomer(userId, customer)

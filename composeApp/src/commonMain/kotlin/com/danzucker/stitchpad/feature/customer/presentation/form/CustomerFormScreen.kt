@@ -419,7 +419,7 @@ private fun SaveButton(
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 strokeWidth = 2.dp,
                 modifier = Modifier.size(22.dp)
             )

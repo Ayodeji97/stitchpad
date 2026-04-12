@@ -10,6 +10,7 @@ data class CustomerFormState(
     val address: String = "",
     val deliveryPreference: DeliveryPreference = DeliveryPreference.PICKUP,
     val notes: String = "",
+    val createdAt: Long = 0L,
     val nameError: UiText? = null,
     val phoneError: UiText? = null,
     val emailError: UiText? = null,
