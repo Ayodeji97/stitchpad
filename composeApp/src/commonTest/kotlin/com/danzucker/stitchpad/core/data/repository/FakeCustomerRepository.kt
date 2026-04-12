@@ -47,5 +47,8 @@ class FakeCustomerRepository : CustomerRepository {
     override suspend fun deleteCustomer(
         userId: String,
         customerId: String,
-    ): EmptyResult<DataError.Network> = Result.Success(Unit)
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success(Unit)
+    }
 }

@@ -775,6 +775,7 @@
       clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
       // Remove interactive attributes from dark clone
       clone.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
+      clone.querySelectorAll('[oninput]').forEach(el => el.removeAttribute('oninput'));
       clone.querySelectorAll('input, textarea').forEach(el => el.setAttribute('tabindex', '-1'));
       // Move children across
       darkRoot.innerHTML = '';

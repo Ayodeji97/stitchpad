@@ -17,5 +17,7 @@ fun CustomerError.toUiText(): UiText = when (this) {
 
 fun DataError.Network.toCustomerUiText(): UiText = when (this) {
     DataError.Network.NO_INTERNET -> UiText.StringResourceText(Res.string.error_no_internet)
+    DataError.Network.NOT_FOUND -> UiText.StringResourceText(Res.string.error_customer_not_found)
+    DataError.Network.CONFLICT -> UiText.StringResourceText(Res.string.error_customer_already_exists)
     else -> UiText.StringResourceText(Res.string.error_unknown)
 }
