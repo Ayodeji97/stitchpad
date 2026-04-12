@@ -41,9 +41,13 @@ import com.danzucker.stitchpad.navigation.DashboardPlaceholderRoute
 import com.danzucker.stitchpad.navigation.OrdersPlaceholderRoute
 import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.home_sign_out
+import stitchpad.composeapp.generated.resources.nav_dashboard
+import stitchpad.composeapp.generated.resources.nav_orders
+import stitchpad.composeapp.generated.resources.nav_settings
 
 @Composable
 fun MainRoot(onSignedOut: () -> Unit) {
@@ -144,25 +148,25 @@ private fun MainNavGraph(
             )
         }
         composable<OrdersPlaceholderRoute> {
-            TabPlaceholder(title = "Orders")
+            TabPlaceholder(title = Res.string.nav_orders)
         }
         composable<DashboardPlaceholderRoute> {
-            TabPlaceholder(title = "Dashboard")
+            TabPlaceholder(title = Res.string.nav_dashboard)
         }
         composable<SettingsPlaceholderRoute> {
-            TabPlaceholder(title = "Settings", onSignedOut = onSignedOut)
+            TabPlaceholder(title = Res.string.nav_settings, onSignedOut = onSignedOut)
         }
     }
 }
 
 @Composable
-private fun TabPlaceholder(title: String, onSignedOut: (() -> Unit)? = null) {
+private fun TabPlaceholder(title: StringResource, onSignedOut: (() -> Unit)? = null) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.fillMaxSize()
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = title, style = MaterialTheme.typography.headlineMedium)
+            Text(text = stringResource(title), style = MaterialTheme.typography.headlineMedium)
             if (onSignedOut != null) {
                 Button(
                     onClick = onSignedOut,

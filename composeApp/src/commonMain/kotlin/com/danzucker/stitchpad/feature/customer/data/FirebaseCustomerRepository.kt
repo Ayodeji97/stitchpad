@@ -40,6 +40,7 @@ class FirebaseCustomerRepository(
                 .collection("customers")
                 .document(customerId)
                 .get()
+            if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
             val dto = doc.data<CustomerDto>()
             Result.Success(dto.toCustomer(userId))
         } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
