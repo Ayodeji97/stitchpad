@@ -33,11 +33,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
+import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
+import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardPlaceholderRoute
+import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrdersPlaceholderRoute
 import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -57,7 +61,7 @@ fun MainRoot(onSignedOut: () -> Unit) {
 
     val showBottomBar = BottomNavItem.all.any { item ->
         currentDestination?.hasRoute(item.route::class) == true
-    }
+    } || currentDestination?.hasRoute<CustomerDetailRoute>() == true
 
     Scaffold(
         bottomBar = {
@@ -137,13 +141,32 @@ private fun MainNavGraph(
                 onNavigateToAddCustomer = {
                     navController.navigate(CustomerFormRoute())
                 },
+                onNavigateToCustomerDetail = { customerId ->
+                    navController.navigate(CustomerDetailRoute(customerId = customerId))
+                }
+            )
+        }
+        composable<CustomerDetailRoute> {
+            CustomerDetailRoot(
+                onNavigateBack = { navController.navigateUp() },
                 onNavigateToEditCustomer = { customerId ->
                     navController.navigate(CustomerFormRoute(customerId = customerId))
+                },
+                onNavigateToAddMeasurement = { customerId ->
+                    navController.navigate(MeasurementFormRoute(customerId = customerId))
+                },
+                onNavigateToEditMeasurement = { customerId, measurementId ->
+                    navController.navigate(MeasurementFormRoute(customerId = customerId, measurementId = measurementId))
                 }
             )
         }
         composable<CustomerFormRoute> {
             CustomerFormRoot(
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+        composable<MeasurementFormRoute> {
+            MeasurementFormRoot(
                 onNavigateBack = { navController.navigateUp() }
             )
         }

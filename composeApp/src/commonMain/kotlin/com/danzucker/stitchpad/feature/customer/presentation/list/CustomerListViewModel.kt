@@ -52,7 +52,7 @@ class CustomerListViewModel(
             }
             is CustomerListAction.OnCustomerClick -> {
                 viewModelScope.launch {
-                    _events.send(CustomerListEvent.NavigateToEditCustomer(action.customer.id))
+                    _events.send(CustomerListEvent.NavigateToCustomerDetail(action.customer.id))
                 }
             }
             CustomerListAction.OnAddCustomerClick -> {

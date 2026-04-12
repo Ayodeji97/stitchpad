@@ -93,7 +93,7 @@ import stitchpad.composeapp.generated.resources.delivery_pickup
 @Composable
 fun CustomerListRoot(
     onNavigateToAddCustomer: () -> Unit,
-    onNavigateToEditCustomer: (String) -> Unit
+    onNavigateToCustomerDetail: (String) -> Unit
 ) {
     val viewModel: CustomerListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -102,7 +102,7 @@ fun CustomerListRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             CustomerListEvent.NavigateToAddCustomer -> onNavigateToAddCustomer()
-            is CustomerListEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
+            is CustomerListEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
         }
     }
 

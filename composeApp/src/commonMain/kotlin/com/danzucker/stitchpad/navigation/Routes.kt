@@ -30,6 +30,12 @@ data object CustomerListRoute
 data class CustomerFormRoute(val customerId: String? = null)
 
 @Serializable
+data class CustomerDetailRoute(val customerId: String)
+
+@Serializable
+data class MeasurementFormRoute(val customerId: String, val measurementId: String? = null)
+
+@Serializable
 data object OrdersPlaceholderRoute
 
 @Serializable
