@@ -9,7 +9,8 @@ actual class MeasurementPreferences(context: Context) : MeasurementPreferencesSt
     private val prefs = context.getSharedPreferences("measurement_prefs", Context.MODE_PRIVATE)
 
     override suspend fun getUnit(): MeasurementUnit =
-        MeasurementUnit.valueOf(prefs.getString(KEY_UNIT, "INCHES") ?: "INCHES")
+        runCatching { MeasurementUnit.valueOf(prefs.getString(KEY_UNIT, "INCHES") ?: "INCHES") }
+            .getOrDefault(MeasurementUnit.INCHES)
 
     override suspend fun setUnit(unit: MeasurementUnit) {
         prefs.edit { putString(KEY_UNIT, unit.name) }

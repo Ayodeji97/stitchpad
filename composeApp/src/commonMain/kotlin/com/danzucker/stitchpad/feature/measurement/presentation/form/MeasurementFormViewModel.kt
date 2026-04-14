@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiT
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -116,44 +117,40 @@ class MeasurementFormViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            measurementRepository.observeMeasurements(userId, customerId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        val measurement = result.data.find { it.id == id }
-                        if (measurement != null) {
-                            val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
-                            val allKeys = sections.flatMap { it.fields }.map { it.key }
-                            val fieldsAsString = allKeys.associateWith { key ->
-                                val v = measurement.fields[key]
-                                if (v != null) {
-                                    if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
-                                } else {
-                                    ""
-                                }
+            when (val result = measurementRepository.observeMeasurements(userId, customerId).first()) {
+                is Result.Success -> {
+                    val measurement = result.data.find { it.id == id }
+                    if (measurement != null) {
+                        val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
+                        val allKeys = sections.flatMap { it.fields }.map { it.key }
+                        val fieldsAsString = allKeys.associateWith { key ->
+                            val v = measurement.fields[key]
+                            if (v != null) {
+                                if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+                            } else {
+                                ""
                             }
-                            _state.update {
-                                it.copy(
-                                    gender = measurement.gender,
-                                    sections = sections,
-                                    fields = fieldsAsString,
-                                    unit = measurement.unit,
-                                    notes = measurement.notes ?: "",
-                                    isLoading = false
-                                )
-                            }
-                        } else {
-                            _state.update { it.copy(isLoading = false) }
                         }
-                        return@collect
-                    }
-                    is Result.Error -> {
                         _state.update {
                             it.copy(
-                                isLoading = false,
-                                errorMessage = result.error.toMeasurementUiText()
+                                gender = measurement.gender,
+                                sections = sections,
+                                fields = fieldsAsString,
+                                unit = measurement.unit,
+                                notes = measurement.notes ?: "",
+                                isLoading = false
                             )
                         }
-                        return@collect
+                    } else {
+                        _state.update { it.copy(isLoading = false) }
+                    }
+                }
+                is Result.Error -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.error.toMeasurementUiText()
+                        )
                     }
                 }
             }

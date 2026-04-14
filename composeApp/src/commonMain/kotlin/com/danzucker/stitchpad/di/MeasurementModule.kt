@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
-import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailViewModel
 import com.danzucker.stitchpad.feature.measurement.data.FirebaseMeasurementRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormViewModel
 import org.koin.core.module.dsl.singleOf
@@ -14,6 +13,5 @@ val measurementDataModule = module {
 }
 
 val measurementPresentationModule = module {
-    viewModelOf(::CustomerDetailViewModel)
     viewModelOf(::MeasurementFormViewModel)
 }

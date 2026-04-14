@@ -8,7 +8,8 @@ actual class MeasurementPreferences : MeasurementPreferencesStore {
     private val defaults = NSUserDefaults.standardUserDefaults
 
     override suspend fun getUnit(): MeasurementUnit =
-        MeasurementUnit.valueOf(defaults.stringForKey(KEY_UNIT) ?: "INCHES")
+        runCatching { MeasurementUnit.valueOf(defaults.stringForKey(KEY_UNIT) ?: "INCHES") }
+            .getOrDefault(MeasurementUnit.INCHES)
 
     override suspend fun setUnit(unit: MeasurementUnit) {
         defaults.setObject(unit.name, forKey = KEY_UNIT)
