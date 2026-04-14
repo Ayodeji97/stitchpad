@@ -11,8 +11,10 @@ import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -25,15 +27,24 @@ class CustomerDetailViewModel(
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
 
+    private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(CustomerDetailState())
-    val state = _state.asStateFlow()
 
     private val _events = Channel<CustomerDetailEvent>()
     val events = _events.receiveAsFlow()
 
-    init {
-        loadData()
-    }
+    val state = _state
+        .onStart {
+            if (!hasLoadedInitialData) {
+                hasLoadedInitialData = true
+                loadData()
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = CustomerDetailState()
+        )
 
     fun onAction(action: CustomerDetailAction) {
         when (action) {

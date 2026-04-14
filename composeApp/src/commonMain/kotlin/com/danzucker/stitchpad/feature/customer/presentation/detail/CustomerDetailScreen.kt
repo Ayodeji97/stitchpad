@@ -57,7 +57,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
@@ -73,16 +73,10 @@ import stitchpad.composeapp.generated.resources.customer_delete_confirm
 import stitchpad.composeapp.generated.resources.customer_detail_measurements_section
 import stitchpad.composeapp.generated.resources.customer_detail_no_measurements
 import stitchpad.composeapp.generated.resources.fab_add_measurement
-import stitchpad.composeapp.generated.resources.garment_type_agbada
-import stitchpad.composeapp.generated.resources.garment_type_blouse
-import stitchpad.composeapp.generated.resources.garment_type_buba_and_skirt
-import stitchpad.composeapp.generated.resources.garment_type_dress
-import stitchpad.composeapp.generated.resources.garment_type_senator_kaftan
-import stitchpad.composeapp.generated.resources.garment_type_shirt
-import stitchpad.composeapp.generated.resources.garment_type_suit
-import stitchpad.composeapp.generated.resources.garment_type_trouser
 import stitchpad.composeapp.generated.resources.measurement_delete_message
 import stitchpad.composeapp.generated.resources.measurement_delete_title
+import stitchpad.composeapp.generated.resources.measurement_female_profile
+import stitchpad.composeapp.generated.resources.measurement_male_profile
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 
@@ -410,7 +404,11 @@ private fun SwipeableMeasurementItem(
 
 @Composable
 private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
-    val garmentLabel = garmentTypeLabel(measurement.garmentType)
+    val profileTitle = if (measurement.gender == CustomerGender.FEMALE) {
+        stringResource(Res.string.measurement_female_profile)
+    } else {
+        stringResource(Res.string.measurement_male_profile)
+    }
     val unitLabel = if (measurement.unit == MeasurementUnit.INCHES) {
         stringResource(Res.string.measurement_unit_inches)
     } else {
@@ -419,6 +417,7 @@ private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
     val dateText = remember(measurement.dateTaken) {
         epochToDateString(measurement.dateTaken)
     }
+    val subtitleParts = listOfNotNull(dateText.ifBlank { null }, unitLabel)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -430,7 +429,7 @@ private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = garmentLabel,
+                text = profileTitle,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -439,21 +438,31 @@ private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "$dateText · $unitLabel",
+                text = subtitleParts.joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (measurement.fields.isNotEmpty()) {
                 Spacer(Modifier.height(2.dp))
-                val preview = measurement.fields.entries.take(3)
-                    .joinToString("  ") { (k, v) -> "$k: ${formatMeasurementValue(v)}" }
-                Text(
-                    text = preview,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                val previewKeys = if (measurement.gender == CustomerGender.FEMALE) {
+                    listOf("bust_circumference" to "Bust", "waist" to "Waist", "hip_circumference" to "Hip")
+                } else {
+                    listOf("chest" to "Chest", "trouser_waist" to "Waist")
+                }
+                val preview = previewKeys
+                    .mapNotNull { (key, label) ->
+                        measurement.fields[key]?.let { "$label: ${formatMeasurementValue(it)}" }
+                    }
+                    .joinToString("  ")
+                if (preview.isNotBlank()) {
+                    Text(
+                        text = preview,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -465,7 +474,6 @@ private fun epochToDateString(epochMs: Long): String {
     val totalMinutes = totalSeconds / 60
     val totalHours = totalMinutes / 60
     val totalDays = totalHours / 24
-    // Zeller-like algorithm to get day/month/year from days since epoch (1970-01-01)
     var z = totalDays + 719468
     val era = (if (z >= 0) z else z - 146096) / 146097
     val doe = z - era * 146097
@@ -490,18 +498,6 @@ private fun formatMeasurementValue(value: Double): String {
     } else {
         value.toString()
     }
-}
-
-@Composable
-private fun garmentTypeLabel(garmentType: GarmentType): String = when (garmentType) {
-    GarmentType.AGBADA -> stringResource(Res.string.garment_type_agbada)
-    GarmentType.SENATOR_KAFTAN -> stringResource(Res.string.garment_type_senator_kaftan)
-    GarmentType.BUBA_AND_SKIRT -> stringResource(Res.string.garment_type_buba_and_skirt)
-    GarmentType.DRESS -> stringResource(Res.string.garment_type_dress)
-    GarmentType.TROUSER -> stringResource(Res.string.garment_type_trouser)
-    GarmentType.SHIRT -> stringResource(Res.string.garment_type_shirt)
-    GarmentType.BLOUSE -> stringResource(Res.string.garment_type_blouse)
-    GarmentType.SUIT -> stringResource(Res.string.garment_type_suit)
 }
 
 @Suppress("UnusedPrivateMember")
@@ -552,8 +548,25 @@ private fun CustomerDetailScreenFilledPreview() {
                     Measurement(
                         id = "m1",
                         customerId = "1",
-                        garmentType = GarmentType.DRESS,
-                        fields = mapOf("Bust" to 36.0, "Waist" to 28.0, "Hip" to 38.0),
+                        gender = CustomerGender.FEMALE,
+                        fields = mapOf(
+                            "bust_circumference" to 36.0,
+                            "waist" to 28.0,
+                            "hip_circumference" to 38.0
+                        ),
+                        unit = MeasurementUnit.INCHES,
+                        notes = null,
+                        dateTaken = 1700000000000L,
+                        createdAt = 1700000000000L
+                    ),
+                    Measurement(
+                        id = "m2",
+                        customerId = "1",
+                        gender = CustomerGender.MALE,
+                        fields = mapOf(
+                            "chest" to 40.0,
+                            "trouser_waist" to 32.0
+                        ),
                         unit = MeasurementUnit.INCHES,
                         notes = null,
                         dateTaken = 1700000000000L,

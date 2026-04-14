@@ -4,7 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
+import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -12,8 +13,10 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,30 +30,57 @@ class MeasurementFormViewModel(
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
     private val measurementId: String? = savedStateHandle["measurementId"]
 
+    private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(MeasurementFormState(isEditMode = measurementId != null))
-    val state = _state.asStateFlow()
 
     private val _events = Channel<MeasurementFormEvent>()
     val events = _events.receiveAsFlow()
 
-    init {
-        viewModelScope.launch {
-            val unit = measurementPreferencesStore.getUnit()
-            _state.update { it.copy(unit = unit) }
-            if (measurementId != null) {
-                loadMeasurement(measurementId)
-            } else {
-                val defaultType = _state.value.garmentType
-                _state.update { it.copy(fields = defaultType.fieldLabels.associateWith { "" }) }
+    val state = _state
+        .onStart {
+            if (!hasLoadedInitialData) {
+                hasLoadedInitialData = true
+                val unit = measurementPreferencesStore.getUnit()
+                _state.update { it.copy(unit = unit) }
+                if (measurementId != null) {
+                    loadMeasurement(measurementId)
+                } else {
+                    onGenderChange(CustomerGender.FEMALE)
+                }
             }
         }
-    }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = MeasurementFormState(isEditMode = measurementId != null)
+        )
 
     fun onAction(action: MeasurementFormAction) {
         when (action) {
-            is MeasurementFormAction.OnGarmentTypeChange -> onGarmentTypeChange(action.type)
+            is MeasurementFormAction.OnGenderChange -> onGenderChange(action.gender)
+            is MeasurementFormAction.OnSectionChange -> {
+                _state.update { it.copy(currentSectionIndex = action.index, isCurrentSectionExpanded = true) }
+            }
+            MeasurementFormAction.OnNextSection -> {
+                _state.update { s ->
+                    val next = (s.currentSectionIndex + 1).coerceAtMost(s.sections.size - 1)
+                    s.copy(currentSectionIndex = next, isCurrentSectionExpanded = true)
+                }
+            }
+            MeasurementFormAction.OnPreviousSection -> {
+                _state.update { s ->
+                    val prev = (s.currentSectionIndex - 1).coerceAtLeast(0)
+                    s.copy(currentSectionIndex = prev, isCurrentSectionExpanded = true)
+                }
+            }
+            MeasurementFormAction.OnToggleShowMore -> {
+                _state.update { it.copy(isCurrentSectionExpanded = !it.isCurrentSectionExpanded) }
+            }
+            MeasurementFormAction.OnToggleNotes -> {
+                _state.update { it.copy(isNotesExpanded = !it.isNotesExpanded) }
+            }
             is MeasurementFormAction.OnFieldChange -> {
-                _state.update { it.copy(fields = it.fields + (action.label to action.value)) }
+                _state.update { it.copy(fields = it.fields + (action.key to action.value)) }
             }
             is MeasurementFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
@@ -65,11 +95,16 @@ class MeasurementFormViewModel(
         }
     }
 
-    private fun onGarmentTypeChange(type: GarmentType) {
+    private fun onGenderChange(gender: CustomerGender) {
+        val sections = BodyProfileTemplate.sectionsFor(gender)
+        val allKeys = sections.flatMap { it.fields }.map { it.key }
         _state.update {
             it.copy(
-                garmentType = type,
-                fields = type.fieldLabels.associateWith { "" }
+                gender = gender,
+                sections = sections,
+                currentSectionIndex = 0,
+                isCurrentSectionExpanded = true,
+                fields = allKeys.associateWith { "" }
             )
         }
     }
@@ -86,21 +121,20 @@ class MeasurementFormViewModel(
                     is Result.Success -> {
                         val measurement = result.data.find { it.id == id }
                         if (measurement != null) {
-                            val fieldsAsString = measurement.garmentType.fieldLabels.associateWith { label ->
-                                val v = measurement.fields[label]
+                            val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
+                            val allKeys = sections.flatMap { it.fields }.map { it.key }
+                            val fieldsAsString = allKeys.associateWith { key ->
+                                val v = measurement.fields[key]
                                 if (v != null) {
-                                    if (v == v.toLong().toDouble()) {
-                                        v.toLong().toString()
-                                    } else {
-                                        v.toString()
-                                    }
+                                    if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
                                 } else {
                                     ""
                                 }
                             }
                             _state.update {
                                 it.copy(
-                                    garmentType = measurement.garmentType,
+                                    gender = measurement.gender,
+                                    sections = sections,
                                     fields = fieldsAsString,
                                     unit = measurement.unit,
                                     notes = measurement.notes ?: "",
@@ -134,6 +168,10 @@ class MeasurementFormViewModel(
                 return@launch
             }
             val s = _state.value
+            val gender = s.gender ?: run {
+                _state.update { it.copy(isLoading = false) }
+                return@launch
+            }
             val parsedFields = s.fields
                 .mapValues { it.value.toDoubleOrNull() ?: 0.0 }
                 .filter { it.value > 0.0 }
@@ -141,7 +179,7 @@ class MeasurementFormViewModel(
             val measurement = Measurement(
                 id = measurementId ?: "",
                 customerId = customerId,
-                garmentType = s.garmentType,
+                gender = gender,
                 fields = parsedFields,
                 unit = s.unit,
                 notes = s.notes.trim().ifBlank { null },

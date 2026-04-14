@@ -10,6 +10,8 @@ import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -44,33 +46,37 @@ class CustomerFormViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel(customerId: String? = null): CustomerFormViewModel {
+    private fun TestScope.createViewModel(customerId: String? = null): CustomerFormViewModel {
         val args = if (customerId != null) mapOf("customerId" to customerId) else emptyMap()
-        return CustomerFormViewModel(
+        val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             customerRepository = customerRepository,
             authRepository = authRepository,
             emailValidator = emailValidator,
         )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+        return vm
     }
 
-    private fun createViewModelWithValidator(
+    private fun TestScope.createViewModelWithValidator(
         customerId: String? = null,
         validator: FakePatternValidator,
     ): CustomerFormViewModel {
         val args = if (customerId != null) mapOf("customerId" to customerId) else emptyMap()
-        return CustomerFormViewModel(
+        val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             customerRepository = customerRepository,
             authRepository = authRepository,
             emailValidator = validator,
         )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+        return vm
     }
 
     // --- Initial state ---
 
     @Test
-    fun initialState_createMode_allFieldsEmpty() {
+    fun initialState_createMode_allFieldsEmpty() = runTest {
         val viewModel = createViewModel()
         val state = viewModel.state.value
         assertEquals("", state.name)
@@ -88,7 +94,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun initialState_editMode_whenCustomerIdProvided() {
+    fun initialState_editMode_whenCustomerIdProvided() = runTest {
         val viewModel = createViewModel(customerId = "customer-123")
         assertTrue(viewModel.state.value.isEditMode)
     }
@@ -96,14 +102,14 @@ class CustomerFormViewModelTest {
     // --- Field changes ---
 
     @Test
-    fun onNameChange_updatesState() {
+    fun onNameChange_updatesState() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         assertEquals("Ade Fashions", viewModel.state.value.name)
     }
 
     @Test
-    fun onNameChange_clearsNameError() {
+    fun onNameChange_clearsNameError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         viewModel.onAction(CustomerFormAction.OnSaveClick)  // blank name → nameError set
@@ -114,14 +120,14 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onPhoneChange_updatesState() {
+    fun onPhoneChange_updatesState() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         assertEquals("+2348012345678", viewModel.state.value.phone)
     }
 
     @Test
-    fun onPhoneChange_clearsPhoneError() {
+    fun onPhoneChange_clearsPhoneError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("abc"))
@@ -133,14 +139,14 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onEmailChange_updatesState() {
+    fun onEmailChange_updatesState() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnEmailChange("ade@gmail.com"))
         assertEquals("ade@gmail.com", viewModel.state.value.email)
     }
 
     @Test
-    fun onEmailChange_clearsEmailError() {
+    fun onEmailChange_clearsEmailError() = runTest {
         val viewModel = createViewModelWithValidator(validator = FakePatternValidator(shouldMatch = false))
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -153,21 +159,21 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onAddressChange_updatesState() {
+    fun onAddressChange_updatesState() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnAddressChange("Lagos, Nigeria"))
         assertEquals("Lagos, Nigeria", viewModel.state.value.address)
     }
 
     @Test
-    fun onNotesChange_updatesState() {
+    fun onNotesChange_updatesState() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNotesChange("Prefers evening pickup"))
         assertEquals("Prefers evening pickup", viewModel.state.value.notes)
     }
 
     @Test
-    fun onDeliveryPreferenceChange_updatesState() {
+    fun onDeliveryPreferenceChange_updatesState() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnDeliveryPreferenceChange(DeliveryPreference.DELIVERY))
         assertEquals(DeliveryPreference.DELIVERY, viewModel.state.value.deliveryPreference)
@@ -176,21 +182,21 @@ class CustomerFormViewModelTest {
     // --- Blur validation ---
 
     @Test
-    fun onNameBlur_withBlankName_doesNotSetError() {
+    fun onNameBlur_withBlankName_doesNotSetError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameBlur)
         assertNull(viewModel.state.value.nameError)
     }
 
     @Test
-    fun onPhoneBlur_withBlankPhone_doesNotSetError() {
+    fun onPhoneBlur_withBlankPhone_doesNotSetError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneBlur)
         assertNull(viewModel.state.value.phoneError)
     }
 
     @Test
-    fun onPhoneBlur_withInvalidPhone_setsPhoneError() {
+    fun onPhoneBlur_withInvalidPhone_setsPhoneError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneChange("abc123"))
         viewModel.onAction(CustomerFormAction.OnPhoneBlur)
@@ -198,7 +204,15 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onPhoneBlur_withValidPhone_doesNotSetError() {
+    fun onPhoneBlur_withNoDigits_setsPhoneError() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+---"))
+        viewModel.onAction(CustomerFormAction.OnPhoneBlur)
+        assertNotNull(viewModel.state.value.phoneError)
+    }
+
+    @Test
+    fun onPhoneBlur_withValidPhone_doesNotSetError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+234 801 234 5678"))
         viewModel.onAction(CustomerFormAction.OnPhoneBlur)
@@ -206,14 +220,14 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onEmailBlur_withBlankEmail_doesNotSetError() {
+    fun onEmailBlur_withBlankEmail_doesNotSetError() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnEmailBlur)
         assertNull(viewModel.state.value.emailError)
     }
 
     @Test
-    fun onEmailBlur_withInvalidEmail_setsEmailError() {
+    fun onEmailBlur_withInvalidEmail_setsEmailError() = runTest {
         val viewModel = createViewModelWithValidator(validator = FakePatternValidator(shouldMatch = false))
         viewModel.onAction(CustomerFormAction.OnEmailChange("not-an-email"))
         viewModel.onAction(CustomerFormAction.OnEmailBlur)
@@ -221,7 +235,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onEmailBlur_withValidEmail_doesNotSetError() {
+    fun onEmailBlur_withValidEmail_doesNotSetError() = runTest {
         val viewModel = createViewModel()  // validator returns true
         viewModel.onAction(CustomerFormAction.OnEmailChange("ade@gmail.com"))
         viewModel.onAction(CustomerFormAction.OnEmailBlur)
@@ -231,7 +245,7 @@ class CustomerFormViewModelTest {
     // --- Save validation ---
 
     @Test
-    fun save_withBlankName_setsNameError_andDoesNotCallRepository() {
+    fun save_withBlankName_setsNameError_andDoesNotCallRepository() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         viewModel.onAction(CustomerFormAction.OnSaveClick)
@@ -241,7 +255,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun save_withBlankPhone_setsPhoneError_andDoesNotCallRepository() {
+    fun save_withBlankPhone_setsPhoneError_andDoesNotCallRepository() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnSaveClick)  // blank phone is invalid
@@ -251,7 +265,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun save_withInvalidPhone_setsPhoneError_andDoesNotCallRepository() {
+    fun save_withInvalidPhone_setsPhoneError_andDoesNotCallRepository() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("abc"))
@@ -262,7 +276,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun save_withInvalidEmail_setsEmailError_andDoesNotCallRepository() {
+    fun save_withInvalidEmail_setsEmailError_andDoesNotCallRepository() = runTest {
         val viewModel = createViewModelWithValidator(validator = FakePatternValidator(shouldMatch = false))
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -348,7 +362,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun save_withNoAuthUser_doesNotCallRepository() {
+    fun save_withNoAuthUser_doesNotCallRepository() = runTest {
         // authRepository has no current user (no signUpWithEmail called)
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
@@ -397,7 +411,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun loadCustomer_withNoAuthUser_doesNotLoadAndResetsLoading() {
+    fun loadCustomer_withNoAuthUser_doesNotLoadAndResetsLoading() = runTest {
         // No user — auth check fails early in loadCustomer
         val viewModel = createViewModel(customerId = "customer-123")
 
