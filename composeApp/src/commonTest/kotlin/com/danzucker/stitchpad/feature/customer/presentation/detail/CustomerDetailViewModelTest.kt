@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
