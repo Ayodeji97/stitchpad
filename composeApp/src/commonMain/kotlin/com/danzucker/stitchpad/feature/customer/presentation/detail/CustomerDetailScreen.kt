@@ -96,7 +96,10 @@ fun CustomerDetailRoot(
             CustomerDetailEvent.NavigateBack -> onNavigateBack()
             is CustomerDetailEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
             is CustomerDetailEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
-            is CustomerDetailEvent.NavigateToEditMeasurement -> onNavigateToEditMeasurement(event.customerId, event.measurementId)
+            is CustomerDetailEvent.NavigateToEditMeasurement -> onNavigateToEditMeasurement(
+                event.customerId,
+                event.measurementId,
+            )
         }
     }
 
