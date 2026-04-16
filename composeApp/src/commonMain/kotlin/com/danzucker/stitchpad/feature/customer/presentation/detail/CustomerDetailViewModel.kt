@@ -50,14 +50,14 @@ class CustomerDetailViewModel(
     fun onAction(action: CustomerDetailAction) {
         when (action) {
             CustomerDetailAction.OnEditCustomerClick -> {
-                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToEditCustomer) }
+                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToEditCustomer(customerId)) }
             }
             CustomerDetailAction.OnAddMeasurementClick -> {
-                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToAddMeasurement) }
+                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToAddMeasurement(customerId)) }
             }
             is CustomerDetailAction.OnMeasurementClick -> {
                 viewModelScope.launch {
-                    _events.send(CustomerDetailEvent.NavigateToEditMeasurement(action.measurement.id))
+                    _events.send(CustomerDetailEvent.NavigateToEditMeasurement(customerId, action.measurement.id))
                 }
             }
             is CustomerDetailAction.OnDeleteMeasurementClick -> {

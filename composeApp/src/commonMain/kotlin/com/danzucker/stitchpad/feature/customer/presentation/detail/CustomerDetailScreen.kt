@@ -94,15 +94,9 @@ fun CustomerDetailRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             CustomerDetailEvent.NavigateBack -> onNavigateBack()
-            CustomerDetailEvent.NavigateToEditCustomer -> {
-                state.customer?.let { onNavigateToEditCustomer(it.id) }
-            }
-            CustomerDetailEvent.NavigateToAddMeasurement -> {
-                state.customer?.let { onNavigateToAddMeasurement(it.id) }
-            }
-            is CustomerDetailEvent.NavigateToEditMeasurement -> {
-                state.customer?.let { onNavigateToEditMeasurement(it.id, event.measurementId) }
-            }
+            is CustomerDetailEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
+            is CustomerDetailEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
+            is CustomerDetailEvent.NavigateToEditMeasurement -> onNavigateToEditMeasurement(event.customerId, event.measurementId)
         }
     }
 

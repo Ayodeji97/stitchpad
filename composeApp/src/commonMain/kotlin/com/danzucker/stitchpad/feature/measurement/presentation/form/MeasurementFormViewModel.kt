@@ -138,6 +138,8 @@ class MeasurementFormViewModel(
                                 fields = fieldsAsString,
                                 unit = measurement.unit,
                                 notes = measurement.notes ?: "",
+                                originalCreatedAt = measurement.createdAt,
+                                originalDateTaken = measurement.dateTaken,
                                 isLoading = false
                             )
                         }
@@ -180,8 +182,8 @@ class MeasurementFormViewModel(
                 fields = parsedFields,
                 unit = s.unit,
                 notes = s.notes.trim().ifBlank { null },
-                dateTaken = 0L,
-                createdAt = 0L
+                dateTaken = s.originalDateTaken,
+                createdAt = s.originalCreatedAt
             )
             val result = if (measurementId != null) {
                 measurementRepository.updateMeasurement(userId, customerId, measurement)

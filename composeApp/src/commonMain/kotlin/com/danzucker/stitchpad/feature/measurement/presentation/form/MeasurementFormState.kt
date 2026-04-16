@@ -16,5 +16,7 @@ data class MeasurementFormState(
     val notes: String = "",
     val isLoading: Boolean = false,
     val isEditMode: Boolean = false,
-    val errorMessage: UiText? = null
+    val errorMessage: UiText? = null,
+    val originalCreatedAt: Long = 0L,
+    val originalDateTaken: Long = 0L
 )

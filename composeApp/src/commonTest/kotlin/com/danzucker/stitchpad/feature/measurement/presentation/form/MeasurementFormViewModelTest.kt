@@ -341,6 +341,19 @@ class MeasurementFormViewModelTest {
         assertIs<MeasurementFormEvent.NavigateBack>(vm.events.first())
     }
 
+    @Test
+    fun save_editMode_preservesOriginalCreatedAtAndDateTaken() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+        val vm = createViewModel(measurementId = "meas-1")
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        val saved = measurementRepository.lastUpdatedMeasurement
+        assertNotNull(saved)
+        assertEquals(12345L, saved.createdAt)
+        assertEquals(0L, saved.dateTaken)
+    }
+
     // --- Save: error paths ---
 
     @Test
