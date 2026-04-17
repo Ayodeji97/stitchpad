@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -89,9 +87,6 @@ import stitchpad.composeapp.generated.resources.measurement_show_less
 import stitchpad.composeapp.generated.resources.measurement_show_more_count
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
-import stitchpad.composeapp.generated.resources.section_body_lengths
-import stitchpad.composeapp.generated.resources.section_trouser
-import stitchpad.composeapp.generated.resources.section_upper_body
 
 @Composable
 fun MeasurementFormRoot(onNavigateBack: () -> Unit) {
@@ -197,12 +192,6 @@ fun MeasurementFormScreen(
                 )
                 if (state.sections.isNotEmpty()) {
                     Spacer(Modifier.height(DesignTokens.space4))
-                    SectionTabRow(
-                        sections = state.sections,
-                        currentIndex = state.currentSectionIndex,
-                        onTabSelected = { onAction(MeasurementFormAction.OnSectionChange(it)) }
-                    )
-                    Spacer(Modifier.height(DesignTokens.space3))
                     SectionProgressRow(
                         sections = state.sections,
                         currentIndex = state.currentSectionIndex,
@@ -364,44 +353,6 @@ private fun GenderSelector(
                     }
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun SectionTabRow(
-    sections: List<MeasurementSection>,
-    currentIndex: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        contentPadding = PaddingValues(horizontal = 0.dp)
-    ) {
-        itemsIndexed(sections) { index, section ->
-            val isSelected = index == currentIndex
-            FilterChip(
-                selected = isSelected,
-                onClick = { onTabSelected(index) },
-                label = {
-                    Text(
-                        text = sectionTitle(section.titleKey),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color.Transparent,
-                    selectedLabelColor = DesignTokens.primary600,
-                    containerColor = Color.Transparent,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = if (isSelected) {
-                    BorderStroke(1.dp, DesignTokens.primary500)
-                } else {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                }
-            )
         }
     }
 }
@@ -695,14 +646,6 @@ private fun MeasurementTextField(
 private fun genderLabel(gender: CustomerGender): String = when (gender) {
     CustomerGender.FEMALE -> stringResource(Res.string.gender_female)
     CustomerGender.MALE -> stringResource(Res.string.gender_male)
-}
-
-@Composable
-private fun sectionTitle(titleKey: String): String = when (titleKey) {
-    "section_upper_body" -> stringResource(Res.string.section_upper_body)
-    "section_body_lengths" -> stringResource(Res.string.section_body_lengths)
-    "section_trouser" -> stringResource(Res.string.section_trouser)
-    else -> titleKey
 }
 
 @Suppress("UnusedPrivateMember")
