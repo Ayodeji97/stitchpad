@@ -89,13 +89,9 @@ import stitchpad.composeapp.generated.resources.measurement_show_less
 import stitchpad.composeapp.generated.resources.measurement_show_more_count
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
-import stitchpad.composeapp.generated.resources.section_arms
 import stitchpad.composeapp.generated.resources.section_body_lengths
-import stitchpad.composeapp.generated.resources.section_bust
-import stitchpad.composeapp.generated.resources.section_neck_shoulders
 import stitchpad.composeapp.generated.resources.section_trouser
 import stitchpad.composeapp.generated.resources.section_upper_body
-import stitchpad.composeapp.generated.resources.section_waist_hip
 
 @Composable
 fun MeasurementFormRoot(onNavigateBack: () -> Unit) {
@@ -703,13 +699,9 @@ private fun genderLabel(gender: CustomerGender): String = when (gender) {
 
 @Composable
 private fun sectionTitle(titleKey: String): String = when (titleKey) {
-    "section_neck_shoulders" -> stringResource(Res.string.section_neck_shoulders)
-    "section_bust" -> stringResource(Res.string.section_bust)
-    "section_waist_hip" -> stringResource(Res.string.section_waist_hip)
-    "section_arms" -> stringResource(Res.string.section_arms)
+    "section_upper_body" -> stringResource(Res.string.section_upper_body)
     "section_body_lengths" -> stringResource(Res.string.section_body_lengths)
     "section_trouser" -> stringResource(Res.string.section_trouser)
-    "section_upper_body" -> stringResource(Res.string.section_upper_body)
     else -> titleKey
 }
 
