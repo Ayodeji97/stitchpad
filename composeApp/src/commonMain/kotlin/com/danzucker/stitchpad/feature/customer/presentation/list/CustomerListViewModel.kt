@@ -10,8 +10,11 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -20,17 +23,26 @@ class CustomerListViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
+    private var hasLoadedInitialData = false
+    private var allCustomers: List<Customer> = emptyList()
+
     private val _state = MutableStateFlow(CustomerListState())
-    val state = _state.asStateFlow()
 
     private val _events = Channel<CustomerListEvent>()
     val events = _events.receiveAsFlow()
 
-    private var allCustomers: List<Customer> = emptyList()
-
-    init {
-        observeCustomers()
-    }
+    val state = _state
+        .onStart {
+            if (!hasLoadedInitialData) {
+                hasLoadedInitialData = true
+                observeCustomers()
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = CustomerListState()
+        )
 
     fun onAction(action: CustomerListAction) {
         when (action) {
@@ -52,7 +64,7 @@ class CustomerListViewModel(
             }
             is CustomerListAction.OnCustomerClick -> {
                 viewModelScope.launch {
-                    _events.send(CustomerListEvent.NavigateToEditCustomer(action.customer.id))
+                    _events.send(CustomerListEvent.NavigateToCustomerDetail(action.customer.id))
                 }
             }
             CustomerListAction.OnAddCustomerClick -> {

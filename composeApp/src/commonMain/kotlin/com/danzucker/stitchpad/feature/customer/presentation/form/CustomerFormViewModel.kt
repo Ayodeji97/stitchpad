@@ -12,8 +12,10 @@ import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
@@ -30,15 +32,24 @@ class CustomerFormViewModel(
 
     private val customerId: String? = savedStateHandle["customerId"]
 
+    private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(CustomerFormState(isEditMode = customerId != null))
-    val state = _state.asStateFlow()
 
     private val _events = Channel<CustomerFormEvent>()
     val events = _events.receiveAsFlow()
 
-    init {
-        if (customerId != null) loadCustomer(customerId)
-    }
+    val state = _state
+        .onStart {
+            if (!hasLoadedInitialData) {
+                hasLoadedInitialData = true
+                if (customerId != null) loadCustomer(customerId)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = CustomerFormState(isEditMode = customerId != null)
+        )
 
     @Suppress("CyclomaticComplexMethod")
     fun onAction(action: CustomerFormAction) {
@@ -156,7 +167,7 @@ class CustomerFormViewModel(
 
     private fun validatePhone(): Boolean {
         val phone = _state.value.phone.trim()
-        val isValid = phone.isNotBlank() && phone.all { isValidPhoneChar(it) }
+        val isValid = phone.isNotBlank() && phone.any { it.isDigit() } && phone.all { isValidPhoneChar(it) }
         if (!isValid) {
             _state.update {
                 it.copy(phoneError = UiText.StringResourceText(Res.string.error_phone_invalid))

@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.feature.customer.data.FirebaseCustomerRepository
+import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailViewModel
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormViewModel
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListViewModel
 import org.koin.core.module.dsl.singleOf
@@ -16,4 +17,5 @@ val customerDataModule = module {
 val customerPresentationModule = module {
     viewModelOf(::CustomerListViewModel)
     viewModelOf(::CustomerFormViewModel)
+    viewModelOf(::CustomerDetailViewModel)
 }

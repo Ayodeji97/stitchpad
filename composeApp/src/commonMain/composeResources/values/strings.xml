@@ -139,4 +139,77 @@
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>
     <string name="error_customer_already_exists">A customer with this name already exists</string>
+
+    <!-- Customer detail screen -->
+    <string name="customer_detail_measurements_section">Measurements</string>
+    <string name="customer_detail_no_measurements">No measurements yet. Tap + to record one.</string>
+    <string name="cd_edit_customer">Edit customer</string>
+
+    <!-- Garment type names -->
+    <string name="garment_type_agbada">Agbada</string>
+    <string name="garment_type_senator_kaftan">Senator / Kaftan</string>
+    <string name="garment_type_buba_and_skirt">Buba &amp; Skirt</string>
+    <string name="garment_type_dress">Dress</string>
+    <string name="garment_type_trouser">Trouser</string>
+    <string name="garment_type_shirt">Shirt</string>
+    <string name="garment_type_blouse">Blouse</string>
+    <string name="garment_type_suit">Suit</string>
+
+    <!-- Measurement form screen -->
+    <string name="measurement_add_title">Add Measurements</string>
+    <string name="measurement_edit_title">Edit Measurements</string>
+    <string name="measurement_save_button">Save Measurements</string>
+    <string name="measurement_garment_type_label">Garment type</string>
+    <string name="measurement_gender_label">Gender</string>
+    <string name="measurement_body_shape_label">Body shape (optional)</string>
+    <string name="measurement_show_more">Show more</string>
+    <string name="measurement_show_more_count">Show %1$d more</string>
+    <string name="measurement_show_less">Show less</string>
+    <string name="measurement_section_of">%1$d of %2$d</string>
+    <string name="measurement_previous">Previous</string>
+    <string name="measurement_next">Next</string>
+    <string name="measurement_add_note">Add a note (optional)</string>
+    <string name="measurement_notes_label">Notes (optional)</string>
+    <string name="measurement_notes_placeholder">e.g. Prefers loose fit around the chest…</string>
+    <string name="measurement_empty_state">No measurements yet. Tap + to add one.</string>
+    <string name="measurement_female_profile">Women's Measurements</string>
+    <string name="measurement_male_profile">Men's Measurements</string>
+    <string name="fab_add_measurement">Add measurement</string>
+
+    <!-- Gender labels -->
+    <string name="gender_female">Female</string>
+    <string name="gender_male">Male</string>
+
+    <!-- Body shape labels -->
+    <string name="body_shape_hourglass">Hourglass</string>
+    <string name="body_shape_pear">Pear</string>
+    <string name="body_shape_apple">Apple</string>
+    <string name="body_shape_rectangle">Rectangle</string>
+    <string name="body_shape_oval">Oval</string>
+    <string name="body_shape_diamond">Diamond</string>
+    <string name="body_shape_inverted_triangle">Inverted Triangle</string>
+
+    <!-- Measurement section titles -->
+    <string name="section_neck_shoulders">Neck &amp; Shoulders</string>
+    <string name="section_bust">Bust</string>
+    <string name="section_waist_hip">Waist &amp; Hip</string>
+    <string name="section_arms">Arms</string>
+    <string name="section_body_lengths">Body Lengths</string>
+    <string name="section_trouser">Trouser</string>
+    <string name="section_upper_body">Upper Body</string>
+
+    <!-- Measurement delete dialog -->
+    <string name="measurement_delete_title">Delete measurement?</string>
+    <string name="measurement_delete_message">This measurement will be permanently removed. This cannot be undone.</string>
+
+    <!-- Measurement unit -->
+    <string name="measurement_unit_inches">Inches</string>
+    <string name="measurement_unit_cm">Centimetres</string>
+
+    <!-- Measurement errors -->
+    <string name="error_measurement_not_found">Measurement not found</string>
+    <string name="error_measurement_unknown">Could not save measurement. Please try again.</string>
+
+    <!-- Settings -->
+    <string name="settings_measurement_unit_label">Measurement unit</string>
 </resources>
