@@ -54,8 +54,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -267,10 +268,18 @@ private fun StyleCard(
             )
     ) {
         Column {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = style.photoUrl,
                 contentDescription = style.description,
                 contentScale = ContentScale.Crop,
+                loading = {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        LoadingDots()
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
