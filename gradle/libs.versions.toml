@@ -20,7 +20,10 @@ kover = "0.9.1"
 kotlin = "2.3.20"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
+ktor = "3.3.0"
 material3 = "1.10.0-alpha05"
+coil = "3.4.0"
+peekaboo = "0.5.2"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -53,7 +56,19 @@ koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 # Firebase (GitLive KMP SDK)
 firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebase-gitlive" }
 firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "firebase-gitlive" }
+firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "firebase-gitlive" }
 firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "firebase-gitlive" }
+
+# Coil 3 (KMP image loading)
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
+
+# Ktor client engines (required by Coil's network fetcher)
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+
+# Peekaboo (KMP image picker)
+peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", version.ref = "peekaboo" }
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

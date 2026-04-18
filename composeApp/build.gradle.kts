@@ -32,6 +32,10 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
+            implementation(libs.ktor.client.okhttp)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
         commonMain.dependencies {
             // Compose
@@ -58,7 +62,15 @@ kotlin {
             // Firebase (GitLive KMP SDK)
             implementation(libs.firebase.auth)
             implementation(libs.firebase.firestore)
+            implementation(libs.firebase.storage)
             implementation(libs.firebase.common)
+
+            // Image loading
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+
+            // Image picker
+            implementation(libs.peekaboo.image.picker)
 
             // Serialization
             implementation(libs.kotlinx.serialization.json)
