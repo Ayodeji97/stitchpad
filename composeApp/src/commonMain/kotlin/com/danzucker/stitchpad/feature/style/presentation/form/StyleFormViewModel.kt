@@ -110,9 +110,9 @@ class StyleFormViewModel(
     private fun save() {
         val s = _state.value
         val trimmedDescription = s.description.trim()
-        if (trimmedDescription.isBlank()) return
-        if (!s.isEditMode && s.selectedPhotoBytes == null) return
-        if (s.isEditMode && s.existingStyle == null) return
+        val missingPhotoForCreate = !s.isEditMode && s.selectedPhotoBytes == null
+        val missingStyleForEdit = s.isEditMode && s.existingStyle == null
+        if (trimmedDescription.isBlank() || missingPhotoForCreate || missingStyleForEdit) return
 
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
