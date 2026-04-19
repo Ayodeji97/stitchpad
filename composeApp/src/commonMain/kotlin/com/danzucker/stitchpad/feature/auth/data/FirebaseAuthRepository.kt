@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.auth.data
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import dev.gitlive.firebase.auth.FirebaseAuth
@@ -11,6 +12,8 @@ import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
 import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
 import kotlin.math.abs
+
+private const val TAG = "AuthRepo"
 
 class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth
@@ -27,7 +30,9 @@ class FirebaseAuthRepository(
             firebaseUser.updateProfile(displayName = displayName)
             Result.Success(firebaseUser.toDomainUser())
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Result.Error(e.toAuthError())
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "signUpWithEmail failed error=$error" }
+            Result.Error(error)
         }
     }
 
@@ -40,7 +45,9 @@ class FirebaseAuthRepository(
             val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
             Result.Success(firebaseUser.toDomainUser())
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Result.Error(e.toAuthError())
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "signInWithEmail failed error=$error" }
+            Result.Error(error)
         }
     }
 
@@ -49,7 +56,9 @@ class FirebaseAuthRepository(
             firebaseAuth.sendPasswordResetEmail(email)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Result.Error(e.toAuthError())
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "sendPasswordResetEmail failed error=$error" }
+            Result.Error(error)
         }
     }
 
@@ -57,7 +66,8 @@ class FirebaseAuthRepository(
         return try {
             firebaseAuth.signOut()
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "signOut failed" }
             Result.Error(AuthError.UNKNOWN)
         }
     }

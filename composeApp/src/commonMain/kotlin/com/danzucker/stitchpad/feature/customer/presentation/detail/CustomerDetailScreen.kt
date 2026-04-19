@@ -18,9 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -79,13 +81,16 @@ import stitchpad.composeapp.generated.resources.measurement_female_profile
 import stitchpad.composeapp.generated.resources.measurement_male_profile
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
+import stitchpad.composeapp.generated.resources.style_gallery_title
+import stitchpad.composeapp.generated.resources.style_section_header
 
 @Composable
 fun CustomerDetailRoot(
     onNavigateBack: () -> Unit,
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
-    onNavigateToEditMeasurement: (String, String) -> Unit
+    onNavigateToEditMeasurement: (String, String) -> Unit,
+    onNavigateToStyleGallery: (String) -> Unit
 ) {
     val viewModel: CustomerDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -100,6 +105,7 @@ fun CustomerDetailRoot(
                 event.customerId,
                 event.measurementId,
             )
+            is CustomerDetailEvent.NavigateToStyleGallery -> onNavigateToStyleGallery(event.customerId)
         }
     }
 
@@ -225,6 +231,11 @@ fun CustomerDetailScreen(
                                 modifier = Modifier.padding(start = DesignTokens.space4)
                             )
                         }
+                    }
+                    item {
+                        StylesSectionRow(
+                            onClick = { onAction(CustomerDetailAction.OnViewStylesClick) }
+                        )
                     }
                 }
             }
@@ -396,6 +407,65 @@ private fun SwipeableMeasurementItem(
         ) {
             MeasurementListItem(measurement = measurement, onClick = onClick)
         }
+    }
+}
+
+@Composable
+private fun StylesSectionRow(onClick: () -> Unit) {
+    Column(modifier = Modifier.padding(top = DesignTokens.space6)) {
+        Text(
+            text = stringResource(Res.string.style_section_header),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                top = DesignTokens.space2,
+                bottom = DesignTokens.space2
+            )
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(DesignTokens.radiusMd)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.style_gallery_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

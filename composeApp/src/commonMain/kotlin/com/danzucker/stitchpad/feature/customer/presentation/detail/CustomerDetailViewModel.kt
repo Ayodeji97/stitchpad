@@ -67,6 +67,9 @@ class CustomerDetailViewModel(
             CustomerDetailAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, measurementToDelete = null) }
             }
+            CustomerDetailAction.OnViewStylesClick -> {
+                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToStyleGallery(customerId)) }
+            }
             CustomerDetailAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateBack) }
             }

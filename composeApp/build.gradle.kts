@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.kover)
 }
 
@@ -32,6 +33,14 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
+            implementation(libs.ktor.client.okhttp)
+
+            // Firebase Android (native) — Crashlytics only. Version resolved via BoM.
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.crashlytics)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
         commonMain.dependencies {
             // Compose
@@ -58,7 +67,18 @@ kotlin {
             // Firebase (GitLive KMP SDK)
             implementation(libs.firebase.auth)
             implementation(libs.firebase.firestore)
+            implementation(libs.firebase.storage)
             implementation(libs.firebase.common)
+
+            // Image loading
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+
+            // Image picker
+            implementation(libs.peekaboo.image.picker)
+
+            // Logging (KMP, Timber-like API)
+            implementation(libs.napier)
 
             // Serialization
             implementation(libs.kotlinx.serialization.json)

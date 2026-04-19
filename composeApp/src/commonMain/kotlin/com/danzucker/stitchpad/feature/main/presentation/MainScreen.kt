@@ -37,6 +37,8 @@ import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDeta
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
+import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
+import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
@@ -44,6 +46,8 @@ import com.danzucker.stitchpad.navigation.DashboardPlaceholderRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrdersPlaceholderRoute
 import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
+import com.danzucker.stitchpad.navigation.StyleFormRoute
+import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -84,10 +88,17 @@ fun MainRoot(onSignedOut: () -> Unit) {
                             NavigationBarItem(
                                 selected = selected,
                                 onClick = {
-                                    innerNavController.navigate(item.route) {
-                                        popUpTo(CustomerListRoute) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                    if (selected) return@NavigationBarItem
+                                    val popped = innerNavController.popBackStack(
+                                        route = item.route,
+                                        inclusive = false
+                                    )
+                                    if (!popped) {
+                                        innerNavController.navigate(item.route) {
+                                            popUpTo(CustomerListRoute) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
                                 },
                                 icon = {
@@ -157,6 +168,9 @@ private fun MainNavGraph(
                 },
                 onNavigateToEditMeasurement = { customerId, measurementId ->
                     navController.navigate(MeasurementFormRoute(customerId = customerId, measurementId = measurementId))
+                },
+                onNavigateToStyleGallery = { customerId ->
+                    navController.navigate(StyleGalleryRoute(customerId = customerId))
                 }
             )
         }
@@ -167,6 +181,22 @@ private fun MainNavGraph(
         }
         composable<MeasurementFormRoute> {
             MeasurementFormRoot(
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+        composable<StyleGalleryRoute> {
+            StyleGalleryRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToAddStyle = { customerId ->
+                    navController.navigate(StyleFormRoute(customerId = customerId))
+                },
+                onNavigateToEditStyle = { customerId, styleId ->
+                    navController.navigate(StyleFormRoute(customerId = customerId, styleId = styleId))
+                }
+            )
+        }
+        composable<StyleFormRoute> {
+            StyleFormRoot(
                 onNavigateBack = { navController.navigateUp() }
             )
         }
