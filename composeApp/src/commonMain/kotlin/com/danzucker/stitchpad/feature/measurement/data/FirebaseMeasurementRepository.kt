@@ -51,18 +51,18 @@ class FirebaseMeasurementRepository(
         customerId: String,
         measurement: Measurement
     ): EmptyResult<DataError.Network> {
+        val docRef = if (measurement.id.isBlank()) {
+            measurementsCollection(userId, customerId).document
+        } else {
+            measurementsCollection(userId, customerId).document(measurement.id)
+        }
         return try {
-            val docRef = if (measurement.id.isBlank()) {
-                measurementsCollection(userId, customerId).document
-            } else {
-                measurementsCollection(userId, customerId).document(measurement.id)
-            }
             val dto = measurement.toMeasurementDto().copy(id = docRef.id)
             docRef.set(dto)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
-                "createMeasurement failed measurementId=${measurement.id}"
+                "createMeasurement failed measurementId=${docRef.id}"
             }
             Result.Error(DataError.Network.UNKNOWN)
         }

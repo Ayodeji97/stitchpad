@@ -81,6 +81,7 @@ import stitchpad.composeapp.generated.resources.measurement_female_profile
 import stitchpad.composeapp.generated.resources.measurement_male_profile
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
+import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_section_header
 
 @Composable
@@ -451,9 +452,7 @@ private fun StylesSectionRow(onClick: () -> Unit) {
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.style_section_header)
-                        .lowercase()
-                        .replaceFirstChar { it.uppercase() },
+                    text = stringResource(Res.string.style_gallery_title),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface

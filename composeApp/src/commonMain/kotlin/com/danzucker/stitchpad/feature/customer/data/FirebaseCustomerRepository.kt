@@ -61,19 +61,19 @@ class FirebaseCustomerRepository(
         userId: String,
         customer: Customer
     ): EmptyResult<DataError.Network> {
+        val docRef = if (customer.id.isBlank()) {
+            firestore.collection("users").document(userId).collection("customers").document
+        } else {
+            firestore.collection("users").document(userId).collection("customers")
+                .document(customer.id)
+        }
         return try {
-            val docRef = if (customer.id.isBlank()) {
-                firestore.collection("users").document(userId).collection("customers").document
-            } else {
-                firestore.collection("users").document(userId).collection("customers")
-                    .document(customer.id)
-            }
             val dto = customer.toCustomerDto().copy(id = docRef.id)
             docRef.set(dto)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
-                "createCustomer failed customerId=${customer.id}"
+                "createCustomer failed customerId=${docRef.id}"
             }
             Result.Error(DataError.Network.UNKNOWN)
         }

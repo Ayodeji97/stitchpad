@@ -270,7 +270,7 @@ private fun StyleCard(
         Column {
             SubcomposeAsyncImage(
                 model = style.photoUrl,
-                contentDescription = style.description,
+                contentDescription = style.description.ifBlank { null },
                 contentScale = ContentScale.Crop,
                 loading = {
                     Box(
