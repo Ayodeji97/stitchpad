@@ -72,6 +72,9 @@ kotlin {
             // Image picker
             implementation(libs.peekaboo.image.picker)
 
+            // Logging (KMP, Timber-like API)
+            implementation(libs.napier)
+
             // Serialization
             implementation(libs.kotlinx.serialization.json)
 

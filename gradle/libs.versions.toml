@@ -23,6 +23,7 @@ kotlinx-serialization = "1.10.0"
 ktor = "3.3.0"
 material3 = "1.10.0-alpha05"
 coil = "3.4.0"
+napier = "2.7.1"
 peekaboo = "0.5.2"
 
 [libraries]
@@ -69,6 +70,9 @@ ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kto
 
 # Peekaboo (KMP image picker)
 peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", version.ref = "peekaboo" }
+
+# Napier (KMP logger — Timber-like API)
+napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

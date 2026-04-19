@@ -8,11 +8,14 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+
+private const val TAG = "StyleRepo"
 
 class FirebaseStyleRepository(
     private val firestore: FirebaseFirestore,
@@ -35,15 +38,18 @@ class FirebaseStyleRepository(
     ): Flow<Result<List<Style>, DataError.Network>> =
         stylesCollection(userId, customerId)
             .snapshots()
-            .map { snapshot ->
+            .map<_, Result<List<Style>, DataError.Network>> { snapshot ->
                 val styles = snapshot.documents
                     .mapNotNull { doc ->
                         runCatching { doc.data<StyleDto>().toStyle(customerId) }.getOrNull()
                     }
                     .sortedByDescending { it.createdAt }
-                Result.Success(styles) as Result<List<Style>, DataError.Network>
+                Result.Success(styles)
             }
-            .catch { emit(Result.Error(DataError.Network.UNKNOWN)) }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) { "observeStyles failed" }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
 
     override suspend fun createStyle(
         userId: String,
@@ -51,27 +57,13 @@ class FirebaseStyleRepository(
         description: String,
         photoBytes: ByteArray
     ): EmptyResult<DataError.Network> {
+        val docRef = stylesCollection(userId, customerId).document
+        val path = storagePath(userId, customerId, docRef.id)
+        var uploaded = false
         return try {
-            val docRef = stylesCollection(userId, customerId).document
-            val path = storagePath(userId, customerId, docRef.id)
-            println("FirebaseStyleRepository.createStyle path=$path bytes=${photoBytes.size}")
-
-            try {
-                storage.reference.child(path).putData(photoBytes.toStorageData())
-                println("FirebaseStyleRepository.createStyle upload OK")
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                println("FirebaseStyleRepository.createStyle UPLOAD failed: ${e::class.simpleName}: ${e.message}")
-                throw e
-            }
-
-            val downloadUrl = try {
-                storage.reference.child(path).getDownloadUrl()
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                println("FirebaseStyleRepository.createStyle GET_URL failed: ${e::class.simpleName}: ${e.message}")
-                throw e
-            }
-            println("FirebaseStyleRepository.createStyle downloadUrl=$downloadUrl")
-
+            storage.reference.child(path).putData(photoBytes.toStorageData())
+            uploaded = true
+            val downloadUrl = storage.reference.child(path).getDownloadUrl()
             val style = Style(
                 id = docRef.id,
                 customerId = customerId,
@@ -84,7 +76,10 @@ class FirebaseStyleRepository(
             docRef.set(style.toStyleDto())
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            println("FirebaseStyleRepository.createStyle failed: ${e::class.simpleName}: ${e.message}")
+            AppLogger.e(tag = TAG, throwable = e) {
+                "createStyle failed styleId=${docRef.id}"
+            }
+            if (uploaded) cleanupOrphanedUpload(path)
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -97,7 +92,9 @@ class FirebaseStyleRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val updatedStyle = if (newPhotoBytes != null) {
-                val path = style.photoStoragePath.ifBlank { storagePath(userId, customerId, style.id) }
+                val path = style.photoStoragePath.ifBlank {
+                    storagePath(userId, customerId, style.id)
+                }
                 storage.reference.child(path).putData(newPhotoBytes.toStorageData())
                 val downloadUrl = storage.reference.child(path).getDownloadUrl()
                 style.copy(photoUrl = downloadUrl, photoStoragePath = path)
@@ -109,7 +106,9 @@ class FirebaseStyleRepository(
                 .set(updatedStyle.toStyleDto())
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            println("FirebaseStyleRepository.updateStyle failed: ${e::class.simpleName}: ${e.message}")
+            AppLogger.e(tag = TAG, throwable = e) {
+                "updateStyle failed styleId=${style.id}"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -128,8 +127,19 @@ class FirebaseStyleRepository(
                 .delete()
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            println("FirebaseStyleRepository.deleteStyle failed: ${e::class.simpleName}: ${e.message}")
+            AppLogger.e(tag = TAG, throwable = e) {
+                "deleteStyle failed styleId=${style.id}"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
+    }
+
+    private suspend fun cleanupOrphanedUpload(path: String) {
+        runCatching { storage.reference.child(path).delete() }
+            .onFailure { throwable ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "cleanupOrphanedUpload failed"
+                }
+            }
     }
 }
