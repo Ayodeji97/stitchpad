@@ -8,10 +8,13 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+
+private const val TAG = "CustomerRepo"
 
 class FirebaseCustomerRepository(
     private val firestore: FirebaseFirestore
@@ -28,7 +31,10 @@ class FirebaseCustomerRepository(
                 }
                 Result.Success(customers) as Result<List<Customer>, DataError.Network>
             }
-            .catch { emit(Result.Error(DataError.Network.UNKNOWN)) }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) { "observeCustomers failed" }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
 
     override suspend fun getCustomer(
         userId: String,
@@ -43,7 +49,10 @@ class FirebaseCustomerRepository(
             if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
             val dto = doc.data<CustomerDto>()
             Result.Success(dto.toCustomer(userId))
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "getCustomer failed customerId=$customerId"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -62,7 +71,10 @@ class FirebaseCustomerRepository(
             val dto = customer.toCustomerDto().copy(id = docRef.id)
             docRef.set(dto)
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "createCustomer failed customerId=${customer.id}"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -78,7 +90,10 @@ class FirebaseCustomerRepository(
                 .document(customer.id)
                 .set(customer.toCustomerDto())
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "updateCustomer failed customerId=${customer.id}"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -94,7 +109,10 @@ class FirebaseCustomerRepository(
                 .document(customerId)
                 .delete()
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "deleteCustomer failed customerId=$customerId"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }

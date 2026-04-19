@@ -8,10 +8,13 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
+import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+
+private const val TAG = "MeasurementRepo"
 
 class FirebaseMeasurementRepository(
     private val firestore: FirebaseFirestore
@@ -38,7 +41,10 @@ class FirebaseMeasurementRepository(
                     .sortedByDescending { it.createdAt }
                 Result.Success(measurements) as Result<List<Measurement>, DataError.Network>
             }
-            .catch { emit(Result.Error(DataError.Network.UNKNOWN)) }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) { "observeMeasurements failed" }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
 
     override suspend fun createMeasurement(
         userId: String,
@@ -54,7 +60,10 @@ class FirebaseMeasurementRepository(
             val dto = measurement.toMeasurementDto().copy(id = docRef.id)
             docRef.set(dto)
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "createMeasurement failed measurementId=${measurement.id}"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -69,7 +78,10 @@ class FirebaseMeasurementRepository(
                 .document(measurement.id)
                 .set(measurement.toMeasurementDto())
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "updateMeasurement failed measurementId=${measurement.id}"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -84,7 +96,10 @@ class FirebaseMeasurementRepository(
                 .document(measurementId)
                 .delete()
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "deleteMeasurement failed measurementId=$measurementId"
+            }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }

@@ -4,8 +4,11 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+
+private const val TAG = "UserRepo"
 
 class FirebaseUserRepository(
     private val firestore: FirebaseFirestore
@@ -38,7 +41,8 @@ class FirebaseUserRepository(
             phone?.let { data["phone"] = it }
             document.set(data, merge = true)
             Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "createUserProfile failed userId=$userId" }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
