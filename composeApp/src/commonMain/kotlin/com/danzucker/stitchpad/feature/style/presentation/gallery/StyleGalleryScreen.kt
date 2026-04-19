@@ -63,9 +63,9 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.customer_delete_cancel
-import stitchpad.composeapp.generated.resources.customer_delete_confirm
 import stitchpad.composeapp.generated.resources.fab_add_style
+import stitchpad.composeapp.generated.resources.style_delete_cancel
+import stitchpad.composeapp.generated.resources.style_delete_confirm
 import stitchpad.composeapp.generated.resources.style_delete_message
 import stitchpad.composeapp.generated.resources.style_delete_title
 import stitchpad.composeapp.generated.resources.style_empty_subtitle
@@ -229,7 +229,7 @@ fun StyleGalleryScreen(
                     shape = RoundedCornerShape(DesignTokens.radiusMd)
                 ) {
                     Text(
-                        text = stringResource(Res.string.customer_delete_confirm),
+                        text = stringResource(Res.string.style_delete_confirm),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -237,7 +237,7 @@ fun StyleGalleryScreen(
             dismissButton = {
                 TextButton(onClick = { onAction(StyleGalleryAction.OnDismissDeleteDialog) }) {
                     Text(
-                        text = stringResource(Res.string.customer_delete_cancel),
+                        text = stringResource(Res.string.style_delete_cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

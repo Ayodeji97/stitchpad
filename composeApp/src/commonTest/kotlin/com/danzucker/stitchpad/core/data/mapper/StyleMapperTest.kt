@@ -88,8 +88,14 @@ class StyleMapperTest {
         val dto = style.toStyleDto()
 
         val after = nowMillis()
-        assertTrue(dto.createdAt in before..after, "createdAt $dto.createdAt not in [$before, $after]")
-        assertTrue(dto.updatedAt in before..after, "updatedAt $dto.updatedAt not in [$before, $after]")
+        assertTrue(
+            dto.createdAt in before..after,
+            "createdAt ${dto.createdAt} not in [$before, $after]"
+        )
+        assertTrue(
+            dto.updatedAt in before..after,
+            "updatedAt ${dto.updatedAt} not in [$before, $after]"
+        )
     }
 
     @Test

@@ -239,6 +239,21 @@ class StyleFormViewModelTest {
         assertFalse(vm.state.value.isSaving)
     }
 
+    @Test
+    fun onSaveClick_editMode_existingStyleNull_doesNotFallThroughToCreate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "other"))
+        val vm = createViewModel(styleId = "missing-id")
+        // style failed to load → existingStyle is null but isEditMode is true
+        vm.onAction(StyleFormAction.OnDescriptionChange("New description"))
+        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(10)))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+
+        assertNull(styleRepository.lastCreatedDescription)
+        assertNull(styleRepository.lastUpdatedStyle)
+    }
+
     // --- Save: edit flow ---
 
     @Test

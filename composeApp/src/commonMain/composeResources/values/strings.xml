@@ -231,6 +231,8 @@
     <string name="fab_add_style">Add style</string>
     <string name="style_delete_title">Delete style?</string>
     <string name="style_delete_message">This style photo will be permanently removed. This cannot be undone.</string>
+    <string name="style_delete_confirm">Delete</string>
+    <string name="style_delete_cancel">Cancel</string>
     <string name="style_description_required">Please enter a description.</string>
     <string name="style_photo_required">Please pick a photo first.</string>
 
