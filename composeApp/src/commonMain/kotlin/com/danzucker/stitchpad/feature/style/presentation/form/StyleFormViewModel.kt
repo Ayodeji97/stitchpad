@@ -67,10 +67,15 @@ class StyleFormViewModel(
 
     private fun onPhotoPicked(bytes: ByteArray) {
         if (bytes.size > MAX_PHOTO_SIZE_BYTES) {
-            _state.update { it.copy(errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText()) }
+            _state.update {
+                it.copy(
+                    errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
+                    selectedPhotoBytes = null
+                )
+            }
             return
         }
-        _state.update { it.copy(selectedPhotoBytes = bytes) }
+        _state.update { it.copy(selectedPhotoBytes = bytes, errorMessage = null) }
     }
 
     private fun loadStyle(id: String) {
