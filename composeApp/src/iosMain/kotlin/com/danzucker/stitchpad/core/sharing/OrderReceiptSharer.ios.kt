@@ -3,16 +3,13 @@ package com.danzucker.stitchpad.core.sharing
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.platform.activeKeyWindow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSDate
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.UIKit.UIActivityViewController
-import platform.UIKit.UIApplication
-import platform.UIKit.UISceneActivationStateForegroundActive
-import platform.UIKit.UIWindow
-import platform.UIKit.UIWindowScene
 
 actual class OrderReceiptSharer {
 
@@ -29,18 +26,6 @@ actual class OrderReceiptSharer {
             )
             presenter.presentViewController(activityVC, animated = true, completion = null)
         }
-    }
-
-    // Resolve the foreground-active window via connected scenes (iOS 13+).
-    // UIApplication.keyWindow is deprecated and returns null in multi-scene apps.
-    private fun activeKeyWindow(): UIWindow? {
-        val scenes = UIApplication.sharedApplication.connectedScenes
-        val activeScene = scenes.firstOrNull {
-            it is UIWindowScene && it.activationState == UISceneActivationStateForegroundActive
-        } as? UIWindowScene ?: scenes.firstOrNull { it is UIWindowScene } as? UIWindowScene
-        val windows = activeScene?.windows.orEmpty()
-        return windows.firstOrNull { (it as? UIWindow)?.isKeyWindow() == true } as? UIWindow
-            ?: windows.firstOrNull() as? UIWindow
     }
 
     private fun buildReceiptText(order: Order): String = buildString {

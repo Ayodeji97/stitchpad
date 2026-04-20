@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.deadline_day_late
@@ -23,9 +24,10 @@ fun DeadlineLine(
     deadline: Long?,
     now: Long,
     status: OrderStatus,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    zone: TimeZone = TimeZone.currentSystemDefault()
 ) {
-    val display = formatDeadline(deadline, now, status)
+    val display = formatDeadline(deadline, now, status, zone)
     val text = when (display) {
         DeadlineDisplay.NoDeadline -> stringResource(Res.string.deadline_no_deadline)
         DeadlineDisplay.PickupReady -> stringResource(Res.string.deadline_pickup_ready)

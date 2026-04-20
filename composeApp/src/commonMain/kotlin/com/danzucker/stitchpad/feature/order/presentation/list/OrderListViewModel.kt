@@ -123,6 +123,8 @@ class OrderListViewModel(
             null -> orders.filter { it.status != OrderStatus.DELIVERED }
             else -> orders.filter { it.status == statusFilter }
         }
-        return filtered.sortedBy { it.deadline ?: Long.MAX_VALUE }
+        // Reuse the triage comparator so same-deadline ties resolve identically in both the
+        // triage-grouped and the chip-filtered views (createdAt desc = newest-first).
+        return filtered.sortedWith(orderListComparator)
     }
 }

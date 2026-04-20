@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
+val OrderRowAvatarSize = 36.dp
+
 /**
  * Avatar shown at the start of an Orders list row. Named distinctly from the design-system
  * `ui.components.CustomerAvatar` because the shape, size, seed, and initials logic differ.
@@ -44,7 +46,7 @@ fun OrderRowAvatar(
 
     Box(
         modifier = modifier
-            .size(36.dp)
+            .size(OrderRowAvatarSize)
             .clip(CircleShape)
             .background(bg),
         contentAlignment = Alignment.Center

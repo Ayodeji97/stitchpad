@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import com.danzucker.stitchpad.core.platform.activeKeyWindow
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -13,7 +14,6 @@ import kotlinx.cinterop.usePinned
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
-import platform.UIKit.UIApplication
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
@@ -69,7 +69,7 @@ actual fun rememberImageCaptureLauncher(
             delegateHolder.current = delegate
             picker.delegate = delegate
 
-            val rootVc = UIApplication.sharedApplication.keyWindow?.rootViewController
+            val rootVc = activeKeyWindow()?.rootViewController
             rootVc?.presentViewController(picker, animated = true, completion = null)
         }
     }

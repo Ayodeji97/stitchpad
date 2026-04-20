@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import kotlinx.datetime.TimeZone
 
 sealed interface DeadlineDisplay {
     data object NoDeadline : DeadlineDisplay
@@ -11,23 +12,28 @@ sealed interface DeadlineDisplay {
     data object PickupReady : DeadlineDisplay
 }
 
-private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
+private const val SOON_DAYS_MAX = 3
 
-fun formatDeadline(deadline: Long?, now: Long, status: OrderStatus): DeadlineDisplay = when {
+fun formatDeadline(
+    deadline: Long?,
+    now: Long,
+    status: OrderStatus,
+    zone: TimeZone = TimeZone.currentSystemDefault()
+): DeadlineDisplay = when {
     status == OrderStatus.READY -> DeadlineDisplay.PickupReady
     deadline == null -> DeadlineDisplay.NoDeadline
     deadline < now -> {
-        // Floor-divide absolute overdue millis to whole days; minimum 1 so
-        // sub-day overdue reads as "1 day late" instead of "0 days late".
-        val daysLate = ((now - deadline) / MILLIS_PER_DAY).toInt().coerceAtLeast(1)
+        // Calendar-day diff in the user's zone; coerce sub-day late (same calendar day but
+        // clock is past deadline) to 1 so the row reads "1 day late" instead of "0 days late".
+        val daysLate = calendarDaysBetween(deadline, now, zone).coerceAtLeast(1)
         DeadlineDisplay.DaysLate(daysLate)
     }
     else -> {
-        val daysUntil = ((deadline - now) / MILLIS_PER_DAY).toInt()
+        val daysUntil = calendarDaysBetween(now, deadline, zone)
         when {
             daysUntil == 0 -> DeadlineDisplay.DueToday
             daysUntil == 1 -> DeadlineDisplay.DueTomorrow
-            daysUntil in 2..3 -> DeadlineDisplay.DueInDays(days = daysUntil, soon = true)
+            daysUntil in 2..SOON_DAYS_MAX -> DeadlineDisplay.DueInDays(days = daysUntil, soon = true)
             else -> DeadlineDisplay.DueInDays(days = daysUntil, soon = false)
         }
     }

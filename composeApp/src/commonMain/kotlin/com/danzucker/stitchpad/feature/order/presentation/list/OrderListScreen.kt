@@ -128,9 +128,10 @@ fun OrderListRoot(
     )
 }
 
-// Avatar (36dp) + row horizontal padding (space4 = 16dp) + gap (space3 = 12dp) = 64dp.
 // Dividers indent past the avatar so the text column visually aligns with its separator.
-private val orderRowTextInset = 64.dp
+// Derived from the actual row layout (horizontal padding + avatar + gap) so it stays in sync
+// if any of those tokens change.
+private val orderRowTextInset = DesignTokens.space4 + OrderRowAvatarSize + DesignTokens.space3
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
