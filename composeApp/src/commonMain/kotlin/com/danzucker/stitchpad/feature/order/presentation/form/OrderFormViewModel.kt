@@ -44,6 +44,10 @@ class OrderFormViewModel(
     private var loadedStatus: OrderStatus = OrderStatus.PENDING
     private var loadedStatusHistory: List<StatusChange> = emptyList()
 
+    // On edit, loadOrder may finish before observeCustomers emits. Record the target
+    // customer id and resolve it reactively whenever either event wins the race.
+    private var pendingCustomerId: String? = null
+
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
 
@@ -152,8 +156,21 @@ class OrderFormViewModel(
             customerRepository.observeCustomers(uid).collect { result ->
                 if (result is Result.Success) {
                     _state.update { it.copy(customers = result.data) }
+                    resolvePendingCustomer()
                 }
             }
+        }
+    }
+
+    private fun resolvePendingCustomer() {
+        val targetId = pendingCustomerId ?: return
+        val current = _state.value
+        if (current.selectedCustomer != null) return
+        val match = current.customers.find { it.id == targetId }
+        if (match != null) {
+            _state.update { it.copy(selectedCustomer = match) }
+            loadCustomerData(match.id)
+            pendingCustomerId = null
         }
     }
 
@@ -185,10 +202,9 @@ class OrderFormViewModel(
                     loadedCreatedAt = order.createdAt
                     loadedStatus = order.status
                     loadedStatusHistory = order.statusHistory
-                    val customer = _state.value.customers.find { it.id == order.customerId }
+                    pendingCustomerId = order.customerId
                     _state.update {
                         it.copy(
-                            selectedCustomer = customer,
                             items = order.items.map { item -> item.toFormState() },
                             deadline = order.deadline,
                             priority = order.priority,
@@ -197,7 +213,7 @@ class OrderFormViewModel(
                             isLoading = false
                         )
                     }
-                    if (customer != null) loadCustomerData(customer.id)
+                    resolvePendingCustomer()
                 }
                 is Result.Error -> {
                     _state.update {

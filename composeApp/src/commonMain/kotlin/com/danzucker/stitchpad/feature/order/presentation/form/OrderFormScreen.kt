@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
@@ -94,6 +96,8 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.common_cancel
+import stitchpad.composeapp.generated.resources.common_ok
 import stitchpad.composeapp.generated.resources.garment_gender_female
 import stitchpad.composeapp.generated.resources.garment_gender_male
 import stitchpad.composeapp.generated.resources.garment_gender_unisex
@@ -106,6 +110,7 @@ import stitchpad.composeapp.generated.resources.order_form_description_label
 import stitchpad.composeapp.generated.resources.order_form_description_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_photo_label
 import stitchpad.composeapp.generated.resources.order_form_garment_type_label
+import stitchpad.composeapp.generated.resources.order_form_item_number
 import stitchpad.composeapp.generated.resources.order_form_measurement_label
 import stitchpad.composeapp.generated.resources.order_form_next
 import stitchpad.composeapp.generated.resources.order_form_no_measurement
@@ -174,6 +179,7 @@ fun OrderFormScreen(
         stringResource(Res.string.order_form_step_items),
         stringResource(Res.string.order_form_step_details)
     )
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
         topBar = {
@@ -210,6 +216,9 @@ fun OrderFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
         ) {
             // Step indicator
             Column(
@@ -512,7 +521,7 @@ private fun OrderItemCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Item ${index + 1}",
+                    text = stringResource(Res.string.order_form_item_number, index + 1),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -999,12 +1008,12 @@ private fun DetailsStep(
                     onAction(OrderFormAction.OnDeadlineChange(datePickerState.selectedDateMillis))
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(Res.string.common_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.common_cancel))
                 }
             }
         ) {

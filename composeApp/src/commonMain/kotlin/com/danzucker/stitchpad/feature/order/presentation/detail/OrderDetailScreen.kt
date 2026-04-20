@@ -72,6 +72,7 @@ import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
 import stitchpad.composeapp.generated.resources.order_delete_message
 import stitchpad.composeapp.generated.resources.order_delete_title
+import stitchpad.composeapp.generated.resources.order_detail_back_button
 import stitchpad.composeapp.generated.resources.order_detail_balance_remaining
 import stitchpad.composeapp.generated.resources.order_detail_customer_section
 import stitchpad.composeapp.generated.resources.order_detail_deadline_section
@@ -80,6 +81,8 @@ import stitchpad.composeapp.generated.resources.order_detail_deposit_paid
 import stitchpad.composeapp.generated.resources.order_detail_fabric_photo
 import stitchpad.composeapp.generated.resources.order_detail_financial_section
 import stitchpad.composeapp.generated.resources.order_detail_items_section
+import stitchpad.composeapp.generated.resources.order_detail_not_found_message
+import stitchpad.composeapp.generated.resources.order_detail_not_found_title
 import stitchpad.composeapp.generated.resources.order_detail_notes_section
 import stitchpad.composeapp.generated.resources.order_detail_priority_section
 import stitchpad.composeapp.generated.resources.order_detail_share
@@ -98,6 +101,7 @@ import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
 import stitchpad.composeapp.generated.resources.order_status_update_cancel
 import stitchpad.composeapp.generated.resources.order_status_update_confirm
+import stitchpad.composeapp.generated.resources.order_status_update_current
 import stitchpad.composeapp.generated.resources.order_status_update_title
 import kotlin.time.Clock
 
@@ -203,6 +207,12 @@ fun OrderDetailScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                         .verticalScroll(rememberScrollState())
+                )
+            }
+            else -> {
+                OrderDetailNotFound(
+                    onBack = { onAction(OrderDetailAction.OnBackClick) },
+                    modifier = Modifier.fillMaxSize().padding(paddingValues)
                 )
             }
         }
@@ -311,7 +321,7 @@ fun OrderDetailScreen(
                                 if (isCurrentStatus) {
                                     Spacer(Modifier.weight(1f))
                                     Text(
-                                        text = "Current",
+                                        text = stringResource(Res.string.order_status_update_current),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                     )
@@ -348,6 +358,45 @@ fun OrderDetailScreen(
             shape = RoundedCornerShape(DesignTokens.radiusXl),
             containerColor = MaterialTheme.colorScheme.surface
         )
+    }
+}
+
+@Composable
+private fun OrderDetailNotFound(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(horizontal = DesignTokens.space6),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(Res.string.order_detail_not_found_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        Text(
+            text = stringResource(Res.string.order_detail_not_found_message),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(DesignTokens.space4))
+        Button(
+            onClick = onBack,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ),
+            shape = RoundedCornerShape(DesignTokens.radiusMd)
+        ) {
+            Text(
+                text = stringResource(Res.string.order_detail_back_button),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 

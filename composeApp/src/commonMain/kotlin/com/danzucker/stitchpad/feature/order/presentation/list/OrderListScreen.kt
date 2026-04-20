@@ -79,6 +79,11 @@ import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
 import stitchpad.composeapp.generated.resources.order_delete_message
 import stitchpad.composeapp.generated.resources.order_delete_title
+import stitchpad.composeapp.generated.resources.order_empty_delivered_title
+import stitchpad.composeapp.generated.resources.order_empty_filtered_subtitle
+import stitchpad.composeapp.generated.resources.order_empty_in_progress_title
+import stitchpad.composeapp.generated.resources.order_empty_pending_title
+import stitchpad.composeapp.generated.resources.order_empty_ready_title
 import stitchpad.composeapp.generated.resources.order_empty_subtitle
 import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
@@ -187,7 +192,10 @@ fun OrderListScreen(
                     }
                 }
                 state.orders.isEmpty() -> {
-                    OrderEmptyState(modifier = Modifier.fillMaxSize())
+                    OrderEmptyState(
+                        statusFilter = state.statusFilter,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
                 else -> {
                     // Stable `now` per snapshot of orders — prevents rows from drifting
@@ -334,7 +342,23 @@ private fun OrderStatusFilterChips(
 }
 
 @Composable
-private fun OrderEmptyState(modifier: Modifier = Modifier) {
+private fun OrderEmptyState(
+    statusFilter: OrderStatus?,
+    modifier: Modifier = Modifier
+) {
+    val titleRes = when (statusFilter) {
+        null -> Res.string.order_empty_title
+        OrderStatus.PENDING -> Res.string.order_empty_pending_title
+        OrderStatus.IN_PROGRESS -> Res.string.order_empty_in_progress_title
+        OrderStatus.READY -> Res.string.order_empty_ready_title
+        OrderStatus.DELIVERED -> Res.string.order_empty_delivered_title
+    }
+    val subtitleRes = if (statusFilter == null) {
+        Res.string.order_empty_subtitle
+    } else {
+        Res.string.order_empty_filtered_subtitle
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(horizontal = DesignTokens.space8)
@@ -356,14 +380,14 @@ private fun OrderEmptyState(modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(DesignTokens.space4))
         Text(
-            text = stringResource(Res.string.order_empty_title),
+            text = stringResource(titleRes),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(DesignTokens.space2))
         Text(
-            text = stringResource(Res.string.order_empty_subtitle),
+            text = stringResource(subtitleRes),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

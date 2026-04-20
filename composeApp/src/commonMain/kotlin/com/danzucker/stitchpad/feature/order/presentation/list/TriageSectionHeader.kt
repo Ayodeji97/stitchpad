@@ -54,7 +54,7 @@ fun TriageSectionHeader(
         )
         Text(
             text = count.toString(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = color,
             fontWeight = FontWeight.Medium,
             fontSize = DesignTokens.labelSm
         )

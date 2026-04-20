@@ -23,7 +23,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         // Bitmap rendering + PNG encode + disk write are heavy — keep off main.
         val file = withContext(Dispatchers.Default) {
             val bitmap = generateReceiptBitmap(order)
-            saveBitmapToCache(bitmap)
+            saveBitmapToCache(bitmap, order.id)
         }
         shareImage(file)
     }
@@ -243,13 +243,25 @@ actual class OrderReceiptSharer(private val context: Context) {
         return bitmap
     }
 
-    private fun saveBitmapToCache(bitmap: Bitmap): File {
+    private fun saveBitmapToCache(bitmap: Bitmap, orderId: String): File {
         val dir = File(context.cacheDir, "receipts").apply { mkdirs() }
-        val file = File(dir, "order_receipt.png")
+        // Unique filename per share avoids overwriting a pending intent's source file
+        // if the user triggers two shares quickly.
+        val safeId = orderId.ifBlank { "unknown" }.take(RECEIPT_ID_MAX)
+        val file = File(dir, "order_receipt_${safeId}_${System.currentTimeMillis()}.png")
         FileOutputStream(file).use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
+        pruneOldReceipts(dir)
         return file
+    }
+
+    private fun pruneOldReceipts(dir: File) {
+        val files = dir.listFiles().orEmpty()
+        if (files.size <= RECEIPT_CACHE_LIMIT) return
+        files.sortedByDescending { it.lastModified() }
+            .drop(RECEIPT_CACHE_LIMIT)
+            .forEach { it.delete() }
     }
 
     private fun shareImage(file: File) {
@@ -275,5 +287,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         val long = price.toLong()
         if (price == long.toDouble()) return String.format(Locale.US, "%,d", long)
         return String.format(Locale.US, "%,.2f", price)
+    }
+
+    private companion object {
+        const val RECEIPT_ID_MAX = 16
+        const val RECEIPT_CACHE_LIMIT = 5
     }
 }

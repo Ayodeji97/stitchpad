@@ -260,6 +260,11 @@
     <string name="order_list_title">Orders</string>
     <string name="order_empty_title">No orders yet</string>
     <string name="order_empty_subtitle">Tap the + button to create your first order</string>
+    <string name="order_empty_pending_title">No pending orders</string>
+    <string name="order_empty_in_progress_title">No orders in progress</string>
+    <string name="order_empty_ready_title">No orders ready</string>
+    <string name="order_empty_delivered_title">No delivered orders</string>
+    <string name="order_empty_filtered_subtitle">Try another tab to see your orders</string>
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
     <string name="order_items_count_singular">%1$d item</string>
@@ -367,6 +372,17 @@
     <string name="order_status_update_message">Move this order to \"%1$s\"?</string>
     <string name="order_status_update_confirm">Update</string>
     <string name="order_status_update_cancel">Cancel</string>
+    <string name="order_status_update_current">Current</string>
+
+    <!-- Order detail errors / empty state -->
+    <string name="order_detail_not_found_title">Order not found</string>
+    <string name="order_detail_not_found_message">This order may have been deleted.</string>
+    <string name="order_detail_back_button">Back</string>
+
+    <!-- Order form -->
+    <string name="order_form_item_number">Item %1$d</string>
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
 
     <!-- Order errors -->
     <string name="error_order_not_found">Order not found</string>
