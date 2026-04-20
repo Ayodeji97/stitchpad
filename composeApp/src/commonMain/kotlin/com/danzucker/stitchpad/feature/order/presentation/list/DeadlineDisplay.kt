@@ -13,22 +13,22 @@ sealed interface DeadlineDisplay {
 
 private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
 
-fun formatDeadline(deadline: Long?, now: Long, status: OrderStatus): DeadlineDisplay {
-    if (status == OrderStatus.READY) return DeadlineDisplay.PickupReady
-    if (deadline == null) return DeadlineDisplay.NoDeadline
-
-    val deltaMillis = deadline - now
-    if (deltaMillis < 0) {
-        // floor-divide absolute value, min 1
-        val daysLate = ((-deltaMillis) / MILLIS_PER_DAY).toInt()
-        return DeadlineDisplay.DaysLate(daysLate.coerceAtLeast(1))
+fun formatDeadline(deadline: Long?, now: Long, status: OrderStatus): DeadlineDisplay = when {
+    status == OrderStatus.READY -> DeadlineDisplay.PickupReady
+    deadline == null -> DeadlineDisplay.NoDeadline
+    deadline < now -> {
+        // Floor-divide absolute overdue millis to whole days; minimum 1 so
+        // sub-day overdue reads as "1 day late" instead of "0 days late".
+        val daysLate = ((now - deadline) / MILLIS_PER_DAY).toInt().coerceAtLeast(1)
+        DeadlineDisplay.DaysLate(daysLate)
     }
-
-    val daysUntil = (deltaMillis / MILLIS_PER_DAY).toInt()
-    return when {
-        daysUntil == 0 -> DeadlineDisplay.DueToday
-        daysUntil == 1 -> DeadlineDisplay.DueTomorrow
-        daysUntil in 2..3 -> DeadlineDisplay.DueInDays(days = daysUntil, soon = true)
-        else -> DeadlineDisplay.DueInDays(days = daysUntil, soon = false)
+    else -> {
+        val daysUntil = ((deadline - now) / MILLIS_PER_DAY).toInt()
+        when {
+            daysUntil == 0 -> DeadlineDisplay.DueToday
+            daysUntil == 1 -> DeadlineDisplay.DueTomorrow
+            daysUntil in 2..3 -> DeadlineDisplay.DueInDays(days = daysUntil, soon = true)
+            else -> DeadlineDisplay.DueInDays(days = daysUntil, soon = false)
+        }
     }
 }

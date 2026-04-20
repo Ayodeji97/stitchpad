@@ -70,7 +70,6 @@ import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
-import kotlin.time.Clock
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -89,6 +88,7 @@ import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
+import kotlin.time.Clock
 
 @Composable
 fun OrderListRoot(
@@ -383,7 +383,9 @@ private fun SwipeableOrderItem(
             if (value == SwipeToDismissBoxValue.EndToStart) {
                 onDelete()
                 false
-            } else false
+            } else {
+                false
+            }
         }
     )
 

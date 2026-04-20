@@ -21,7 +21,9 @@ fun PaymentStatusText(
     val display = formatPaymentStatus(depositPaid, totalPrice)
     val (text, color) = when (display) {
         PaymentDisplay.Paid -> stringResource(Res.string.payment_paid) to DesignTokens.success500
-        is PaymentDisplay.Partial -> stringResource(Res.string.payment_partial, display.formatAbbreviated()) to DesignTokens.warning500
+        is PaymentDisplay.Partial -> {
+            stringResource(Res.string.payment_partial, display.formatAbbreviated()) to DesignTokens.warning500
+        }
         PaymentDisplay.Unpaid -> stringResource(Res.string.payment_unpaid) to DesignTokens.error500
     }
 

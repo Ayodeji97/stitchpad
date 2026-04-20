@@ -31,9 +31,13 @@ fun DeadlineLine(
         DeadlineDisplay.PickupReady -> stringResource(Res.string.deadline_pickup_ready)
         DeadlineDisplay.DueToday -> stringResource(Res.string.deadline_due_today)
         DeadlineDisplay.DueTomorrow -> stringResource(Res.string.deadline_due_tomorrow)
-        is DeadlineDisplay.DaysLate ->
-            if (display.days == 1) stringResource(Res.string.deadline_day_late)
-            else stringResource(Res.string.deadline_days_late, display.days)
+        is DeadlineDisplay.DaysLate -> {
+            if (display.days == 1) {
+                stringResource(Res.string.deadline_day_late)
+            } else {
+                stringResource(Res.string.deadline_days_late, display.days)
+            }
+        }
         is DeadlineDisplay.DueInDays -> stringResource(Res.string.deadline_due_in_days, display.days)
     }
     val color = colorFor(display)
@@ -51,7 +55,9 @@ fun DeadlineLine(
 private fun colorFor(display: DeadlineDisplay): Color = when (display) {
     is DeadlineDisplay.DaysLate -> DesignTokens.error500
     DeadlineDisplay.DueToday, DeadlineDisplay.DueTomorrow -> DesignTokens.warning500
-    is DeadlineDisplay.DueInDays -> if (display.soon) DesignTokens.warning500 else MaterialTheme.colorScheme.onSurfaceVariant
+    is DeadlineDisplay.DueInDays -> {
+        if (display.soon) DesignTokens.warning500 else MaterialTheme.colorScheme.onSurfaceVariant
+    }
     DeadlineDisplay.PickupReady -> DesignTokens.success500
     DeadlineDisplay.NoDeadline -> MaterialTheme.colorScheme.onSurfaceVariant
 }

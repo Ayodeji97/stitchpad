@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName", "Filename")
+
 package com.danzucker.stitchpad.feature.order.presentation.list
 
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -41,14 +43,13 @@ fun groupOrdersIntoTriage(orders: List<Order>, now: Long): Map<TriageGroup, List
         .filterValues { it.isNotEmpty() }
 }
 
-private fun classify(order: Order, now: Long): TriageGroup? {
-    if (order.status == OrderStatus.DELIVERED) return null
-    if (order.status == OrderStatus.READY) return TriageGroup.READY_FOR_PICKUP
-    if (order.deadline != null && order.deadline < now) return TriageGroup.OVERDUE
-    if (order.status == OrderStatus.IN_PROGRESS) return TriageGroup.IN_PROGRESS
-    if (order.status == OrderStatus.PENDING && order.deadline != null) {
-        val daysUntil = (order.deadline - now) / MILLIS_PER_DAY
-        if (daysUntil in 0..DUE_SOON_DAYS) return TriageGroup.DUE_THIS_WEEK
-    }
-    return TriageGroup.PENDING
+private fun classify(order: Order, now: Long): TriageGroup? = when {
+    order.status == OrderStatus.DELIVERED -> null
+    order.status == OrderStatus.READY -> TriageGroup.READY_FOR_PICKUP
+    order.deadline != null && order.deadline < now -> TriageGroup.OVERDUE
+    order.status == OrderStatus.IN_PROGRESS -> TriageGroup.IN_PROGRESS
+    order.status == OrderStatus.PENDING &&
+        order.deadline != null &&
+        (order.deadline - now) / MILLIS_PER_DAY in 0..DUE_SOON_DAYS -> TriageGroup.DUE_THIS_WEEK
+    else -> TriageGroup.PENDING
 }
