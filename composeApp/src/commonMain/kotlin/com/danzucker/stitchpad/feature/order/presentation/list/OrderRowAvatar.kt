@@ -18,20 +18,29 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
+/**
+ * Avatar shown at the start of an Orders list row. Named distinctly from the design-system
+ * `ui.components.CustomerAvatar` because the shape, size, seed, and initials logic differ.
+ */
 @Composable
-fun CustomerAvatar(
+fun OrderRowAvatar(
     name: String,
     customerId: String,
     modifier: Modifier = Modifier
 ) {
+    val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString()
     val colors = DesignTokens.avatarColors
     val avatar = remember(customerId) {
         colors[customerId.hashCode().mod(colors.size)]
     }
     val isDark = isSystemInDarkTheme()
-    val bg = if (isDark) avatar.darkBg else avatar.lightBg
-    val fg = if (isDark) avatar.darkText else avatar.lightText
-    val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val (bg, fg) = if (initial == null) {
+        MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    } else if (isDark) {
+        avatar.darkBg to avatar.darkText
+    } else {
+        avatar.lightBg to avatar.lightText
+    }
 
     Box(
         modifier = modifier
@@ -41,7 +50,7 @@ fun CustomerAvatar(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = initial,
+            text = initial ?: "?",
             color = fg,
             fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.bodyMedium
@@ -52,8 +61,8 @@ fun CustomerAvatar(
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
-private fun CustomerAvatarPreview() {
+private fun OrderRowAvatarPreview() {
     StitchPadTheme {
-        CustomerAvatar(name = "Fola Sunday", customerId = "c-12345")
+        OrderRowAvatar(name = "Fola Sunday", customerId = "c-12345")
     }
 }

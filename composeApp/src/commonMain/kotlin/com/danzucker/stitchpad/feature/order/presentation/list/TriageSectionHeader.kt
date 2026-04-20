@@ -49,14 +49,14 @@ fun TriageSectionHeader(
             text = label,
             color = color,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
+            fontSize = DesignTokens.labelSm,
             letterSpacing = 1.sp
         )
         Text(
             text = count.toString(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium,
-            fontSize = 11.sp
+            fontSize = DesignTokens.labelSm
         )
     }
 }
