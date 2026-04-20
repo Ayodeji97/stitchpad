@@ -8,11 +8,9 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
-import kotlin.time.Clock
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -51,21 +49,7 @@ class OrderListViewModel(
                 _state.update {
                     it.copy(
                         statusFilter = action.status,
-                        showOverdueOnly = false,
-                        orders = filterAndSortOrders(allOrders, action.status, showOverdue = false)
-                    )
-                }
-            }
-            is OrderListAction.OnToggleOverdueFilter -> {
-                _state.update {
-                    it.copy(
-                        showOverdueOnly = action.showOverdue,
-                        statusFilter = if (action.showOverdue) null else it.statusFilter,
-                        orders = filterAndSortOrders(
-                            allOrders,
-                            statusFilter = if (action.showOverdue) null else it.statusFilter,
-                            showOverdue = action.showOverdue
-                        )
+                        orders = filterAndSort(allOrders, action.status)
                     )
                 }
             }
@@ -104,11 +88,7 @@ class OrderListViewModel(
                         allOrders = result.data
                         _state.update { state ->
                             state.copy(
-                                orders = filterAndSortOrders(
-                                    result.data,
-                                    state.statusFilter,
-                                    state.showOverdueOnly
-                                ),
+                                orders = filterAndSort(result.data, state.statusFilter),
                                 isLoading = false
                             )
                         }
@@ -138,28 +118,11 @@ class OrderListViewModel(
         }
     }
 
-    private fun filterAndSortOrders(
-        orders: List<Order>,
-        statusFilter: OrderStatus?,
-        showOverdue: Boolean
-    ): List<Order> {
-        val now = Clock.System.now().toEpochMilliseconds()
-        var result = orders
-
-        if (showOverdue) {
-            result = result.filter { it.isOverdue(now) }
-        } else if (statusFilter != null) {
-            result = result.filter { it.status == statusFilter }
+    private fun filterAndSort(orders: List<Order>, statusFilter: OrderStatus?): List<Order> {
+        val filtered = when (statusFilter) {
+            null -> orders.filter { it.status != OrderStatus.DELIVERED }
+            else -> orders.filter { it.status == statusFilter }
         }
-
-        return result.sortedWith(
-            compareByDescending<Order> { it.isOverdue(now) }
-                .thenBy { it.deadline ?: Long.MAX_VALUE }
-                .thenByDescending { it.priority.ordinal }
-                .thenByDescending { it.createdAt }
-        )
+        return filtered.sortedBy { it.deadline ?: Long.MAX_VALUE }
     }
-
-    private fun Order.isOverdue(now: Long): Boolean =
-        deadline != null && deadline < now && status != OrderStatus.DELIVERED
 }
