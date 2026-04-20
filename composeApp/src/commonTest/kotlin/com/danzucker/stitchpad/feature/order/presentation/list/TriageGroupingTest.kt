@@ -115,6 +115,14 @@ class TriageGroupingTest {
     }
 
     @Test
+    fun sameDeadlineSortedByCreatedAtDescending() {
+        val older = order("old", status = OrderStatus.PENDING, deadline = now + oneDay, createdAt = 1L)
+        val newer = order("new", status = OrderStatus.PENDING, deadline = now + oneDay, createdAt = 2L)
+        val result = groupOrdersIntoTriage(listOf(older, newer), now)
+        assertEquals(listOf(newer, older), result[TriageGroup.DUE_THIS_WEEK])
+    }
+
+    @Test
     fun emptyGroupsAreOmitted() {
         val pending = order("p", status = OrderStatus.PENDING, deadline = null)
         val result = groupOrdersIntoTriage(listOf(pending), now)
