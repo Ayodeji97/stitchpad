@@ -287,10 +287,6 @@
     <string name="payment_partial">%s paid</string>
     <string name="payment_unpaid">Unpaid</string>
 
-    <!-- Order item garment summary (lowercase form) -->
-    <string name="order_items_count_one_lc">1 %s</string>
-    <string name="order_items_count_many_lc">%1$d %2$s</string>
-
     <!-- Order status labels -->
     <string name="order_status_pending">Pending</string>
     <string name="order_status_in_progress">In Progress</string>
