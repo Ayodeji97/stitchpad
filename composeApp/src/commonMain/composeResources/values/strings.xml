@@ -262,10 +262,33 @@
     <string name="order_empty_subtitle">Tap the + button to create your first order</string>
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
-    <string name="order_filter_overdue">Overdue</string>
     <string name="order_items_count_singular">%1$d item</string>
     <string name="order_items_count_plural">%1$d items</string>
-    <string name="order_overdue_label">Overdue</string>
+
+    <!-- Triage section headers -->
+    <string name="triage_overdue">Overdue</string>
+    <string name="triage_due_this_week">Due This Week</string>
+    <string name="triage_in_progress">In Progress</string>
+    <string name="triage_ready_for_pickup">Ready for Pickup</string>
+    <string name="triage_pending">Pending</string>
+
+    <!-- Deadline display -->
+    <string name="deadline_no_deadline">No deadline</string>
+    <string name="deadline_pickup_ready">Pickup ready</string>
+    <string name="deadline_due_today">Due today</string>
+    <string name="deadline_due_tomorrow">Due tomorrow</string>
+    <string name="deadline_due_in_days">Due in %d days</string>
+    <string name="deadline_day_late">1 day late</string>
+    <string name="deadline_days_late">%d days late</string>
+
+    <!-- Payment status -->
+    <string name="payment_paid">Paid</string>
+    <string name="payment_partial">%s paid</string>
+    <string name="payment_unpaid">Unpaid</string>
+
+    <!-- Order item garment summary (lowercase form) -->
+    <string name="order_items_count_one_lc">1 %s</string>
+    <string name="order_items_count_many_lc">%1$d %2$s</string>
 
     <!-- Order status labels -->
     <string name="order_status_pending">Pending</string>
