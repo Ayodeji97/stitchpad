@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import kotlinx.coroutines.channels.Channel
@@ -23,6 +24,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -238,7 +241,7 @@ class OrderFormViewModel(
     )
 
     @OptIn(ExperimentalUuidApi::class)
-    @Suppress("LongMethod", "ReturnCount")
+    @Suppress("LongMethod", "ReturnCount", "CyclomaticComplexMethod")
     private fun save() {
         val s = _state.value
         val customer = s.selectedCustomer ?: return
@@ -246,6 +249,20 @@ class OrderFormViewModel(
 
         val formItems = s.items.filter { it.garmentType != null }
         if (formItems.isEmpty()) return
+
+        // Block save when any filled-in item is missing a valid positive price.
+        // Silently persisting 0.0 would undercharge and skew totals.
+        val hasInvalidPrice = formItems.any { (it.price.toDoubleOrNull() ?: 0.0) <= 0.0 }
+        if (hasInvalidPrice) {
+            _state.update {
+                it.copy(
+                    errorMessage = UiText.StringResourceText(
+                        Res.string.error_order_item_price_required
+                    )
+                )
+            }
+            return
+        }
 
         // Resolve order id BEFORE any upload so storage paths match the actual doc id.
         val actualOrderId = orderId ?: orderRepository.newOrderId(uid)

@@ -185,7 +185,8 @@ Abbreviation rule: `>= 1000` → "{k}k" with no decimals (₦10k, ₦300k). `< 1
 **`TriageGroupingTest`**
 - empty list → empty map
 - only overdue orders → single group
-- deadline exactly at `now` → Overdue
+- deadline exactly at `now` → **not** Overdue (boundary is strict `deadline < now`)
+- deadline 1 ms past `now` → Overdue
 - DELIVERED order with past deadline → not grouped into Overdue
 - READY status with past deadline → Ready for Pickup (not Overdue)
 - `deadline == null` + `status == PENDING` → Pending

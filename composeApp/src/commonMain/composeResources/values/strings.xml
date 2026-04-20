@@ -430,6 +430,7 @@
     <!-- Order errors -->
     <string name="error_order_not_found">Order not found</string>
     <string name="error_order_unknown">Could not save order. Please try again.</string>
+    <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
 
     <!-- Currency -->
     <string name="currency_naira">₦%1$s</string>

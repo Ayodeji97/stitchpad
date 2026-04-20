@@ -408,8 +408,11 @@ private fun OrderDetailContent(
     modifier: Modifier = Modifier
 ) {
     val now = Clock.System.now().toEpochMilliseconds()
+    // Match list/triage semantics: READY short-circuits to "Pickup ready" and
+    // DELIVERED is finished work — neither should render the red Overdue label.
     val isOverdue = order.deadline != null &&
         order.deadline < now &&
+        order.status != OrderStatus.READY &&
         order.status != OrderStatus.DELIVERED
 
     Column(modifier = modifier.padding(horizontal = DesignTokens.space4)) {
