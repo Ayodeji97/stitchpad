@@ -169,7 +169,7 @@ Abbreviation rule: `>= 1000` → "{k}k" with no decimals (₦10k, ₦300k). `< 1
 - **Zero orders** — `OrderEmptyState` renders, unchanged
 - **All orders in one group** — that single section header still renders (consistency)
 - **Empty section** — header + items are both skipped
-- **Order exactly at `now`** — treated as overdue (`deadline < now` is strict; use `<=` if needed but strict feels correct — if deadline was 9am and it's now 9:01am, it's late)
+- **Order exactly at `now`** — NOT overdue. The comparison is strict (`deadline < now`), so an order becomes overdue only once `now` strictly exceeds the deadline (a sub-millisecond edge case in practice — once the clock advances past the deadline by any amount, the next classification pass moves it to Overdue).
 - **DELIVERED order with past deadline** — not shown in Overdue; appears only under the Delivered chip filter
 - **Overpayment (`depositPaid > totalPrice`)** — displayed as "Paid"
 - **`totalPrice == 0`** — displayed as "Paid" (degenerate; no divide-by-zero concern)

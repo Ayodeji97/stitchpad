@@ -68,7 +68,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
-import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -130,7 +130,7 @@ fun OrderListRoot(
 
 // Avatar (36dp) + row horizontal padding (space4 = 16dp) + gap (space3 = 12dp) = 64dp.
 // Dividers indent past the avatar so the text column visually aligns with its separator.
-private val OrderRowTextInset = 64.dp
+private val orderRowTextInset = 64.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -220,7 +220,7 @@ fun OrderListScreen(
                                     )
                                     HorizontalDivider(
                                         color = MaterialTheme.colorScheme.outlineVariant,
-                                        modifier = Modifier.padding(start = OrderRowTextInset)
+                                        modifier = Modifier.padding(start = orderRowTextInset)
                                     )
                                 }
                             }
@@ -234,7 +234,7 @@ fun OrderListScreen(
                                 )
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.outlineVariant,
-                                    modifier = Modifier.padding(start = OrderRowTextInset)
+                                    modifier = Modifier.padding(start = orderRowTextInset)
                                 )
                             }
                         }
@@ -513,12 +513,8 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
 @Composable
 private fun garmentSummary(order: Order): String {
     val firstItem = order.items.firstOrNull() ?: return ""
-    val garmentName = garmentDisplayName(firstItem.garmentType).lowercase()
-    return if (order.items.size == 1) {
-        "1 $garmentName"
-    } else {
-        "${order.items.size} ${garmentName}s"
-    }
+    val count = order.items.size
+    return stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
 }
 
 @Composable

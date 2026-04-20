@@ -110,7 +110,9 @@ class OrderFormViewModel(
                 it.copy(measurementId = action.measurementId)
             }
             is OrderFormAction.OnItemFabricPhotoPicked -> updateItem(action.itemId) {
-                it.copy(fabricPhotoBytes = action.photoBytes)
+                // Clear the stored URL so the preview reflects the newly picked bytes
+                // immediately. The old remote photo is overwritten on save via upload.
+                it.copy(fabricPhotoBytes = action.photoBytes, fabricPhotoUrl = null)
             }
             is OrderFormAction.OnItemFabricPhotoRemoved -> updateItem(action.itemId) {
                 it.copy(fabricPhotoBytes = null, fabricPhotoUrl = null, fabricPhotoStoragePath = null)

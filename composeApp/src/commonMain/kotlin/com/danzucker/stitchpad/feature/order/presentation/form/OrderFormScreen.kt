@@ -27,9 +27,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -61,6 +64,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,10 +86,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
@@ -117,6 +124,10 @@ import stitchpad.composeapp.generated.resources.order_form_no_measurement
 import stitchpad.composeapp.generated.resources.order_form_no_style
 import stitchpad.composeapp.generated.resources.order_form_notes_label
 import stitchpad.composeapp.generated.resources.order_form_notes_placeholder
+import stitchpad.composeapp.generated.resources.order_form_photo_cancel
+import stitchpad.composeapp.generated.resources.order_form_photo_pick
+import stitchpad.composeapp.generated.resources.order_form_photo_sheet_title
+import stitchpad.composeapp.generated.resources.order_form_photo_take
 import stitchpad.composeapp.generated.resources.order_form_pick_date
 import stitchpad.composeapp.generated.resources.order_form_previous
 import stitchpad.composeapp.generated.resources.order_form_price_label
@@ -474,15 +485,19 @@ private fun ItemsStep(
             .padding(horizontal = DesignTokens.space4)
     ) {
         state.items.forEachIndexed { index, item ->
-            OrderItemCard(
-                item = item,
-                index = index,
-                showRemove = state.items.size > 1,
-                availableStyles = state.availableStyles,
-                availableMeasurements = state.availableMeasurements,
-                onAction = onAction
-            )
-            Spacer(Modifier.height(DesignTokens.space3))
+            // Keyed by item.id so remembered state (e.g. selectedGenderFilter) stays
+            // tied to the item across add/remove/reorder instead of sliding by position.
+            key(item.id) {
+                OrderItemCard(
+                    item = item,
+                    index = index,
+                    showRemove = state.items.size > 1,
+                    availableStyles = state.availableStyles,
+                    availableMeasurements = state.availableMeasurements,
+                    onAction = onAction
+                )
+                Spacer(Modifier.height(DesignTokens.space3))
+            }
         }
 
         TextButton(
@@ -541,8 +556,12 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Gender filter chips
-            var selectedGenderFilter by remember { mutableStateOf(GarmentGender.MALE) }
+            // Gender filter chips. Keyed by item.id via the outer key(item.id) so remember
+            // stays tied to this item on add/remove. Initial value follows the item's existing
+            // selection so editing a saved Female garment shows the Female chip preselected.
+            var selectedGenderFilter by remember {
+                mutableStateOf(item.garmentType?.gender ?: GarmentGender.MALE)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
                 GarmentGender.entries.forEach { gender ->
                     val isSelected = selectedGenderFilter == gender
@@ -751,19 +770,36 @@ private fun OrderItemCard(
             val hasFabricPhoto = item.fabricPhotoBytes != null || item.fabricPhotoUrl != null
 
             if (hasFabricPhoto) {
-                val photoModel: Any? = item.fabricPhotoBytes ?: item.fabricPhotoUrl
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
                         .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    AsyncImage(
-                        model = photoModel,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (item.fabricPhotoBytes != null) {
+                        AsyncImage(
+                            model = item.fabricPhotoBytes,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        SubcomposeAsyncImage(
+                            model = item.fabricPhotoUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    LoadingDots()
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                     // Remove button
                     IconButton(
                         onClick = { onAction(OrderFormAction.OnItemFabricPhotoRemoved(item.id)) },
@@ -793,6 +829,9 @@ private fun OrderItemCard(
     }
 }
 
+private enum class PhotoSource { Camera, Gallery }
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FabricPhotoPickerButton(
     itemId: String,
@@ -800,7 +839,10 @@ private fun FabricPhotoPickerButton(
 ) {
     val pickerScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    val imagePicker = rememberImagePickerLauncher(
+    var showSheet by remember { mutableStateOf(false) }
+    var pendingSource by remember { mutableStateOf<PhotoSource?>(null) }
+
+    val galleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = pickerScope,
         onResult = { byteArrays ->
@@ -809,11 +851,30 @@ private fun FabricPhotoPickerButton(
             }
         }
     )
+    val cameraLauncher = rememberImageCaptureLauncher { bytes ->
+        if (bytes != null) {
+            onAction(OrderFormAction.OnItemFabricPhotoPicked(itemId, bytes))
+        }
+    }
+
+    // Launch AFTER the sheet has been removed from composition. Launching while the
+    // ModalBottomSheet's popup window is still present causes the launch intent to
+    // dispatch into a disappearing window and the camera/gallery never opens.
+    LaunchedEffect(showSheet, pendingSource) {
+        if (!showSheet && pendingSource != null) {
+            when (pendingSource) {
+                PhotoSource.Camera -> cameraLauncher.launch()
+                PhotoSource.Gallery -> galleryPicker.launch()
+                null -> {}
+            }
+            pendingSource = null
+        }
+    }
 
     Surface(
         onClick = {
             focusManager.clearFocus()
-            imagePicker.launch()
+            showSheet = true
         },
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -839,6 +900,101 @@ private fun FabricPhotoPickerButton(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+
+    if (showSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            PhotoSourceSheetContent(
+                onTakePhoto = {
+                    pendingSource = PhotoSource.Camera
+                    showSheet = false
+                },
+                onPickGallery = {
+                    pendingSource = PhotoSource.Gallery
+                    showSheet = false
+                },
+                onCancel = { showSheet = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourceSheetContent(
+    onTakePhoto: () -> Unit,
+    onPickGallery: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                bottom = DesignTokens.space6
+            )
+    ) {
+        Text(
+            text = stringResource(Res.string.order_form_photo_sheet_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(
+                start = DesignTokens.space2,
+                bottom = DesignTokens.space3
+            )
+        )
+        PhotoSourceRow(
+            icon = Icons.Default.CameraAlt,
+            label = stringResource(Res.string.order_form_photo_take),
+            onClick = onTakePhoto
+        )
+        PhotoSourceRow(
+            icon = Icons.Default.PhotoLibrary,
+            label = stringResource(Res.string.order_form_photo_pick),
+            onClick = onPickGallery
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        TextButton(
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(Res.string.order_form_photo_cancel))
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourceRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(
+                horizontal = DesignTokens.space2,
+                vertical = DesignTokens.space3
+            )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(DesignTokens.space3))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

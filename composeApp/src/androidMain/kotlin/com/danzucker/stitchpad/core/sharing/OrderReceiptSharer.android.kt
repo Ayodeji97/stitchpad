@@ -13,6 +13,9 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.getString
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.share_order_receipt_chooser_title
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
@@ -25,7 +28,8 @@ actual class OrderReceiptSharer(private val context: Context) {
             val bitmap = generateReceiptBitmap(order)
             saveBitmapToCache(bitmap, order.id)
         }
-        shareImage(file)
+        val chooserTitle = getString(Res.string.share_order_receipt_chooser_title)
+        shareImage(file, chooserTitle)
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -264,7 +268,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             .forEach { it.delete() }
     }
 
-    private fun shareImage(file: File) {
+    private fun shareImage(file: File, chooserTitle: String) {
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
@@ -277,7 +281,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(
-            Intent.createChooser(intent, "Share Order Receipt").apply {
+            Intent.createChooser(intent, chooserTitle).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         )

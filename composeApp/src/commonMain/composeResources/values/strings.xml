@@ -164,6 +164,45 @@
     <string name="garment_type_shirt">Shirt</string>
     <string name="garment_type_corporate_trouser">Corporate Trouser</string>
 
+    <!-- Order list: lowercase singular/plural forms for item count summary ("1 dress" / "3 dresses") -->
+    <string name="order_summary_one_agbada">%1$d agbada</string>
+    <string name="order_summary_other_agbada">%1$d agbadas</string>
+    <string name="order_summary_one_senator">%1$d senator</string>
+    <string name="order_summary_other_senator">%1$d senators</string>
+    <string name="order_summary_one_kaftan">%1$d kaftan</string>
+    <string name="order_summary_other_kaftan">%1$d kaftans</string>
+    <string name="order_summary_one_danshiki">%1$d danshiki</string>
+    <string name="order_summary_other_danshiki">%1$d danshikis</string>
+    <string name="order_summary_one_suit">%1$d suit</string>
+    <string name="order_summary_other_suit">%1$d suits</string>
+    <string name="order_summary_one_vintage">%1$d vintage piece</string>
+    <string name="order_summary_other_vintage">%1$d vintage pieces</string>
+    <string name="order_summary_one_dress">%1$d dress</string>
+    <string name="order_summary_other_dress">%1$d dresses</string>
+    <string name="order_summary_one_blouse">%1$d blouse</string>
+    <string name="order_summary_other_blouse">%1$d blouses</string>
+    <string name="order_summary_one_corset">%1$d corset</string>
+    <string name="order_summary_other_corset">%1$d corsets</string>
+    <string name="order_summary_one_asooke">%1$d asooke</string>
+    <string name="order_summary_other_asooke">%1$d asooke pieces</string>
+    <string name="order_summary_one_bridal_gown">%1$d bridal gown</string>
+    <string name="order_summary_other_bridal_gown">%1$d bridal gowns</string>
+    <string name="order_summary_one_asoebi">%1$d asoebi</string>
+    <string name="order_summary_other_asoebi">%1$d asoebi pieces</string>
+    <string name="order_summary_one_two_piece">%1$d 2-piece outfit</string>
+    <string name="order_summary_other_two_piece">%1$d 2-piece outfits</string>
+    <string name="order_summary_one_corporate_wear">%1$d corporate outfit</string>
+    <string name="order_summary_other_corporate_wear">%1$d corporate outfits</string>
+    <string name="order_summary_one_trouser">%1$d trouser</string>
+    <string name="order_summary_other_trouser">%1$d trousers</string>
+    <string name="order_summary_one_shirt">%1$d shirt</string>
+    <string name="order_summary_other_shirt">%1$d shirts</string>
+    <string name="order_summary_one_corporate_trouser">%1$d corporate trouser</string>
+    <string name="order_summary_other_corporate_trouser">%1$d corporate trousers</string>
+
+    <!-- Share chooser titles -->
+    <string name="share_order_receipt_chooser_title">Share Order Receipt</string>
+
     <!-- Garment gender labels -->
     <string name="garment_gender_male">Male</string>
     <string name="garment_gender_female">Female</string>
@@ -341,6 +380,10 @@
     <string name="order_form_no_measurement">None</string>
     <string name="order_form_fabric_photo_label">Fabric photo (optional)</string>
     <string name="order_form_snap_fabric">Snap fabric photo</string>
+    <string name="order_form_photo_take">Take photo</string>
+    <string name="order_form_photo_pick">Pick from gallery</string>
+    <string name="order_form_photo_cancel">Cancel</string>
+    <string name="order_form_photo_sheet_title">Add fabric photo</string>
 
     <!-- Order form validation -->
     <string name="order_form_error_no_customer">Please select a customer</string>
