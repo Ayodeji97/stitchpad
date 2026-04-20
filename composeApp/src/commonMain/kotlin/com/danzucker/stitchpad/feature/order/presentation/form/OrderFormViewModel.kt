@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -52,6 +53,12 @@ class OrderFormViewModel(
     // On edit, loadOrder may finish before observeCustomers emits. Record the target
     // customer id and resolve it reactively whenever either event wins the race.
     private var pendingCustomerId: String? = null
+
+    // Track the per-customer style/measurement collectors so we can cancel them when the
+    // user switches customers. Without this, the previous customer's flows keep emitting
+    // into state and race with the new customer's data.
+    private var styleJob: Job? = null
+    private var measurementJob: Job? = null
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
@@ -183,14 +190,16 @@ class OrderFormViewModel(
 
     private fun loadCustomerData(customerId: String) {
         val uid = userId ?: return
-        viewModelScope.launch {
+        styleJob?.cancel()
+        styleJob = viewModelScope.launch {
             styleRepository.observeStyles(uid, customerId).collect { result ->
                 if (result is Result.Success) {
                     _state.update { it.copy(availableStyles = result.data) }
                 }
             }
         }
-        viewModelScope.launch {
+        measurementJob?.cancel()
+        measurementJob = viewModelScope.launch {
             measurementRepository.observeMeasurements(uid, customerId).collect { result ->
                 if (result is Result.Success) {
                     _state.update { it.copy(availableMeasurements = result.data) }
