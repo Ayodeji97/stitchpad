@@ -278,13 +278,13 @@
     <string name="deadline_pickup_ready">Pickup ready</string>
     <string name="deadline_due_today">Due today</string>
     <string name="deadline_due_tomorrow">Due tomorrow</string>
-    <string name="deadline_due_in_days">Due in %d days</string>
+    <string name="deadline_due_in_days">Due in %1$d days</string>
     <string name="deadline_day_late">1 day late</string>
-    <string name="deadline_days_late">%d days late</string>
+    <string name="deadline_days_late">%1$d days late</string>
 
     <!-- Payment status -->
     <string name="payment_paid">Paid</string>
-    <string name="payment_partial">%s paid</string>
+    <string name="payment_partial">%1$s paid</string>
     <string name="payment_unpaid">Unpaid</string>
 
     <!-- Order status labels -->
