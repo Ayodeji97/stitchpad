@@ -25,7 +25,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_order_customer_required
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
+import stitchpad.composeapp.generated.resources.error_order_items_required
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -244,23 +246,25 @@ class OrderFormViewModel(
     @Suppress("LongMethod", "ReturnCount", "CyclomaticComplexMethod")
     private fun save() {
         val s = _state.value
-        val customer = s.selectedCustomer ?: return
         val uid = userId ?: return
 
+        val customer = s.selectedCustomer
+        if (customer == null) {
+            setError(Res.string.error_order_customer_required)
+            return
+        }
+
         val formItems = s.items.filter { it.garmentType != null }
-        if (formItems.isEmpty()) return
+        if (formItems.isEmpty()) {
+            setError(Res.string.error_order_items_required)
+            return
+        }
 
         // Block save when any filled-in item is missing a valid positive price.
         // Silently persisting 0.0 would undercharge and skew totals.
         val hasInvalidPrice = formItems.any { (it.price.toDoubleOrNull() ?: 0.0) <= 0.0 }
         if (hasInvalidPrice) {
-            _state.update {
-                it.copy(
-                    errorMessage = UiText.StringResourceText(
-                        Res.string.error_order_item_price_required
-                    )
-                )
-            }
+            setError(Res.string.error_order_item_price_required)
             return
         }
 
@@ -328,6 +332,10 @@ class OrderFormViewModel(
                 }
             }
         }
+    }
+
+    private fun setError(resource: org.jetbrains.compose.resources.StringResource) {
+        _state.update { it.copy(errorMessage = UiText.StringResourceText(resource)) }
     }
 
     private suspend fun uploadFabricPhotoIfNeeded(

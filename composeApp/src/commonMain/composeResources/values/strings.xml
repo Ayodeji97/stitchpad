@@ -431,6 +431,8 @@
     <string name="error_order_not_found">Order not found</string>
     <string name="error_order_unknown">Could not save order. Please try again.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
+    <string name="error_order_customer_required">Select a customer before saving.</string>
+    <string name="error_order_items_required">Add at least one item with a garment type.</string>
 
     <!-- Currency -->
     <string name="currency_naira">₦%1$s</string>

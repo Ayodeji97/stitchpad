@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.order.presentation
 
 import androidx.compose.runtime.Composable
 import com.danzucker.stitchpad.core.domain.model.GarmentType
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.garment_type_agbada
@@ -23,23 +25,31 @@ import stitchpad.composeapp.generated.resources.garment_type_two_piece
 import stitchpad.composeapp.generated.resources.garment_type_vintage
 
 @Suppress("CyclomaticComplexMethod")
-@Composable
-fun garmentDisplayName(type: GarmentType): String = when (type) {
-    GarmentType.AGBADA -> stringResource(Res.string.garment_type_agbada)
-    GarmentType.SENATOR -> stringResource(Res.string.garment_type_senator)
-    GarmentType.KAFTAN -> stringResource(Res.string.garment_type_kaftan)
-    GarmentType.DANSHIKI -> stringResource(Res.string.garment_type_danshiki)
-    GarmentType.SUIT -> stringResource(Res.string.garment_type_suit)
-    GarmentType.VINTAGE -> stringResource(Res.string.garment_type_vintage)
-    GarmentType.DRESS -> stringResource(Res.string.garment_type_dress)
-    GarmentType.BLOUSE -> stringResource(Res.string.garment_type_blouse)
-    GarmentType.CORSET -> stringResource(Res.string.garment_type_corset)
-    GarmentType.ASOOKE -> stringResource(Res.string.garment_type_asooke)
-    GarmentType.BRIDAL_GOWN -> stringResource(Res.string.garment_type_bridal_gown)
-    GarmentType.ASOEBI -> stringResource(Res.string.garment_type_asoebi)
-    GarmentType.TWO_PIECE -> stringResource(Res.string.garment_type_two_piece)
-    GarmentType.CORPORATE_WEAR -> stringResource(Res.string.garment_type_corporate_wear)
-    GarmentType.TROUSER -> stringResource(Res.string.garment_type_trouser)
-    GarmentType.SHIRT -> stringResource(Res.string.garment_type_shirt)
-    GarmentType.CORPORATE_TROUSER -> stringResource(Res.string.garment_type_corporate_trouser)
+private fun garmentNameResource(type: GarmentType): StringResource = when (type) {
+    GarmentType.AGBADA -> Res.string.garment_type_agbada
+    GarmentType.SENATOR -> Res.string.garment_type_senator
+    GarmentType.KAFTAN -> Res.string.garment_type_kaftan
+    GarmentType.DANSHIKI -> Res.string.garment_type_danshiki
+    GarmentType.SUIT -> Res.string.garment_type_suit
+    GarmentType.VINTAGE -> Res.string.garment_type_vintage
+    GarmentType.DRESS -> Res.string.garment_type_dress
+    GarmentType.BLOUSE -> Res.string.garment_type_blouse
+    GarmentType.CORSET -> Res.string.garment_type_corset
+    GarmentType.ASOOKE -> Res.string.garment_type_asooke
+    GarmentType.BRIDAL_GOWN -> Res.string.garment_type_bridal_gown
+    GarmentType.ASOEBI -> Res.string.garment_type_asoebi
+    GarmentType.TWO_PIECE -> Res.string.garment_type_two_piece
+    GarmentType.CORPORATE_WEAR -> Res.string.garment_type_corporate_wear
+    GarmentType.TROUSER -> Res.string.garment_type_trouser
+    GarmentType.SHIRT -> Res.string.garment_type_shirt
+    GarmentType.CORPORATE_TROUSER -> Res.string.garment_type_corporate_trouser
 }
+
+@Composable
+fun garmentDisplayName(type: GarmentType): String = stringResource(garmentNameResource(type))
+
+/**
+ * Non-Composable resolver for contexts without a Compose scope (e.g. receipt rendering,
+ * notifications). Keeps receipts in lock-step with UI labels and localization.
+ */
+suspend fun garmentDisplayNameAsync(type: GarmentType): String = getString(garmentNameResource(type))

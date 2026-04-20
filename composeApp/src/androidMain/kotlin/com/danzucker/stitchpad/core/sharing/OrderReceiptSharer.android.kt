@@ -8,9 +8,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.core.content.FileProvider
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
@@ -23,17 +25,27 @@ import java.util.Locale
 actual class OrderReceiptSharer(private val context: Context) {
 
     actual suspend fun shareReceipt(order: Order) {
+        // Resolve garment names on the caller (main) dispatcher — string resources need
+        // the Compose resource loader. Then hand the prebuilt map to the Default-threaded
+        // bitmap rendering so receipt labels match the UI exactly.
+        val garmentNames: Map<GarmentType, String> = order.items
+            .map { it.garmentType }
+            .distinct()
+            .associateWith { garmentDisplayNameAsync(it) }
+        val chooserTitle = getString(Res.string.share_order_receipt_chooser_title)
         // Bitmap rendering + PNG encode + disk write are heavy — keep off main.
         val file = withContext(Dispatchers.Default) {
-            val bitmap = generateReceiptBitmap(order)
+            val bitmap = generateReceiptBitmap(order, garmentNames)
             saveBitmapToCache(bitmap, order.id)
         }
-        val chooserTitle = getString(Res.string.share_order_receipt_chooser_title)
         shareImage(file, chooserTitle)
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private fun generateReceiptBitmap(order: Order): Bitmap {
+    private fun generateReceiptBitmap(
+        order: Order,
+        garmentNames: Map<GarmentType, String>
+    ): Bitmap {
         val width = 800
         val padding = 40f
 
@@ -138,7 +150,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += lineHeight
 
         order.items.forEach { item ->
-            val garmentName = item.garmentType.name.replace("_", " ")
+            val garmentName = garmentNames[item.garmentType] ?: item.garmentType.name
             canvas.drawText("\u2022 $garmentName", padding, y + 24f, bodyPaint)
             canvas.drawText(
                 "\u20A6${formatPrice(item.price)}",

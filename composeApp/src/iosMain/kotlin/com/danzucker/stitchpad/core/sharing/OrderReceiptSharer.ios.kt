@@ -1,9 +1,11 @@
 package com.danzucker.stitchpad.core.sharing
 
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.platform.activeKeyWindow
+import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSDate
@@ -14,7 +16,11 @@ import platform.UIKit.UIActivityViewController
 actual class OrderReceiptSharer {
 
     actual suspend fun shareReceipt(order: Order) {
-        val text = buildReceiptText(order)
+        val garmentNames: Map<GarmentType, String> = order.items
+            .map { it.garmentType }
+            .distinct()
+            .associateWith { garmentDisplayNameAsync(it) }
+        val text = buildReceiptText(order, garmentNames)
         // UIKit presentation must happen on the main thread; shareReceipt is suspend
         // and can be invoked from any dispatcher.
         withContext(Dispatchers.Main) {
@@ -28,7 +34,11 @@ actual class OrderReceiptSharer {
         }
     }
 
-    private fun buildReceiptText(order: Order): String = buildString {
+    @Suppress("CyclomaticComplexMethod")
+    private fun buildReceiptText(
+        order: Order,
+        garmentNames: Map<GarmentType, String>
+    ): String = buildString {
         appendLine("\uD83D\uDCCB ORDER RECEIPT")
         appendLine("\u2501".repeat(20))
         appendLine()
@@ -37,7 +47,7 @@ actual class OrderReceiptSharer {
 
         appendLine("ITEMS:")
         order.items.forEach { item ->
-            val garmentName = item.garmentType.name.replace("_", " ")
+            val garmentName = garmentNames[item.garmentType] ?: item.garmentType.name
             appendLine("\u2022 $garmentName \u2014 \u20A6${formatPrice(item.price)}")
             if (item.description.isNotBlank()) {
                 appendLine("  ${item.description}")

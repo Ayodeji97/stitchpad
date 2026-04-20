@@ -35,7 +35,7 @@ fun TriageSectionHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(
                 start = DesignTokens.space4,
                 end = DesignTokens.space4,

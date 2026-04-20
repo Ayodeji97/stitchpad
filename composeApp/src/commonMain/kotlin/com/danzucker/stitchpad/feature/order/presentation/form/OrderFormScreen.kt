@@ -286,7 +286,14 @@ fun OrderFormScreen(
                 if (state.currentStep < 3) {
                     val canAdvance = when (state.currentStep) {
                         1 -> state.selectedCustomer != null
-                        2 -> state.items.any { it.garmentType != null && it.price.toDoubleOrNull() != null }
+                        2 -> {
+                            // Match save() validation: at least one typed item AND every typed
+                            // item must have a positive price. Otherwise Next leads to a
+                            // guaranteed save failure at step 3.
+                            val typed = state.items.filter { it.garmentType != null }
+                            typed.isNotEmpty() &&
+                                typed.all { (it.price.toDoubleOrNull() ?: 0.0) > 0.0 }
+                        }
                         else -> true
                     }
                     Button(
