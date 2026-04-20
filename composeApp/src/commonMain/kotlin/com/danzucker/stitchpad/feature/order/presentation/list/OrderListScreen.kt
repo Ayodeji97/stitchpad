@@ -50,6 +50,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -378,16 +380,23 @@ private fun SwipeableOrderItem(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                false
-            } else {
-                false
+    val dismissState = rememberSwipeToDismissBoxState()
+    val currentOnDelete by rememberUpdatedState(onDelete)
+
+    // Watch the settled value rather than intercepting via confirmValueChange.
+    // The confirmValueChange-returning-false pattern leaves the state in a
+    // half-settled position on some devices, causing subsequent swipes on
+    // the same row to silently no-op. Resetting explicitly after dispatch
+    // guarantees a clean slate for the next swipe.
+    LaunchedEffect(dismissState) {
+        snapshotFlow { dismissState.currentValue }
+            .collect { value ->
+                if (value == SwipeToDismissBoxValue.EndToStart) {
+                    currentOnDelete()
+                    dismissState.reset()
+                }
             }
-        }
-    )
+    }
 
     SwipeToDismissBox(
         state = dismissState,
