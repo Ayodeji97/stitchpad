@@ -22,6 +22,7 @@ import stitchpad.composeapp.generated.resources.garment_type_trouser
 import stitchpad.composeapp.generated.resources.garment_type_two_piece
 import stitchpad.composeapp.generated.resources.garment_type_vintage
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun garmentDisplayName(type: GarmentType): String = when (type) {
     GarmentType.AGBADA -> stringResource(Res.string.garment_type_agbada)

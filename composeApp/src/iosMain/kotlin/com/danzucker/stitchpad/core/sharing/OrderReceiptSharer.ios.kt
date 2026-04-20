@@ -11,7 +11,7 @@ import platform.UIKit.UIApplication
 
 actual class OrderReceiptSharer {
 
-    actual fun shareReceipt(order: Order) {
+    actual suspend fun shareReceipt(order: Order) {
         val text = buildReceiptText(order)
         val activityVC = UIActivityViewController(
             activityItems = listOf(text),

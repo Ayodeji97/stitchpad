@@ -31,7 +31,9 @@ data class OrderFormState(
     val errorMessage: UiText? = null
 )
 
-data class OrderItemFormState @OptIn(ExperimentalUuidApi::class) constructor(
+data class OrderItemFormState
+@OptIn(ExperimentalUuidApi::class)
+constructor(
     val id: String = Uuid.random().toString(),
     val garmentType: GarmentType? = null,
     val description: String = "",

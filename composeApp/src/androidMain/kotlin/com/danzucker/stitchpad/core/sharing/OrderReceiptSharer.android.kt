@@ -11,21 +11,27 @@ import androidx.core.content.FileProvider
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 
 actual class OrderReceiptSharer(private val context: Context) {
 
-    actual fun shareReceipt(order: Order) {
-        val bitmap = generateReceiptBitmap(order)
-        val file = saveBitmapToCache(bitmap)
+    actual suspend fun shareReceipt(order: Order) {
+        // Bitmap rendering + PNG encode + disk write are heavy — keep off main.
+        val file = withContext(Dispatchers.Default) {
+            val bitmap = generateReceiptBitmap(order)
+            saveBitmapToCache(bitmap)
+        }
         shareImage(file)
     }
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun generateReceiptBitmap(order: Order): Bitmap {
         val width = 800
         val padding = 40f
-        val contentWidth = width - padding * 2
 
         // Paints
         val titlePaint = Paint().apply {
@@ -258,14 +264,16 @@ actual class OrderReceiptSharer(private val context: Context) {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(Intent.createChooser(intent, "Share Order Receipt").apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
+        context.startActivity(
+            Intent.createChooser(intent, "Share Order Receipt").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
     }
 
     private fun formatPrice(price: Double): String {
         val long = price.toLong()
-        if (price == long.toDouble()) return String.format("%,d", long)
-        return String.format("%,.2f", price)
+        if (price == long.toDouble()) return String.format(Locale.US, "%,d", long)
+        return String.format(Locale.US, "%,.2f", price)
     }
 }

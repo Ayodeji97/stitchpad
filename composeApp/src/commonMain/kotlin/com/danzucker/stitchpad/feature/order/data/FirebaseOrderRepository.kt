@@ -14,10 +14,10 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
-import kotlin.time.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlin.time.Clock
 
 private const val TAG = "OrderRepo"
 
@@ -99,21 +99,26 @@ class FirebaseOrderRepository(
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network> {
         return try {
-            val doc = ordersCollection(userId).document(orderId).get()
-            if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
-            val dto = doc.data<OrderDto>()
-            val now = Clock.System.now().toEpochMilliseconds()
-            val updatedHistory = dto.statusHistory + StatusChangeDto(
-                status = newStatus.name,
-                changedAt = now
-            )
-            val updatedDto = dto.copy(
-                status = newStatus.name,
-                statusHistory = updatedHistory,
-                updatedAt = now
-            )
-            ordersCollection(userId).document(orderId).set(updatedDto)
-            Result.Success(Unit)
+            val docRef = ordersCollection(userId).document(orderId)
+            // Atomic read-modify-write: Firestore retries on concurrent modification,
+            // preventing lost status updates when two devices update at the same time.
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                val now = Clock.System.now().toEpochMilliseconds()
+                val updatedDto = dto.copy(
+                    status = newStatus.name,
+                    statusHistory = dto.statusHistory + StatusChangeDto(
+                        status = newStatus.name,
+                        changedAt = now
+                    ),
+                    updatedAt = now
+                )
+                set(docRef, updatedDto)
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "updateOrderStatus failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -125,16 +130,7 @@ class FirebaseOrderRepository(
         orderId: String
     ): EmptyResult<DataError.Network> {
         return try {
-            // Clean up fabric photos from Storage
-            val doc = ordersCollection(userId).document(orderId).get()
-            if (doc.exists) {
-                val dto = doc.data<OrderDto>()
-                dto.items.forEach { item ->
-                    if (!item.fabricPhotoStoragePath.isNullOrBlank()) {
-                        runCatching { storage.reference.child(item.fabricPhotoStoragePath).delete() }
-                    }
-                }
-            }
+            deleteFabricPhotosFor(userId, orderId)
             ordersCollection(userId).document(orderId).delete()
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
@@ -143,7 +139,22 @@ class FirebaseOrderRepository(
         }
     }
 
-    suspend fun uploadFabricPhoto(
+    private suspend fun deleteFabricPhotosFor(userId: String, orderId: String) {
+        val doc = ordersCollection(userId).document(orderId).get()
+        if (!doc.exists) return
+        val dto = doc.data<OrderDto>()
+        dto.items.forEach { item ->
+            val path = item.fabricPhotoStoragePath
+            if (!path.isNullOrBlank()) {
+                runCatching { storage.reference.child(path).delete() }
+            }
+        }
+    }
+
+    override fun newOrderId(userId: String): String =
+        ordersCollection(userId).document.id
+
+    override suspend fun uploadFabricPhoto(
         userId: String,
         orderId: String,
         itemId: String,

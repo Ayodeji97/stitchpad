@@ -390,9 +390,10 @@ fun formatDeadline(deadline: Long?, now: Long, status: OrderStatus): DeadlineDis
 
     val deltaMillis = deadline - now
     if (deltaMillis < 0) {
-        // floor-divide absolute value, min 1
-        val daysLate = ((-deltaMillis + MILLIS_PER_DAY - 1) / MILLIS_PER_DAY).toInt()
-        return DeadlineDisplay.DaysLate(daysLate.coerceAtLeast(1))
+        // Floor-divide absolute overdue millis to whole days.
+        // Minimum 1 so sub-day overdue reads as "1 day late" rather than "0 days late".
+        val daysLate = ((-deltaMillis) / MILLIS_PER_DAY).toInt().coerceAtLeast(1)
+        return DeadlineDisplay.DaysLate(daysLate)
     }
 
     val daysUntil = (deltaMillis / MILLIS_PER_DAY).toInt()
@@ -1160,7 +1161,7 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
     ) {
-        CustomerAvatar(name = order.customerName, customerId = order.customerId)
+        OrderRowAvatar(name = order.customerName, customerId = order.customerId)
 
         Column(modifier = Modifier.weight(1f)) {
             Row(

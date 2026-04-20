@@ -6,19 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
-import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
-import com.danzucker.stitchpad.feature.order.data.FirebaseOrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
-import kotlin.time.Clock
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +23,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
 
 @Suppress("LongParameterList")
 class OrderFormViewModel(
@@ -41,6 +38,11 @@ class OrderFormViewModel(
 
     private val orderId: String? = savedStateHandle["orderId"]
     private var userId: String? = null
+
+    // Preserved across edit: carry original metadata so save() doesn't overwrite them.
+    private var loadedCreatedAt: Long = 0L
+    private var loadedStatus: OrderStatus = OrderStatus.PENDING
+    private var loadedStatusHistory: List<StatusChange> = emptyList()
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
@@ -61,7 +63,7 @@ class OrderFormViewModel(
             initialValue = OrderFormState(isEditMode = orderId != null)
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: OrderFormAction) {
         when (action) {
             OrderFormAction.OnNextStep -> {
@@ -180,6 +182,9 @@ class OrderFormViewModel(
             when (val result = orderRepository.getOrder(uid, id)) {
                 is Result.Success -> {
                     val order = result.data
+                    loadedCreatedAt = order.createdAt
+                    loadedStatus = order.status
+                    loadedStatusHistory = order.statusHistory
                     val customer = _state.value.customers.find { it.id == order.customerId }
                     _state.update {
                         it.copy(
@@ -215,36 +220,26 @@ class OrderFormViewModel(
     )
 
     @OptIn(ExperimentalUuidApi::class)
+    @Suppress("LongMethod", "ReturnCount")
     private fun save() {
         val s = _state.value
         val customer = s.selectedCustomer ?: return
         val uid = userId ?: return
-        val firebaseRepo = orderRepository as FirebaseOrderRepository
 
         val formItems = s.items.filter { it.garmentType != null }
         if (formItems.isEmpty()) return
 
+        // Resolve order id BEFORE any upload so storage paths match the actual doc id.
+        val actualOrderId = orderId ?: orderRepository.newOrderId(uid)
+
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
 
-            // Determine the order ID early so we can use it for storage paths
-            val actualOrderId = orderId ?: ""
-
-            // Build order items, uploading fabric photos as needed
             val orderItems = formItems.map { item ->
                 val garmentType = item.garmentType!!
                 val price = item.price.toDoubleOrNull() ?: 0.0
 
-                // Upload fabric photo if new bytes are present
-                val (fabricUrl, fabricPath) = if (item.fabricPhotoBytes != null) {
-                    val tempOrderId = actualOrderId.ifBlank { "temp_${item.id}" }
-                    when (val uploadResult = firebaseRepo.uploadFabricPhoto(uid, tempOrderId, item.id, item.fabricPhotoBytes)) {
-                        is Result.Success -> uploadResult.data
-                        is Result.Error -> item.fabricPhotoUrl to item.fabricPhotoStoragePath
-                    }
-                } else {
-                    item.fabricPhotoUrl to item.fabricPhotoStoragePath
-                }
+                val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
 
                 OrderItem(
                     id = item.id,
@@ -261,6 +256,7 @@ class OrderFormViewModel(
             val totalPrice = orderItems.sumOf { it.price }
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
+            val isEdit = orderId != null
 
             val order = Order(
                 id = actualOrderId,
@@ -268,10 +264,10 @@ class OrderFormViewModel(
                 customerId = customer.id,
                 customerName = customer.name,
                 items = orderItems,
-                status = OrderStatus.PENDING,
+                status = if (isEdit) loadedStatus else OrderStatus.PENDING,
                 priority = s.priority,
-                statusHistory = if (orderId != null) {
-                    emptyList()
+                statusHistory = if (isEdit) {
+                    loadedStatusHistory
                 } else {
                     listOf(StatusChange(OrderStatus.PENDING, now))
                 },
@@ -280,11 +276,11 @@ class OrderFormViewModel(
                 balanceRemaining = totalPrice - deposit,
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
-                createdAt = 0L,
+                createdAt = if (isEdit) loadedCreatedAt else 0L,
                 updatedAt = 0L
             )
 
-            val result = if (orderId != null) {
+            val result = if (isEdit) {
                 orderRepository.updateOrder(uid, order)
             } else {
                 orderRepository.createOrder(uid, order)
@@ -296,6 +292,25 @@ class OrderFormViewModel(
                     it.copy(errorMessage = result.error.toOrderUiText())
                 }
             }
+        }
+    }
+
+    private suspend fun uploadFabricPhotoIfNeeded(
+        uid: String,
+        orderId: String,
+        item: OrderItemFormState
+    ): Pair<String?, String?> {
+        val bytes = item.fabricPhotoBytes
+            ?: return item.fabricPhotoUrl to item.fabricPhotoStoragePath
+        val uploadResult = orderRepository.uploadFabricPhoto(
+            userId = uid,
+            orderId = orderId,
+            itemId = item.id,
+            photoBytes = bytes
+        )
+        return when (uploadResult) {
+            is Result.Success -> uploadResult.data
+            is Result.Error -> item.fabricPhotoUrl to item.fabricPhotoStoragePath
         }
     }
 }

@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -46,6 +45,7 @@ class OrderDetailViewModel(
             initialValue = OrderDetailState()
         )
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: OrderDetailAction) {
         when (action) {
             OrderDetailAction.OnEditClick -> {
@@ -78,7 +78,7 @@ class OrderDetailViewModel(
             }
             OrderDetailAction.OnShareClick -> {
                 val order = _state.value.order ?: return
-                receiptSharer.shareReceipt(order)
+                viewModelScope.launch { receiptSharer.shareReceipt(order) }
             }
             OrderDetailAction.OnBackClick -> {
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }

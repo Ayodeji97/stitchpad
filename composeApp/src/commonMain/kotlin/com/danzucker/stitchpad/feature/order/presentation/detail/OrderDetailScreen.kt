@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,21 +46,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
-import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.util.ObserveAsEvents
-import kotlin.time.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -79,11 +78,11 @@ import stitchpad.composeapp.generated.resources.order_detail_deadline_section
 import stitchpad.composeapp.generated.resources.order_detail_delete_button
 import stitchpad.composeapp.generated.resources.order_detail_deposit_paid
 import stitchpad.composeapp.generated.resources.order_detail_fabric_photo
-import stitchpad.composeapp.generated.resources.order_detail_share
 import stitchpad.composeapp.generated.resources.order_detail_financial_section
 import stitchpad.composeapp.generated.resources.order_detail_items_section
 import stitchpad.composeapp.generated.resources.order_detail_notes_section
 import stitchpad.composeapp.generated.resources.order_detail_priority_section
+import stitchpad.composeapp.generated.resources.order_detail_share
 import stitchpad.composeapp.generated.resources.order_detail_status_history
 import stitchpad.composeapp.generated.resources.order_detail_status_section
 import stitchpad.composeapp.generated.resources.order_detail_title
@@ -99,8 +98,8 @@ import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
 import stitchpad.composeapp.generated.resources.order_status_update_cancel
 import stitchpad.composeapp.generated.resources.order_status_update_confirm
-import stitchpad.composeapp.generated.resources.order_status_update_message
 import stitchpad.composeapp.generated.resources.order_status_update_title
+import kotlin.time.Clock
 
 @Composable
 fun OrderDetailRoot(
@@ -137,6 +136,7 @@ fun OrderDetailRoot(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun OrderDetailScreen(
     state: OrderDetailState,
@@ -351,6 +351,7 @@ fun OrderDetailScreen(
     }
 }
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 private fun OrderDetailContent(
     order: Order,
@@ -663,7 +664,10 @@ private fun StatusBadge(status: OrderStatus) {
 private fun StatusHistoryItem(change: StatusChange) {
     val date = Instant.fromEpochMilliseconds(change.changedAt)
         .toLocalDateTime(TimeZone.currentSystemDefault())
-    val dateStr = "${date.dayOfMonth}/${date.monthNumber}/${date.year} ${date.hour}:${date.minute.toString().padStart(2, '0')}"
+    val dateStr = "${date.dayOfMonth}/${date.monthNumber}/${date.year} ${date.hour}:${date.minute.toString().padStart(
+        2,
+        '0'
+    )}"
     val label = statusLabel(change.status)
 
     Row(

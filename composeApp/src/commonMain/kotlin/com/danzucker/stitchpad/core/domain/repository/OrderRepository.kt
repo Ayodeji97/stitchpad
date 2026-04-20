@@ -18,4 +18,13 @@ interface OrderRepository {
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network>
     suspend fun deleteOrder(userId: String, orderId: String): EmptyResult<DataError.Network>
+
+    fun newOrderId(userId: String): String
+
+    suspend fun uploadFabricPhoto(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytes: ByteArray
+    ): Result<Pair<String, String>, DataError.Network>
 }

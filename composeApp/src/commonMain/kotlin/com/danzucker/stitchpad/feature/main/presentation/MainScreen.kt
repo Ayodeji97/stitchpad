@@ -37,10 +37,10 @@ import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDeta
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
-import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
+import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
@@ -59,7 +59,6 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.home_sign_out
 import stitchpad.composeapp.generated.resources.nav_dashboard
-import stitchpad.composeapp.generated.resources.nav_orders
 import stitchpad.composeapp.generated.resources.nav_settings
 
 @Composable
