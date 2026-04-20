@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -61,9 +61,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -79,11 +82,7 @@ import stitchpad.composeapp.generated.resources.order_empty_subtitle
 import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
 import stitchpad.composeapp.generated.resources.order_filter_all
-import stitchpad.composeapp.generated.resources.order_filter_overdue
-import stitchpad.composeapp.generated.resources.order_items_count_plural
-import stitchpad.composeapp.generated.resources.order_items_count_singular
 import stitchpad.composeapp.generated.resources.order_list_title
-import stitchpad.composeapp.generated.resources.order_overdue_label
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
 import stitchpad.composeapp.generated.resources.order_status_delivered
@@ -122,7 +121,7 @@ fun OrderListRoot(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun OrderListScreen(
     state: OrderListState,
@@ -172,9 +171,7 @@ fun OrderListScreen(
         ) {
             OrderStatusFilterChips(
                 selectedStatus = state.statusFilter,
-                showOverdueOnly = state.showOverdueOnly,
-                onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) },
-                onOverdueToggled = { onAction(OrderListAction.OnToggleOverdueFilter(it)) }
+                onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) }
             )
 
             when {
@@ -187,20 +184,43 @@ fun OrderListScreen(
                     OrderEmptyState(modifier = Modifier.fillMaxSize())
                 }
                 else -> {
+                    val now = Clock.System.now().toEpochMilliseconds()
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(items = state.orders, key = { it.id }) { order ->
-                            SwipeableOrderItem(
-                                order = order,
-                                onClick = { onAction(OrderListAction.OnOrderClick(order)) },
-                                onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
-                            )
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.padding(start = DesignTokens.space4)
-                            )
+                        if (state.statusFilter == null) {
+                            val groups = groupOrdersIntoTriage(state.orders, now)
+                            groups.forEach { (group, ordersInGroup) ->
+                                stickyHeader(key = "header-${group.name}") {
+                                    TriageSectionHeader(group = group, count = ordersInGroup.size)
+                                }
+                                items(items = ordersInGroup, key = { it.id }) { order ->
+                                    SwipeableOrderItem(
+                                        order = order,
+                                        now = now,
+                                        onClick = { onAction(OrderListAction.OnOrderClick(order)) },
+                                        onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
+                                    )
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                        modifier = Modifier.padding(start = 64.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            items(items = state.orders, key = { it.id }) { order ->
+                                SwipeableOrderItem(
+                                    order = order,
+                                    now = now,
+                                    onClick = { onAction(OrderListAction.OnOrderClick(order)) },
+                                    onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
+                                )
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    modifier = Modifier.padding(start = 64.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -256,9 +276,7 @@ fun OrderListScreen(
 @Composable
 private fun OrderStatusFilterChips(
     selectedStatus: OrderStatus?,
-    showOverdueOnly: Boolean,
-    onStatusSelected: (OrderStatus?) -> Unit,
-    onOverdueToggled: (Boolean) -> Unit
+    onStatusSelected: (OrderStatus?) -> Unit
 ) {
     val statusOptions: List<Pair<OrderStatus?, String>> = listOf(
         null to stringResource(Res.string.order_filter_all),
@@ -267,7 +285,6 @@ private fun OrderStatusFilterChips(
         OrderStatus.READY to stringResource(Res.string.order_status_ready),
         OrderStatus.DELIVERED to stringResource(Res.string.order_status_delivered)
     )
-    val overdueLabel = stringResource(Res.string.order_filter_overdue)
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
@@ -281,7 +298,7 @@ private fun OrderStatusFilterChips(
             )
     ) {
         statusOptions.forEach { (status, label) ->
-            val isSelected = !showOverdueOnly && selectedStatus == status
+            val isSelected = selectedStatus == status
             FilterChip(
                 selected = isSelected,
                 onClick = { onStatusSelected(status) },
@@ -305,29 +322,6 @@ private fun OrderStatusFilterChips(
                 }
             )
         }
-
-        FilterChip(
-            selected = showOverdueOnly,
-            onClick = { onOverdueToggled(!showOverdueOnly) },
-            label = {
-                Text(
-                    text = overdueLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (showOverdueOnly) FontWeight.SemiBold else FontWeight.Normal
-                )
-            },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = Color.Transparent,
-                selectedLabelColor = DesignTokens.error500,
-                containerColor = Color.Transparent,
-                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            border = if (showOverdueOnly) {
-                BorderStroke(1.dp, DesignTokens.error500)
-            } else {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            }
-        )
     }
 }
 
@@ -374,6 +368,7 @@ private fun OrderEmptyState(modifier: Modifier = Modifier) {
 @Composable
 private fun SwipeableOrderItem(
     order: Order,
+    now: Long,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -382,9 +377,7 @@ private fun SwipeableOrderItem(
             if (value == SwipeToDismissBoxValue.EndToStart) {
                 onDelete()
                 false
-            } else {
-                false
-            }
+            } else false
         }
     )
 
@@ -412,25 +405,23 @@ private fun SwipeableOrderItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            OrderListItem(order = order, onClick = onClick)
+            OrderListItem(order = order, now = now, onClick = onClick)
         }
     }
 }
 
 @Composable
-private fun OrderListItem(order: Order, onClick: () -> Unit) {
-    val now = Clock.System.now().toEpochMilliseconds()
-    val isOverdue = order.deadline != null &&
-        order.deadline < now &&
-        order.status != OrderStatus.DELIVERED
-
+private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
     ) {
+        OrderRowAvatar(name = order.customerName, customerId = order.customerId)
+
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -452,72 +443,40 @@ private fun OrderListItem(order: Order, onClick: () -> Unit) {
 
             Spacer(Modifier.height(2.dp))
 
-            val itemCount = order.items.size
-            val itemsText = if (itemCount == 1) {
-                stringResource(Res.string.order_items_count_singular, itemCount)
-            } else {
-                stringResource(Res.string.order_items_count_plural, itemCount)
-            }
-            val garmentSummary = order.items.take(2).joinToString(", ") { it.garmentType.name.replace("_", " ") }
-            val summaryText = if (order.items.size > 2) "$garmentSummary, ..." else garmentSummary
-
             Text(
-                text = "$itemsText \u00B7 $summaryText",
+                text = garmentSummary(order),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(Modifier.height(DesignTokens.space1))
+            Spacer(Modifier.height(2.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)
-            ) {
-                OrderStatusBadge(status = order.status)
-                if (isOverdue) {
-                    Text(
-                        text = stringResource(Res.string.order_overdue_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = DesignTokens.error500
-                    )
-                }
-            }
+            DeadlineLine(deadline = order.deadline, now = now, status = order.status)
         }
 
-        Spacer(Modifier.width(DesignTokens.space3))
-
-        Text(
-            text = "\u20A6${formatPrice(order.totalPrice)}",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "\u20A6${formatPrice(order.totalPrice)}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(2.dp))
+            PaymentStatusText(depositPaid = order.depositPaid, totalPrice = order.totalPrice)
+        }
     }
 }
 
 @Composable
-private fun OrderStatusBadge(status: OrderStatus) {
-    val (color, label) = when (status) {
-        OrderStatus.PENDING -> DesignTokens.statusReceived to stringResource(Res.string.order_status_pending)
-        OrderStatus.IN_PROGRESS -> DesignTokens.statusCutting to stringResource(Res.string.order_status_in_progress)
-        OrderStatus.READY -> DesignTokens.statusReady to stringResource(Res.string.order_status_ready)
-        OrderStatus.DELIVERED -> DesignTokens.statusDelivered to stringResource(Res.string.order_status_delivered)
-    }
-
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusSm),
-        color = color.copy(alpha = 0.15f)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
-            modifier = Modifier.padding(horizontal = DesignTokens.space2, vertical = 2.dp)
-        )
+private fun garmentSummary(order: Order): String {
+    val firstItem = order.items.firstOrNull() ?: return ""
+    val garmentName = garmentDisplayName(firstItem.garmentType).lowercase()
+    return if (order.items.size == 1) {
+        "1 $garmentName"
+    } else {
+        "${order.items.size} ${garmentName}s"
     }
 }
 
@@ -576,34 +535,36 @@ private fun OrderListScreenEmptyPreview() {
 @Composable
 @Preview
 private fun OrderListScreenFilledPreview() {
+    val now = 1_700_000_000_000L
+    val oneDay = 24L * 60 * 60 * 1000
     StitchPadTheme {
         OrderListScreen(
             state = OrderListState(
                 isLoading = false,
                 orders = listOf(
                     Order(
-                        id = "1",
-                        userId = "u1",
-                        customerId = "c1",
-                        customerName = "Amina Bello",
-                        items = listOf(
-                            com.danzucker.stitchpad.core.domain.model.OrderItem(
-                                id = "i1",
-                                garmentType = com.danzucker.stitchpad.core.domain.model.GarmentType.AGBADA,
-                                description = "White agbada",
-                                price = 25000.0
-                            )
-                        ),
-                        status = OrderStatus.PENDING,
-                        priority = OrderPriority.NORMAL,
+                        id = "1", userId = "u", customerId = "c1", customerName = "Fola Sunday",
+                        items = listOf(OrderItem("i1", GarmentType.CORSET, "", 40_000.0)),
+                        status = OrderStatus.PENDING, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
-                        totalPrice = 25000.0,
-                        depositPaid = 10000.0,
-                        balanceRemaining = 15000.0,
-                        deadline = null,
-                        notes = null,
-                        createdAt = 0L,
-                        updatedAt = 0L
+                        totalPrice = 40_000.0, depositPaid = 0.0, balanceRemaining = 40_000.0,
+                        deadline = now - 3 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
+                    ),
+                    Order(
+                        id = "2", userId = "u", customerId = "c2", customerName = "Aina Paul",
+                        items = listOf(OrderItem("i2", GarmentType.SUIT, "", 20_000.0)),
+                        status = OrderStatus.PENDING, priority = OrderPriority.URGENT,
+                        statusHistory = emptyList(),
+                        totalPrice = 20_000.0, depositPaid = 10_000.0, balanceRemaining = 10_000.0,
+                        deadline = now + 2 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
+                    ),
+                    Order(
+                        id = "3", userId = "u", customerId = "c3", customerName = "Dayyo Au",
+                        items = listOf(OrderItem("i3", GarmentType.SUIT, "", 4_000.0)),
+                        status = OrderStatus.READY, priority = OrderPriority.RUSH,
+                        statusHistory = emptyList(),
+                        totalPrice = 4_000.0, depositPaid = 2_000.0, balanceRemaining = 2_000.0,
+                        deadline = null, notes = null, createdAt = 0L, updatedAt = 0L
                     )
                 )
             ),
