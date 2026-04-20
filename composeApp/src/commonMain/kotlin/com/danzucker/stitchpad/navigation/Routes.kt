@@ -42,7 +42,13 @@ data class StyleGalleryRoute(val customerId: String)
 data class StyleFormRoute(val customerId: String, val styleId: String? = null)
 
 @Serializable
-data object OrdersPlaceholderRoute
+data object OrderListRoute
+
+@Serializable
+data class OrderFormRoute(val orderId: String? = null)
+
+@Serializable
+data class OrderDetailRoute(val orderId: String)
 
 @Serializable
 data object DashboardPlaceholderRoute

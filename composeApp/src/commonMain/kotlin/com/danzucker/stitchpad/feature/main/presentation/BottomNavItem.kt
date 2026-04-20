@@ -8,7 +8,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardPlaceholderRoute
-import com.danzucker.stitchpad.navigation.OrdersPlaceholderRoute
+import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
 import org.jetbrains.compose.resources.StringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -28,7 +28,7 @@ sealed class BottomNavItem(
         labelRes = Res.string.nav_customers
     )
     data object Orders : BottomNavItem(
-        route = OrdersPlaceholderRoute,
+        route = OrderListRoute,
         icon = Icons.Default.ShoppingCart,
         labelRes = Res.string.nav_orders
     )

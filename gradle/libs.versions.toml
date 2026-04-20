@@ -21,6 +21,7 @@ koin = "4.2.0"
 kover = "0.9.1"
 kotlin = "2.3.20"
 kotlinx-coroutines = "1.10.2"
+kotlinx-datetime = "0.6.2"
 kotlinx-serialization = "1.10.0"
 ktor = "3.3.0"
 material3 = "1.10.0-alpha05"
@@ -79,6 +80,9 @@ peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", ver
 
 # Napier (KMP logger — Timber-like API)
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
+
+# DateTime
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
