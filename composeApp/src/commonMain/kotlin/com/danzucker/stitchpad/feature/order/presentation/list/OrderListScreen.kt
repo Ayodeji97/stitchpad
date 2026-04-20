@@ -121,6 +121,10 @@ fun OrderListRoot(
     )
 }
 
+// Avatar (36dp) + row horizontal padding (space4 = 16dp) + gap (space3 = 12dp) = 64dp.
+// Dividers indent past the avatar so the text column visually aligns with its separator.
+private val OrderRowTextInset = 64.dp
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun OrderListScreen(
@@ -184,7 +188,9 @@ fun OrderListScreen(
                     OrderEmptyState(modifier = Modifier.fillMaxSize())
                 }
                 else -> {
-                    val now = Clock.System.now().toEpochMilliseconds()
+                    // Stable `now` per snapshot of orders — prevents rows from drifting
+                    // between triage buckets on unrelated recompositions (dialogs, snackbars).
+                    val now = remember(state.orders) { Clock.System.now().toEpochMilliseconds() }
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
@@ -204,7 +210,7 @@ fun OrderListScreen(
                                     )
                                     HorizontalDivider(
                                         color = MaterialTheme.colorScheme.outlineVariant,
-                                        modifier = Modifier.padding(start = 64.dp)
+                                        modifier = Modifier.padding(start = OrderRowTextInset)
                                     )
                                 }
                             }
@@ -218,7 +224,7 @@ fun OrderListScreen(
                                 )
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.outlineVariant,
-                                    modifier = Modifier.padding(start = 64.dp)
+                                    modifier = Modifier.padding(start = OrderRowTextInset)
                                 )
                             }
                         }
