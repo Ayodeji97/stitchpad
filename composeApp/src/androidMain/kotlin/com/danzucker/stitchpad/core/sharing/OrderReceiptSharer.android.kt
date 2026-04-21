@@ -87,6 +87,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         // Estimate height
         val headerHeight = if (data.businessPhone != null) 90f else 70f
         var estimatedHeight = headerHeight + padding
+        estimatedHeight += 40f // document type label
         estimatedHeight += 60f // customer + date row
         estimatedHeight += 20f // divider gap
         estimatedHeight += 30f // Items label
@@ -99,6 +100,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 50f // status + deadline row
         if (data.priorityLabel != null) estimatedHeight += 30f
         estimatedHeight += 50f // footer
+        if (data.attribution != null) estimatedHeight += 24f
         estimatedHeight += padding * 2
 
         val height = estimatedHeight.toInt().coerceAtLeast(500)
@@ -129,7 +131,15 @@ actual class OrderReceiptSharer(private val context: Context) {
                 headerPhonePaint
             )
         }
-        y = headerHeight + padding
+        y = headerHeight + 26f
+
+        // Document type label (RECEIPT / INVOICE)
+        val docTypePaint = makePaint(headerBg, 15f, bold = true).apply {
+            textAlign = Paint.Align.CENTER
+            letterSpacing = 0.15f
+        }
+        canvas.drawText(data.documentTypeLabel, width / 2f, y, docTypePaint)
+        y += 30f
 
         // Customer & Date row
         canvas.drawText("CUSTOMER", padding, y, labelPaint)
@@ -230,6 +240,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, width - padding, y, linePaint)
         y += 20f
         canvas.drawText("Order #${data.orderIdShort}", width / 2f, y, footerPaint)
+        if (data.attribution != null) {
+            y += 18f
+            canvas.drawText(data.attribution, width / 2f, y, footerPaint)
+        }
 
         // Crop to actual content height
         val finalHeight = (y + padding).toInt().coerceAtMost(height)
@@ -312,6 +326,14 @@ actual class OrderReceiptSharer(private val context: Context) {
         }
         canvas.drawLine(padding, y, pageWidth - padding, y, borderPaint)
         y += 18f
+
+        // Document type label (RECEIPT / INVOICE)
+        val docTypePdf = makePaint(headerBorderColor, 11f, bold = true).apply {
+            textAlign = Paint.Align.CENTER
+            letterSpacing = 0.15f
+        }
+        canvas.drawText(data.documentTypeLabel, pageWidth / 2f, y, docTypePdf)
+        y += 22f
 
         // Customer & Date
         canvas.drawText("CUSTOMER", padding, y, labelPaintPdf)
@@ -422,6 +444,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
         y += 16f
         canvas.drawText("Order #${data.orderIdShort}", pageWidth / 2f, y, footerPdf)
+        if (data.attribution != null) {
+            y += 14f
+            canvas.drawText(data.attribution, pageWidth / 2f, y, footerPdf)
+        }
 
         doc.finishPage(page)
 

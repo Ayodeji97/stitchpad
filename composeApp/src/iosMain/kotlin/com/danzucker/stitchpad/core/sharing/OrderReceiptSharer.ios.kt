@@ -37,18 +37,23 @@ import platform.UIKit.sizeWithAttributes
 actual class OrderReceiptSharer {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
-        val image = renderDarkImage(receiptData)
-        val pngData = UIImagePNGRepresentation(image)
-            ?: error("Failed to encode receipt image as PNG")
-        val fileUrl = tempFileUrl("png")
-        if (!pngData.writeToURL(fileUrl, atomically = true)) {
-            error("Failed to write receipt PNG to $fileUrl")
+        val fileUrl = withContext(Dispatchers.Default) {
+            val image = renderDarkImage(receiptData)
+            val pngData = UIImagePNGRepresentation(image)
+                ?: error("Failed to encode receipt image as PNG")
+            val url = tempFileUrl("png")
+            if (!pngData.writeToURL(url, atomically = true)) {
+                error("Failed to write receipt PNG to $url")
+            }
+            url
         }
         shareUrl(fileUrl)
     }
 
     actual suspend fun shareReceiptAsPdf(receiptData: ReceiptData) {
-        val fileUrl = renderLightPdf(receiptData)
+        val fileUrl = withContext(Dispatchers.Default) {
+            renderLightPdf(receiptData)
+        }
         shareUrl(fileUrl)
     }
 
@@ -59,12 +64,14 @@ actual class OrderReceiptSharer {
         val headerHeight = if (data.businessPhone != null) 90.0 else 70.0
         val lineSpacing = 28.0
         var estimatedHeight = headerHeight + padding * 2
+        estimatedHeight += 40.0 // document type label
         estimatedHeight += 60.0 + 20.0 // customer row
         estimatedHeight += 30.0 + data.items.size * lineSpacing + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
         estimatedHeight += 60.0 // status
         if (data.priorityLabel != null) estimatedHeight += 30.0
         estimatedHeight += 50.0 // footer
+        if (data.attribution != null) estimatedHeight += 22.0
 
         val size = CGSizeMake(width, estimatedHeight)
         val format = UIGraphicsImageRendererFormat().apply { opaque = true }
@@ -98,7 +105,17 @@ actual class OrderReceiptSharer {
                 )
             }
 
-            var y = headerHeight + padding
+            var y = headerHeight + 22.0
+
+            // Document type label (RECEIPT / INVOICE)
+            drawCentered(
+                data.documentTypeLabel,
+                y = y,
+                width = width,
+                font = boldFont(13.0),
+                color = darkColor("#E8A800")
+            )
+            y += 28.0
 
             // Customer & Date
             drawText("CUSTOMER", padding, y, labelFont(), darkColor("#7D7970"))
@@ -200,6 +217,16 @@ actual class OrderReceiptSharer {
                 font = regularFont(11.0),
                 color = darkColor("#3A3731")
             )
+            if (data.attribution != null) {
+                y += 16.0
+                drawCentered(
+                    data.attribution,
+                    y = y,
+                    width = width,
+                    font = regularFont(10.0),
+                    color = darkColor("#3A3731")
+                )
+            }
         }
     }
 
@@ -244,7 +271,17 @@ actual class OrderReceiptSharer {
             val borderPaint = darkColor("#E8A800")
             borderPaint.setFill()
             platform.UIKit.UIRectFill(CGRectMake(padding, y, pageWidth - 2 * padding, 3.0))
-            y += 18.0
+            y += 16.0
+
+            // Document type label (RECEIPT / INVOICE)
+            drawCentered(
+                data.documentTypeLabel,
+                y = y,
+                width = pageWidth,
+                font = boldFont(10.0),
+                color = darkColor("#C48E00")
+            )
+            y += 20.0
 
             // Customer & Date
             drawText("CUSTOMER", padding, y, labelFont(8.0), darkColor("#7D7970"))
@@ -352,6 +389,16 @@ actual class OrderReceiptSharer {
                 font = regularFont(9.0),
                 color = darkColor("#A8A49D")
             )
+            if (data.attribution != null) {
+                y += 14.0
+                drawCentered(
+                    data.attribution,
+                    y = y,
+                    width = pageWidth,
+                    font = regularFont(8.0),
+                    color = darkColor("#A8A49D")
+                )
+            }
         }
 
         if (!pdfData.writeToURL(fileUrl, atomically = true)) {

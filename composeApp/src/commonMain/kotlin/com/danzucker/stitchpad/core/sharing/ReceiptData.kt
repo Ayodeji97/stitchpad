@@ -9,6 +9,7 @@ data class ReceiptItem(
 data class ReceiptData(
     val businessName: String,
     val businessPhone: String?,
+    val documentTypeLabel: String,
     val customerName: String,
     val dateFormatted: String,
     val items: List<ReceiptItem>,
@@ -20,5 +21,6 @@ data class ReceiptData(
     val statusColorHex: String,
     val deadlineFormatted: String?,
     val priorityLabel: String?,
-    val orderIdShort: String
+    val orderIdShort: String,
+    val attribution: String?
 )
