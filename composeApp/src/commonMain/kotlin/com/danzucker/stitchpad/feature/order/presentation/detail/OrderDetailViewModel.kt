@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
+import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -19,6 +21,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.receipt_share_error
 
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
@@ -103,7 +107,7 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun shareReceipt(share: suspend (com.danzucker.stitchpad.core.sharing.ReceiptData) -> Unit) {
+    private fun shareReceipt(share: suspend (ReceiptData) -> Unit) {
         val order = _state.value.order ?: return
         val user = _state.value.user ?: return
         viewModelScope.launch {
@@ -117,9 +121,7 @@ class OrderDetailViewModel(
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 _state.update {
                     it.copy(
-                        errorMessage = com.danzucker.stitchpad.core.presentation.UiText.DynamicString(
-                            e.message ?: "Could not share receipt"
-                        )
+                        errorMessage = UiText.StringResourceText(Res.string.receipt_share_error)
                     )
                 }
             }
