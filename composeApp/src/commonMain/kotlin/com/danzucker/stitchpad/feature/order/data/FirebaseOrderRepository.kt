@@ -46,6 +46,25 @@ class FirebaseOrderRepository(
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
 
+    override fun observeOrder(
+        userId: String,
+        orderId: String
+    ): Flow<Result<Order, DataError.Network>> =
+        ordersCollection(userId).document(orderId)
+            .snapshots
+            .map { snapshot ->
+                if (!snapshot.exists) {
+                    Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
+                } else {
+                    val dto = snapshot.data<OrderDto>()
+                    Result.Success(dto.toOrder(userId)) as Result<Order, DataError.Network>
+                }
+            }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) { "observeOrder failed orderId=$orderId" }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
+
     override suspend fun getOrder(
         userId: String,
         orderId: String

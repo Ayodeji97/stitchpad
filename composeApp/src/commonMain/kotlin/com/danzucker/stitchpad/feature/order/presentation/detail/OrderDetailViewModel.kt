@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import kotlinx.coroutines.flow.collect
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -26,7 +27,7 @@ class OrderDetailViewModel(
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
 
-    private var hasLoadedInitialData = false
+    private var hasStartedObserving = false
     private val _state = MutableStateFlow(OrderDetailState())
 
     private val _events = Channel<OrderDetailEvent>()
@@ -34,9 +35,9 @@ class OrderDetailViewModel(
 
     val state = _state
         .onStart {
-            if (!hasLoadedInitialData) {
-                hasLoadedInitialData = true
-                loadOrder()
+            if (!hasStartedObserving) {
+                hasStartedObserving = true
+                observeOrder()
             }
         }
         .stateIn(
@@ -89,19 +90,21 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun loadOrder() {
+    private fun observeOrder() {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            when (val result = orderRepository.getOrder(userId, orderId)) {
-                is Result.Success -> {
-                    _state.update { it.copy(order = result.data, isLoading = false) }
-                }
-                is Result.Error -> {
-                    _state.update {
-                        it.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+            orderRepository.observeOrder(userId, orderId).collect { result ->
+                when (result) {
+                    is Result.Success -> {
+                        _state.update { it.copy(order = result.data, isLoading = false) }
+                    }
+                    is Result.Error -> {
+                        _state.update {
+                            it.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                        }
                     }
                 }
             }
@@ -127,7 +130,7 @@ class OrderDetailViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val result = orderRepository.updateOrderStatus(userId, orderId, newStatus)) {
-                is Result.Success -> loadOrder()
+                is Result.Success -> { /* Snapshot observer will auto-update the state */ }
                 is Result.Error -> _state.update {
                     it.copy(errorMessage = result.error.toOrderUiText())
                 }
