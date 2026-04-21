@@ -78,9 +78,11 @@ object ReceiptFormatter {
         OrderStatus.DELIVERED -> "Delivered"
     }
 
+    // Hex values mirror DesignTokens status colors used in StatusBadge so receipts
+    // stay visually consistent with the in-app order cards.
     private fun statusToColorHex(status: OrderStatus): String = when (status) {
         OrderStatus.PENDING -> "#2B7FD4"
-        OrderStatus.IN_PROGRESS -> "#E8A800"
+        OrderStatus.IN_PROGRESS -> "#E07B20"
         OrderStatus.READY -> "#2D9E6B"
         OrderStatus.DELIVERED -> "#7D7970"
     }

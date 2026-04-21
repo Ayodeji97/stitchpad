@@ -39,4 +39,15 @@ class PriceFormatterTest {
     fun singleDecimalPadded() {
         assertEquals("1,000.50", formatPrice(1000.5))
     }
+
+    @Test
+    fun roundsRatherThanTruncates() {
+        assertEquals("2", formatPrice(1.999))
+        assertEquals("1,234.57", formatPrice(1234.567))
+    }
+
+    @Test
+    fun negativeFractionUnderOneKeepsSign() {
+        assertEquals("-0.50", formatPrice(-0.5))
+    }
 }

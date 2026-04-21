@@ -200,9 +200,6 @@
     <string name="order_summary_one_corporate_trouser">%1$d corporate trouser</string>
     <string name="order_summary_other_corporate_trouser">%1$d corporate trousers</string>
 
-    <!-- Share chooser titles -->
-    <string name="share_order_receipt_chooser_title">Share Order Receipt</string>
-
     <!-- Garment gender labels -->
     <string name="garment_gender_male">Male</string>
     <string name="garment_gender_female">Female</string>
@@ -441,9 +438,6 @@
     <string name="share_as_image_description">Best for WhatsApp &amp; social media</string>
     <string name="share_as_pdf_title">Share as PDF</string>
     <string name="share_as_pdf_description">Best for printing &amp; email</string>
-    <string name="receipt_balance_due">DUE</string>
-    <string name="receipt_paid_in_full">PAID IN FULL</string>
-    <string name="receipt_order_id_prefix">Order #</string>
     <string name="receipt_share_error">Could not share receipt. Please try again.</string>
 
     <!-- Currency -->

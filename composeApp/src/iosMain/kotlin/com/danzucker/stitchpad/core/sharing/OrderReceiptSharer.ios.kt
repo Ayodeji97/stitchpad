@@ -38,9 +38,12 @@ actual class OrderReceiptSharer {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
         val image = renderDarkImage(receiptData)
-        val pngData = UIImagePNGRepresentation(image) ?: return
+        val pngData = UIImagePNGRepresentation(image)
+            ?: error("Failed to encode receipt image as PNG")
         val fileUrl = tempFileUrl("png")
-        pngData.writeToURL(fileUrl, atomically = true)
+        if (!pngData.writeToURL(fileUrl, atomically = true)) {
+            error("Failed to write receipt PNG to $fileUrl")
+        }
         shareUrl(fileUrl)
     }
 
@@ -351,7 +354,9 @@ actual class OrderReceiptSharer {
             )
         }
 
-        pdfData.writeToURL(fileUrl, atomically = true)
+        if (!pdfData.writeToURL(fileUrl, atomically = true)) {
+            error("Failed to write receipt PDF to $fileUrl")
+        }
         return fileUrl
     }
 
