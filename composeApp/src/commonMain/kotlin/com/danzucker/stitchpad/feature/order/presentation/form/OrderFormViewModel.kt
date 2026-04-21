@@ -122,6 +122,10 @@ class OrderFormViewModel(
                 it.copy(measurementId = action.measurementId)
             }
             is OrderFormAction.OnItemFabricPhotoPicked -> updateItem(action.itemId) {
+                // Keep fabricPhotoUrl/StoragePath intact as upload fallback: if the new
+                // upload fails, uploadFabricPhotoIfNeeded() preserves the existing remote
+                // photo instead of silently losing it. The UI prefers bytes over URL, so
+                // the new image is shown immediately regardless.
                 it.copy(fabricPhotoBytes = action.photoBytes)
             }
             is OrderFormAction.OnItemFabricPhotoRemoved -> updateItem(action.itemId) {

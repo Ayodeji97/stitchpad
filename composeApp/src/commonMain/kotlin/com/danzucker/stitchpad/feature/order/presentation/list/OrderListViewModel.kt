@@ -9,9 +9,9 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
