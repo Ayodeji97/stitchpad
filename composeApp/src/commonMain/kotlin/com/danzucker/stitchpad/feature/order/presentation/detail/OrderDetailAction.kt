@@ -13,6 +13,9 @@ sealed interface OrderDetailAction {
     data object OnDismissStatusUpdate : OrderDetailAction
     data object OnCustomerClick : OrderDetailAction
     data object OnShareClick : OrderDetailAction
+    data object OnShareAsImageClick : OrderDetailAction
+    data object OnShareAsPdfClick : OrderDetailAction
+    data object OnDismissShareSheet : OrderDetailAction
     data object OnBackClick : OrderDetailAction
     data object OnErrorDismiss : OrderDetailAction
 }
