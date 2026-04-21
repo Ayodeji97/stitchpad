@@ -99,16 +99,32 @@ class OrderDetailViewModel(
                 _state.update { it.copy(showShareSheet = false) }
             }
             OrderDetailAction.OnRecordPaymentClick -> {
-                _state.update { it.copy(showRecordPaymentDialog = true, paymentAmountInput = "") }
+                _state.update {
+                    it.copy(
+                        showRecordPaymentDialog = true,
+                        paymentAmountInput = "",
+                        wasPaymentCapped = false,
+                    )
+                }
             }
             is OrderDetailAction.OnPaymentAmountChange -> {
+                val rawDigits = action.digits.filter { ch -> ch.isDigit() }.trimStart('0')
                 val capped = capPaymentAmountDigits(action.digits)
-                _state.update { it.copy(paymentAmountInput = capped) }
+                // Track capping explicitly so the UI can distinguish "user typed exactly
+                // the balance" (no helper text) from "input was clamped" (show helper).
+                val didCap = rawDigits.isNotEmpty() && rawDigits != capped
+                _state.update { it.copy(paymentAmountInput = capped, wasPaymentCapped = didCap) }
             }
             OrderDetailAction.OnMarkPaidInFull -> markPaidInFull()
             OrderDetailAction.OnConfirmRecordPayment -> recordPayment()
             OrderDetailAction.OnDismissRecordPayment -> {
-                _state.update { it.copy(showRecordPaymentDialog = false, paymentAmountInput = "") }
+                _state.update {
+                    it.copy(
+                        showRecordPaymentDialog = false,
+                        paymentAmountInput = "",
+                        wasPaymentCapped = false,
+                    )
+                }
             }
             OrderDetailAction.OnBackClick -> {
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
@@ -224,7 +240,13 @@ class OrderDetailViewModel(
             depositPaid = newDeposit,
             balanceRemaining = newBalance,
         )
-        _state.update { it.copy(showRecordPaymentDialog = false, paymentAmountInput = "") }
+        _state.update {
+            it.copy(
+                showRecordPaymentDialog = false,
+                paymentAmountInput = "",
+                wasPaymentCapped = false,
+            )
+        }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val result = orderRepository.updateOrder(userId, updatedOrder)) {

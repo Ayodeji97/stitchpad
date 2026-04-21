@@ -401,6 +401,7 @@ fun OrderDetailScreen(
         RecordPaymentDialog(
             balanceRemaining = state.order.balanceRemaining,
             amountInput = state.paymentAmountInput,
+            wasCapped = state.wasPaymentCapped,
             onAmountChange = { onAction(OrderDetailAction.OnPaymentAmountChange(it)) },
             onMarkPaidInFull = { onAction(OrderDetailAction.OnMarkPaidInFull) },
             onConfirm = { onAction(OrderDetailAction.OnConfirmRecordPayment) },
@@ -504,6 +505,7 @@ private fun ShareOption(
 private fun RecordPaymentDialog(
     balanceRemaining: Double,
     amountInput: String,
+    wasCapped: Boolean,
     onAmountChange: (String) -> Unit,
     onMarkPaidInFull: () -> Unit,
     onConfirm: () -> Unit,
@@ -511,8 +513,6 @@ private fun RecordPaymentDialog(
 ) {
     val amount = amountInput.toLongOrNull() ?: 0L
     val newBalance = (balanceRemaining - amount.toDouble()).coerceAtLeast(0.0)
-    val capped = amount > 0 && amount.toDouble() >= balanceRemaining && amountInput.length >=
-        balanceRemaining.toLong().toString().length
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -535,8 +535,9 @@ private fun RecordPaymentDialog(
                 NairaAmountField(
                     value = amountInput,
                     onValueChange = onAmountChange,
+                    modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(Res.string.order_record_payment_amount_label)) },
-                    supportingText = if (capped) {
+                    supportingText = if (wasCapped) {
                         {
                             Text(
                                 text = stringResource(Res.string.order_record_payment_capped_helper),
