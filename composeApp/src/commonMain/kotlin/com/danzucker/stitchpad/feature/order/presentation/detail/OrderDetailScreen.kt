@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -447,7 +448,11 @@ private fun ShareOption(
             Text(
                 text = icon,
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(end = DesignTokens.space3)
+                // Icon is purely decorative — the adjacent title/description carry the
+                // meaning. Clear semantics so TalkBack/VoiceOver don't read the emoji name.
+                modifier = Modifier
+                    .padding(end = DesignTokens.space3)
+                    .clearAndSetSemantics { }
             )
             Column {
                 Text(
