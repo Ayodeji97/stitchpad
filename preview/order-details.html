@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Order Details Redesign</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    :root {
+      --p50:  #FFF8E7; --p100: #FDEFC4; --p500: #E8A800; --p600: #C48E00; --p700: #9E7200; --p900: #4F3800;
+      --n0:   #FFFFFF; --n50:  #F9F9F8; --n100: #F2F1EF; --n200: #E5E3DF;
+      --n300: #C9C6C0; --n400: #A8A49D; --n500: #7D7970; --n600: #57534C;
+      --n700: #3A3731; --n800: #252320; --n900: #121110;
+      --err: #D93B3B; --err50: #FCEAEA;
+      --suc: #2D9E6B; --suc50: #E8F7F1;
+      --warn: #E8860C; --warn50: #FCEFD9;
+      --wa: #25D366;
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --bg: var(--n50);
+      --surf: var(--n0);
+      --surf2: var(--n100);
+      --on-surf: var(--n800);
+      --on-surf2: var(--n600);
+      --on-surf3: var(--n400);
+      --bdr: var(--n200);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: var(--font-body); }
+    body {
+      background: #0f0e0d;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .page-title {
+      color: #fff; font-weight: 600; font-size: 20px; margin-bottom: 8px;
+    }
+    .page-sub {
+      color: rgba(255,255,255,.55); font-size: 13px; margin-bottom: 28px;
+    }
+    .toggle {
+      display: inline-flex; background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--r-full); padding: 4px; margin-bottom: 28px;
+    }
+    .toggle button {
+      padding: 8px 18px; background: transparent; border: 0;
+      color: rgba(255,255,255,.7); font-family: var(--font-body);
+      font-size: 13px; font-weight: 600; border-radius: var(--r-full);
+      cursor: pointer; transition: 150ms;
+    }
+    .toggle button.active {
+      background: var(--p500); color: var(--n900);
+    }
+    .compare {
+      display: flex; gap: 32px; align-items: flex-start;
+    }
+    .frame-wrap { display: flex; flex-direction: column; align-items: center; }
+    .frame-label {
+      color: rgba(255,255,255,.6); font-size: 12px; font-weight: 500;
+      letter-spacing: .5px; text-transform: uppercase; margin-bottom: 12px;
+    }
+    .phone {
+      width: 390px; height: 820px; background: #111;
+      border-radius: 48px; padding: 12px; position: relative;
+      box-shadow: 0 30px 60px rgba(0,0,0,.4), 0 0 0 2px #222;
+    }
+    .phone::before {
+      content: ''; position: absolute; top: 18px; left: 50%;
+      transform: translateX(-50%); width: 110px; height: 26px;
+      background: #000; border-radius: 14px; z-index: 5;
+    }
+    .screen {
+      width: 100%; height: 100%; background: var(--bg);
+      border-radius: 36px; overflow: hidden;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .status-bar {
+      height: 44px; display: flex; justify-content: space-between;
+      align-items: center; padding: 0 28px;
+      font-size: 13px; font-weight: 600; color: var(--on-surf);
+    }
+    .status-bar .right { display: flex; gap: 6px; align-items: center; }
+    .status-bar .icon { font-size: 14px !important; }
+    .app-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: var(--s3) var(--s4); background: var(--bg);
+    }
+    .app-bar .left { display: flex; align-items: center; gap: var(--s3); }
+    .app-bar .right { display: flex; gap: var(--s2); }
+    .app-bar h1 { font-size: 20px; font-weight: 700; color: var(--on-surf); }
+    .app-bar .subtitle { font-size: 11px; color: var(--on-surf2); margin-top: 1px; }
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: var(--r-full);
+      background: transparent; border: 0; display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+      color: var(--on-surf);
+    }
+    .icon-btn:hover { background: var(--surf2); }
+    .icon-btn .material-icons-round { font-size: 22px; }
+
+    .content {
+      flex: 1; overflow-y: auto; padding: 0 var(--s4) 120px;
+      scrollbar-width: none;
+    }
+    .content::-webkit-scrollbar { display: none; }
+
+    .section-title {
+      font-size: 13px; font-weight: 600; color: var(--on-surf2);
+      margin: var(--s5) 0 var(--s2); letter-spacing: .2px;
+    }
+    .card {
+      background: var(--surf); border-radius: var(--r-lg);
+      border: 1px solid var(--bdr); overflow: hidden;
+    }
+
+    /* Customer card */
+    .customer-card {
+      display: flex; align-items: center; padding: var(--s3);
+      gap: var(--s3); cursor: pointer;
+    }
+    .avatar {
+      width: 44px; height: 44px; border-radius: var(--r-full);
+      background: linear-gradient(135deg, var(--p500), var(--p600));
+      color: var(--n900); font-weight: 700; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .customer-info { flex: 1; }
+    .customer-name { font-weight: 600; font-size: 15px; color: var(--on-surf); }
+    .customer-phone { font-size: 12px; color: var(--on-surf2); margin-top: 2px; }
+    .quick-actions { display: flex; gap: var(--s1); }
+    .quick-btn {
+      width: 36px; height: 36px; border-radius: var(--r-full);
+      border: 0; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .quick-btn .material-icons-round { font-size: 18px; }
+    .quick-btn.call { background: var(--p50); color: var(--p700); }
+    .quick-btn.wa { background: #E8F9EF; color: var(--wa); }
+
+    /* Item card */
+    .item-card { padding: var(--s3); }
+    .item-card + .item-card { border-top: 1px solid var(--bdr); }
+    .item-row { display: flex; gap: var(--s3); }
+    .item-thumb {
+      width: 56px; height: 56px; border-radius: var(--r-md);
+      background: var(--surf2); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--on-surf3); overflow: hidden; position: relative;
+    }
+    .item-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .item-thumb .material-icons-round { font-size: 22px; }
+    .item-thumb.has-photo { background: linear-gradient(135deg, #c97a4a, #8a4a28); }
+    .item-meta { flex: 1; min-width: 0; }
+    .item-name { font-weight: 600; font-size: 14px; color: var(--on-surf); }
+    .item-desc { font-size: 12px; color: var(--on-surf2); margin-top: 2px; }
+    .item-price {
+      font-family: var(--font-mono); font-weight: 600; font-size: 14px;
+      color: var(--on-surf); white-space: nowrap;
+    }
+
+    /* Payment card */
+    .payment-card { padding: var(--s4); }
+    .pay-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .pay-label { font-size: 13px; color: var(--on-surf2); }
+    .pay-value {
+      font-family: var(--font-mono); font-weight: 600; font-size: 15px;
+      color: var(--on-surf);
+    }
+    .pay-value.bal { color: var(--warn); font-size: 18px; }
+    .pay-value.total { font-size: 20px; }
+    .progress-track {
+      width: 100%; height: 8px; background: var(--surf2);
+      border-radius: var(--r-full); overflow: hidden;
+      margin: var(--s3) 0 var(--s1);
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--p500), var(--p600));
+      border-radius: var(--r-full);
+    }
+    .progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--on-surf2); font-weight: 500;
+      margin-bottom: var(--s3);
+    }
+    .record-pay-btn {
+      width: 100%; padding: 10px; border-radius: var(--r-md);
+      background: var(--p50); color: var(--p700);
+      border: 0; font-family: var(--font-body); font-weight: 600;
+      font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-top: var(--s2);
+    }
+    .record-pay-btn .material-icons-round { font-size: 17px; }
+
+    /* Status timeline */
+    .status-card { padding: var(--s4); }
+    .status-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: var(--s3);
+    }
+    .status-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: var(--r-full);
+      background: var(--p50); color: var(--p700);
+      font-size: 12px; font-weight: 600;
+    }
+    .status-chip .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--p600);
+    }
+    .update-btn {
+      padding: 8px 14px; border-radius: var(--r-md);
+      background: var(--p500); color: var(--n900);
+      border: 0; font-family: var(--font-body); font-weight: 600;
+      font-size: 12px; cursor: pointer;
+    }
+    .timeline {
+      position: relative; padding-left: 22px;
+    }
+    .timeline::before {
+      content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px;
+      width: 2px; background: var(--bdr);
+    }
+    .tl-row {
+      position: relative; padding: var(--s2) 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tl-row::before {
+      content: ''; position: absolute; left: -22px; top: 50%;
+      transform: translateY(-50%);
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--surf); border: 2px solid var(--n300);
+    }
+    .tl-row.current::before {
+      background: var(--p500); border-color: var(--p500);
+      box-shadow: 0 0 0 4px rgba(232,168,0,.18);
+    }
+    .tl-row.done::before { background: var(--n400); border-color: var(--n400); }
+    .tl-name { font-size: 13px; color: var(--on-surf); font-weight: 500; }
+    .tl-row.current .tl-name { font-weight: 600; color: var(--p700); }
+    .tl-time { font-size: 11px; color: var(--on-surf3); font-family: var(--font-mono); }
+
+    /* Deadline & priority inline */
+    .meta-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3);
+    }
+    .meta-card {
+      padding: var(--s3) var(--s4); border-radius: var(--r-lg);
+      background: var(--surf); border: 1px solid var(--bdr);
+    }
+    .meta-label {
+      font-size: 11px; color: var(--on-surf2); font-weight: 500;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .meta-main {
+      display: flex; align-items: center; gap: 6px; margin-top: 4px;
+    }
+    .meta-main .material-icons-round { font-size: 18px; }
+    .meta-date {
+      font-size: 14px; font-weight: 600; color: var(--on-surf);
+      font-family: var(--font-mono);
+    }
+    .countdown-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: var(--r-full);
+      font-size: 10px; font-weight: 700; margin-top: 6px;
+    }
+    .countdown-pill.ok { background: var(--suc50); color: var(--suc); }
+    .countdown-pill.warn { background: var(--warn50); color: var(--warn); }
+    .countdown-pill.late { background: var(--err50); color: var(--err); }
+    .priority-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: var(--r-full);
+      font-size: 12px; font-weight: 600; margin-top: 4px;
+    }
+    .priority-pill.urgent { background: var(--err50); color: var(--err); }
+    .priority-pill.rush { background: var(--warn50); color: var(--warn); }
+    .priority-pill.normal { background: var(--surf2); color: var(--on-surf2); }
+    .priority-pill .material-icons-round { font-size: 13px; }
+
+    /* Bottom sticky action bar */
+    .bottom-bar {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: var(--s3) var(--s4) var(--s6);
+      background: linear-gradient(to top, var(--bg) 70%, rgba(249,249,248,0));
+      display: flex; gap: var(--s2);
+    }
+    .bottom-bar button {
+      flex: 1; padding: 14px; border-radius: var(--r-md);
+      border: 0; font-family: var(--font-body); font-weight: 600;
+      font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .bottom-bar .primary {
+      background: var(--p500); color: var(--n900);
+    }
+    .bottom-bar .secondary {
+      background: var(--surf); color: var(--on-surf);
+      border: 1px solid var(--bdr);
+    }
+    .bottom-bar .material-icons-round { font-size: 18px; }
+
+    /* Current (Before) styling — mimic existing basic UI */
+    .before .content { padding-bottom: 40px; }
+    .before .basic-row {
+      display: flex; justify-content: space-between; padding: var(--s3);
+    }
+    .before .basic-row + .basic-row { border-top: 1px solid var(--bdr); }
+    .before .basic-label { font-size: 13px; color: var(--on-surf2); }
+    .before .basic-value {
+      font-family: var(--font-mono); font-weight: 600; font-size: 14px;
+      color: var(--on-surf);
+    }
+    .before .basic-value.bal { color: var(--warn); }
+    .before .basic-item {
+      padding: var(--s3); display: flex; justify-content: space-between;
+    }
+    .before .basic-item-title { font-size: 14px; font-weight: 600; color: var(--on-surf); }
+    .before .basic-item-desc { font-size: 12px; color: var(--on-surf2); margin-top: 2px; }
+    .before .delete-big {
+      width: calc(100% - 32px); margin: var(--s4) var(--s4) 0;
+      padding: 14px; border-radius: var(--r-md);
+      background: #D05549; color: #fff; border: 0;
+      font-weight: 600; cursor: pointer;
+    }
+    .before .status-chip { margin-bottom: var(--s2); }
+    .before .flat-row {
+      display: flex; justify-content: space-between;
+      padding: var(--s2) 0; font-size: 13px; color: var(--on-surf);
+    }
+    .before .flat-row + .flat-row { border-top: 1px solid var(--bdr); }
+
+    /* Mobile fallback */
+    @media (max-width: 900px) {
+      .compare { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-title">StitchPad — Order Details</div>
+  <div class="page-sub">Redesign proposal · before &amp; after</div>
+
+  <div class="compare">
+    <!-- BEFORE -->
+    <div class="frame-wrap">
+      <div class="frame-label">Current</div>
+      <div class="phone">
+        <div class="screen before">
+          <div class="status-bar">
+            <span>12:19</span>
+            <span class="right">
+              <span class="material-icons-round icon">wifi</span>
+              <span class="material-icons-round icon">signal_cellular_alt</span>
+              <span class="material-icons-round icon">battery_full</span>
+            </span>
+          </div>
+          <div class="app-bar">
+            <div class="left">
+              <button class="icon-btn"><span class="material-icons-round">arrow_back</span></button>
+              <h1>Order Details</h1>
+            </div>
+            <div class="right">
+              <button class="icon-btn"><span class="material-icons-round">share</span></button>
+              <button class="icon-btn"><span class="material-icons-round">edit</span></button>
+            </div>
+          </div>
+          <div class="content">
+            <div class="section-title">Customer</div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;padding:var(--s3);">
+                <span style="font-weight:600;">Fola Sunday</span>
+                <span class="material-icons-round" style="color:var(--on-surf3);">chevron_right</span>
+              </div>
+            </div>
+
+            <div class="section-title">Items</div>
+            <div class="card">
+              <div class="basic-item">
+                <div>
+                  <div class="basic-item-title">Senator</div>
+                  <div class="basic-item-desc">Things to buy</div>
+                </div>
+                <div style="font-family:var(--font-mono);font-weight:600;">₦3,000</div>
+              </div>
+            </div>
+
+            <div class="section-title">Payment</div>
+            <div class="card">
+              <div class="basic-row"><span class="basic-label">Total</span><span class="basic-value">₦3,000</span></div>
+              <div class="basic-row"><span class="basic-label">Deposit paid</span><span class="basic-value">₦100</span></div>
+              <div class="basic-row"><span class="basic-label">Balance</span><span class="basic-value bal">₦2,900</span></div>
+            </div>
+
+            <div class="section-title">Status</div>
+            <div class="card" style="padding:var(--s3);">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="status-chip">In Progress</div>
+                <button class="update-btn">Update Status</button>
+              </div>
+              <div style="margin-top:var(--s3);font-size:13px;font-weight:600;color:var(--on-surf);">Status History</div>
+              <div style="margin-top:var(--s2);">
+                <div class="flat-row"><span>In Progress</span><span style="font-family:var(--font-mono);color:var(--on-surf2);">19/4/2026 16:19</span></div>
+                <div class="flat-row"><span>Pending</span><span style="font-family:var(--font-mono);color:var(--on-surf2);">19/4/2026 15:40</span></div>
+                <div class="flat-row"><span>In Progress</span><span style="font-family:var(--font-mono);color:var(--on-surf2);">19/4/2026 14:35</span></div>
+                <div class="flat-row"><span>Pending</span><span style="font-family:var(--font-mono);color:var(--on-surf2);">19/4/2026 14:32</span></div>
+              </div>
+            </div>
+
+            <div class="section-title">Deadline</div>
+            <div style="font-size:15px;color:var(--on-surf);">22/4/2026</div>
+            <div class="section-title">Priority</div>
+            <div style="font-size:15px;color:var(--warn);font-weight:600;">Urgent</div>
+
+            <button class="delete-big" style="margin-top:var(--s5);margin-left:0;width:100%;">Delete Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="frame-wrap">
+      <div class="frame-label">Redesign</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>12:19</span>
+            <span class="right">
+              <span class="material-icons-round icon">wifi</span>
+              <span class="material-icons-round icon">signal_cellular_alt</span>
+              <span class="material-icons-round icon">battery_full</span>
+            </span>
+          </div>
+          <div class="app-bar">
+            <div class="left">
+              <button class="icon-btn"><span class="material-icons-round">arrow_back</span></button>
+              <div>
+                <h1>Order Details</h1>
+                <div class="subtitle">#ORD-1042 · Created 18 Apr</div>
+              </div>
+            </div>
+            <div class="right">
+              <button class="icon-btn"><span class="material-icons-round">share</span></button>
+              <button class="icon-btn"><span class="material-icons-round">more_vert</span></button>
+            </div>
+          </div>
+
+          <div class="content">
+            <!-- Customer with quick actions -->
+            <div class="section-title">Customer</div>
+            <div class="card">
+              <div class="customer-card">
+                <div class="avatar">FS</div>
+                <div class="customer-info">
+                  <div class="customer-name">Fola Sunday</div>
+                  <div class="customer-phone">+234 803 123 4567</div>
+                </div>
+                <div class="quick-actions">
+                  <button class="quick-btn call" title="Call"><span class="material-icons-round">call</span></button>
+                  <button class="quick-btn wa" title="WhatsApp"><span class="material-icons-round">chat</span></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Items with fabric thumb -->
+            <div class="section-title">Items · 1</div>
+            <div class="card">
+              <div class="item-card">
+                <div class="item-row">
+                  <div class="item-thumb has-photo" title="Fabric photo">
+                    <span class="material-icons-round" style="color:rgba(255,255,255,.85);">texture</span>
+                  </div>
+                  <div class="item-meta">
+                    <div class="item-name">Senator</div>
+                    <div class="item-desc">Things to buy · Linen, navy blue</div>
+                  </div>
+                  <div class="item-price">₦3,000</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment with progress + record -->
+            <div class="section-title">Payment</div>
+            <div class="card payment-card">
+              <div class="pay-row">
+                <span class="pay-label">Total</span>
+                <span class="pay-value total">₦3,000</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" style="width:3.3%;"></div>
+              </div>
+              <div class="progress-label">
+                <span>₦100 paid</span>
+                <span>3% of total</span>
+              </div>
+              <div class="pay-row" style="margin-top:var(--s2);">
+                <span class="pay-label">Balance remaining</span>
+                <span class="pay-value bal">₦2,900</span>
+              </div>
+              <button class="record-pay-btn">
+                <span class="material-icons-round">add</span> Record Payment
+              </button>
+            </div>
+
+            <!-- Status timeline -->
+            <div class="section-title">Status</div>
+            <div class="card status-card">
+              <div class="status-header">
+                <div class="status-chip"><span class="dot"></span> In Progress</div>
+                <button class="update-btn">Update</button>
+              </div>
+              <div class="timeline">
+                <div class="tl-row current">
+                  <span class="tl-name">In Progress</span>
+                  <span class="tl-time">19/4/26 · 4:19 PM</span>
+                </div>
+                <div class="tl-row done">
+                  <span class="tl-name">Pending</span>
+                  <span class="tl-time">19/4/26 · 3:40 PM</span>
+                </div>
+                <div class="tl-row done">
+                  <span class="tl-name">In Progress</span>
+                  <span class="tl-time">19/4/26 · 2:35 PM</span>
+                </div>
+                <div class="tl-row done">
+                  <span class="tl-name">Pending</span>
+                  <span class="tl-time">19/4/26 · 2:32 PM</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Deadline + Priority as inline meta cards -->
+            <div class="section-title">Schedule</div>
+            <div class="meta-row">
+              <div class="meta-card">
+                <div class="meta-label">Deadline</div>
+                <div class="meta-main">
+                  <span class="material-icons-round" style="color:var(--on-surf2);">event</span>
+                  <span class="meta-date">22/4/2026</span>
+                </div>
+                <div class="countdown-pill warn">
+                  <span class="material-icons-round" style="font-size:11px;">schedule</span>
+                  2 days left
+                </div>
+              </div>
+              <div class="meta-card">
+                <div class="meta-label">Priority</div>
+                <div class="priority-pill urgent" style="margin-top:8px;">
+                  <span class="material-icons-round">priority_high</span>
+                  Urgent
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sticky bottom action bar -->
+          <div class="bottom-bar">
+            <button class="secondary">
+              <span class="material-icons-round">share</span> Share
+            </button>
+            <button class="primary">
+              <span class="material-icons-round">payments</span> Record Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

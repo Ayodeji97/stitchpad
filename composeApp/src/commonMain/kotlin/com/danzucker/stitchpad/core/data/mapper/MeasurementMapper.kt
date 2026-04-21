@@ -39,7 +39,7 @@ fun Measurement.toMeasurementDto(): MeasurementDto {
 private fun parseGender(genderValue: String, legacyGarmentType: String?): CustomerGender {
     runCatching { CustomerGender.valueOf(genderValue) }.getOrNull()?.let { return it }
     return when (legacyGarmentType?.uppercase()) {
-        "AGBADA", "SENATOR_KAFTAN", "SHIRT", "SUIT" -> CustomerGender.MALE
+        "AGBADA", "SENATOR_KAFTAN", "SENATOR", "KAFTAN", "DANSHIKI", "VINTAGE", "SHIRT", "SUIT" -> CustomerGender.MALE
         else -> CustomerGender.FEMALE
     }
 }

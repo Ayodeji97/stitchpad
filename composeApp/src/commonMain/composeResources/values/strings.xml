@@ -147,13 +147,66 @@
 
     <!-- Garment type names -->
     <string name="garment_type_agbada">Agbada</string>
-    <string name="garment_type_senator_kaftan">Senator / Kaftan</string>
-    <string name="garment_type_buba_and_skirt">Buba &amp; Skirt</string>
+    <string name="garment_type_senator">Senator</string>
+    <string name="garment_type_kaftan">Kaftan</string>
+    <string name="garment_type_danshiki">Danshiki</string>
+    <string name="garment_type_suit">Suit</string>
+    <string name="garment_type_vintage">Vintage</string>
     <string name="garment_type_dress">Dress</string>
+    <string name="garment_type_blouse">Blouse</string>
+    <string name="garment_type_corset">Corset</string>
+    <string name="garment_type_asooke">Asooke</string>
+    <string name="garment_type_bridal_gown">Bridal Gown</string>
+    <string name="garment_type_asoebi">Asoebi</string>
+    <string name="garment_type_two_piece">2-Piece Outfits</string>
+    <string name="garment_type_corporate_wear">Corporate / Office Wear</string>
     <string name="garment_type_trouser">Trouser</string>
     <string name="garment_type_shirt">Shirt</string>
-    <string name="garment_type_blouse">Blouse</string>
-    <string name="garment_type_suit">Suit</string>
+    <string name="garment_type_corporate_trouser">Corporate Trouser</string>
+
+    <!-- Order list: lowercase singular/plural forms for item count summary ("1 dress" / "3 dresses") -->
+    <string name="order_summary_one_agbada">%1$d agbada</string>
+    <string name="order_summary_other_agbada">%1$d agbadas</string>
+    <string name="order_summary_one_senator">%1$d senator</string>
+    <string name="order_summary_other_senator">%1$d senators</string>
+    <string name="order_summary_one_kaftan">%1$d kaftan</string>
+    <string name="order_summary_other_kaftan">%1$d kaftans</string>
+    <string name="order_summary_one_danshiki">%1$d danshiki</string>
+    <string name="order_summary_other_danshiki">%1$d danshikis</string>
+    <string name="order_summary_one_suit">%1$d suit</string>
+    <string name="order_summary_other_suit">%1$d suits</string>
+    <string name="order_summary_one_vintage">%1$d vintage piece</string>
+    <string name="order_summary_other_vintage">%1$d vintage pieces</string>
+    <string name="order_summary_one_dress">%1$d dress</string>
+    <string name="order_summary_other_dress">%1$d dresses</string>
+    <string name="order_summary_one_blouse">%1$d blouse</string>
+    <string name="order_summary_other_blouse">%1$d blouses</string>
+    <string name="order_summary_one_corset">%1$d corset</string>
+    <string name="order_summary_other_corset">%1$d corsets</string>
+    <string name="order_summary_one_asooke">%1$d asooke</string>
+    <string name="order_summary_other_asooke">%1$d asooke pieces</string>
+    <string name="order_summary_one_bridal_gown">%1$d bridal gown</string>
+    <string name="order_summary_other_bridal_gown">%1$d bridal gowns</string>
+    <string name="order_summary_one_asoebi">%1$d asoebi</string>
+    <string name="order_summary_other_asoebi">%1$d asoebi pieces</string>
+    <string name="order_summary_one_two_piece">%1$d 2-piece outfit</string>
+    <string name="order_summary_other_two_piece">%1$d 2-piece outfits</string>
+    <string name="order_summary_one_corporate_wear">%1$d corporate outfit</string>
+    <string name="order_summary_other_corporate_wear">%1$d corporate outfits</string>
+    <string name="order_summary_one_trouser">%1$d trouser</string>
+    <string name="order_summary_other_trouser">%1$d trousers</string>
+    <string name="order_summary_one_shirt">%1$d shirt</string>
+    <string name="order_summary_other_shirt">%1$d shirts</string>
+    <string name="order_summary_one_corporate_trouser">%1$d corporate trouser</string>
+    <string name="order_summary_other_corporate_trouser">%1$d corporate trousers</string>
+
+    <!-- Share chooser titles -->
+    <string name="share_order_receipt_chooser_title">Share Order Receipt</string>
+
+    <!-- Garment gender labels -->
+    <string name="garment_gender_male">Male</string>
+    <string name="garment_gender_female">Female</string>
+    <string name="garment_gender_unisex">Unisex</string>
 
     <!-- Measurement form screen -->
     <string name="measurement_add_title">Add Measurements</string>
@@ -241,4 +294,147 @@
     <string name="error_style_unknown">Could not save style. Please try again.</string>
     <string name="error_photo_too_large">Photo is too large. Please pick one under 5 MB.</string>
     <string name="error_upload_failed">Upload failed. Please check your connection and try again.</string>
+
+    <!-- Order list screen -->
+    <string name="order_list_title">Orders</string>
+    <string name="order_empty_title">No orders yet</string>
+    <string name="order_empty_subtitle">Tap the + button to create your first order</string>
+    <string name="order_empty_pending_title">No pending orders</string>
+    <string name="order_empty_in_progress_title">No orders in progress</string>
+    <string name="order_empty_ready_title">No orders ready</string>
+    <string name="order_empty_delivered_title">No delivered orders</string>
+    <string name="order_empty_filtered_subtitle">Try another tab to see your orders</string>
+    <string name="order_fab_cd">Add order</string>
+    <string name="order_filter_all">All</string>
+    <string name="order_items_count_singular">%1$d item</string>
+    <string name="order_items_count_plural">%1$d items</string>
+    <string name="order_overdue_label">Overdue</string>
+
+    <!-- Triage section headers -->
+    <string name="triage_overdue">Overdue</string>
+    <string name="triage_due_this_week">Due This Week</string>
+    <string name="triage_in_progress">In Progress</string>
+    <string name="triage_ready_for_pickup">Ready for Pickup</string>
+    <string name="triage_pending">Pending</string>
+
+    <!-- Deadline display -->
+    <string name="deadline_no_deadline">No deadline</string>
+    <string name="deadline_pickup_ready">Pickup ready</string>
+    <string name="deadline_completed">Delivered</string>
+    <string name="deadline_due_today">Due today</string>
+    <string name="deadline_due_tomorrow">Due tomorrow</string>
+    <string name="deadline_due_in_days">Due in %1$d days</string>
+    <string name="deadline_day_late">1 day late</string>
+    <string name="deadline_days_late">%1$d days late</string>
+
+    <!-- Payment status -->
+    <string name="payment_paid">Paid</string>
+    <string name="payment_partial">%1$s paid</string>
+    <string name="payment_unpaid">Unpaid</string>
+
+    <!-- Order status labels -->
+    <string name="order_status_pending">Pending</string>
+    <string name="order_status_in_progress">In Progress</string>
+    <string name="order_status_ready">Ready</string>
+    <string name="order_status_delivered">Delivered</string>
+
+    <!-- Order priority labels -->
+    <string name="order_priority_normal">Normal</string>
+    <string name="order_priority_urgent">Urgent</string>
+    <string name="order_priority_rush">Rush</string>
+
+    <!-- Order delete dialog -->
+    <string name="order_delete_title">Delete order?</string>
+    <string name="order_delete_message">This order will be permanently removed. This cannot be undone.</string>
+    <string name="order_delete_confirm">Delete</string>
+    <string name="order_delete_cancel">Cancel</string>
+
+    <!-- Order form screen -->
+    <string name="order_form_title_add">New Order</string>
+    <string name="order_form_title_edit">Edit Order</string>
+    <string name="order_form_step_customer">Customer</string>
+    <string name="order_form_step_items">Items</string>
+    <string name="order_form_step_details">Details</string>
+    <string name="order_form_select_customer">Select a customer</string>
+    <string name="order_form_search_customers">Search customers…</string>
+    <string name="order_form_garment_type_label">Garment type</string>
+    <string name="order_form_description_label">Description (optional)</string>
+    <string name="order_form_description_placeholder">e.g. Blue senator with gold buttons</string>
+    <string name="order_form_price_label">Price (₦)</string>
+    <string name="order_form_style_label">Style reference (optional)</string>
+    <string name="order_form_measurement_label">Measurement (optional)</string>
+    <string name="order_form_add_item">Add item</string>
+    <string name="order_form_remove_item">Remove item</string>
+    <string name="order_form_deadline_label">Deadline (optional)</string>
+    <string name="order_form_pick_date">Pick a date</string>
+    <string name="order_form_priority_label">Priority</string>
+    <string name="order_form_deposit_label">Deposit paid (₦)</string>
+    <string name="order_form_deposit_placeholder">0</string>
+    <string name="order_form_notes_label">Notes (optional)</string>
+    <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
+    <string name="order_form_create_button">Create Order</string>
+    <string name="order_form_save_button">Save Changes</string>
+    <string name="order_form_next">Next</string>
+    <string name="order_form_previous">Previous</string>
+    <string name="order_form_step_indicator">Step %1$d of %2$d</string>
+    <string name="order_form_no_style">None</string>
+    <string name="order_form_no_measurement">None</string>
+    <string name="order_form_fabric_photo_label">Fabric photo (optional)</string>
+    <string name="order_form_snap_fabric">Snap fabric photo</string>
+    <string name="order_form_photo_take">Take photo</string>
+    <string name="order_form_photo_pick">Pick from gallery</string>
+    <string name="order_form_photo_cancel">Cancel</string>
+    <string name="order_form_photo_sheet_title">Add fabric photo</string>
+
+    <!-- Order form validation -->
+    <string name="order_form_error_no_customer">Please select a customer</string>
+    <string name="order_form_error_no_items">Please add at least one item</string>
+    <string name="order_form_error_no_garment_type">Please select a garment type</string>
+    <string name="order_form_error_invalid_price">Please enter a valid price</string>
+
+    <!-- Order detail screen -->
+    <string name="order_detail_title">Order Details</string>
+    <string name="order_detail_customer_section">Customer</string>
+    <string name="order_detail_items_section">Items</string>
+    <string name="order_detail_financial_section">Payment</string>
+    <string name="order_detail_total_price">Total</string>
+    <string name="order_detail_deposit_paid">Deposit paid</string>
+    <string name="order_detail_balance_remaining">Balance</string>
+    <string name="order_detail_status_section">Status</string>
+    <string name="order_detail_update_status">Update Status</string>
+    <string name="order_detail_status_history">Status History</string>
+    <string name="order_detail_deadline_section">Deadline</string>
+    <string name="order_detail_priority_section">Priority</string>
+    <string name="order_detail_notes_section">Notes</string>
+    <string name="order_detail_delete_button">Delete Order</string>
+    <string name="order_detail_fabric_photo">Fabric photo</string>
+    <string name="order_detail_share">Share order receipt</string>
+    <string name="cd_edit_order">Edit order</string>
+
+    <!-- Order status update dialog -->
+    <string name="order_status_update_title">Update status</string>
+    <string name="order_status_update_message">Move this order to \"%1$s\"?</string>
+    <string name="order_status_update_confirm">Update</string>
+    <string name="order_status_update_cancel">Cancel</string>
+    <string name="order_status_update_current">Current</string>
+
+    <!-- Order detail errors / empty state -->
+    <string name="order_detail_not_found_title">Order not found</string>
+    <string name="order_detail_not_found_message">This order may have been deleted.</string>
+    <string name="order_detail_back_button">Back</string>
+
+    <!-- Order form -->
+    <string name="order_form_item_number">Item %1$d</string>
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+
+    <!-- Order errors -->
+    <string name="error_order_not_found">Order not found</string>
+    <string name="error_order_unknown">Could not save order. Please try again.</string>
+    <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
+    <string name="error_order_customer_required">Select a customer before saving.</string>
+    <string name="error_order_items_required">Add at least one item with a garment type.</string>
+
+    <!-- Currency -->
+    <string name="currency_naira">₦%1$s</string>
 </resources>

@@ -6,5 +6,7 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>StitchPad needs access to your photos so you can attach style references to customers.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>StitchPad needs camera access so you can snap a photo of the fabric or style reference.</string>
 </dict>
 </plist>
