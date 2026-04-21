@@ -575,7 +575,15 @@ private fun OrderItemCard(
                     val label = garmentGenderLabel(gender)
                     FilterChip(
                         selected = isSelected,
-                        onClick = { selectedGenderFilter = gender },
+                        onClick = {
+                            selectedGenderFilter = gender
+                            // If the previously selected garment doesn't belong to the new
+                            // gender, clear it so the dropdown label matches what's in-list.
+                            val current = item.garmentType
+                            if (current != null && current.gender != gender) {
+                                onAction(OrderFormAction.OnItemGarmentTypeChange(item.id, null))
+                            }
+                        },
                         label = {
                             Text(
                                 text = label,

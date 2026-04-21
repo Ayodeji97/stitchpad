@@ -1,5 +1,3 @@
-@file:Suppress("MatchingDeclarationName", "Filename")
-
 package com.danzucker.stitchpad.feature.order.presentation.list
 
 import com.danzucker.stitchpad.core.domain.model.Order

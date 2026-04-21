@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.deadline_completed
 import stitchpad.composeapp.generated.resources.deadline_day_late
 import stitchpad.composeapp.generated.resources.deadline_days_late
 import stitchpad.composeapp.generated.resources.deadline_due_in_days
@@ -31,6 +32,7 @@ fun DeadlineLine(
     val text = when (display) {
         DeadlineDisplay.NoDeadline -> stringResource(Res.string.deadline_no_deadline)
         DeadlineDisplay.PickupReady -> stringResource(Res.string.deadline_pickup_ready)
+        DeadlineDisplay.Completed -> stringResource(Res.string.deadline_completed)
         DeadlineDisplay.DueToday -> stringResource(Res.string.deadline_due_today)
         DeadlineDisplay.DueTomorrow -> stringResource(Res.string.deadline_due_tomorrow)
         is DeadlineDisplay.DaysLate -> {
@@ -61,5 +63,6 @@ private fun colorFor(display: DeadlineDisplay): Color = when (display) {
         if (display.soon) DesignTokens.warning500 else MaterialTheme.colorScheme.onSurfaceVariant
     }
     DeadlineDisplay.PickupReady -> DesignTokens.success500
+    DeadlineDisplay.Completed,
     DeadlineDisplay.NoDeadline -> MaterialTheme.colorScheme.onSurfaceVariant
 }

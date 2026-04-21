@@ -10,6 +10,7 @@ sealed interface DeadlineDisplay {
     data object DueTomorrow : DeadlineDisplay
     data class DueInDays(val days: Int, val soon: Boolean) : DeadlineDisplay
     data object PickupReady : DeadlineDisplay
+    data object Completed : DeadlineDisplay
 }
 
 private const val SOON_DAYS_MAX = 3
@@ -20,6 +21,7 @@ fun formatDeadline(
     status: OrderStatus,
     zone: TimeZone = TimeZone.currentSystemDefault()
 ): DeadlineDisplay = when {
+    status == OrderStatus.DELIVERED -> DeadlineDisplay.Completed
     status == OrderStatus.READY -> DeadlineDisplay.PickupReady
     deadline == null -> DeadlineDisplay.NoDeadline
     deadline < now -> {

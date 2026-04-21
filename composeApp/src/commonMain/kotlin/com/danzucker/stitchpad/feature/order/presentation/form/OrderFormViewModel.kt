@@ -321,7 +321,9 @@ class OrderFormViewModel(
                 },
                 totalPrice = totalPrice,
                 depositPaid = deposit,
-                balanceRemaining = totalPrice - deposit,
+                // Overpayment shouldn't surface as negative balance in Order Detail. Clamp
+                // at zero; if we later want to surface credits, model that explicitly.
+                balanceRemaining = (totalPrice - deposit).coerceAtLeast(0.0),
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
                 createdAt = if (isEdit) loadedCreatedAt else 0L,

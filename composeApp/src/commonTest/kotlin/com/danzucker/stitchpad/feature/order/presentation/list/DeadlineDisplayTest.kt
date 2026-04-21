@@ -37,10 +37,17 @@ class DeadlineDisplayTest {
     }
 
     @Test
-    fun deliveredOrderWithPastDeadlineStillReturnsDaysLate() {
-        // formatter does not special-case DELIVERED — grouping logic excludes those rows
-        val res = formatDeadline(now - oneDay, now, OrderStatus.DELIVERED, zone)
-        assertEquals(DeadlineDisplay.DaysLate(1), res)
+    fun deliveredOrderReturnsCompletedRegardlessOfDeadline() {
+        // DELIVERED rows can still appear in the "Delivered" status filter, so the
+        // formatter short-circuits to Completed — completed work must never render as late.
+        assertEquals(
+            DeadlineDisplay.Completed,
+            formatDeadline(now - oneDay, now, OrderStatus.DELIVERED, zone)
+        )
+        assertEquals(
+            DeadlineDisplay.Completed,
+            formatDeadline(null, now, OrderStatus.DELIVERED, zone)
+        )
     }
 
     @Test

@@ -17,7 +17,7 @@ sealed interface OrderFormAction {
     // Step 2 - Items
     data object OnAddItem : OrderFormAction
     data class OnRemoveItem(val itemId: String) : OrderFormAction
-    data class OnItemGarmentTypeChange(val itemId: String, val type: GarmentType) : OrderFormAction
+    data class OnItemGarmentTypeChange(val itemId: String, val type: GarmentType?) : OrderFormAction
     data class OnItemDescriptionChange(val itemId: String, val description: String) : OrderFormAction
     data class OnItemPriceChange(val itemId: String, val price: String) : OrderFormAction
     data class OnItemStyleChange(val itemId: String, val styleId: String?) : OrderFormAction
