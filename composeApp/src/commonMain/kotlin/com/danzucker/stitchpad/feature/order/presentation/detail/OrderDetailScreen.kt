@@ -33,6 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,6 +106,11 @@ import stitchpad.composeapp.generated.resources.order_status_update_cancel
 import stitchpad.composeapp.generated.resources.order_status_update_confirm
 import stitchpad.composeapp.generated.resources.order_status_update_current
 import stitchpad.composeapp.generated.resources.order_status_update_title
+import stitchpad.composeapp.generated.resources.share_as_image_description
+import stitchpad.composeapp.generated.resources.share_as_image_title
+import stitchpad.composeapp.generated.resources.share_as_pdf_description
+import stitchpad.composeapp.generated.resources.share_as_pdf_title
+import stitchpad.composeapp.generated.resources.share_receipt_title
 import kotlin.time.Clock
 
 @Composable
@@ -359,6 +366,102 @@ fun OrderDetailScreen(
             shape = RoundedCornerShape(DesignTokens.radiusXl),
             containerColor = MaterialTheme.colorScheme.surface
         )
+    }
+
+    // Share receipt bottom sheet
+    if (state.showShareSheet) {
+        ShareReceiptBottomSheet(
+            onShareAsImage = { onAction(OrderDetailAction.OnShareAsImageClick) },
+            onShareAsPdf = { onAction(OrderDetailAction.OnShareAsPdfClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissShareSheet) }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShareReceiptBottomSheet(
+    onShareAsImage: () -> Unit,
+    onShareAsPdf: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = DesignTokens.radiusXl, topEnd = DesignTokens.radiusXl)
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                bottom = DesignTokens.space8
+            )
+        ) {
+            Text(
+                text = stringResource(Res.string.share_receipt_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = DesignTokens.space4)
+            )
+
+            // Share as Image option
+            ShareOption(
+                icon = "🖼️",
+                title = stringResource(Res.string.share_as_image_title),
+                description = stringResource(Res.string.share_as_image_description),
+                onClick = onShareAsImage
+            )
+
+            Spacer(Modifier.height(DesignTokens.space2))
+
+            // Share as PDF option
+            ShareOption(
+                icon = "📄",
+                title = stringResource(Res.string.share_as_pdf_title),
+                description = stringResource(Res.string.share_as_pdf_description),
+                onClick = onShareAsPdf
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShareOption(
+    icon: String,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(DesignTokens.space3)
+        ) {
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(end = DesignTokens.space3)
+            )
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
