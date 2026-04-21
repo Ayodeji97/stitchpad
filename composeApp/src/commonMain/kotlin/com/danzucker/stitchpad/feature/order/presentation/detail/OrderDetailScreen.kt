@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,8 +64,10 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.NairaAmountField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -99,6 +102,16 @@ import stitchpad.composeapp.generated.resources.order_overdue_label
 import stitchpad.composeapp.generated.resources.order_priority_normal
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
+import stitchpad.composeapp.generated.resources.order_record_payment_amount_label
+import stitchpad.composeapp.generated.resources.order_record_payment_balance_remaining
+import stitchpad.composeapp.generated.resources.order_record_payment_button
+import stitchpad.composeapp.generated.resources.order_record_payment_cancel
+import stitchpad.composeapp.generated.resources.order_record_payment_capped_helper
+import stitchpad.composeapp.generated.resources.order_record_payment_confirm
+import stitchpad.composeapp.generated.resources.order_record_payment_new_balance
+import stitchpad.composeapp.generated.resources.order_record_payment_paid_in_full
+import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_success
+import stitchpad.composeapp.generated.resources.order_record_payment_title
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -123,13 +136,18 @@ fun OrderDetailRoot(
     val viewModel: OrderDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
 
+    val paymentRecordedMessage = stringResource(Res.string.order_record_payment_snackbar_success)
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is OrderDetailEvent.NavigateToOrderForm -> onNavigateToOrderForm(event.orderId)
             is OrderDetailEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
             OrderDetailEvent.NavigateBack -> onNavigateBack()
             OrderDetailEvent.OrderDeleted -> onNavigateBack()
+            OrderDetailEvent.PaymentRecorded -> {
+                snackbarScope.launch { snackbarHostState.showSnackbar(paymentRecordedMessage) }
+            }
         }
     }
 
@@ -377,6 +395,18 @@ fun OrderDetailScreen(
             onDismiss = { onAction(OrderDetailAction.OnDismissShareSheet) }
         )
     }
+
+    // Record payment dialog
+    if (state.showRecordPaymentDialog && state.order != null) {
+        RecordPaymentDialog(
+            balanceRemaining = state.order.balanceRemaining,
+            amountInput = state.paymentAmountInput,
+            onAmountChange = { onAction(OrderDetailAction.OnPaymentAmountChange(it)) },
+            onMarkPaidInFull = { onAction(OrderDetailAction.OnMarkPaidInFull) },
+            onConfirm = { onAction(OrderDetailAction.OnConfirmRecordPayment) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissRecordPayment) }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -468,6 +498,109 @@ private fun ShareOption(
             }
         }
     }
+}
+
+@Composable
+private fun RecordPaymentDialog(
+    balanceRemaining: Double,
+    amountInput: String,
+    onAmountChange: (String) -> Unit,
+    onMarkPaidInFull: () -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val amount = amountInput.toLongOrNull() ?: 0L
+    val newBalance = (balanceRemaining - amount.toDouble()).coerceAtLeast(0.0)
+    val capped = amount > 0 && amount.toDouble() >= balanceRemaining && amountInput.length >=
+        balanceRemaining.toLong().toString().length
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.order_record_payment_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+                Text(
+                    text = stringResource(
+                        Res.string.order_record_payment_balance_remaining,
+                        "₦${formatPrice(balanceRemaining)}"
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                NairaAmountField(
+                    value = amountInput,
+                    onValueChange = onAmountChange,
+                    label = { Text(stringResource(Res.string.order_record_payment_amount_label)) },
+                    supportingText = if (capped) {
+                        {
+                            Text(
+                                text = stringResource(Res.string.order_record_payment_capped_helper),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        null
+                    }
+                )
+                if (amount > 0) {
+                    Text(
+                        text = stringResource(
+                            Res.string.order_record_payment_new_balance,
+                            "₦${formatPrice(newBalance)}"
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (newBalance <= 0.0) {
+                            DesignTokens.success500
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
+                TextButton(
+                    onClick = onMarkPaidInFull,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(
+                        text = stringResource(Res.string.order_record_payment_paid_in_full),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = amount > 0L,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(DesignTokens.radiusMd)
+            ) {
+                Text(
+                    text = stringResource(Res.string.order_record_payment_confirm),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.order_record_payment_cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        shape = RoundedCornerShape(DesignTokens.radiusXl),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 @Composable
@@ -651,6 +784,24 @@ private fun OrderDetailContent(
                         DesignTokens.success500
                     }
                 )
+                if (order.balanceRemaining > 0) {
+                    Spacer(Modifier.height(DesignTokens.space3))
+                    Button(
+                        onClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.order_record_payment_button),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
 

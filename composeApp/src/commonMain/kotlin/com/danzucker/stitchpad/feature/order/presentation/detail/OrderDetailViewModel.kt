@@ -53,7 +53,7 @@ class OrderDetailViewModel(
             initialValue = OrderDetailState()
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: OrderDetailAction) {
         when (action) {
             OrderDetailAction.OnEditClick -> {
@@ -97,6 +97,18 @@ class OrderDetailViewModel(
             }
             OrderDetailAction.OnDismissShareSheet -> {
                 _state.update { it.copy(showShareSheet = false) }
+            }
+            OrderDetailAction.OnRecordPaymentClick -> {
+                _state.update { it.copy(showRecordPaymentDialog = true, paymentAmountInput = "") }
+            }
+            is OrderDetailAction.OnPaymentAmountChange -> {
+                val capped = capPaymentAmountDigits(action.digits)
+                _state.update { it.copy(paymentAmountInput = capped) }
+            }
+            OrderDetailAction.OnMarkPaidInFull -> markPaidInFull()
+            OrderDetailAction.OnConfirmRecordPayment -> recordPayment()
+            OrderDetailAction.OnDismissRecordPayment -> {
+                _state.update { it.copy(showRecordPaymentDialog = false, paymentAmountInput = "") }
             }
             OrderDetailAction.OnBackClick -> {
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
@@ -176,6 +188,47 @@ class OrderDetailViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val result = orderRepository.updateOrderStatus(userId, orderId, newStatus)) {
                 is Result.Success -> { /* Snapshot observer will auto-update the state */ }
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = result.error.toOrderUiText())
+                }
+            }
+        }
+    }
+
+    // Pre-caps input at the remaining balance so the dialog's helper text can explain the clamp
+    // without waiting for submission.
+    private fun capPaymentAmountDigits(digits: String): String {
+        val remaining = _state.value.order?.balanceRemaining ?: return digits
+        return capPaymentDigits(digits, remaining)
+    }
+
+    private fun markPaidInFull() {
+        val order = _state.value.order ?: return
+        submitPayment(order.balanceRemaining)
+    }
+
+    private fun recordPayment() {
+        val amount = _state.value.paymentAmountInput.trimStart('0').toDoubleOrNull() ?: return
+        submitPayment(amount)
+    }
+
+    private fun submitPayment(amountJustPaid: Double) {
+        val order = _state.value.order ?: return
+        if (amountJustPaid <= 0.0) return
+        val (newDeposit, newBalance) = computeRecordedPayment(
+            currentDeposit = order.depositPaid,
+            totalPrice = order.totalPrice,
+            amountJustPaid = amountJustPaid,
+        )
+        val updatedOrder = order.copy(
+            depositPaid = newDeposit,
+            balanceRemaining = newBalance,
+        )
+        _state.update { it.copy(showRecordPaymentDialog = false, paymentAmountInput = "") }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val result = orderRepository.updateOrder(userId, updatedOrder)) {
+                is Result.Success -> _events.send(OrderDetailEvent.PaymentRecorded)
                 is Result.Error -> _state.update {
                     it.copy(errorMessage = result.error.toOrderUiText())
                 }

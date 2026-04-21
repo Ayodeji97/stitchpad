@@ -16,6 +16,11 @@ sealed interface OrderDetailAction {
     data object OnShareAsImageClick : OrderDetailAction
     data object OnShareAsPdfClick : OrderDetailAction
     data object OnDismissShareSheet : OrderDetailAction
+    data object OnRecordPaymentClick : OrderDetailAction
+    data class OnPaymentAmountChange(val digits: String) : OrderDetailAction
+    data object OnMarkPaidInFull : OrderDetailAction
+    data object OnConfirmRecordPayment : OrderDetailAction
+    data object OnDismissRecordPayment : OrderDetailAction
     data object OnBackClick : OrderDetailAction
     data object OnErrorDismiss : OrderDetailAction
 }

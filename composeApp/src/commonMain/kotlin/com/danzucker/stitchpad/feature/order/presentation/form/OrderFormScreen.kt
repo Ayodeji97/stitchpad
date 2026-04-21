@@ -76,12 +76,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -93,6 +89,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
@@ -1198,44 +1195,4 @@ private fun garmentGenderLabel(gender: GarmentGender): String = when (gender) {
     GarmentGender.MALE -> stringResource(Res.string.garment_gender_male)
     GarmentGender.FEMALE -> stringResource(Res.string.garment_gender_female)
     GarmentGender.UNISEX -> stringResource(Res.string.garment_gender_unisex)
-}
-
-private object ThousandsSeparatorTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val original = text.text
-        if (original.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
-
-        val formatted = buildString {
-            original.reversed().forEachIndexed { i, c ->
-                if (i > 0 && i % 3 == 0) append(',')
-                append(c)
-            }
-        }.reversed()
-
-        val offsetMapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int {
-                if (offset == 0) return 0
-                val totalLength = original.length
-                var commasBeforePos = 0
-                for (i in 0 until offset) {
-                    val distFromRight = totalLength - 1 - i
-                    if (distFromRight > 0 && distFromRight % 3 == 0) commasBeforePos++
-                }
-                return offset + commasBeforePos
-            }
-
-            override fun transformedToOriginal(offset: Int): Int {
-                var originalOffset = 0
-                var transformedOffset = 0
-                for (i in formatted.indices) {
-                    if (transformedOffset >= offset) break
-                    transformedOffset++
-                    if (formatted[i] != ',') originalOffset++
-                }
-                return originalOffset.coerceAtMost(original.length)
-            }
-        }
-
-        return TransformedText(AnnotatedString(formatted), offsetMapping)
-    }
 }
