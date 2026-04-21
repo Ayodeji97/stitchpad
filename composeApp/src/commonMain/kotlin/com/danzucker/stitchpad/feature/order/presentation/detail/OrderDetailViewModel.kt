@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
+import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,6 +40,7 @@ class OrderDetailViewModel(
             if (!hasStartedObserving) {
                 hasStartedObserving = true
                 observeOrder()
+                loadUser()
             }
         }
         .stateIn(
@@ -78,8 +81,18 @@ class OrderDetailViewModel(
                 }
             }
             OrderDetailAction.OnShareClick -> {
-                val order = _state.value.order ?: return
-                viewModelScope.launch { receiptSharer.shareReceipt(order) }
+                _state.update { it.copy(showShareSheet = true) }
+            }
+            OrderDetailAction.OnShareAsImageClick -> {
+                _state.update { it.copy(showShareSheet = false) }
+                shareReceipt { receiptData -> receiptSharer.shareReceiptAsImage(receiptData) }
+            }
+            OrderDetailAction.OnShareAsPdfClick -> {
+                _state.update { it.copy(showShareSheet = false) }
+                shareReceipt { receiptData -> receiptSharer.shareReceiptAsPdf(receiptData) }
+            }
+            OrderDetailAction.OnDismissShareSheet -> {
+                _state.update { it.copy(showShareSheet = false) }
             }
             OrderDetailAction.OnBackClick -> {
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
@@ -87,6 +100,36 @@ class OrderDetailViewModel(
             OrderDetailAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+        }
+    }
+
+    private fun shareReceipt(share: suspend (com.danzucker.stitchpad.core.sharing.ReceiptData) -> Unit) {
+        val order = _state.value.order ?: return
+        val user = _state.value.user ?: return
+        viewModelScope.launch {
+            try {
+                val garmentNames = order.items
+                    .map { it.garmentType }
+                    .distinct()
+                    .associate { it to garmentDisplayNameAsync(it) }
+                val receiptData = ReceiptFormatter.format(order, user, garmentNames)
+                share(receiptData)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.update {
+                    it.copy(
+                        errorMessage = com.danzucker.stitchpad.core.presentation.UiText.DynamicString(
+                            e.message ?: "Could not share receipt"
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun loadUser() {
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser()
+            _state.update { it.copy(user = user) }
         }
     }
 
