@@ -369,8 +369,11 @@ actual class OrderReceiptSharer(private val context: Context) {
         doc.finishPage(page)
 
         val file = cacheFile("pdf", "pdf")
-        FileOutputStream(file).use { doc.writeTo(it) }
-        doc.close()
+        try {
+            FileOutputStream(file).use { doc.writeTo(it) }
+        } finally {
+            doc.close()
+        }
         pruneOldReceipts()
         return file
     }
