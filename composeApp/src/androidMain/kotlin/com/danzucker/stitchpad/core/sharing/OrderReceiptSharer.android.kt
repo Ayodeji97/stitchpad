@@ -31,7 +31,9 @@ actual class OrderReceiptSharer(private val context: Context) {
         val garmentNames: Map<GarmentType, String> = order.items
             .map { it.garmentType }
             .distinct()
-            .associateWith { garmentDisplayNameAsync(it) }
+            .associate { garmentType ->
+                garmentType to garmentDisplayNameAsync(garmentType)
+            }
         val chooserTitle = getString(Res.string.share_order_receipt_chooser_title)
         // Bitmap rendering + PNG encode + disk write are heavy — keep off main.
         val file = withContext(Dispatchers.Default) {

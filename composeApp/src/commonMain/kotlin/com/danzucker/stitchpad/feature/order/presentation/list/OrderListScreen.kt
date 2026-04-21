@@ -72,6 +72,7 @@ import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res

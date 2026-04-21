@@ -19,7 +19,9 @@ actual class OrderReceiptSharer {
         val garmentNames: Map<GarmentType, String> = order.items
             .map { it.garmentType }
             .distinct()
-            .associateWith { garmentDisplayNameAsync(it) }
+            .associate { garmentType ->
+                garmentType to garmentDisplayNameAsync(garmentType)
+            }
         val text = buildReceiptText(order, garmentNames)
         // UIKit presentation must happen on the main thread; shareReceipt is suspend
         // and can be invoked from any dispatcher.
