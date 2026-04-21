@@ -118,7 +118,7 @@ class OrderDetailViewModel(
                     .associate { it to garmentDisplayNameAsync(it) }
                 val receiptData = ReceiptFormatter.format(order, user, garmentNames)
                 share(receiptData)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
                     it.copy(
                         errorMessage = UiText.StringResourceText(Res.string.receipt_share_error)

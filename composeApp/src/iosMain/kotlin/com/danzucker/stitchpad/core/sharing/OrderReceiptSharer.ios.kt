@@ -18,8 +18,6 @@ import platform.Foundation.writeToURL
 import platform.UIKit.NSFontAttributeName
 import platform.UIKit.NSForegroundColorAttributeName
 import platform.UIKit.UIActivityViewController
-import platform.UIKit.drawAtPoint
-import platform.UIKit.sizeWithAttributes
 import platform.UIKit.UIColor
 import platform.UIKit.UIFont
 import platform.UIKit.UIGraphicsImageRenderer
@@ -28,8 +26,11 @@ import platform.UIKit.UIGraphicsPDFRenderer
 import platform.UIKit.UIGraphicsPDFRendererFormat
 import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
+import platform.UIKit.drawAtPoint
+import platform.UIKit.sizeWithAttributes
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+@Suppress("TooManyFunctions")
 actual class OrderReceiptSharer {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
@@ -45,6 +46,7 @@ actual class OrderReceiptSharer {
         shareUrl(fileUrl)
     }
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun renderDarkImage(data: ReceiptData): UIImage {
         val width = 800.0
         val padding = 40.0
@@ -73,11 +75,21 @@ actual class OrderReceiptSharer {
             darkColor("#E8A800").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, headerHeight))
 
-            drawCentered(data.businessName, y = headerHeight / 2.0 - 14.0, width = width,
-                font = boldFont(22.0), color = darkColor("#121110"))
+            drawCentered(
+                data.businessName,
+                y = headerHeight / 2.0 - 14.0,
+                width = width,
+                font = boldFont(22.0),
+                color = darkColor("#121110")
+            )
             if (data.businessPhone != null) {
-                drawCentered(data.businessPhone, y = headerHeight / 2.0 + 8.0, width = width,
-                    font = regularFont(13.0), color = darkColor("#121110"))
+                drawCentered(
+                    data.businessPhone,
+                    y = headerHeight / 2.0 + 8.0,
+                    width = width,
+                    font = regularFont(13.0),
+                    color = darkColor("#121110")
+                )
             }
 
             var y = headerHeight + padding
@@ -97,10 +109,20 @@ actual class OrderReceiptSharer {
             drawText("ITEMS", padding, y, labelFont(), darkColor("#7D7970"))
             y += 20.0
             data.items.forEach { item ->
-                drawText("${item.quantity} × ${item.garmentName}", padding, y,
-                    regularFont(14.0), darkColor("#E5E3DF"))
-                drawTextRight(item.formattedPrice, width - padding, y,
-                    regularFont(14.0), darkColor("#E5E3DF"))
+                drawText(
+                    "${item.quantity} × ${item.garmentName}",
+                    padding,
+                    y,
+                    regularFont(14.0),
+                    darkColor("#E5E3DF")
+                )
+                drawTextRight(
+                    item.formattedPrice,
+                    width - padding,
+                    y,
+                    regularFont(14.0),
+                    darkColor("#E5E3DF")
+                )
                 y += lineSpacing
             }
             y += 8.0
@@ -132,28 +154,50 @@ actual class OrderReceiptSharer {
                 drawTextRight("DEADLINE", width - padding, y, labelFont(), darkColor("#7D7970"))
             }
             y += 18.0
-            drawText("● ${data.statusLabel}", padding, y, boldFont(13.0),
-                darkColor(data.statusColorHex))
+            drawText(
+                "● ${data.statusLabel}",
+                padding,
+                y,
+                boldFont(13.0),
+                darkColor(data.statusColorHex)
+            )
             if (data.deadlineFormatted != null) {
-                drawTextRight(data.deadlineFormatted, width - padding, y,
-                    regularFont(13.0), darkColor("#E5E3DF"))
+                drawTextRight(
+                    data.deadlineFormatted,
+                    width - padding,
+                    y,
+                    regularFont(13.0),
+                    darkColor("#E5E3DF")
+                )
             }
             y += 8.0
 
             if (data.priorityLabel != null) {
                 y += 14.0
-                drawBadge(data.priorityLabel, width - padding, y,
-                    darkColor("#D93B3B"), UIColor.whiteColor, boldFont(11.0))
+                drawBadge(
+                    data.priorityLabel,
+                    width - padding,
+                    y,
+                    darkColor("#D93B3B"),
+                    UIColor.whiteColor,
+                    boldFont(11.0)
+                )
             }
 
             y += 24.0
             drawDivider(padding, y, width - padding, darkColor("#3A3731"))
             y += 16.0
-            drawCentered("Order #${data.orderIdShort}", y = y, width = width,
-                font = regularFont(11.0), color = darkColor("#3A3731"))
+            drawCentered(
+                "Order #${data.orderIdShort}",
+                y = y,
+                width = width,
+                font = regularFont(11.0),
+                color = darkColor("#3A3731")
+            )
         }
     }
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun renderLightPdf(data: ReceiptData): NSURL {
         val pageWidth = 420.0
         val pageHeight = 595.0
@@ -171,12 +215,22 @@ actual class OrderReceiptSharer {
             var y = padding
 
             // Header
-            drawCentered(data.businessName, y = y, width = pageWidth,
-                font = boldFont(18.0), color = darkColor("#1E1C1A"))
+            drawCentered(
+                data.businessName,
+                y = y,
+                width = pageWidth,
+                font = boldFont(18.0),
+                color = darkColor("#1E1C1A")
+            )
             y += 20.0
             if (data.businessPhone != null) {
-                drawCentered(data.businessPhone, y = y, width = pageWidth,
-                    font = regularFont(10.0), color = darkColor("#7D7970"))
+                drawCentered(
+                    data.businessPhone,
+                    y = y,
+                    width = pageWidth,
+                    font = regularFont(10.0),
+                    color = darkColor("#7D7970")
+                )
                 y += 16.0
             }
             y += 4.0
@@ -201,10 +255,20 @@ actual class OrderReceiptSharer {
             drawText("ITEMS", padding, y, labelFont(8.0), darkColor("#7D7970"))
             y += 16.0
             data.items.forEach { item ->
-                drawText("${item.quantity} × ${item.garmentName}", padding, y,
-                    regularFont(11.0), darkColor("#1E1C1A"))
-                drawTextRight(item.formattedPrice, pageWidth - padding, y,
-                    regularFont(11.0), darkColor("#1E1C1A"))
+                drawText(
+                    "${item.quantity} × ${item.garmentName}",
+                    padding,
+                    y,
+                    regularFont(11.0),
+                    darkColor("#1E1C1A")
+                )
+                drawTextRight(
+                    item.formattedPrice,
+                    pageWidth - padding,
+                    y,
+                    regularFont(11.0),
+                    darkColor("#1E1C1A")
+                )
                 y += 18.0
             }
             y += 6.0
@@ -223,7 +287,13 @@ actual class OrderReceiptSharer {
             if (data.isFullyPaid) {
                 drawTextRight("✓ PAID IN FULL", pageWidth - padding, y, boldFont(11.0), darkColor("#2D9E6B"))
             } else {
-                drawTextRight("${data.balanceFormatted} DUE", pageWidth - padding, y, boldFont(11.0), darkColor("#C48E00"))
+                drawTextRight(
+                    "${data.balanceFormatted} DUE",
+                    pageWidth - padding,
+                    y,
+                    boldFont(11.0),
+                    darkColor("#C48E00")
+                )
             }
             y += 20.0
 
@@ -236,25 +306,46 @@ actual class OrderReceiptSharer {
                 drawTextRight("DEADLINE", pageWidth - padding, y, labelFont(8.0), darkColor("#7D7970"))
             }
             y += 14.0
-            drawText("● ${data.statusLabel}", padding, y, boldFont(11.0),
-                darkColor(data.statusColorHex))
+            drawText(
+                "● ${data.statusLabel}",
+                padding,
+                y,
+                boldFont(11.0),
+                darkColor(data.statusColorHex)
+            )
             if (data.deadlineFormatted != null) {
-                drawTextRight(data.deadlineFormatted, pageWidth - padding, y,
-                    regularFont(11.0), darkColor("#1E1C1A"))
+                drawTextRight(
+                    data.deadlineFormatted,
+                    pageWidth - padding,
+                    y,
+                    regularFont(11.0),
+                    darkColor("#1E1C1A")
+                )
             }
             y += 6.0
 
             if (data.priorityLabel != null) {
                 y += 12.0
-                drawBadge(data.priorityLabel, pageWidth - padding, y,
-                    darkColor("#D93B3B"), UIColor.whiteColor, boldFont(9.0))
+                drawBadge(
+                    data.priorityLabel,
+                    pageWidth - padding,
+                    y,
+                    darkColor("#D93B3B"),
+                    UIColor.whiteColor,
+                    boldFont(9.0)
+                )
             }
 
             y += 24.0
             drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
             y += 14.0
-            drawCentered("Order #${data.orderIdShort}", y = y, width = pageWidth,
-                font = regularFont(9.0), color = darkColor("#A8A49D"))
+            drawCentered(
+                "Order #${data.orderIdShort}",
+                y = y,
+                width = pageWidth,
+                font = regularFont(9.0),
+                color = darkColor("#A8A49D")
+            )
         }
 
         pdfData.writeToURL(fileUrl, atomically = true)
@@ -314,7 +405,8 @@ actual class OrderReceiptSharer {
             val bx = rightX - badgeWidth
             bg.setFill()
             val path = platform.UIKit.UIBezierPath.bezierPathWithRoundedRect(
-                CGRectMake(bx, y - 3.0, badgeWidth, badgeHeight), cornerRadius = 4.0
+                CGRectMake(bx, y - 3.0, badgeWidth, badgeHeight),
+                cornerRadius = 4.0
             )
             path.fill()
             nsText.drawAtPoint(CGPointMake(bx + 6.0, y), withAttributes = attrs)

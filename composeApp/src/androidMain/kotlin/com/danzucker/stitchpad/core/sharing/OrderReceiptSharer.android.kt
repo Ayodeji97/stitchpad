@@ -38,7 +38,6 @@ actual class OrderReceiptSharer(private val context: Context) {
     private fun renderDarkBitmap(data: ReceiptData): Bitmap {
         val width = 800
         val padding = 40f
-        val contentWidth = width - 2 * padding
 
         // Colors
         val bgColor = Color.parseColor("#121110")
@@ -64,14 +63,25 @@ actual class OrderReceiptSharer(private val context: Context) {
         val balancePaint = makePaint(saffron, 18f, bold = true)
         val statusPaint = makePaint(Color.parseColor(data.statusColorHex), 17f, bold = true)
         val footerPaint = makePaint(dividerColor, 14f).apply { textAlign = Paint.Align.CENTER }
-        val linePaint = Paint().apply { color = dividerColor; strokeWidth = 1f; style = Paint.Style.STROKE }
+        val linePaint = Paint().apply {
+            color = dividerColor
+            strokeWidth = 1f
+            style = Paint.Style.STROKE
+        }
         val rushBadgePaint = makePaint(Color.WHITE, 13f, bold = true)
-        val rushBgPaint = Paint().apply { color = rushRed; style = Paint.Style.FILL }
+        val rushBgPaint = Paint().apply {
+            color = rushRed
+            style = Paint.Style.FILL
+        }
         val balanceBgPaint = Paint().apply {
-            color = saffron; alpha = 30; style = Paint.Style.FILL
+            color = saffron
+            alpha = 30
+            style = Paint.Style.FILL
         }
         val paidBgPaint = Paint().apply {
-            color = green; alpha = 30; style = Paint.Style.FILL
+            color = green
+            alpha = 30
+            style = Paint.Style.FILL
         }
 
         // Estimate height
@@ -99,14 +109,25 @@ actual class OrderReceiptSharer(private val context: Context) {
         var y = 0f
 
         // Header band
-        val headerBgPaint = Paint().apply { color = headerBg; style = Paint.Style.FILL }
+        val headerBgPaint = Paint().apply {
+            color = headerBg
+            style = Paint.Style.FILL
+        }
         canvas.drawRect(0f, 0f, width.toFloat(), headerHeight, headerBgPaint)
         val headerCenterY = if (data.businessPhone != null) headerHeight / 2f - 10f else headerHeight / 2f
-        canvas.drawText(data.businessName, width / 2f - headerTitlePaint.measureText(data.businessName) / 2f,
-            headerCenterY + 10f, headerTitlePaint)
+        canvas.drawText(
+            data.businessName,
+            width / 2f - headerTitlePaint.measureText(data.businessName) / 2f,
+            headerCenterY + 10f,
+            headerTitlePaint
+        )
         if (data.businessPhone != null) {
-            canvas.drawText(data.businessPhone, width / 2f - headerPhonePaint.measureText(data.businessPhone) / 2f,
-                headerCenterY + 32f, headerPhonePaint)
+            canvas.drawText(
+                data.businessPhone,
+                width / 2f - headerPhonePaint.measureText(data.businessPhone) / 2f,
+                headerCenterY + 32f,
+                headerPhonePaint
+            )
         }
         y = headerHeight + padding
 
@@ -194,8 +215,10 @@ actual class OrderReceiptSharer(private val context: Context) {
                 padding
             }
             val badgeRect = RectF(
-                badgeX, y - 14f,
-                badgeX + rushBadgePaint.measureText(data.priorityLabel) + 16f, y + 8f
+                badgeX,
+                y - 14f,
+                badgeX + rushBadgePaint.measureText(data.priorityLabel) + 16f,
+                y + 8f
             )
             canvas.drawRoundRect(badgeRect, 6f, 6f, rushBgPaint)
             canvas.drawText(data.priorityLabel, badgeX + 8f, y + 4f, rushBadgePaint)
@@ -251,9 +274,15 @@ actual class OrderReceiptSharer(private val context: Context) {
         val balancePdf = makePaint(saffron, 14f, bold = true)
         val statusPdf = makePaint(Color.parseColor(data.statusColorHex), 13f, bold = true)
         val footerPdf = makePaint(Color.parseColor("#A8A49D"), 10f).apply { textAlign = Paint.Align.CENTER }
-        val linePdf = Paint().apply { color = dividerColor; strokeWidth = 1f }
+        val linePdf = Paint().apply {
+            color = dividerColor
+            strokeWidth = 1f
+        }
         val rushBadgePdf = makePaint(Color.WHITE, 10f, bold = true)
-        val rushBgPdf = Paint().apply { color = rushRed; style = Paint.Style.FILL }
+        val rushBgPdf = Paint().apply {
+            color = rushRed
+            style = Paint.Style.FILL
+        }
 
         // White background
         canvas.drawColor(Color.WHITE)
@@ -262,14 +291,25 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         // Header (centered, with saffron bottom border)
         val headerBottomY = if (data.businessPhone != null) y + 50f else y + 40f
-        canvas.drawText(data.businessName,
-            pageWidth / 2f - headerTitlePaint.measureText(data.businessName) / 2f, y + 22f, headerTitlePaint)
+        canvas.drawText(
+            data.businessName,
+            pageWidth / 2f - headerTitlePaint.measureText(data.businessName) / 2f,
+            y + 22f,
+            headerTitlePaint
+        )
         if (data.businessPhone != null) {
-            canvas.drawText(data.businessPhone,
-                pageWidth / 2f - headerPhonePaint.measureText(data.businessPhone) / 2f, y + 38f, headerPhonePaint)
+            canvas.drawText(
+                data.businessPhone,
+                pageWidth / 2f - headerPhonePaint.measureText(data.businessPhone) / 2f,
+                y + 38f,
+                headerPhonePaint
+            )
         }
         y = headerBottomY + 4f
-        val borderPaint = Paint().apply { color = headerBorderColor; strokeWidth = 3f }
+        val borderPaint = Paint().apply {
+            color = headerBorderColor
+            strokeWidth = 3f
+        }
         canvas.drawLine(padding, y, pageWidth - padding, y, borderPaint)
         y += 18f
 
@@ -278,7 +318,12 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawText("DATE", pageWidth - padding - labelPaintPdf.measureText("DATE"), y, labelPaintPdf)
         y += 16f
         canvas.drawText(data.customerName, padding, y, bodyBoldPdf)
-        canvas.drawText(data.dateFormatted, pageWidth - padding - bodyPaintPdf.measureText(data.dateFormatted), y, bodyPaintPdf)
+        canvas.drawText(
+            data.dateFormatted,
+            pageWidth - padding - bodyPaintPdf.measureText(data.dateFormatted),
+            y,
+            bodyPaintPdf
+        )
         y += 18f
 
         // Divider
@@ -317,14 +362,22 @@ actual class OrderReceiptSharer(private val context: Context) {
             val pp = makePaint(green, 13f, bold = true)
             val tw = pp.measureText(paidText)
             val rx = pageWidth - padding - tw - 12f
-            val bgp = Paint().apply { color = green; alpha = 25; style = Paint.Style.FILL }
+            val bgp = Paint().apply {
+                color = green
+                alpha = 25
+                style = Paint.Style.FILL
+            }
             canvas.drawRoundRect(RectF(rx, y - 12f, rx + tw + 12f, y + 6f), 6f, 6f, bgp)
             canvas.drawText(paidText, rx + 6f, y, pp)
         } else {
             val dueText = "${data.balanceFormatted} DUE"
             val tw = balancePdf.measureText(dueText)
             val rx = pageWidth - padding - tw - 12f
-            val bgp = Paint().apply { color = saffron; alpha = 25; style = Paint.Style.FILL }
+            val bgp = Paint().apply {
+                color = saffron
+                alpha = 25
+                style = Paint.Style.FILL
+            }
             canvas.drawRoundRect(RectF(rx, y - 12f, rx + tw + 12f, y + 6f), 6f, 6f, bgp)
             canvas.drawText(dueText, rx + 6f, y, balancePdf)
         }
@@ -342,8 +395,12 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 16f
         canvas.drawText("● ${data.statusLabel}", padding, y, statusPdf)
         if (data.deadlineFormatted != null) {
-            canvas.drawText(data.deadlineFormatted,
-                pageWidth - padding - bodyPaintPdf.measureText(data.deadlineFormatted), y, bodyPaintPdf)
+            canvas.drawText(
+                data.deadlineFormatted,
+                pageWidth - padding - bodyPaintPdf.measureText(data.deadlineFormatted),
+                y,
+                bodyPaintPdf
+            )
         }
         y += 6f
 

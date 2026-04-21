@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
-import com.danzucker.stitchpad.core.sharing.formatPrice
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +59,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -884,4 +884,3 @@ private fun statusColorAndLabel(status: OrderStatus): Pair<Color, String> = when
     OrderStatus.READY -> DesignTokens.statusReady to stringResource(Res.string.order_status_ready)
     OrderStatus.DELIVERED -> DesignTokens.statusDelivered to stringResource(Res.string.order_status_delivered)
 }
-

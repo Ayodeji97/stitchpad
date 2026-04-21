@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
-import com.danzucker.stitchpad.core.sharing.formatPrice
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -69,6 +68,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -541,7 +541,6 @@ private fun PriorityBadge(priority: OrderPriority) {
         )
     }
 }
-
 
 @Suppress("UnusedPrivateMember")
 @Composable
