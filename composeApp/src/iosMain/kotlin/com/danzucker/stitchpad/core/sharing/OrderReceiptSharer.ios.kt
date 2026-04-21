@@ -5,6 +5,7 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRectMake
@@ -26,7 +27,9 @@ import platform.UIKit.UIGraphicsPDFRenderer
 import platform.UIKit.UIGraphicsPDFRendererFormat
 import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
+import platform.UIKit.UIViewController
 import platform.UIKit.drawAtPoint
+import platform.UIKit.popoverPresentationController
 import platform.UIKit.sizeWithAttributes
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
@@ -436,15 +439,44 @@ actual class OrderReceiptSharer {
     }
 
     private suspend fun shareUrl(url: NSURL) {
+        // Give the Compose ModalBottomSheet time to finish its dismiss animation before we
+        // present a UIKit modal on top. UIKit silently refuses to present while another VC
+        // is mid-transition.
+        delay(SHARE_PRESENT_DELAY_MS)
         withContext(Dispatchers.Main) {
             val rootVC = activeKeyWindow()?.rootViewController ?: return@withContext
-            val presenter = rootVC.presentedViewController ?: rootVC
+            val presenter = topmostPresenter(rootVC)
             val activityVC = UIActivityViewController(
                 activityItems = listOf(url),
                 applicationActivities = null
             )
+            // iPad: UIActivityViewController must have a popover source or it fails to present.
+            activityVC.popoverPresentationController?.apply {
+                sourceView = presenter.view
+                presenter.view.bounds.useContents {
+                    sourceRect = CGRectMake(
+                        origin.x + size.width / 2.0,
+                        origin.y + size.height / 2.0,
+                        0.0,
+                        0.0
+                    )
+                }
+            }
             presenter.presentViewController(activityVC, animated = true, completion = null)
         }
+    }
+
+    private fun topmostPresenter(root: UIViewController): UIViewController {
+        var vc: UIViewController = root
+        while (true) {
+            val next = vc.presentedViewController ?: return vc
+            if (next.isBeingDismissed()) return vc
+            vc = next
+        }
+    }
+
+    private companion object {
+        const val SHARE_PRESENT_DELAY_MS = 450L
     }
 
     // endregion
