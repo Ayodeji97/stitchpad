@@ -435,6 +435,17 @@
     <string name="error_order_customer_required">Select a customer before saving.</string>
     <string name="error_order_items_required">Add at least one item with a garment type.</string>
 
+    <!-- Receipt sharing -->
+    <string name="share_receipt_title">Share Receipt</string>
+    <string name="share_as_image_title">Share as Image</string>
+    <string name="share_as_image_description">Best for WhatsApp &amp; social media</string>
+    <string name="share_as_pdf_title">Share as PDF</string>
+    <string name="share_as_pdf_description">Best for printing &amp; email</string>
+    <string name="receipt_balance_due">DUE</string>
+    <string name="receipt_paid_in_full">PAID IN FULL</string>
+    <string name="receipt_order_id_prefix">Order #</string>
+    <string name="receipt_share_error">Could not share receipt. Please try again.</string>
+
     <!-- Currency -->
     <string name="currency_naira">₦%1$s</string>
 </resources>
