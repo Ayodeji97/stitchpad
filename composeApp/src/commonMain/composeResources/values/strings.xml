@@ -477,7 +477,7 @@
     <string name="dashboard_tile_due_today">Due today</string>
     <string name="dashboard_tile_ready">Ready</string>
     <string name="dashboard_tile_outstanding">Outstanding</string>
-    <string name="dashboard_section_todays_work">Today\'s work</string>
+    <string name="dashboard_section_todays_work">Today&apos;s work</string>
     <string name="dashboard_chip_today">Today</string>
     <string name="dashboard_chip_ready">Ready</string>
 </resources>

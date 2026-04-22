@@ -199,7 +199,6 @@ private data class TileData(
     val valueText: String,
     val labelText: String,
     val accent: Color,
-    val background: Color,
     val onClick: () -> Unit,
     val valueFontSize: Int = TILE_VALUE_DEFAULT_SP
 )
@@ -212,9 +211,6 @@ private fun TileGrid(
     state: DashboardState,
     onAction: (DashboardAction) -> Unit
 ) {
-    val surface = MaterialTheme.colorScheme.surface
-    val errorBg = DesignTokens.error500.copy(alpha = 0.08f)
-
     val tiles = buildList {
         if (state.overdue.isNotEmpty()) {
             add(
@@ -223,7 +219,6 @@ private fun TileGrid(
                     valueText = state.overdue.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_overdue),
                     accent = DesignTokens.error500,
-                    background = errorBg,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -235,7 +230,6 @@ private fun TileGrid(
                     valueText = state.dueToday.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_due_today),
                     accent = DesignTokens.primary600,
-                    background = surface,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -247,7 +241,6 @@ private fun TileGrid(
                     valueText = state.ready.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_ready),
                     accent = DesignTokens.success500,
-                    background = surface,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -263,7 +256,6 @@ private fun TileGrid(
                     valueText = naira,
                     labelText = stringResource(Res.string.dashboard_tile_outstanding),
                     accent = DesignTokens.primary600,
-                    background = surface,
                     onClick = { onAction(DashboardAction.OnOutstandingClick) },
                     valueFontSize = TILE_VALUE_CURRENCY_SP
                 )
@@ -275,9 +267,15 @@ private fun TileGrid(
 
     Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
         tiles.chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                modifier = Modifier.height(IntrinsicSize.Min)
+            ) {
                 pair.forEach { tile ->
-                    Tile(tile = tile, modifier = Modifier.weight(1f))
+                    Tile(
+                        tile = tile,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    )
                 }
                 if (pair.size == 1) {
                     Spacer(Modifier.weight(1f))
@@ -291,18 +289,23 @@ private fun TileGrid(
 private fun Tile(tile: TileData, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = tile.background,
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = DesignTokens.elevation1,
         shadowElevation = DesignTokens.elevation1,
         modifier = modifier
             .clip(RoundedCornerShape(DesignTokens.radiusLg))
             .clickable(onClick = tile.onClick)
     ) {
-        Box(modifier = Modifier.padding(DesignTokens.space3).fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .padding(DesignTokens.space3)
+                .fillMaxWidth()
+                .fillMaxHeight()
+        ) {
             Icon(
                 imageVector = tile.icon,
                 contentDescription = null,
-                tint = tile.accent.copy(alpha = 0.55f),
+                tint = tile.accent.copy(alpha = 0.75f),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .size(18.dp)
