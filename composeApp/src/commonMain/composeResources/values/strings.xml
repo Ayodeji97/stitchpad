@@ -454,4 +454,22 @@
 
     <!-- Currency -->
     <string name="currency_naira">₦%1$s</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_greeting_morning">Good morning, %1$s</string>
+    <string name="dashboard_greeting_afternoon">Good afternoon, %1$s</string>
+    <string name="dashboard_greeting_evening">Good evening, %1$s</string>
+    <string name="dashboard_overdue_title">%1$d overdue</string>
+    <string name="dashboard_due_today_title">%1$d due today</string>
+    <string name="dashboard_ready_title">%1$d ready for pickup</string>
+    <string name="dashboard_outstanding_title">%1$s outstanding</string>
+    <string name="dashboard_outstanding_subtitle">across %1$d unpaid orders</string>
+    <string name="dashboard_see_all">See all</string>
+    <string name="dashboard_and_more">+ %1$d more</string>
+    <string name="dashboard_days_late">%1$dd late</string>
+    <string name="dashboard_welcome_title">Welcome to StitchPad</string>
+    <string name="dashboard_welcome_subtitle">Add your first customer to start tracking orders, measurements, and styles.</string>
+    <string name="dashboard_welcome_cta">Add first customer</string>
+    <string name="dashboard_all_clear">All clear for today</string>
+    <string name="dashboard_fab_cd">New order</string>
 </resources>

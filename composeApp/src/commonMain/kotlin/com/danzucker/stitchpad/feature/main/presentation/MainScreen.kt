@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
+import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
@@ -45,7 +46,7 @@ import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRo
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
-import com.danzucker.stitchpad.navigation.DashboardPlaceholderRoute
+import com.danzucker.stitchpad.navigation.DashboardRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
@@ -58,7 +59,6 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.home_sign_out
-import stitchpad.composeapp.generated.resources.nav_dashboard
 import stitchpad.composeapp.generated.resources.nav_settings
 
 @Composable
@@ -99,7 +99,7 @@ fun MainRoot(onSignedOut: () -> Unit) {
                                     )
                                     if (!popped) {
                                         innerNavController.navigate(item.route) {
-                                            popUpTo(CustomerListRoute) { saveState = true }
+                                            popUpTo(DashboardRoute) { saveState = true }
                                             launchSingleTop = true
                                             restoreState = true
                                         }
@@ -144,7 +144,7 @@ private fun MainNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = CustomerListRoute,
+        startDestination = DashboardRoute,
         enterTransition = { slideInHorizontally(tween(280)) { it } + fadeIn(tween(280)) },
         exitTransition = { slideOutHorizontally(tween(220)) { -it / 3 } + fadeOut(tween(220)) },
         popEnterTransition = { slideInHorizontally(tween(280)) { -it / 3 } + fadeIn(tween(280)) },
@@ -230,8 +230,23 @@ private fun MainNavGraph(
                 onNavigateBack = { navController.navigateUp() }
             )
         }
-        composable<DashboardPlaceholderRoute> {
-            TabPlaceholder(title = Res.string.nav_dashboard)
+        composable<DashboardRoute> {
+            DashboardRoot(
+                onNavigateToOrderDetail = { orderId ->
+                    navController.navigate(OrderDetailRoute(orderId = orderId))
+                },
+                onNavigateToOrders = {
+                    navController.navigate(OrderListRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToOrderForm = {
+                    navController.navigate(OrderFormRoute())
+                },
+                onNavigateToCustomerForm = {
+                    navController.navigate(CustomerFormRoute())
+                }
+            )
         }
         composable<SettingsPlaceholderRoute> {
             TabPlaceholder(title = Res.string.nav_settings, onSignedOut = onSignedOut)

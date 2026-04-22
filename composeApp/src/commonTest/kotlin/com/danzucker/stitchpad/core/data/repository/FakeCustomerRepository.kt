@@ -6,7 +6,8 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 class FakeCustomerRepository : CustomerRepository {
     var shouldReturnError: DataError.Network? = null
@@ -14,8 +15,16 @@ class FakeCustomerRepository : CustomerRepository {
     var lastCreatedCustomer: Customer? = null
     var lastUpdatedCustomer: Customer? = null
 
+    private val customersFlow = MutableStateFlow<List<Customer>>(emptyList())
+    var customersList: List<Customer>
+        get() = customersFlow.value
+        set(value) { customersFlow.value = value }
+
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
-        emptyFlow()
+        customersFlow.map { list ->
+            shouldReturnError?.let { return@map Result.Error(it) }
+            Result.Success(list)
+        }
 
     override suspend fun getCustomer(
         userId: String,

@@ -7,7 +7,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.danzucker.stitchpad.navigation.CustomerListRoute
-import com.danzucker.stitchpad.navigation.DashboardPlaceholderRoute
+import com.danzucker.stitchpad.navigation.DashboardRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
 import org.jetbrains.compose.resources.StringResource
@@ -33,7 +33,7 @@ sealed class BottomNavItem(
         labelRes = Res.string.nav_orders
     )
     data object Dashboard : BottomNavItem(
-        route = DashboardPlaceholderRoute,
+        route = DashboardRoute,
         icon = Icons.Default.Home,
         labelRes = Res.string.nav_dashboard
     )
@@ -44,6 +44,6 @@ sealed class BottomNavItem(
     )
 
     companion object {
-        val all = listOf(Customers, Orders, Dashboard, Settings)
+        val all = listOf(Dashboard, Customers, Orders, Settings)
     }
 }
