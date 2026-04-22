@@ -51,7 +51,7 @@ data class OrderFormRoute(val orderId: String? = null)
 data class OrderDetailRoute(val orderId: String)
 
 @Serializable
-data object DashboardPlaceholderRoute
+data object DashboardRoute
 
 @Serializable
 data object SettingsPlaceholderRoute

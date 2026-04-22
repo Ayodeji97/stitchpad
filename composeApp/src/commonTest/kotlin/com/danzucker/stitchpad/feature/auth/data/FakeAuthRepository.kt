@@ -11,6 +11,12 @@ class FakeAuthRepository : AuthRepository {
     var resetEmailSentTo: String? = null
     private var currentUser: User? = null
 
+    var currentBusinessName: String?
+        get() = currentUser?.businessName
+        set(value) {
+            currentUser = currentUser?.copy(businessName = value)
+        }
+
     override suspend fun signUpWithEmail(
         email: String,
         password: String,
