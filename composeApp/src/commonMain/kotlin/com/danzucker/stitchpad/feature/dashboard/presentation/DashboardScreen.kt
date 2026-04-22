@@ -5,18 +5,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
@@ -41,6 +43,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,25 +58,25 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.dashboard_all_clear
-import stitchpad.composeapp.generated.resources.dashboard_and_more
-import stitchpad.composeapp.generated.resources.dashboard_due_today_title
+import stitchpad.composeapp.generated.resources.dashboard_chip_ready
+import stitchpad.composeapp.generated.resources.dashboard_chip_today
 import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
-import stitchpad.composeapp.generated.resources.dashboard_outstanding_subtitle
-import stitchpad.composeapp.generated.resources.dashboard_outstanding_title
-import stitchpad.composeapp.generated.resources.dashboard_overdue_title
-import stitchpad.composeapp.generated.resources.dashboard_ready_title
-import stitchpad.composeapp.generated.resources.dashboard_see_all
+import stitchpad.composeapp.generated.resources.dashboard_section_todays_work
+import stitchpad.composeapp.generated.resources.dashboard_tile_due_today
+import stitchpad.composeapp.generated.resources.dashboard_tile_outstanding
+import stitchpad.composeapp.generated.resources.dashboard_tile_overdue
+import stitchpad.composeapp.generated.resources.dashboard_tile_ready
 import stitchpad.composeapp.generated.resources.dashboard_welcome_cta
 import stitchpad.composeapp.generated.resources.dashboard_welcome_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_welcome_title
 import kotlin.math.roundToLong
 
-private const val MAX_ROWS_PER_CARD = 3
 private const val THOUSANDS = 1_000L
 private const val MILLIONS = 1_000_000L
+private const val ACCENT_BAR_WIDTH_DP = 3
 
 @Composable
 fun DashboardRoot(
@@ -180,51 +183,285 @@ private fun DashboardContent(
 
         if (state.isAllClear) {
             AllClearBanner()
+        } else {
+            TileGrid(state = state, onAction = onAction)
+            TodaysWorkList(state = state, onAction = onAction)
         }
+    }
+}
 
+/**
+ * Data bundle for a single dashboard tile. Self-hiding logic lives in [TileGrid] —
+ * tiles whose bucket is empty aren't built, so a calm day doesn't render "0 Overdue" noise.
+ */
+private data class TileData(
+    val icon: ImageVector,
+    val valueText: String,
+    val labelText: String,
+    val accent: Color,
+    val background: Color,
+    val onClick: () -> Unit,
+    val valueFontSize: Int = TILE_VALUE_DEFAULT_SP
+)
+
+private const val TILE_VALUE_DEFAULT_SP = 26
+private const val TILE_VALUE_CURRENCY_SP = 20
+
+@Composable
+private fun TileGrid(
+    state: DashboardState,
+    onAction: (DashboardAction) -> Unit
+) {
+    val surface = MaterialTheme.colorScheme.surface
+    val errorBg = DesignTokens.error500.copy(alpha = 0.08f)
+
+    val tiles = buildList {
         if (state.overdue.isNotEmpty()) {
-            OrdersCard(
-                title = stringResource(Res.string.dashboard_overdue_title, state.overdue.size),
-                accentColor = DesignTokens.error500,
-                icon = Icons.Default.Warning,
-                rows = state.overdue,
-                totalCount = state.overdue.size,
-                onRowClick = { onAction(DashboardAction.OnOrderClick(it)) },
-                onSeeAllClick = { onAction(DashboardAction.OnSeeAllClick) }
+            add(
+                TileData(
+                    icon = Icons.Default.Warning,
+                    valueText = state.overdue.size.toString(),
+                    labelText = stringResource(Res.string.dashboard_tile_overdue),
+                    accent = DesignTokens.error500,
+                    background = errorBg,
+                    onClick = { onAction(DashboardAction.OnSeeAllClick) }
+                )
             )
         }
-
         if (state.dueToday.isNotEmpty()) {
-            OrdersCard(
-                title = stringResource(Res.string.dashboard_due_today_title, state.dueToday.size),
-                accentColor = DesignTokens.primary600,
-                icon = Icons.Default.DateRange,
-                rows = state.dueToday,
-                totalCount = state.dueToday.size,
-                onRowClick = { onAction(DashboardAction.OnOrderClick(it)) },
-                onSeeAllClick = { onAction(DashboardAction.OnSeeAllClick) }
+            add(
+                TileData(
+                    icon = Icons.Default.DateRange,
+                    valueText = state.dueToday.size.toString(),
+                    labelText = stringResource(Res.string.dashboard_tile_due_today),
+                    accent = DesignTokens.primary600,
+                    background = surface,
+                    onClick = { onAction(DashboardAction.OnSeeAllClick) }
+                )
             )
         }
-
         if (state.ready.isNotEmpty()) {
-            OrdersCard(
-                title = stringResource(Res.string.dashboard_ready_title, state.ready.size),
-                accentColor = DesignTokens.success500,
-                icon = Icons.Default.CheckCircle,
-                rows = state.ready,
-                totalCount = state.ready.size,
-                onRowClick = { onAction(DashboardAction.OnOrderClick(it)) },
-                onSeeAllClick = { onAction(DashboardAction.OnSeeAllClick) }
+            add(
+                TileData(
+                    icon = Icons.Default.CheckCircle,
+                    valueText = state.ready.size.toString(),
+                    labelText = stringResource(Res.string.dashboard_tile_ready),
+                    accent = DesignTokens.success500,
+                    background = surface,
+                    onClick = { onAction(DashboardAction.OnSeeAllClick) }
+                )
             )
         }
-
         if (state.outstandingOrderCount > 0) {
-            OutstandingCard(
-                amount = state.outstandingAmount,
-                orderCount = state.outstandingOrderCount,
-                onClick = { onAction(DashboardAction.OnOutstandingClick) }
+            val naira = stringResource(
+                Res.string.currency_naira,
+                formatAbbreviated(state.outstandingAmount)
+            )
+            add(
+                TileData(
+                    icon = Icons.Default.Payments,
+                    valueText = naira,
+                    labelText = stringResource(Res.string.dashboard_tile_outstanding),
+                    accent = DesignTokens.primary600,
+                    background = surface,
+                    onClick = { onAction(DashboardAction.OnOutstandingClick) },
+                    valueFontSize = TILE_VALUE_CURRENCY_SP
+                )
             )
         }
+    }
+
+    if (tiles.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+        tiles.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                pair.forEach { tile ->
+                    Tile(tile = tile, modifier = Modifier.weight(1f))
+                }
+                if (pair.size == 1) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Tile(tile: TileData, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
+        color = tile.background,
+        tonalElevation = DesignTokens.elevation1,
+        shadowElevation = DesignTokens.elevation1,
+        modifier = modifier
+            .clip(RoundedCornerShape(DesignTokens.radiusLg))
+            .clickable(onClick = tile.onClick)
+    ) {
+        Box(modifier = Modifier.padding(DesignTokens.space3).fillMaxWidth()) {
+            Icon(
+                imageVector = tile.icon,
+                contentDescription = null,
+                tint = tile.accent.copy(alpha = 0.55f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(18.dp)
+            )
+            Column {
+                Text(
+                    text = tile.valueText,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = androidx.compose.ui.unit.TextUnit(
+                            tile.valueFontSize.toFloat(),
+                            androidx.compose.ui.unit.TextUnitType.Sp
+                        )
+                    ),
+                    fontWeight = FontWeight.ExtraBold,
+                    color = tile.accent
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = tile.labelText.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/** Tag attached to each [DashboardOrderRow] in the unified list to drive colour and chip text. */
+private enum class RowAccent { Overdue, DueToday, Ready }
+
+private data class ListItem(val row: DashboardOrderRow, val accent: RowAccent)
+
+@Composable
+private fun TodaysWorkList(
+    state: DashboardState,
+    onAction: (DashboardAction) -> Unit
+) {
+    val items = buildList {
+        state.overdue.forEach { add(ListItem(it, RowAccent.Overdue)) }
+        state.dueToday.forEach { add(ListItem(it, RowAccent.DueToday)) }
+        state.ready.forEach { add(ListItem(it, RowAccent.Ready)) }
+    }
+    if (items.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+        Text(
+            text = stringResource(Res.string.dashboard_section_todays_work).uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = DesignTokens.space2)
+        )
+        items.forEach { item ->
+            AccentedOrderRow(
+                item = item,
+                onClick = { onAction(DashboardAction.OnOrderClick(item.row.orderId)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccentedOrderRow(item: ListItem, onClick: () -> Unit) {
+    val accentColor = when (item.accent) {
+        RowAccent.Overdue -> DesignTokens.error500
+        RowAccent.DueToday -> DesignTokens.primary600
+        RowAccent.Ready -> DesignTokens.success500
+    }
+    val chipBackground = when (item.accent) {
+        RowAccent.Overdue -> DesignTokens.error500.copy(alpha = 0.12f)
+        RowAccent.DueToday -> DesignTokens.primary500.copy(alpha = 0.12f)
+        RowAccent.Ready -> DesignTokens.success500.copy(alpha = 0.12f)
+    }
+    val chipText = when (item.accent) {
+        RowAccent.Overdue -> item.row.secondaryLabel.orEmpty()
+        RowAccent.DueToday -> stringResource(Res.string.dashboard_chip_today)
+        RowAccent.Ready -> stringResource(Res.string.dashboard_chip_ready)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = DesignTokens.elevation1,
+        shadowElevation = DesignTokens.elevation1,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.radiusLg))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.height(IntrinsicSize.Min)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(ACCENT_BAR_WIDTH_DP.dp)
+                    .fillMaxHeight()
+                    .background(accentColor)
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(
+                        horizontal = DesignTokens.space3,
+                        vertical = DesignTokens.space3
+                    )
+            ) {
+                CustomerAvatar(name = item.row.customerName, size = 36.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.row.customerName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.row.primaryLabel.isNotBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = item.row.primaryLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (chipText.isNotBlank()) {
+                    StatusChip(
+                        text = chipText,
+                        textColor = accentColor,
+                        background = chipBackground
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusChip(text: String, textColor: Color, background: Color) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
+        color = background
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = textColor,
+            modifier = Modifier.padding(
+                horizontal = DesignTokens.space2,
+                vertical = 3.dp
+            )
+        )
     }
 }
 
@@ -253,181 +490,6 @@ private fun DashboardHeader(
                 text = todayDate.formatFriendly(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun OrdersCard(
-    title: String,
-    accentColor: Color,
-    icon: ImageVector,
-    rows: List<DashboardOrderRow>,
-    totalCount: Int,
-    onRowClick: (String) -> Unit,
-    onSeeAllClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = DesignTokens.elevation1,
-        shadowElevation = DesignTokens.elevation1,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(DesignTokens.space4)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = accentColor,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(DesignTokens.space3))
-
-            val visibleRows = rows.take(MAX_ROWS_PER_CARD)
-            visibleRows.forEachIndexed { index, row ->
-                OrderRow(row = row, onClick = { onRowClick(row.orderId) })
-                if (index < visibleRows.lastIndex) {
-                    Spacer(Modifier.height(DesignTokens.space2))
-                }
-            }
-
-            if (totalCount > MAX_ROWS_PER_CARD) {
-                Spacer(Modifier.height(DesignTokens.space3))
-                Text(
-                    text = stringResource(
-                        Res.string.dashboard_and_more,
-                        totalCount - MAX_ROWS_PER_CARD
-                    ) + " · " + stringResource(Res.string.dashboard_see_all),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = DesignTokens.primary600,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onSeeAllClick)
-                        .padding(vertical = DesignTokens.space1)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun OrderRow(
-    row: DashboardOrderRow,
-    onClick: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .clickable(onClick = onClick)
-            .padding(vertical = DesignTokens.space1)
-    ) {
-        CustomerAvatar(name = row.customerName, size = 36.dp)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = row.customerName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            val subtitle = listOfNotNull(
-                row.primaryLabel.takeIf { it.isNotBlank() },
-                row.secondaryLabel
-            ).joinToString(" · ")
-            if (subtitle.isNotBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
-private fun OutstandingCard(
-    amount: Double,
-    orderCount: Int,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = DesignTokens.elevation1,
-        shadowElevation = DesignTokens.elevation1,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusLg))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-            modifier = Modifier.padding(DesignTokens.space4)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(DesignTokens.radiusMd))
-                    .background(DesignTokens.primary50)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Payments,
-                    contentDescription = null,
-                    tint = DesignTokens.primary600,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(
-                        Res.string.dashboard_outstanding_title,
-                        stringResource(Res.string.currency_naira, formatAbbreviated(amount))
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(Res.string.dashboard_outstanding_subtitle, orderCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -498,7 +560,7 @@ private fun WelcomeHero(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(DesignTokens.space5))
         Surface(
@@ -548,18 +610,45 @@ private fun DashboardScreenFilledPreview() {
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
                 overdue = listOf(
+                    DashboardOrderRow("1", "Fola Sunday", "Corset", "4d late")
+                ),
+                dueToday = listOf(
+                    DashboardOrderRow("2", "Bimbo Dann", "Dress")
+                ),
+                ready = listOf(
+                    DashboardOrderRow("3", "Bimbo Dann", "Dress")
+                ),
+                outstandingAmount = 480_000.0,
+                outstandingOrderCount = 1
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun DashboardScreenBusyPreview() {
+    StitchPadTheme {
+        DashboardScreen(
+            state = DashboardState(
+                isLoading = false,
+                businessName = "Ade's Fashions",
+                greeting = Greeting.AFTERNOON,
+                todayDate = LocalDate(2026, 4, 22),
+                overdue = listOf(
                     DashboardOrderRow("1", "Mr. Kola", "Agbada", "2d late"),
                     DashboardOrderRow("2", "Mrs. Ibe", "Blouse", "1d late")
                 ),
                 dueToday = listOf(
                     DashboardOrderRow("3", "Mr. Tunde", "Suit"),
                     DashboardOrderRow("4", "Mrs. Chika", "Dress"),
-                    DashboardOrderRow("5", "Mr. Femi", "Senator"),
-                    DashboardOrderRow("6", "Mrs. Adaeze", "Bridal Gown")
+                    DashboardOrderRow("5", "Mr. Femi", "Senator")
                 ),
-                ready = listOf(DashboardOrderRow("7", "Mrs. Funke", "Senator")),
-                outstandingAmount = 45_000.0,
-                outstandingOrderCount = 7
+                ready = listOf(DashboardOrderRow("6", "Mrs. Funke", "Senator")),
+                outstandingAmount = 145_000.0,
+                outstandingOrderCount = 5
             ),
             onAction = {}
         )
