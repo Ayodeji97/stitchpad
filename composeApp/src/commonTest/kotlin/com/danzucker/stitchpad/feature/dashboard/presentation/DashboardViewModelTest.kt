@@ -20,8 +20,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -61,21 +59,17 @@ class DashboardViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun clockAt(date: LocalDate, hour: Int, minute: Int = 0): Clock {
-        val instant = LocalDateTime(date, LocalTime(hour, minute)).toInstant(testTimeZone)
-        return object : Clock {
-            override fun now(): Instant = instant
-        }
-    }
+    private fun millisAt(date: LocalDate, hour: Int, minute: Int = 0): Long =
+        LocalDateTime(date, LocalTime(hour, minute)).toInstant(testTimeZone).toEpochMilliseconds()
 
     private fun TestScope.createViewModel(
-        clock: Clock = clockAt(today, hour = 9)
+        nowMillis: () -> Long = { millisAt(today, hour = 9) }
     ): DashboardViewModel {
         val vm = DashboardViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
-            clock = clock,
+            nowMillis = nowMillis,
             timeZone = testTimeZone
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -336,21 +330,21 @@ class DashboardViewModelTest {
     @Test
     fun greeting_beforeNoon_isMorning() = runTest {
         signIn()
-        val vm = createViewModel(clock = clockAt(today, hour = 9))
+        val vm = createViewModel(nowMillis = { millisAt(today, hour = 9) })
         assertEquals(Greeting.MORNING, vm.state.value.greeting)
     }
 
     @Test
     fun greeting_afternoon_isAfternoon() = runTest {
         signIn()
-        val vm = createViewModel(clock = clockAt(today, hour = 14))
+        val vm = createViewModel(nowMillis = { millisAt(today, hour = 14) })
         assertEquals(Greeting.AFTERNOON, vm.state.value.greeting)
     }
 
     @Test
     fun greeting_evening_isEvening() = runTest {
         signIn()
-        val vm = createViewModel(clock = clockAt(today, hour = 20))
+        val vm = createViewModel(nowMillis = { millisAt(today, hour = 20) })
         assertEquals(Greeting.EVENING, vm.state.value.greeting)
     }
 

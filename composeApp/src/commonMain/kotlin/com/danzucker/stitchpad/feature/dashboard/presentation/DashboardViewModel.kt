@@ -19,21 +19,23 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
 
+@OptIn(ExperimentalTime::class)
 class DashboardViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
-    private val clock: Clock = Clock.System,
+    private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) : ViewModel() {
 
@@ -101,7 +103,7 @@ class DashboardViewModel(
                     customersResult is Result.Error -> customersResult.error.toDashboardUiText()
                     else -> null
                 }
-                val today = clock.now().toLocalDateTime(timeZone).date
+                val today = Instant.fromEpochMilliseconds(nowMillis()).toLocalDateTime(timeZone).date
                 val buckets = computeBuckets(orders, today)
                 val isBrandNew = orders.isEmpty() && customers.isEmpty()
                 val isAllClear = !isBrandNew && buckets.isAllEmpty()
@@ -159,7 +161,7 @@ class DashboardViewModel(
     }
 
     private fun computeGreeting(): Greeting {
-        val hour = clock.now().toLocalDateTime(timeZone).hour
+        val hour = Instant.fromEpochMilliseconds(nowMillis()).toLocalDateTime(timeZone).hour
         return when {
             hour < MORNING_CUTOFF_HOUR -> Greeting.MORNING
             hour < AFTERNOON_CUTOFF_HOUR -> Greeting.AFTERNOON
