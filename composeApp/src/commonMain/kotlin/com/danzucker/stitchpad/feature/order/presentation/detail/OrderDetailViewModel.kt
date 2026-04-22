@@ -5,9 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
+import com.danzucker.stitchpad.core.sharing.ReceiptData
+import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +21,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.receipt_share_error
 
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
@@ -38,6 +44,7 @@ class OrderDetailViewModel(
             if (!hasStartedObserving) {
                 hasStartedObserving = true
                 observeOrder()
+                loadUser()
             }
         }
         .stateIn(
@@ -46,7 +53,7 @@ class OrderDetailViewModel(
             initialValue = OrderDetailState()
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: OrderDetailAction) {
         when (action) {
             OrderDetailAction.OnEditClick -> {
@@ -78,8 +85,46 @@ class OrderDetailViewModel(
                 }
             }
             OrderDetailAction.OnShareClick -> {
-                val order = _state.value.order ?: return
-                viewModelScope.launch { receiptSharer.shareReceipt(order) }
+                _state.update { it.copy(showShareSheet = true) }
+            }
+            OrderDetailAction.OnShareAsImageClick -> {
+                _state.update { it.copy(showShareSheet = false) }
+                shareReceipt { receiptData -> receiptSharer.shareReceiptAsImage(receiptData) }
+            }
+            OrderDetailAction.OnShareAsPdfClick -> {
+                _state.update { it.copy(showShareSheet = false) }
+                shareReceipt { receiptData -> receiptSharer.shareReceiptAsPdf(receiptData) }
+            }
+            OrderDetailAction.OnDismissShareSheet -> {
+                _state.update { it.copy(showShareSheet = false) }
+            }
+            OrderDetailAction.OnRecordPaymentClick -> {
+                _state.update {
+                    it.copy(
+                        showRecordPaymentDialog = true,
+                        paymentAmountInput = "",
+                        wasPaymentCapped = false,
+                    )
+                }
+            }
+            is OrderDetailAction.OnPaymentAmountChange -> {
+                val rawDigits = action.digits.filter { ch -> ch.isDigit() }.trimStart('0')
+                val capped = capPaymentAmountDigits(action.digits)
+                // Track capping explicitly so the UI can distinguish "user typed exactly
+                // the balance" (no helper text) from "input was clamped" (show helper).
+                val didCap = rawDigits.isNotEmpty() && rawDigits != capped
+                _state.update { it.copy(paymentAmountInput = capped, wasPaymentCapped = didCap) }
+            }
+            OrderDetailAction.OnMarkPaidInFull -> markPaidInFull()
+            OrderDetailAction.OnConfirmRecordPayment -> recordPayment()
+            OrderDetailAction.OnDismissRecordPayment -> {
+                _state.update {
+                    it.copy(
+                        showRecordPaymentDialog = false,
+                        paymentAmountInput = "",
+                        wasPaymentCapped = false,
+                    )
+                }
             }
             OrderDetailAction.OnBackClick -> {
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
@@ -87,6 +132,34 @@ class OrderDetailViewModel(
             OrderDetailAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+        }
+    }
+
+    private fun shareReceipt(share: suspend (ReceiptData) -> Unit) {
+        val order = _state.value.order ?: return
+        val user = _state.value.user ?: return
+        viewModelScope.launch {
+            try {
+                val garmentNames = order.items
+                    .map { it.garmentType }
+                    .distinct()
+                    .associate { it to garmentDisplayNameAsync(it) }
+                val receiptData = ReceiptFormatter.format(order, user, garmentNames)
+                share(receiptData)
+            } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+                _state.update {
+                    it.copy(
+                        errorMessage = UiText.StringResourceText(Res.string.receipt_share_error)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun loadUser() {
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser()
+            _state.update { it.copy(user = user) }
         }
     }
 
@@ -131,6 +204,53 @@ class OrderDetailViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val result = orderRepository.updateOrderStatus(userId, orderId, newStatus)) {
                 is Result.Success -> { /* Snapshot observer will auto-update the state */ }
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = result.error.toOrderUiText())
+                }
+            }
+        }
+    }
+
+    // Pre-caps input at the remaining balance so the dialog's helper text can explain the clamp
+    // without waiting for submission.
+    private fun capPaymentAmountDigits(digits: String): String {
+        val remaining = _state.value.order?.balanceRemaining ?: return digits
+        return capPaymentDigits(digits, remaining)
+    }
+
+    private fun markPaidInFull() {
+        val order = _state.value.order ?: return
+        submitPayment(order.balanceRemaining)
+    }
+
+    private fun recordPayment() {
+        val amount = _state.value.paymentAmountInput.trimStart('0').toDoubleOrNull() ?: return
+        submitPayment(amount)
+    }
+
+    private fun submitPayment(amountJustPaid: Double) {
+        val order = _state.value.order ?: return
+        if (amountJustPaid <= 0.0) return
+        val (newDeposit, newBalance) = computeRecordedPayment(
+            currentDeposit = order.depositPaid,
+            totalPrice = order.totalPrice,
+            amountJustPaid = amountJustPaid,
+        )
+        val updatedOrder = order.copy(
+            depositPaid = newDeposit,
+            balanceRemaining = newBalance,
+        )
+        _state.update {
+            it.copy(
+                showRecordPaymentDialog = false,
+                paymentAmountInput = "",
+                wasPaymentCapped = false,
+            )
+        }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val result = orderRepository.updateOrder(userId, updatedOrder)) {
+                is Result.Success -> _events.send(OrderDetailEvent.PaymentRecorded)
                 is Result.Error -> _state.update {
                     it.copy(errorMessage = result.error.toOrderUiText())
                 }

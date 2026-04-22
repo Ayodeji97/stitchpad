@@ -32,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -40,15 +41,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,10 +61,13 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.NairaAmountField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -95,6 +102,16 @@ import stitchpad.composeapp.generated.resources.order_overdue_label
 import stitchpad.composeapp.generated.resources.order_priority_normal
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
+import stitchpad.composeapp.generated.resources.order_record_payment_amount_label
+import stitchpad.composeapp.generated.resources.order_record_payment_balance_remaining
+import stitchpad.composeapp.generated.resources.order_record_payment_button
+import stitchpad.composeapp.generated.resources.order_record_payment_cancel
+import stitchpad.composeapp.generated.resources.order_record_payment_capped_helper
+import stitchpad.composeapp.generated.resources.order_record_payment_confirm
+import stitchpad.composeapp.generated.resources.order_record_payment_new_balance
+import stitchpad.composeapp.generated.resources.order_record_payment_paid_in_full
+import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_success
+import stitchpad.composeapp.generated.resources.order_record_payment_title
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -103,6 +120,11 @@ import stitchpad.composeapp.generated.resources.order_status_update_cancel
 import stitchpad.composeapp.generated.resources.order_status_update_confirm
 import stitchpad.composeapp.generated.resources.order_status_update_current
 import stitchpad.composeapp.generated.resources.order_status_update_title
+import stitchpad.composeapp.generated.resources.share_as_image_description
+import stitchpad.composeapp.generated.resources.share_as_image_title
+import stitchpad.composeapp.generated.resources.share_as_pdf_description
+import stitchpad.composeapp.generated.resources.share_as_pdf_title
+import stitchpad.composeapp.generated.resources.share_receipt_title
 import kotlin.time.Clock
 
 @Composable
@@ -114,13 +136,18 @@ fun OrderDetailRoot(
     val viewModel: OrderDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
 
+    val paymentRecordedMessage = stringResource(Res.string.order_record_payment_snackbar_success)
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is OrderDetailEvent.NavigateToOrderForm -> onNavigateToOrderForm(event.orderId)
             is OrderDetailEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
             OrderDetailEvent.NavigateBack -> onNavigateBack()
             OrderDetailEvent.OrderDeleted -> onNavigateBack()
+            OrderDetailEvent.PaymentRecorded -> {
+                snackbarScope.launch { snackbarHostState.showSnackbar(paymentRecordedMessage) }
+            }
         }
     }
 
@@ -359,6 +386,222 @@ fun OrderDetailScreen(
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
+
+    // Share receipt bottom sheet
+    if (state.showShareSheet) {
+        ShareReceiptBottomSheet(
+            onShareAsImage = { onAction(OrderDetailAction.OnShareAsImageClick) },
+            onShareAsPdf = { onAction(OrderDetailAction.OnShareAsPdfClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissShareSheet) }
+        )
+    }
+
+    // Record payment dialog
+    if (state.showRecordPaymentDialog && state.order != null) {
+        RecordPaymentDialog(
+            balanceRemaining = state.order.balanceRemaining,
+            amountInput = state.paymentAmountInput,
+            wasCapped = state.wasPaymentCapped,
+            onAmountChange = { onAction(OrderDetailAction.OnPaymentAmountChange(it)) },
+            onMarkPaidInFull = { onAction(OrderDetailAction.OnMarkPaidInFull) },
+            onConfirm = { onAction(OrderDetailAction.OnConfirmRecordPayment) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissRecordPayment) }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShareReceiptBottomSheet(
+    onShareAsImage: () -> Unit,
+    onShareAsPdf: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = DesignTokens.radiusXl, topEnd = DesignTokens.radiusXl)
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                bottom = DesignTokens.space8
+            )
+        ) {
+            Text(
+                text = stringResource(Res.string.share_receipt_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = DesignTokens.space4)
+            )
+
+            // Share as Image option
+            ShareOption(
+                icon = "🖼️",
+                title = stringResource(Res.string.share_as_image_title),
+                description = stringResource(Res.string.share_as_image_description),
+                onClick = onShareAsImage
+            )
+
+            Spacer(Modifier.height(DesignTokens.space2))
+
+            // Share as PDF option
+            ShareOption(
+                icon = "📄",
+                title = stringResource(Res.string.share_as_pdf_title),
+                description = stringResource(Res.string.share_as_pdf_description),
+                onClick = onShareAsPdf
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShareOption(
+    icon: String,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(DesignTokens.space3)
+        ) {
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.headlineMedium,
+                // Icon is purely decorative — the adjacent title/description carry the
+                // meaning. Clear semantics so TalkBack/VoiceOver don't read the emoji name.
+                modifier = Modifier
+                    .padding(end = DesignTokens.space3)
+                    .clearAndSetSemantics { }
+            )
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordPaymentDialog(
+    balanceRemaining: Double,
+    amountInput: String,
+    wasCapped: Boolean,
+    onAmountChange: (String) -> Unit,
+    onMarkPaidInFull: () -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val amount = amountInput.toLongOrNull() ?: 0L
+    val newBalance = (balanceRemaining - amount.toDouble()).coerceAtLeast(0.0)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.order_record_payment_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+                Text(
+                    text = stringResource(
+                        Res.string.order_record_payment_balance_remaining,
+                        "₦${formatPrice(balanceRemaining)}"
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                NairaAmountField(
+                    value = amountInput,
+                    onValueChange = onAmountChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(Res.string.order_record_payment_amount_label)) },
+                    supportingText = if (wasCapped) {
+                        {
+                            Text(
+                                text = stringResource(Res.string.order_record_payment_capped_helper),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        null
+                    }
+                )
+                if (amount > 0) {
+                    Text(
+                        text = stringResource(
+                            Res.string.order_record_payment_new_balance,
+                            "₦${formatPrice(newBalance)}"
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (newBalance <= 0.0) {
+                            DesignTokens.success500
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
+                TextButton(
+                    onClick = onMarkPaidInFull,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(
+                        text = stringResource(Res.string.order_record_payment_paid_in_full),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = amount > 0L,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(DesignTokens.radiusMd)
+            ) {
+                Text(
+                    text = stringResource(Res.string.order_record_payment_confirm),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.order_record_payment_cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        shape = RoundedCornerShape(DesignTokens.radiusXl),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 @Composable
@@ -542,6 +785,24 @@ private fun OrderDetailContent(
                         DesignTokens.success500
                     }
                 )
+                if (order.balanceRemaining > 0) {
+                    Spacer(Modifier.height(DesignTokens.space3))
+                    Button(
+                        onClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.order_record_payment_button),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
 
@@ -779,24 +1040,4 @@ private fun statusColorAndLabel(status: OrderStatus): Pair<Color, String> = when
     OrderStatus.IN_PROGRESS -> DesignTokens.statusCutting to stringResource(Res.string.order_status_in_progress)
     OrderStatus.READY -> DesignTokens.statusReady to stringResource(Res.string.order_status_ready)
     OrderStatus.DELIVERED -> DesignTokens.statusDelivered to stringResource(Res.string.order_status_delivered)
-}
-
-private fun formatPrice(price: Double): String {
-    val long = price.toLong()
-    if (price == long.toDouble()) return addThousandsSeparator(long.toString())
-    val parts = price.toString().split(".")
-    val decimal = (parts.getOrElse(1) { "00" } + "00").take(2)
-    return addThousandsSeparator(parts[0]) + "." + decimal
-}
-
-private fun addThousandsSeparator(intPart: String): String {
-    val negative = intPart.startsWith("-")
-    val digits = if (negative) intPart.drop(1) else intPart
-    val result = buildString {
-        digits.reversed().forEachIndexed { i, c ->
-            if (i > 0 && i % 3 == 0) append(',')
-            append(c)
-        }
-    }.reversed()
-    return if (negative) "-$result" else result
 }

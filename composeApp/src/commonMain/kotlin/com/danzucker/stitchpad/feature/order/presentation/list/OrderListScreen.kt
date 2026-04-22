@@ -68,6 +68,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -539,26 +540,6 @@ private fun PriorityBadge(priority: OrderPriority) {
             modifier = Modifier.padding(horizontal = DesignTokens.space2, vertical = 2.dp)
         )
     }
-}
-
-private fun formatPrice(price: Double): String {
-    val long = price.toLong()
-    if (price == long.toDouble()) return addThousandsSeparator(long.toString())
-    val parts = price.toString().split(".")
-    val decimal = (parts.getOrElse(1) { "00" } + "00").take(2)
-    return addThousandsSeparator(parts[0]) + "." + decimal
-}
-
-private fun addThousandsSeparator(intPart: String): String {
-    val negative = intPart.startsWith("-")
-    val digits = if (negative) intPart.drop(1) else intPart
-    val result = buildString {
-        digits.reversed().forEachIndexed { i, c ->
-            if (i > 0 && i % 3 == 0) append(',')
-            append(c)
-        }
-    }.reversed()
-    return if (negative) "-$result" else result
 }
 
 @Suppress("UnusedPrivateMember")

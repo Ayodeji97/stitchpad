@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -130,6 +133,7 @@ fun MeasurementFormScreen(
     }
     val unitSuffix = if (state.unit == MeasurementUnit.INCHES) "in" else "cm"
     val canSave = state.gender != null && !state.isLoading
+    val focusManager = LocalFocusManager.current
 
     val pagerState = rememberPagerState(pageCount = { state.sections.size })
 
@@ -181,6 +185,9 @@ fun MeasurementFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
         ) {
             // ── Fixed header ─────────────────────────────────────────────
             Column(modifier = Modifier.padding(horizontal = DesignTokens.space4)) {
