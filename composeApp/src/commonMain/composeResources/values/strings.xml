@@ -440,6 +440,18 @@
     <string name="share_as_pdf_description">Best for printing &amp; email</string>
     <string name="receipt_share_error">Could not share receipt. Please try again.</string>
 
+    <!-- Record payment dialog -->
+    <string name="order_record_payment_button">Record Payment</string>
+    <string name="order_record_payment_title">Record Payment</string>
+    <string name="order_record_payment_balance_remaining">Balance remaining: %1$s</string>
+    <string name="order_record_payment_amount_label">Amount received</string>
+    <string name="order_record_payment_new_balance">New balance: %1$s</string>
+    <string name="order_record_payment_capped_helper">Capped at remaining balance</string>
+    <string name="order_record_payment_paid_in_full">Mark as paid in full</string>
+    <string name="order_record_payment_confirm">Record</string>
+    <string name="order_record_payment_cancel">Cancel</string>
+    <string name="order_record_payment_snackbar_success">Payment recorded</string>
+
     <!-- Currency -->
     <string name="currency_naira">₦%1$s</string>
 </resources>

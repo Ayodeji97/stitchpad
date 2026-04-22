@@ -5,4 +5,5 @@ sealed interface OrderDetailEvent {
     data class NavigateToCustomerDetail(val customerId: String) : OrderDetailEvent
     data object NavigateBack : OrderDetailEvent
     data object OrderDeleted : OrderDetailEvent
+    data object PaymentRecorded : OrderDetailEvent
 }

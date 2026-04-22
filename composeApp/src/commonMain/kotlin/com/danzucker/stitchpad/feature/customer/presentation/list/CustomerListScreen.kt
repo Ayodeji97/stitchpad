@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -61,7 +63,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -314,6 +318,7 @@ private fun CustomerSearchField(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
     TextField(
         value = query,
         onValueChange = onQueryChange,
@@ -346,6 +351,10 @@ private fun CustomerSearchField(
         },
         singleLine = true,
         shape = RoundedCornerShape(DesignTokens.radiusLg),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { focusManager.clearFocus() }
+        ),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,

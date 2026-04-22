@@ -12,6 +12,9 @@ data class OrderDetailState(
     val showDeleteDialog: Boolean = false,
     val showStatusUpdateDialog: Boolean = false,
     val showShareSheet: Boolean = false,
+    val showRecordPaymentDialog: Boolean = false,
+    val paymentAmountInput: String = "",
+    val wasPaymentCapped: Boolean = false,
     val selectedNewStatus: OrderStatus? = null,
     val errorMessage: UiText? = null
 )

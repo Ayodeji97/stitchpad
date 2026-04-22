@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.customer.presentation.form
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -116,6 +119,7 @@ fun CustomerFormScreen(
     } else {
         stringResource(Res.string.customer_form_title_add)
     }
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
         topBar = {
@@ -149,6 +153,9 @@ fun CustomerFormScreen(
             verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
             modifier = Modifier
                 .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
                 .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4)
