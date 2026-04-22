@@ -16,14 +16,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -123,11 +124,12 @@ fun DashboardScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onAction(DashboardAction.OnNewOrderClick) },
+                shape = CircleShape,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.shadow(
                     elevation = 12.dp,
-                    shape = RoundedCornerShape(DesignTokens.radiusLg),
+                    shape = CircleShape,
                     spotColor = DesignTokens.primary500
                 )
             ) {
@@ -199,6 +201,7 @@ private data class TileData(
     val valueText: String,
     val labelText: String,
     val accent: Color,
+    val background: Color,
     val onClick: () -> Unit,
     val valueFontSize: Int = TILE_VALUE_DEFAULT_SP
 )
@@ -211,14 +214,18 @@ private fun TileGrid(
     state: DashboardState,
     onAction: (DashboardAction) -> Unit
 ) {
+    val surface = MaterialTheme.colorScheme.surface
+    val overdueBackground = DesignTokens.error500.copy(alpha = 0.08f)
+
     val tiles = buildList {
         if (state.overdue.isNotEmpty()) {
             add(
                 TileData(
-                    icon = Icons.Default.Warning,
+                    icon = Icons.Default.Error,
                     valueText = state.overdue.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_overdue),
                     accent = DesignTokens.error500,
+                    background = overdueBackground,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -226,10 +233,11 @@ private fun TileGrid(
         if (state.dueToday.isNotEmpty()) {
             add(
                 TileData(
-                    icon = Icons.Default.DateRange,
+                    icon = Icons.Default.Today,
                     valueText = state.dueToday.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_due_today),
                     accent = DesignTokens.primary600,
+                    background = surface,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -241,6 +249,7 @@ private fun TileGrid(
                     valueText = state.ready.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_ready),
                     accent = DesignTokens.success500,
+                    background = surface,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -256,6 +265,7 @@ private fun TileGrid(
                     valueText = naira,
                     labelText = stringResource(Res.string.dashboard_tile_outstanding),
                     accent = DesignTokens.primary600,
+                    background = surface,
                     onClick = { onAction(DashboardAction.OnOutstandingClick) },
                     valueFontSize = TILE_VALUE_CURRENCY_SP
                 )
@@ -289,7 +299,7 @@ private fun TileGrid(
 private fun Tile(tile: TileData, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
+        color = tile.background,
         tonalElevation = DesignTokens.elevation1,
         shadowElevation = DesignTokens.elevation1,
         modifier = modifier
@@ -305,10 +315,10 @@ private fun Tile(tile: TileData, modifier: Modifier = Modifier) {
             Icon(
                 imageVector = tile.icon,
                 contentDescription = null,
-                tint = tile.accent.copy(alpha = 0.75f),
+                tint = tile.accent,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(18.dp)
+                    .size(20.dp)
             )
             Column {
                 Text(
