@@ -122,7 +122,7 @@ jobs:
           reporter: java-junit
 
       - name: Coverage PR comment
-        uses: mi-kas/kover-report@v1
+        uses: mi-kas/kover-report@v2
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         with:
           path: composeApp/build/reports/kover/report.xml
