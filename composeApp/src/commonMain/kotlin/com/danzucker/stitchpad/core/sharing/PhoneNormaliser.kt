@@ -31,11 +31,19 @@ internal fun buildWhatsAppUrl(phone: String, message: String): String {
     return "https://wa.me/$normalised?text=$encoded"
 }
 
+// RFC 3986 unreserved set is ASCII-only. Char.isLetterOrDigit() is Unicode-aware
+// and would let Yoruba/diacritic name characters (Adérónké, Olúwatóyìn, etc.)
+// pass through unencoded — wa.me rejects those, so we restrict to ASCII here
+// and percent-encode every non-ASCII byte.
+private fun Char.isAsciiUnreserved(): Boolean =
+    (this in 'A'..'Z') || (this in 'a'..'z') || (this in '0'..'9') ||
+        this == '-' || this == '_' || this == '.' || this == '~'
+
 private fun urlEncode(text: String): String {
     val builder = StringBuilder(text.length)
     for (ch in text) {
         when {
-            ch.isLetterOrDigit() || ch == '-' || ch == '_' || ch == '.' || ch == '~' -> builder.append(ch)
+            ch.isAsciiUnreserved() -> builder.append(ch)
             ch == ' ' -> builder.append("%20")
             else -> {
                 val bytes = ch.toString().encodeToByteArray()
