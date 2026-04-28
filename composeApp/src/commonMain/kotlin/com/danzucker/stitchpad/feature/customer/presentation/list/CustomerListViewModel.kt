@@ -190,9 +190,15 @@ class CustomerListViewModel(
                         .filter { it.status != OrderStatus.DELIVERED }
                         .groupingBy { it.customerId }
                         .eachCount()
-                    if (!_state.value.ordersLoaded) {
-                        _state.update { it.copy(ordersLoaded = true) }
-                    }
+                }
+                // Flip ordersLoaded on Error too — otherwise an offline / permission /
+                // transient failure leaves customer deletion permanently blocked behind
+                // the "Loading order data…" snackbar. We fall back to an empty
+                // activeOrderCountByCustomerId, which lets deletes proceed; the
+                // backend enforces final consistency on whether an order references
+                // the customer.
+                if (!_state.value.ordersLoaded) {
+                    _state.update { it.copy(ordersLoaded = true) }
                 }
             }
         }

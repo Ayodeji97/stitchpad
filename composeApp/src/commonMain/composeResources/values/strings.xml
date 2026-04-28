@@ -589,5 +589,4 @@
     <string name="goals_setup_save">Save goal</string>
     <string name="goals_setup_back_cd">Back</string>
     <string name="goals_setup_error_save">Couldn&apos;t save your goal. Check your connection and try again.</string>
-    <string name="goals_setup_saved">Goal saved</string>
 </resources>

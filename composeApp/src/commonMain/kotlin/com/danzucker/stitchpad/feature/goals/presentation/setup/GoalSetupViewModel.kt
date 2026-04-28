@@ -92,10 +92,7 @@ class GoalSetupViewModel(
             )
             _state.update { it.copy(isSaving = false) }
             when (result) {
-                is Result.Success -> {
-                    emit(GoalSetupEvent.GoalSaved)
-                    emit(GoalSetupEvent.NavigateBack)
-                }
+                is Result.Success -> emit(GoalSetupEvent.NavigateBack)
                 is Result.Error -> _state.update {
                     it.copy(
                         errorMessage = UiText.StringResourceText(Res.string.goals_setup_error_save)

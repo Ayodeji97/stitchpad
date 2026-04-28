@@ -65,7 +65,6 @@ fun GoalSetupRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             GoalSetupEvent.NavigateBack -> onNavigateBack()
-            GoalSetupEvent.GoalSaved -> Unit
         }
     }
 

@@ -31,27 +31,26 @@ internal fun buildWhatsAppUrl(phone: String, message: String): String {
     return "https://wa.me/$normalised?text=$encoded"
 }
 
-// RFC 3986 unreserved set is ASCII-only. Char.isLetterOrDigit() is Unicode-aware
-// and would let Yoruba/diacritic name characters (Adérónké, Olúwatóyìn, etc.)
-// pass through unencoded — wa.me rejects those, so we restrict to ASCII here
-// and percent-encode every non-ASCII byte.
-private fun Char.isAsciiUnreserved(): Boolean =
-    (this in 'A'..'Z') || (this in 'a'..'z') || (this in '0'..'9') ||
-        this == '-' || this == '_' || this == '.' || this == '~'
+// RFC 3986 unreserved is ASCII-only: A-Z a-z 0-9 - _ . ~. Anything else gets
+// percent-encoded as UTF-8 bytes. Encoding the whole string to UTF-8 once and
+// iterating bytes (rather than Kotlin Chars) correctly handles surrogate pairs
+// — emoji and other non-BMP characters would otherwise split into unpaired
+// surrogates whose per-Char encodeToByteArray() yields invalid UTF-8.
+private fun isAsciiUnreservedByte(b: Int): Boolean =
+    (b in 'A'.code..'Z'.code) || (b in 'a'.code..'z'.code) || (b in '0'.code..'9'.code) ||
+        b == '-'.code || b == '_'.code || b == '.'.code || b == '~'.code
 
 private fun urlEncode(text: String): String {
-    val builder = StringBuilder(text.length)
-    for (ch in text) {
+    val bytes = text.encodeToByteArray()
+    val builder = StringBuilder(bytes.size)
+    for (byte in bytes) {
+        val v = byte.toInt() and 0xFF
         when {
-            ch.isAsciiUnreserved() -> builder.append(ch)
-            ch == ' ' -> builder.append("%20")
+            isAsciiUnreservedByte(v) -> builder.append(v.toChar())
+            v == ' '.code -> builder.append("%20")
             else -> {
-                val bytes = ch.toString().encodeToByteArray()
-                for (b in bytes) {
-                    builder.append('%')
-                    val v = b.toInt() and 0xFF
-                    builder.append(v.toString(HEX_RADIX).padStart(2, '0').uppercase())
-                }
+                builder.append('%')
+                builder.append(v.toString(HEX_RADIX).padStart(2, '0').uppercase())
             }
         }
     }

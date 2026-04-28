@@ -47,4 +47,14 @@ class PhoneNormaliserTest {
         val url = buildWhatsAppUrl(phone = "+2348031234567", message = "₦100")
         assertTrue(url.endsWith("?text=%E2%82%A6100"), "got=$url")
     }
+
+    @Test
+    fun buildWhatsAppUrl_percentEncodesSurrogatePairEmoji() {
+        // '💍' = U+1F48D, encoded as UTF-8 bytes 0xF0 0x9F 0x92 0x8D.
+        // In a Kotlin String it's a surrogate pair (D83D DC8D). Iterating by
+        // Char would split them and corrupt the UTF-8 encoding; iterating the
+        // whole-string UTF-8 byte array handles it correctly.
+        val url = buildWhatsAppUrl(phone = "+2348031234567", message = "💍")
+        assertTrue(url.endsWith("?text=%F0%9F%92%8D"), "got=$url")
+    }
 }
