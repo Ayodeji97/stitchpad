@@ -9,7 +9,8 @@ data class DashboardOrderRow(
     val orderId: String,
     val customerName: String,
     val primaryLabel: String,
-    val secondaryLabel: String? = null
+    /** Positive number of days the order is overdue, or null when not overdue. */
+    val daysLate: Int? = null
 )
 
 data class DashboardState(

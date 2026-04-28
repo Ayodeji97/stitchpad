@@ -56,6 +56,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.dashboard_all_clear
 import stitchpad.composeapp.generated.resources.dashboard_and_more
+import stitchpad.composeapp.generated.resources.dashboard_days_late
 import stitchpad.composeapp.generated.resources.dashboard_due_today_title
 import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
@@ -116,22 +117,29 @@ fun DashboardScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (DashboardAction) -> Unit
 ) {
+    // FAB is hidden during the brand-new and loading states. Brand-new shows the WelcomeHero
+    // ("Add your first customer") and the Order form requires an existing customer; surfacing
+    // the FAB there would route the user into a dead end. Loading is suppressed too so the FAB
+    // doesn't briefly flash before the first state emission resolves.
+    val showFab = !state.isBrandNew && !state.isLoading
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onAction(DashboardAction.OnNewOrderClick) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(DesignTokens.radiusLg),
-                    spotColor = DesignTokens.primary500
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.dashboard_fab_cd)
-                )
+            if (showFab) {
+                FloatingActionButton(
+                    onClick = { onAction(DashboardAction.OnNewOrderClick) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(DesignTokens.radiusLg),
+                        spotColor = DesignTokens.primary500
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(Res.string.dashboard_fab_cd)
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -349,9 +357,11 @@ private fun OrderRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val daysLateLabel = row.daysLate
+                ?.let { stringResource(Res.string.dashboard_days_late, it) }
             val subtitle = listOfNotNull(
                 row.primaryLabel.takeIf { it.isNotBlank() },
-                row.secondaryLabel
+                daysLateLabel
             ).joinToString(" · ")
             if (subtitle.isNotBlank()) {
                 Text(
@@ -548,8 +558,8 @@ private fun DashboardScreenFilledPreview() {
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
                 overdue = listOf(
-                    DashboardOrderRow("1", "Mr. Kola", "Agbada", "2d late"),
-                    DashboardOrderRow("2", "Mrs. Ibe", "Blouse", "1d late")
+                    DashboardOrderRow("1", "Mr. Kola", "Agbada", daysLate = 2),
+                    DashboardOrderRow("2", "Mrs. Ibe", "Blouse", daysLate = 1)
                 ),
                 dueToday = listOf(
                     DashboardOrderRow("3", "Mr. Tunde", "Suit"),
