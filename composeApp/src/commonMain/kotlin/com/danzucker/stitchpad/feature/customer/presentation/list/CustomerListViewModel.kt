@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.customer_delete_orders_load_failed
 import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_load
 
 class CustomerListViewModel(
@@ -143,12 +144,18 @@ class CustomerListViewModel(
         val current = _state.value
         val customer = current.customerToDelete ?: return
 
-        // Race guard #1: the orders flow hasn't emitted yet, so we don't actually know
-        // whether this customer has active orders. Refuse with a snackbar instead of
-        // deleting on a stale (empty) count. Dialog stays open so the user can retry.
+        // Race guard #1: we don't yet have a trustworthy active-order count for this customer
+        // (orders flow hasn't emitted Success). Refuse with a snackbar so we don't orphan
+        // non-delivered orders by deleting on a stale empty count. The two failure modes get
+        // distinct copy: still-loading vs. load-failed actionable for the user.
         if (!current.ordersLoaded) {
+            val message = if (current.ordersLoadFailed) {
+                Res.string.customer_delete_orders_load_failed
+            } else {
+                Res.string.customer_delete_pending_orders_load
+            }
             _state.update {
-                it.copy(errorMessage = UiText.StringResourceText(Res.string.customer_delete_pending_orders_load))
+                it.copy(errorMessage = UiText.StringResourceText(message))
             }
             return
         }
@@ -185,20 +192,23 @@ class CustomerListViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             orderRepository.observeOrders(userId).collect { result ->
-                if (result is Result.Success) {
-                    activeOrderCountByCustomerId = result.data
-                        .filter { it.status != OrderStatus.DELIVERED }
-                        .groupingBy { it.customerId }
-                        .eachCount()
-                }
-                // Flip ordersLoaded on Error too — otherwise an offline / permission /
-                // transient failure leaves customer deletion permanently blocked behind
-                // the "Loading order data…" snackbar. We fall back to an empty
-                // activeOrderCountByCustomerId, which lets deletes proceed; the
-                // backend enforces final consistency on whether an order references
-                // the customer.
-                if (!_state.value.ordersLoaded) {
-                    _state.update { it.copy(ordersLoaded = true) }
+                when (result) {
+                    is Result.Success -> {
+                        activeOrderCountByCustomerId = result.data
+                            .filter { it.status != OrderStatus.DELIVERED }
+                            .groupingBy { it.customerId }
+                            .eachCount()
+                        _state.update { it.copy(ordersLoaded = true, ordersLoadFailed = false) }
+                    }
+                    is Result.Error -> {
+                        // Don't flip ordersLoaded — `activeOrderCountByCustomerId` is still
+                        // empty/stale, and FirebaseCustomerRepository.deleteCustomer is a single-
+                        // doc delete with no cascade, so allowing deletion here would orphan any
+                        // active orders on the customer. ordersLoadFailed surfaces a specific
+                        // snackbar so the user understands why delete is blocked, distinct from
+                        // the "still loading" first-emission case.
+                        _state.update { it.copy(ordersLoadFailed = true) }
+                    }
                 }
             }
         }

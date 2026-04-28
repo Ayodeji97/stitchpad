@@ -28,7 +28,11 @@ actual class WhatsAppLauncher {
                         nsUrl,
                         options = emptyMap<Any?, Any?>(),
                         completionHandler = { success ->
-                            cont.resume(success)
+                            // The iOS callback can fire after the coroutine has been
+                            // cancelled (no public iOS API to cancel an in-flight
+                            // openURL). Guard with isActive so we don't resume an
+                            // already-cancelled continuation.
+                            if (cont.isActive) cont.resume(success)
                         }
                     )
                 }

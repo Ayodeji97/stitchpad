@@ -117,6 +117,8 @@
     <string name="customer_delete_blocked_dismiss">Got it</string>
     <!-- Shown when the user confirms a delete before the orders flow has emitted, so we don't yet know if the customer has active orders. -->
     <string name="customer_delete_pending_orders_load">Loading order data — please try again in a moment.</string>
+    <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
+    <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
     <!-- Customer form screen -->
     <string name="customer_form_title_add">Add Customer</string>

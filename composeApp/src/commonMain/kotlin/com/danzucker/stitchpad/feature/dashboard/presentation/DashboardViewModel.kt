@@ -409,18 +409,27 @@ class DashboardViewModel(
     ): List<ReconnectCandidate> {
         if (customers.isEmpty()) return emptyList()
 
-        val activeOrderCustomerIds = orders
-            .filter { it.status != OrderStatus.DELIVERED }
-            .map { it.customerId }
-            .toSet()
+        val activeOrderCustomerIds = HashSet<String>(orders.size)
+        // Keys present in `mostRecentByCustomer` indicate the customer has any order history;
+        // the value is the max `updatedAt`. Tracking presence + max in one pass replaces the
+        // previous O(customers × orders) `orders.filter { it.customerId == customer.id }`.
+        val mostRecentByCustomer = HashMap<String, Long>(customers.size)
+        for (order in orders) {
+            if (order.status != OrderStatus.DELIVERED) {
+                activeOrderCustomerIds.add(order.customerId)
+            }
+            val previous = mostRecentByCustomer[order.customerId]
+            if (previous == null || order.updatedAt > previous) {
+                mostRecentByCustomer[order.customerId] = order.updatedAt
+            }
+        }
 
         return customers
             .asSequence()
             .filter { it.id !in activeOrderCustomerIds }
             .filter { it.phone.isNotBlank() }
             .map { customer ->
-                val customerOrders = orders.filter { it.customerId == customer.id }
-                val mostRecentMillis = customerOrders.maxOfOrNull { it.updatedAt }
+                val mostRecentMillis = mostRecentByCustomer[customer.id]
                 val daysSince = if (mostRecentMillis != null && mostRecentMillis > 0L) {
                     mostRecentMillis.toLocalDate(timeZone).daysUntil(today).coerceAtLeast(0)
                 } else {
@@ -431,7 +440,7 @@ class DashboardViewModel(
                     customerName = customer.name,
                     customerPhone = customer.phone,
                     daysSinceLastInteraction = daysSince,
-                    hasOrderHistory = customerOrders.isNotEmpty()
+                    hasOrderHistory = mostRecentMillis != null
                 )
             }
             .filter { !it.hasOrderHistory || it.daysSinceLastInteraction >= RECONNECT_MIN_DAYS }
