@@ -7,7 +7,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.model
  * both `BrandNew` and `BusyDay` simultaneously, which the boolean version allowed.
  *
  * Resolution priority (first match wins, see [DashboardViewModel.resolveUiState]):
- *   Loading → BrandNew → FirstCustomer → BusyDay → NbaActive → PipelineSteady → QuietDay
+ *   Loading → BrandNew → FirstCustomer → BusyDay → ReadyForPickup → NbaActive → PipelineSteady → QuietDay
  *
  * Data needed for rendering (orders, customers, pipeline, NBA, weeklyGoal, …) lives
  * on [DashboardState] alongside this. Sections render conditionally based on the
@@ -59,12 +59,26 @@ sealed interface DashboardUiState {
     data object NbaActive : DashboardUiState
 
     /**
-     * Triage is active — at least one of overdue / due-today / ready-for-pickup /
-     * unpaid balance. The default high-energy state when the workshop is busy.
+     * Triage is active — at least one overdue or due-today order. The default
+     * high-energy state when the workshop is busy. Ready-for-pickup-only days
+     * resolve to [ReadyForPickup] instead so we don't paint good news red.
      * Renders FocusTodayCard (Focus variant, red accent) + TileGrid +
      * TodaysWorkList + NBA carousel + PipelineSection.
      */
     data object BusyDay : DashboardUiState
+
+    /**
+     * No overdue / due-today work, but at least one order is finished and
+     * waiting for the customer to collect. Calmer than [BusyDay] — a ready
+     * order is future revenue + a satisfied customer pickup, not a fire.
+     * Renders FocusTodayCard (Pickup variant, green accent) + TileGrid (READY
+     * + optional UNPAID tiles) + NBA carousel + PipelineSection. The
+     * TodaysWorkList is intentionally suppressed here since the Focus card
+     * already pins the top ready customer and the READY tile + Orders list
+     * cover the rest — avoids surfacing the same one-or-two orders three
+     * times within the visible viewport.
+     */
+    data object ReadyForPickup : DashboardUiState
 }
 
 /**
@@ -79,5 +93,6 @@ val DashboardUiState.focusVariant: FocusVariant?
         DashboardUiState.PipelineSteady -> FocusVariant.Steady
         DashboardUiState.NbaActive -> FocusVariant.Earn
         DashboardUiState.BusyDay -> FocusVariant.Focus
+        DashboardUiState.ReadyForPickup -> FocusVariant.Pickup
         DashboardUiState.Loading, DashboardUiState.BrandNew -> null
     }

@@ -543,6 +543,9 @@
     <string name="focus_busy_title">%1$d need attention today.</string>
     <string name="focus_busy_supporting">%1$d overdue · %2$d due today</string>
     <string name="focus_busy_cta">Open %1$s</string>
+    <string name="focus_pickup_title">%1$d ready for pickup.</string>
+    <string name="focus_pickup_supporting">Reach out about pickup or mark delivered.</string>
+    <string name="focus_pickup_cta">Open %1$s</string>
 
     <!-- Empty section affordances -->
     <string name="affordance_pipeline_empty_title">Pipeline empty</string>

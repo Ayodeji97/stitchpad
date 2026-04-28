@@ -249,7 +249,8 @@ fun DashboardScreen(
             DashboardUiState.QuietDay,
             DashboardUiState.PipelineSteady,
             DashboardUiState.NbaActive,
-            DashboardUiState.BusyDay -> DashboardContent(
+            DashboardUiState.BusyDay,
+            DashboardUiState.ReadyForPickup -> DashboardContent(
                 state = state,
                 onAction = onAction,
                 modifier = contentModifier
@@ -395,6 +396,11 @@ private fun focusVariantStyle(variant: FocusVariant): FocusVariantStyle {
                     Color.Transparent
                 )
             )
+        )
+        FocusVariant.Pickup -> FocusVariantStyle(
+            icon = Icons.Filled.CheckCircle,
+            accent = if (isDark) DesignTokens.successDarkText else DesignTokens.success500,
+            brush = null
         )
     }
 }
@@ -819,6 +825,10 @@ private fun TodaysWorkList(
     onAction: (DashboardAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // In ReadyForPickup the FocusTodayCard already pins the top ready customer and the
+    // READY tile + Orders list cover the rest — surfacing these rows again would stack
+    // the same one or two orders three times in the visible viewport.
+    if (state.uiState == DashboardUiState.ReadyForPickup) return
     val items = buildList {
         state.overdue.forEach { add(ListItem(it, RowAccent.Overdue)) }
         state.dueToday.forEach { add(ListItem(it, RowAccent.DueToday)) }
@@ -1221,6 +1231,43 @@ private fun DashboardScreenBrandNewPreview() {
                 businessName = "Ade's Fashions",
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22)
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun DashboardScreenReadyForPickupPreview() {
+    StitchPadTheme {
+        DashboardScreen(
+            state = DashboardState(
+                uiState = DashboardUiState.ReadyForPickup,
+                firstName = "Ade",
+                businessName = "Ade's Fashions",
+                greeting = Greeting.MORNING,
+                todayDate = LocalDate(2026, 4, 22),
+                ready = listOf(
+                    DashboardOrderRow("r1", "Ade Yinka", "Senator")
+                ),
+                outstandingAmount = 60_000.0,
+                outstandingOrderCount = 1,
+                focusVariant = FocusVariant.Pickup,
+                focusHeadline = com.danzucker.stitchpad.core.presentation.UiText.DynamicString(
+                    "1 ready for pickup."
+                ),
+                focusSupporting = com.danzucker.stitchpad.core.presentation.UiText.DynamicString(
+                    "Reach out about pickup or mark delivered."
+                ),
+                focusCtaLabel = com.danzucker.stitchpad.core.presentation.UiText.DynamicString(
+                    "Open Ade Yinka"
+                ),
+                pipelineInProgress = listOf(
+                    DashboardOrderRow("p1", "Mr Femi", "Suit", daysUntilDeadline = 5)
+                ),
+                pipelineInProgressTotal = 1
             ),
             onAction = {}
         )

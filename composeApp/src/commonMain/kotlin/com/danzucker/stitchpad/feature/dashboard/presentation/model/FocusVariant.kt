@@ -6,7 +6,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
  * Drives the FocusTodayCard's icon, accent colour, and copy template. Resolved by the
  * ViewModel based on the current state of orders, customers, NBAs, and pipeline.
  *
- * Priority order (first match wins): FirstOrder → Focus → Earn → Steady → Quiet.
+ * Priority order (first match wins): FirstOrder → Focus → Pickup → Earn → Steady → Quiet.
  * The brand-new state (0 customers, 0 orders) renders WelcomeHero instead — no variant.
  */
 enum class FocusVariant {
@@ -14,7 +14,8 @@ enum class FocusVariant {
     Quiet,
     Steady,
     Earn,
-    Focus
+    Focus,
+    Pickup
 }
 
 /**

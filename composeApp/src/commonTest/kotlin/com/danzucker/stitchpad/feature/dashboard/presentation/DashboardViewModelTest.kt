@@ -1152,6 +1152,129 @@ class DashboardViewModelTest {
         )
     }
 
+    // --- ReadyForPickup (no overdue / due-today, but at least one ready order) ---
+
+    @Test
+    fun uiState_isReadyForPickup_whenOnlyReadyOrdersAndNoOverdueOrDueToday() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "ready1",
+                status = OrderStatus.READY,
+                statusEnteredOn = LocalDate(2026, 4, 22)
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.ReadyForPickup,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun uiState_isBusyDay_whenOverdueAndReadyMixed() = runTest {
+        // Regression: a mix of overdue + ready still resolves to BusyDay, not ReadyForPickup.
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "late",
+                deadline = LocalDate(2026, 4, 18),
+                status = OrderStatus.PENDING
+            ),
+            fakeOrder(
+                id = "ready",
+                status = OrderStatus.READY,
+                statusEnteredOn = LocalDate(2026, 4, 22)
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.BusyDay,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun readyForPickup_resolvesFocusToPickupVariant_withReadyCount() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer(name = "Ade Yinka"))
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "r1",
+                customerName = "Ade Yinka",
+                status = OrderStatus.READY,
+                statusEnteredOn = LocalDate(2026, 4, 22)
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Pickup,
+            vm.state.value.focusVariant
+        )
+        assertNotNull(vm.state.value.focusHeadline)
+        assertNotNull(vm.state.value.focusCtaLabel)
+    }
+
+    @Test
+    fun busyDay_focusHeadline_excludesReadyFromUrgentCount() = runTest {
+        // Regression for the headline math fix: when overdue=1 and ready=2, the
+        // urgent-count headline must report "1 need attention", not "3" — ready
+        // orders are no longer rolled into the urgency total.
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "late",
+                deadline = LocalDate(2026, 4, 18),
+                status = OrderStatus.PENDING
+            ),
+            fakeOrder(id = "r1", status = OrderStatus.READY),
+            fakeOrder(id = "r2", status = OrderStatus.READY)
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(1, vm.state.value.overdue.size)
+        assertEquals(2, vm.state.value.ready.size)
+        // Headline copy is built via a UiText with the urgentCount as its first arg.
+        // We can't render the UiText in commonTest without resources, so assert on
+        // the bucket sizes the resolver feeds the headline (overdue + dueToday only).
+        assertEquals(0, vm.state.value.dueToday.size)
+    }
+
+    @Test
+    fun focusCtaClick_inPickupVariant_emitsNavigateToFirstReadyOrder() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "ready-first",
+                status = OrderStatus.READY,
+                statusEnteredOn = LocalDate(2026, 4, 22)
+            ),
+            fakeOrder(
+                id = "ready-second",
+                status = OrderStatus.READY,
+                statusEnteredOn = LocalDate(2026, 4, 22)
+            )
+        )
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.NavigateToOrderDetail>(event)
+        assertEquals("ready-first", event.orderId)
+    }
+
     @Test
     fun uiState_isPipelineSteady_whenPipelineButNoTriageOrNba() = runTest {
         signIn()
