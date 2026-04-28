@@ -54,18 +54,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NairaAmountField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
@@ -74,10 +79,20 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.balance_warning_delivered_message
+import stitchpad.composeapp.generated.resources.balance_warning_delivered_title
+import stitchpad.composeapp.generated.resources.balance_warning_dismiss
+import stitchpad.composeapp.generated.resources.balance_warning_proceed
+import stitchpad.composeapp.generated.resources.balance_warning_ready_message
+import stitchpad.composeapp.generated.resources.balance_warning_ready_title
+import stitchpad.composeapp.generated.resources.balance_warning_record_payment
 import stitchpad.composeapp.generated.resources.cd_edit_order
+import stitchpad.composeapp.generated.resources.order_delete_active_intro
 import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
+import stitchpad.composeapp.generated.resources.order_delete_consequences
 import stitchpad.composeapp.generated.resources.order_delete_message
+import stitchpad.composeapp.generated.resources.order_delete_payment_warning
 import stitchpad.composeapp.generated.resources.order_delete_title
 import stitchpad.composeapp.generated.resources.order_detail_back_button
 import stitchpad.composeapp.generated.resources.order_detail_balance_remaining
@@ -245,8 +260,12 @@ fun OrderDetailScreen(
         }
     }
 
-    // Delete dialog
+    // Delete dialog — body adapts to whether the order is still in flight and
+    // whether any payment has been recorded against it.
     if (state.showDeleteDialog) {
+        val order = state.order
+        val isActive = order != null && order.status != OrderStatus.DELIVERED
+        val hasPayment = order != null && order.depositPaid > 0.0
         AlertDialog(
             onDismissRequest = { onAction(OrderDetailAction.OnDismissDeleteDialog) },
             title = {
@@ -257,10 +276,38 @@ fun OrderDetailScreen(
                 )
             },
             text = {
-                Text(
-                    text = stringResource(Res.string.order_delete_message),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                    if (isActive && order != null) {
+                        Text(
+                            text = stringResource(
+                                Res.string.order_delete_active_intro,
+                                statusLabel(order.status),
+                                order.customerName
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    if (hasPayment && order != null) {
+                        Text(
+                            text = stringResource(
+                                Res.string.order_delete_payment_warning,
+                                formatPrice(order.depositPaid)
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Text(
+                        text = if (isActive) {
+                            stringResource(Res.string.order_delete_consequences)
+                        } else {
+                            stringResource(Res.string.order_delete_message)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             },
             confirmButton = {
                 Button(
@@ -384,6 +431,21 @@ fun OrderDetailScreen(
             },
             shape = RoundedCornerShape(DesignTokens.radiusXl),
             containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // Balance-owed warning when moving to Ready / Delivered with money still owed
+    if (state.showBalanceWarningDialog &&
+        state.order != null &&
+        state.selectedNewStatus != null
+    ) {
+        BalanceOwedWarningDialog(
+            customerName = state.order.customerName,
+            balanceRemaining = state.order.balanceRemaining,
+            targetStatus = state.selectedNewStatus,
+            onRecordPayment = { onAction(OrderDetailAction.OnBalanceWarningRecordPayment) },
+            onProceed = { onAction(OrderDetailAction.OnBalanceWarningProceed) },
+            onDismiss = { onAction(OrderDetailAction.OnBalanceWarningDismiss) }
         )
     }
 
@@ -1040,4 +1102,136 @@ private fun statusColorAndLabel(status: OrderStatus): Pair<Color, String> = when
     OrderStatus.IN_PROGRESS -> DesignTokens.statusCutting to stringResource(Res.string.order_status_in_progress)
     OrderStatus.READY -> DesignTokens.statusReady to stringResource(Res.string.order_status_ready)
     OrderStatus.DELIVERED -> DesignTokens.statusDelivered to stringResource(Res.string.order_status_delivered)
+}
+
+@Composable
+private fun BalanceOwedWarningDialog(
+    customerName: String,
+    balanceRemaining: Double,
+    targetStatus: OrderStatus,
+    onRecordPayment: () -> Unit,
+    onProceed: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val titleRes = if (targetStatus == OrderStatus.DELIVERED) {
+        Res.string.balance_warning_delivered_title
+    } else {
+        Res.string.balance_warning_ready_title
+    }
+    val messageRes = if (targetStatus == OrderStatus.DELIVERED) {
+        Res.string.balance_warning_delivered_message
+    } else {
+        Res.string.balance_warning_ready_message
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(titleRes),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(messageRes, customerName, formatPrice(balanceRemaining)),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onRecordPayment,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(DesignTokens.radiusMd)
+            ) {
+                Text(
+                    text = stringResource(Res.string.balance_warning_record_payment),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(Res.string.balance_warning_dismiss),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(onClick = onProceed) {
+                    Text(
+                        text = stringResource(Res.string.balance_warning_proceed),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(DesignTokens.radiusXl),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderDetailScreenFilledPreview() {
+    val now = 1_745_672_400_000L
+    StitchPadTheme {
+        OrderDetailScreen(
+            state = OrderDetailState(
+                isLoading = false,
+                user = User(
+                    id = "u1",
+                    email = "ade@example.com",
+                    displayName = "Ade",
+                    businessName = "Ade's Fashions",
+                    phoneNumber = "+2348012345678",
+                    avatarColorIndex = 0
+                ),
+                order = Order(
+                    id = "o1",
+                    userId = "u1",
+                    customerId = "c1",
+                    customerName = "Bimbo Dann",
+                    items = listOf(
+                        OrderItem(
+                            id = "i1",
+                            garmentType = GarmentType.AGBADA,
+                            description = "Royal blue lace, gold embroidery",
+                            price = 100_000.0
+                        )
+                    ),
+                    status = OrderStatus.IN_PROGRESS,
+                    priority = OrderPriority.NORMAL,
+                    statusHistory = listOf(StatusChange(OrderStatus.PENDING, now - 86_400_000)),
+                    totalPrice = 100_000.0,
+                    depositPaid = 40_000.0,
+                    balanceRemaining = 60_000.0,
+                    deadline = now + 86_400_000 * 3,
+                    notes = "Needs to be ready by Friday for the wedding.",
+                    createdAt = now - 86_400_000,
+                    updatedAt = now
+                )
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderDetailScreenLoadingPreview() {
+    StitchPadTheme {
+        OrderDetailScreen(
+            state = OrderDetailState(isLoading = true),
+            onAction = {}
+        )
+    }
 }

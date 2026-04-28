@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
@@ -36,7 +35,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,7 +59,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -74,12 +71,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
+import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.customer_delete_blocked_dismiss
+import stitchpad.composeapp.generated.resources.customer_delete_blocked_message
+import stitchpad.composeapp.generated.resources.customer_delete_blocked_title
 import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
 import stitchpad.composeapp.generated.resources.customer_delete_message
@@ -149,21 +150,10 @@ fun CustomerListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            StitchPadFab(
                 onClick = { onAction(CustomerListAction.OnAddCustomerClick) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    spotColor = DesignTokens.primary500
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.customer_fab_cd)
-                )
-            }
+                contentDescription = stringResource(Res.string.customer_fab_cd)
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
@@ -218,47 +208,86 @@ fun CustomerListScreen(
     }
 
     if (state.showDeleteDialog && state.customerToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { onAction(CustomerListAction.OnDismissDeleteDialog) },
-            title = {
-                Text(
-                    text = stringResource(Res.string.customer_delete_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(Res.string.customer_delete_message, state.customerToDelete.name),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { onAction(CustomerListAction.OnConfirmDelete) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(DesignTokens.radiusMd)
-                ) {
+        if (state.customerToDeleteActiveOrderCount > 0) {
+            AlertDialog(
+                onDismissRequest = { onAction(CustomerListAction.OnDismissDeleteDialog) },
+                title = {
                     Text(
-                        text = stringResource(Res.string.customer_delete_confirm),
-                        fontWeight = FontWeight.SemiBold
+                        text = stringResource(
+                            Res.string.customer_delete_blocked_title,
+                            state.customerToDelete.name
+                        ),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { onAction(CustomerListAction.OnDismissDeleteDialog) }) {
+                },
+                text = {
                     Text(
-                        text = stringResource(Res.string.customer_delete_cancel),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = stringResource(
+                            Res.string.customer_delete_blocked_message,
+                            state.customerToDelete.name,
+                            state.customerToDeleteActiveOrderCount
+                        ),
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                }
-            },
-            shape = RoundedCornerShape(DesignTokens.radiusXl),
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { onAction(CustomerListAction.OnDismissDeleteDialog) },
+                        shape = RoundedCornerShape(DesignTokens.radiusMd)
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.customer_delete_blocked_dismiss),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(DesignTokens.radiusXl),
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { onAction(CustomerListAction.OnDismissDeleteDialog) },
+                title = {
+                    Text(
+                        text = stringResource(Res.string.customer_delete_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = stringResource(Res.string.customer_delete_message, state.customerToDelete.name),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { onAction(CustomerListAction.OnConfirmDelete) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shape = RoundedCornerShape(DesignTokens.radiusMd)
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.customer_delete_confirm),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { onAction(CustomerListAction.OnDismissDeleteDialog) }) {
+                        Text(
+                            text = stringResource(Res.string.customer_delete_cancel),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(DesignTokens.radiusXl),
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        }
     }
 }
 
