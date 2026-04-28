@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.ui.components.NairaAmountField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -174,7 +175,7 @@ private fun GoalSetupContent(
                 FilterChip(
                     selected = selected,
                     onClick = { onAction(GoalSetupAction.OnQuickPickClick(amount)) },
-                    label = { Text(text = "₦${formatThousands(amount)}") }
+                    label = { Text(text = "₦${formatPrice(amount.toDouble())}") }
                 )
             }
         }
@@ -208,9 +209,6 @@ private fun GoalSetupContent(
         }
     }
 }
-
-private fun formatThousands(value: Long): String =
-    value.toString().reversed().chunked(3).joinToString(",").reversed()
 
 @Suppress("UnusedPrivateMember")
 @Preview
