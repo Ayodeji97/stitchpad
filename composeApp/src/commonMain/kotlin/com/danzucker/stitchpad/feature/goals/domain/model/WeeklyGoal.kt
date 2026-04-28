@@ -6,7 +6,7 @@ package com.danzucker.stitchpad.feature.goals.domain.model
  * exists at a time — newer values overwrite older ones.
  *
  * Progress is computed in the dashboard ViewModel by summing collected revenue
- * from orders within the current week — see DashboardViewModel.computeWeeklyGoalCollected.
+ * from orders within the current week — see DashboardViewModel.resolveWeeklyGoal.
  */
 data class WeeklyGoal(
     val targetAmount: Double,

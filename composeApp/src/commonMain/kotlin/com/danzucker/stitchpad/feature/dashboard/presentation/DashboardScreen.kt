@@ -57,6 +57,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -107,6 +109,7 @@ import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
+import stitchpad.composeapp.generated.resources.dashboard_loading_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_title
@@ -138,6 +141,7 @@ import stitchpad.composeapp.generated.resources.dashboard_welcome_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_welcome_title
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_overdue
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_ready
+import stitchpad.composeapp.generated.resources.dashboard_whatsapp_launch_failed
 import stitchpad.composeapp.generated.resources.goals_achieved_cta
 import stitchpad.composeapp.generated.resources.goals_achieved_section_label
 import stitchpad.composeapp.generated.resources.goals_days_left
@@ -181,7 +185,12 @@ fun DashboardRoot(
             is DashboardEvent.LaunchWhatsApp -> {
                 scope.launch {
                     val message = buildWhatsAppMessage(event.action, signature)
-                    whatsAppLauncher.launch(event.action.customerPhone, message)
+                    val launched = whatsAppLauncher.launch(event.action.customerPhone, message)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(
+                            getString(Res.string.dashboard_whatsapp_launch_failed)
+                        )
+                    }
                 }
             }
             is DashboardEvent.LaunchWhatsAppForReconnect -> {
@@ -191,7 +200,12 @@ fun DashboardRoot(
                         firstNameOf(event.candidate.customerName)
                             .ifBlank { event.candidate.customerName }
                     )
-                    whatsAppLauncher.launch(event.candidate.customerPhone, message)
+                    val launched = whatsAppLauncher.launch(event.candidate.customerPhone, message)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(
+                            getString(Res.string.dashboard_whatsapp_launch_failed)
+                        )
+                    }
                 }
             }
         }
@@ -261,7 +275,11 @@ fun DashboardScreen(
 
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    val description = stringResource(Res.string.dashboard_loading_cd)
+    Box(
+        modifier = modifier.semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
         LoadingDots()
     }
 }

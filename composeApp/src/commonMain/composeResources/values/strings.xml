@@ -530,6 +530,8 @@
     <!-- WhatsApp message templates -->
     <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: ₦%3$s. — %4$s</string>
     <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: ₦%4$s. — %5$s</string>
+    <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
+    <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
     <!-- Dashboard FocusTodayCard -->
     <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
