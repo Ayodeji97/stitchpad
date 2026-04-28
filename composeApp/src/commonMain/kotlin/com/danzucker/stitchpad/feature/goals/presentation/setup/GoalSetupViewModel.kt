@@ -10,7 +10,7 @@ import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalReposit
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -66,15 +66,18 @@ class GoalSetupViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            weeklyGoalRepository.observeWeeklyGoal(user.id).collect { result ->
-                val current = (result as? Result.Success)?.data
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        targetAmountInput = current?.targetAmount?.roundToLong()?.toString()
-                            ?: it.targetAmountInput
-                    )
-                }
+            // Take only the first emission for prefill. The user owns
+            // `targetAmountInput` after that — continuing to collect would let a
+            // Firestore re-emission overwrite an in-progress edit while they're
+            // still typing.
+            val firstEmission = weeklyGoalRepository.observeWeeklyGoal(user.id).first()
+            val current = (firstEmission as? Result.Success)?.data
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    targetAmountInput = current?.targetAmount?.roundToLong()?.toString()
+                        ?: it.targetAmountInput
+                )
             }
         }
     }
