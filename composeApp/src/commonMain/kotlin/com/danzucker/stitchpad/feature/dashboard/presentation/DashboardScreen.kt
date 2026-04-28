@@ -1,11 +1,15 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -14,18 +18,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Today
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -37,34 +50,82 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.danzucker.stitchpad.ui.components.CustomerAvatar
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
+import com.danzucker.stitchpad.ui.components.AccentedOrderRow
+import com.danzucker.stitchpad.ui.components.FocusTodayCard
+import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.NextBestActionCard
+import com.danzucker.stitchpad.ui.components.QuickStartTile
+import com.danzucker.stitchpad.ui.components.QuickStartTiles
+import com.danzucker.stitchpad.ui.components.SectionEmptyAffordance
+import com.danzucker.stitchpad.ui.components.StitchPadFab
+import com.danzucker.stitchpad.ui.components.Tile
+import com.danzucker.stitchpad.ui.components.TileValueCurrency
+import com.danzucker.stitchpad.ui.components.TileValueDefault
+import com.danzucker.stitchpad.ui.components.WeeklyGoalsCard
+import com.danzucker.stitchpad.ui.components.WeeklyGoalsCardState
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.affordance_nba_empty_cta
+import stitchpad.composeapp.generated.resources.affordance_nba_empty_supporting
+import stitchpad.composeapp.generated.resources.affordance_nba_empty_title
+import stitchpad.composeapp.generated.resources.affordance_pipeline_empty_cta
+import stitchpad.composeapp.generated.resources.affordance_pipeline_empty_supporting
+import stitchpad.composeapp.generated.resources.affordance_pipeline_empty_title
 import stitchpad.composeapp.generated.resources.currency_naira
-import stitchpad.composeapp.generated.resources.dashboard_all_clear
 import stitchpad.composeapp.generated.resources.dashboard_chip_ready
 import stitchpad.composeapp.generated.resources.dashboard_chip_today
 import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
+import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_overdue_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_overdue_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_ready_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_ready_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_cta_collect_deposit
+import stitchpad.composeapp.generated.resources.dashboard_nba_cta_send_reminder
+import stitchpad.composeapp.generated.resources.dashboard_nba_cta_view_order
+import stitchpad.composeapp.generated.resources.dashboard_nba_deliver_stale_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_deliver_stale_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_finish_stale_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_finish_stale_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
+import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_in_progress
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_pending
+import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
+import stitchpad.composeapp.generated.resources.dashboard_section_pipeline
 import stitchpad.composeapp.generated.resources.dashboard_section_todays_work
 import stitchpad.composeapp.generated.resources.dashboard_tile_due_today
 import stitchpad.composeapp.generated.resources.dashboard_tile_outstanding
@@ -73,11 +134,23 @@ import stitchpad.composeapp.generated.resources.dashboard_tile_ready
 import stitchpad.composeapp.generated.resources.dashboard_welcome_cta
 import stitchpad.composeapp.generated.resources.dashboard_welcome_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_welcome_title
+import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_overdue
+import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_ready
+import stitchpad.composeapp.generated.resources.goals_achieved_cta
+import stitchpad.composeapp.generated.resources.goals_achieved_section_label
+import stitchpad.composeapp.generated.resources.goals_days_left
+import stitchpad.composeapp.generated.resources.goals_revenue_label
+import stitchpad.composeapp.generated.resources.goals_section_label
+import stitchpad.composeapp.generated.resources.goals_set_first_cta
+import stitchpad.composeapp.generated.resources.goals_set_first_label
+import stitchpad.composeapp.generated.resources.quickstart_add_customer
+import stitchpad.composeapp.generated.resources.quickstart_add_measurement
+import stitchpad.composeapp.generated.resources.quickstart_create_order
+import stitchpad.composeapp.generated.resources.reconnect_whatsapp_template
 import kotlin.math.roundToLong
 
 private const val THOUSANDS = 1_000L
 private const val MILLIONS = 1_000_000L
-private const val ACCENT_BAR_WIDTH_DP = 3
 
 @Composable
 fun DashboardRoot(
@@ -85,10 +158,15 @@ fun DashboardRoot(
     onNavigateToOrders: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToCustomerForm: () -> Unit,
-    viewModel: DashboardViewModel = koinViewModel()
+    onNavigateToCustomers: () -> Unit,
+    onNavigateToGoalSetup: () -> Unit,
+    viewModel: DashboardViewModel = koinViewModel(),
+    whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val signature = state.businessName ?: state.firstName
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -96,6 +174,24 @@ fun DashboardRoot(
             DashboardEvent.NavigateToOrders -> onNavigateToOrders()
             DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
             DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()
+            DashboardEvent.NavigateToCustomers -> onNavigateToCustomers()
+            DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
+            is DashboardEvent.LaunchWhatsApp -> {
+                scope.launch {
+                    val message = buildWhatsAppMessage(event.action, signature)
+                    whatsAppLauncher.launch(event.action.customerPhone, message)
+                }
+            }
+            is DashboardEvent.LaunchWhatsAppForReconnect -> {
+                scope.launch {
+                    val message = getString(
+                        Res.string.reconnect_whatsapp_template,
+                        firstNameOf(event.candidate.customerName)
+                            .ifBlank { event.candidate.customerName }
+                    )
+                    whatsAppLauncher.launch(event.candidate.customerPhone, message)
+                }
+            }
         }
     }
 
@@ -122,41 +218,40 @@ fun DashboardScreen(
 ) {
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
+            StitchPadFab(
                 onClick = { onAction(DashboardAction.OnNewOrderClick) },
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.shadow(
-                    elevation = 12.dp,
-                    shape = CircleShape,
-                    spotColor = DesignTokens.primary500
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.dashboard_fab_cd)
-                )
-            }
+                contentDescription = stringResource(Res.string.dashboard_fab_cd)
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        when {
-            state.isBrandNew -> WelcomeHero(
+        val contentModifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+        when (state.uiState) {
+            DashboardUiState.Loading -> LoadingState(modifier = contentModifier)
+            DashboardUiState.BrandNew -> WelcomeHero(
                 onAddCustomerClick = { onAction(DashboardAction.OnNewCustomerClick) },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                modifier = contentModifier
             )
-            else -> DashboardContent(
+            DashboardUiState.FirstCustomer,
+            DashboardUiState.QuietDay,
+            DashboardUiState.PipelineSteady,
+            DashboardUiState.NbaActive,
+            DashboardUiState.BusyDay -> DashboardContent(
                 state = state,
                 onAction = onAction,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                modifier = contentModifier
             )
         }
+    }
+}
+
+@Composable
+private fun LoadingState(modifier: Modifier = Modifier) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        LoadingDots()
     }
 }
 
@@ -167,55 +262,452 @@ private fun DashboardContent(
     modifier: Modifier = Modifier
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space5),
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(
-                start = DesignTokens.space4,
-                end = DesignTokens.space4,
-                top = DesignTokens.space4,
-                bottom = 96.dp
-            )
+            .padding(top = DesignTokens.space4, bottom = 96.dp)
     ) {
         DashboardHeader(
+            firstName = state.firstName,
             businessName = state.businessName,
             greeting = state.greeting,
-            todayDate = state.todayDate
+            todayDate = state.todayDate,
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
         )
 
-        if (state.isAllClear) {
-            AllClearBanner()
+        FocusTodayCardSection(
+            state = state,
+            onClick = { onAction(DashboardAction.OnFocusCtaClick) },
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
+        )
+
+        WeeklyGoalsSection(
+            weeklyGoal = state.weeklyGoal,
+            onClick = { onAction(DashboardAction.OnGoalsCardClick) },
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
+        )
+
+        ReconnectStripSection(
+            uiState = state.uiState,
+            candidates = state.reconnectCandidates,
+            onAction = onAction
+        )
+
+        if (state.uiState == DashboardUiState.FirstCustomer) {
+            QuickStartTiles(
+                tiles = listOf(
+                    QuickStartTile(
+                        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                        label = stringResource(Res.string.quickstart_create_order),
+                        onClick = { onAction(DashboardAction.OnNewOrderClick) }
+                    ),
+                    QuickStartTile(
+                        icon = Icons.Filled.PersonAdd,
+                        label = stringResource(Res.string.quickstart_add_customer),
+                        onClick = { onAction(DashboardAction.OnNewCustomerClick) }
+                    ),
+                    QuickStartTile(
+                        icon = Icons.Filled.Straighten,
+                        label = stringResource(Res.string.quickstart_add_measurement),
+                        onClick = { onAction(DashboardAction.OnAddMeasurementClick) }
+                    )
+                ),
+                modifier = Modifier.padding(horizontal = DesignTokens.space4)
+            )
+        }
+
+        TileGrid(
+            state = state,
+            onAction = onAction,
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
+        )
+        TodaysWorkList(
+            state = state,
+            onAction = onAction,
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
+        )
+        NextBestActionsSection(
+            actions = state.nextBestActions,
+            onAction = onAction
+        )
+        PipelineSection(
+            state = state,
+            onAction = onAction,
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
+        )
+    }
+}
+
+private data class FocusVariantStyle(
+    val icon: ImageVector,
+    val accent: Color,
+    val brush: Brush?
+)
+
+@Suppress("CyclomaticComplexMethod")
+@Composable
+private fun focusVariantStyle(variant: FocusVariant): FocusVariantStyle {
+    val isDark = isSystemInDarkTheme()
+    return when (variant) {
+        FocusVariant.FirstOrder -> FocusVariantStyle(
+            icon = Icons.Filled.RocketLaunch,
+            accent = if (isDark) DesignTokens.infoDarkText else DesignTokens.info500,
+            brush = null
+        )
+        FocusVariant.Quiet -> FocusVariantStyle(
+            icon = Icons.Filled.Spa,
+            accent = if (isDark) DesignTokens.successDarkText else DesignTokens.success500,
+            brush = null
+        )
+        FocusVariant.Steady -> FocusVariantStyle(
+            icon = Icons.AutoMirrored.Filled.TrendingUp,
+            accent = if (isDark) DesignTokens.infoDarkText else DesignTokens.info500,
+            brush = null
+        )
+        FocusVariant.Earn -> FocusVariantStyle(
+            icon = Icons.Filled.Savings,
+            accent = if (isDark) DesignTokens.primary400 else DesignTokens.primary600,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    if (isDark) DesignTokens.primary900 else DesignTokens.primary50,
+                    (if (isDark) DesignTokens.primary900 else DesignTokens.primary50).copy(alpha = 0.5f),
+                    Color.Transparent
+                )
+            )
+        )
+        FocusVariant.Focus -> FocusVariantStyle(
+            icon = Icons.Filled.PriorityHigh,
+            accent = if (isDark) DesignTokens.errorDarkText else DesignTokens.error500,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    if (isDark) DesignTokens.errorDarkBg else DesignTokens.error50,
+                    (if (isDark) DesignTokens.errorDarkBg else DesignTokens.error50).copy(alpha = 0.4f),
+                    Color.Transparent
+                )
+            )
+        )
+    }
+}
+
+@Composable
+private fun FocusTodayCardSection(
+    state: DashboardState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val style = focusVariantStyle(state.focusVariant)
+    val headline = state.focusHeadline?.asString() ?: return
+    FocusTodayCard(
+        icon = style.icon,
+        accentColor = style.accent,
+        headline = headline,
+        onClick = onClick,
+        modifier = modifier,
+        supporting = state.focusSupporting?.asString(),
+        ctaLabel = state.focusCtaLabel?.asString(),
+        containerBrush = style.brush
+    )
+}
+
+@Composable
+private fun ReconnectStripSection(
+    uiState: DashboardUiState,
+    candidates: List<com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate>,
+    onAction: (DashboardAction) -> Unit
+) {
+    val style = when (uiState) {
+        DashboardUiState.FirstCustomer, DashboardUiState.QuietDay -> ReconnectStripStyle.Cards
+        DashboardUiState.PipelineSteady -> ReconnectStripStyle.Pills
+        else -> return
+    }
+    ReconnectStrip(
+        candidates = candidates,
+        style = style,
+        onCandidateClick = { onAction(DashboardAction.OnReconnectCandidateClick(it)) }
+    )
+}
+
+@Composable
+private fun WeeklyGoalsSection(
+    weeklyGoal: WeeklyGoalUi?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cardState: WeeklyGoalsCardState = if (weeklyGoal == null) {
+        WeeklyGoalsCardState.Empty(
+            label = stringResource(Res.string.goals_set_first_label),
+            ctaLabel = stringResource(Res.string.goals_set_first_cta)
+        )
+    } else {
+        val achieved = weeklyGoal.targetAmount > 0 &&
+            weeklyGoal.collectedAmount >= weeklyGoal.targetAmount
+        WeeklyGoalsCardState.Filled(
+            sectionLabel = if (achieved) {
+                stringResource(Res.string.goals_achieved_section_label)
+            } else {
+                stringResource(Res.string.goals_section_label)
+            },
+            daysLeftLabel = stringResource(Res.string.goals_days_left, weeklyGoal.daysLeft),
+            revenueLabel = stringResource(Res.string.goals_revenue_label),
+            progressText = formatGoalProgress(weeklyGoal),
+            progressPercent = weeklyGoal.progressPercent,
+            achievedCtaLabel = if (achieved) {
+                stringResource(Res.string.goals_achieved_cta)
+            } else {
+                null
+            }
+        )
+    }
+    WeeklyGoalsCard(state = cardState, onClick = onClick, modifier = modifier)
+}
+
+@Composable
+private fun formatGoalProgress(goal: WeeklyGoalUi): String {
+    val collected = stringResource(
+        Res.string.currency_naira,
+        formatAbbreviated(goal.collectedAmount)
+    )
+    val target = stringResource(
+        Res.string.currency_naira,
+        formatAbbreviated(goal.targetAmount)
+    )
+    return "$collected / $target"
+}
+
+/** Dashboard accent buckets driving foreground + background colour for tiles and rows. */
+private enum class RowAccent { Overdue, DueToday, Ready, Pipeline }
+
+private data class AccentColors(val fg: Color, val bg: Color)
+
+@Composable
+private fun accentColorsFor(accent: RowAccent): AccentColors {
+    val isDark = isSystemInDarkTheme()
+    return when (accent) {
+        RowAccent.Overdue -> AccentColors(
+            fg = if (isDark) DesignTokens.errorDarkText else DesignTokens.error500,
+            bg = if (isDark) DesignTokens.errorDarkBg else DesignTokens.error50
+        )
+        RowAccent.DueToday -> AccentColors(
+            fg = if (isDark) DesignTokens.warningDarkText else DesignTokens.warning500,
+            bg = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50
+        )
+        RowAccent.Ready -> AccentColors(
+            fg = if (isDark) DesignTokens.successDarkText else DesignTokens.success500,
+            bg = if (isDark) DesignTokens.successDarkBg else DesignTokens.success50
+        )
+        RowAccent.Pipeline -> AccentColors(
+            fg = MaterialTheme.colorScheme.outline,
+            bg = MaterialTheme.colorScheme.surfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun NextBestActionsSection(
+    actions: List<NextBestAction>,
+    onAction: (DashboardAction) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)
+    ) {
+        Text(
+            text = stringResource(Res.string.dashboard_section_next_actions).uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = DesignTokens.space4)
+        )
+        if (actions.isEmpty()) {
+            SectionEmptyAffordance(
+                icon = Icons.Filled.Lightbulb,
+                title = stringResource(Res.string.affordance_nba_empty_title),
+                supporting = stringResource(Res.string.affordance_nba_empty_supporting),
+                ctaLabel = stringResource(Res.string.affordance_nba_empty_cta),
+                onClick = { onAction(DashboardAction.OnSeeAllClick) },
+                modifier = Modifier.padding(horizontal = DesignTokens.space4)
+            )
         } else {
-            TileGrid(state = state, onAction = onAction)
-            TodaysWorkList(state = state, onAction = onAction)
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                contentPadding = PaddingValues(horizontal = DesignTokens.space4)
+            ) {
+                items(actions, key = { it.id }) { action ->
+                    NbaCard(
+                        action = action,
+                        onClick = { onAction(DashboardAction.OnNextActionPrimaryClick(action)) }
+                    )
+                }
+            }
         }
     }
 }
 
-/**
- * Data bundle for a single dashboard tile. Self-hiding logic lives in [TileGrid] —
- * tiles whose bucket is empty aren't built, so a calm day doesn't render "0 Overdue" noise.
- */
+@Composable
+private fun NbaCard(action: NextBestAction, onClick: () -> Unit) {
+    val presentation = nbaPresentationFor(action)
+    NextBestActionCard(
+        accent = presentation.accent,
+        accentBackground = presentation.accentBackground,
+        icon = presentation.icon,
+        typeLabel = presentation.typeLabel,
+        customerName = action.customerName,
+        primaryLine = presentation.primaryLine,
+        secondaryLine = presentation.secondaryLine,
+        ctaLabel = presentation.ctaLabel,
+        contentDescription = stringResource(
+            Res.string.dashboard_nba_card_cd,
+            presentation.primaryLine,
+            presentation.secondaryLine,
+            presentation.ctaLabel
+        ),
+        onClick = onClick
+    )
+}
+
+private data class NbaPresentation(
+    val accent: Color,
+    val accentBackground: Color,
+    val icon: ImageVector,
+    val typeLabel: String,
+    val primaryLine: String,
+    val secondaryLine: String,
+    val ctaLabel: String
+)
+
+@Suppress("LongMethod", "CyclomaticComplexMethod")
+@Composable
+private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
+    val isDark = isSystemInDarkTheme()
+    val amount = formatNaira(action.balanceAmount)
+    return when (action.type) {
+        NextBestActionType.CollectOverdue -> NbaPresentation(
+            accent = if (isDark) DesignTokens.errorDarkText else DesignTokens.error500,
+            accentBackground = if (isDark) DesignTokens.errorDarkBg else DesignTokens.error50,
+            icon = Icons.Default.Error,
+            typeLabel = "Overdue",
+            primaryLine = stringResource(
+                Res.string.dashboard_nba_collect_overdue_title,
+                amount,
+                action.customerName
+            ),
+            secondaryLine = stringResource(
+                Res.string.dashboard_nba_collect_overdue_sub,
+                action.garmentLabel,
+                action.daysCount
+            ),
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_send_reminder)
+        )
+        NextBestActionType.CollectOnReady -> NbaPresentation(
+            accent = if (isDark) DesignTokens.primary400 else DesignTokens.primary600,
+            accentBackground = if (isDark) DesignTokens.primary900 else DesignTokens.primary50,
+            icon = Icons.Default.Payments,
+            typeLabel = "Ready · Unpaid",
+            primaryLine = stringResource(
+                Res.string.dashboard_nba_collect_ready_title,
+                amount,
+                action.customerName
+            ),
+            secondaryLine = stringResource(
+                Res.string.dashboard_nba_collect_ready_sub,
+                action.garmentLabel,
+                action.daysCount
+            ),
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_send_reminder)
+        )
+        NextBestActionType.FinishStale -> NbaPresentation(
+            accent = if (isDark) DesignTokens.warningDarkText else DesignTokens.warning500,
+            accentBackground = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50,
+            icon = Icons.Default.Edit,
+            typeLabel = "In progress",
+            primaryLine = stringResource(
+                Res.string.dashboard_nba_finish_stale_title,
+                firstNameOf(action.customerName).ifBlank { action.customerName },
+                action.garmentLabel
+            ),
+            secondaryLine = stringResource(
+                Res.string.dashboard_nba_finish_stale_sub,
+                action.daysCount
+            ),
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_view_order)
+        )
+        NextBestActionType.DeliverStale -> NbaPresentation(
+            accent = if (isDark) DesignTokens.successDarkText else DesignTokens.success500,
+            accentBackground = if (isDark) DesignTokens.successDarkBg else DesignTokens.success50,
+            icon = Icons.Default.CheckCircle,
+            typeLabel = "Ready to deliver",
+            primaryLine = stringResource(
+                Res.string.dashboard_nba_deliver_stale_title,
+                action.customerName
+            ),
+            secondaryLine = stringResource(
+                Res.string.dashboard_nba_deliver_stale_sub,
+                action.garmentLabel,
+                action.daysCount
+            ),
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_view_order)
+        )
+        NextBestActionType.CollectDeposit -> NbaPresentation(
+            accent = if (isDark) DesignTokens.infoDarkText else DesignTokens.info500,
+            accentBackground = if (isDark) DesignTokens.infoDarkBg else DesignTokens.info50,
+            icon = Icons.Default.Payments,
+            typeLabel = "No deposit",
+            primaryLine = stringResource(
+                Res.string.dashboard_nba_collect_deposit_title,
+                action.customerName
+            ),
+            secondaryLine = stringResource(
+                Res.string.dashboard_nba_collect_deposit_sub,
+                action.garmentLabel,
+                amount
+            ),
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_collect_deposit)
+        )
+        NextBestActionType.StartSoon -> NbaPresentation(
+            accent = if (isDark) DesignTokens.warningDarkText else DesignTokens.warning500,
+            accentBackground = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50,
+            icon = Icons.Default.Today,
+            typeLabel = "Starting soon",
+            primaryLine = stringResource(
+                Res.string.dashboard_nba_start_soon_title,
+                firstNameOf(action.customerName).ifBlank { action.customerName },
+                action.garmentLabel
+            ),
+            secondaryLine = if (action.daysCount == 0) {
+                stringResource(Res.string.dashboard_nba_start_soon_sub_today)
+            } else {
+                stringResource(Res.string.dashboard_nba_start_soon_sub, action.daysCount)
+            },
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_view_order)
+        )
+    }
+}
+
 private data class TileData(
     val icon: ImageVector,
     val valueText: String,
     val labelText: String,
     val accent: Color,
     val background: Color,
+    val border: Color,
     val onClick: () -> Unit,
-    val valueFontSize: Int = TILE_VALUE_DEFAULT_SP
+    val valueFontSize: TextUnit = TileValueDefault
 )
-
-private const val TILE_VALUE_DEFAULT_SP = 26
-private const val TILE_VALUE_CURRENCY_SP = 20
 
 @Composable
 private fun TileGrid(
     state: DashboardState,
-    onAction: (DashboardAction) -> Unit
+    onAction: (DashboardAction) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     val surface = MaterialTheme.colorScheme.surface
-    val overdueBackground = DesignTokens.error500.copy(alpha = 0.08f)
+    val surfaceBorder = MaterialTheme.colorScheme.outlineVariant
+
+    val overdue = accentColorsFor(RowAccent.Overdue)
+    val due = accentColorsFor(RowAccent.DueToday)
+    val ready = accentColorsFor(RowAccent.Ready)
+    val overdueBorder = overdue.fg.copy(alpha = if (isDark) 0.25f else 0.15f)
+    val outstandingFg = if (isDark) DesignTokens.primary400 else DesignTokens.primary600
 
     val tiles = buildList {
         if (state.overdue.isNotEmpty()) {
@@ -224,8 +716,9 @@ private fun TileGrid(
                     icon = Icons.Default.Error,
                     valueText = state.overdue.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_overdue),
-                    accent = DesignTokens.error500,
-                    background = overdueBackground,
+                    accent = overdue.fg,
+                    background = overdue.bg,
+                    border = overdueBorder,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -236,8 +729,9 @@ private fun TileGrid(
                     icon = Icons.Default.Today,
                     valueText = state.dueToday.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_due_today),
-                    accent = DesignTokens.primary600,
+                    accent = due.fg,
                     background = surface,
+                    border = surfaceBorder,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -248,8 +742,9 @@ private fun TileGrid(
                     icon = Icons.Default.CheckCircle,
                     valueText = state.ready.size.toString(),
                     labelText = stringResource(Res.string.dashboard_tile_ready),
-                    accent = DesignTokens.success500,
+                    accent = ready.fg,
                     background = surface,
+                    border = surfaceBorder,
                     onClick = { onAction(DashboardAction.OnSeeAllClick) }
                 )
             )
@@ -264,10 +759,11 @@ private fun TileGrid(
                     icon = Icons.Default.Payments,
                     valueText = naira,
                     labelText = stringResource(Res.string.dashboard_tile_outstanding),
-                    accent = DesignTokens.primary600,
+                    accent = outstandingFg,
                     background = surface,
+                    border = surfaceBorder,
                     onClick = { onAction(DashboardAction.OnOutstandingClick) },
-                    valueFontSize = TILE_VALUE_CURRENCY_SP
+                    valueFontSize = TileValueCurrency
                 )
             )
         }
@@ -275,15 +771,25 @@ private fun TileGrid(
 
     if (tiles.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = modifier
+    ) {
         tiles.chunked(2).forEach { pair ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
                 modifier = Modifier.height(IntrinsicSize.Min)
             ) {
                 pair.forEach { tile ->
                     Tile(
-                        tile = tile,
+                        icon = tile.icon,
+                        valueText = tile.valueText,
+                        labelText = tile.labelText,
+                        accent = tile.accent,
+                        background = tile.background,
+                        border = tile.border,
+                        onClick = tile.onClick,
+                        valueFontSize = tile.valueFontSize,
                         modifier = Modifier.weight(1f).fillMaxHeight()
                     )
                 }
@@ -295,64 +801,13 @@ private fun TileGrid(
     }
 }
 
-@Composable
-private fun Tile(tile: TileData, modifier: Modifier = Modifier) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = tile.background,
-        tonalElevation = DesignTokens.elevation1,
-        shadowElevation = DesignTokens.elevation1,
-        modifier = modifier
-            .clip(RoundedCornerShape(DesignTokens.radiusLg))
-            .clickable(onClick = tile.onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(DesignTokens.space3)
-                .fillMaxWidth()
-                .fillMaxHeight()
-        ) {
-            Icon(
-                imageVector = tile.icon,
-                contentDescription = null,
-                tint = tile.accent,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(20.dp)
-            )
-            Column {
-                Text(
-                    text = tile.valueText,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = androidx.compose.ui.unit.TextUnit(
-                            tile.valueFontSize.toFloat(),
-                            androidx.compose.ui.unit.TextUnitType.Sp
-                        )
-                    ),
-                    fontWeight = FontWeight.ExtraBold,
-                    color = tile.accent
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = tile.labelText.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-/** Tag attached to each [DashboardOrderRow] in the unified list to drive colour and chip text. */
-private enum class RowAccent { Overdue, DueToday, Ready }
-
 private data class ListItem(val row: DashboardOrderRow, val accent: RowAccent)
 
 @Composable
 private fun TodaysWorkList(
     state: DashboardState,
-    onAction: (DashboardAction) -> Unit
+    onAction: (DashboardAction) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val items = buildList {
         state.overdue.forEach { add(ListItem(it, RowAccent.Overdue)) }
@@ -361,17 +816,31 @@ private fun TodaysWorkList(
     }
     if (items.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = modifier
+    ) {
         Text(
             text = stringResource(Res.string.dashboard_section_todays_work).uppercase(),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = DesignTokens.space2)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         items.forEach { item ->
+            val colors = accentColorsFor(item.accent)
+            val chipText = when (item.accent) {
+                RowAccent.Overdue -> item.row.secondaryLabel.orEmpty()
+                RowAccent.DueToday -> stringResource(Res.string.dashboard_chip_today)
+                RowAccent.Ready -> stringResource(Res.string.dashboard_chip_ready)
+                RowAccent.Pipeline -> ""
+            }
             AccentedOrderRow(
-                item = item,
+                customerName = item.row.customerName,
+                primaryLabel = item.row.primaryLabel,
+                accentColor = colors.fg,
+                chipText = chipText,
+                chipTextColor = colors.fg,
+                chipBackground = colors.bg,
                 onClick = { onAction(DashboardAction.OnOrderClick(item.row.orderId)) }
             )
         }
@@ -379,158 +848,122 @@ private fun TodaysWorkList(
 }
 
 @Composable
-private fun AccentedOrderRow(item: ListItem, onClick: () -> Unit) {
-    val accentColor = when (item.accent) {
-        RowAccent.Overdue -> DesignTokens.error500
-        RowAccent.DueToday -> DesignTokens.primary600
-        RowAccent.Ready -> DesignTokens.success500
-    }
-    val chipBackground = when (item.accent) {
-        RowAccent.Overdue -> DesignTokens.error500.copy(alpha = 0.12f)
-        RowAccent.DueToday -> DesignTokens.primary500.copy(alpha = 0.12f)
-        RowAccent.Ready -> DesignTokens.success500.copy(alpha = 0.12f)
-    }
-    val chipText = when (item.accent) {
-        RowAccent.Overdue -> item.row.secondaryLabel.orEmpty()
-        RowAccent.DueToday -> stringResource(Res.string.dashboard_chip_today)
-        RowAccent.Ready -> stringResource(Res.string.dashboard_chip_ready)
-    }
-
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = DesignTokens.elevation1,
-        shadowElevation = DesignTokens.elevation1,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusLg))
-            .clickable(onClick = onClick)
+private fun PipelineSection(
+    state: DashboardState,
+    onAction: (DashboardAction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val pipelineColors = accentColorsFor(RowAccent.Pipeline)
+    val isEmpty = state.pipelineInProgressTotal == 0 && state.pipelinePendingTotal == 0
+    Column(
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = modifier
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(IntrinsicSize.Min)
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(ACCENT_BAR_WIDTH_DP.dp)
-                    .fillMaxHeight()
-                    .background(accentColor)
+        Text(
+            text = stringResource(Res.string.dashboard_section_pipeline).uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (isEmpty) {
+            SectionEmptyAffordance(
+                icon = Icons.Filled.Inbox,
+                title = stringResource(Res.string.affordance_pipeline_empty_title),
+                supporting = stringResource(Res.string.affordance_pipeline_empty_supporting),
+                ctaLabel = stringResource(Res.string.affordance_pipeline_empty_cta),
+                onClick = { onAction(DashboardAction.OnNewOrderClick) }
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(
-                        horizontal = DesignTokens.space3,
-                        vertical = DesignTokens.space3
-                    )
-            ) {
-                CustomerAvatar(name = item.row.customerName, size = 36.dp)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.row.customerName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (item.row.primaryLabel.isNotBlank()) {
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = item.row.primaryLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                if (chipText.isNotBlank()) {
-                    StatusChip(
-                        text = chipText,
-                        textColor = accentColor,
-                        background = chipBackground
-                    )
-                }
+        } else {
+            if (state.pipelineInProgressTotal > 0) {
+                PipelineSubsection(
+                    title = stringResource(
+                        Res.string.dashboard_pipeline_in_progress,
+                        state.pipelineInProgressTotal
+                    ),
+                    rows = state.pipelineInProgress,
+                    accentColors = pipelineColors,
+                    onAction = onAction
+                )
+            }
+            if (state.pipelinePendingTotal > 0) {
+                PipelineSubsection(
+                    title = stringResource(
+                        Res.string.dashboard_pipeline_pending,
+                        state.pipelinePendingTotal
+                    ),
+                    rows = state.pipelinePending,
+                    accentColors = pipelineColors,
+                    onAction = onAction
+                )
             }
         }
     }
 }
 
 @Composable
-private fun StatusChip(text: String, textColor: Color, background: Color) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = background
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = textColor,
-            modifier = Modifier.padding(
-                horizontal = DesignTokens.space2,
-                vertical = 3.dp
-            )
-        )
-    }
-}
-
-@Composable
-private fun DashboardHeader(
-    businessName: String?,
-    greeting: Greeting,
-    todayDate: LocalDate?
+private fun PipelineSubsection(
+    title: String,
+    rows: List<DashboardOrderRow>,
+    accentColors: AccentColors,
+    onAction: (DashboardAction) -> Unit
 ) {
-    val name = businessName.orEmpty()
-    val greetingText = when (greeting) {
-        Greeting.MORNING -> stringResource(Res.string.dashboard_greeting_morning, name)
-        Greeting.AFTERNOON -> stringResource(Res.string.dashboard_greeting_afternoon, name)
-        Greeting.EVENING -> stringResource(Res.string.dashboard_greeting_evening, name)
-    }
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
         Text(
-            text = greetingText,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
         )
-        if (todayDate != null) {
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = todayDate.formatFriendly(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        rows.forEach { row ->
+            AccentedOrderRow(
+                customerName = row.customerName,
+                primaryLabel = row.primaryLabel,
+                accentColor = accentColors.fg,
+                chipText = row.secondaryLabel.orEmpty(),
+                chipTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                chipBackground = accentColors.bg,
+                onClick = { onAction(DashboardAction.OnOrderClick(row.orderId)) }
             )
         }
     }
 }
 
 @Composable
-private fun AllClearBanner() {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = DesignTokens.success500.copy(alpha = 0.08f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-            modifier = Modifier.padding(DesignTokens.space4)
-        ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = DesignTokens.success500,
-                modifier = Modifier.size(20.dp)
-            )
+private fun DashboardHeader(
+    firstName: String,
+    businessName: String?,
+    greeting: Greeting,
+    todayDate: LocalDate?,
+    modifier: Modifier = Modifier
+) {
+    val name = firstName.ifBlank { businessName.orEmpty() }
+    val greetingText = when (greeting) {
+        Greeting.MORNING -> stringResource(Res.string.dashboard_greeting_morning, name)
+        Greeting.AFTERNOON -> stringResource(Res.string.dashboard_greeting_afternoon, name)
+        Greeting.EVENING -> stringResource(Res.string.dashboard_greeting_evening, name)
+    }
+    Column(modifier = modifier) {
+        Text(
+            text = greetingText,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        if (!businessName.isNullOrBlank() && businessName != firstName) {
+            Spacer(Modifier.height(2.dp))
             Text(
-                text = stringResource(Res.string.dashboard_all_clear),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                text = businessName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (todayDate != null) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = todayDate.formatFriendly(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -549,7 +982,7 @@ private fun WelcomeHero(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(88.dp)
+                .size(DesignTokens.iconXl)
                 .clip(RoundedCornerShape(DesignTokens.radiusXl))
                 .background(MaterialTheme.colorScheme.primaryContainer)
         ) {
@@ -557,7 +990,7 @@ private fun WelcomeHero(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(DesignTokens.iconHero)
             )
         }
         Spacer(Modifier.height(DesignTokens.space5))
@@ -596,6 +1029,29 @@ private fun WelcomeHero(
     }
 }
 
+private suspend fun buildWhatsAppMessage(action: NextBestAction, signature: String): String {
+    val firstName = firstNameOf(action.customerName).ifBlank { action.customerName }
+    val amount = formatNaira(action.balanceAmount)
+    return when (action.type) {
+        NextBestActionType.CollectOnReady -> getString(
+            Res.string.dashboard_whatsapp_collect_ready,
+            firstName,
+            action.garmentLabel,
+            amount,
+            signature
+        )
+        NextBestActionType.CollectOverdue -> getString(
+            Res.string.dashboard_whatsapp_collect_overdue,
+            firstName,
+            action.garmentLabel,
+            action.daysCount,
+            amount,
+            signature
+        )
+        else -> ""
+    }
+}
+
 private fun LocalDate.formatFriendly(): String {
     val day = dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
     val mon = month.name.lowercase().take(3).replaceFirstChar { it.uppercase() }
@@ -614,11 +1070,21 @@ private fun formatAbbreviated(amount: Double): String {
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
+private fun DashboardScreenLoadingPreview() {
+    StitchPadTheme {
+        DashboardScreen(state = DashboardState(uiState = DashboardUiState.Loading), onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
 private fun DashboardScreenFilledPreview() {
     StitchPadTheme {
         DashboardScreen(
             state = DashboardState(
-                isLoading = false,
+                uiState = DashboardUiState.BusyDay,
+                firstName = "Ade",
                 businessName = "Ade's Fashions",
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
@@ -629,10 +1095,42 @@ private fun DashboardScreenFilledPreview() {
                     DashboardOrderRow("2", "Bimbo Dann", "Dress")
                 ),
                 ready = listOf(
-                    DashboardOrderRow("3", "Bimbo Dann", "Dress")
+                    DashboardOrderRow("3", "Mr Tunde", "Senator")
                 ),
                 outstandingAmount = 480_000.0,
-                outstandingOrderCount = 1
+                outstandingOrderCount = 1,
+                nextBestActions = listOf(
+                    sampleNba(
+                        type = NextBestActionType.CollectOverdue,
+                        customer = "Mrs Adebayo",
+                        garment = "Senator",
+                        balance = 480_000.0,
+                        days = 4
+                    ),
+                    sampleNba(
+                        type = NextBestActionType.CollectOnReady,
+                        customer = "Mr Tunde",
+                        garment = "Senator",
+                        balance = 120_000.0,
+                        days = 2
+                    ),
+                    sampleNba(
+                        type = NextBestActionType.CollectDeposit,
+                        customer = "Mrs Ibe",
+                        garment = "Blouse",
+                        balance = 60_000.0,
+                        days = 1
+                    )
+                ),
+                pipelineInProgress = listOf(
+                    DashboardOrderRow("p1", "Mr Femi", "Suit", "Due in 5d"),
+                    DashboardOrderRow("p2", "Mrs Chika", "Bridal Gown", "Due in 12d")
+                ),
+                pipelineInProgressTotal = 2,
+                pipelinePending = listOf(
+                    DashboardOrderRow("p3", "Mr Kola", "Agbada", "Due in 9d")
+                ),
+                pipelinePendingTotal = 4
             ),
             onAction = {}
         )
@@ -642,26 +1140,53 @@ private fun DashboardScreenFilledPreview() {
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
-private fun DashboardScreenBusyPreview() {
+private fun DashboardScreenAllNbaTypesPreview() {
     StitchPadTheme {
         DashboardScreen(
             state = DashboardState(
-                isLoading = false,
+                uiState = DashboardUiState.NbaActive,
+                firstName = "Ade",
                 businessName = "Ade's Fashions",
                 greeting = Greeting.AFTERNOON,
                 todayDate = LocalDate(2026, 4, 22),
-                overdue = listOf(
-                    DashboardOrderRow("1", "Mr. Kola", "Agbada", "2d late"),
-                    DashboardOrderRow("2", "Mrs. Ibe", "Blouse", "1d late")
+                nextBestActions = NextBestActionType.entries.map { type ->
+                    sampleNba(
+                        type = type,
+                        customer = "Sample Customer",
+                        garment = "Senator",
+                        balance = 250_000.0,
+                        days = 3
+                    )
+                }
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun DashboardScreenPipelineOnlyPreview() {
+    StitchPadTheme {
+        DashboardScreen(
+            state = DashboardState(
+                uiState = DashboardUiState.PipelineSteady,
+                firstName = "Ade",
+                businessName = "Ade's Fashions",
+                greeting = Greeting.MORNING,
+                todayDate = LocalDate(2026, 4, 22),
+                pipelineInProgress = listOf(
+                    DashboardOrderRow("p1", "Mrs Funke", "Senator", "Due in 6d"),
+                    DashboardOrderRow("p2", "Mr Tope", "Suit", "Due in 10d")
                 ),
-                dueToday = listOf(
-                    DashboardOrderRow("3", "Mr. Tunde", "Suit"),
-                    DashboardOrderRow("4", "Mrs. Chika", "Dress"),
-                    DashboardOrderRow("5", "Mr. Femi", "Senator")
+                pipelineInProgressTotal = 2,
+                pipelinePending = listOf(
+                    DashboardOrderRow("p3", "Mrs Chika", "Dress", "Due in 14d"),
+                    DashboardOrderRow("p4", "Mr Kola", "Agbada", null),
+                    DashboardOrderRow("p5", "Bimbo D.", "Two Piece", "Due in 21d")
                 ),
-                ready = listOf(DashboardOrderRow("6", "Mrs. Funke", "Senator")),
-                outstandingAmount = 145_000.0,
-                outstandingOrderCount = 5
+                pipelinePendingTotal = 5
             ),
             onAction = {}
         )
@@ -675,11 +1200,11 @@ private fun DashboardScreenBrandNewPreview() {
     StitchPadTheme {
         DashboardScreen(
             state = DashboardState(
-                isLoading = false,
+                uiState = DashboardUiState.BrandNew,
+                firstName = "Ade",
                 businessName = "Ade's Fashions",
                 greeting = Greeting.MORNING,
-                todayDate = LocalDate(2026, 4, 22),
-                isBrandNew = true
+                todayDate = LocalDate(2026, 4, 22)
             ),
             onAction = {}
         )
@@ -689,17 +1214,34 @@ private fun DashboardScreenBrandNewPreview() {
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
-private fun DashboardScreenAllClearPreview() {
+private fun DashboardScreenQuietDayPreview() {
     StitchPadTheme {
         DashboardScreen(
             state = DashboardState(
-                isLoading = false,
+                uiState = DashboardUiState.QuietDay,
+                firstName = "Ade",
                 businessName = "Ade's Fashions",
                 greeting = Greeting.AFTERNOON,
-                todayDate = LocalDate(2026, 4, 22),
-                isAllClear = true
+                todayDate = LocalDate(2026, 4, 22)
             ),
             onAction = {}
         )
     }
 }
+
+private fun sampleNba(
+    type: NextBestActionType,
+    customer: String,
+    garment: String,
+    balance: Double,
+    days: Int
+) = NextBestAction(
+    type = type,
+    orderId = "preview-${type.name}",
+    customerId = "c-${type.name}",
+    customerName = customer,
+    customerPhone = "+2348012345678",
+    garmentLabel = garment,
+    balanceAmount = balance,
+    daysCount = days
+)

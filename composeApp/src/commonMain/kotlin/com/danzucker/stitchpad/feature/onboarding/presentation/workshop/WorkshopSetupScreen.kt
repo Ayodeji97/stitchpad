@@ -152,7 +152,7 @@ fun WorkshopSetupScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(DesignTokens.space2))
                 Text(
                     text = stringResource(Res.string.workshop_subtitle),
                     style = MaterialTheme.typography.bodyMedium,

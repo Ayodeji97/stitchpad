@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
@@ -20,8 +22,12 @@ import kotlinx.coroutines.launch
 
 class CustomerListViewModel(
     private val customerRepository: CustomerRepository,
+    private val orderRepository: OrderRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
+
+    /** Cached count of non-delivered orders per customer id, maintained by [observeOrders]. */
+    private var activeOrderCountByCustomerId: Map<String, Int> = emptyMap()
 
     private var hasLoadedInitialData = false
     private var allCustomers: List<Customer> = emptyList()
@@ -36,6 +42,7 @@ class CustomerListViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 observeCustomers()
+                observeOrders()
             }
         }
         .stateIn(
@@ -73,11 +80,24 @@ class CustomerListViewModel(
                 }
             }
             is CustomerListAction.OnDeleteCustomerClick -> {
-                _state.update { it.copy(showDeleteDialog = true, customerToDelete = action.customer) }
+                val activeCount = activeOrderCountByCustomerId[action.customer.id] ?: 0
+                _state.update {
+                    it.copy(
+                        showDeleteDialog = true,
+                        customerToDelete = action.customer,
+                        customerToDeleteActiveOrderCount = activeCount
+                    )
+                }
             }
             CustomerListAction.OnConfirmDelete -> deleteCustomer()
             CustomerListAction.OnDismissDeleteDialog -> {
-                _state.update { it.copy(showDeleteDialog = false, customerToDelete = null) }
+                _state.update {
+                    it.copy(
+                        showDeleteDialog = false,
+                        customerToDelete = null,
+                        customerToDeleteActiveOrderCount = 0
+                    )
+                }
             }
             CustomerListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
@@ -117,12 +137,44 @@ class CustomerListViewModel(
 
     private fun deleteCustomer() {
         val customer = _state.value.customerToDelete ?: return
-        _state.update { it.copy(showDeleteDialog = false, customerToDelete = null) }
+        // Guard against deleting customers with active orders. The screen is also
+        // expected to gate the confirm button, but keep this check as a safety net.
+        if ((activeOrderCountByCustomerId[customer.id] ?: 0) > 0) {
+            _state.update {
+                it.copy(
+                    showDeleteDialog = false,
+                    customerToDelete = null,
+                    customerToDeleteActiveOrderCount = 0
+                )
+            }
+            return
+        }
+        _state.update {
+            it.copy(
+                showDeleteDialog = false,
+                customerToDelete = null,
+                customerToDeleteActiveOrderCount = 0
+            )
+        }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = customerRepository.deleteCustomer(userId, customer.id)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toCustomerUiText()) }
+            }
+        }
+    }
+
+    private fun observeOrders() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            orderRepository.observeOrders(userId).collect { result ->
+                if (result is Result.Success) {
+                    activeOrderCountByCustomerId = result.data
+                        .filter { it.status != OrderStatus.DELIVERED }
+                        .groupingBy { it.customerId }
+                        .eachCount()
+                }
             }
         }
     }

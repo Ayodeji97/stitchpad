@@ -38,7 +38,7 @@ fun MeasurementIllustration(modifier: Modifier = Modifier) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "📏", fontSize = 48.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(DesignTokens.space2))
             Box(
                 modifier = Modifier
                     .width(60.dp)
@@ -69,7 +69,7 @@ fun OrderTrackingIllustration(modifier: Modifier = Modifier) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "✂\uFE0F", fontSize = 48.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(DesignTokens.space2))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 StatusBadge(text = stringResource(Res.string.onboarding_status_ready), color = DesignTokens.success500)
                 StatusBadge(text = stringResource(Res.string.onboarding_status_sewing), color = DesignTokens.warning500)

@@ -79,6 +79,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -91,6 +92,7 @@ import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
@@ -1195,4 +1197,37 @@ private fun garmentGenderLabel(gender: GarmentGender): String = when (gender) {
     GarmentGender.MALE -> stringResource(Res.string.garment_gender_male)
     GarmentGender.FEMALE -> stringResource(Res.string.garment_gender_female)
     GarmentGender.UNISEX -> stringResource(Res.string.garment_gender_unisex)
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderFormScreenStep1Preview() {
+    StitchPadTheme {
+        OrderFormScreen(
+            state = OrderFormState(currentStep = 1),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderFormScreenStep2Preview() {
+    StitchPadTheme {
+        OrderFormScreen(
+            state = OrderFormState(
+                currentStep = 2,
+                items = listOf(
+                    OrderItemFormState(
+                        garmentType = GarmentType.AGBADA,
+                        description = "Royal blue lace",
+                        price = "100000"
+                    )
+                )
+            ),
+            onAction = {}
+        )
+    }
 }

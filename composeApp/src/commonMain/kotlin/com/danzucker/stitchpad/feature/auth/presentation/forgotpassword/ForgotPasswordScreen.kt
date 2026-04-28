@@ -170,7 +170,7 @@ private fun FormContent(
         style = MaterialTheme.typography.headlineMedium,
         color = MaterialTheme.colorScheme.onSurface
     )
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(DesignTokens.space2))
     Text(
         text = stringResource(Res.string.forgot_password_subtitle),
         style = MaterialTheme.typography.bodyMedium,
@@ -274,18 +274,18 @@ private fun SuccessContent(
     email: String,
     onBackToLogin: () -> Unit
 ) {
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(DesignTokens.space4))
     Text(
         text = stringResource(Res.string.forgot_password_email_icon),
         style = MaterialTheme.typography.displayMedium
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(DesignTokens.space4))
     Text(
         text = stringResource(Res.string.forgot_password_success_title),
         style = MaterialTheme.typography.headlineMedium,
         color = MaterialTheme.colorScheme.onSurface
     )
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(DesignTokens.space2))
     Text(
         text = stringResource(Res.string.forgot_password_success_message, email),
         style = MaterialTheme.typography.bodyMedium,

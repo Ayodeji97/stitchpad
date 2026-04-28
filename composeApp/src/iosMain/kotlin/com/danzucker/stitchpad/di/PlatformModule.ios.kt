@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
@@ -13,4 +14,5 @@ actual val platformModule: Module = module {
     single { OnboardingPreferences() } bind OnboardingPreferencesStore::class
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { OrderReceiptSharer() }
+    single { WhatsAppLauncher() }
 }

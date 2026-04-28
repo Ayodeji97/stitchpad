@@ -9,7 +9,11 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
+import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -32,6 +36,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -42,6 +47,7 @@ class DashboardViewModelTest {
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -52,6 +58,7 @@ class DashboardViewModelTest {
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        weeklyGoalRepository = FakeWeeklyGoalRepository()
     }
 
     @AfterTest
@@ -69,6 +76,7 @@ class DashboardViewModelTest {
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            weeklyGoalRepository = weeklyGoalRepository,
             nowMillis = nowMillis,
             timeZone = testTimeZone
         )
@@ -81,37 +89,47 @@ class DashboardViewModelTest {
 
     private fun fakeOrder(
         id: String = "o1",
+        customerId: String = "c1",
         status: OrderStatus = OrderStatus.PENDING,
         deadline: LocalDate? = null,
         customerName: String = "Ada Lovelace",
         totalPrice: Double = 0.0,
         depositPaid: Double = 0.0,
         balanceRemaining: Double = 0.0,
-        garment: GarmentType = GarmentType.AGBADA
-    ) = Order(
-        id = id,
-        userId = "test-uid",
-        customerId = "c1",
-        customerName = customerName,
-        items = listOf(
-            OrderItem(
-                id = "i1",
-                garmentType = garment,
-                description = "",
-                price = totalPrice
-            )
-        ),
-        status = status,
-        priority = OrderPriority.NORMAL,
-        statusHistory = emptyList(),
-        totalPrice = totalPrice,
-        depositPaid = depositPaid,
-        balanceRemaining = balanceRemaining,
-        deadline = deadline?.let(::epochMillisAt),
-        notes = null,
-        createdAt = 0L,
-        updatedAt = 0L
-    )
+        garment: GarmentType = GarmentType.AGBADA,
+        statusEnteredOn: LocalDate? = null,
+        createdAt: Long = 0L
+    ): Order {
+        val statusHistory = if (statusEnteredOn != null) {
+            listOf(StatusChange(status = status, changedAt = epochMillisAt(statusEnteredOn)))
+        } else {
+            emptyList()
+        }
+        return Order(
+            id = id,
+            userId = "test-uid",
+            customerId = customerId,
+            customerName = customerName,
+            items = listOf(
+                OrderItem(
+                    id = "i1",
+                    garmentType = garment,
+                    description = "",
+                    price = totalPrice
+                )
+            ),
+            status = status,
+            priority = OrderPriority.NORMAL,
+            statusHistory = statusHistory,
+            totalPrice = totalPrice,
+            depositPaid = depositPaid,
+            balanceRemaining = balanceRemaining,
+            deadline = deadline?.let(::epochMillisAt),
+            notes = null,
+            createdAt = createdAt,
+            updatedAt = 0L
+        )
+    }
 
     private fun fakeCustomer(id: String = "c1", name: String = "Ada Lovelace") =
         Customer(id = id, userId = "test-uid", name = name, phone = "+2348012345678")
@@ -124,33 +142,31 @@ class DashboardViewModelTest {
     // --- Brand-new detection ---
 
     @Test
-    fun emptyOrdersAndCustomers_setsIsBrandNewTrue() = runTest {
+    fun emptyOrdersAndCustomers_resolvesBrandNew() = runTest {
         signIn()
         val vm = createViewModel()
 
-        assertTrue(vm.state.value.isBrandNew)
-        assertFalse(vm.state.value.isAllClear)
-        assertFalse(vm.state.value.isLoading)
+        assertEquals(DashboardUiState.BrandNew, vm.state.value.uiState)
     }
 
     @Test
-    fun hasCustomersButNoOrders_setsIsBrandNewFalse() = runTest {
+    fun hasCustomersButNoOrders_resolvesNonBrandNew() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())
 
         val vm = createViewModel()
 
-        assertFalse(vm.state.value.isBrandNew)
+        assertNotEquals(DashboardUiState.BrandNew, vm.state.value.uiState)
     }
 
     @Test
-    fun hasOrdersButNoCustomers_setsIsBrandNewFalse() = runTest {
+    fun hasOrdersButNoCustomers_resolvesNonBrandNew() = runTest {
         signIn()
         orderRepository.ordersList = listOf(fakeOrder())
 
         val vm = createViewModel()
 
-        assertFalse(vm.state.value.isBrandNew)
+        assertNotEquals(DashboardUiState.BrandNew, vm.state.value.uiState)
     }
 
     // --- Overdue bucket ---
@@ -294,10 +310,10 @@ class DashboardViewModelTest {
         assertEquals(1, vm.state.value.outstandingOrderCount)
     }
 
-    // --- All clear ---
+    // --- Quiet day (formerly "all clear") ---
 
     @Test
-    fun allClear_whenOrdersExistButAllBucketsEmpty() = runTest {
+    fun quietDay_whenOrdersExistButAllBucketsEmpty() = runTest {
         signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(id = "delivered", status = OrderStatus.DELIVERED, balanceRemaining = 0.0)
@@ -306,15 +322,14 @@ class DashboardViewModelTest {
 
         val vm = createViewModel()
 
-        assertFalse(vm.state.value.isBrandNew)
-        assertTrue(vm.state.value.isAllClear)
+        assertEquals(DashboardUiState.QuietDay, vm.state.value.uiState)
         assertTrue(vm.state.value.overdue.isEmpty())
         assertTrue(vm.state.value.dueToday.isEmpty())
         assertTrue(vm.state.value.ready.isEmpty())
     }
 
     @Test
-    fun allClear_isFalse_whenOverdueExists() = runTest {
+    fun quietDay_doesNotResolve_whenOverdueExists() = runTest {
         signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(deadline = LocalDate(2026, 4, 20), status = OrderStatus.PENDING)
@@ -322,7 +337,7 @@ class DashboardViewModelTest {
 
         val vm = createViewModel()
 
-        assertFalse(vm.state.value.isAllClear)
+        assertNotEquals(DashboardUiState.QuietDay, vm.state.value.uiState)
     }
 
     // --- Greeting ---
@@ -358,10 +373,25 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun businessName_fallsBackToDisplayName_whenNull() = runTest {
+    fun businessName_isNull_whenUserHasNotSetWorkshopName() = runTest {
         signIn(businessName = null)
         val vm = createViewModel()
-        assertEquals("Ade Bello", vm.state.value.businessName)
+        assertNull(vm.state.value.businessName)
+    }
+
+    @Test
+    fun firstName_isExtractedFromDisplayName() = runTest {
+        signIn() // displayName = "Ade Bello"
+        val vm = createViewModel()
+        assertEquals("Ade", vm.state.value.firstName)
+    }
+
+    @Test
+    fun firstName_handlesSingleTokenDisplayName() = runTest {
+        authRepository.signUpWithEmail("t@t.com", "pass", "Daniel")
+        authRepository.currentBusinessName = null
+        val vm = createViewModel()
+        assertEquals("Daniel", vm.state.value.firstName)
     }
 
     // --- Navigation events ---
@@ -411,11 +441,11 @@ class DashboardViewModelTest {
     // --- No auth user ---
 
     @Test
-    fun noAuthUser_setsIsLoadingFalse_andLeavesStateEmpty() = runTest {
+    fun noAuthUser_resolvesBrandNew_andLeavesStateEmpty() = runTest {
         // no signIn
         val vm = createViewModel()
 
-        assertFalse(vm.state.value.isLoading)
+        assertEquals(DashboardUiState.BrandNew, vm.state.value.uiState)
         assertNull(vm.state.value.businessName)
         assertTrue(vm.state.value.overdue.isEmpty())
     }
@@ -442,4 +472,708 @@ class DashboardViewModelTest {
         vm.onAction(DashboardAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
     }
+
+    // --- Next Best Actions ---
+
+    @Test
+    fun nba_collectOverdue_firesWhenOrderIsPastDeadlineWithUnpaidBalance() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                deadline = LocalDate(2026, 4, 18),
+                status = OrderStatus.IN_PROGRESS,
+                balanceRemaining = 200_000.0
+            )
+        )
+        val vm = createViewModel()
+
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.CollectOverdue, nba.type)
+        assertEquals("o1", nba.orderId)
+        assertEquals(200_000.0, nba.balanceAmount)
+        assertEquals(4, nba.daysCount)
+    }
+
+    @Test
+    fun nba_collectOnReady_firesWhenReadyWithUnpaidBalance() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.READY,
+                balanceRemaining = 50_000.0,
+                statusEnteredOn = LocalDate(2026, 4, 20)
+            )
+        )
+        val vm = createViewModel()
+
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.CollectOnReady, nba.type)
+        assertEquals(2, nba.daysCount)
+    }
+
+    @Test
+    fun nba_finishStale_firesWhenInProgressLongerThanThreshold() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.IN_PROGRESS,
+                balanceRemaining = 0.0,
+                deadline = LocalDate(2026, 5, 1),
+                statusEnteredOn = LocalDate(2026, 4, 12)
+            )
+        )
+        val vm = createViewModel()
+
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.FinishStale, nba.type)
+        assertEquals(10, nba.daysCount)
+    }
+
+    @Test
+    fun nba_deliverStale_firesWhenReadyForMoreThanThreshold_withZeroBalance() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.READY,
+                balanceRemaining = 0.0,
+                statusEnteredOn = LocalDate(2026, 4, 17)
+            )
+        )
+        val vm = createViewModel()
+
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.DeliverStale, nba.type)
+        assertEquals(5, nba.daysCount)
+    }
+
+    @Test
+    fun nba_collectDeposit_firesWhenPendingWithNoDeposit() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.PENDING,
+                totalPrice = 120_000.0,
+                depositPaid = 0.0,
+                balanceRemaining = 120_000.0,
+                deadline = LocalDate(2026, 5, 30)
+            )
+        )
+        val vm = createViewModel()
+
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.CollectDeposit, nba.type)
+        assertEquals(120_000.0, nba.balanceAmount)
+    }
+
+    @Test
+    fun nba_startSoon_firesWhenPendingWithDeadlineWithinSevenDays() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.PENDING,
+                totalPrice = 100_000.0,
+                depositPaid = 50_000.0,
+                balanceRemaining = 50_000.0,
+                deadline = LocalDate(2026, 4, 26)
+            )
+        )
+        val vm = createViewModel()
+
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.StartSoon, nba.type)
+        assertEquals(4, nba.daysCount)
+    }
+
+    @Test
+    fun nba_excludesDeliveredOrders() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.DELIVERED,
+                balanceRemaining = 100_000.0,
+                deadline = LocalDate(2026, 4, 18)
+            )
+        )
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.nextBestActions.isEmpty())
+    }
+
+    @Test
+    fun nba_excludesOrdersForCustomersWithoutPhone() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            Customer(id = "c1", userId = "test-uid", name = "Ada", phone = "")
+        )
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.READY,
+                balanceRemaining = 50_000.0,
+                statusEnteredOn = LocalDate(2026, 4, 20)
+            )
+        )
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.nextBestActions.isEmpty())
+    }
+
+    @Test
+    fun nba_ranksByImpactAndCapsAtFive() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "c1", name = "Customer 1"),
+            fakeCustomer(id = "c2", name = "Customer 2"),
+            fakeCustomer(id = "c3", name = "Customer 3"),
+            fakeCustomer(id = "c4", name = "Customer 4"),
+            fakeCustomer(id = "c5", name = "Customer 5"),
+            fakeCustomer(id = "c6", name = "Customer 6")
+        )
+        orderRepository.ordersList = listOf(
+            // StartSoon — should be dropped at the cap
+            fakeOrder(
+                id = "start",
+                customerId = "c6",
+                status = OrderStatus.PENDING,
+                totalPrice = 100_000.0,
+                depositPaid = 100_000.0,
+                balanceRemaining = 0.0,
+                deadline = LocalDate(2026, 4, 26)
+            ),
+            // CollectDeposit
+            fakeOrder(
+                id = "deposit",
+                customerId = "c5",
+                status = OrderStatus.PENDING,
+                totalPrice = 60_000.0,
+                depositPaid = 0.0,
+                balanceRemaining = 60_000.0,
+                deadline = LocalDate(2026, 5, 30)
+            ),
+            // DeliverStale
+            fakeOrder(
+                id = "deliver",
+                customerId = "c4",
+                status = OrderStatus.READY,
+                balanceRemaining = 0.0,
+                statusEnteredOn = LocalDate(2026, 4, 17)
+            ),
+            // FinishStale
+            fakeOrder(
+                id = "finish",
+                customerId = "c3",
+                status = OrderStatus.IN_PROGRESS,
+                balanceRemaining = 0.0,
+                deadline = LocalDate(2026, 5, 1),
+                statusEnteredOn = LocalDate(2026, 4, 12)
+            ),
+            // CollectOnReady
+            fakeOrder(
+                id = "collectReady",
+                customerId = "c2",
+                status = OrderStatus.READY,
+                balanceRemaining = 50_000.0,
+                statusEnteredOn = LocalDate(2026, 4, 20)
+            ),
+            // CollectOverdue
+            fakeOrder(
+                id = "collectOverdue",
+                customerId = "c1",
+                status = OrderStatus.IN_PROGRESS,
+                balanceRemaining = 200_000.0,
+                deadline = LocalDate(2026, 4, 18)
+            )
+        )
+        val vm = createViewModel()
+
+        val nbas = vm.state.value.nextBestActions
+        assertEquals(5, nbas.size)
+        assertEquals(NextBestActionType.CollectOverdue, nbas[0].type)
+        assertEquals(NextBestActionType.CollectOnReady, nbas[1].type)
+        assertEquals(NextBestActionType.FinishStale, nbas[2].type)
+        assertEquals(NextBestActionType.DeliverStale, nbas[3].type)
+        assertEquals(NextBestActionType.CollectDeposit, nbas[4].type)
+        assertTrue(nbas.none { it.type == NextBestActionType.StartSoon })
+    }
+
+    // --- Pipeline buckets ---
+
+    @Test
+    fun pipeline_inProgress_excludesTriageAndIncludesActiveInProgress() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(
+            // overdue → excluded
+            fakeOrder(
+                id = "ov",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = LocalDate(2026, 4, 20)
+            ),
+            // due today → excluded
+            fakeOrder(
+                id = "today",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = today
+            ),
+            // pipeline
+            fakeOrder(
+                id = "p1",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = LocalDate(2026, 5, 5)
+            ),
+            fakeOrder(
+                id = "p2",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = null
+            )
+        )
+        val vm = createViewModel()
+
+        val ids = vm.state.value.pipelineInProgress.map { it.orderId }
+        assertEquals(listOf("p1", "p2"), ids)
+        assertEquals(2, vm.state.value.pipelineInProgressTotal)
+    }
+
+    @Test
+    fun pipeline_pending_includesPendingNotInTriage() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "p1", status = OrderStatus.PENDING, deadline = LocalDate(2026, 5, 1)),
+            fakeOrder(id = "p2", status = OrderStatus.PENDING, deadline = LocalDate(2026, 5, 10)),
+            // ready → excluded
+            fakeOrder(id = "r1", status = OrderStatus.READY)
+        )
+        val vm = createViewModel()
+
+        val ids = vm.state.value.pipelinePending.map { it.orderId }
+        assertEquals(listOf("p1", "p2"), ids)
+        assertEquals(2, vm.state.value.pipelinePendingTotal)
+        assertTrue(vm.state.value.pipelineInProgress.isEmpty())
+    }
+
+    @Test
+    fun pipeline_capsPreviewAtThreeButReportsTotal() = runTest {
+        signIn()
+        orderRepository.ordersList = (1..7).map { i ->
+            fakeOrder(
+                id = "p$i",
+                status = OrderStatus.PENDING,
+                deadline = LocalDate(2026, 5, i)
+            )
+        }
+        val vm = createViewModel()
+
+        assertEquals(3, vm.state.value.pipelinePending.size)
+        assertEquals(7, vm.state.value.pipelinePendingTotal)
+        assertEquals(listOf("p1", "p2", "p3"), vm.state.value.pipelinePending.map { it.orderId })
+    }
+
+    @Test
+    fun pipeline_excludesDeliveredOrders() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "delivered", status = OrderStatus.DELIVERED)
+        )
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.pipelineInProgress.isEmpty())
+        assertTrue(vm.state.value.pipelinePending.isEmpty())
+    }
+
+    // --- New action wiring ---
+
+    @Test
+    fun onNextActionPrimaryClick_emitsLaunchWhatsApp_forCollectActions() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.READY,
+                balanceRemaining = 50_000.0,
+                statusEnteredOn = LocalDate(2026, 4, 20)
+            )
+        )
+        val vm = createViewModel()
+        val nba = vm.state.value.nextBestActions.single()
+
+        vm.onAction(DashboardAction.OnNextActionPrimaryClick(nba))
+        val event = vm.events.first()
+        assertIs<DashboardEvent.LaunchWhatsApp>(event)
+        assertEquals(nba, event.action)
+    }
+
+    @Test
+    fun onNextActionPrimaryClick_emitsNavigateToOrderDetail_forNonCollectActions() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "o1",
+                status = OrderStatus.IN_PROGRESS,
+                balanceRemaining = 0.0,
+                deadline = LocalDate(2026, 5, 1),
+                statusEnteredOn = LocalDate(2026, 4, 12)
+            )
+        )
+        val vm = createViewModel()
+        val nba = vm.state.value.nextBestActions.single()
+        assertEquals(NextBestActionType.FinishStale, nba.type)
+
+        vm.onAction(DashboardAction.OnNextActionPrimaryClick(nba))
+        val event = vm.events.first()
+        assertIs<DashboardEvent.NavigateToOrderDetail>(event)
+        assertEquals("o1", event.orderId)
+    }
+
+    // --- Focus variant resolution (priority order) ---
+
+    @Test
+    fun firstCustomerNoOrders_resolvesFocusToFirstOrder() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer(name = "Ola Kunle"))
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.FirstOrder,
+            vm.state.value.focusVariant
+        )
+        assertNotNull(vm.state.value.focusCtaLabel)
+    }
+
+    @Test
+    fun overdueOrder_resolvesFocusToFocusBusy() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "late",
+                deadline = LocalDate(2026, 4, 18),
+                status = OrderStatus.PENDING,
+                balanceRemaining = 50_000.0,
+                customerName = "Mr Kola"
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Focus,
+            vm.state.value.focusVariant
+        )
+    }
+
+    @Test
+    fun nbaOnly_resolvesFocusToEarn_whenNoTriage() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        // PENDING order paid in full (no triage), with deadline within 7 days
+        // → triggers StartSoon NBA without entering the unpaid/overdue buckets.
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "starting-soon",
+                status = OrderStatus.PENDING,
+                deadline = LocalDate(2026, 4, 27),
+                totalPrice = 80_000.0,
+                depositPaid = 80_000.0,
+                balanceRemaining = 0.0
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Earn,
+            vm.state.value.focusVariant
+        )
+    }
+
+    @Test
+    fun pipelineOnly_resolvesFocusToSteady_whenNoTriageOrNba() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        // IN_PROGRESS, paid in full (no unpaid triage), deadline far out (no NBA).
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "moving",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = LocalDate(2026, 5, 30),
+                totalPrice = 80_000.0,
+                depositPaid = 80_000.0,
+                balanceRemaining = 0.0,
+                statusEnteredOn = LocalDate(2026, 4, 20)
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Steady,
+            vm.state.value.focusVariant
+        )
+    }
+
+    @Test
+    fun noOrdersWithDeliveredHistory_resolvesFocusToQuiet() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "done", status = OrderStatus.DELIVERED)
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Quiet,
+            vm.state.value.focusVariant
+        )
+    }
+
+    @Test
+    fun triageBeatsNba_inFocusPriority() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        // Both an overdue triage item AND an NBA-eligible deposit candidate.
+        // Triage (S6) must win priority over NBA-only (S5).
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "late",
+                deadline = LocalDate(2026, 4, 18),
+                status = OrderStatus.PENDING,
+                balanceRemaining = 50_000.0
+            ),
+            fakeOrder(
+                id = "deposit",
+                customerId = "c1",
+                status = OrderStatus.PENDING,
+                deadline = LocalDate(2026, 5, 30),
+                totalPrice = 80_000.0,
+                depositPaid = 0.0,
+                balanceRemaining = 80_000.0
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Focus,
+            vm.state.value.focusVariant
+        )
+    }
+
+    // --- Reconnect candidates ---
+
+    @Test
+    fun reconnectCandidates_includesCustomerWithNoOrders() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer(id = "c1", name = "Ola Kunle"))
+
+        val vm = createViewModel()
+
+        val candidates = vm.state.value.reconnectCandidates
+        assertEquals(1, candidates.size)
+        assertEquals("Ola Kunle", candidates.first().customerName)
+        assertFalse(candidates.first().hasOrderHistory)
+    }
+
+    @Test
+    fun reconnectCandidates_excludesCustomersWithActiveOrders() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "active-cust", name = "Active"),
+            fakeCustomer(id = "quiet-cust", name = "Quiet")
+        )
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", customerId = "active-cust", status = OrderStatus.IN_PROGRESS)
+        )
+
+        val vm = createViewModel()
+
+        val names = vm.state.value.reconnectCandidates.map { it.customerName }.toSet()
+        assertEquals(setOf("Quiet"), names)
+    }
+
+    // --- Focus CTA routing ---
+
+    @Test
+    fun focusCtaClick_inFirstOrderVariant_emitsNavigateToOrderForm() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToOrderForm, event)
+    }
+
+    @Test
+    fun focusCtaClick_inFocusBusyVariant_emitsNavigateToFirstUrgentOrder() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "late", deadline = LocalDate(2026, 4, 18), status = OrderStatus.PENDING)
+        )
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.NavigateToOrderDetail>(event)
+        assertEquals("late", event.orderId)
+    }
+
+    // --- Weekly goal ---
+
+    @Test
+    fun weeklyGoal_isNull_whenUserHasNotSetOne() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+
+        assertNull(vm.state.value.weeklyGoal)
+    }
+
+    @Test
+    fun weeklyGoal_reflectsRepositoryGoal_whenSet() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        weeklyGoalRepository.storedGoal = com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal(
+            targetAmount = 500_000.0,
+            updatedAt = 0L
+        )
+
+        val vm = createViewModel()
+
+        val goal = vm.state.value.weeklyGoal
+        assertNotNull(goal)
+        assertEquals(500_000.0, goal.targetAmount)
+    }
+
+    // --- DashboardUiState (canonical screen state machine) ---
+
+    @Test
+    fun uiState_isBrandNew_whenNoCustomersAndNoOrders() = runTest {
+        signIn()
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.BrandNew,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun uiState_isFirstCustomer_whenCustomersButNoOrders() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.FirstCustomer,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun uiState_isQuietDay_whenOnlyDeliveredOrders() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "done", status = OrderStatus.DELIVERED)
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.QuietDay,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun uiState_isBusyDay_whenAnyTriageActive() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "late",
+                deadline = LocalDate(2026, 4, 18),
+                status = OrderStatus.PENDING,
+                balanceRemaining = 50_000.0
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.BusyDay,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun uiState_isNbaActive_whenNbaButNoTriage() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "starting-soon",
+                status = OrderStatus.PENDING,
+                deadline = LocalDate(2026, 4, 27),
+                totalPrice = 80_000.0,
+                depositPaid = 80_000.0,
+                balanceRemaining = 0.0
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.NbaActive,
+            vm.state.value.uiState
+        )
+    }
+
+    @Test
+    fun uiState_isPipelineSteady_whenPipelineButNoTriageOrNba() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "moving",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = LocalDate(2026, 5, 30),
+                totalPrice = 80_000.0,
+                depositPaid = 80_000.0,
+                balanceRemaining = 0.0,
+                statusEnteredOn = LocalDate(2026, 4, 20)
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.PipelineSteady,
+            vm.state.value.uiState
+        )
+    }
+
 }

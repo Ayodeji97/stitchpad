@@ -54,4 +54,7 @@ data class OrderDetailRoute(val orderId: String)
 data object DashboardRoute
 
 @Serializable
+data object GoalSetupRoute
+
+@Serializable
 data object SettingsPlaceholderRoute

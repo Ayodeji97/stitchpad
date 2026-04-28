@@ -106,6 +106,7 @@ object DesignTokens {
     val labelLg: TextUnit = 14.sp
     val labelMd: TextUnit = 13.sp
     val labelSm: TextUnit = 11.sp
+    val labelXs: TextUnit = 12.sp
     val measurement: TextUnit = 15.sp
 
     // Spacing (8pt base)
@@ -131,6 +132,8 @@ object DesignTokens {
     val iconList: Dp = 20.dp
     val iconNav: Dp = 24.dp
     val iconFeature: Dp = 32.dp
+    val iconHero: Dp = 44.dp
+    val iconXl: Dp = 88.dp
 
     // Motion Durations (milliseconds)
     const val durationQuick: Int = 150

@@ -11,5 +11,7 @@ data class CustomerListState(
     val isLoading: Boolean = true,
     val showDeleteDialog: Boolean = false,
     val customerToDelete: Customer? = null,
+    /** Active (non-delivered) order count for [customerToDelete]. > 0 blocks deletion. */
+    val customerToDeleteActiveOrderCount: Int = 0,
     val errorMessage: UiText? = null
 )
