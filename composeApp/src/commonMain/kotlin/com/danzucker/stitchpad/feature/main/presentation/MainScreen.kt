@@ -37,6 +37,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDeta
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
+import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
@@ -47,6 +48,7 @@ import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
+import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
@@ -245,7 +247,20 @@ private fun MainNavGraph(
                 },
                 onNavigateToCustomerForm = {
                     navController.navigate(CustomerFormRoute())
+                },
+                onNavigateToCustomers = {
+                    navController.navigate(CustomerListRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToGoalSetup = {
+                    navController.navigate(GoalSetupRoute)
                 }
+            )
+        }
+        composable<GoalSetupRoute> {
+            GoalSetupRoot(
+                onNavigateBack = { navController.navigateUp() }
             )
         }
         composable<SettingsPlaceholderRoute> {

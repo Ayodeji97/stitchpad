@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
@@ -77,6 +78,29 @@ class OrderDetailViewModel(
             OrderDetailAction.OnConfirmStatusUpdate -> updateStatus()
             OrderDetailAction.OnDismissStatusUpdate -> {
                 _state.update { it.copy(showStatusUpdateDialog = false, selectedNewStatus = null) }
+            }
+            OrderDetailAction.OnBalanceWarningRecordPayment -> {
+                _state.update {
+                    it.copy(
+                        showBalanceWarningDialog = false,
+                        selectedNewStatus = null,
+                        showRecordPaymentDialog = true,
+                        paymentAmountInput = "",
+                        wasPaymentCapped = false,
+                    )
+                }
+            }
+            OrderDetailAction.OnBalanceWarningProceed -> {
+                val pending = _state.value.selectedNewStatus
+                _state.update {
+                    it.copy(showBalanceWarningDialog = false, selectedNewStatus = null)
+                }
+                if (pending != null) performStatusUpdate(pending)
+            }
+            OrderDetailAction.OnBalanceWarningDismiss -> {
+                _state.update {
+                    it.copy(showBalanceWarningDialog = false, selectedNewStatus = null)
+                }
             }
             OrderDetailAction.OnCustomerClick -> {
                 val customerId = _state.value.order?.customerId ?: return
@@ -199,7 +223,24 @@ class OrderDetailViewModel(
 
     private fun updateStatus() {
         val newStatus = _state.value.selectedNewStatus ?: return
+        val order = _state.value.order
+        // Gate Ready/Delivered transitions when there's still a balance owed —
+        // the dealer almost certainly wants to record the payment first, and a
+        // silent transition to Delivered would understate weekly revenue.
+        val needsBalanceWarning = order != null &&
+            order.balanceRemaining > 0.0 &&
+            (newStatus == OrderStatus.READY || newStatus == OrderStatus.DELIVERED)
+        if (needsBalanceWarning) {
+            _state.update {
+                it.copy(showStatusUpdateDialog = false, showBalanceWarningDialog = true)
+            }
+            return
+        }
         _state.update { it.copy(showStatusUpdateDialog = false, selectedNewStatus = null) }
+        performStatusUpdate(newStatus)
+    }
+
+    private fun performStatusUpdate(newStatus: OrderStatus) {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val result = orderRepository.updateOrderStatus(userId, orderId, newStatus)) {

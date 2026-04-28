@@ -131,6 +131,8 @@ object DesignTokens {
     val iconList: Dp = 20.dp
     val iconNav: Dp = 24.dp
     val iconFeature: Dp = 32.dp
+    val iconHero: Dp = 44.dp
+    val iconXl: Dp = 88.dp
 
     // Motion Durations (milliseconds)
     const val durationQuick: Int = 150

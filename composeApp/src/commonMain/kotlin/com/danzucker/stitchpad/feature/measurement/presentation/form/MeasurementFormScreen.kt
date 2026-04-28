@@ -493,7 +493,7 @@ private fun SectionNavigation(
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(DesignTokens.space1))
             Text(
                 text = stringResource(Res.string.measurement_previous),
                 style = MaterialTheme.typography.labelMedium
@@ -508,7 +508,7 @@ private fun SectionNavigation(
                 text = stringResource(Res.string.measurement_next),
                 style = MaterialTheme.typography.labelMedium
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(DesignTokens.space1))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,

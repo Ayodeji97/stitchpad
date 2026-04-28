@@ -11,6 +11,9 @@ sealed interface OrderDetailAction {
     data class OnSelectNewStatus(val status: OrderStatus) : OrderDetailAction
     data object OnConfirmStatusUpdate : OrderDetailAction
     data object OnDismissStatusUpdate : OrderDetailAction
+    data object OnBalanceWarningRecordPayment : OrderDetailAction
+    data object OnBalanceWarningProceed : OrderDetailAction
+    data object OnBalanceWarningDismiss : OrderDetailAction
     data object OnCustomerClick : OrderDetailAction
     data object OnShareClick : OrderDetailAction
     data object OnShareAsImageClick : OrderDetailAction

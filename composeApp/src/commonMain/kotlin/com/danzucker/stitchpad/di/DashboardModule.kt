@@ -9,7 +9,8 @@ val dashboardPresentationModule = module {
         DashboardViewModel(
             orderRepository = get(),
             customerRepository = get(),
-            authRepository = get()
+            authRepository = get(),
+            weeklyGoalRepository = get()
         )
     }
 }

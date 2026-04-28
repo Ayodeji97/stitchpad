@@ -11,8 +11,8 @@ import com.danzucker.stitchpad.feature.auth.presentation.login.LoginRoot
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpRoot
 import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
-import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingScreen
-import com.danzucker.stitchpad.feature.onboarding.presentation.SplashScreen
+import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingRoot
+import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -30,7 +30,7 @@ fun StitchPadNavHost(
     ) {
         composable<SplashRoute> {
             val scope = rememberCoroutineScope()
-            SplashScreen(
+            SplashRoot(
                 onSplashFinished = {
                     scope.launch {
                         val hasSeenOnboarding = onboardingPreferences.hasSeenOnboarding()
@@ -50,7 +50,7 @@ fun StitchPadNavHost(
         }
         composable<OnboardingRoute> {
             val scope = rememberCoroutineScope()
-            OnboardingScreen(
+            OnboardingRoot(
                 onFinished = {
                     scope.launch {
                         onboardingPreferences.setOnboardingSeen()

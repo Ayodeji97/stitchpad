@@ -111,6 +111,14 @@
     <string name="customer_delete_message">Remove %1$s from your customer list? This cannot be undone.</string>
     <string name="customer_delete_confirm">Delete</string>
     <string name="customer_delete_cancel">Cancel</string>
+    <!-- Shown when the user tries to delete a customer who still has non-delivered orders -->
+    <string name="customer_delete_blocked_title">Can&apos;t delete %1$s yet</string>
+    <string name="customer_delete_blocked_message">%1$s has %2$d active order(s). Mark them delivered or remove the orders first, then try again.</string>
+    <string name="customer_delete_blocked_dismiss">Got it</string>
+    <!-- Shown when the user confirms a delete before the orders flow has emitted, so we don't yet know if the customer has active orders. -->
+    <string name="customer_delete_pending_orders_load">Loading order data — please try again in a moment.</string>
+    <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
+    <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
     <!-- Customer form screen -->
     <string name="customer_form_title_add">Add Customer</string>
@@ -345,6 +353,10 @@
     <string name="order_delete_message">This order will be permanently removed. This cannot be undone.</string>
     <string name="order_delete_confirm">Delete</string>
     <string name="order_delete_cancel">Cancel</string>
+    <!-- Extra warning lines shown when deleting an order that is still in flight or has payments -->
+    <string name="order_delete_active_intro">This order is currently %1$s for %2$s.</string>
+    <string name="order_delete_payment_warning">₦%1$s has already been recorded as paid. Deleting will erase that from your revenue record.</string>
+    <string name="order_delete_consequences">Deleting removes it from your pipeline and clears its status history. This cannot be undone.</string>
 
     <!-- Order form screen -->
     <string name="order_form_title_add">New Order</string>
@@ -415,6 +427,15 @@
     <string name="order_status_update_cancel">Cancel</string>
     <string name="order_status_update_current">Current</string>
 
+    <!-- Balance-owed warning shown when moving an order to Ready/Delivered with money still owed -->
+    <string name="balance_warning_ready_title">Mark ready with balance owed?</string>
+    <string name="balance_warning_delivered_title">Mark delivered with balance owed?</string>
+    <string name="balance_warning_ready_message">%1$s still owes ₦%2$s. You can record a payment now or mark ready and collect when they pick up.</string>
+    <string name="balance_warning_delivered_message">%1$s still owes ₦%2$s. Marking delivered with an unpaid balance affects your weekly revenue and how this order is tracked.</string>
+    <string name="balance_warning_record_payment">Record payment</string>
+    <string name="balance_warning_proceed">Mark anyway</string>
+    <string name="balance_warning_dismiss">Cancel</string>
+
     <!-- Order detail errors / empty state -->
     <string name="order_detail_not_found_title">Order not found</string>
     <string name="order_detail_not_found_message">This order may have been deleted.</string>
@@ -467,9 +488,109 @@
     <string name="dashboard_see_all">See all</string>
     <string name="dashboard_and_more">+ %1$d more</string>
     <string name="dashboard_days_late">%1$dd late</string>
+    <string name="dashboard_due_in_days">Due in %1$dd</string>
     <string name="dashboard_welcome_title">Welcome to StitchPad</string>
     <string name="dashboard_welcome_subtitle">Add your first customer to start tracking orders, measurements, and styles.</string>
     <string name="dashboard_welcome_cta">Add first customer</string>
-    <string name="dashboard_all_clear">All clear for today</string>
     <string name="dashboard_fab_cd">New order</string>
+    <!-- Dashboard tile grid -->
+    <string name="dashboard_tile_overdue">Overdue</string>
+    <string name="dashboard_tile_due_today">Due today</string>
+    <string name="dashboard_tile_ready">Ready</string>
+    <string name="dashboard_tile_outstanding">Unpaid</string>
+    <string name="dashboard_section_todays_work">Today&apos;s work</string>
+    <string name="dashboard_chip_today">Today</string>
+    <string name="dashboard_chip_ready">Ready</string>
+
+    <!-- Dashboard NBA + pipeline + loading -->
+    <string name="dashboard_loading_cd">Loading dashboard</string>
+    <string name="dashboard_section_next_actions">Next best actions</string>
+    <string name="dashboard_section_pipeline">Pipeline</string>
+    <string name="dashboard_pipeline_in_progress">In progress (%1$d)</string>
+    <string name="dashboard_pipeline_pending">Not started yet (%1$d)</string>
+    <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
+    <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
+    <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$dd past deadline</string>
+    <string name="dashboard_nba_collect_ready_title">Collect ₦%1$s from %2$s</string>
+    <string name="dashboard_nba_collect_ready_sub">%1$s · ready %2$dd</string>
+    <string name="dashboard_nba_finish_stale_title">Finish %1$s’s %2$s</string>
+    <string name="dashboard_nba_finish_stale_sub">Started %1$dd ago</string>
+    <string name="dashboard_nba_finish_stale_sub_due">Started %1$dd ago, due in %2$dd</string>
+    <string name="dashboard_nba_deliver_stale_title">Deliver to %1$s</string>
+    <string name="dashboard_nba_deliver_stale_sub">%1$s · ready %2$dd</string>
+    <string name="dashboard_nba_collect_deposit_title">Collect deposit from %1$s</string>
+    <string name="dashboard_nba_collect_deposit_sub">%1$s · ₦%2$s order</string>
+    <string name="dashboard_nba_start_soon_title">Start %1$s’s %2$s</string>
+    <string name="dashboard_nba_start_soon_sub">Due in %1$dd</string>
+    <string name="dashboard_nba_start_soon_sub_today">Due today</string>
+    <string name="dashboard_nba_cta_send_reminder">Send reminder</string>
+    <string name="dashboard_nba_cta_view_order">View order</string>
+    <string name="dashboard_nba_cta_collect_deposit">View order</string>
+    <string name="dashboard_nba_card_cd">%1$s. %2$s. Tap %3$s.</string>
+    <!-- WhatsApp message templates -->
+    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: ₦%3$s. — %4$s</string>
+    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: ₦%4$s. — %5$s</string>
+    <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
+    <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
+
+    <!-- Dashboard FocusTodayCard -->
+    <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
+    <string name="focus_first_order_cta">Create order for %1$s</string>
+    <string name="focus_quiet_title">No deadlines today.</string>
+    <string name="focus_quiet_supporting">Reconnect with a past customer.</string>
+    <string name="focus_quiet_cta">Message %1$s</string>
+    <string name="focus_quiet_cta_no_candidate">Add a new order</string>
+    <string name="focus_steady_title">Shop is steady.</string>
+    <string name="focus_steady_supporting">%1$d orders moving</string>
+    <string name="focus_steady_cta">Open next order</string>
+    <string name="focus_earn_title">%1$d ways to earn today.</string>
+    <string name="focus_earn_supporting">Start with %1$s</string>
+    <string name="focus_earn_cta">Take action</string>
+    <string name="focus_busy_title">%1$d need attention today.</string>
+    <string name="focus_busy_supporting">%1$d overdue · %2$d due today</string>
+    <string name="focus_busy_cta">Open %1$s</string>
+    <string name="focus_pickup_title">%1$d ready for pickup.</string>
+    <string name="focus_pickup_supporting">Reach out about pickup or mark delivered.</string>
+    <string name="focus_pickup_cta">Open %1$s</string>
+
+    <!-- Empty section affordances -->
+    <string name="affordance_pipeline_empty_title">Pipeline empty</string>
+    <string name="affordance_pipeline_empty_supporting">Start the next order to see it move from pending → in progress → ready.</string>
+    <string name="affordance_pipeline_empty_cta">Start an order</string>
+    <string name="affordance_nba_empty_title">No suggested moves</string>
+    <string name="affordance_nba_empty_supporting">Suggested moves appear here when there are payments to collect or orders to chase.</string>
+    <string name="affordance_nba_empty_cta">View all orders</string>
+
+    <!-- QuickStartTiles (S2) -->
+    <string name="quickstart_create_order">Create first order</string>
+    <string name="quickstart_add_customer">Add customer</string>
+    <string name="quickstart_add_measurement">Add measurement</string>
+
+    <!-- ReconnectStrip -->
+    <string name="reconnect_section">Reconnect</string>
+    <string name="reconnect_last_order_days">Last order %1$dd ago</string>
+    <string name="reconnect_no_orders_yet">No orders yet</string>
+    <string name="reconnect_send_hello">Send a hello</string>
+    <string name="reconnect_say_hi">Say hi</string>
+    <string name="reconnect_whatsapp_template">Hi %1$s! Hope you&apos;re doing well. Just checking in — let me know if you need anything new stitched.</string>
+
+    <!-- WeeklyGoalsCard -->
+    <string name="goals_section_label">This week</string>
+    <string name="goals_days_left">%1$d days left</string>
+    <string name="goals_revenue_label">Revenue goal</string>
+    <string name="goals_set_first_label">Set your first revenue goal</string>
+    <string name="goals_set_first_cta">Get started</string>
+    <!-- Shown when collected revenue meets or exceeds the target for the week -->
+    <string name="goals_achieved_section_label">Ahead of target</string>
+    <string name="goals_achieved_cta">Raise your goal</string>
+
+    <!-- Goal Setup Screen -->
+    <string name="goals_setup_title">Weekly revenue goal</string>
+    <string name="goals_setup_subtitle">Set how much you want to earn this week. We&apos;ll track collected revenue as orders come in.</string>
+    <string name="goals_setup_amount_label">Target amount</string>
+    <string name="goals_setup_amount_placeholder">e.g. 300,000</string>
+    <string name="goals_setup_quick_picks">Quick picks</string>
+    <string name="goals_setup_save">Save goal</string>
+    <string name="goals_setup_back_cd">Back</string>
+    <string name="goals_setup_error_save">Couldn&apos;t save your goal. Check your connection and try again.</string>
 </resources>

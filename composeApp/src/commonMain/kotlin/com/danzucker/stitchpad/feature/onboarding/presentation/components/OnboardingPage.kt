@@ -30,14 +30,14 @@ fun OnboardingPage(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         illustration()
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(DesignTokens.space8))
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(DesignTokens.space3))
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyLarge,

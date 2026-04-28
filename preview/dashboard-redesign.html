@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Dashboard Redesign (Final)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p200:#FBDF8A; --p300:#F9CC50;
+      --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00; --p700:#9E7200;
+      --p800:#7A5800; --p900:#4F3800;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --err:#D93B3B; --err50:#FCEAEA;
+      --suc:#2D9E6B; --suc50:#E8F7F1;
+      --warn:#E07B20; --warn50:#FEF3E8;
+      --info:#2B7FD4; --info50:#E7F2FC;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s8:32px; --s10:40px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px;
+      --r-fab:16px;
+
+      --font-body:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+
+      --bg:var(--n50); --surf:var(--n0); --on-surf:var(--n800);
+      --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200); --primary:var(--p500); --on-pri:#fff;
+      --pri-pill:rgba(232,168,0,.1);
+    }
+
+    /* Dark mode — applied per phone screen via .dark class */
+    .phone-screen.dark{
+      --bg:#121110; --surf:#1E1C1A; --on-surf:#E5E3DF;
+      --on-surf2:#A8A49D; --on-surf3:#7D7970;
+      --bdr:#3A3731;
+      --err50:#3D1515; --suc50:#0E3D2A; --warn50:#3D2510; --info50:#0C2A4A;
+      --err:#E89090; --suc:#5EDBA0; --warn:#F0AA60; --info:#7BB8F0;
+      --p100:#4F3800;
+      --pri-pill:rgba(79,56,0,.5);
+    }
+    .phone-screen.dark .qst-tile:first-child{background:#2A2520;border-color:rgba(232,168,0,.4)}
+    .phone-screen.dark .focus-card.earn{background:linear-gradient(135deg,#2A2218,#221C12 60%,var(--surf));border-color:rgba(232,168,0,.4)}
+    .phone-screen.dark .focus-card.focus-busy{background:linear-gradient(135deg,#2A1818,#221212 70%,var(--surf));border-color:rgba(217,59,59,.3)}
+    .phone-screen.dark .empty-card .ec-icon{background:#2A2825;color:var(--on-surf2)}
+    .phone-screen.dark .goals-bar{background:#2A2825}
+    .phone-screen.dark .goals-card.empty{background:transparent}
+    .phone-screen.dark .av-saffron{background:#4F3800;color:#F9CC50}
+    .phone-screen.dark .av-blue{background:#0C2A4A;color:#7BB8F0}
+    .phone-screen.dark .av-green{background:#0E3D2A;color:#5EDBA0}
+    .phone-screen.dark .av-orange{background:#3D2510;color:#F0AA60}
+    .phone-screen.dark .av-purple{background:#2D1F3D;color:#C4A0E8}
+    .phone-screen.dark .av-pink{background:#3D152A;color:#E890B0}
+    .phone-screen.dark .welcome-hero .hero-icon{background:#4F3800;color:#F9CC50}
+    .phone-screen.dark .qst-tile .qst-icon{background:#4F3800;color:#F9CC50}
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:var(--font-body);background:#0f0e0d;color:#E5E3DF;min-height:100vh}
+    body{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:48px}
+
+    .page-head{max-width:760px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+    .brand{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .brand .logo{font-size:28px;color:var(--p500);letter-spacing:-.02em}
+    .page-head h1{font-size:36px;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:#fff}
+    .page-head .lede{font-size:15px;line-height:1.6;color:rgba(255,255,255,.7);max-width:680px}
+
+    .changelog{
+      max-width:760px;width:100%;
+      background:rgba(232,168,0,.06);border:1px solid rgba(232,168,0,.25);
+      border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;gap:10px;
+    }
+    .changelog h2{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .changelog ul{list-style:none;display:flex;flex-direction:column;gap:6px;font-size:13.5px;line-height:1.55;color:rgba(255,255,255,.78)}
+    .changelog ul li{display:flex;gap:8px}
+    .changelog ul li::before{content:'✓';color:var(--suc);font-weight:800;flex-shrink:0}
+    .changelog code{font-family:var(--font-mono);background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;font-size:12px;color:#fff}
+
+    .toc{
+      position:sticky;top:0;z-index:20;
+      background:rgba(15,14,13,.92);backdrop-filter:blur(8px);
+      padding:14px 24px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+      border-bottom:1px solid rgba(255,255,255,.06);width:100%;
+    }
+    .toc a{font-size:12px;font-weight:700;color:rgba(255,255,255,.6);padding:6px 12px;border-radius:var(--r-full);background:rgba(255,255,255,.05);text-decoration:none}
+    .toc a:hover{background:rgba(255,255,255,.1);color:#fff}
+    .theme-toggle{
+      font-size:12px;font-weight:700;padding:6px 14px;border:none;cursor:pointer;
+      border-radius:var(--r-full);background:var(--p500);color:#fff;
+      font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    }
+    .theme-toggle .material-icons-round{font-size:14px}
+
+    /* State row */
+    .state-row{display:flex;flex-direction:column;gap:18px;width:100%;max-width:760px;align-items:center}
+    .state-head{display:flex;flex-direction:column;gap:6px;padding:0 4px;text-align:center}
+    .state-head .id{font-size:12px;font-weight:800;letter-spacing:.1em;color:var(--p400);text-transform:uppercase}
+    .state-head h3{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.01em}
+    .state-head .detect{font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.55)}
+
+    /* Phone frame */
+    .phone-shell{
+      width:340px;height:740px;border-radius:42px;padding:10px;
+      background:var(--n800);position:relative;overflow:hidden;
+      box-shadow:0 0 0 1px rgba(255,255,255,.07),0 28px 70px rgba(0,0,0,.6);
+    }
+    .phone-shell::before{
+      content:'';position:absolute;top:16px;left:50%;transform:translateX(-50%);
+      width:108px;height:30px;background:#080807;border-radius:var(--r-full);z-index:10;
+    }
+    .phone-screen{
+      width:100%;height:100%;border-radius:33px;background:var(--bg);
+      overflow:hidden;position:relative;display:flex;flex-direction:column;
+    }
+
+    .status-bar{
+      height:46px;padding:12px var(--s4) 0;
+      display:flex;align-items:flex-end;justify-content:space-between;
+      flex-shrink:0;background:var(--bg);
+    }
+    .status-time{font-size:14px;font-weight:700;color:var(--on-surf)}
+    .status-icons{display:flex;gap:5px;align-items:center}
+    .status-icons .material-icons-round{font-size:14px;color:var(--on-surf2)}
+
+    .screen-content{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;background:var(--bg);position:relative;padding:var(--s4) var(--s4) 96px}
+    .screen-content::-webkit-scrollbar{display:none}
+
+    .bottom-nav{
+      height:68px;background:var(--surf);border-top:1px solid var(--n100);
+      display:flex;align-items:flex-start;padding-top:var(--s2);flex-shrink:0;
+    }
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:var(--s1) 0}
+    .nav-item .material-icons-round{font-size:22px;color:var(--on-surf3)}
+    .nav-item span{font-size:10px;font-weight:600;color:var(--on-surf3);letter-spacing:.02em}
+    .nav-item.active .material-icons-round,.nav-item.active span{color:var(--p600)}
+    .nav-item .nav-pill{width:46px;height:26px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center}
+    .nav-item.active .nav-pill{background:var(--pri-pill)}
+
+    .fab{
+      position:absolute;bottom:84px;right:var(--s4);
+      width:50px;height:50px;border-radius:var(--r-fab);
+      background:var(--primary);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px rgba(232,168,0,.4);z-index:5;
+    }
+    .fab .material-icons-round{font-size:24px;color:var(--on-pri);font-weight:700}
+
+    /* Greeting */
+    .greeting{display:flex;flex-direction:column;gap:2px;margin-bottom:var(--s5)}
+    .greeting .hello{font-size:20px;font-weight:700;color:var(--on-surf);letter-spacing:-.01em}
+    .greeting .date{font-size:13px;color:var(--on-surf2)}
+
+    /* === FocusTodayCard (refined) === */
+    .focus-card{
+      display:flex;align-items:flex-start;gap:var(--s3);
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s4);margin-bottom:var(--s4);
+      cursor:pointer;
+      transition:transform 150ms ease;
+    }
+    .focus-card:hover{transform:translateY(-1px)}
+    .focus-card .focus-icon{
+      width:44px;height:44px;border-radius:var(--r-md);
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .focus-card .focus-icon .material-icons-round{font-size:24px}
+    .focus-card .focus-text{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;padding-top:2px}
+    .focus-card .focus-title{font-size:15px;font-weight:700;color:var(--on-surf);line-height:1.35;letter-spacing:-.005em}
+    .focus-card .focus-supporting{font-size:12.5px;color:var(--on-surf2);line-height:1.4}
+    .focus-card .focus-cta{
+      display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;
+      margin-top:4px;
+    }
+    .focus-card .focus-cta .material-icons-round{font-size:15px}
+
+    /* Variant accents */
+    .focus-card.first-order{border-color:rgba(43,127,212,.25)}
+    .focus-card.first-order .focus-icon{background:var(--info50);color:var(--info)}
+    .focus-card.first-order .focus-cta{color:var(--info)}
+
+    .focus-card.quiet{border-color:rgba(45,158,107,.25)}
+    .focus-card.quiet .focus-icon{background:var(--suc50);color:var(--suc)}
+    .focus-card.quiet .focus-cta{color:var(--suc)}
+
+    .focus-card.steady{border-color:rgba(43,127,212,.25)}
+    .focus-card.steady .focus-icon{background:var(--info50);color:var(--info)}
+    .focus-card.steady .focus-cta{color:var(--info)}
+
+    .focus-card.earn{border-color:rgba(232,168,0,.4);background:linear-gradient(135deg,#FFFBEF,#FFF8E7 60%,var(--surf))}
+    .focus-card.earn .focus-icon{background:var(--p100);color:var(--p700)}
+    .focus-card.earn .focus-cta{color:var(--p700)}
+
+    .focus-card.focus-busy{border-color:rgba(217,59,59,.3);background:linear-gradient(135deg,#FFF5F5,#FCEAEA 70%,var(--surf))}
+    .focus-card.focus-busy .focus-icon{background:var(--err50);color:var(--err)}
+    .focus-card.focus-busy .focus-cta{color:var(--err)}
+
+    /* === WeeklyGoalsCard (NEW) === */
+    .goals-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s4);margin-bottom:var(--s4);
+      display:flex;flex-direction:column;gap:var(--s3);cursor:pointer;
+    }
+    .goals-head{display:flex;justify-content:space-between;align-items:center}
+    .goals-head .gh-label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--on-surf2)}
+    .goals-head .gh-meta{font-size:11px;color:var(--on-surf3);font-weight:600}
+    .goals-head .gh-edit{font-size:12px;font-weight:700;color:var(--p600);display:inline-flex;align-items:center;gap:3px}
+    .goals-head .gh-edit .material-icons-round{font-size:14px}
+    .goals-body{display:flex;flex-direction:column;gap:8px}
+    .goals-body .gb-row{display:flex;justify-content:space-between;align-items:baseline}
+    .goals-body .gb-name{font-size:14px;font-weight:700;color:var(--on-surf)}
+    .goals-body .gb-value{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--on-surf2)}
+    .goals-body .gb-value strong{color:var(--p700);font-weight:800}
+    .goals-bar{
+      height:8px;background:var(--n100);border-radius:var(--r-full);overflow:hidden;position:relative;
+    }
+    .goals-bar .gb-fill{
+      height:100%;background:linear-gradient(90deg,var(--p400),var(--p500));
+      border-radius:var(--r-full);transition:width 400ms ease;
+    }
+    .goals-card.empty{border-style:dashed;background:transparent}
+    .goals-card.empty .gb-empty-cta{
+      font-size:13px;font-weight:700;color:var(--p600);display:inline-flex;align-items:center;gap:5px;
+    }
+    .goals-card.empty .gb-empty-cta .material-icons-round{font-size:15px}
+
+    /* Section heading */
+    .section-head{
+      font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--on-surf2);margin-bottom:var(--s3);margin-top:var(--s4);
+    }
+    .section-head:first-of-type{margin-top:0}
+    .section-head.with-count::after{content:attr(data-count);margin-left:6px;color:var(--on-surf3);font-weight:600}
+
+    /* Welcome hero (S1) */
+    .welcome-hero{
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:var(--s8) var(--s5);text-align:center;gap:var(--s3);
+    }
+    .welcome-hero .hero-icon{
+      width:88px;height:88px;border-radius:var(--r-xl);background:var(--p50);
+      display:flex;align-items:center;justify-content:center;color:var(--primary);margin-bottom:var(--s3);
+    }
+    .welcome-hero .hero-icon .material-icons-round{font-size:44px}
+    .welcome-hero h2{font-size:22px;font-weight:700;color:var(--on-surf);letter-spacing:-.015em;line-height:1.25}
+    .welcome-hero p{font-size:13.5px;color:var(--on-surf2);line-height:1.5;max-width:240px}
+    .welcome-hero .cta{
+      margin-top:var(--s5);background:var(--primary);color:var(--on-pri);
+      font-size:14px;font-weight:600;padding:var(--s3) var(--s6);border-radius:var(--r-md);
+      box-shadow:0 4px 14px rgba(232,168,0,.4);
+    }
+
+    /* QuickStartTiles (compact, your A pick) */
+    .qst-row{display:flex;gap:var(--s2);margin-bottom:var(--s4)}
+    .qst-tile{
+      flex:1;background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s4) var(--s2);
+      display:flex;flex-direction:column;align-items:center;gap:var(--s2);
+      text-align:center;cursor:pointer;
+    }
+    .qst-tile:first-child{border-color:rgba(232,168,0,.4);background:#FFFBEF}
+    .qst-tile .qst-icon{
+      width:36px;height:36px;border-radius:var(--r-md);background:var(--p50);
+      display:flex;align-items:center;justify-content:center;color:var(--primary);
+    }
+    .qst-tile .qst-icon .material-icons-round{font-size:18px}
+    .qst-tile .qst-label{font-size:12px;font-weight:700;color:var(--on-surf);line-height:1.25}
+
+    /* ReconnectStrip (cards, your B pick) */
+    .reconnect-row{display:flex;gap:var(--s3);overflow-x:auto;margin-bottom:var(--s4);padding-bottom:4px}
+    .reconnect-row::-webkit-scrollbar{display:none}
+    .reconnect-chip{
+      flex-shrink:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+      background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);
+      padding:var(--s3);min-width:150px;cursor:pointer;
+    }
+    .reconnect-chip .rc-row{display:flex;align-items:center;gap:var(--s2);width:100%}
+    .reconnect-chip .av{width:32px;height:32px;border-radius:50%;font-size:11px}
+    .reconnect-chip .rc-name{font-size:13px;font-weight:700;color:var(--on-surf);line-height:1.2}
+    .reconnect-chip .rc-meta{font-size:10.5px;color:var(--on-surf3);margin-top:1px}
+    .reconnect-chip .rc-msg{font-size:11px;color:var(--p700);font-weight:700;display:inline-flex;align-items:center;gap:4px}
+    .reconnect-chip .rc-msg .material-icons-round{font-size:13px;color:var(--suc)}
+    /* Compact (used on S4) */
+    .reconnect-row.compact .reconnect-chip{
+      flex-direction:row;align-items:center;border-radius:var(--r-full);padding:6px 12px 6px 6px;min-width:0;
+    }
+    .reconnect-row.compact .reconnect-chip .rc-row{width:auto}
+    .reconnect-row.compact .reconnect-chip .rc-msg{display:none}
+
+    /* SectionEmptyAffordance (mini-card, your B pick) */
+    .empty-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s4);margin-bottom:var(--s3);
+      display:flex;flex-direction:column;gap:6px;cursor:pointer;
+    }
+    .empty-card .ec-row{display:flex;align-items:center;gap:var(--s3)}
+    .empty-card .ec-icon{
+      width:32px;height:32px;border-radius:var(--r-md);background:var(--n100);
+      display:flex;align-items:center;justify-content:center;color:var(--on-surf2);flex-shrink:0;
+    }
+    .empty-card .ec-icon .material-icons-round{font-size:18px}
+    .empty-card .ec-title{flex:1;font-size:13.5px;font-weight:700;color:var(--on-surf)}
+    .empty-card .ec-supporting{font-size:12px;color:var(--on-surf2);line-height:1.45;padding-left:44px}
+    .empty-card .ec-cta{font-size:12px;font-weight:700;color:var(--p700);padding-left:44px;display:inline-flex;align-items:center;gap:4px;margin-top:2px}
+    .empty-card .ec-cta .material-icons-round{font-size:14px}
+
+    /* Triage tile grid (V9) */
+    .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);margin-bottom:var(--s4)}
+    .tile{
+      position:relative;background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s5) var(--s4);
+    }
+    .tile .tile-icon{position:absolute;top:10px;right:10px;opacity:.5}
+    .tile .tile-icon .material-icons-round{font-size:18px}
+    .tile .tile-value{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.01em}
+    .tile .tile-label{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--on-surf2);margin-top:4px}
+    /* All tiles share the same surface — accent color lives in value/icon only */
+    .tile.overdue .tile-value,.tile.overdue .tile-icon{color:var(--err)}
+    .tile.due .tile-value,.tile.due .tile-icon{color:var(--warn)}
+    .tile.ready .tile-value,.tile.ready .tile-icon{color:var(--suc)}
+    .tile.unpaid .tile-value,.tile.unpaid .tile-icon{color:var(--p600)}
+    .tile.unpaid .tile-value{font-size:20px}
+
+    /* Today's Work List */
+    .work-list{display:flex;flex-direction:column;gap:var(--s2);margin-bottom:var(--s4)}
+    .work-row{display:flex;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);overflow:hidden}
+    .work-row .accent{width:4px;flex-shrink:0}
+    .work-row.overdue .accent{background:var(--err)}
+    .work-row.due .accent{background:var(--warn)}
+    .work-row.ready .accent{background:var(--suc)}
+    .work-row .work-body{flex:1;padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s2)}
+    .work-row .av{width:34px;height:34px;font-size:11px}
+    .work-row .work-text{flex:1;min-width:0}
+    .work-row .work-name{font-size:13.5px;font-weight:700;color:var(--on-surf);line-height:1.2}
+    .work-row .work-sub{font-size:11.5px;color:var(--on-surf2);margin-top:1px}
+    .work-row .chip{font-size:10px;font-weight:700;padding:3px 8px;border-radius:var(--r-full)}
+    .work-row.overdue .chip{background:var(--err50);color:var(--err)}
+    .work-row.due .chip{background:var(--warn50);color:var(--warn)}
+    .work-row.ready .chip{background:var(--suc50);color:var(--suc)}
+
+    /* NBA carousel */
+    .nba-row{display:flex;gap:var(--s3);overflow-x:auto;margin-bottom:var(--s4);padding-bottom:4px}
+    .nba-row::-webkit-scrollbar{display:none}
+    .nba-card{
+      flex-shrink:0;width:184px;background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3);display:flex;flex-direction:column;gap:6px;
+    }
+    .nba-card .nba-type{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+    .nba-card .nba-customer{font-size:13.5px;font-weight:700;color:var(--on-surf)}
+    .nba-card .nba-action{font-size:11.5px;color:var(--on-surf2);line-height:1.35}
+    .nba-card .nba-cta{margin-top:auto;font-size:11.5px;font-weight:700;color:var(--p700);display:inline-flex;align-items:center;gap:4px}
+    .nba-card .nba-cta .material-icons-round{font-size:13px}
+    .nba-card.collect .nba-type{color:var(--err)}
+    .nba-card.deposit .nba-type{color:var(--warn)}
+    .nba-card.start .nba-type{color:var(--info)}
+    .nba-card.deliver .nba-type{color:var(--suc)}
+
+    /* Pipeline */
+    .pipeline-block{display:flex;flex-direction:column;gap:var(--s2);margin-bottom:var(--s3)}
+    .pipeline-row{display:flex;align-items:center;gap:var(--s2);background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);padding:var(--s3)}
+    .pipeline-row .av{width:32px;height:32px;font-size:11px}
+    .pipeline-row .pl-text{flex:1;min-width:0}
+    .pipeline-row .pl-name{font-size:13.5px;font-weight:700;color:var(--on-surf)}
+    .pipeline-row .pl-sub{font-size:11.5px;color:var(--on-surf2)}
+    .pipeline-row .material-icons-round{color:var(--on-surf3);font-size:18px}
+
+    /* Avatar variants */
+    .av{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border-radius:var(--r-md)}
+    .av-saffron{background:var(--p50);color:var(--p700)}
+    .av-blue{background:var(--info50);color:var(--info)}
+    .av-green{background:var(--suc50);color:var(--suc)}
+    .av-orange{background:var(--warn50);color:var(--warn)}
+    .av-purple{background:#F3EAFA;color:#7B4DB5}
+    .av-pink{background:#FBEAF0;color:#C4447A}
+
+    /* Caption */
+    .note{font-size:12px;color:rgba(255,255,255,.5);font-style:italic;margin-top:6px;text-align:center;max-width:340px}
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div class="brand"><span class="logo material-icons-round">straighten</span><span>StitchPad</span></div>
+    <h1>Dashboard Redesign — Final</h1>
+    <p class="lede">
+      Consolidated direction after your A/B feedback. Always-on <strong>FocusTodayCard</strong> + <strong>WeeklyGoalsCard</strong> drive every state. Triage / Pipeline / NBA / Reconnect render conditionally below. Never a blank dashboard.
+    </p>
+  </header>
+
+  <section class="changelog">
+    <h2>What changed from A/B</h2>
+    <ul>
+      <li>QuickStartTiles use the <code>compact</code> style you preferred — single-label, no descriptions.</li>
+      <li>Empty NBA + Pipeline use the <code>mini-card</code> style you loved — title + supporting copy + secondary CTA.</li>
+      <li>FocusTodayCard refined: trailing chevron removed (the inline CTA arrow is the only tap signal), icon enlarged, "NEW STATE / URGENT" pulse hints dropped — accent color shift alone tells the story.</li>
+      <li>NEW: <strong>WeeklyGoalsCard</strong> sits between FocusTodayCard and the rest. Mock data shown — full feature is its own follow-up PR (data model, persistence, goal-setup screen).</li>
+      <li>S2 (your reported bug) gets the goal in "Set up" state — invites them to declare a target.</li>
+    </ul>
+  </section>
+
+  <nav class="toc">
+    <a href="#s1">S1 Brand-new</a>
+    <a href="#s2">S2 First-customer ⭐</a>
+    <a href="#s3">S3 Quiet day</a>
+    <a href="#s4">S4 Pipeline-only</a>
+    <a href="#s5">S5 NBA-only</a>
+    <a href="#s6">S6 Busy day</a>
+    <button class="theme-toggle" id="theme-toggle"><span class="material-icons-round" id="theme-icon">dark_mode</span><span id="theme-label">Dark</span></button>
+  </nav>
+
+  <!-- ============ S1 ============ -->
+  <section class="state-row" id="s1">
+    <div class="state-head">
+      <span class="id">S1 — Brand new</span>
+      <h3>Zero customers, zero orders</h3>
+      <span class="detect">orders.isEmpty() && customers.isEmpty()</span>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content" style="padding:0">
+        <div class="welcome-hero">
+          <div class="hero-icon"><span class="material-icons-round">check_circle</span></div>
+          <h2>Welcome to StitchPad</h2>
+          <p>Add your first customer to start tracking orders, measurements, and styles.</p>
+          <div class="cta">Add first customer</div>
+        </div>
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">home</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">person</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_cart</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">settings</span><span>Settings</span></div>
+      </div>
+    </div></div>
+    <div class="note">Unchanged from current. WelcomeHero stays.</div>
+  </section>
+
+  <!-- ============ S2 ============ -->
+  <section class="state-row" id="s2">
+    <div class="state-head">
+      <span class="id">S2 — First-customer ⭐ the reported bug</span>
+      <h3>Has 1+ customers, zero orders</h3>
+      <span class="detect">customers.isNotEmpty() && orders.isEmpty()</span>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+        <div class="greeting"><div class="hello">Good morning, Olawale</div><div class="date">Sunday, 26 Apr</div></div>
+
+        <div class="focus-card first-order">
+          <div class="focus-icon"><span class="material-icons-round">rocket_launch</span></div>
+          <div class="focus-text">
+            <div class="focus-title">One customer added. Turn them into your first order.</div>
+            <div class="focus-cta">Create order for Ola Kunle <span class="material-icons-round">arrow_forward</span></div>
+          </div>
+        </div>
+
+        <div class="goals-card empty">
+          <div class="goals-head"><span class="gh-label">This week</span></div>
+          <div class="goals-body">
+            <div class="gb-row"><span class="gb-name">Set your first revenue goal</span></div>
+            <div class="gb-empty-cta">Get started <span class="material-icons-round">arrow_forward</span></div>
+          </div>
+        </div>
+
+        <div class="qst-row">
+          <div class="qst-tile"><div class="qst-icon"><span class="material-icons-round">add_shopping_cart</span></div><div class="qst-label">Create<br/>first order</div></div>
+          <div class="qst-tile"><div class="qst-icon"><span class="material-icons-round">person_add</span></div><div class="qst-label">Add<br/>customer</div></div>
+          <div class="qst-tile"><div class="qst-icon"><span class="material-icons-round">straighten</span></div><div class="qst-label">Add<br/>measurement</div></div>
+        </div>
+
+        <div class="section-head">Reconnect</div>
+        <div class="reconnect-row">
+          <div class="reconnect-chip">
+            <div class="rc-row"><div class="av av-purple">OK</div><div><div class="rc-name">Ola Kunle</div><div class="rc-meta">No orders yet</div></div></div>
+            <div class="rc-msg"><span class="material-icons-round">chat</span>Send a hello</div>
+          </div>
+        </div>
+
+        <div class="empty-card">
+          <div class="ec-row"><div class="ec-icon"><span class="material-icons-round">workspaces</span></div><div class="ec-title">No revenue actions yet</div></div>
+          <div class="ec-supporting">When orders are overdue or ready, suggested moves appear here.</div>
+          <div class="ec-cta">Log a payment <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+        <div class="empty-card">
+          <div class="ec-row"><div class="ec-icon"><span class="material-icons-round">timeline</span></div><div class="ec-title">Pipeline empty</div></div>
+          <div class="ec-supporting">Start the first order to see it move from pending → in progress → ready.</div>
+          <div class="ec-cta">Start an order <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">home</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">person</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_cart</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">settings</span><span>Settings</span></div>
+      </div>
+    </div></div>
+    <div class="note">Goals shown in dashed "set up" state. Compact tiles. Mini-card empties.</div>
+  </section>
+
+  <!-- ============ S3 ============ -->
+  <section class="state-row" id="s3">
+    <div class="state-head">
+      <span class="id">S3 — Quiet day</span>
+      <h3>Has data, no urgent triage / no NBA / no pipeline</h3>
+      <span class="detect">!isBrandNew && triageEmpty && nbaEmpty && pipelineTotal == 0</span>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+        <div class="greeting"><div class="hello">Good morning, Dan</div><div class="date">Sunday, 26 Apr</div></div>
+
+        <div class="focus-card quiet">
+          <div class="focus-icon"><span class="material-icons-round">spa</span></div>
+          <div class="focus-text">
+            <div class="focus-title">No deadlines today.</div>
+            <div class="focus-supporting">Reconnect with a past customer.</div>
+            <div class="focus-cta">Message Mrs Adebayo <span class="material-icons-round">arrow_forward</span></div>
+          </div>
+        </div>
+
+        <div class="goals-card">
+          <div class="goals-head">
+            <span class="gh-label">This week</span>
+            <span class="gh-meta">3 days left</span>
+          </div>
+          <div class="goals-body">
+            <div class="gb-row">
+              <span class="gb-name">Revenue goal</span>
+              <span class="gb-value"><strong>₦210k</strong> / ₦300k</span>
+            </div>
+            <div class="goals-bar"><div class="gb-fill" style="width:70%"></div></div>
+          </div>
+        </div>
+
+        <div class="section-head">Reconnect</div>
+        <div class="reconnect-row">
+          <div class="reconnect-chip"><div class="rc-row"><div class="av av-pink">MA</div><div><div class="rc-name">Mrs Adebayo</div><div class="rc-meta">Last order 22d ago</div></div></div><div class="rc-msg"><span class="material-icons-round">chat</span>Say hi</div></div>
+          <div class="reconnect-chip"><div class="rc-row"><div class="av av-blue">FT</div><div><div class="rc-name">Femi Tunde</div><div class="rc-meta">Last order 31d ago</div></div></div><div class="rc-msg"><span class="material-icons-round">chat</span>Say hi</div></div>
+          <div class="reconnect-chip"><div class="rc-row"><div class="av av-green">FS</div><div><div class="rc-name">Fola S.</div><div class="rc-meta">Last order 45d ago</div></div></div><div class="rc-msg"><span class="material-icons-round">chat</span>Say hi</div></div>
+        </div>
+
+        <div class="empty-card">
+          <div class="ec-row"><div class="ec-icon"><span class="material-icons-round">workspaces</span></div><div class="ec-title">No suggested moves</div></div>
+          <div class="ec-supporting">Show up when balances or deadlines need follow-up.</div>
+          <div class="ec-cta">Log a payment <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+        <div class="empty-card">
+          <div class="ec-row"><div class="ec-icon"><span class="material-icons-round">timeline</span></div><div class="ec-title">Pipeline empty</div></div>
+          <div class="ec-supporting">No orders moving today. A great time to start one.</div>
+          <div class="ec-cta">Start an order <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">home</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">person</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_cart</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">settings</span><span>Settings</span></div>
+      </div>
+    </div></div>
+    <div class="note">Goals card shows progress (70%, ₦210k/₦300k) — motivating on a quiet day.</div>
+  </section>
+
+  <!-- ============ S4 ============ -->
+  <section class="state-row" id="s4">
+    <div class="state-head">
+      <span class="id">S4 — Pipeline-only</span>
+      <h3>Work in flight, no urgent triage, no NBA-eligible</h3>
+      <span class="detect">triageEmpty && nbaEmpty && pipelineTotal &gt; 0</span>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+        <div class="greeting"><div class="hello">Good morning, Dan</div><div class="date">Sunday, 26 Apr</div></div>
+
+        <div class="focus-card steady">
+          <div class="focus-icon"><span class="material-icons-round">trending_up</span></div>
+          <div class="focus-text">
+            <div class="focus-title">Shop is steady.</div>
+            <div class="focus-supporting">5 orders moving · 3 due this week</div>
+            <div class="focus-cta">Open next order <span class="material-icons-round">arrow_forward</span></div>
+          </div>
+        </div>
+
+        <div class="goals-card">
+          <div class="goals-head">
+            <span class="gh-label">This week</span>
+            <span class="gh-meta">3 days left</span>
+          </div>
+          <div class="goals-body">
+            <div class="gb-row">
+              <span class="gb-name">Revenue goal</span>
+              <span class="gb-value"><strong>₦185k</strong> / ₦300k</span>
+            </div>
+            <div class="goals-bar"><div class="gb-fill" style="width:62%"></div></div>
+          </div>
+        </div>
+
+        <div class="section-head with-count" data-count="(3)">In progress</div>
+        <div class="pipeline-block">
+          <div class="pipeline-row"><div class="av av-blue">BD</div><div class="pl-text"><div class="pl-name">Bimbo Dann</div><div class="pl-sub">Agbada · due Fri</div></div><span class="material-icons-round">chevron_right</span></div>
+          <div class="pipeline-row"><div class="av av-orange">DA</div><div class="pl-text"><div class="pl-name">Dayyo Au</div><div class="pl-sub">Suit · due 8 May</div></div><span class="material-icons-round">chevron_right</span></div>
+          <div class="pipeline-row"><div class="av av-saffron">AW</div><div class="pl-text"><div class="pl-name">Ade Wale</div><div class="pl-sub">Senator · due 11 May</div></div><span class="material-icons-round">chevron_right</span></div>
+        </div>
+
+        <div class="section-head with-count" data-count="(2)">Not started yet</div>
+        <div class="pipeline-block">
+          <div class="pipeline-row"><div class="av av-green">GP</div><div class="pl-text"><div class="pl-name">Grace Peace</div><div class="pl-sub">Dress · due 14 May</div></div><span class="material-icons-round">chevron_right</span></div>
+          <div class="pipeline-row"><div class="av av-purple">FS</div><div class="pl-text"><div class="pl-name">Fola Sunday</div><div class="pl-sub">Corset · due 17 May</div></div><span class="material-icons-round">chevron_right</span></div>
+        </div>
+
+        <div class="section-head">Reconnect</div>
+        <div class="reconnect-row compact">
+          <div class="reconnect-chip"><div class="rc-row"><div class="av av-pink">MA</div><div><span class="rc-name">Mrs Adebayo</span><span class="rc-meta">22d ago</span></div></div></div>
+          <div class="reconnect-chip"><div class="rc-row"><div class="av av-blue">FT</div><div><span class="rc-name">Femi T.</span><span class="rc-meta">31d ago</span></div></div></div>
+        </div>
+
+        <div class="empty-card">
+          <div class="ec-row"><div class="ec-icon"><span class="material-icons-round">workspaces</span></div><div class="ec-title">No suggested moves</div></div>
+          <div class="ec-supporting">Suggested moves appear when balances or deadlines need follow-up.</div>
+        </div>
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">home</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">person</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_cart</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">settings</span><span>Settings</span></div>
+      </div>
+    </div></div>
+    <div class="note">Reconnect collapsed to compact pill style. Goals + Pipeline are the heart.</div>
+  </section>
+
+  <!-- ============ S5 ============ -->
+  <section class="state-row" id="s5">
+    <div class="state-head">
+      <span class="id">S5 — NBA-only</span>
+      <h3>Revenue moves available, no triage urgency</h3>
+      <span class="detect">triageEmpty && nba.isNotEmpty()</span>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+        <div class="greeting"><div class="hello">Good morning, Dan</div><div class="date">Sunday, 26 Apr</div></div>
+
+        <div class="focus-card earn">
+          <div class="focus-icon"><span class="material-icons-round">payments</span></div>
+          <div class="focus-text">
+            <div class="focus-title">3 ways to earn today.</div>
+            <div class="focus-supporting">Start with Mrs Folake — ₦35k due on collection</div>
+            <div class="focus-cta">Take action <span class="material-icons-round">arrow_forward</span></div>
+          </div>
+        </div>
+
+        <div class="goals-card">
+          <div class="goals-head">
+            <span class="gh-label">This week</span>
+            <span class="gh-meta">3 days left</span>
+          </div>
+          <div class="goals-body">
+            <div class="gb-row">
+              <span class="gb-name">Revenue goal</span>
+              <span class="gb-value"><strong>₦240k</strong> / ₦300k</span>
+            </div>
+            <div class="goals-bar"><div class="gb-fill" style="width:80%"></div></div>
+          </div>
+        </div>
+
+        <div class="section-head">Next best actions</div>
+        <div class="nba-row">
+          <div class="nba-card collect"><div class="nba-type">Collect on ready</div><div class="nba-customer">Mrs Folake</div><div class="nba-action">₦35k owed · Senator ready 2d ago</div><div class="nba-cta">Message <span class="material-icons-round">chat</span></div></div>
+          <div class="nba-card deposit"><div class="nba-type">Collect deposit</div><div class="nba-customer">Tunde A.</div><div class="nba-action">No deposit on Agbada · due 9 May</div><div class="nba-cta">Confirm <span class="material-icons-round">arrow_forward</span></div></div>
+          <div class="nba-card start"><div class="nba-type">Start soon</div><div class="nba-customer">Adaeze</div><div class="nba-action">Dress due in 5d · not started</div><div class="nba-cta">Begin <span class="material-icons-round">arrow_forward</span></div></div>
+        </div>
+
+        <div class="section-head with-count" data-count="(2)">In progress</div>
+        <div class="pipeline-block">
+          <div class="pipeline-row"><div class="av av-blue">BD</div><div class="pl-text"><div class="pl-name">Bimbo Dann</div><div class="pl-sub">Agbada · due 12 May</div></div><span class="material-icons-round">chevron_right</span></div>
+          <div class="pipeline-row"><div class="av av-orange">DA</div><div class="pl-text"><div class="pl-name">Dayyo Au</div><div class="pl-sub">Suit · due 18 May</div></div><span class="material-icons-round">chevron_right</span></div>
+        </div>
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">home</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">person</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_cart</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">settings</span><span>Settings</span></div>
+      </div>
+    </div></div>
+    <div class="note">Earn focus card + Goals at 80% + NBA carousel + Pipeline. No triage.</div>
+  </section>
+
+  <!-- ============ S6 ============ -->
+  <section class="state-row" id="s6">
+    <div class="state-head">
+      <span class="id">S6 — Busy day</span>
+      <h3>Triage active (overdue / due-today / ready / unpaid)</h3>
+      <span class="detect">triageNotEmpty</span>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+        <div class="greeting"><div class="hello">Good morning, Dan</div><div class="date">Sunday, 26 Apr</div></div>
+
+        <div class="focus-card focus-busy">
+          <div class="focus-icon"><span class="material-icons-round">priority_high</span></div>
+          <div class="focus-text">
+            <div class="focus-title">5 need attention today.</div>
+            <div class="focus-supporting">2 overdue · 3 due today</div>
+            <div class="focus-cta">Open Mr Kola <span class="material-icons-round">arrow_forward</span></div>
+          </div>
+        </div>
+
+        <div class="goals-card">
+          <div class="goals-head">
+            <span class="gh-label">This week</span>
+            <span class="gh-meta">3 days left</span>
+          </div>
+          <div class="goals-body">
+            <div class="gb-row">
+              <span class="gb-name">Revenue goal</span>
+              <span class="gb-value"><strong>₦155k</strong> / ₦300k</span>
+            </div>
+            <div class="goals-bar"><div class="gb-fill" style="width:52%"></div></div>
+          </div>
+        </div>
+
+        <div class="tile-grid">
+          <div class="tile overdue"><div class="tile-icon"><span class="material-icons-round">error</span></div><div class="tile-value">2</div><div class="tile-label">Overdue</div></div>
+          <div class="tile due"><div class="tile-icon"><span class="material-icons-round">today</span></div><div class="tile-value">3</div><div class="tile-label">Due today</div></div>
+          <div class="tile ready"><div class="tile-icon"><span class="material-icons-round">check_circle</span></div><div class="tile-value">1</div><div class="tile-label">Ready</div></div>
+          <div class="tile unpaid"><div class="tile-icon"><span class="material-icons-round">payments</span></div><div class="tile-value">₦145k</div><div class="tile-label">Unpaid</div></div>
+        </div>
+
+        <div class="section-head">Today's work</div>
+        <div class="work-list">
+          <div class="work-row overdue"><div class="accent"></div><div class="work-body"><div class="av av-orange">MK</div><div class="work-text"><div class="work-name">Mr Kola</div><div class="work-sub">Agbada</div></div><span class="chip">2d late</span></div></div>
+          <div class="work-row due"><div class="accent"></div><div class="work-body"><div class="av av-blue">MC</div><div class="work-text"><div class="work-name">Mrs Chika</div><div class="work-sub">Dress</div></div><span class="chip">Today</span></div></div>
+          <div class="work-row ready"><div class="accent"></div><div class="work-body"><div class="av av-green">FS</div><div class="work-text"><div class="work-name">Mrs Funke</div><div class="work-sub">Senator</div></div><span class="chip">Ready</span></div></div>
+        </div>
+
+        <div class="section-head">Next best actions</div>
+        <div class="nba-row">
+          <div class="nba-card collect"><div class="nba-type">Collect overdue</div><div class="nba-customer">Mr Kola</div><div class="nba-action">₦42k · 2 days late</div><div class="nba-cta">Message <span class="material-icons-round">chat</span></div></div>
+          <div class="nba-card deliver"><div class="nba-type">Deliver stale</div><div class="nba-customer">Mrs Funke</div><div class="nba-action">Ready 4d · no pickup</div><div class="nba-cta">Notify <span class="material-icons-round">chat</span></div></div>
+        </div>
+
+        <div class="section-head with-count" data-count="(2)">In progress</div>
+        <div class="pipeline-block">
+          <div class="pipeline-row"><div class="av av-saffron">AW</div><div class="pl-text"><div class="pl-name">Ade Wale</div><div class="pl-sub">Senator · due 11 May</div></div><span class="material-icons-round">chevron_right</span></div>
+          <div class="pipeline-row"><div class="av av-purple">BD</div><div class="pl-text"><div class="pl-name">Bimbo Dada1</div><div class="pl-sub">Agbada · due 13 May</div></div><span class="material-icons-round">chevron_right</span></div>
+        </div>
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">home</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">person</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_cart</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">settings</span><span>Settings</span></div>
+      </div>
+    </div></div>
+    <div class="note">Focus card (red) + Goals (subtle) + Triage primary + NBA + Pipeline.</div>
+  </section>
+
+  <script>
+    (function(){
+      const btn = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      const screens = document.querySelectorAll('.phone-screen');
+      // Default to dark since the user is reviewing in dark theme
+      let isDark = true;
+      function apply(){
+        screens.forEach(s => s.classList.toggle('dark', isDark));
+        icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+        label.textContent = isDark ? 'Light' : 'Dark';
+      }
+      btn.addEventListener('click', () => { isDark = !isDark; apply(); });
+      apply();
+    })();
+  </script>
+
+</body>
+</html>

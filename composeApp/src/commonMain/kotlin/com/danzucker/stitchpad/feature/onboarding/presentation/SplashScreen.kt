@@ -19,20 +19,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.feature.onboarding.presentation.components.StitchPadLogo
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.app_name
 import stitchpad.composeapp.generated.resources.splash_tagline
 
+private const val SPLASH_DURATION_MS = 1500L
+
 @Composable
-fun SplashScreen(
-    onSplashFinished: () -> Unit
-) {
+fun SplashRoot(onSplashFinished: () -> Unit) {
     var isVisible by remember { mutableStateOf(false) }
     val alpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
@@ -42,10 +44,15 @@ fun SplashScreen(
 
     LaunchedEffect(Unit) {
         isVisible = true
-        delay(1500L)
+        delay(SPLASH_DURATION_MS)
         onSplashFinished()
     }
 
+    SplashScreen(alpha = alpha)
+}
+
+@Composable
+fun SplashScreen(alpha: Float) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -55,18 +62,27 @@ fun SplashScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         StitchPadLogo(size = 100.dp)
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(DesignTokens.space5))
         Text(
             text = stringResource(Res.string.app_name),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = DesignTokens.neutral800
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(DesignTokens.space2))
         Text(
             text = stringResource(Res.string.splash_tagline),
             fontSize = 14.sp,
             color = DesignTokens.neutral800.copy(alpha = 0.6f)
         )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun SplashScreenPreview() {
+    StitchPadTheme {
+        SplashScreen(alpha = 1f)
     }
 }
