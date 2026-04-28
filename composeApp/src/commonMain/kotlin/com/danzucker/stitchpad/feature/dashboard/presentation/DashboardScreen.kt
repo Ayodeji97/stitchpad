@@ -101,6 +101,8 @@ import stitchpad.composeapp.generated.resources.affordance_pipeline_empty_title
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.dashboard_chip_ready
 import stitchpad.composeapp.generated.resources.dashboard_chip_today
+import stitchpad.composeapp.generated.resources.dashboard_days_late
+import stitchpad.composeapp.generated.resources.dashboard_due_in_days
 import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
@@ -216,12 +218,20 @@ fun DashboardScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (DashboardAction) -> Unit
 ) {
+    // FAB is hidden during the brand-new and loading states. Brand-new shows the WelcomeHero
+    // ("Add your first customer") and the Order form requires an existing customer; surfacing
+    // the FAB there would route the user into a dead end. Loading is suppressed too so the FAB
+    // doesn't briefly flash before the first state emission resolves.
+    val showFab = state.uiState != DashboardUiState.BrandNew &&
+        state.uiState != DashboardUiState.Loading
     Scaffold(
         floatingActionButton = {
-            StitchPadFab(
-                onClick = { onAction(DashboardAction.OnNewOrderClick) },
-                contentDescription = stringResource(Res.string.dashboard_fab_cd)
-            )
+            if (showFab) {
+                StitchPadFab(
+                    onClick = { onAction(DashboardAction.OnNewOrderClick) },
+                    contentDescription = stringResource(Res.string.dashboard_fab_cd)
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
@@ -829,7 +839,10 @@ private fun TodaysWorkList(
         items.forEach { item ->
             val colors = accentColorsFor(item.accent)
             val chipText = when (item.accent) {
-                RowAccent.Overdue -> item.row.secondaryLabel.orEmpty()
+                RowAccent.Overdue ->
+                    item.row.daysLate
+                        ?.let { stringResource(Res.string.dashboard_days_late, it) }
+                        .orEmpty()
                 RowAccent.DueToday -> stringResource(Res.string.dashboard_chip_today)
                 RowAccent.Ready -> stringResource(Res.string.dashboard_chip_ready)
                 RowAccent.Pipeline -> ""
@@ -915,11 +928,14 @@ private fun PipelineSubsection(
             color = MaterialTheme.colorScheme.onSurface
         )
         rows.forEach { row ->
+            val chipText = row.daysUntilDeadline
+                ?.let { stringResource(Res.string.dashboard_due_in_days, it) }
+                .orEmpty()
             AccentedOrderRow(
                 customerName = row.customerName,
                 primaryLabel = row.primaryLabel,
                 accentColor = accentColors.fg,
-                chipText = row.secondaryLabel.orEmpty(),
+                chipText = chipText,
                 chipTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 chipBackground = accentColors.bg,
                 onClick = { onAction(DashboardAction.OnOrderClick(row.orderId)) }
@@ -1089,7 +1105,7 @@ private fun DashboardScreenFilledPreview() {
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
                 overdue = listOf(
-                    DashboardOrderRow("1", "Fola Sunday", "Corset", "4d late")
+                    DashboardOrderRow("1", "Fola Sunday", "Corset", daysLate = 4)
                 ),
                 dueToday = listOf(
                     DashboardOrderRow("2", "Bimbo Dann", "Dress")
@@ -1123,12 +1139,12 @@ private fun DashboardScreenFilledPreview() {
                     )
                 ),
                 pipelineInProgress = listOf(
-                    DashboardOrderRow("p1", "Mr Femi", "Suit", "Due in 5d"),
-                    DashboardOrderRow("p2", "Mrs Chika", "Bridal Gown", "Due in 12d")
+                    DashboardOrderRow("p1", "Mr Femi", "Suit", daysUntilDeadline = 5),
+                    DashboardOrderRow("p2", "Mrs Chika", "Bridal Gown", daysUntilDeadline = 12)
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(
-                    DashboardOrderRow("p3", "Mr Kola", "Agbada", "Due in 9d")
+                    DashboardOrderRow("p3", "Mr Kola", "Agbada", daysUntilDeadline = 9)
                 ),
                 pipelinePendingTotal = 4
             ),
@@ -1177,14 +1193,14 @@ private fun DashboardScreenPipelineOnlyPreview() {
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
                 pipelineInProgress = listOf(
-                    DashboardOrderRow("p1", "Mrs Funke", "Senator", "Due in 6d"),
-                    DashboardOrderRow("p2", "Mr Tope", "Suit", "Due in 10d")
+                    DashboardOrderRow("p1", "Mrs Funke", "Senator", daysUntilDeadline = 6),
+                    DashboardOrderRow("p2", "Mr Tope", "Suit", daysUntilDeadline = 10)
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(
-                    DashboardOrderRow("p3", "Mrs Chika", "Dress", "Due in 14d"),
-                    DashboardOrderRow("p4", "Mr Kola", "Agbada", null),
-                    DashboardOrderRow("p5", "Bimbo D.", "Two Piece", "Due in 21d")
+                    DashboardOrderRow("p3", "Mrs Chika", "Dress", daysUntilDeadline = 14),
+                    DashboardOrderRow("p4", "Mr Kola", "Agbada"),
+                    DashboardOrderRow("p5", "Bimbo D.", "Two Piece", daysUntilDeadline = 21)
                 ),
                 pipelinePendingTotal = 5
             ),

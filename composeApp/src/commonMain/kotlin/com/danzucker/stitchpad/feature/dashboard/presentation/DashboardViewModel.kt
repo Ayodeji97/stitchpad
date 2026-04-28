@@ -171,7 +171,6 @@ class DashboardViewModel(
             }
             val firstName = firstNameOf(user.displayName)
             val workshopName = user.businessName?.takeIf { it.isNotBlank() }
-            val greeting = computeGreeting()
 
             combine(
                 orderRepository.observeOrders(user.id),
@@ -188,6 +187,11 @@ class DashboardViewModel(
                     customersResult is Result.Error -> customersResult.error.toDashboardUiText()
                     else -> null
                 }
+                // Recomputed on every emission so the greeting rolls morning -> afternoon -> evening
+                // without recreating the ViewModel. A pure ticker would be more accurate but adds a
+                // separate flow and a coroutine; emission-driven recompute is enough for this MVP
+                // because data updates are frequent in the workshop flow.
+                val greeting = computeGreeting()
                 val today = Instant.fromEpochMilliseconds(nowMillis())
                     .toLocalDateTime(timeZone).date
                 val customersById = customers.associateBy { it.id }
@@ -484,17 +488,14 @@ class DashboardViewModel(
     private fun Order.toPipelineRow(today: LocalDate): DashboardOrderRow {
         val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
         val deadlineDate = deadline?.toLocalDate(timeZone)
-        val secondary = if (deadlineDate != null && deadlineDate > today) {
-            val days = today.daysUntil(deadlineDate)
-            "Due in ${days}d"
-        } else {
-            null
-        }
+        val daysUntil = deadlineDate
+            ?.takeIf { it > today }
+            ?.let { today.daysUntil(it) }
         return DashboardOrderRow(
             orderId = id,
             customerName = customerName,
             primaryLabel = garment,
-            secondaryLabel = secondary
+            daysUntilDeadline = daysUntil
         )
     }
 
@@ -634,17 +635,14 @@ class DashboardViewModel(
     private fun Order.toRow(today: LocalDate): DashboardOrderRow {
         val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
         val deadlineDate = deadline?.toLocalDate(timeZone)
-        val secondary = if (deadlineDate != null && deadlineDate < today) {
-            val daysLate = deadlineDate.daysUntil(today)
-            "${daysLate}d late"
-        } else {
-            null
-        }
+        val daysLate = deadlineDate
+            ?.takeIf { it < today }
+            ?.daysUntil(today)
         return DashboardOrderRow(
             orderId = id,
             customerName = customerName,
             primaryLabel = garment,
-            secondaryLabel = secondary
+            daysLate = daysLate
         )
     }
 

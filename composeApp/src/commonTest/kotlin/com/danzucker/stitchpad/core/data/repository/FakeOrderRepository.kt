@@ -57,6 +57,7 @@ class FakeOrderRepository : OrderRepository {
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastCreatedOrder = order
+        ordersFlow.value = ordersFlow.value + order
         return Result.Success(Unit)
     }
 
@@ -66,6 +67,7 @@ class FakeOrderRepository : OrderRepository {
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUpdatedOrder = order
+        ordersFlow.value = ordersFlow.value.map { if (it.id == order.id) order else it }
         return Result.Success(Unit)
     }
 
@@ -76,6 +78,9 @@ class FakeOrderRepository : OrderRepository {
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastStatusUpdate = orderId to newStatus
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(status = newStatus) else existing
+        }
         return Result.Success(Unit)
     }
 
@@ -85,6 +90,7 @@ class FakeOrderRepository : OrderRepository {
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastDeletedOrderId = orderId
+        ordersFlow.value = ordersFlow.value.filterNot { it.id == orderId }
         return Result.Success(Unit)
     }
 

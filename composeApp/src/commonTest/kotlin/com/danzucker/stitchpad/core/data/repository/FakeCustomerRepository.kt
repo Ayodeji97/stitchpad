@@ -41,6 +41,7 @@ class FakeCustomerRepository : CustomerRepository {
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastCreatedCustomer = customer
+        customersFlow.value = customersFlow.value + customer
         return Result.Success(Unit)
     }
 
@@ -50,6 +51,9 @@ class FakeCustomerRepository : CustomerRepository {
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUpdatedCustomer = customer
+        customersFlow.value = customersFlow.value.map {
+            if (it.id == customer.id) customer else it
+        }
         return Result.Success(Unit)
     }
 
@@ -58,6 +62,7 @@ class FakeCustomerRepository : CustomerRepository {
         customerId: String,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        customersFlow.value = customersFlow.value.filterNot { it.id == customerId }
         return Result.Success(Unit)
     }
 }

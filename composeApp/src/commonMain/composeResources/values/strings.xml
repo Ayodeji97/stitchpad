@@ -484,6 +484,7 @@
     <string name="dashboard_see_all">See all</string>
     <string name="dashboard_and_more">+ %1$d more</string>
     <string name="dashboard_days_late">%1$dd late</string>
+    <string name="dashboard_due_in_days">Due in %1$dd</string>
     <string name="dashboard_welcome_title">Welcome to StitchPad</string>
     <string name="dashboard_welcome_subtitle">Add your first customer to start tracking orders, measurements, and styles.</string>
     <string name="dashboard_welcome_cta">Add first customer</string>
