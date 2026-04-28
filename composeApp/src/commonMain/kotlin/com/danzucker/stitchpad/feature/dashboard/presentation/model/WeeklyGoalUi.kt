@@ -1,9 +1,12 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
 /**
- * UI-layer rendering model for the WeeklyGoalsCard. Domain model + persistence
- * are deferred to PR 8. For now, the ViewModel uses a hardcoded target and
- * computes [collectedAmount] from real order data within the current week.
+ * UI-layer rendering model for the WeeklyGoalsCard.
+ *
+ * [targetAmount] is the user-configured weekly goal sourced from `WeeklyGoalRepository`.
+ * [collectedAmount] is computed from the current week's order data, and [daysLeft]
+ * counts the remaining days in the week. [progressPercent] is derived for the
+ * progress bar and clamped to `0f..1f`.
  */
 data class WeeklyGoalUi(
     val targetAmount: Double,

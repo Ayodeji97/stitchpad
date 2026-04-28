@@ -106,7 +106,6 @@ object DesignTokens {
     val labelLg: TextUnit = 14.sp
     val labelMd: TextUnit = 13.sp
     val labelSm: TextUnit = 11.sp
-    val labelXs: TextUnit = 12.sp
     val measurement: TextUnit = 15.sp
 
     // Spacing (8pt base)

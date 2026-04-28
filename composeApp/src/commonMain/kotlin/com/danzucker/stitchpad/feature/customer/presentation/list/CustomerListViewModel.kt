@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_load
 
 class CustomerListViewModel(
     private val customerRepository: CustomerRepository,
@@ -135,20 +138,33 @@ class CustomerListViewModel(
         }
     }
 
+    @Suppress("ReturnCount")
     private fun deleteCustomer() {
-        val customer = _state.value.customerToDelete ?: return
-        // Guard against deleting customers with active orders. The screen is also
-        // expected to gate the confirm button, but keep this check as a safety net.
-        if ((activeOrderCountByCustomerId[customer.id] ?: 0) > 0) {
+        val current = _state.value
+        val customer = current.customerToDelete ?: return
+
+        // Race guard #1: the orders flow hasn't emitted yet, so we don't actually know
+        // whether this customer has active orders. Refuse with a snackbar instead of
+        // deleting on a stale (empty) count. Dialog stays open so the user can retry.
+        if (!current.ordersLoaded) {
             _state.update {
-                it.copy(
-                    showDeleteDialog = false,
-                    customerToDelete = null,
-                    customerToDeleteActiveOrderCount = 0
-                )
+                it.copy(errorMessage = UiText.StringResourceText(Res.string.customer_delete_pending_orders_load))
             }
             return
         }
+
+        // Race guard #2: the screen gates the confirm button on customerToDeleteActiveOrderCount,
+        // but the cache may have updated since the dialog opened (orders flow re-emitted with
+        // newly-created orders). Morph the dialog into the "blocked" variant by writing the
+        // current count back into state — the screen already renders that branch.
+        val activeCount = activeOrderCountByCustomerId[customer.id] ?: 0
+        if (activeCount > 0) {
+            _state.update {
+                it.copy(customerToDeleteActiveOrderCount = activeCount)
+            }
+            return
+        }
+
         _state.update {
             it.copy(
                 showDeleteDialog = false,
@@ -174,6 +190,9 @@ class CustomerListViewModel(
                         .filter { it.status != OrderStatus.DELIVERED }
                         .groupingBy { it.customerId }
                         .eachCount()
+                    if (!_state.value.ordersLoaded) {
+                        _state.update { it.copy(ordersLoaded = true) }
+                    }
                 }
             }
         }

@@ -8,7 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+
+private val CHIP_FONT_SIZE: TextUnit = 12.sp
 
 @Composable
 fun StatusChip(
@@ -24,7 +28,7 @@ fun StatusChip(
     ) {
         Text(
             text = text,
-            fontSize = DesignTokens.labelXs,
+            fontSize = CHIP_FONT_SIZE,
             fontWeight = FontWeight.Bold,
             color = textColor,
             modifier = Modifier.padding(

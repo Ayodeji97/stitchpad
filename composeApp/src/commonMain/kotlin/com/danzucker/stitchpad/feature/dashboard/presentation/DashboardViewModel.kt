@@ -160,8 +160,14 @@ class DashboardViewModel(
                 firstPipelineId?.let { emitEvent(DashboardEvent.NavigateToOrderDetail(it)) }
             }
             FocusVariant.Quiet -> {
-                // PR 7 will route to reconnect/WhatsApp; for now fall back to new order.
-                emitEvent(DashboardEvent.NavigateToOrderForm)
+                val reconnectCandidate = current.reconnectCandidates.firstOrNull()
+                emitEvent(
+                    if (reconnectCandidate != null) {
+                        DashboardEvent.LaunchWhatsAppForReconnect(reconnectCandidate)
+                    } else {
+                        DashboardEvent.NavigateToOrderForm
+                    }
+                )
             }
         }
     }

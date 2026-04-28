@@ -1276,6 +1276,60 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun focusCtaClick_inQuietVariant_withReconnectCandidate_emitsLaunchWhatsAppForReconnect() = runTest {
+        signIn()
+        // Customer "active" anchors the system into a non-empty orders state (so we land
+        // on QuietDay rather than FirstCustomer); their delivered order excludes them from
+        // triage. Customer "quiet" has no orders → eligible reconnect candidate.
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "active", name = "Active"),
+            fakeCustomer(id = "quiet", name = "Quiet")
+        )
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "done", customerId = "active", status = OrderStatus.DELIVERED)
+        )
+
+        val vm = createViewModel()
+        // Sanity: this scenario must produce Quiet + a non-empty reconnect list, otherwise
+        // the routing test below isn't actually exercising the reconnect branch.
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Quiet,
+            vm.state.value.focusVariant
+        )
+        assertTrue(vm.state.value.reconnectCandidates.isNotEmpty())
+
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.LaunchWhatsAppForReconnect>(event)
+        assertEquals("Quiet", event.candidate.customerName)
+    }
+
+    @Test
+    fun focusCtaClick_inQuietVariant_withNoReconnectCandidates_emitsNavigateToOrderForm() = runTest {
+        signIn()
+        // One customer with one delivered order (default fakeOrder.updatedAt = 0L) →
+        // resolves to QuietDay, but the customer is filtered out of the reconnect list
+        // because they have order history with daysSinceLastInteraction = 0 < 14.
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "done", status = OrderStatus.DELIVERED)
+        )
+
+        val vm = createViewModel()
+        assertEquals(
+            com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant.Quiet,
+            vm.state.value.focusVariant
+        )
+        assertTrue(vm.state.value.reconnectCandidates.isEmpty())
+
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToOrderForm, event)
+    }
+
+    @Test
     fun uiState_isPipelineSteady_whenPipelineButNoTriageOrNba() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())

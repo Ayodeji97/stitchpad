@@ -38,7 +38,7 @@ private const val EMPTY_BORDER_ALPHA = 0.5f
 /**
  * Two-state visual model for [WeeklyGoalsCard].
  *
- * [Empty] renders a dashed-border invitation to set the first goal.
+ * [Empty] renders an outlined invitation to set the first goal.
  * [Filled] renders the active goal with progress bar and meta.
  *
  * Using a sealed interface (instead of nullable params) makes each state's
@@ -68,7 +68,7 @@ sealed interface WeeklyGoalsCardState {
 /**
  * Sits between [FocusTodayCard] and the rest of the dashboard, showing weekly
  * revenue progress against a target. Whole card is tappable — taps open the
- * goal-setup screen (PR 8) for both empty and filled states.
+ * goal-setup screen for both empty and filled states.
  *
  * @param state Either [WeeklyGoalsCardState.Empty] or [WeeklyGoalsCardState.Filled].
  * @param onClick Invoked on tap of the whole card.

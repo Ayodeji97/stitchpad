@@ -115,6 +115,8 @@
     <string name="customer_delete_blocked_title">Can&apos;t delete %1$s yet</string>
     <string name="customer_delete_blocked_message">%1$s has %2$d active order(s). Mark them delivered or remove the orders first, then try again.</string>
     <string name="customer_delete_blocked_dismiss">Got it</string>
+    <!-- Shown when the user confirms a delete before the orders flow has emitted, so we don't yet know if the customer has active orders. -->
+    <string name="customer_delete_pending_orders_load">Loading order data — please try again in a moment.</string>
 
     <!-- Customer form screen -->
     <string name="customer_form_title_add">Add Customer</string>
