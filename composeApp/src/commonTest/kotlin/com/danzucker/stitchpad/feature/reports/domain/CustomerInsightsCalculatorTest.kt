@@ -223,6 +223,27 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
         assertEquals(1, result.size)
         assertEquals(45_000.0, result[0].totalOwed)
+        // Counts only the unpaid, non-delivered orders.
+        assertEquals(2, result[0].orderCount)
+    }
+
+    @Test
+    fun debtorsOrderCountReflectsUnpaidActiveOrdersOnly() {
+        val customers = listOf(customer("c1", "Bola"))
+        val orders = listOf(
+            // Unpaid, active — counted
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 5_000.0),
+            // Fully paid, active — excluded (balance == 0)
+            order(id = "o2", customerId = "c1", totalPrice = 20_000.0, balanceRemaining = 0.0),
+            // Unpaid but delivered — excluded
+            order(
+                id = "o3", customerId = "c1", totalPrice = 8_000.0, balanceRemaining = 8_000.0,
+                status = OrderStatus.DELIVERED
+            )
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].orderCount)
     }
 
     @Test

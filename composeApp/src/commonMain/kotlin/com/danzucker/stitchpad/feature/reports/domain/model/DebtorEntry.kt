@@ -6,5 +6,6 @@ data class DebtorEntry(
     val customerId: String,
     val customerName: String,
     val totalOwed: Double,
+    val orderCount: Int,
     val oldestDeadline: LocalDate?
 )

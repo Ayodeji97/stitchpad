@@ -19,10 +19,10 @@ import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
-import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.reports_owed_since
+import stitchpad.composeapp.generated.resources.reports_orders_count
+import stitchpad.composeapp.generated.resources.reports_orders_count_one
 import stitchpad.composeapp.generated.resources.reports_section_outstanding
 
 @Composable
@@ -58,8 +58,10 @@ private fun DebtorRow(
     monoFamily: FontFamily,
     onClick: () -> Unit
 ) {
-    val sinceLabel = debtor.oldestDeadline?.let { date ->
-        stringResource(Res.string.reports_owed_since, formatShortDate(date))
+    val countLabel = if (debtor.orderCount == 1) {
+        stringResource(Res.string.reports_orders_count_one)
+    } else {
+        stringResource(Res.string.reports_orders_count, debtor.orderCount)
     }
     Row(
         modifier = Modifier
@@ -76,13 +78,11 @@ private fun DebtorRow(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            if (sinceLabel != null) {
-                Text(
-                    text = sinceLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = countLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Text(
             text = "₦" + formatPrice(debtor.totalOwed),
@@ -92,14 +92,4 @@ private fun DebtorRow(
             color = MaterialTheme.colorScheme.onSurface
         )
     }
-}
-
-private val MONTH_ABBREVIATIONS = listOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-)
-
-private fun formatShortDate(date: LocalDate): String {
-    val month = MONTH_ABBREVIATIONS.getOrElse(date.monthNumber - 1) { date.month.name.take(3) }
-    return "${date.dayOfMonth} $month"
 }

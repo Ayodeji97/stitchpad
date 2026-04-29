@@ -77,13 +77,18 @@ object CustomerInsightsCalculator {
         if (customers.isEmpty()) return emptyList()
         val customersById = customers.associateBy { it.id }
 
-        data class Acc(var totalOwed: Double = 0.0, var oldestDeadlineMillis: Long? = null)
+        data class Acc(
+            var totalOwed: Double = 0.0,
+            var orderCount: Int = 0,
+            var oldestDeadlineMillis: Long? = null
+        )
         val accByCustomer = HashMap<String, Acc>()
         orders
             .filter { it.status != OrderStatus.DELIVERED && it.balanceRemaining > 0.0 }
             .forEach { order ->
                 val acc = accByCustomer.getOrPut(order.customerId) { Acc() }
                 acc.totalOwed += order.balanceRemaining
+                acc.orderCount += 1
                 val deadline = order.deadline
                 if (deadline != null) {
                     val previous = acc.oldestDeadlineMillis
@@ -101,6 +106,7 @@ object CustomerInsightsCalculator {
                     customerId = customer.id,
                     customerName = customer.name,
                     totalOwed = acc.totalOwed,
+                    orderCount = acc.orderCount,
                     oldestDeadline = acc.oldestDeadlineMillis?.let { millis ->
                         Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
                     }

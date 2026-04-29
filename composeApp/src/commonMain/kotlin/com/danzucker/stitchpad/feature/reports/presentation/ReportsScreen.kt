@@ -183,8 +183,8 @@ private val previewTopCustomers = listOf(
 )
 
 private val previewDebtors = listOf(
-    DebtorEntry("c4", "Bola Ajayi", 45_000.0, LocalDate(2026, 4, 12)),
-    DebtorEntry("c5", "Kemi Williams", 18_000.0, LocalDate(2026, 4, 18))
+    DebtorEntry("c4", "Bola Ajayi", 45_000.0, orderCount = 2, oldestDeadline = LocalDate(2026, 4, 12)),
+    DebtorEntry("c5", "Kemi Williams", 18_000.0, orderCount = 1, oldestDeadline = LocalDate(2026, 4, 18))
 )
 
 @Suppress("UnusedPrivateMember")
@@ -272,8 +272,8 @@ private fun ReportsScreenFirstWeekPreview() {
                     CustomerRanking("c3", "Posi John", 80_000.0, 2)
                 ),
                 debtors = listOf(
-                    DebtorEntry("c2", "Blessing Tosin", 1_850_000.0, null),
-                    DebtorEntry("c3", "Posi John", 460_000.0, null)
+                    DebtorEntry("c2", "Blessing Tosin", 1_850_000.0, orderCount = 3, oldestDeadline = null),
+                    DebtorEntry("c3", "Posi John", 460_000.0, orderCount = 2, oldestDeadline = null)
                 )
             ),
             onAction = {}

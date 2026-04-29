@@ -109,10 +109,9 @@
     <string name="reports_delta_first_week">First week with revenue</string>
     <string name="reports_delta_first_month">First month with revenue</string>
     <string name="reports_section_top_customers">Top customers</string>
-    <string name="reports_section_outstanding">Outstanding balances</string>
+    <string name="reports_section_outstanding">Money owed to you</string>
     <string name="reports_orders_count">×%1$d orders</string>
     <string name="reports_orders_count_one">×1 order</string>
-    <string name="reports_owed_since">since %1$s</string>
     <string name="reports_empty_title">No revenue yet</string>
     <string name="reports_empty_subtitle">Take your first order to start seeing your numbers here.</string>
 
