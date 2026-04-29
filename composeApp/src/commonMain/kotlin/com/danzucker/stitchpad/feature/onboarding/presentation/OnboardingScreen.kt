@@ -16,26 +16,26 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.feature.onboarding.presentation.components.MeasurementIllustration
-import com.danzucker.stitchpad.feature.onboarding.presentation.components.NotebookIllustration
 import com.danzucker.stitchpad.feature.onboarding.presentation.components.OnboardingPage
-import com.danzucker.stitchpad.feature.onboarding.presentation.components.OrderTrackingIllustration
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.onboarding_get_started
+import stitchpad.composeapp.generated.resources.onboarding_measurements
 import stitchpad.composeapp.generated.resources.onboarding_next
+import stitchpad.composeapp.generated.resources.onboarding_notebook
+import stitchpad.composeapp.generated.resources.onboarding_orders
 import stitchpad.composeapp.generated.resources.onboarding_subtitle_1
 import stitchpad.composeapp.generated.resources.onboarding_subtitle_2
 import stitchpad.composeapp.generated.resources.onboarding_subtitle_3
@@ -60,52 +60,54 @@ fun OnboardingRoot(onFinished: () -> Unit) {
             } else {
                 onFinished()
             }
-        }
+        },
     )
 }
 
 @Composable
 fun OnboardingScreen(
     pagerState: PagerState,
-    onPrimaryClick: () -> Unit
+    onPrimaryClick: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Black),
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.fillMaxSize(),
         ) { page ->
             when (page) {
                 0 -> OnboardingPage(
-                    illustration = { MeasurementIllustration() },
+                    photo = Res.drawable.onboarding_measurements,
                     title = stringResource(Res.string.onboarding_title_1),
-                    subtitle = stringResource(Res.string.onboarding_subtitle_1)
+                    subtitle = stringResource(Res.string.onboarding_subtitle_1),
                 )
                 1 -> OnboardingPage(
-                    illustration = { OrderTrackingIllustration() },
+                    photo = Res.drawable.onboarding_orders,
                     title = stringResource(Res.string.onboarding_title_2),
-                    subtitle = stringResource(Res.string.onboarding_subtitle_2)
+                    subtitle = stringResource(Res.string.onboarding_subtitle_2),
                 )
                 2 -> OnboardingPage(
-                    illustration = { NotebookIllustration() },
+                    photo = Res.drawable.onboarding_notebook,
                     title = stringResource(Res.string.onboarding_title_3),
-                    subtitle = stringResource(Res.string.onboarding_subtitle_3)
+                    subtitle = stringResource(Res.string.onboarding_subtitle_3),
                 )
             }
         }
 
         Column(
             modifier = Modifier
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(bottom = DesignTokens.space10, top = DesignTokens.space4),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = DesignTokens.space6)
+                .padding(bottom = DesignTokens.space10),
+            horizontalAlignment = Alignment.Start,
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 repeat(PAGE_COUNT) { index ->
                     val isActive = pagerState.currentPage == index
@@ -118,9 +120,9 @@ fun OnboardingScreen(
                                 if (isActive) {
                                     DesignTokens.primary500
                                 } else {
-                                    DesignTokens.neutral200
-                                }
-                            )
+                                    Color.White.copy(alpha = 0.35f)
+                                },
+                            ),
                     )
                 }
             }
@@ -132,15 +134,14 @@ fun OnboardingScreen(
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = DesignTokens.space4)
-                    .height(52.dp)
+                    .height(52.dp),
             ) {
                 Text(
                     text = if (pagerState.currentPage < PAGE_COUNT - 1) {
                         stringResource(Res.string.onboarding_next)
                     } else {
                         stringResource(Res.string.onboarding_get_started)
-                    }
+                    },
                 )
             }
         }
@@ -154,7 +155,7 @@ private fun OnboardingScreenPreview() {
     StitchPadTheme {
         OnboardingScreen(
             pagerState = rememberPagerState(pageCount = { PAGE_COUNT }),
-            onPrimaryClick = {}
+            onPrimaryClick = {},
         )
     }
 }
