@@ -23,7 +23,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-private val OnboardingPhotoOverlay: Brush = Brush.verticalGradient(
+private val onboardingPhotoOverlay: Brush = Brush.verticalGradient(
     0f to Color.Transparent,
     0.35f to Color.Transparent,
     0.6f to Color.Black.copy(alpha = 0.45f),
@@ -48,7 +48,7 @@ fun OnboardingPage(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(OnboardingPhotoOverlay),
+                .background(onboardingPhotoOverlay),
         )
         Column(
             modifier = Modifier

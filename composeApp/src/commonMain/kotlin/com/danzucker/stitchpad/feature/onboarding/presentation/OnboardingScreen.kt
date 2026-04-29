@@ -45,14 +45,14 @@ import stitchpad.composeapp.generated.resources.onboarding_title_3
 
 private const val PAGE_COUNT = 3
 
-private val ButtonHeight = 52.dp
+private val buttonHeight = 52.dp
 
 // Vertical space the bottom controls take up: screen padding + button + gap + indicators.
-private val ControlsHeight =
-    DesignTokens.space10 + ButtonHeight + DesignTokens.space6 + DesignTokens.space2
+private val controlsHeight =
+    DesignTokens.space10 + buttonHeight + DesignTokens.space6 + DesignTokens.space2
 
 // Bottom padding for in-page text so it sits above the controls with breathing room.
-private val PageTextBottomInset = ControlsHeight + DesignTokens.space6
+private val pageTextBottomInset = controlsHeight + DesignTokens.space6
 
 @Composable
 fun OnboardingRoot(onFinished: () -> Unit) {
@@ -92,19 +92,19 @@ fun OnboardingScreen(
                     photo = Res.drawable.onboarding_measurements,
                     title = stringResource(Res.string.onboarding_title_1),
                     subtitle = stringResource(Res.string.onboarding_subtitle_1),
-                    bottomInset = PageTextBottomInset,
+                    bottomInset = pageTextBottomInset,
                 )
                 1 -> OnboardingPage(
                     photo = Res.drawable.onboarding_orders,
                     title = stringResource(Res.string.onboarding_title_2),
                     subtitle = stringResource(Res.string.onboarding_subtitle_2),
-                    bottomInset = PageTextBottomInset,
+                    bottomInset = pageTextBottomInset,
                 )
                 2 -> OnboardingPage(
                     photo = Res.drawable.onboarding_notebook,
                     title = stringResource(Res.string.onboarding_title_3),
                     subtitle = stringResource(Res.string.onboarding_subtitle_3),
-                    bottomInset = PageTextBottomInset,
+                    bottomInset = pageTextBottomInset,
                 )
             }
         }
@@ -146,7 +146,7 @@ fun OnboardingScreen(
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(ButtonHeight),
+                    .height(buttonHeight),
             ) {
                 Text(
                     text = if (pagerState.currentPage < PAGE_COUNT - 1) {
