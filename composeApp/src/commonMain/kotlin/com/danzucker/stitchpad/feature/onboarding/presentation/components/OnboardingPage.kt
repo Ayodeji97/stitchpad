@@ -17,48 +17,45 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-private val GradientStops = arrayOf(
+private val OnboardingPhotoOverlay: Brush = Brush.verticalGradient(
     0f to Color.Transparent,
     0.35f to Color.Transparent,
     0.6f to Color.Black.copy(alpha = 0.45f),
     1f to Color.Black.copy(alpha = 0.85f),
 )
 
-// Bottom padding clears the indicators (8dp) + spacing (24dp) + button (52dp) + screen padding (40dp),
-// plus ~24dp of breathing room above the indicators.
-private val TextBottomPadding = 148.dp
-
 @Composable
 fun OnboardingPage(
     photo: DrawableResource,
     title: String,
     subtitle: String,
+    bottomInset: Dp,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Image(
             painter = painterResource(photo),
-            contentDescription = title,
+            contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(Brush.verticalGradient(colorStops = GradientStops)),
+                .background(OnboardingPhotoOverlay),
         )
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
                 .padding(horizontal = DesignTokens.space6)
-                .padding(bottom = TextBottomPadding),
+                .padding(bottom = bottomInset),
         ) {
             Text(
                 text = title,
