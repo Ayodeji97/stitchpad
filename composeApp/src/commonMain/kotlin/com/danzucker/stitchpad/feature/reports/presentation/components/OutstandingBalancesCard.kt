@@ -117,13 +117,13 @@ private fun OutstandingRow(
             maxLines = 1
         )
         // Fixed-width right column so amounts/pills line up across rows even
-        // when amount widths differ. Both children right-align inside the
-        // column. Due date dropped — the pill already says
-        // "Overdue / Due Today / This Week / Next Week".
+        // when amount widths differ. Centered horizontally so the narrower
+        // pill gets balanced spacing on either side. Due date dropped — the
+        // pill already says "Overdue / Due Today / This Week / Next Week".
         Column(
             modifier = Modifier.width(110.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
-            horizontalAlignment = Alignment.End
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "₦" + formatPrice(debtor.totalOwed),
@@ -131,7 +131,7 @@ private fun OutstandingRow(
                 fontFamily = monoFamily,
                 fontWeight = FontWeight.Bold,
                 color = urgency.amountColor,
-                textAlign = TextAlign.End,
+                textAlign = TextAlign.Center,
                 maxLines = 1
             )
             StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
