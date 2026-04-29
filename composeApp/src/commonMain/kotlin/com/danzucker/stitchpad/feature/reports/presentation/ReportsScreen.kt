@@ -71,6 +71,10 @@ fun ReportsScreen(
     val errorString = state.errorMessage?.asString()
 
     LaunchedEffect(errorString) {
+        // Same pattern as DashboardRoot: a repeat of the *same* error UiText won't
+        // re-trigger this effect (key unchanged). Acceptable for V1 — Firestore
+        // offline persistence means errors are rare and the user can pull to refresh
+        // by switching tabs once a real connection comes back.
         if (errorString != null) {
             snackbarHostState.showSnackbar(errorString)
             onAction(ReportsAction.OnErrorDismiss)

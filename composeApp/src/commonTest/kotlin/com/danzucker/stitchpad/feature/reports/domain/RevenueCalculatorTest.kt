@@ -92,7 +92,7 @@ class RevenueCalculatorTest {
     }
 
     @Test
-    fun orderOutsideBothWindowsStillContributesToSparkline() {
+    fun orderInEarlierSparklineBucketIsCountedThereButNotInCurrentOrPrevious() {
         val threeWeeksAgo = LocalDate(2026, 4, 1)
         val orders = listOf(
             order(updatedAt = millisAt(threeWeeksAgo), totalPrice = 10_000.0, balanceRemaining = 0.0)

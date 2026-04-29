@@ -125,7 +125,10 @@ class CustomerInsightsCalculatorTest {
     }
 
     @Test
-    fun topCustomersSkipsBlankPhone() {
+    fun topCustomersIncludesBlankPhoneCustomers() {
+        // Reports is analytical; clicks navigate to CustomerDetail, not WhatsApp.
+        // A top earner without a phone must still appear, otherwise the hero
+        // revenue total and the list would disagree silently.
         val customers = listOf(
             customer("c1", "WithPhone", phone = "+2348012345678"),
             customer("c2", "NoPhone", phone = "")
@@ -137,8 +140,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(1, result.size)
-        assertEquals("WithPhone", result[0].customerName)
+        assertEquals(listOf("NoPhone", "WithPhone"), result.map { it.customerName })
     }
 
     @Test

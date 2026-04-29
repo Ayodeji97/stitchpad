@@ -49,8 +49,10 @@ object CustomerInsightsCalculator {
                 // The list is "top earners", not "everyone who showed up".
                 if (acc.total <= 0.0) return@mapNotNull null
                 val customer = customersById[customerId] ?: return@mapNotNull null
-                // Filter blank phone for consistency with dashboard NBA / reconnect lists.
-                if (customer.phone.isBlank()) return@mapNotNull null
+                // No phone filter here. Reports is analytical and tap navigates to
+                // CustomerDetail — no WhatsApp launch — so a missing phone shouldn't
+                // hide a top earner. Otherwise the hero revenue total and the list
+                // would silently disagree.
                 CustomerRanking(
                     customerId = customer.id,
                     customerName = customer.name,

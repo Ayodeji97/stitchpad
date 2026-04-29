@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
@@ -31,11 +32,14 @@ fun DebtorsCard(
     modifier: Modifier = Modifier
 ) {
     if (debtors.isEmpty()) return
+    // Hoist the mono family once per card recompose; the row composable runs N times.
+    val mono = JetBrainsMonoFamily()
     Column(modifier = modifier.fillMaxWidth()) {
         SectionHeader(title = stringResource(Res.string.reports_section_outstanding))
         debtors.forEachIndexed { index, debtor ->
             DebtorRow(
                 debtor = debtor,
+                monoFamily = mono,
                 onClick = { onDebtorClick(debtor.customerId) }
             )
             if (index < debtors.lastIndex) {
@@ -51,6 +55,7 @@ fun DebtorsCard(
 @Composable
 private fun DebtorRow(
     debtor: DebtorEntry,
+    monoFamily: FontFamily,
     onClick: () -> Unit
 ) {
     val sinceLabel = debtor.oldestDeadline?.let { date ->
@@ -82,7 +87,7 @@ private fun DebtorRow(
         Text(
             text = "₦" + formatPrice(debtor.totalOwed),
             style = MaterialTheme.typography.bodyMedium,
-            fontFamily = JetBrainsMonoFamily(),
+            fontFamily = monoFamily,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )

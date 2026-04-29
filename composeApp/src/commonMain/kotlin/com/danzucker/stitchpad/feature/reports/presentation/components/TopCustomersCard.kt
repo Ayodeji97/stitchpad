@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,11 +33,14 @@ fun TopCustomersCard(
     modifier: Modifier = Modifier
 ) {
     if (rankings.isEmpty()) return
+    // Hoist the mono family once per card recompose; the row composable runs N times.
+    val mono = JetBrainsMonoFamily()
     Column(modifier = modifier.fillMaxWidth()) {
         SectionHeader(title = stringResource(Res.string.reports_section_top_customers))
         rankings.forEachIndexed { index, ranking ->
             TopCustomerRow(
                 ranking = ranking,
+                monoFamily = mono,
                 onClick = { onCustomerClick(ranking.customerId) }
             )
             if (index < rankings.lastIndex) {
@@ -52,6 +56,7 @@ fun TopCustomersCard(
 @Composable
 private fun TopCustomerRow(
     ranking: CustomerRanking,
+    monoFamily: FontFamily,
     onClick: () -> Unit
 ) {
     val countLabel = if (ranking.orderCount == 1) {
@@ -83,7 +88,7 @@ private fun TopCustomerRow(
         Text(
             text = "₦" + formatPrice(ranking.totalCollected),
             style = MaterialTheme.typography.bodyMedium,
-            fontFamily = JetBrainsMonoFamily(),
+            fontFamily = monoFamily,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
