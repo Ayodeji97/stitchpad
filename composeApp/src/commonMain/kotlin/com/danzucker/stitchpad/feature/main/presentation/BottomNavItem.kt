@@ -1,21 +1,21 @@
 package com.danzucker.stitchpad.feature.main.presentation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
-import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
+import com.danzucker.stitchpad.navigation.ReportsRoute
 import org.jetbrains.compose.resources.StringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.nav_customers
 import stitchpad.composeapp.generated.resources.nav_dashboard
 import stitchpad.composeapp.generated.resources.nav_orders
-import stitchpad.composeapp.generated.resources.nav_settings
+import stitchpad.composeapp.generated.resources.nav_reports
 
 sealed class BottomNavItem(
     val route: Any,
@@ -37,13 +37,13 @@ sealed class BottomNavItem(
         icon = Icons.Default.Home,
         labelRes = Res.string.nav_dashboard
     )
-    data object Settings : BottomNavItem(
-        route = SettingsPlaceholderRoute,
-        icon = Icons.Default.Settings,
-        labelRes = Res.string.nav_settings
+    data object Reports : BottomNavItem(
+        route = ReportsRoute,
+        icon = Icons.AutoMirrored.Filled.TrendingUp,
+        labelRes = Res.string.nav_reports
     )
 
     companion object {
-        val all = listOf(Dashboard, Customers, Orders, Settings)
+        val all = listOf(Dashboard, Customers, Orders, Reports)
     }
 }

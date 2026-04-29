@@ -1,0 +1,295 @@
+package com.danzucker.stitchpad.feature.reports.domain
+
+import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderItem
+import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class CustomerInsightsCalculatorTest {
+
+    private val tz = TimeZone.UTC
+    private val today = LocalDate(2026, 4, 22)
+    private val priorWeek = LocalDate(2026, 4, 14)
+
+    private fun millisAt(date: LocalDate, hour: Int = 12): Long =
+        LocalDateTime(date, LocalTime(hour, 0)).toInstant(tz).toEpochMilliseconds()
+
+    private fun customer(id: String, name: String, phone: String = "+2348012345678") = Customer(
+        id = id,
+        userId = "u",
+        name = name,
+        phone = phone
+    )
+
+    private fun order(
+        id: String = "o",
+        customerId: String = "c1",
+        updatedAt: Long = millisAt(today),
+        totalPrice: Double = 10_000.0,
+        balanceRemaining: Double = 0.0,
+        status: OrderStatus = OrderStatus.PENDING,
+        deadline: Long? = null
+    ): Order = Order(
+        id = id,
+        userId = "u",
+        customerId = customerId,
+        customerName = "Test",
+        items = listOf(
+            OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
+        ),
+        status = status,
+        priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = totalPrice,
+        depositPaid = totalPrice - balanceRemaining,
+        balanceRemaining = balanceRemaining,
+        deadline = deadline,
+        notes = null,
+        createdAt = updatedAt,
+        updatedAt = updatedAt
+    )
+
+    // -------- topCustomers --------
+
+    @Test
+    fun topCustomersEmptyInputGivesEmpty() {
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders = emptyList(),
+            customers = emptyList(),
+            period = ReportsPeriod.WEEK,
+            today = today,
+            timeZone = tz
+        )
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun topCustomersSortedDescByTotal() {
+        val customers = listOf(
+            customer("c1", "Adaeze"),
+            customer("c2", "Bola"),
+            customer("c3", "Chiamaka")
+        )
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 0.0),
+            order(id = "o2", customerId = "c2", totalPrice = 50_000.0, balanceRemaining = 0.0),
+            order(id = "o3", customerId = "c3", totalPrice = 20_000.0, balanceRemaining = 0.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(listOf("Bola", "Chiamaka", "Adaeze"), result.map { it.customerName })
+    }
+
+    @Test
+    fun topCustomersAggregatesMultipleOrdersPerCustomer() {
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 0.0),
+            order(id = "o2", customerId = "c1", totalPrice = 15_000.0, balanceRemaining = 0.0),
+            order(id = "o3", customerId = "c1", totalPrice = 20_000.0, balanceRemaining = 5_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(1, result.size)
+        assertEquals(40_000.0, result[0].totalCollected)
+        assertEquals(3, result[0].orderCount)
+    }
+
+    @Test
+    fun topCustomersRespectsPeriodWindow() {
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = listOf(
+            order(id = "in", customerId = "c1", updatedAt = millisAt(today), totalPrice = 5_000.0),
+            order(id = "out", customerId = "c1", updatedAt = millisAt(priorWeek), totalPrice = 50_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(1, result.size)
+        assertEquals(5_000.0, result[0].totalCollected)
+        assertEquals(1, result[0].orderCount)
+    }
+
+    @Test
+    fun topCustomersSkipsBlankPhone() {
+        val customers = listOf(
+            customer("c1", "WithPhone", phone = "+2348012345678"),
+            customer("c2", "NoPhone", phone = "")
+        )
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0),
+            order(id = "o2", customerId = "c2", totalPrice = 99_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(1, result.size)
+        assertEquals("WithPhone", result[0].customerName)
+    }
+
+    @Test
+    fun topCustomersTiedTotalsStableAlphabetical() {
+        val customers = listOf(
+            customer("c1", "Zoe"),
+            customer("c2", "Adaeze"),
+            customer("c3", "Mary")
+        )
+        val sameAmount = 10_000.0
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = sameAmount),
+            order(id = "o2", customerId = "c2", totalPrice = sameAmount),
+            order(id = "o3", customerId = "c3", totalPrice = sameAmount)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(listOf("Adaeze", "Mary", "Zoe"), result.map { it.customerName })
+    }
+
+    @Test
+    fun topCustomersExcludesCustomersWithZeroCollected() {
+        // Customer placed an order this week but hasn't paid yet — shouldn't appear in
+        // top earners. They'll still show up in debtors.
+        val customers = listOf(
+            customer("c1", "PaidUp"),
+            customer("c2", "OnlyDebt")
+        )
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 0.0),
+            order(id = "o2", customerId = "c2", totalPrice = 50_000.0, balanceRemaining = 50_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(listOf("PaidUp"), result.map { it.customerName })
+    }
+
+    @Test
+    fun topCustomersRespectsLimit() {
+        val customers = (1..10).map { customer("c$it", "Customer$it") }
+        val orders = (1..10).map {
+            order(id = "o$it", customerId = "c$it", totalPrice = (it * 1_000.0))
+        }
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz, limit = 3
+        )
+        assertEquals(3, result.size)
+        assertEquals(listOf("Customer10", "Customer9", "Customer8"), result.map { it.customerName })
+    }
+
+    // -------- debtors --------
+
+    @Test
+    fun debtorsEmptyWhenNoUnpaidActiveOrders() {
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 0.0),
+            order(
+                id = "o2", customerId = "c1", totalPrice = 5_000.0,
+                balanceRemaining = 5_000.0, status = OrderStatus.DELIVERED
+            )
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun debtorsAggregatesPerCustomer() {
+        val customers = listOf(customer("c1", "Bola"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 30_000.0, balanceRemaining = 20_000.0),
+            order(id = "o2", customerId = "c1", totalPrice = 50_000.0, balanceRemaining = 25_000.0),
+            order(
+                id = "o3", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 10_000.0,
+                status = OrderStatus.DELIVERED  // excluded
+            )
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertEquals(1, result.size)
+        assertEquals(45_000.0, result[0].totalOwed)
+    }
+
+    @Test
+    fun debtorsSortedDescByOwed() {
+        val customers = listOf(
+            customer("c1", "Adaeze"),
+            customer("c2", "Bola"),
+            customer("c3", "Chiamaka")
+        )
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 30_000.0, balanceRemaining = 30_000.0),
+            order(id = "o2", customerId = "c2", totalPrice = 50_000.0, balanceRemaining = 50_000.0),
+            order(id = "o3", customerId = "c3", totalPrice = 10_000.0, balanceRemaining = 10_000.0)
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertEquals(listOf("Bola", "Adaeze", "Chiamaka"), result.map { it.customerName })
+    }
+
+    @Test
+    fun debtorsTracksOldestDeadline() {
+        val customers = listOf(customer("c1", "Bola"))
+        val olderDeadline = millisAt(LocalDate(2026, 3, 1))
+        val newerDeadline = millisAt(LocalDate(2026, 4, 5))
+        val orders = listOf(
+            order(
+                id = "o1", customerId = "c1",
+                totalPrice = 10_000.0, balanceRemaining = 10_000.0, deadline = newerDeadline
+            ),
+            order(
+                id = "o2", customerId = "c1",
+                totalPrice = 20_000.0, balanceRemaining = 20_000.0, deadline = olderDeadline
+            )
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertEquals(1, result.size)
+        assertEquals(LocalDate(2026, 3, 1), result[0].oldestDeadline)
+    }
+
+    @Test
+    fun debtorsHandlesNullDeadlines() {
+        val customers = listOf(customer("c1", "Bola"))
+        val orders = listOf(
+            order(
+                id = "o1", customerId = "c1",
+                totalPrice = 10_000.0, balanceRemaining = 10_000.0, deadline = null
+            )
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertEquals(1, result.size)
+        assertNull(result[0].oldestDeadline)
+    }
+
+    @Test
+    fun debtorsExcludesZeroBalanceOrders() {
+        val customers = listOf(customer("c1", "Bola"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 0.0)
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun debtorsIgnoresUnknownCustomerIds() {
+        val customers = listOf(customer("c1", "Bola"))
+        val orders = listOf(
+            order(id = "o1", customerId = "ghost", totalPrice = 99_000.0, balanceRemaining = 99_000.0)
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertTrue(result.isEmpty())
+    }
+}

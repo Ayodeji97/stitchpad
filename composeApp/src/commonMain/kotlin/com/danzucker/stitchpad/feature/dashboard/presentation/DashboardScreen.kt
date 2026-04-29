@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -149,6 +151,7 @@ import stitchpad.composeapp.generated.resources.goals_revenue_label
 import stitchpad.composeapp.generated.resources.goals_section_label
 import stitchpad.composeapp.generated.resources.goals_set_first_cta
 import stitchpad.composeapp.generated.resources.goals_set_first_label
+import stitchpad.composeapp.generated.resources.nav_settings
 import stitchpad.composeapp.generated.resources.quickstart_add_customer
 import stitchpad.composeapp.generated.resources.quickstart_add_measurement
 import stitchpad.composeapp.generated.resources.quickstart_create_order
@@ -166,6 +169,7 @@ fun DashboardRoot(
     onNavigateToCustomerForm: () -> Unit,
     onNavigateToCustomers: () -> Unit,
     onNavigateToGoalSetup: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -182,6 +186,7 @@ fun DashboardRoot(
             DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()
             DashboardEvent.NavigateToCustomers -> onNavigateToCustomers()
             DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
+            DashboardEvent.NavigateToSettings -> onNavigateToSettings()
             is DashboardEvent.LaunchWhatsApp -> {
                 scope.launch {
                     val message = buildWhatsAppMessage(event.action, signature)
@@ -301,6 +306,7 @@ private fun DashboardContent(
             businessName = state.businessName,
             greeting = state.greeting,
             todayDate = state.todayDate,
+            onSettingsClick = { onAction(DashboardAction.OnSettingsClick) },
             modifier = Modifier.padding(horizontal = DesignTokens.space4)
         )
 
@@ -978,6 +984,7 @@ private fun DashboardHeader(
     businessName: String?,
     greeting: Greeting,
     todayDate: LocalDate?,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val name = firstName.ifBlank { businessName.orEmpty() }
@@ -986,28 +993,40 @@ private fun DashboardHeader(
         Greeting.AFTERNOON -> stringResource(Res.string.dashboard_greeting_afternoon, name)
         Greeting.EVENING -> stringResource(Res.string.dashboard_greeting_evening, name)
     }
-    Column(modifier = modifier) {
-        Text(
-            text = greetingText,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        if (!businessName.isNullOrBlank() && businessName != firstName) {
-            Spacer(Modifier.height(2.dp))
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = businessName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = greetingText,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
+            if (!businessName.isNullOrBlank() && businessName != firstName) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = businessName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (todayDate != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = todayDate.formatFriendly(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-        if (todayDate != null) {
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = todayDate.formatFriendly(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        IconButton(onClick = onSettingsClick) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = stringResource(Res.string.nav_settings),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

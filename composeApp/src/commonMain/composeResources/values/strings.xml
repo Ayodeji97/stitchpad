@@ -96,6 +96,23 @@
     <string name="nav_orders">Orders</string>
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_settings">Settings</string>
+    <string name="nav_reports">Reports</string>
+
+    <!-- Reports tab -->
+    <string name="reports_title">Reports</string>
+    <string name="reports_tab_week">Week</string>
+    <string name="reports_tab_month">Month</string>
+    <string name="reports_label_this_week">This week</string>
+    <string name="reports_label_this_month">This month</string>
+    <string name="reports_delta_vs_last_week">vs last week</string>
+    <string name="reports_delta_vs_last_month">vs last month</string>
+    <string name="reports_section_top_customers">Top customers</string>
+    <string name="reports_section_outstanding">Outstanding balances</string>
+    <string name="reports_orders_count">×%1$d orders</string>
+    <string name="reports_orders_count_one">×1 order</string>
+    <string name="reports_owed_since">since %1$s</string>
+    <string name="reports_empty_title">No revenue yet</string>
+    <string name="reports_empty_subtitle">Take your first order to start seeing your numbers here.</string>
 
     <!-- Customer list screen -->
     <string name="customer_list_title">Customers</string>
