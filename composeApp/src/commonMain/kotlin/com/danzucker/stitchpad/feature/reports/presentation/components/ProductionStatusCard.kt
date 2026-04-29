@@ -14,10 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CheckCircleOutline
-import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.outlined.ContentCut
+import androidx.compose.material.icons.outlined.LocalShipping
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -75,7 +75,7 @@ fun ProductionStatusCard(
                 label = stringResource(Res.string.reports_status_pending),
                 count = counts.pending,
                 color = DesignTokens.warning500,
-                icon = Icons.Default.AccessTime,
+                icon = Icons.Outlined.Schedule,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
             )
@@ -83,7 +83,7 @@ fun ProductionStatusCard(
                 label = stringResource(Res.string.reports_status_in_progress),
                 count = counts.inProgress,
                 color = DesignTokens.info500,
-                icon = Icons.Default.Build,
+                icon = Icons.Outlined.ContentCut,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
             )
@@ -91,7 +91,7 @@ fun ProductionStatusCard(
                 label = stringResource(Res.string.reports_status_ready),
                 count = counts.ready,
                 color = DesignTokens.success500,
-                icon = Icons.Default.CheckCircleOutline,
+                icon = Icons.Outlined.TaskAlt,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
             )
@@ -99,7 +99,7 @@ fun ProductionStatusCard(
                 label = stringResource(Res.string.reports_status_delivered),
                 count = counts.delivered,
                 color = DELIVERED_COLOR,
-                icon = Icons.Default.Inventory2,
+                icon = Icons.Outlined.LocalShipping,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
             )
