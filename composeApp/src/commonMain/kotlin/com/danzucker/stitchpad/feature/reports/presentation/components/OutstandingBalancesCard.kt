@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
@@ -114,10 +116,12 @@ private fun OutstandingRow(
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1
         )
-        // Stack the amount and the urgency pill vertically so the name column
-        // gets the extra horizontal room. Due date dropped — the pill already
-        // says "Overdue / Due Today / This Week / Next Week".
+        // Fixed-width right column so amounts/pills line up across rows even
+        // when amount widths differ. Both children right-align inside the
+        // column. Due date dropped — the pill already says
+        // "Overdue / Due Today / This Week / Next Week".
         Column(
+            modifier = Modifier.width(110.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
             horizontalAlignment = Alignment.End
         ) {
@@ -126,7 +130,9 @@ private fun OutstandingRow(
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = monoFamily,
                 fontWeight = FontWeight.Bold,
-                color = urgency.amountColor
+                color = urgency.amountColor,
+                textAlign = TextAlign.End,
+                maxLines = 1
             )
             StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
         }
