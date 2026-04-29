@@ -118,29 +118,27 @@ private fun OutstandingRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        // Fixed-width frame around the amount + pill column so the right side
-        // lines up across rows and gets breathing room from the WA icon.
-        // The inner Column is centered inside the frame; the name on the left
-        // takes the remaining width and ellipses once it gets too long.
-        Box(
-            modifier = Modifier.width(124.dp),
-            contentAlignment = Alignment.Center
+        // Fixed-width column so every row's amount + pill share the same
+        // geometry. The amount fills the column width and is text-centered,
+        // so the visual midpoint of the number sits at the same x across
+        // rows regardless of amount length; the pill (narrower) is centered
+        // by the column's horizontalAlignment to that same midpoint.
+        Column(
+            modifier = Modifier.width(132.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "₦" + formatPrice(debtor.totalOwed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = monoFamily,
-                    fontWeight = FontWeight.Bold,
-                    color = urgency.amountColor,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
-                StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
-            }
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = "₦" + formatPrice(debtor.totalOwed),
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = monoFamily,
+                fontWeight = FontWeight.Bold,
+                color = urgency.amountColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+            StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
         }
         WhatsAppButton(onClick = onWhatsAppClick)
     }
