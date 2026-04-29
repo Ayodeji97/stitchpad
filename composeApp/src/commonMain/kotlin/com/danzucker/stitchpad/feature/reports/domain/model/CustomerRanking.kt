@@ -4,5 +4,6 @@ data class CustomerRanking(
     val customerId: String,
     val customerName: String,
     val totalCollected: Double,
-    val orderCount: Int
+    val orderCount: Int,
+    val badge: CustomerBadge = CustomerBadge.NONE
 )

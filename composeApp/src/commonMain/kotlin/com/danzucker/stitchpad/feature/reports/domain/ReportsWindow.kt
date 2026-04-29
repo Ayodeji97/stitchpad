@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.reports.domain
 
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -15,14 +16,18 @@ private const val DAYS_IN_WEEK = 7
  * shifted [periodsBack] periods into the past (0 = current, 1 = previous, ...).
  *
  * Week windows snap to Monday 00:00 in [timeZone]. Month windows snap to the
- * 1st of the month at 00:00 in [timeZone]. The end is exclusive so callers
- * should use `updatedAt in start until end`.
+ * 1st of the month at 00:00 in [timeZone]. Custom windows use the user-picked
+ * range (inclusive end), shifted back by `periodsBack × rangeLength` days for
+ * comparisons. End is exclusive — callers should use `updatedAt in start until end`.
+ *
+ * For [ReportsPeriod.CUSTOM], [customRange] must be non-null.
  */
 internal fun reportsWindow(
     period: ReportsPeriod,
     today: LocalDate,
     timeZone: TimeZone,
-    periodsBack: Int
+    periodsBack: Int,
+    customRange: CustomRange? = null
 ): Pair<Long, Long> = when (period) {
     ReportsPeriod.WEEK -> {
         val daysFromMonday = today.dayOfWeek.ordinal
@@ -39,11 +44,16 @@ internal fun reportsWindow(
         start.atStartOfDayIn(timeZone).toEpochMilliseconds() to
             end.atStartOfDayIn(timeZone).toEpochMilliseconds()
     }
-    ReportsPeriod.YEAR -> {
-        val currentYearStart = LocalDate(today.year, 1, 1)
-        val start = currentYearStart.minus(periodsBack, DateTimeUnit.YEAR)
-        val end = start.plus(1, DateTimeUnit.YEAR)
+    ReportsPeriod.CUSTOM -> {
+        val range = requireNotNull(customRange) {
+            "ReportsPeriod.CUSTOM requires a non-null customRange"
+        }
+        val rangeDays = range.end.toEpochDays() - range.start.toEpochDays() + 1
+        val shiftDays = periodsBack * rangeDays
+        val start = range.start.minus(shiftDays, DateTimeUnit.DAY)
+        val endExclusive = range.end.plus(1, DateTimeUnit.DAY)
+            .minus(shiftDays, DateTimeUnit.DAY)
         start.atStartOfDayIn(timeZone).toEpochMilliseconds() to
-            end.atStartOfDayIn(timeZone).toEpochMilliseconds()
+            endExclusive.atStartOfDayIn(timeZone).toEpochMilliseconds()
     }
 }

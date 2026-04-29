@@ -244,23 +244,19 @@ private fun ReportsScreenMonthPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun ReportsScreenYearPreview() {
+private fun ReportsScreenCustomPreview() {
     StitchPadTheme {
         ReportsScreen(
             state = ReportsState(
                 isLoading = false,
-                selectedPeriod = ReportsPeriod.YEAR,
+                selectedPeriod = ReportsPeriod.CUSTOM,
                 hasAnyOrders = true,
                 revenueSummary = RevenueSummary(
-                    current = 1_840_000.0,
-                    previous = 920_000.0,
-                    deltaAmount = 920_000.0,
-                    deltaPercent = 100.0,
-                    sparkline = listOf(
-                        60_000.0, 95_000.0, 120_000.0, 110_000.0,
-                        140_000.0, 175_000.0, 165_000.0, 190_000.0,
-                        210_000.0, 240_000.0, 215_000.0, 1_840_000.0
-                    )
+                    current = 320_000.0,
+                    previous = 250_000.0,
+                    deltaAmount = 70_000.0,
+                    deltaPercent = 28.0,
+                    sparkline = listOf(320_000.0)
                 ),
                 topCustomers = previewTopCustomers,
                 debtors = previewDebtors,

@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.reports.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.feature.reports.domain.model.AllTimeSummary
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import com.danzucker.stitchpad.feature.reports.domain.model.RevenueSummary
 import kotlinx.datetime.LocalDate
@@ -10,7 +11,7 @@ import kotlinx.datetime.TimeZone
 
 private const val SPARKLINE_WEEK_BUCKETS = 8
 private const val SPARKLINE_MONTH_BUCKETS = 6
-private const val SPARKLINE_YEAR_BUCKETS = 12
+private const val SPARKLINE_CUSTOM_BUCKETS = 1
 
 /**
  * Computes revenue summaries for the Reports tab over Week / Month windows.
@@ -27,21 +28,22 @@ object RevenueCalculator {
         orders: List<Order>,
         period: ReportsPeriod,
         today: LocalDate,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        customRange: CustomRange? = null
     ): RevenueSummary {
         val bucketCount = when (period) {
             ReportsPeriod.WEEK -> SPARKLINE_WEEK_BUCKETS
             ReportsPeriod.MONTH -> SPARKLINE_MONTH_BUCKETS
-            ReportsPeriod.YEAR -> SPARKLINE_YEAR_BUCKETS
+            ReportsPeriod.CUSTOM -> SPARKLINE_CUSTOM_BUCKETS
         }
         val sparkline = (0 until bucketCount).map { index ->
             // index 0 = oldest, index bucketCount-1 = current.
             val periodsBack = bucketCount - 1 - index
-            val (start, end) = reportsWindow(period, today, timeZone, periodsBack)
+            val (start, end) = reportsWindow(period, today, timeZone, periodsBack, customRange)
             revenueBetween(orders, start, end)
         }
         val current = sparkline.last()
-        val (prevStart, prevEnd) = reportsWindow(period, today, timeZone, periodsBack = 1)
+        val (prevStart, prevEnd) = reportsWindow(period, today, timeZone, 1, customRange)
         val previous = revenueBetween(orders, prevStart, prevEnd)
         val deltaAmount = current - previous
         val deltaPercent = if (previous == 0.0) null else (current - previous) / previous * 100.0

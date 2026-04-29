@@ -19,9 +19,9 @@ import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.reports_tab_custom
 import stitchpad.composeapp.generated.resources.reports_tab_month
 import stitchpad.composeapp.generated.resources.reports_tab_week
-import stitchpad.composeapp.generated.resources.reports_tab_year
 
 @Composable
 fun ReportsTabRow(
@@ -48,9 +48,9 @@ fun ReportsTabRow(
             modifier = Modifier.weight(1f)
         )
         TabPill(
-            label = stringResource(Res.string.reports_tab_year),
-            isActive = selected == ReportsPeriod.YEAR,
-            onClick = { onSelect(ReportsPeriod.YEAR) },
+            label = stringResource(Res.string.reports_tab_custom),
+            isActive = selected == ReportsPeriod.CUSTOM,
+            onClick = { onSelect(ReportsPeriod.CUSTOM) },
             modifier = Modifier.weight(1f)
         )
     }

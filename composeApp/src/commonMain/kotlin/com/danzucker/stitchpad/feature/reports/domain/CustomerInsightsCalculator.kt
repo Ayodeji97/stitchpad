@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.reports.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
@@ -12,6 +14,13 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 private const val DEFAULT_LIMIT = 5
+
+// Hybrid VIP / Repeat thresholds — locked design decision (V2 plan):
+// VIP if lifetime orders >= 5 OR lifetime spend >= 200_000.
+// Repeat if lifetime orders >= 2 (and not VIP).
+private const val VIP_ORDER_COUNT = 5
+private const val VIP_LIFETIME_SPEND = 200_000.0
+private const val REPEAT_ORDER_COUNT = 2
 
 /**
  * Builds the two customer-facing lists shown on Reports: top earners within
@@ -26,11 +35,23 @@ object CustomerInsightsCalculator {
         period: ReportsPeriod,
         today: LocalDate,
         timeZone: TimeZone,
-        limit: Int = DEFAULT_LIMIT
+        limit: Int = DEFAULT_LIMIT,
+        customRange: CustomRange? = null
     ): List<CustomerRanking> {
         if (customers.isEmpty()) return emptyList()
-        val (windowStart, windowEnd) = reportsWindow(period, today, timeZone, periodsBack = 0)
+        val (windowStart, windowEnd) = reportsWindow(period, today, timeZone, 0, customRange)
         val customersById = customers.associateBy { it.id }
+
+        // Lifetime stats drive the VIP / Repeat badge — badges describe the
+        // overall customer relationship, not a single window. Period totals
+        // still drive the ranking sort order.
+        data class Lifetime(var orders: Int = 0, var collected: Double = 0.0)
+        val lifetimeByCustomer = HashMap<String, Lifetime>()
+        for (order in orders) {
+            val l = lifetimeByCustomer.getOrPut(order.customerId) { Lifetime() }
+            l.orders += 1
+            l.collected += (order.totalPrice - order.balanceRemaining).coerceAtLeast(0.0)
+        }
 
         data class Acc(var total: Double = 0.0, var count: Int = 0)
         val accByCustomer = HashMap<String, Acc>()
@@ -49,15 +70,13 @@ object CustomerInsightsCalculator {
                 // The list is "top earners", not "everyone who showed up".
                 if (acc.total <= 0.0) return@mapNotNull null
                 val customer = customersById[customerId] ?: return@mapNotNull null
-                // No phone filter here. Reports is analytical and tap navigates to
-                // CustomerDetail — no WhatsApp launch — so a missing phone shouldn't
-                // hide a top earner. Otherwise the hero revenue total and the list
-                // would silently disagree.
+                val lifetime = lifetimeByCustomer[customerId] ?: Lifetime()
                 CustomerRanking(
                     customerId = customer.id,
                     customerName = customer.name,
                     totalCollected = acc.total,
-                    orderCount = acc.count
+                    orderCount = acc.count,
+                    badge = badgeFor(lifetime.orders, lifetime.collected)
                 )
             }
             .sortedWith(
@@ -66,6 +85,12 @@ object CustomerInsightsCalculator {
             )
             .take(limit)
             .toList()
+    }
+
+    private fun badgeFor(lifetimeOrders: Int, lifetimeSpend: Double): CustomerBadge = when {
+        lifetimeOrders >= VIP_ORDER_COUNT || lifetimeSpend >= VIP_LIFETIME_SPEND -> CustomerBadge.VIP
+        lifetimeOrders >= REPEAT_ORDER_COUNT -> CustomerBadge.REPEAT
+        else -> CustomerBadge.NONE
     }
 
     fun debtors(

@@ -102,13 +102,13 @@
     <string name="reports_title">Reports</string>
     <string name="reports_tab_week">Week</string>
     <string name="reports_tab_month">Month</string>
-    <string name="reports_tab_year">Year</string>
+    <string name="reports_tab_custom">Custom</string>
     <string name="reports_label_this_week">This week</string>
     <string name="reports_label_this_month">This month</string>
-    <string name="reports_label_this_year">This year</string>
+    <string name="reports_label_custom">Custom range</string>
     <string name="reports_delta_vs_last_week">vs last week</string>
     <string name="reports_delta_vs_last_month">vs last month</string>
-    <string name="reports_delta_vs_last_year">vs last year</string>
+    <string name="reports_delta_vs_last_custom">vs prior range</string>
     <string name="reports_section_top_customers">Top customers</string>
     <string name="reports_section_outstanding">Money owed to you</string>
     <string name="reports_section_all_time">All time</string>

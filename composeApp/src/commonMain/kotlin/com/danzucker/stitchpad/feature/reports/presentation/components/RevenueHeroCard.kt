@@ -18,12 +18,12 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.reports_delta_vs_last_custom
 import stitchpad.composeapp.generated.resources.reports_delta_vs_last_month
 import stitchpad.composeapp.generated.resources.reports_delta_vs_last_week
-import stitchpad.composeapp.generated.resources.reports_delta_vs_last_year
+import stitchpad.composeapp.generated.resources.reports_label_custom
 import stitchpad.composeapp.generated.resources.reports_label_this_month
 import stitchpad.composeapp.generated.resources.reports_label_this_week
-import stitchpad.composeapp.generated.resources.reports_label_this_year
 
 @Composable
 fun RevenueHeroCard(
@@ -34,12 +34,12 @@ fun RevenueHeroCard(
     val labelRes = when (period) {
         ReportsPeriod.WEEK -> Res.string.reports_label_this_week
         ReportsPeriod.MONTH -> Res.string.reports_label_this_month
-        ReportsPeriod.YEAR -> Res.string.reports_label_this_year
+        ReportsPeriod.CUSTOM -> Res.string.reports_label_custom
     }
     val deltaSuffixRes = when (period) {
         ReportsPeriod.WEEK -> Res.string.reports_delta_vs_last_week
         ReportsPeriod.MONTH -> Res.string.reports_delta_vs_last_month
-        ReportsPeriod.YEAR -> Res.string.reports_delta_vs_last_year
+        ReportsPeriod.CUSTOM -> Res.string.reports_delta_vs_last_custom
     }
     val mono = JetBrainsMonoFamily()
 

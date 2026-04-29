@@ -193,26 +193,6 @@ class ReportsViewModelTest {
     }
 
     @Test
-    fun onPeriodSelectedYearWidensWindow() = runTest {
-        signIn()
-        customerRepository.customersList = listOf(customer("c1", "Adaeze"))
-        // Order from earlier in current year — outside week and month, inside year.
-        orderRepository.ordersList = listOf(
-            order(id = "o1", customerId = "c1",
-                updatedAt = millisAt(LocalDate(2026, 1, 5)),
-                totalPrice = 200_000.0, balanceRemaining = 0.0)
-        )
-
-        val vm = createViewModel()
-        assertEquals(0.0, vm.state.value.revenueSummary?.current)
-
-        vm.onAction(ReportsAction.OnPeriodSelected(ReportsPeriod.YEAR))
-
-        assertEquals(ReportsPeriod.YEAR, vm.state.value.selectedPeriod)
-        assertEquals(200_000.0, vm.state.value.revenueSummary?.current)
-    }
-
-    @Test
     fun onPeriodSelectedSwitchesToMonthAndRecomputes() = runTest {
         signIn()
         customerRepository.customersList = listOf(customer("c1", "Adaeze"))

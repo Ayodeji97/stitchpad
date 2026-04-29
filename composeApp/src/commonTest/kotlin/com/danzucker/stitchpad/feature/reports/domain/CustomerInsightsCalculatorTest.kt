@@ -12,6 +12,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -181,21 +182,76 @@ class CustomerInsightsCalculatorTest {
     }
 
     @Test
-    fun topCustomersYearWindowExcludesPriorYearOrders() {
-        // Sanity-check that the Year period plumbs through to the window helper.
+    fun topCustomersCustomRangeWindowExcludesOrdersOutsideRange() {
+        // Sanity-check that ReportsPeriod.CUSTOM plumbs through to the window helper.
         val customers = listOf(customer("c1", "Adaeze"))
-        val priorYear = LocalDate(2025, 6, 15)
+        val range = com.danzucker.stitchpad.feature.reports.domain.model.CustomRange(
+            start = LocalDate(2026, 4, 1),
+            end = LocalDate(2026, 4, 30)
+        )
         val orders = listOf(
-            order(id = "in", customerId = "c1", updatedAt = millisAt(today),
+            order(id = "in", customerId = "c1", updatedAt = millisAt(LocalDate(2026, 4, 15)),
                 totalPrice = 10_000.0),
-            order(id = "out", customerId = "c1", updatedAt = millisAt(priorYear),
+            order(id = "out", customerId = "c1", updatedAt = millisAt(LocalDate(2026, 5, 5)),
                 totalPrice = 999_000.0)
         )
         val result = CustomerInsightsCalculator.topCustomers(
-            orders, customers, ReportsPeriod.YEAR, today, tz
+            orders, customers, ReportsPeriod.CUSTOM, today, tz, customRange = range
         )
         assertEquals(1, result.size)
         assertEquals(10_000.0, result[0].totalCollected)
+    }
+
+    @Test
+    fun topCustomersBadgeVipFromLifetimeOrderCount() {
+        // 5+ lifetime orders → VIP, regardless of spend.
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = (1..5).map { i ->
+            order(id = "o$i", customerId = "c1", totalPrice = 10_000.0)
+        }
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(CustomerBadge.VIP, result.single().badge)
+    }
+
+    @Test
+    fun topCustomersBadgeVipFromLifetimeSpend() {
+        // Single big order pushing >= ₦200k → VIP via spend rule.
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 250_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(CustomerBadge.VIP, result.single().badge)
+    }
+
+    @Test
+    fun topCustomersBadgeRepeatBelowVipThresholds() {
+        // 2-4 lifetime orders, < ₦200k spend → Repeat.
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = (1..3).map { i ->
+            order(id = "o$i", customerId = "c1", totalPrice = 10_000.0)
+        }
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(CustomerBadge.REPEAT, result.single().badge)
+    }
+
+    @Test
+    fun topCustomersBadgeNoneBelowAllThresholds() {
+        // 1 order, modest spend → no badge.
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 5_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(CustomerBadge.NONE, result.single().badge)
     }
 
     @Test

@@ -192,42 +192,58 @@ class RevenueCalculatorTest {
         assertEquals(25_000.0, summary.current)
     }
 
-    // -------- Year window --------
+    // -------- Custom range --------
 
     @Test
-    fun yearSparklineHasTwelveBuckets() {
+    fun customRangeRequiresNonNullRange() {
+        // Sanity: passing CUSTOM without a customRange must fail loudly.
+        try {
+            RevenueCalculator.computeSummary(
+                orders = emptyList(),
+                period = ReportsPeriod.CUSTOM,
+                today = today,
+                timeZone = tz
+            )
+            kotlin.test.fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("customRange") == true)
+        }
+    }
+
+    @Test
+    fun customRangeCountsOrdersInsideRange() {
+        val range = com.danzucker.stitchpad.feature.reports.domain.model.CustomRange(
+            start = LocalDate(2026, 4, 10),
+            end = LocalDate(2026, 4, 20)
+        )
+        val orders = listOf(
+            order(id = "in", updatedAt = millisAt(LocalDate(2026, 4, 15)),
+                totalPrice = 60_000.0, balanceRemaining = 0.0),
+            order(id = "out", updatedAt = millisAt(LocalDate(2026, 4, 25)),
+                totalPrice = 99_000.0, balanceRemaining = 0.0)
+        )
         val summary = RevenueCalculator.computeSummary(
-            orders = emptyList(),
-            period = ReportsPeriod.YEAR,
-            today = today,
-            timeZone = tz
+            orders, ReportsPeriod.CUSTOM, today, tz, customRange = range
         )
-        assertEquals(12, summary.sparkline.size)
+        assertEquals(60_000.0, summary.current)
     }
 
     @Test
-    fun yearWindowSpansCalendarYears() {
-        val priorYear = LocalDate(2025, 6, 15)
-        val orders = listOf(
-            order(id = "curr", updatedAt = millisAt(today), totalPrice = 200_000.0, balanceRemaining = 0.0),
-            order(id = "prev", updatedAt = millisAt(priorYear), totalPrice = 80_000.0, balanceRemaining = 0.0)
+    fun customRangePreviousIsSameLengthShiftedBack() {
+        // 11-day range Apr 10 - Apr 20; previous = Mar 30 - Apr 9.
+        val range = com.danzucker.stitchpad.feature.reports.domain.model.CustomRange(
+            start = LocalDate(2026, 4, 10),
+            end = LocalDate(2026, 4, 20)
         )
-        val summary = RevenueCalculator.computeSummary(orders, ReportsPeriod.YEAR, today, tz)
-        assertEquals(200_000.0, summary.current)
-        assertEquals(80_000.0, summary.previous)
-    }
-
-    @Test
-    fun yearOrderJustBeforeJanFirstFallsInPreviousYear() {
-        // 2025-12-31 23:00 UTC must be classified as previous year, not current.
-        val edge = LocalDateTime(LocalDate(2025, 12, 31), LocalTime(23, 0))
-            .toInstant(tz).toEpochMilliseconds()
         val orders = listOf(
-            order(id = "edge", updatedAt = edge, totalPrice = 50_000.0, balanceRemaining = 0.0)
+            order(id = "prev", updatedAt = millisAt(LocalDate(2026, 4, 5)),
+                totalPrice = 25_000.0, balanceRemaining = 0.0)
         )
-        val summary = RevenueCalculator.computeSummary(orders, ReportsPeriod.YEAR, today, tz)
+        val summary = RevenueCalculator.computeSummary(
+            orders, ReportsPeriod.CUSTOM, today, tz, customRange = range
+        )
         assertEquals(0.0, summary.current)
-        assertEquals(50_000.0, summary.previous)
+        assertEquals(25_000.0, summary.previous)
     }
 
     // -------- allTimeSummary --------
