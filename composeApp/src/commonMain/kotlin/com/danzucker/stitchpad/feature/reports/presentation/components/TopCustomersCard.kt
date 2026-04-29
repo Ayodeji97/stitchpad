@@ -4,11 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -26,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
@@ -121,14 +124,25 @@ private fun TopCustomerRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // Fixed-width slots so amounts/badges line up across rows regardless
+        // of amount length or whether a badge is present (BadgeChip returns
+        // nothing for NONE — without a reserved slot the chevron drifts).
         Text(
+            modifier = Modifier.width(110.dp),
             text = "₦" + formatPrice(ranking.totalCollected),
             style = MaterialTheme.typography.bodyMedium,
             fontFamily = monoFamily,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            maxLines = 1
         )
-        BadgeChip(badge = ranking.badge)
+        Box(
+            modifier = Modifier.width(72.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            BadgeChip(badge = ranking.badge)
+        }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,

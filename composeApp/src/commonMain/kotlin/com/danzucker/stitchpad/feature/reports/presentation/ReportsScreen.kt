@@ -250,16 +250,18 @@ private fun ReportsContent(
         if (productionCounts != null) {
             ProductionStatusCard(counts = productionCounts)
         }
-        TopCustomersCard(
-            rankings = topCustomers,
-            onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) },
-            onViewAllClick = { /* Stage 4: navigate to expanded list */ }
-        )
+        // Outstanding sits above Top Customers — collecting unpaid balances
+        // is the most action-driving piece of the report for a tailor.
         OutstandingBalancesCard(
             debtors = debtors,
             today = today,
             onDebtorClick = { onAction(ReportsAction.OnDebtorClick(it)) },
             onSendReminder = { onAction(ReportsAction.OnSendReminderClick(it)) },
+            onViewAllClick = { /* Stage 4: navigate to expanded list */ }
+        )
+        TopCustomersCard(
+            rankings = topCustomers,
+            onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) },
             onViewAllClick = { /* Stage 4: navigate to expanded list */ }
         )
     }
