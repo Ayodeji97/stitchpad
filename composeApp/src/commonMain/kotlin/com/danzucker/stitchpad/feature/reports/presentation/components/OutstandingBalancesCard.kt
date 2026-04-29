@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
@@ -114,27 +115,32 @@ private fun OutstandingRow(
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
-        // Fixed-width right column so amounts/pills line up across rows even
-        // when amount widths differ. Centered horizontally so the narrower
-        // pill gets balanced spacing on either side. Due date dropped — the
-        // pill already says "Overdue / Due Today / This Week / Next Week".
-        Column(
-            modifier = Modifier.width(110.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Fixed-width frame around the amount + pill column so the right side
+        // lines up across rows and gets breathing room from the WA icon.
+        // The inner Column is centered inside the frame; the name on the left
+        // takes the remaining width and ellipses once it gets too long.
+        Box(
+            modifier = Modifier.width(124.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "₦" + formatPrice(debtor.totalOwed),
-                style = MaterialTheme.typography.bodyMedium,
-                fontFamily = monoFamily,
-                fontWeight = FontWeight.Bold,
-                color = urgency.amountColor,
-                textAlign = TextAlign.Center,
-                maxLines = 1
-            )
-            StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "₦" + formatPrice(debtor.totalOwed),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = monoFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = urgency.amountColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+                StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
+            }
         }
         WhatsAppButton(onClick = onWhatsAppClick)
     }
