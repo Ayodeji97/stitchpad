@@ -248,3 +248,35 @@ private fun ReportsScreenEmptyPreview() {
         )
     }
 }
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReportsScreenFirstWeekPreview() {
+    StitchPadTheme {
+        ReportsScreen(
+            state = ReportsState(
+                isLoading = false,
+                selectedPeriod = ReportsPeriod.WEEK,
+                hasAnyOrders = true,
+                revenueSummary = RevenueSummary(
+                    current = 5_255_000.0,
+                    previous = 0.0,
+                    deltaAmount = 5_255_000.0,
+                    deltaPercent = null,
+                    sparkline = listOf(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5_255_000.0)
+                ),
+                topCustomers = listOf(
+                    CustomerRanking("c1", "Ade Yinka", 4_335_000.0, 6),
+                    CustomerRanking("c2", "Blessing Tosin", 720_000.0, 3),
+                    CustomerRanking("c3", "Posi John", 80_000.0, 2)
+                ),
+                debtors = listOf(
+                    DebtorEntry("c2", "Blessing Tosin", 1_850_000.0, null),
+                    DebtorEntry("c3", "Posi John", 460_000.0, null)
+                )
+            ),
+            onAction = {}
+        )
+    }
+}
