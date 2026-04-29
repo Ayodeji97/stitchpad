@@ -123,7 +123,7 @@ class ReportsViewModelTest {
 
         assertFalse(vm.state.value.isLoading)
         assertFalse(vm.state.value.hasAnyOrders)
-        assertNull(vm.state.value.revenueSummary)
+        assertNull(vm.state.value.kpiSummary)
         assertTrue(vm.state.value.topCustomers.isEmpty())
         assertTrue(vm.state.value.debtors.isEmpty())
     }
@@ -136,7 +136,7 @@ class ReportsViewModelTest {
 
         assertFalse(vm.state.value.isLoading)
         assertFalse(vm.state.value.hasAnyOrders)
-        assertNull(vm.state.value.revenueSummary)
+        assertNull(vm.state.value.kpiSummary)
         assertTrue(vm.state.value.topCustomers.isEmpty())
         assertTrue(vm.state.value.debtors.isEmpty())
     }
@@ -156,10 +156,14 @@ class ReportsViewModelTest {
         val vm = createViewModel()
 
         assertTrue(vm.state.value.hasAnyOrders)
-        val summary = vm.state.value.revenueSummary
-        assertNotNull(summary)
-        // c1 paid 20k, c2 paid 0k → total collected = 20k
-        assertEquals(20_000.0, summary.current)
+        val kpis = vm.state.value.kpiSummary
+        assertNotNull(kpis)
+        // 80k earned (30k + 50k), 20k actually collected (c1 paid 20k of 30k).
+        assertEquals(80_000.0, kpis.revenue.current)
+        assertEquals(20_000.0, kpis.collected.current)
+        // 60k outstanding (10k from c1 + 50k from c2)
+        assertEquals(60_000.0, kpis.outstanding.current)
+        assertEquals(2.0, kpis.orders.current)
         // Top customers — only customers who collected anything
         assertEquals(listOf("Adaeze"), vm.state.value.topCustomers.map { it.customerName })
         // Debtors — both have unpaid balance
@@ -167,33 +171,22 @@ class ReportsViewModelTest {
     }
 
     @Test
-    fun authedUserPopulatedDataPopulatesAllTimeSummary() = runTest {
+    fun authedUserPopulatedDataPopulatesProductionCounts() = runTest {
         signIn()
-        customerRepository.customersList = listOf(
-            customer("c1", "Adaeze"),
-            customer("c2", "Bola")
-        )
+        customerRepository.customersList = listOf(customer("c1", "Adaeze"))
         orderRepository.ordersList = listOf(
-            order(id = "o1", customerId = "c1", totalPrice = 30_000.0, balanceRemaining = 10_000.0),
-            order(id = "o2", customerId = "c2", totalPrice = 50_000.0, balanceRemaining = 50_000.0)
+            order(id = "o1", customerId = "c1", totalPrice = 30_000.0,
+                balanceRemaining = 10_000.0, status = OrderStatus.PENDING),
+            order(id = "o2", customerId = "c1", totalPrice = 50_000.0,
+                balanceRemaining = 0.0, status = OrderStatus.DELIVERED)
         )
 
         val vm = createViewModel()
 
-        val allTime = vm.state.value.allTimeSummary
-        assertNotNull(allTime)
-        assertEquals(20_000.0, allTime.totalCollected)
-        assertEquals(2, allTime.orderCount)
-        assertEquals("Adaeze", allTime.topCustomerName)
-    }
-
-    @Test
-    fun authedUserEmptyDataLeavesAllTimeSummaryNull() = runTest {
-        signIn()
-
-        val vm = createViewModel()
-
-        assertNull(vm.state.value.allTimeSummary)
+        val production = vm.state.value.productionCounts
+        assertNotNull(production)
+        assertEquals(1, production.pending)
+        assertEquals(1, production.delivered)
     }
 
     @Test
@@ -213,8 +206,8 @@ class ReportsViewModelTest {
         vm.onAction(ReportsAction.OnPeriodSelected(ReportsPeriod.MONTH))
 
         assertEquals(ReportsPeriod.MONTH, vm.state.value.selectedPeriod)
-        // April 1 is in current month → counted
-        assertEquals(100_000.0, vm.state.value.revenueSummary?.current)
+        // April 1 is in current month → counted in collected KPI
+        assertEquals(100_000.0, vm.state.value.kpiSummary?.collected?.current)
     }
 
     @Test

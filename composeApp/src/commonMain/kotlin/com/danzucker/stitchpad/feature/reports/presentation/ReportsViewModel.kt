@@ -12,8 +12,8 @@ import com.danzucker.stitchpad.feature.billing.domain.EntitlementsRepository
 import com.danzucker.stitchpad.feature.reports.domain.CustomerInsightsCalculator
 import com.danzucker.stitchpad.feature.reports.domain.KpiCalculator
 import com.danzucker.stitchpad.feature.reports.domain.ProductionCountsCalculator
-import com.danzucker.stitchpad.feature.reports.domain.RevenueCalculator
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
+import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +45,12 @@ class ReportsViewModel(
     private val periodFlow = MutableStateFlow(ReportsPeriod.WEEK)
     private val customRangeFlow = MutableStateFlow<CustomRange?>(null)
 
+    // Cached for synchronous lookup when handling OnSendReminderClick — avoids a
+    // round-trip through the customer repository for an action that fires off a
+    // single deep link.
+    private var cachedCustomers: List<Customer> = emptyList()
+    private var cachedDebtors: List<DebtorEntry> = emptyList()
+
     private val _events = Channel<ReportsEvent>()
     val events = _events.receiveAsFlow()
 
@@ -74,11 +80,23 @@ class ReportsViewModel(
             is ReportsAction.OnDebtorClick -> emitEvent(
                 ReportsEvent.NavigateToCustomerDetail(action.customerId)
             )
-            is ReportsAction.OnSendReminderClick -> emitEvent(
-                ReportsEvent.LaunchWhatsAppReminder(action.customerId)
-            )
+            is ReportsAction.OnSendReminderClick -> handleSendReminder(action.customerId)
             ReportsAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
+    }
+
+    private fun handleSendReminder(customerId: String) {
+        val customer = cachedCustomers.firstOrNull { it.id == customerId }
+        val debtor = cachedDebtors.firstOrNull { it.customerId == customerId }
+        if (customer == null || debtor == null || customer.phone.isBlank()) return
+        emitEvent(
+            ReportsEvent.LaunchWhatsAppReminder(
+                customerName = customer.name,
+                customerPhone = customer.phone,
+                totalOwed = debtor.totalOwed,
+                oldestDeadline = debtor.oldestDeadline
+            )
+        )
     }
 
     private fun emitEvent(event: ReportsEvent) {
@@ -117,6 +135,7 @@ class ReportsViewModel(
     private fun recompute(inputs: Inputs) {
         val orders = (inputs.ordersResult as? Result.Success)?.data ?: emptyList()
         val customers = (inputs.customersResult as? Result.Success)?.data ?: emptyList()
+        cachedCustomers = customers
         val error = when {
             inputs.ordersResult is Result.Error -> inputs.ordersResult.error.toReportsUiText()
             inputs.customersResult is Result.Error -> inputs.customersResult.error.toReportsUiText()
@@ -125,25 +144,14 @@ class ReportsViewModel(
         val today = Instant.fromEpochMilliseconds(nowMillis())
             .toLocalDateTime(timeZone).date
         val hasAnyOrders = orders.isNotEmpty()
-        // Custom is only computable once a range is picked. If the user taps Custom
-        // before picking, fall back to Week math so the screen doesn't blank out.
+        // Custom is only computable once a range is picked; fall back to Week math
+        // until the user picks one so the screen doesn't blank.
         val effectivePeriod = if (
             inputs.period == ReportsPeriod.CUSTOM && inputs.customRange == null
         ) {
             ReportsPeriod.WEEK
         } else {
             inputs.period
-        }
-        val revenueSummary = if (hasAnyOrders) {
-            RevenueCalculator.computeSummary(
-                orders = orders,
-                period = effectivePeriod,
-                today = today,
-                timeZone = timeZone,
-                customRange = inputs.customRange
-            )
-        } else {
-            null
         }
         val kpiSummary = if (hasAnyOrders) {
             KpiCalculator.computeSummary(
@@ -170,11 +178,7 @@ class ReportsViewModel(
             customRange = inputs.customRange
         )
         val debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
-        val allTimeSummary = if (hasAnyOrders) {
-            RevenueCalculator.allTimeSummary(orders, customers)
-        } else {
-            null
-        }
+        cachedDebtors = debtors
 
         _state.update {
             it.copy(
@@ -183,12 +187,10 @@ class ReportsViewModel(
                 selectedPeriod = inputs.period,
                 customRange = inputs.customRange,
                 hasAnyOrders = hasAnyOrders,
-                revenueSummary = revenueSummary,
                 kpiSummary = kpiSummary,
                 productionCounts = productionCounts,
                 topCustomers = topCustomers,
                 debtors = debtors,
-                allTimeSummary = allTimeSummary,
                 errorMessage = error
             )
         }

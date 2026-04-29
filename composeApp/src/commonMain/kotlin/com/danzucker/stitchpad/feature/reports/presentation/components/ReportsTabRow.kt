@@ -27,6 +27,7 @@ import stitchpad.composeapp.generated.resources.reports_tab_week
 fun ReportsTabRow(
     selected: ReportsPeriod,
     onSelect: (ReportsPeriod) -> Unit,
+    onCustomTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -47,10 +48,12 @@ fun ReportsTabRow(
             onClick = { onSelect(ReportsPeriod.MONTH) },
             modifier = Modifier.weight(1f)
         )
+        // Custom always opens the picker — even if already selected, so users
+        // can re-pick a range without first switching tabs.
         TabPill(
             label = stringResource(Res.string.reports_tab_custom),
             isActive = selected == ReportsPeriod.CUSTOM,
-            onClick = { onSelect(ReportsPeriod.CUSTOM) },
+            onClick = onCustomTap,
             modifier = Modifier.weight(1f)
         )
     }

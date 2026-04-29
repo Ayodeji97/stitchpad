@@ -5,9 +5,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -18,71 +23,115 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.danzucker.stitchpad.feature.reports.domain.model.AllTimeSummary
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
+import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
+import com.danzucker.stitchpad.feature.reports.domain.model.Kpi
+import com.danzucker.stitchpad.feature.reports.domain.model.KpiSummary
+import com.danzucker.stitchpad.feature.reports.domain.model.ProductionCounts
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
-import com.danzucker.stitchpad.feature.reports.domain.model.RevenueSummary
-import com.danzucker.stitchpad.feature.reports.presentation.components.AllTimeSummaryCard
-import com.danzucker.stitchpad.feature.reports.presentation.components.DebtorsCard
+import com.danzucker.stitchpad.feature.reports.presentation.components.CustomRangePickerDialog
+import com.danzucker.stitchpad.feature.reports.presentation.components.KpiGrid
+import com.danzucker.stitchpad.feature.reports.presentation.components.OutstandingBalancesCard
+import com.danzucker.stitchpad.feature.reports.presentation.components.ProductionStatusCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsEmptyState
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsLoadingSkeleton
+import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsPaywallCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsTabRow
-import com.danzucker.stitchpad.feature.reports.presentation.components.RevenueHeroCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.TopCustomersCard
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.reports_delta_vs_last_custom
+import stitchpad.composeapp.generated.resources.reports_delta_vs_last_month
+import stitchpad.composeapp.generated.resources.reports_delta_vs_last_week
+import stitchpad.composeapp.generated.resources.reports_reminder_template
 import stitchpad.composeapp.generated.resources.reports_title
+import stitchpad.composeapp.generated.resources.reports_whatsapp_launch_failed
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 @Composable
 fun ReportsRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
-    viewModel: ReportsViewModel = koinViewModel()
+    viewModel: ReportsViewModel = koinViewModel(),
+    whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val timeZone = remember { TimeZone.currentSystemDefault() }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is ReportsEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
-            // Wired to WhatsAppLauncher in V2 stage 3 — currently a no-op.
-            is ReportsEvent.LaunchWhatsAppReminder -> Unit
+            is ReportsEvent.LaunchWhatsAppReminder -> {
+                scope.launch {
+                    val message = getString(
+                        Res.string.reports_reminder_template,
+                        event.customerName,
+                        formatPrice(event.totalOwed)
+                    )
+                    val launched = whatsAppLauncher.launch(event.customerPhone, message)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(
+                            getString(Res.string.reports_whatsapp_launch_failed)
+                        )
+                    }
+                }
+            }
         }
     }
 
     ReportsScreen(
         state = state,
+        snackbarHostState = snackbarHostState,
+        timeZone = timeZone,
         onAction = viewModel::onAction
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
 fun ReportsScreen(
     state: ReportsState,
+    snackbarHostState: SnackbarHostState,
+    timeZone: TimeZone,
     onAction: (ReportsAction) -> Unit
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
     val errorString = state.errorMessage?.asString()
-
     LaunchedEffect(errorString) {
-        // Same pattern as DashboardRoot: a repeat of the *same* error UiText won't
-        // re-trigger this effect (key unchanged). Acceptable for V1 — Firestore
-        // offline persistence means errors are rare and the user can pull to refresh
-        // by switching tabs once a real connection comes back.
         if (errorString != null) {
             snackbarHostState.showSnackbar(errorString)
             onAction(ReportsAction.OnErrorDismiss)
         }
+    }
+
+    var showRangePicker by remember { mutableStateOf(false) }
+
+    val today = remember(timeZone) {
+        Clock.System.now().toLocalDateTime(timeZone).date
     }
 
     Scaffold(
@@ -94,6 +143,15 @@ fun ReportsScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
+                },
+                actions = {
+                    IconButton(onClick = { showRangePicker = true }) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -110,42 +168,66 @@ fun ReportsScreen(
         ) {
             ReportsTabRow(
                 selected = state.selectedPeriod,
-                onSelect = { onAction(ReportsAction.OnPeriodSelected(it)) }
+                onSelect = { onAction(ReportsAction.OnPeriodSelected(it)) },
+                onCustomTap = { showRangePicker = true }
             )
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
-                    state.isLoading -> {
-                        ReportsLoadingSkeleton(
-                            modifier = Modifier.padding(
-                                horizontal = DesignTokens.space4,
-                                vertical = DesignTokens.space2
-                            )
+                    state.isLoading -> ReportsLoadingSkeleton(
+                        modifier = Modifier.padding(
+                            horizontal = DesignTokens.space4,
+                            vertical = DesignTokens.space2
                         )
-                    }
+                    )
+                    !state.isPremium -> ReportsPaywallCard(
+                        onUpgradeClick = {
+                            // Real billing not wired yet — debug-only path will land
+                            // alongside the Settings toggle. Tapping does nothing for now.
+                        }
+                    )
                     !state.hasAnyOrders -> ReportsEmptyState()
                     else -> ReportsContent(
-                        summary = state.revenueSummary,
-                        period = state.selectedPeriod,
+                        kpiSummary = state.kpiSummary,
+                        productionCounts = state.productionCounts,
                         topCustomers = state.topCustomers,
                         debtors = state.debtors,
-                        allTimeSummary = state.allTimeSummary,
+                        period = state.selectedPeriod,
+                        today = today,
                         onAction = onAction
                     )
                 }
             }
         }
     }
+
+    if (showRangePicker) {
+        CustomRangePickerDialog(
+            initial = state.customRange,
+            timeZone = timeZone,
+            onConfirm = { range ->
+                showRangePicker = false
+                onAction(ReportsAction.OnCustomRangeSelected(range))
+            },
+            onDismiss = { showRangePicker = false }
+        )
+    }
 }
 
 @Composable
 private fun ReportsContent(
-    summary: RevenueSummary?,
-    period: ReportsPeriod,
+    kpiSummary: KpiSummary?,
+    productionCounts: ProductionCounts?,
     topCustomers: List<CustomerRanking>,
     debtors: List<DebtorEntry>,
-    allTimeSummary: AllTimeSummary?,
+    period: ReportsPeriod,
+    today: LocalDate,
     onAction: (ReportsAction) -> Unit
 ) {
+    val deltaSuffix = when (period) {
+        ReportsPeriod.WEEK -> stringResource(Res.string.reports_delta_vs_last_week)
+        ReportsPeriod.MONTH -> stringResource(Res.string.reports_delta_vs_last_month)
+        ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_delta_vs_last_custom)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -156,51 +238,109 @@ private fun ReportsContent(
                 top = DesignTokens.space2,
                 bottom = DesignTokens.space6
             ),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)
     ) {
-        if (summary != null) {
-            RevenueHeroCard(summary = summary, period = period)
+        if (kpiSummary != null) {
+            KpiGrid(summary = kpiSummary, deltaSuffix = deltaSuffix)
+        }
+        if (productionCounts != null) {
+            ProductionStatusCard(counts = productionCounts)
         }
         TopCustomersCard(
             rankings = topCustomers,
-            onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) }
+            onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) },
+            onViewAllClick = { /* Stage 4: navigate to expanded list */ }
         )
-        DebtorsCard(
+        OutstandingBalancesCard(
             debtors = debtors,
-            onDebtorClick = { onAction(ReportsAction.OnDebtorClick(it)) }
+            today = today,
+            onDebtorClick = { onAction(ReportsAction.OnDebtorClick(it)) },
+            onSendReminder = { onAction(ReportsAction.OnSendReminderClick(it)) },
+            onViewAllClick = { /* Stage 4: navigate to expanded list */ }
         )
-        if (allTimeSummary != null) {
-            AllTimeSummaryCard(summary = allTimeSummary)
-        }
     }
 }
 
 // --------------- Previews ---------------
 
-private val previewSummary = RevenueSummary(
-    current = 142_000.0,
-    previous = 118_000.0,
-    deltaAmount = 24_000.0,
-    deltaPercent = 20.3,
-    sparkline = listOf(20_000.0, 35_000.0, 28_000.0, 64_000.0, 88_000.0, 95_000.0, 118_000.0, 142_000.0)
+private val revenueSpark = listOf(
+    2_100_000.0,
+    3_400_000.0,
+    2_800_000.0,
+    4_200_000.0,
+    3_900_000.0,
+    4_770_000.0,
+    5_100_000.0,
+    5_360_000.0
+)
+private val collectedSpark = listOf(
+    1_200_000.0,
+    2_300_000.0,
+    1_900_000.0,
+    3_000_000.0,
+    2_800_000.0,
+    3_196_000.0,
+    3_400_000.0,
+    3_510_000.0
+)
+private val outstandingSpark = listOf(
+    900_000.0,
+    1_100_000.0,
+    900_000.0,
+    1_200_000.0,
+    1_500_000.0,
+    1_752_000.0,
+    1_700_000.0,
+    1_850_000.0
+)
+private val ordersSpark = listOf(5.0, 12.0, 8.0, 14.0, 10.0, 15.0, 16.0, 18.0)
+
+private val previewKpis = KpiSummary(
+    revenue = Kpi(
+        current = 5_360_000.0,
+        previous = 4_770_000.0,
+        deltaPercent = 12.4,
+        sparkline = revenueSpark
+    ),
+    collected = Kpi(
+        current = 3_510_000.0,
+        previous = 3_196_000.0,
+        deltaPercent = 9.8,
+        sparkline = collectedSpark
+    ),
+    outstanding = Kpi(
+        current = 1_850_000.0,
+        previous = 1_752_000.0,
+        deltaPercent = 5.6,
+        sparkline = outstandingSpark
+    ),
+    orders = Kpi(
+        current = 18.0,
+        previous = 15.0,
+        deltaPercent = 20.0,
+        sparkline = ordersSpark
+    )
+)
+
+private val previewProduction = ProductionCounts(
+    pending = 6,
+    inProgress = 9,
+    ready = 3,
+    delivered = 12
 )
 
 private val previewTopCustomers = listOf(
-    CustomerRanking("c1", "Adaeze Okeke", 38_000.0, 2),
-    CustomerRanking("c2", "Tunde Adekunle", 24_000.0, 1),
-    CustomerRanking("c3", "Chiamaka Eze", 18_500.0, 1)
+    CustomerRanking("c1", "Ade Yinka", 512_400.0, 12, badge = CustomerBadge.VIP),
+    CustomerRanking("c2", "Blessing Tosin", 328_750.0, 9, badge = CustomerBadge.REPEAT),
+    CustomerRanking("c3", "Pooja Paul", 276_300.0, 7, badge = CustomerBadge.REPEAT),
+    CustomerRanking("c4", "Posi John", 198_600.0, 6, badge = CustomerBadge.VIP)
 )
 
 private val previewDebtors = listOf(
-    DebtorEntry("c4", "Bola Ajayi", 45_000.0, orderCount = 2, oldestDeadline = LocalDate(2026, 4, 12)),
-    DebtorEntry("c5", "Kemi Williams", 18_000.0, orderCount = 1, oldestDeadline = LocalDate(2026, 4, 18))
-)
-
-private val previewAllTime = AllTimeSummary(
-    totalCollected = 1_840_000.0,
-    orderCount = 42,
-    topCustomerName = "Adaeze Okeke",
-    topCustomerTotal = 380_000.0
+    DebtorEntry("c1", "Ade Yinka", 78_500.0, 1, oldestDeadline = LocalDate(2026, 5, 10)),
+    DebtorEntry("c2", "Blessing Tosin", 45_000.0, 1, oldestDeadline = LocalDate(2026, 4, 29)),
+    DebtorEntry("c3", "Pooja Paul", 32_500.0, 1, oldestDeadline = LocalDate(2026, 5, 1)),
+    DebtorEntry("c4", "Posi John", 15_000.0, 1, oldestDeadline = LocalDate(2026, 5, 6))
 )
 
 @Suppress("UnusedPrivateMember")
@@ -211,13 +351,16 @@ private fun ReportsScreenWeekPreview() {
         ReportsScreen(
             state = ReportsState(
                 isLoading = false,
+                isPremium = true,
                 selectedPeriod = ReportsPeriod.WEEK,
                 hasAnyOrders = true,
-                revenueSummary = previewSummary,
+                kpiSummary = previewKpis,
+                productionCounts = previewProduction,
                 topCustomers = previewTopCustomers,
-                debtors = previewDebtors,
-                allTimeSummary = previewAllTime
+                debtors = previewDebtors
             ),
+            snackbarHostState = remember { SnackbarHostState() },
+            timeZone = TimeZone.UTC,
             onAction = {}
         )
     }
@@ -226,44 +369,16 @@ private fun ReportsScreenWeekPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun ReportsScreenMonthPreview() {
+private fun ReportsScreenPaywallPreview() {
     StitchPadTheme {
         ReportsScreen(
             state = ReportsState(
                 isLoading = false,
-                selectedPeriod = ReportsPeriod.MONTH,
-                hasAnyOrders = true,
-                revenueSummary = previewSummary.copy(sparkline = previewSummary.sparkline.takeLast(6)),
-                topCustomers = previewTopCustomers,
-                debtors = previewDebtors,
-                allTimeSummary = previewAllTime
+                isPremium = false,
+                hasAnyOrders = true
             ),
-            onAction = {}
-        )
-    }
-}
-
-@Suppress("UnusedPrivateMember")
-@Preview
-@Composable
-private fun ReportsScreenCustomPreview() {
-    StitchPadTheme {
-        ReportsScreen(
-            state = ReportsState(
-                isLoading = false,
-                selectedPeriod = ReportsPeriod.CUSTOM,
-                hasAnyOrders = true,
-                revenueSummary = RevenueSummary(
-                    current = 320_000.0,
-                    previous = 250_000.0,
-                    deltaAmount = 70_000.0,
-                    deltaPercent = 28.0,
-                    sparkline = listOf(320_000.0)
-                ),
-                topCustomers = previewTopCustomers,
-                debtors = previewDebtors,
-                allTimeSummary = previewAllTime
-            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            timeZone = TimeZone.UTC,
             onAction = {}
         )
     }
@@ -276,6 +391,8 @@ private fun ReportsScreenLoadingPreview() {
     StitchPadTheme {
         ReportsScreen(
             state = ReportsState(isLoading = true),
+            snackbarHostState = remember { SnackbarHostState() },
+            timeZone = TimeZone.UTC,
             onAction = {}
         )
     }
@@ -288,44 +405,8 @@ private fun ReportsScreenEmptyPreview() {
     StitchPadTheme {
         ReportsScreen(
             state = ReportsState(isLoading = false, hasAnyOrders = false),
-            onAction = {}
-        )
-    }
-}
-
-@Suppress("UnusedPrivateMember")
-@Preview
-@Composable
-private fun ReportsScreenFirstWeekPreview() {
-    StitchPadTheme {
-        ReportsScreen(
-            state = ReportsState(
-                isLoading = false,
-                selectedPeriod = ReportsPeriod.WEEK,
-                hasAnyOrders = true,
-                revenueSummary = RevenueSummary(
-                    current = 5_255_000.0,
-                    previous = 0.0,
-                    deltaAmount = 5_255_000.0,
-                    deltaPercent = null,
-                    sparkline = listOf(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5_255_000.0)
-                ),
-                topCustomers = listOf(
-                    CustomerRanking("c1", "Ade Yinka", 4_335_000.0, 6),
-                    CustomerRanking("c2", "Blessing Tosin", 720_000.0, 3),
-                    CustomerRanking("c3", "Posi John", 80_000.0, 2)
-                ),
-                debtors = listOf(
-                    DebtorEntry("c2", "Blessing Tosin", 1_850_000.0, orderCount = 3, oldestDeadline = null),
-                    DebtorEntry("c3", "Posi John", 460_000.0, orderCount = 2, oldestDeadline = null)
-                ),
-                allTimeSummary = AllTimeSummary(
-                    totalCollected = 5_255_000.0,
-                    orderCount = 11,
-                    topCustomerName = "Ade Yinka",
-                    topCustomerTotal = 4_335_000.0
-                )
-            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            timeZone = TimeZone.UTC,
             onAction = {}
         )
     }
