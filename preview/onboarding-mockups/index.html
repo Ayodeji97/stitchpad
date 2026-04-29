@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Onboarding UI variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+<style>
+  :root {
+    --p50:  #FFF8E7; --p100: #FDEFC4; --p200: #FBDF8A; --p300: #F9CC50;
+    --p400: #F7BB2A; --p500: #E8A800; --p600: #C48E00; --p700: #9E7200;
+    --n0:   #FFFFFF; --n50:  #F9F9F8; --n100: #F2F1EF; --n200: #E5E3DF;
+    --n300: #C9C6C0; --n400: #A8A49D; --n500: #7D7970; --n600: #57534C;
+    --n700: #3A3731; --n800: #252320; --n900: #121110;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: var(--font-body); background: #0f0e0d; color: #e5e3df; }
+  body { padding: 56px 32px 96px; min-height: 100vh; }
+
+  /* Header */
+  .page-header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .page-header .logo {
+    font-size: 28px; font-weight: 800; color: var(--p500); letter-spacing: -.02em;
+  }
+  .page-header .subtitle {
+    font-size: 15px; opacity: .55; margin-top: 8px; letter-spacing: .02em;
+  }
+  .page-header .lead {
+    max-width: 720px; margin: 24px auto 0; font-size: 15px; line-height: 1.65;
+    color: rgba(255,255,255,.7);
+  }
+  .page-header .lead strong { color: var(--p400); font-weight: 600; }
+
+  /* Variant block */
+  .variant {
+    max-width: 1480px; margin: 0 auto 96px;
+    background: #18171590; backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 28px;
+    padding: 40px 32px;
+  }
+  .variant-head {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 16px;
+    margin-bottom: 32px;
+  }
+  .variant-tag {
+    font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--p400);
+    padding: 6px 12px; border-radius: 999px; background: rgba(232,168,0,.12);
+  }
+  .variant-name {
+    font-size: 24px; font-weight: 700; color: #fff;
+  }
+  .variant-desc {
+    flex-basis: 100%; font-size: 14px; line-height: 1.6; color: rgba(255,255,255,.65);
+    max-width: 800px;
+  }
+  .variant-desc strong { color: rgba(255,255,255,.95); font-weight: 600; }
+
+  .phones-row {
+    display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .phone-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: rgba(255,255,255,.4);
+  }
+
+  /* Phone shell — Pixel style, matching the user's screenshots */
+  .phone-shell {
+    width: 360px; height: 780px;
+    background: #181715;
+    border-radius: 44px;
+    padding: 8px;
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 24px 64px rgba(0,0,0,.55);
+  }
+  .phone-shell::before {
+    content: ''; position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #050504;
+    box-shadow: inset 0 0 0 2px #1a1917;
+    z-index: 10;
+  }
+  .phone-screen {
+    width: 100%; height: 100%; border-radius: 38px;
+    background: #fafaf9;
+    overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 44px; padding: 14px 22px 0;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-shrink: 0; z-index: 5;
+  }
+  .status-bar.on-photo { color: white; }
+  .status-time { font-size: 14px; font-weight: 600; color: #252320; }
+  .status-bar.on-photo .status-time { color: #fff; }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons .material-icons-round { font-size: 14px; color: #57534C; }
+  .status-bar.on-photo .status-icons .material-icons-round { color: #fff; }
+
+  /* Onboarding content area */
+  .onb-body {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 0 24px;
+  }
+
+  /* Title + subtitle */
+  .onb-title {
+    font-family: var(--font-body);
+    font-size: 22px; font-weight: 700;
+    color: #252320; line-height: 1.25;
+    text-align: center;
+    letter-spacing: -.01em;
+  }
+  .onb-subtitle {
+    font-family: var(--font-body);
+    font-size: 14.5px; font-weight: 400;
+    color: #57534C; line-height: 1.5;
+    text-align: center;
+    margin-top: 10px;
+    padding: 0 12px;
+  }
+
+  /* Page indicators */
+  .indicators {
+    display: flex; gap: 6px; justify-content: center; align-items: center;
+    margin-top: 18px;
+  }
+  .indicator { width: 8px; height: 8px; border-radius: 4px; background: #C9C6C0; transition: width .2s; }
+  .indicator.active { width: 22px; background: var(--p500); }
+
+  /* Primary button */
+  .btn-primary {
+    height: 52px; border-radius: 14px;
+    background: var(--p500);
+    color: #252320;
+    font-family: var(--font-body); font-size: 15px; font-weight: 700;
+    border: none;
+    margin: 18px 0 32px;
+    width: calc(100% - 0px);
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn-primary:hover { filter: brightness(.96); }
+
+  /* Outline (used in immersive variant) */
+  .btn-primary.outline {
+    background: rgba(255,255,255,.18);
+    border: 1.5px solid rgba(255,255,255,.55);
+    color: #fff;
+    backdrop-filter: blur(20px);
+  }
+  .btn-primary.outline:hover { background: rgba(255,255,255,.28); }
+
+  /* ────── Variant A: Current baseline ────── */
+  .va-photo {
+    width: 280px; height: 240px;
+    border-radius: 24px;
+    object-fit: cover;
+    align-self: center;
+    margin-top: auto;
+  }
+  .va-text-wrap { margin-top: 32px; margin-bottom: auto; }
+
+  /* ────── Variant B: Tall portrait card ────── */
+  .vb-photo {
+    width: 260px; height: 325px;
+    border-radius: 24px;
+    object-fit: cover;
+    align-self: center;
+    margin-top: 32px;
+  }
+  .vb-text-wrap { margin-top: 32px; }
+  .vb-spacer { flex: 1; }
+
+  /* ────── Variant C: Hero + bottom sheet ────── */
+  .vc-screen {
+    background: #181715;
+  }
+  .vc-photo-area {
+    width: 100%; height: 460px;
+    position: relative;
+  }
+  .vc-photo {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+  }
+  .vc-sheet {
+    position: relative; flex: 1;
+    margin-top: -28px;
+    background: #fafaf9;
+    border-radius: 28px 28px 0 0;
+    padding: 32px 24px 0;
+    display: flex; flex-direction: column;
+    box-shadow: 0 -8px 24px rgba(0,0,0,.18);
+  }
+  .vc-sheet .onb-title { text-align: left; }
+  .vc-sheet .onb-subtitle { text-align: left; padding: 0; }
+  .vc-sheet .indicators { justify-content: flex-start; margin-top: auto; padding-top: 24px; }
+
+  /* ────── Variant D: Immersive full-screen ────── */
+  .vd-screen {
+    background: #000;
+    position: relative;
+  }
+  .vd-photo {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .vd-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0) 35%,
+      rgba(0,0,0,.45) 60%,
+      rgba(0,0,0,.85) 100%);
+    z-index: 1;
+  }
+  .vd-content {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; height: 100%;
+    padding: 0 24px;
+  }
+  .vd-content .status-bar { padding: 14px 0 0; }
+  .vd-content .onb-title { color: #fff; text-align: left; font-size: 26px; line-height: 1.2; }
+  .vd-content .onb-subtitle { color: rgba(255,255,255,.85); text-align: left; padding: 0; font-size: 15px; }
+  .vd-content .indicators { justify-content: flex-start; margin-top: 20px; }
+  .vd-content .indicator { background: rgba(255,255,255,.35); }
+  .vd-content .indicator.active { background: var(--p400); }
+  .vd-spacer { flex: 1; }
+  .vd-text-wrap { margin-bottom: 16px; }
+
+  /* ────── Variant E: Branded saffron card ────── */
+  .ve-photo-frame {
+    width: 280px; height: 340px;
+    align-self: center;
+    margin-top: auto;
+    position: relative;
+    border-radius: 28px;
+    background: linear-gradient(135deg, var(--p400), var(--p600));
+    padding: 5px;
+    box-shadow: 0 18px 36px -12px rgba(232,168,0,.45),
+                0 4px 12px rgba(0,0,0,.08);
+  }
+  .ve-photo {
+    width: 100%; height: 100%;
+    border-radius: 23px;
+    object-fit: cover;
+    display: block;
+  }
+  .ve-photo-frame::after {
+    content: ''; position: absolute;
+    bottom: -16px; left: 14px; right: 14px;
+    height: 16px; border-radius: 0 0 28px 28px;
+    background: rgba(232,168,0,.18); filter: blur(12px);
+    z-index: -1;
+  }
+  .ve-text-wrap { margin-top: 38px; margin-bottom: auto; }
+
+  /* Selection prompt at the bottom */
+  .footer-prompt {
+    max-width: 720px; margin: 0 auto;
+    text-align: center;
+    padding: 32px;
+    background: linear-gradient(135deg, rgba(232,168,0,.12), rgba(232,168,0,.04));
+    border: 1px solid rgba(232,168,0,.25);
+    border-radius: 24px;
+  }
+  .footer-prompt h3 { color: var(--p400); font-size: 18px; margin-bottom: 8px; }
+  .footer-prompt p { font-size: 15px; line-height: 1.6; color: rgba(255,255,255,.75); }
+  .footer-prompt code {
+    background: rgba(255,255,255,.08);
+    padding: 2px 8px; border-radius: 6px;
+    font-family: var(--font-body); font-weight: 600; color: var(--p300);
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="logo">StitchPad</div>
+  <div class="subtitle">ONBOARDING — UI/UX VARIANTS</div>
+  <p class="lead">
+    The current layout (variant A) drops a 9:16 photo into a 280×240 landscape box and crops it hard — that's the "boxy" feeling you saw on device.
+    Variants B–E let the photo breathe in different ways.
+    <strong>Pick the variant you want shipped, and I'll wire it into the Compose code.</strong>
+  </p>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════ A. CURRENT ═══ -->
+<section class="variant">
+  <div class="variant-head">
+    <span class="variant-tag">A · Baseline</span>
+    <span class="variant-name">Current — boxed landscape photo</span>
+    <p class="variant-desc">
+      What's shipping today. <strong>280×240 dp rounded rectangle</strong> with <code>ContentScale.Crop</code>. Forces a portrait photo into a landscape box, so faces and context get chopped.
+      Decent for icons, weak for real photography.
+    </p>
+  </div>
+  <div class="phones-row">
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <img src="img/onboarding_measurements.jpg" class="va-photo" alt=""/>
+          <div class="va-text-wrap">
+            <div class="onb-title">Never lose a customer's measurements again</div>
+            <div class="onb-subtitle">Store chest, waist, hip and all body measurements safely in one place.</div>
+          </div>
+          <div class="indicators"><span class="indicator active"></span><span class="indicator"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 1</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <img src="img/onboarding_orders.jpg" class="va-photo" alt=""/>
+          <div class="va-text-wrap">
+            <div class="onb-title">Track orders from cutting to delivery</div>
+            <div class="onb-subtitle">Know exactly which orders are pending, in progress, or ready for pickup.</div>
+          </div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator active"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 2</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <img src="img/onboarding_notebook.jpg" class="va-photo" alt=""/>
+          <div class="va-text-wrap">
+            <div class="onb-title">Your tailor's notebook</div>
+            <div class="onb-subtitle">Simple, fast, and built for fashion designers who work on their phones.</div>
+          </div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator"></span><span class="indicator active"></span></div>
+          <button class="btn-primary">Get Started</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 3</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ B. TALL PORTRAIT ═══ -->
+<section class="variant">
+  <div class="variant-head">
+    <span class="variant-tag">B · Aspect-correct</span>
+    <span class="variant-name">Tall portrait card</span>
+    <p class="variant-desc">
+      Same framing concept as A, but the photo card is <strong>4:5 portrait (260×325 dp)</strong> instead of 7:6 landscape. The photo is no longer fighting its own aspect ratio — faces and bodies fit naturally. Most conservative win.
+    </p>
+  </div>
+  <div class="phones-row">
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <img src="img/onboarding_measurements.jpg" class="vb-photo" alt=""/>
+          <div class="vb-text-wrap">
+            <div class="onb-title">Never lose a customer's measurements again</div>
+            <div class="onb-subtitle">Store chest, waist, hip and all body measurements safely in one place.</div>
+          </div>
+          <div class="vb-spacer"></div>
+          <div class="indicators"><span class="indicator active"></span><span class="indicator"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 1</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <img src="img/onboarding_orders.jpg" class="vb-photo" alt=""/>
+          <div class="vb-text-wrap">
+            <div class="onb-title">Track orders from cutting to delivery</div>
+            <div class="onb-subtitle">Know exactly which orders are pending, in progress, or ready for pickup.</div>
+          </div>
+          <div class="vb-spacer"></div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator active"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 2</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <img src="img/onboarding_notebook.jpg" class="vb-photo" alt=""/>
+          <div class="vb-text-wrap">
+            <div class="onb-title">Your tailor's notebook</div>
+            <div class="onb-subtitle">Simple, fast, and built for fashion designers who work on their phones.</div>
+          </div>
+          <div class="vb-spacer"></div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator"></span><span class="indicator active"></span></div>
+          <button class="btn-primary">Get Started</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 3</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ C. HERO + SHEET ═══ -->
+<section class="variant">
+  <div class="variant-head">
+    <span class="variant-tag">C · Editorial</span>
+    <span class="variant-name">Hero photo + bottom sheet</span>
+    <p class="variant-desc">
+      Photo fills the <strong>top ~60%</strong> of the screen <strong>edge-to-edge</strong>, no border or rounding at the top. A white sheet rises from the bottom (28dp top corners) holding the title, body, dots, and CTA — left-aligned magazine style.
+      The Calm / Headspace / Notion / Reflect onboarding pattern. Most premium-feeling without going fully immersive.
+    </p>
+  </div>
+  <div class="phones-row">
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen vc-screen">
+        <div class="vc-photo-area">
+          <img src="img/onboarding_measurements.jpg" class="vc-photo" alt=""/>
+          <div class="status-bar on-photo" style="position:absolute;top:0;left:0;right:0;"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        </div>
+        <div class="vc-sheet">
+          <div class="onb-title">Never lose a customer's measurements again</div>
+          <div class="onb-subtitle">Store chest, waist, hip and all body measurements safely in one place.</div>
+          <div class="indicators"><span class="indicator active"></span><span class="indicator"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 1</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen vc-screen">
+        <div class="vc-photo-area">
+          <img src="img/onboarding_orders.jpg" class="vc-photo" alt=""/>
+          <div class="status-bar on-photo" style="position:absolute;top:0;left:0;right:0;"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        </div>
+        <div class="vc-sheet">
+          <div class="onb-title">Track orders from cutting to delivery</div>
+          <div class="onb-subtitle">Know exactly which orders are pending, in progress, or ready for pickup.</div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator active"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 2</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen vc-screen">
+        <div class="vc-photo-area">
+          <img src="img/onboarding_notebook.jpg" class="vc-photo" alt=""/>
+          <div class="status-bar on-photo" style="position:absolute;top:0;left:0;right:0;"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        </div>
+        <div class="vc-sheet">
+          <div class="onb-title">Your tailor's notebook</div>
+          <div class="onb-subtitle">Simple, fast, and built for fashion designers who work on their phones.</div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator"></span><span class="indicator active"></span></div>
+          <button class="btn-primary">Get Started</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 3</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ D. IMMERSIVE ═══ -->
+<section class="variant">
+  <div class="variant-head">
+    <span class="variant-tag">D · Cinematic</span>
+    <span class="variant-name">Full-screen immersive with gradient</span>
+    <p class="variant-desc">
+      Photo fills the <strong>entire screen</strong> edge-to-edge. A bottom-up dark gradient handles legibility for the title and body, which sit on top in white. Most aspirational — feels like a premium app intro (Spotify, Tinder Premium). Locks UI to dark text-on-photo, so trade-off is contrast control.
+    </p>
+  </div>
+  <div class="phones-row">
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen vd-screen">
+        <img src="img/onboarding_measurements.jpg" class="vd-photo" alt=""/>
+        <div class="vd-overlay"></div>
+        <div class="vd-content">
+          <div class="status-bar on-photo"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="vd-spacer"></div>
+          <div class="vd-text-wrap">
+            <div class="onb-title">Never lose a customer's measurements again</div>
+            <div class="onb-subtitle">Store chest, waist, hip and all body measurements safely in one place.</div>
+            <div class="indicators"><span class="indicator active"></span><span class="indicator"></span><span class="indicator"></span></div>
+          </div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 1</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen vd-screen">
+        <img src="img/onboarding_orders.jpg" class="vd-photo" alt=""/>
+        <div class="vd-overlay"></div>
+        <div class="vd-content">
+          <div class="status-bar on-photo"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="vd-spacer"></div>
+          <div class="vd-text-wrap">
+            <div class="onb-title">Track orders from cutting to delivery</div>
+            <div class="onb-subtitle">Know exactly which orders are pending, in progress, or ready for pickup.</div>
+            <div class="indicators"><span class="indicator"></span><span class="indicator active"></span><span class="indicator"></span></div>
+          </div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 2</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen vd-screen">
+        <img src="img/onboarding_notebook.jpg" class="vd-photo" alt=""/>
+        <div class="vd-overlay"></div>
+        <div class="vd-content">
+          <div class="status-bar on-photo"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="vd-spacer"></div>
+          <div class="vd-text-wrap">
+            <div class="onb-title">Your tailor's notebook</div>
+            <div class="onb-subtitle">Simple, fast, and built for fashion designers who work on their phones.</div>
+            <div class="indicators"><span class="indicator"></span><span class="indicator"></span><span class="indicator active"></span></div>
+          </div>
+          <button class="btn-primary">Get Started</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 3</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ E. BRANDED CARD ═══ -->
+<section class="variant">
+  <div class="variant-head">
+    <span class="variant-tag">E · Branded</span>
+    <span class="variant-name">Saffron-framed photo card</span>
+    <p class="variant-desc">
+      Tall portrait photo (4:5) wrapped in a <strong>saffron gradient frame</strong> with a glow underneath. Strongest visual brand presence — the photo feels intentionally curated rather than dropped in. Best for "premium feel without going full-bleed."
+    </p>
+  </div>
+  <div class="phones-row">
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <div class="ve-photo-frame">
+            <img src="img/onboarding_measurements.jpg" class="ve-photo" alt=""/>
+          </div>
+          <div class="ve-text-wrap">
+            <div class="onb-title">Never lose a customer's measurements again</div>
+            <div class="onb-subtitle">Store chest, waist, hip and all body measurements safely in one place.</div>
+          </div>
+          <div class="indicators"><span class="indicator active"></span><span class="indicator"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 1</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <div class="ve-photo-frame">
+            <img src="img/onboarding_orders.jpg" class="ve-photo" alt=""/>
+          </div>
+          <div class="ve-text-wrap">
+            <div class="onb-title">Track orders from cutting to delivery</div>
+            <div class="onb-subtitle">Know exactly which orders are pending, in progress, or ready for pickup.</div>
+          </div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator active"></span><span class="indicator"></span></div>
+          <button class="btn-primary">Next</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 2</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">8:21</span><div class="status-icons"><span class="material-icons-round">network_wifi</span><span class="material-icons-round">network_cell</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="onb-body">
+          <div class="ve-photo-frame">
+            <img src="img/onboarding_notebook.jpg" class="ve-photo" alt=""/>
+          </div>
+          <div class="ve-text-wrap">
+            <div class="onb-title">Your tailor's notebook</div>
+            <div class="onb-subtitle">Simple, fast, and built for fashion designers who work on their phones.</div>
+          </div>
+          <div class="indicators"><span class="indicator"></span><span class="indicator"></span><span class="indicator active"></span></div>
+          <button class="btn-primary">Get Started</button>
+        </div>
+      </div></div>
+      <div class="phone-label">Page 3</div>
+    </div>
+  </div>
+</section>
+
+<div class="footer-prompt">
+  <h3>Pick a variant</h3>
+  <p>
+    Reply with <code>A</code>, <code>B</code>, <code>C</code>, <code>D</code>, or <code>E</code> and I'll wire it into <code>OnboardingIllustration.kt</code> + <code>OnboardingPage.kt</code>. Mix-and-match (e.g. "C but with the frame from E") also works.
+  </p>
+</div>
+
+</body>
+</html>
