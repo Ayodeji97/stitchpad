@@ -54,7 +54,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -69,6 +69,7 @@ import stitchpad.composeapp.generated.resources.reports_delta_vs_last_week
 import stitchpad.composeapp.generated.resources.reports_reminder_template
 import stitchpad.composeapp.generated.resources.reports_title
 import stitchpad.composeapp.generated.resources.reports_whatsapp_launch_failed
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -130,8 +131,11 @@ fun ReportsScreen(
 
     var showRangePicker by remember { mutableStateOf(false) }
 
+    // kotlinx.datetime.Clock.System is unresolved on iOS in 0.6.x — use kotlin.time
+    // and convert via epoch millis (matches the ViewModel's nowMillis pattern).
     val today = remember(timeZone) {
-        Clock.System.now().toLocalDateTime(timeZone).date
+        val millis = Clock.System.now().toEpochMilliseconds()
+        Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
     }
 
     Scaffold(

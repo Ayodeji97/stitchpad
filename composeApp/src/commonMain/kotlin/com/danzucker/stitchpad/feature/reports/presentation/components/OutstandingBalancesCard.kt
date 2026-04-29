@@ -30,11 +30,8 @@ import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_due_label
@@ -43,7 +40,6 @@ import stitchpad.composeapp.generated.resources.reports_status_due_today
 import stitchpad.composeapp.generated.resources.reports_status_next_week
 import stitchpad.composeapp.generated.resources.reports_status_overdue
 import stitchpad.composeapp.generated.resources.reports_status_this_week
-import kotlin.time.ExperimentalTime
 
 private const val DAYS_THIS_WEEK = 7
 private const val DAYS_NEXT_WEEK = 14
@@ -252,7 +248,3 @@ private fun formatShortDate(date: LocalDate): String {
     val month = date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
     return "$month ${date.dayOfMonth}"
 }
-
-@OptIn(ExperimentalTime::class)
-internal fun todayInTz(timeZone: TimeZone): LocalDate =
-    Clock.System.now().toLocalDateTime(timeZone).date
