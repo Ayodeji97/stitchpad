@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.billing.data.InMemoryEntitlementsRepository
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,6 +42,7 @@ class ReportsViewModelTest {
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var entitlementsRepository: InMemoryEntitlementsRepository
 
     private val tz = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -51,6 +53,7 @@ class ReportsViewModelTest {
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        entitlementsRepository = InMemoryEntitlementsRepository()
     }
 
     @AfterTest
@@ -68,6 +71,7 @@ class ReportsViewModelTest {
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlementsRepository = entitlementsRepository,
             nowMillis = nowMillis,
             timeZone = tz
         )

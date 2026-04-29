@@ -54,6 +54,8 @@ fun ReportsRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is ReportsEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+            // Wired to WhatsAppLauncher in V2 stage 3 — currently a no-op.
+            is ReportsEvent.LaunchWhatsAppReminder -> Unit
         }
     }
 

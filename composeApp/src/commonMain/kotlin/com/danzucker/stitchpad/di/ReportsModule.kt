@@ -12,7 +12,8 @@ val reportsPresentationModule = module {
         ReportsViewModel(
             orderRepository = get(),
             customerRepository = get(),
-            authRepository = get()
+            authRepository = get(),
+            entitlementsRepository = get()
         )
     }
 }
