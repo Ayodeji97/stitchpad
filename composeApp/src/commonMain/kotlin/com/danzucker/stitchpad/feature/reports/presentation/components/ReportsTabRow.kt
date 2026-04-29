@@ -21,6 +21,7 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_tab_month
 import stitchpad.composeapp.generated.resources.reports_tab_week
+import stitchpad.composeapp.generated.resources.reports_tab_year
 
 @Composable
 fun ReportsTabRow(
@@ -44,6 +45,12 @@ fun ReportsTabRow(
             label = stringResource(Res.string.reports_tab_month),
             isActive = selected == ReportsPeriod.MONTH,
             onClick = { onSelect(ReportsPeriod.MONTH) },
+            modifier = Modifier.weight(1f)
+        )
+        TabPill(
+            label = stringResource(Res.string.reports_tab_year),
+            isActive = selected == ReportsPeriod.YEAR,
+            onClick = { onSelect(ReportsPeriod.YEAR) },
             modifier = Modifier.weight(1f)
         )
     }

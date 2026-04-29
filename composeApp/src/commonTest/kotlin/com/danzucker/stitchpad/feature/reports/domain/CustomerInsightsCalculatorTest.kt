@@ -181,6 +181,24 @@ class CustomerInsightsCalculatorTest {
     }
 
     @Test
+    fun topCustomersYearWindowExcludesPriorYearOrders() {
+        // Sanity-check that the Year period plumbs through to the window helper.
+        val customers = listOf(customer("c1", "Adaeze"))
+        val priorYear = LocalDate(2025, 6, 15)
+        val orders = listOf(
+            order(id = "in", customerId = "c1", updatedAt = millisAt(today),
+                totalPrice = 10_000.0),
+            order(id = "out", customerId = "c1", updatedAt = millisAt(priorYear),
+                totalPrice = 999_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.YEAR, today, tz
+        )
+        assertEquals(1, result.size)
+        assertEquals(10_000.0, result[0].totalCollected)
+    }
+
+    @Test
     fun topCustomersRespectsLimit() {
         val customers = (1..10).map { customer("c$it", "Customer$it") }
         val orders = (1..10).map {

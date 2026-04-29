@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.reports.domain
 
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.feature.reports.domain.model.AllTimeSummary
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import com.danzucker.stitchpad.feature.reports.domain.model.RevenueSummary
 import kotlinx.datetime.LocalDate
@@ -8,6 +10,7 @@ import kotlinx.datetime.TimeZone
 
 private const val SPARKLINE_WEEK_BUCKETS = 8
 private const val SPARKLINE_MONTH_BUCKETS = 6
+private const val SPARKLINE_YEAR_BUCKETS = 12
 
 /**
  * Computes revenue summaries for the Reports tab over Week / Month windows.
@@ -29,6 +32,7 @@ object RevenueCalculator {
         val bucketCount = when (period) {
             ReportsPeriod.WEEK -> SPARKLINE_WEEK_BUCKETS
             ReportsPeriod.MONTH -> SPARKLINE_MONTH_BUCKETS
+            ReportsPeriod.YEAR -> SPARKLINE_YEAR_BUCKETS
         }
         val sparkline = (0 until bucketCount).map { index ->
             // index 0 = oldest, index bucketCount-1 = current.
@@ -55,4 +59,32 @@ object RevenueCalculator {
         orders
             .filter { it.updatedAt in startMillis until endMillis }
             .sumOf { (it.totalPrice - it.balanceRemaining).coerceAtLeast(0.0) }
+
+    fun allTimeSummary(
+        orders: List<Order>,
+        customers: List<Customer>
+    ): AllTimeSummary {
+        val totalCollected = orders.sumOf {
+            (it.totalPrice - it.balanceRemaining).coerceAtLeast(0.0)
+        }
+        val customerNamesById = customers.associate { it.id to it.name }
+        // Only known customers can be the top — orders linked to a deleted/missing
+        // customer still contribute to the lifetime total but shouldn't surface as
+        // a nameless top entry.
+        val topByCustomer = orders
+            .filter { it.customerId in customerNamesById }
+            .groupBy { it.customerId }
+            .mapValues { (_, custOrders) ->
+                custOrders.sumOf { (it.totalPrice - it.balanceRemaining).coerceAtLeast(0.0) }
+            }
+            .filterValues { it > 0.0 }
+            .maxByOrNull { it.value }
+
+        return AllTimeSummary(
+            totalCollected = totalCollected,
+            orderCount = orders.size,
+            topCustomerName = topByCustomer?.let { customerNamesById[it.key] },
+            topCustomerTotal = topByCustomer?.value ?: 0.0
+        )
+    }
 }

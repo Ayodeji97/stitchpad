@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -32,11 +33,12 @@ class RevenueCalculatorTest {
         updatedAt: Long,
         totalPrice: Double = 0.0,
         balanceRemaining: Double = 0.0,
-        status: OrderStatus = OrderStatus.PENDING
+        status: OrderStatus = OrderStatus.PENDING,
+        customerId: String = "c1"
     ): Order = Order(
         id = id,
         userId = "u",
-        customerId = "c1",
+        customerId = customerId,
         customerName = "Test",
         items = listOf(
             OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
@@ -188,5 +190,106 @@ class RevenueCalculatorTest {
         val summary = RevenueCalculator.computeSummary(orders, ReportsPeriod.WEEK, today, tz)
         // 10k + 15k + 0 = 25k
         assertEquals(25_000.0, summary.current)
+    }
+
+    // -------- Year window --------
+
+    @Test
+    fun yearSparklineHasTwelveBuckets() {
+        val summary = RevenueCalculator.computeSummary(
+            orders = emptyList(),
+            period = ReportsPeriod.YEAR,
+            today = today,
+            timeZone = tz
+        )
+        assertEquals(12, summary.sparkline.size)
+    }
+
+    @Test
+    fun yearWindowSpansCalendarYears() {
+        val priorYear = LocalDate(2025, 6, 15)
+        val orders = listOf(
+            order(id = "curr", updatedAt = millisAt(today), totalPrice = 200_000.0, balanceRemaining = 0.0),
+            order(id = "prev", updatedAt = millisAt(priorYear), totalPrice = 80_000.0, balanceRemaining = 0.0)
+        )
+        val summary = RevenueCalculator.computeSummary(orders, ReportsPeriod.YEAR, today, tz)
+        assertEquals(200_000.0, summary.current)
+        assertEquals(80_000.0, summary.previous)
+    }
+
+    @Test
+    fun yearOrderJustBeforeJanFirstFallsInPreviousYear() {
+        // 2025-12-31 23:00 UTC must be classified as previous year, not current.
+        val edge = LocalDateTime(LocalDate(2025, 12, 31), LocalTime(23, 0))
+            .toInstant(tz).toEpochMilliseconds()
+        val orders = listOf(
+            order(id = "edge", updatedAt = edge, totalPrice = 50_000.0, balanceRemaining = 0.0)
+        )
+        val summary = RevenueCalculator.computeSummary(orders, ReportsPeriod.YEAR, today, tz)
+        assertEquals(0.0, summary.current)
+        assertEquals(50_000.0, summary.previous)
+    }
+
+    // -------- allTimeSummary --------
+
+    private fun customer(id: String, name: String) = Customer(
+        id = id, userId = "u", name = name, phone = "+2348012345678"
+    )
+
+    @Test
+    fun allTimeSummaryEmptyInputsGivesZeroes() {
+        val summary = RevenueCalculator.allTimeSummary(emptyList(), emptyList())
+        assertEquals(0.0, summary.totalCollected)
+        assertEquals(0, summary.orderCount)
+        assertNull(summary.topCustomerName)
+        assertEquals(0.0, summary.topCustomerTotal)
+    }
+
+    @Test
+    fun allTimeSummaryAggregatesAcrossAllOrders() {
+        val customers = listOf(customer("c1", "Adaeze"), customer("c2", "Bola"))
+        val orders = listOf(
+            order(id = "o1", updatedAt = millisAt(today), totalPrice = 10_000.0, balanceRemaining = 0.0),
+            order(id = "o2", updatedAt = millisAt(today), totalPrice = 30_000.0, balanceRemaining = 10_000.0),
+            // Old order outside any rolling window — still counted in lifetime totals.
+            order(id = "o3", updatedAt = millisAt(LocalDate(2024, 1, 1)),
+                totalPrice = 5_000.0, balanceRemaining = 0.0)
+        )
+        val summary = RevenueCalculator.allTimeSummary(orders, customers)
+        // 10k + 20k (paid portion of o2) + 5k = 35k
+        assertEquals(35_000.0, summary.totalCollected)
+        assertEquals(3, summary.orderCount)
+    }
+
+    @Test
+    fun allTimeSummaryPicksHighestPayingCustomer() {
+        val customers = listOf(customer("c1", "Adaeze"), customer("c2", "Bola"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", updatedAt = millisAt(today),
+                totalPrice = 10_000.0, balanceRemaining = 0.0),
+            order(id = "o2", customerId = "c2", updatedAt = millisAt(today),
+                totalPrice = 30_000.0, balanceRemaining = 0.0),
+            order(id = "o3", customerId = "c2", updatedAt = millisAt(today),
+                totalPrice = 25_000.0, balanceRemaining = 0.0)
+        )
+        val summary = RevenueCalculator.allTimeSummary(orders, customers)
+        assertEquals("Bola", summary.topCustomerName)
+        assertEquals(55_000.0, summary.topCustomerTotal)
+    }
+
+    @Test
+    fun allTimeSummaryIgnoresOrdersFromUnknownCustomers() {
+        val customers = listOf(customer("c1", "Adaeze"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", updatedAt = millisAt(today),
+                totalPrice = 10_000.0, balanceRemaining = 0.0),
+            // Customer was deleted but their orders linger — total still counts but
+            // they shouldn't surface as the top customer.
+            order(id = "o2", customerId = "ghost", updatedAt = millisAt(today),
+                totalPrice = 99_000.0, balanceRemaining = 0.0)
+        )
+        val summary = RevenueCalculator.allTimeSummary(orders, customers)
+        assertEquals("Adaeze", summary.topCustomerName)
+        assertEquals(10_000.0, summary.topCustomerTotal)
     }
 }

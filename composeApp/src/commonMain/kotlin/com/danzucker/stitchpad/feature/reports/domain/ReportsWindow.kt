@@ -39,4 +39,11 @@ internal fun reportsWindow(
         start.atStartOfDayIn(timeZone).toEpochMilliseconds() to
             end.atStartOfDayIn(timeZone).toEpochMilliseconds()
     }
+    ReportsPeriod.YEAR -> {
+        val currentYearStart = LocalDate(today.year, 1, 1)
+        val start = currentYearStart.minus(periodsBack, DateTimeUnit.YEAR)
+        val end = start.plus(1, DateTimeUnit.YEAR)
+        start.atStartOfDayIn(timeZone).toEpochMilliseconds() to
+            end.atStartOfDayIn(timeZone).toEpochMilliseconds()
+    }
 }

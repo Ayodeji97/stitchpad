@@ -124,6 +124,11 @@ class ReportsViewModel(
             timeZone = timeZone
         )
         val debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
+        val allTimeSummary = if (hasAnyOrders) {
+            RevenueCalculator.allTimeSummary(orders, customers)
+        } else {
+            null
+        }
 
         _state.update {
             it.copy(
@@ -133,6 +138,7 @@ class ReportsViewModel(
                 revenueSummary = revenueSummary,
                 topCustomers = topCustomers,
                 debtors = debtors,
+                allTimeSummary = allTimeSummary,
                 errorMessage = error
             )
         }

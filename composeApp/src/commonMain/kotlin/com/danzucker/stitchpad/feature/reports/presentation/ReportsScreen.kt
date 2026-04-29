@@ -23,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.feature.reports.domain.model.AllTimeSummary
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import com.danzucker.stitchpad.feature.reports.domain.model.RevenueSummary
+import com.danzucker.stitchpad.feature.reports.presentation.components.AllTimeSummaryCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.DebtorsCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsEmptyState
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsLoadingSkeleton
@@ -124,6 +126,7 @@ fun ReportsScreen(
                         period = state.selectedPeriod,
                         topCustomers = state.topCustomers,
                         debtors = state.debtors,
+                        allTimeSummary = state.allTimeSummary,
                         onAction = onAction
                     )
                 }
@@ -138,6 +141,7 @@ private fun ReportsContent(
     period: ReportsPeriod,
     topCustomers: List<CustomerRanking>,
     debtors: List<DebtorEntry>,
+    allTimeSummary: AllTimeSummary?,
     onAction: (ReportsAction) -> Unit
 ) {
     Column(
@@ -163,6 +167,9 @@ private fun ReportsContent(
             debtors = debtors,
             onDebtorClick = { onAction(ReportsAction.OnDebtorClick(it)) }
         )
+        if (allTimeSummary != null) {
+            AllTimeSummaryCard(summary = allTimeSummary)
+        }
     }
 }
 
@@ -187,6 +194,13 @@ private val previewDebtors = listOf(
     DebtorEntry("c5", "Kemi Williams", 18_000.0, orderCount = 1, oldestDeadline = LocalDate(2026, 4, 18))
 )
 
+private val previewAllTime = AllTimeSummary(
+    totalCollected = 1_840_000.0,
+    orderCount = 42,
+    topCustomerName = "Adaeze Okeke",
+    topCustomerTotal = 380_000.0
+)
+
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
@@ -199,7 +213,8 @@ private fun ReportsScreenWeekPreview() {
                 hasAnyOrders = true,
                 revenueSummary = previewSummary,
                 topCustomers = previewTopCustomers,
-                debtors = previewDebtors
+                debtors = previewDebtors,
+                allTimeSummary = previewAllTime
             ),
             onAction = {}
         )
@@ -218,7 +233,38 @@ private fun ReportsScreenMonthPreview() {
                 hasAnyOrders = true,
                 revenueSummary = previewSummary.copy(sparkline = previewSummary.sparkline.takeLast(6)),
                 topCustomers = previewTopCustomers,
-                debtors = previewDebtors
+                debtors = previewDebtors,
+                allTimeSummary = previewAllTime
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReportsScreenYearPreview() {
+    StitchPadTheme {
+        ReportsScreen(
+            state = ReportsState(
+                isLoading = false,
+                selectedPeriod = ReportsPeriod.YEAR,
+                hasAnyOrders = true,
+                revenueSummary = RevenueSummary(
+                    current = 1_840_000.0,
+                    previous = 920_000.0,
+                    deltaAmount = 920_000.0,
+                    deltaPercent = 100.0,
+                    sparkline = listOf(
+                        60_000.0, 95_000.0, 120_000.0, 110_000.0,
+                        140_000.0, 175_000.0, 165_000.0, 190_000.0,
+                        210_000.0, 240_000.0, 215_000.0, 1_840_000.0
+                    )
+                ),
+                topCustomers = previewTopCustomers,
+                debtors = previewDebtors,
+                allTimeSummary = previewAllTime
             ),
             onAction = {}
         )
@@ -274,6 +320,12 @@ private fun ReportsScreenFirstWeekPreview() {
                 debtors = listOf(
                     DebtorEntry("c2", "Blessing Tosin", 1_850_000.0, orderCount = 3, oldestDeadline = null),
                     DebtorEntry("c3", "Posi John", 460_000.0, orderCount = 2, oldestDeadline = null)
+                ),
+                allTimeSummary = AllTimeSummary(
+                    totalCollected = 5_255_000.0,
+                    orderCount = 11,
+                    topCustomerName = "Ade Yinka",
+                    topCustomerTotal = 4_335_000.0
                 )
             ),
             onAction = {}

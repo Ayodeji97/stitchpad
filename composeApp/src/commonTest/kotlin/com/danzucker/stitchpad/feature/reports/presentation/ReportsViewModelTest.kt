@@ -163,6 +163,56 @@ class ReportsViewModelTest {
     }
 
     @Test
+    fun authedUserPopulatedDataPopulatesAllTimeSummary() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            customer("c1", "Adaeze"),
+            customer("c2", "Bola")
+        )
+        orderRepository.ordersList = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 30_000.0, balanceRemaining = 10_000.0),
+            order(id = "o2", customerId = "c2", totalPrice = 50_000.0, balanceRemaining = 50_000.0)
+        )
+
+        val vm = createViewModel()
+
+        val allTime = vm.state.value.allTimeSummary
+        assertNotNull(allTime)
+        assertEquals(20_000.0, allTime.totalCollected)
+        assertEquals(2, allTime.orderCount)
+        assertEquals("Adaeze", allTime.topCustomerName)
+    }
+
+    @Test
+    fun authedUserEmptyDataLeavesAllTimeSummaryNull() = runTest {
+        signIn()
+
+        val vm = createViewModel()
+
+        assertNull(vm.state.value.allTimeSummary)
+    }
+
+    @Test
+    fun onPeriodSelectedYearWidensWindow() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(customer("c1", "Adaeze"))
+        // Order from earlier in current year — outside week and month, inside year.
+        orderRepository.ordersList = listOf(
+            order(id = "o1", customerId = "c1",
+                updatedAt = millisAt(LocalDate(2026, 1, 5)),
+                totalPrice = 200_000.0, balanceRemaining = 0.0)
+        )
+
+        val vm = createViewModel()
+        assertEquals(0.0, vm.state.value.revenueSummary?.current)
+
+        vm.onAction(ReportsAction.OnPeriodSelected(ReportsPeriod.YEAR))
+
+        assertEquals(ReportsPeriod.YEAR, vm.state.value.selectedPeriod)
+        assertEquals(200_000.0, vm.state.value.revenueSummary?.current)
+    }
+
+    @Test
     fun onPeriodSelectedSwitchesToMonthAndRecomputes() = runTest {
         signIn()
         customerRepository.customersList = listOf(customer("c1", "Adaeze"))
