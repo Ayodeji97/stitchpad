@@ -34,7 +34,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.reports_due_label
 import stitchpad.composeapp.generated.resources.reports_section_outstanding
 import stitchpad.composeapp.generated.resources.reports_status_due_today
 import stitchpad.composeapp.generated.resources.reports_status_next_week
@@ -104,24 +103,23 @@ private fun OutstandingRow(
             .clickable(onClick = onRowClick)
             .padding(vertical = DesignTokens.space3),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         CustomerAvatar(name = debtor.customerName, seedId = debtor.customerId, size = 36.dp)
-        Column(
+        Text(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
-        ) {
-            Text(
-                text = debtor.customerName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-        }
+            text = debtor.customerName,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+        // Stack the amount and the urgency pill vertically so the name column
+        // gets the extra horizontal room. Due date dropped — the pill already
+        // says "Overdue / Due Today / This Week / Next Week".
         Column(
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-            horizontalAlignment = Alignment.Start
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalAlignment = Alignment.End
         ) {
             Text(
                 text = "₦" + formatPrice(debtor.totalOwed),
@@ -130,18 +128,8 @@ private fun OutstandingRow(
                 fontWeight = FontWeight.Bold,
                 color = urgency.amountColor
             )
-            if (debtor.oldestDeadline != null) {
-                Text(
-                    text = stringResource(
-                        Res.string.reports_due_label,
-                        formatShortDate(debtor.oldestDeadline)
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
         }
-        StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
         WhatsAppButton(onClick = onWhatsAppClick)
     }
 }
@@ -242,9 +230,4 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             pillBg = greenTint
         )
     }
-}
-
-private fun formatShortDate(date: LocalDate): String {
-    val month = date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
-    return "$month ${date.dayOfMonth}"
 }
