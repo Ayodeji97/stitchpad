@@ -5,13 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
-import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusResolution
@@ -36,7 +36,6 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import stitchpad.composeapp.generated.resources.Res
@@ -64,8 +63,6 @@ import kotlin.time.ExperimentalTime
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
 
-private const val RECONNECT_LIMIT = 5
-private const val RECONNECT_MIN_DAYS = 14
 private const val DAYS_IN_WEEK = 7
 
 @OptIn(ExperimentalTime::class)
@@ -208,7 +205,7 @@ class DashboardViewModel(
                 val buckets = BucketCalculator.compute(orders, today, timeZone)
                 val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
                 val uiState = resolveUiState(buckets, nextBestActions, orders, customers)
-                val reconnect = computeReconnectCandidates(orders, customers, today)
+                val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
                 val focus = resolveFocus(uiState, buckets, nextBestActions, customers, reconnect)
                 val weeklyGoal = resolveWeeklyGoal(orders, today, goal)
 
@@ -396,59 +393,6 @@ class DashboardViewModel(
     }
 
     /**
-     * Builds the list of customers to surface in the ReconnectStrip. A candidate is a
-     * customer with no active (non-DELIVERED) order. Customers with order history must
-     * have been inactive for at least [RECONNECT_MIN_DAYS] days; customers with no order
-     * history (e.g. just-added) always pass. Capped at [RECONNECT_LIMIT].
-     */
-    private fun computeReconnectCandidates(
-        orders: List<Order>,
-        customers: List<Customer>,
-        today: LocalDate
-    ): List<ReconnectCandidate> {
-        if (customers.isEmpty()) return emptyList()
-
-        val activeOrderCustomerIds = HashSet<String>(orders.size)
-        // Keys present in `mostRecentByCustomer` indicate the customer has any order history;
-        // the value is the max `updatedAt`. Tracking presence + max in one pass replaces the
-        // previous O(customers × orders) `orders.filter { it.customerId == customer.id }`.
-        val mostRecentByCustomer = HashMap<String, Long>(customers.size)
-        for (order in orders) {
-            if (order.status != OrderStatus.DELIVERED) {
-                activeOrderCustomerIds.add(order.customerId)
-            }
-            val previous = mostRecentByCustomer[order.customerId]
-            if (previous == null || order.updatedAt > previous) {
-                mostRecentByCustomer[order.customerId] = order.updatedAt
-            }
-        }
-
-        return customers
-            .asSequence()
-            .filter { it.id !in activeOrderCustomerIds }
-            .filter { it.phone.isNotBlank() }
-            .map { customer ->
-                val mostRecentMillis = mostRecentByCustomer[customer.id]
-                val daysSince = if (mostRecentMillis != null && mostRecentMillis > 0L) {
-                    mostRecentMillis.toLocalDate(timeZone).daysUntil(today).coerceAtLeast(0)
-                } else {
-                    0
-                }
-                ReconnectCandidate(
-                    customerId = customer.id,
-                    customerName = customer.name,
-                    customerPhone = customer.phone,
-                    daysSinceLastInteraction = daysSince,
-                    hasOrderHistory = mostRecentMillis != null
-                )
-            }
-            .filter { !it.hasOrderHistory || it.daysSinceLastInteraction >= RECONNECT_MIN_DAYS }
-            .sortedByDescending { it.daysSinceLastInteraction }
-            .take(RECONNECT_LIMIT)
-            .toList()
-    }
-
-    /**
      * Builds the WeeklyGoalsCard's UI render model from the user's saved [goal] and
      * collected revenue derived from orders updated in the current ISO week
      * (Monday-Sunday). Returns `null` when the user has not set a goal yet — the
@@ -483,6 +427,4 @@ class DashboardViewModel(
         }
     }
 
-    private fun Long.toLocalDate(tz: TimeZone): LocalDate =
-        Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).date
 }
