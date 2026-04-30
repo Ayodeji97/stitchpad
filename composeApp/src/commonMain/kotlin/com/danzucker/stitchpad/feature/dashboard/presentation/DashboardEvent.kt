@@ -12,4 +12,5 @@ sealed interface DashboardEvent {
     data object NavigateToCustomerForm : DashboardEvent
     data object NavigateToCustomers : DashboardEvent
     data object NavigateToGoalSetup : DashboardEvent
+    data object NavigateToSettings : DashboardEvent
 }

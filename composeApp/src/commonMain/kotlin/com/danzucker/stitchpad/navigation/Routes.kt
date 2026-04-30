@@ -58,3 +58,6 @@ data object GoalSetupRoute
 
 @Serializable
 data object SettingsPlaceholderRoute
+
+@Serializable
+data object ReportsRoute

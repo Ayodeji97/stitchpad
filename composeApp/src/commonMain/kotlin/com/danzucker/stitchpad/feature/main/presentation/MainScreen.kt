@@ -42,6 +42,7 @@ import com.danzucker.stitchpad.feature.measurement.presentation.form.Measurement
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
+import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
@@ -53,6 +54,7 @@ import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
+import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
@@ -255,6 +257,18 @@ private fun MainNavGraph(
                 },
                 onNavigateToGoalSetup = {
                     navController.navigate(GoalSetupRoute)
+                },
+                onNavigateToSettings = {
+                    navController.navigate(SettingsPlaceholderRoute) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable<ReportsRoute> {
+            ReportsRoot(
+                onNavigateToCustomerDetail = { customerId ->
+                    navController.navigate(CustomerDetailRoute(customerId = customerId))
                 }
             )
         }
