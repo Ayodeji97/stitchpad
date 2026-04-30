@@ -62,6 +62,7 @@ class DashboardViewModel(
             initialValue = DashboardState()
         )
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: DashboardAction) {
         when (action) {
             is DashboardAction.OnOrderClick -> emitEvent(
@@ -76,7 +77,12 @@ class DashboardViewModel(
             )
             DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
             DashboardAction.OnNewOrderClick -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            DashboardAction.OnCreateOrderClick -> emitEvent(DashboardEvent.NavigateToOrderForm)
             DashboardAction.OnNewCustomerClick -> emitEvent(DashboardEvent.NavigateToCustomerForm)
             DashboardAction.OnAddMeasurementClick -> emitEvent(DashboardEvent.NavigateToCustomers)
             DashboardAction.OnGoalsCardClick -> emitEvent(DashboardEvent.NavigateToGoalSetup)
@@ -85,6 +91,13 @@ class DashboardViewModel(
             is DashboardAction.OnReconnectCandidateClick -> emitEvent(
                 DashboardEvent.LaunchWhatsAppForReconnect(action.candidate)
             )
+            is DashboardAction.OnReconnectClick -> {
+                val candidate = _state.value.reconnectCandidates
+                    .firstOrNull { it.customerId == action.customerId }
+                if (candidate != null) {
+                    emitEvent(DashboardEvent.LaunchWhatsAppForReconnect(candidate))
+                }
+            }
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }

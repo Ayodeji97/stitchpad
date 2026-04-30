@@ -625,6 +625,13 @@
     <string name="focus_pickup_supporting">Reach out about pickup or mark delivered.</string>
     <string name="focus_pickup_cta">Open %1$s</string>
 
+    <!-- V2 empty-state cards (EmptyIllustrationCard) -->
+    <string name="dashboard_pipeline_empty_title">No work in flight yet</string>
+    <string name="dashboard_pipeline_empty_supporting">When you create orders, they\'ll appear here.</string>
+    <string name="dashboard_pipeline_empty_cta">Create order</string>
+    <string name="dashboard_nba_empty_title">No suggested moves</string>
+    <string name="dashboard_nba_empty_supporting">Show up when balances or deadlines need follow-up.</string>
+
     <!-- Empty section affordances -->
     <string name="affordance_pipeline_empty_title">Pipeline empty</string>
     <string name="affordance_pipeline_empty_supporting">Start the next order to see it move from pending → in progress → ready.</string>
