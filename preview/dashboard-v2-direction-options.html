@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Pick a direction (A / B / C)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       TOKENS — copied from dashboard-redesign.html for parity
+       ============================================================ */
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p200:#FBDF8A; --p300:#F9CC50;
+      --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00; --p700:#9E7200;
+      --p800:#7A5800; --p900:#4F3800;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --err:#D93B3B; --err50:#FCEAEA;
+      --suc:#2D9E6B; --suc50:#E8F7F1;
+      --warn:#E07B20; --warn50:#FEF3E8;
+      --info:#2B7FD4; --info50:#E7F2FC;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s8:32px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px; --r-fab:16px;
+
+      --font-body:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+
+      --bg:var(--n50); --surf:var(--n0); --on-surf:var(--n800);
+      --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200); --primary:var(--p500); --on-pri:#fff;
+      --pri-pill:rgba(232,168,0,.1);
+    }
+    .phone-screen.dark{
+      --bg:#121110; --surf:#1E1C1A; --on-surf:#E5E3DF;
+      --on-surf2:#A8A49D; --on-surf3:#7D7970;
+      --bdr:#3A3731;
+      --err50:#3D1515; --suc50:#0E3D2A; --warn50:#3D2510; --info50:#0C2A4A;
+      --err:#E89090; --suc:#5EDBA0; --warn:#F0AA60; --info:#7BB8F0;
+      --p100:#4F3800;
+      --pri-pill:rgba(79,56,0,.5);
+    }
+    .phone-screen.dark .av-saffron{background:#4F3800;color:#F9CC50}
+    .phone-screen.dark .av-blue{background:#0C2A4A;color:#7BB8F0}
+    .phone-screen.dark .av-green{background:#0E3D2A;color:#5EDBA0}
+    .phone-screen.dark .av-orange{background:#3D2510;color:#F0AA60}
+    .phone-screen.dark .av-purple{background:#2D1F3D;color:#C4A0E8}
+    .phone-screen.dark .av-pink{background:#3D152A;color:#E890B0}
+    .phone-screen.dark .hero-attention{background:linear-gradient(135deg,#2A1818,#221212 70%,var(--surf));border-color:rgba(217,59,59,.35)}
+    .phone-screen.dark .hero-attention .hero-art{background:radial-gradient(circle,#3D1515,#2A1818)}
+    .phone-screen.dark .goals-bar-thin{background:#2A2825}
+    .phone-screen.dark .pipeline-card{background:var(--surf)}
+    .phone-screen.dark .reconnect-chip-strip{background:#1E1C1A}
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:var(--font-body);background:#0f0e0d;color:#E5E3DF;min-height:100vh}
+    body{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:36px}
+
+    /* ============================================================
+       PAGE CHROME
+       ============================================================ */
+    .page-head{max-width:880px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+    .brand{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .brand .logo{font-size:28px;color:var(--p500);letter-spacing:-.02em}
+    .meta{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .page-head h1{font-size:36px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:#fff}
+    .page-head .lede{font-size:15px;line-height:1.6;color:rgba(255,255,255,.7);max-width:720px}
+    .toolbar{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:6px}
+    .theme-toggle{
+      font-size:12px;font-weight:700;padding:7px 14px;border:none;cursor:pointer;
+      border-radius:var(--r-full);background:var(--p500);color:#fff;
+      font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    }
+    .theme-toggle .material-icons-round{font-size:14px}
+
+    .preferences{
+      max-width:880px;width:100%;
+      background:rgba(232,168,0,.06);border:1px solid rgba(232,168,0,.25);
+      border-radius:14px;padding:18px 22px;
+      display:grid;grid-template-columns:1fr 1fr;gap:8px 32px;
+      font-size:13px;line-height:1.5;color:rgba(255,255,255,.8);
+    }
+    .preferences h3{grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400);margin-bottom:4px}
+    .preferences .pref{display:flex;gap:8px;align-items:flex-start}
+    .preferences .pref .tick{flex-shrink:0;font-size:13px;font-weight:800;width:14px}
+    .preferences .pref .tick.keep{color:var(--suc)}
+    .preferences .pref .tick.drop{color:var(--err)}
+    .preferences .pref strong{color:#fff;font-weight:700}
+
+    /* ============================================================
+       OPTION ROW — three phones side by side
+       ============================================================ */
+    .options-row{
+      display:grid;grid-template-columns:repeat(3, 360px);gap:24px;
+      align-items:flex-start;justify-content:center;width:100%;
+    }
+    .option-col{display:flex;flex-direction:column;gap:14px;align-items:center}
+    .option-head{display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;max-width:340px}
+    .option-head .id{font-size:12px;font-weight:800;letter-spacing:.1em;color:var(--p400);text-transform:uppercase}
+    .option-head h3{font-size:20px;font-weight:700;color:#fff;letter-spacing:-.01em}
+    .option-head .thesis-line{font-size:12.5px;color:rgba(255,255,255,.65);line-height:1.5}
+
+    .phone-shell{
+      width:340px;height:740px;border-radius:42px;padding:10px;
+      background:var(--n800);position:relative;overflow:hidden;
+      box-shadow:0 0 0 1px rgba(255,255,255,.07),0 28px 70px rgba(0,0,0,.6);
+    }
+    .phone-shell::before{
+      content:'';position:absolute;top:16px;left:50%;transform:translateX(-50%);
+      width:108px;height:30px;background:#080807;border-radius:var(--r-full);z-index:10;
+    }
+    .phone-screen{
+      width:100%;height:100%;border-radius:33px;background:var(--bg);
+      overflow:hidden;position:relative;display:flex;flex-direction:column;
+    }
+    .status-bar{
+      height:46px;padding:12px var(--s4) 0;
+      display:flex;align-items:flex-end;justify-content:space-between;
+      flex-shrink:0;background:var(--bg);
+    }
+    .status-time{font-size:14px;font-weight:700;color:var(--on-surf)}
+    .status-icons{display:flex;gap:5px;align-items:center}
+    .status-icons .material-icons-round{font-size:14px;color:var(--on-surf2)}
+    .screen-content{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;background:var(--bg);position:relative;padding:var(--s4) var(--s4) 96px}
+    .screen-content::-webkit-scrollbar{display:none}
+    .bottom-nav{
+      height:64px;background:var(--surf);border-top:1px solid var(--n100);
+      display:flex;align-items:flex-start;padding-top:var(--s2);flex-shrink:0;
+    }
+    .phone-screen.dark .bottom-nav{border-top-color:var(--bdr)}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:var(--s1) 0}
+    .nav-item .material-icons-round{font-size:20px;color:var(--on-surf3)}
+    .nav-item span{font-size:9.5px;font-weight:600;color:var(--on-surf3);letter-spacing:.02em}
+    .nav-item.active .material-icons-round,.nav-item.active span{color:var(--p600)}
+    .nav-item .nav-pill{width:42px;height:24px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center}
+    .nav-item.active .nav-pill{background:var(--pri-pill)}
+    .fab{
+      position:absolute;bottom:80px;right:var(--s4);
+      width:48px;height:48px;border-radius:var(--r-fab);
+      background:var(--primary);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px rgba(232,168,0,.4);z-index:5;
+    }
+    .fab .material-icons-round{font-size:22px;color:var(--on-pri);font-weight:700}
+
+    /* ============================================================
+       SHARED PRIMITIVES
+       ============================================================ */
+    .greeting{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--s4);gap:var(--s2)}
+    .greeting .gt-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .greeting .hello{font-size:18px;font-weight:700;color:var(--on-surf);letter-spacing:-.01em;line-height:1.2}
+    .greeting .date{font-size:12px;color:var(--on-surf2)}
+    .greeting .gt-actions{display:flex;align-items:center;gap:var(--s2);flex-shrink:0}
+    .greeting .bell{position:relative;width:34px;height:34px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center}
+    .greeting .bell .material-icons-round{font-size:20px;color:var(--on-surf2)}
+    .greeting .bell::after{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--err);border:2px solid var(--bg)}
+    .greeting .avatar{
+      width:34px;height:34px;border-radius:50%;
+      background:linear-gradient(135deg,#9E7200,#4F3800);
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;color:#FDEFC4;
+    }
+
+    /* ============================================================
+       HERO CARD — illustrated
+       ============================================================ */
+    .hero-attention{
+      display:flex;gap:var(--s3);align-items:center;
+      background:linear-gradient(135deg,#FFF5F5,#FCEAEA 70%,var(--surf));
+      border:1px solid rgba(217,59,59,.3);
+      border-radius:var(--r-lg);padding:var(--s4);margin-bottom:var(--s4);
+    }
+    .hero-attention .hero-icon-tile{
+      width:36px;height:36px;border-radius:var(--r-md);
+      background:var(--err50);color:var(--err);
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .hero-attention .hero-icon-tile .material-icons-round{font-size:22px}
+    .hero-attention .hero-text{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+    .hero-attention .hero-title{font-size:14px;font-weight:700;color:var(--on-surf);line-height:1.3}
+    .hero-attention .hero-supporting{font-size:11.5px;color:var(--on-surf2);line-height:1.4}
+    .hero-attention .hero-cta{font-size:12.5px;font-weight:700;color:var(--err);display:inline-flex;align-items:center;gap:4px;margin-top:4px}
+    .hero-attention .hero-cta .material-icons-round{font-size:14px}
+    .hero-attention .hero-art{
+      width:64px;height:64px;flex-shrink:0;
+      background:radial-gradient(circle,#FCEAEA,#FFF5F5);
+      border-radius:var(--r-md);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .hero-attention .hero-art svg{width:48px;height:48px}
+
+    /* Compressed (Option C) hero — slimmer */
+    .hero-attention.compressed{padding:var(--s3) var(--s3) var(--s3) var(--s3)}
+    .hero-attention.compressed .hero-art{width:48px;height:48px}
+    .hero-attention.compressed .hero-art svg{width:36px;height:36px}
+    .hero-attention.compressed .hero-title{font-size:13px}
+    .hero-attention.compressed .hero-supporting{display:none}
+
+    /* Tall hero (Option A — like GPT mockups) */
+    .hero-attention.tall{flex-direction:row;align-items:flex-start;padding:var(--s4) var(--s3) var(--s4) var(--s4)}
+    .hero-attention.tall .hero-art{width:88px;height:88px}
+    .hero-attention.tall .hero-art svg{width:68px;height:68px}
+    .hero-attention.tall .hero-icon-tile{display:none}
+    .hero-attention.tall .hero-text{padding-top:2px}
+    .hero-attention.tall .hero-title{font-size:15px}
+
+    /* ============================================================
+       REVENUE GOAL CARD (kept across all options)
+       ============================================================ */
+    .goals-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3) var(--s4);margin-bottom:var(--s4);
+      display:flex;flex-direction:column;gap:var(--s2);
+    }
+    .goals-head{display:flex;justify-content:space-between;align-items:center}
+    .goals-head .gh-trophy{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--suc)}
+    .goals-head .gh-trophy .material-icons-round{font-size:13px}
+    .goals-head .gh-meta{font-size:10px;color:var(--on-surf3);font-weight:600}
+    .goals-body{display:flex;justify-content:space-between;align-items:baseline}
+    .goals-body .gb-name{font-size:13px;font-weight:700;color:var(--on-surf)}
+    .goals-body .gb-value{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--on-surf2)}
+    .goals-body .gb-value strong{color:var(--p700);font-weight:800}
+    .goals-bar-thin{height:6px;background:var(--n100);border-radius:var(--r-full);overflow:hidden}
+    .goals-bar-thin .fill{height:100%;background:linear-gradient(90deg,var(--p400),var(--p500));border-radius:var(--r-full)}
+
+    /* Compact revenue chip (used in B as a slim strip) */
+    .revenue-chip{
+      display:flex;align-items:center;gap:var(--s2);
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-full);padding:6px 12px;margin-bottom:var(--s3);
+      font-size:12px;
+    }
+    .revenue-chip .rc-label{font-weight:700;color:var(--on-surf2);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+    .revenue-chip .rc-value{font-family:var(--font-mono);font-weight:700;color:var(--p700);font-size:12px}
+    .revenue-chip .rc-bar{flex:1;height:5px;background:var(--n100);border-radius:var(--r-full);overflow:hidden}
+    .revenue-chip .rc-bar .fill{height:100%;background:linear-gradient(90deg,var(--p400),var(--p500))}
+
+    /* ============================================================
+       SECTION HEADING
+       ============================================================ */
+    .section-head{
+      display:flex;justify-content:space-between;align-items:baseline;
+      margin-bottom:var(--s2);margin-top:var(--s3);
+    }
+    .section-head:first-of-type{margin-top:0}
+    .section-head .label{font-size:13px;font-weight:700;color:var(--on-surf);letter-spacing:-.005em}
+    .section-head .right{font-size:11.5px;font-weight:700;color:var(--p700)}
+
+    /* ============================================================
+       TODAY'S WORK CARD (GPT style) — Options A & C
+       ============================================================ */
+    .work-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3);margin-bottom:var(--s4);
+      display:flex;flex-direction:column;
+    }
+    .work-card .wc-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--s2);padding:0 4px}
+    .work-card .wc-head .label{font-size:13px;font-weight:700;color:var(--on-surf)}
+    .work-card .wc-head .right{font-size:11.5px;font-weight:700;color:var(--p700)}
+    .work-card .wc-row{display:flex;align-items:center;gap:var(--s2);padding:8px 4px;border-top:1px solid var(--bdr)}
+    .work-card .wc-row:first-of-type{border-top:none}
+    .work-card .wc-row .av{width:28px;height:28px;font-size:10px;border-radius:var(--r-md)}
+    .work-card .wc-row .wc-text{flex:1;min-width:0}
+    .work-card .wc-row .wc-name{font-size:12.5px;font-weight:700;color:var(--on-surf);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .work-card .wc-row .wc-sub{font-size:10.5px;color:var(--on-surf2)}
+    .work-card .wc-row .wc-time{font-size:10.5px;color:var(--on-surf2);font-weight:600;display:inline-flex;align-items:center;gap:3px;flex-shrink:0}
+    .work-card .wc-row .wc-time .material-icons-round{font-size:12px}
+    .work-card .wc-row.ready .wc-time .material-icons-round{color:var(--suc)}
+    .work-card .wc-row.due .wc-time .material-icons-round{color:var(--warn)}
+    .work-card .wc-row.fitting .wc-time .material-icons-round{color:var(--warn)}
+    .work-card .wc-row .wc-chip{font-size:9.5px;font-weight:700;padding:3px 7px;border-radius:var(--r-full);flex-shrink:0;margin-left:4px}
+    .work-card .wc-row.due .wc-chip{background:var(--err50);color:var(--err)}
+    .work-card .wc-row.ready .wc-chip{background:var(--suc50);color:var(--suc)}
+    .work-card .wc-row.fitting .wc-chip{background:var(--warn50);color:var(--warn)}
+
+    /* Compressed work-card variant (Option C) */
+    .work-card.compressed .wc-row{padding:6px 4px}
+    .work-card.compressed .wc-row .av{width:24px;height:24px;font-size:9px}
+    .work-card.compressed .wc-row .wc-name{font-size:12px}
+    .work-card.compressed .wc-row .wc-sub{display:none}
+
+    /* ============================================================
+       NBA — 2-up grid (Options A & C)
+       ============================================================ */
+    .nba-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-bottom:var(--s4)}
+    .nba-mini{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-md);padding:var(--s2) var(--s3);
+      display:flex;align-items:center;gap:var(--s2);cursor:pointer;
+    }
+    .nba-mini .nba-icon{
+      width:28px;height:28px;border-radius:var(--r-md);
+      background:var(--err50);color:var(--err);
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .nba-mini.start .nba-icon{background:var(--p50);color:var(--p700)}
+    .nba-mini .nba-icon .material-icons-round{font-size:15px}
+    .nba-mini .nba-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+    .nba-mini .nba-action{font-size:11px;font-weight:700;color:var(--on-surf);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .nba-mini .nba-customer{font-size:10px;color:var(--on-surf2);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .nba-mini .material-icons-round.chev{font-size:14px;color:var(--on-surf3);flex-shrink:0}
+
+    /* Compressed NBA single-row (Option C) */
+    .nba-row{display:flex;gap:var(--s2);overflow-x:auto;margin-bottom:var(--s4);padding-bottom:2px}
+    .nba-row::-webkit-scrollbar{display:none}
+    .nba-row .nba-mini{flex:0 0 175px}
+
+    /* ============================================================
+       PIPELINE CARD (dual column inside one card) — Options A & B
+       ============================================================ */
+    .pipeline-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3);margin-bottom:var(--s4);
+      display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);
+    }
+    .pipeline-card .pl-col{display:flex;flex-direction:column;gap:var(--s2)}
+    .pipeline-card .pl-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700}
+    .pipeline-card .pl-head.in-progress{color:var(--suc)}
+    .pipeline-card .pl-head.not-started{color:var(--warn)}
+    .pipeline-card .pl-head .material-icons-round{font-size:14px}
+    .pipeline-card .pl-row{display:flex;align-items:center;gap:6px}
+    .pipeline-card .pl-row .av{width:24px;height:24px;font-size:9px;border-radius:var(--r-md)}
+    .pipeline-card .pl-row .pl-text{display:flex;flex-direction:column;gap:0;min-width:0;flex:1}
+    .pipeline-card .pl-row .pl-name{font-size:11px;font-weight:700;color:var(--on-surf);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pipeline-card .pl-row .pl-sub{font-size:9.5px;color:var(--on-surf2);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pipeline-card .pl-more{font-size:10.5px;font-weight:700;color:var(--p700);display:inline-flex;align-items:center;gap:3px;margin-top:4px}
+    .pipeline-card .pl-more .material-icons-round{font-size:12px}
+
+    /* ============================================================
+       PIPELINE STRIP (compact — Option B)
+       ============================================================ */
+    .pipeline-strip{
+      background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);
+      padding:var(--s2) var(--s3);margin-bottom:var(--s3);
+      display:flex;align-items:center;gap:var(--s3);
+    }
+    .pipeline-strip .ps-spark{display:flex;gap:2px}
+    .pipeline-strip .ps-spark .blk{width:8px;height:12px;border-radius:2px;background:var(--n200)}
+    .phone-screen.dark .pipeline-strip .ps-spark .blk{background:var(--n700)}
+    .pipeline-strip .ps-spark .blk.in-progress{background:var(--suc)}
+    .pipeline-strip .ps-spark .blk.pending{background:var(--p400)}
+    .pipeline-strip .ps-text{flex:1}
+    .pipeline-strip .ps-title{font-size:11px;font-weight:700;color:var(--on-surf)}
+    .pipeline-strip .ps-sub{font-size:9.5px;color:var(--on-surf2)}
+    .pipeline-strip .material-icons-round{color:var(--on-surf3);font-size:16px}
+
+    /* ============================================================
+       SPLIT (Option B only) — TO DO / GET PAID columns
+       ============================================================ */
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-bottom:var(--s3)}
+    .split-col{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+    .split-col .col-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s1);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--on-surf2)}
+    .split-col .col-head .count{font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--on-surf2);background:var(--n100);padding:1px 6px;border-radius:var(--r-full)}
+    .phone-screen.dark .split-col .col-head .count{background:#2A2825}
+    .split-col .col-list{display:flex;flex-direction:column;gap:6px}
+    .split-col .col-item{display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-top:1px solid var(--bdr)}
+    .split-col .col-item:first-child{border-top:none;padding-top:2px}
+    .split-col .col-item .accent{width:3px;align-self:stretch;border-radius:var(--r-full);flex-shrink:0;background:var(--p400)}
+    .split-col .col-item.overdue .accent{background:var(--err)}
+    .split-col .col-item.due .accent{background:var(--warn)}
+    .split-col .col-item.ready .accent{background:var(--suc)}
+    .split-col .col-item .ci-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+    .split-col .col-item .ci-name{font-size:11.5px;font-weight:700;color:var(--on-surf);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .split-col .col-item .ci-sub{font-size:10px;color:var(--on-surf2);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .split-col .col-item .ci-amount{font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--p700)}
+    .split-col .col-item.overdue .ci-amount{color:var(--err)}
+    .split-col .col-more{font-size:10.5px;font-weight:700;color:var(--p700);display:inline-flex;align-items:center;gap:3px;margin-top:2px}
+    .split-col .col-more .material-icons-round{font-size:12px}
+
+    /* ============================================================
+       RECONNECT FOOTER STRIP (chip-row) — all options
+       ============================================================ */
+    .reconnect-chip-strip{
+      display:flex;align-items:center;gap:var(--s2);
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-full);padding:6px 8px 6px 12px;
+      overflow-x:auto;scrollbar-width:none;
+    }
+    .reconnect-chip-strip::-webkit-scrollbar{display:none}
+    .reconnect-chip-strip .rc-label{font-size:10.5px;font-weight:700;color:var(--on-surf2);display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+    .reconnect-chip-strip .rc-label .material-icons-round{font-size:13px}
+    .reconnect-chip-strip .rc-chip{
+      display:inline-flex;align-items:center;gap:5px;flex-shrink:0;
+      background:var(--n100);border-radius:var(--r-full);padding:3px 8px 3px 3px;
+    }
+    .phone-screen.dark .reconnect-chip-strip .rc-chip{background:#2A2825}
+    .reconnect-chip-strip .rc-chip .av{width:22px;height:22px;font-size:9px;border-radius:50%}
+    .reconnect-chip-strip .rc-chip .rc-name{font-size:10.5px;font-weight:700;color:var(--on-surf)}
+    .reconnect-chip-strip .rc-chip .rc-meta{font-size:10px;color:var(--on-surf3);margin-left:1px}
+    .reconnect-chip-strip > .material-icons-round{font-size:14px;color:var(--on-surf3);flex-shrink:0}
+
+    /* ============================================================
+       AVATARS (shared)
+       ============================================================ */
+    .av{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;border-radius:var(--r-md)}
+    .av-saffron{background:var(--p50);color:var(--p700)}
+    .av-blue{background:var(--info50);color:var(--info)}
+    .av-green{background:var(--suc50);color:var(--suc)}
+    .av-orange{background:var(--warn50);color:var(--warn)}
+    .av-purple{background:#F3EAFA;color:#7B4DB5}
+    .av-pink{background:#FBEAF0;color:#C4447A}
+
+    /* ============================================================
+       FOOTER NOTES
+       ============================================================ */
+    .option-note{
+      font-size:11.5px;color:rgba(255,255,255,.6);font-style:italic;
+      text-align:center;max-width:340px;line-height:1.5;margin-top:4px;
+    }
+    .option-stats{
+      display:flex;gap:14px;justify-content:center;font-size:11px;color:rgba(255,255,255,.55);
+    }
+    .option-stats .stat{display:flex;align-items:center;gap:4px}
+    .option-stats .stat strong{color:#fff;font-weight:700}
+
+    .footer-illustration{
+      max-width:880px;width:100%;
+      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+      border-radius:14px;padding:18px 22px;
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .footer-illustration h3{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .footer-illustration p{font-size:13px;line-height:1.55;color:rgba(255,255,255,.78)}
+    .footer-illustration p strong{color:#fff}
+
+    /* Responsive (narrow) */
+    @media (max-width: 1180px){
+      .options-row{grid-template-columns:1fr;gap:48px}
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div class="brand"><span class="logo material-icons-round">straighten</span><span>StitchPad</span></div>
+    <span class="meta">Dashboard V2 · Direction picker</span>
+    <h1>Pick a direction — A, B, or C</h1>
+    <p class="lede">
+      Three concrete answers to the same question: how do we add ChatGPT's illustrated personality without losing the fit-on-one-screen efficiency we got from the split? All three keep your stated preferences (drop the four KPI tiles, keep the revenue goal, keep reconnect/pipeline/today's work/NBA). They differ only in <strong>density</strong>.
+    </p>
+    <div class="toolbar">
+      <button class="theme-toggle" id="theme-toggle"><span class="material-icons-round" id="theme-icon">dark_mode</span><span id="theme-label">Dark</span></button>
+    </div>
+  </header>
+
+  <section class="preferences">
+    <h3>Locked preferences (all three options follow these)</h3>
+    <div class="pref"><span class="tick drop">✕</span><span><strong>Four KPI tiles</strong> — dropped (redundant with Reports)</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Revenue goal</strong> — kept</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Today's Work</strong> — kept (GPT-style card)</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Next Best Actions</strong> — kept</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Work Pipeline</strong> — kept</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Reconnect</strong> — kept (chip-row footer)</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Illustrated hero</strong> — added (placeholder art shown)</span></div>
+    <div class="pref"><span class="tick keep">✓</span><span><strong>Bell + avatar header</strong> — added (GPT-style)</span></div>
+  </section>
+
+  <!-- =========================================================
+       OPTIONS ROW
+       ========================================================= -->
+  <section class="options-row">
+
+    <!-- ===== OPTION A — Illustrated stack (GPT direction) ===== -->
+    <div class="option-col">
+      <div class="option-head">
+        <span class="id">Option A</span>
+        <h3>Illustrated stack</h3>
+        <div class="thesis-line">Adopt the GPT layout — full sections, big illustration, scrolls.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+        <div class="screen-content">
+
+          <div class="greeting">
+            <div class="gt-text">
+              <div class="hello">Good afternoon, Olawale</div>
+              <div class="date">Thursday, 30 Apr</div>
+            </div>
+            <div class="gt-actions">
+              <div class="bell"><span class="material-icons-round">notifications</span></div>
+              <div class="avatar">O</div>
+            </div>
+          </div>
+
+          <!-- Tall illustrated hero -->
+          <div class="hero-attention tall">
+            <div class="hero-text">
+              <div class="hero-title">2 orders need attention today</div>
+              <div class="hero-supporting">1 overdue fitting · 1 dress due today · ₦120,000 to collect</div>
+              <span class="hero-cta">View priorities <span class="material-icons-round">arrow_forward</span></span>
+            </div>
+            <div class="hero-art">
+              <!-- Placeholder mannequin SVG (replace with real illustration) -->
+              <svg viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="50" cy="105" rx="14" ry="3" fill="#8B5A3C" opacity=".5"/>
+                <rect x="48" y="88" width="4" height="15" fill="#8B5A3C"/>
+                <path d="M50 18 Q34 20 31 38 L27 70 Q29 84 50 84 Q71 84 73 70 L69 38 Q66 20 50 18 Z" fill="#E8D5C0" stroke="#5C4A3D" stroke-width="1.5"/>
+                <rect x="46" y="12" width="8" height="8" rx="2" fill="#E8D5C0" stroke="#5C4A3D" stroke-width="1.5"/>
+                <path d="M30 50 Q24 62 30 78 L20 82 L36 80 L42 70 Z" fill="#D44C5C"/>
+                <path d="M62 22 Q72 30 80 50" stroke="#E8A800" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <circle cx="80" cy="86" r="4" fill="#9E7200"/>
+                <circle cx="80" cy="86" r="1.5" fill="#fff"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Revenue goal card -->
+          <div class="goals-card">
+            <div class="goals-head">
+              <span class="gh-trophy"><span class="material-icons-round">emoji_events</span>Ahead of target</span>
+              <span class="gh-meta">3 days left</span>
+            </div>
+            <div class="goals-body">
+              <span class="gb-name">Revenue goal</span>
+              <span class="gb-value"><strong>₦210k</strong> / ₦300k</span>
+            </div>
+            <div class="goals-bar-thin"><div class="fill" style="width:70%"></div></div>
+          </div>
+
+          <!-- Today's work card -->
+          <div class="section-head"><span class="label">Today's Work</span><span class="right">View all</span></div>
+          <div class="work-card">
+            <div class="wc-row due">
+              <div class="av av-pink">AO</div>
+              <div class="wc-text"><div class="wc-name">Adaeze Okoro</div><div class="wc-sub">Buba &amp; Skirt</div></div>
+              <span class="wc-time"><span class="material-icons-round">schedule</span>Due 4 PM</span>
+              <span class="wc-chip">Due today</span>
+            </div>
+            <div class="wc-row ready">
+              <div class="av av-green">KA</div>
+              <div class="wc-text"><div class="wc-name">Kunle Adeyemi</div><div class="wc-sub">Senator Wear</div></div>
+              <span class="wc-time"><span class="material-icons-round">check_circle</span>Ready</span>
+              <span class="wc-chip">Ready pickup</span>
+            </div>
+            <div class="wc-row fitting">
+              <div class="av av-orange">IB</div>
+              <div class="wc-text"><div class="wc-name">Ifeoma Balogun</div><div class="wc-sub">Bridesmaid Dress</div></div>
+              <span class="wc-time"><span class="material-icons-round">schedule</span>Fitting 2 PM</span>
+              <span class="wc-chip">Fitting today</span>
+            </div>
+          </div>
+
+          <!-- NBA 2-up grid -->
+          <div class="section-head"><span class="label">Next best actions</span></div>
+          <div class="nba-grid">
+            <div class="nba-mini">
+              <div class="nba-icon"><span class="material-icons-round">campaign</span></div>
+              <div class="nba-text"><span class="nba-action">Send reminder</span><span class="nba-customer">Blessing Tosin · ₦45k</span></div>
+              <span class="material-icons-round chev">chevron_right</span>
+            </div>
+            <div class="nba-mini start">
+              <div class="nba-icon"><span class="material-icons-round">checkroom</span></div>
+              <div class="nba-text"><span class="nba-action">Start order</span><span class="nba-customer">Chinedu · Agbada</span></div>
+              <span class="material-icons-round chev">chevron_right</span>
+            </div>
+          </div>
+
+          <!-- Pipeline card (dual-column-in-one-card, GPT style) -->
+          <div class="section-head"><span class="label">Work pipeline</span></div>
+          <div class="pipeline-card">
+            <div class="pl-col">
+              <div class="pl-head in-progress"><span class="material-icons-round">local_fire_department</span>In progress · 4</div>
+              <div class="pl-row"><div class="av av-saffron">AP</div><div class="pl-text"><span class="pl-name">Adeyinka Paul</span><span class="pl-sub">Vintage Buba</span></div></div>
+              <div class="pl-row"><div class="av av-purple">BT</div><div class="pl-text"><span class="pl-name">Blessing T.</span><span class="pl-sub">Trouser</span></div></div>
+              <span class="pl-more">View all <span class="material-icons-round">arrow_forward</span></span>
+            </div>
+            <div class="pl-col">
+              <div class="pl-head not-started"><span class="material-icons-round">close</span>Not started · 6</div>
+              <div class="pl-row"><div class="av av-blue">PP</div><div class="pl-text"><span class="pl-name">Pooja Paul</span><span class="pl-sub">Ankara Dress</span></div></div>
+              <div class="pl-row"><div class="av av-orange">TO</div><div class="pl-text"><span class="pl-name">Tolu Ojo</span><span class="pl-sub">Jacket</span></div></div>
+              <span class="pl-more">View more <span class="material-icons-round">arrow_forward</span></span>
+            </div>
+          </div>
+
+          <!-- Reconnect chip-row footer -->
+          <div class="reconnect-chip-strip">
+            <span class="rc-label"><span class="material-icons-round">person</span>Reconnect</span>
+            <span class="rc-chip"><span class="av av-green">TA</span><span class="rc-name">Tolu Adebayo</span><span class="rc-meta">· 45d</span></span>
+            <span class="rc-chip"><span class="av av-purple">FA</span><span class="rc-name">Funmi A.</span><span class="rc-meta">· 2mo</span></span>
+            <span class="material-icons-round">chevron_right</span>
+          </div>
+
+        </div>
+        <div class="fab"><span class="material-icons-round">add</span></div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+          <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+          <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+          <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+        </div>
+      </div></div>
+      <div class="option-stats">
+        <span class="stat">Sections: <strong>6</strong></span>
+        <span class="stat">Scroll: <strong>~1.4×</strong> screen</span>
+        <span class="stat">Vibe: <strong>premium</strong></span>
+      </div>
+      <div class="option-note">Closest to GPT's mockups. Big illustration, breathing room, every section gets its full card. Scroll the phone — there's content past the fold.</div>
+    </div>
+
+    <!-- ===== OPTION B — Illustrated split (hybrid) ===== -->
+    <div class="option-col">
+      <div class="option-head">
+        <span class="id">Option B</span>
+        <h3>Illustrated split</h3>
+        <div class="thesis-line">Illustrated hero on top + V1 split columns + slim revenue chip + pipeline strip. One viewport.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+        <div class="screen-content">
+
+          <div class="greeting">
+            <div class="gt-text">
+              <div class="hello">Good afternoon, Olawale</div>
+              <div class="date">Thursday, 30 Apr</div>
+            </div>
+            <div class="gt-actions">
+              <div class="bell"><span class="material-icons-round">notifications</span></div>
+              <div class="avatar">O</div>
+            </div>
+          </div>
+
+          <!-- Illustrated hero (medium) -->
+          <div class="hero-attention">
+            <div class="hero-icon-tile" style="display:none"></div>
+            <div class="hero-art">
+              <svg viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="50" cy="105" rx="14" ry="3" fill="#8B5A3C" opacity=".5"/>
+                <rect x="48" y="88" width="4" height="15" fill="#8B5A3C"/>
+                <path d="M50 18 Q34 20 31 38 L27 70 Q29 84 50 84 Q71 84 73 70 L69 38 Q66 20 50 18 Z" fill="#E8D5C0" stroke="#5C4A3D" stroke-width="1.5"/>
+                <rect x="46" y="12" width="8" height="8" rx="2" fill="#E8D5C0" stroke="#5C4A3D" stroke-width="1.5"/>
+                <path d="M30 50 Q24 62 30 78 L20 82 L36 80 L42 70 Z" fill="#D44C5C"/>
+                <path d="M62 22 Q72 30 80 50" stroke="#E8A800" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="hero-text">
+              <div class="hero-title">2 orders need attention</div>
+              <div class="hero-supporting">1 overdue · 1 due today · ₦120k to collect</div>
+              <span class="hero-cta">View priorities <span class="material-icons-round">arrow_forward</span></span>
+            </div>
+          </div>
+
+          <!-- Revenue chip (slim — saves space) -->
+          <div class="revenue-chip">
+            <span class="rc-label">Week</span>
+            <div class="rc-bar"><div class="fill" style="width:70%"></div></div>
+            <span class="rc-value">₦210k / ₦300k</span>
+          </div>
+
+          <!-- Split: TO DO | GET PAID -->
+          <div class="split">
+            <div class="split-col">
+              <div class="col-head"><span>To do</span><span class="count">3</span></div>
+              <div class="col-list">
+                <div class="col-item due"><div class="accent"></div><div class="ci-text"><div class="ci-name">Adaeze O.</div><div class="ci-sub">Buba · 4 PM</div></div></div>
+                <div class="col-item ready"><div class="accent"></div><div class="ci-text"><div class="ci-name">Kunle A.</div><div class="ci-sub">Senator · ready</div></div></div>
+                <div class="col-item due"><div class="accent"></div><div class="ci-text"><div class="ci-name">Ifeoma B.</div><div class="ci-sub">Fitting 2 PM</div></div></div>
+              </div>
+            </div>
+            <div class="split-col">
+              <div class="col-head"><span>Get paid</span><span class="count">₦120k</span></div>
+              <div class="col-list">
+                <div class="col-item overdue"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mr Kola</div><div class="ci-sub">2d late</div></div><span class="ci-amount">₦42k</span></div>
+                <div class="col-item"><div class="accent"></div><div class="ci-text"><div class="ci-name">Blessing T.</div><div class="ci-sub">Deposit</div></div><span class="ci-amount">₦45k</span></div>
+                <div class="col-item"><div class="accent"></div><div class="ci-text"><div class="ci-name">Tola B.</div><div class="ci-sub">Balance</div></div><span class="ci-amount">₦33k</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pipeline strip (compact) -->
+          <div class="pipeline-strip">
+            <div class="ps-spark">
+              <span class="blk in-progress"></span>
+              <span class="blk in-progress"></span>
+              <span class="blk pending"></span>
+              <span class="blk pending"></span>
+              <span class="blk"></span>
+            </div>
+            <div class="ps-text">
+              <div class="ps-title">Pipeline · 10 orders</div>
+              <div class="ps-sub">4 in progress · 6 not started</div>
+            </div>
+            <span class="material-icons-round">chevron_right</span>
+          </div>
+
+          <!-- Reconnect chip-row footer -->
+          <div class="reconnect-chip-strip">
+            <span class="rc-label"><span class="material-icons-round">person</span>Reconnect</span>
+            <span class="rc-chip"><span class="av av-green">TA</span><span class="rc-name">Tolu A.</span><span class="rc-meta">· 45d</span></span>
+            <span class="rc-chip"><span class="av av-purple">FA</span><span class="rc-name">Funmi A.</span><span class="rc-meta">· 2mo</span></span>
+            <span class="material-icons-round">chevron_right</span>
+          </div>
+
+        </div>
+        <div class="fab"><span class="material-icons-round">add</span></div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+          <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+          <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+          <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+        </div>
+      </div></div>
+      <div class="option-stats">
+        <span class="stat">Sections: <strong>5</strong></span>
+        <span class="stat">Scroll: <strong>~1.0×</strong> screen</span>
+        <span class="stat">Vibe: <strong>efficient</strong></span>
+      </div>
+      <div class="option-note">Hero gets the personality moment. Below it, the dashboard works as a desk — to-do beside money, glance and act. Today's Work and Get Paid live as parallel columns.</div>
+    </div>
+
+    <!-- ===== OPTION C — Compressed stack ===== -->
+    <div class="option-col">
+      <div class="option-head">
+        <span class="id">Option C</span>
+        <h3>Compressed stack</h3>
+        <div class="thesis-line">GPT's section list, but tighter. Smaller hero, denser cards, pipeline as a chip strip. ~one viewport.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+        <div class="screen-content">
+
+          <div class="greeting">
+            <div class="gt-text">
+              <div class="hello">Good afternoon, Olawale</div>
+              <div class="date">Thursday, 30 Apr</div>
+            </div>
+            <div class="gt-actions">
+              <div class="bell"><span class="material-icons-round">notifications</span></div>
+              <div class="avatar">O</div>
+            </div>
+          </div>
+
+          <!-- Compressed illustrated hero -->
+          <div class="hero-attention compressed">
+            <div class="hero-icon-tile" style="display:none"></div>
+            <div class="hero-art">
+              <svg viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="50" cy="105" rx="14" ry="3" fill="#8B5A3C" opacity=".5"/>
+                <rect x="48" y="88" width="4" height="15" fill="#8B5A3C"/>
+                <path d="M50 18 Q34 20 31 38 L27 70 Q29 84 50 84 Q71 84 73 70 L69 38 Q66 20 50 18 Z" fill="#E8D5C0" stroke="#5C4A3D" stroke-width="1.5"/>
+                <rect x="46" y="12" width="8" height="8" rx="2" fill="#E8D5C0" stroke="#5C4A3D" stroke-width="1.5"/>
+                <path d="M30 50 Q24 62 30 78 L20 82 L36 80 L42 70 Z" fill="#D44C5C"/>
+              </svg>
+            </div>
+            <div class="hero-text">
+              <div class="hero-title">2 orders need attention</div>
+              <span class="hero-cta">View · 1 overdue · ₦120k to collect <span class="material-icons-round">arrow_forward</span></span>
+            </div>
+          </div>
+
+          <!-- Revenue chip (slim) -->
+          <div class="revenue-chip">
+            <span class="rc-label">Week</span>
+            <div class="rc-bar"><div class="fill" style="width:70%"></div></div>
+            <span class="rc-value">₦210k / ₦300k</span>
+          </div>
+
+          <!-- Today's work compressed -->
+          <div class="section-head"><span class="label">Today's Work</span><span class="right">View all</span></div>
+          <div class="work-card compressed">
+            <div class="wc-row due">
+              <div class="av av-pink">AO</div>
+              <div class="wc-text"><div class="wc-name">Adaeze Okoro</div></div>
+              <span class="wc-time"><span class="material-icons-round">schedule</span>4 PM</span>
+              <span class="wc-chip">Due</span>
+            </div>
+            <div class="wc-row ready">
+              <div class="av av-green">KA</div>
+              <div class="wc-text"><div class="wc-name">Kunle Adeyemi</div></div>
+              <span class="wc-time"><span class="material-icons-round">check_circle</span>Ready</span>
+              <span class="wc-chip">Pickup</span>
+            </div>
+            <div class="wc-row fitting">
+              <div class="av av-orange">IB</div>
+              <div class="wc-text"><div class="wc-name">Ifeoma Balogun</div></div>
+              <span class="wc-time"><span class="material-icons-round">schedule</span>2 PM</span>
+              <span class="wc-chip">Fitting</span>
+            </div>
+          </div>
+
+          <!-- NBA single-row carousel -->
+          <div class="section-head"><span class="label">Next best actions</span></div>
+          <div class="nba-row">
+            <div class="nba-mini">
+              <div class="nba-icon"><span class="material-icons-round">campaign</span></div>
+              <div class="nba-text"><span class="nba-action">Send reminder</span><span class="nba-customer">Blessing T. · ₦45k</span></div>
+            </div>
+            <div class="nba-mini start">
+              <div class="nba-icon"><span class="material-icons-round">checkroom</span></div>
+              <div class="nba-text"><span class="nba-action">Start order</span><span class="nba-customer">Chinedu · Agbada</span></div>
+            </div>
+          </div>
+
+          <!-- Pipeline strip (compact, not a full card) -->
+          <div class="pipeline-strip">
+            <div class="ps-spark">
+              <span class="blk in-progress"></span>
+              <span class="blk in-progress"></span>
+              <span class="blk in-progress"></span>
+              <span class="blk in-progress"></span>
+              <span class="blk pending"></span>
+            </div>
+            <div class="ps-text">
+              <div class="ps-title">Pipeline · 10 orders</div>
+              <div class="ps-sub">4 in progress · 6 not started</div>
+            </div>
+            <span class="material-icons-round">chevron_right</span>
+          </div>
+
+          <!-- Reconnect chip-row footer -->
+          <div class="reconnect-chip-strip">
+            <span class="rc-label"><span class="material-icons-round">person</span>Reconnect</span>
+            <span class="rc-chip"><span class="av av-green">TA</span><span class="rc-name">Tolu A.</span><span class="rc-meta">· 45d</span></span>
+            <span class="rc-chip"><span class="av av-purple">FA</span><span class="rc-name">Funmi A.</span><span class="rc-meta">· 2mo</span></span>
+            <span class="material-icons-round">chevron_right</span>
+          </div>
+
+        </div>
+        <div class="fab"><span class="material-icons-round">add</span></div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+          <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+          <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+          <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+        </div>
+      </div></div>
+      <div class="option-stats">
+        <span class="stat">Sections: <strong>6</strong></span>
+        <span class="stat">Scroll: <strong>~1.1×</strong> screen</span>
+        <span class="stat">Vibe: <strong>balanced</strong></span>
+      </div>
+      <div class="option-note">Same sections as Option A but each one is tighter. Illustration smaller, work-rows compressed, pipeline reduced to a strip. The "have your cake and eat it" version.</div>
+    </div>
+
+  </section>
+
+  <!-- =========================================================
+       ILLUSTRATION FOOTER
+       ========================================================= -->
+  <section class="footer-illustration">
+    <h3>About the illustrations you see here</h3>
+    <p>
+      The mannequin/measuring-tape/red-fabric SVG in each hero is a <strong>placeholder I authored by hand</strong> — recognizable enough to evaluate the layout, but not the warm hand-drawn art from the GPT mockups. <strong>I cannot generate raster illustrations.</strong> Once you pick a direction, the realistic path is: I write a single style prompt, you generate ~6–8 illustrations in ChatGPT (one per state — busy/pickup/money/steady/quiet/welcome + 2 empty states), and we swap them in. Free, fast, consistent if we lock the prompt.
+    </p>
+    <p>
+      Tell me which option (<strong>A</strong>, <strong>B</strong>, or <strong>C</strong>), and I'll commit it to the design spec and start the implementation plan.
+    </p>
+  </section>
+
+  <script>
+    (function(){
+      const btn = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      const screens = document.querySelectorAll('.phone-screen');
+      let isDark = true;
+      function apply(){
+        screens.forEach(s => s.classList.toggle('dark', isDark));
+        icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+        label.textContent = isDark ? 'Light' : 'Dark';
+      }
+      btn.addEventListener('click', () => { isDark = !isDark; apply(); });
+      apply();
+    })();
+  </script>
+
+</body>
+</html>
