@@ -66,7 +66,7 @@ sealed interface WeeklyGoalsCardState {
 }
 
 /**
- * Sits between [FocusTodayCard] and the rest of the dashboard, showing weekly
+ * Sits between [IllustratedFocusCard] and the rest of the dashboard, showing weekly
  * revenue progress against a target. Whole card is tappable — taps open the
  * goal-setup screen for both empty and filled states.
  *

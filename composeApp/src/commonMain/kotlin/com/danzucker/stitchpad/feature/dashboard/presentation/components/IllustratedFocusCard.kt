@@ -92,12 +92,10 @@ private fun paletteFor(
 
 /**
  * V2 hero focus card — text-on-left, 88dp illustration-on-right layout.
- * Replaces [FocusTodayCard] (removal deferred until no usages remain).
  *
  * The whole card is a single tap target via [Surface] + [Modifier.clickable].
- * Six variant palettes (FirstOrder/Quiet/Steady/Earn/Focus/Pickup) match the
- * accent colours from [FocusTodayCard] exactly — border, CTA tint, optional
- * gradient background.
+ * Six variant palettes (FirstOrder/Quiet/Steady/Earn/Focus/Pickup) drive the
+ * border, CTA tint, and optional gradient background.
  *
  * @param variant Drives palette: border colour, CTA tint, optional gradient.
  * @param title   Primary headline, 1–2 lines.
@@ -122,7 +120,7 @@ fun IllustratedFocusCard(
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
 
     // Surface(onClick=...) is not available in this project's Material3 version.
-    // Using Surface + Modifier.clickable follows the pattern from FocusTodayCard/WeeklyGoalsCard.
+    // Using Surface + Modifier.clickable follows the pattern from WeeklyGoalsCard.
     Surface(
         shape = shape,
         color = MaterialTheme.colorScheme.surface,

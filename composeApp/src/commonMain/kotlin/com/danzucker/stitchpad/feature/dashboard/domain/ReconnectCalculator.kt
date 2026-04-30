@@ -13,7 +13,7 @@ private const val RECONNECT_LIMIT = 5
 private const val RECONNECT_MIN_DAYS = 14
 
 /**
- * Builds the list of customers to surface in the ReconnectStrip. A candidate is
+ * Builds the list of customers to surface in the reconnect chip strip. A candidate is
  * a customer with no active (non-DELIVERED) order. Customers with order history
  * must have been inactive for at least [RECONNECT_MIN_DAYS] days; customers
  * with no order history (e.g. just-added) always pass. Capped at

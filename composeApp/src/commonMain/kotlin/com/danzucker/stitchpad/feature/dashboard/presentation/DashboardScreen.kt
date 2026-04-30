@@ -846,6 +846,35 @@ private fun DashboardScreenQuietDayPreview() {
     }
 }
 
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun DashboardScreenEmptyNbaPreview() {
+    StitchPadTheme {
+        DashboardScreen(
+            state = DashboardState(
+                uiState = DashboardUiState.PipelineSteady,
+                firstName = "Ade",
+                businessName = "Ade's Fashions",
+                greeting = Greeting.MORNING,
+                todayDate = LocalDate(2026, 4, 22),
+                // nextBestActions is empty — exercises EmptyIllustrationCard for the NBA section
+                nextBestActions = emptyList(),
+                pipelineInProgress = listOf(
+                    DashboardOrderRow("p1", "Mr Femi", "Suit", daysUntilDeadline = 5),
+                    DashboardOrderRow("p2", "Mrs Chika", "Bridal Gown", daysUntilDeadline = 12)
+                ),
+                pipelineInProgressTotal = 2,
+                pipelinePending = listOf(
+                    DashboardOrderRow("p3", "Mr Kola", "Agbada", daysUntilDeadline = 9)
+                ),
+                pipelinePendingTotal = 3
+            ),
+            onAction = {}
+        )
+    }
+}
+
 private fun sampleNba(
     type: NextBestActionType,
     customer: String,

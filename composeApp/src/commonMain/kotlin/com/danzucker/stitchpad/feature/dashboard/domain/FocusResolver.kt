@@ -31,7 +31,7 @@ import stitchpad.composeapp.generated.resources.focus_steady_title
 
 /**
  * Resolves the canonical screen-level [DashboardUiState] and the matching
- * [FocusResolution] (FocusTodayCard variant + copy + CTA label) from the
+ * [FocusResolution] ([IllustratedFocusCard] variant + copy + CTA label) from the
  * already-computed buckets, NBAs, and reconnect candidates.
  *
  * `resolveUiState` is the single source of priority truth — every other UI
@@ -73,7 +73,7 @@ object FocusResolver {
 
     /**
      * For `Loading` and `BrandNew` returns a placeholder bundle that the screen
-     * ignores — those states render LoadingDots / WelcomeHero instead.
+     * ignores — those states render LoadingDots / blank header instead.
      */
     @Suppress("LongMethod")
     fun resolveFocus(
