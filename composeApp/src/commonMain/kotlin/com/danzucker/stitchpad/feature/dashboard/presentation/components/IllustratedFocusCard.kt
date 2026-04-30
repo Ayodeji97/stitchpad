@@ -38,56 +38,56 @@ private data class FocusCardPalette(
     val backgroundGradient: Brush?,
 )
 
-@Composable
-private fun paletteFor(variant: FocusVariant): FocusCardPalette {
-    val scheme = MaterialTheme.colorScheme
-    return when (variant) {
-        FocusVariant.FirstOrder -> FocusCardPalette(
-            border = DesignTokens.info500.copy(alpha = 0.25f),
-            ctaTint = DesignTokens.info500,
-            backgroundGradient = null,
-        )
-        FocusVariant.Quiet -> FocusCardPalette(
-            border = DesignTokens.success500.copy(alpha = 0.25f),
-            ctaTint = DesignTokens.success500,
-            backgroundGradient = null,
-        )
-        FocusVariant.Steady -> FocusCardPalette(
-            border = DesignTokens.info500.copy(alpha = 0.25f),
-            ctaTint = DesignTokens.info500,
-            backgroundGradient = null,
-        )
-        FocusVariant.Earn -> FocusCardPalette(
-            border = scheme.primary.copy(alpha = 0.4f),
-            ctaTint = scheme.primary,
-            backgroundGradient = Brush.linearGradient(
-                listOf(
-                    scheme.primary.copy(alpha = 0.12f),
-                    scheme.surface,
-                ),
+private fun paletteFor(
+    variant: FocusVariant,
+    primary: Color,
+    surface: Color,
+): FocusCardPalette = when (variant) {
+    FocusVariant.FirstOrder -> FocusCardPalette(
+        border = DesignTokens.info500.copy(alpha = 0.25f),
+        ctaTint = DesignTokens.info500,
+        backgroundGradient = null,
+    )
+    FocusVariant.Quiet -> FocusCardPalette(
+        border = DesignTokens.success500.copy(alpha = 0.25f),
+        ctaTint = DesignTokens.success500,
+        backgroundGradient = null,
+    )
+    FocusVariant.Steady -> FocusCardPalette(
+        border = DesignTokens.info500.copy(alpha = 0.25f),
+        ctaTint = DesignTokens.info500,
+        backgroundGradient = null,
+    )
+    FocusVariant.Earn -> FocusCardPalette(
+        border = primary.copy(alpha = 0.4f),
+        ctaTint = primary,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                primary.copy(alpha = 0.12f),
+                surface,
             ),
-        )
-        FocusVariant.Focus -> FocusCardPalette(
-            border = DesignTokens.error500.copy(alpha = 0.3f),
-            ctaTint = DesignTokens.error500,
-            backgroundGradient = Brush.linearGradient(
-                listOf(
-                    DesignTokens.error500.copy(alpha = 0.08f),
-                    scheme.surface,
-                ),
+        ),
+    )
+    FocusVariant.Focus -> FocusCardPalette(
+        border = DesignTokens.error500.copy(alpha = 0.3f),
+        ctaTint = DesignTokens.error500,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                DesignTokens.error500.copy(alpha = 0.08f),
+                surface,
             ),
-        )
-        FocusVariant.Pickup -> FocusCardPalette(
-            border = DesignTokens.success500.copy(alpha = 0.3f),
-            ctaTint = DesignTokens.success500,
-            backgroundGradient = Brush.linearGradient(
-                listOf(
-                    DesignTokens.success500.copy(alpha = 0.10f),
-                    scheme.surface,
-                ),
+        ),
+    )
+    FocusVariant.Pickup -> FocusCardPalette(
+        border = DesignTokens.success500.copy(alpha = 0.3f),
+        ctaTint = DesignTokens.success500,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                DesignTokens.success500.copy(alpha = 0.10f),
+                surface,
             ),
-        )
-    }
+        ),
+    )
 }
 
 /**
@@ -114,7 +114,10 @@ fun IllustratedFocusCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val palette = paletteFor(variant)
+    val scheme = MaterialTheme.colorScheme
+    val primary = scheme.primary
+    val surface = scheme.surface
+    val palette = remember(variant, primary, surface) { paletteFor(variant, primary, surface) }
     val drawable = remember(variant) { heroIllustrationFor(variant) }
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
 
@@ -178,7 +181,7 @@ fun IllustratedFocusCard(
                     }
                 }
             }
-            DashboardIllustration(drawable = drawable, size = 88.dp)
+            DashboardIllustration(drawable = drawable)
         }
     }
 }
