@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
@@ -41,7 +40,6 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -69,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.UserAvatar
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
@@ -152,7 +152,6 @@ import stitchpad.composeapp.generated.resources.goals_revenue_label
 import stitchpad.composeapp.generated.resources.goals_section_label
 import stitchpad.composeapp.generated.resources.goals_set_first_cta
 import stitchpad.composeapp.generated.resources.goals_set_first_label
-import stitchpad.composeapp.generated.resources.nav_settings
 import stitchpad.composeapp.generated.resources.quickstart_add_customer
 import stitchpad.composeapp.generated.resources.quickstart_add_measurement
 import stitchpad.composeapp.generated.resources.quickstart_create_order
@@ -304,10 +303,9 @@ private fun DashboardContent(
     ) {
         DashboardHeader(
             firstName = state.firstName,
-            businessName = state.businessName,
             greeting = state.greeting,
             todayDate = state.todayDate,
-            onSettingsClick = { onAction(DashboardAction.OnSettingsClick) },
+            onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
             modifier = Modifier.padding(horizontal = DesignTokens.space4)
         )
 
@@ -982,13 +980,12 @@ private fun PipelineSubsection(
 @Composable
 private fun DashboardHeader(
     firstName: String,
-    businessName: String?,
     greeting: Greeting,
     todayDate: LocalDate?,
-    onSettingsClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onAvatarClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val name = firstName.ifBlank { businessName.orEmpty() }
+    val name = firstName.ifBlank { "?" }
     val greetingText = when (greeting) {
         Greeting.MORNING -> stringResource(Res.string.dashboard_greeting_morning, name)
         Greeting.AFTERNOON -> stringResource(Res.string.dashboard_greeting_afternoon, name)
@@ -996,38 +993,35 @@ private fun DashboardHeader(
     }
     Row(
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = greetingText,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onSurface,
             )
-            if (!businessName.isNullOrBlank() && businessName != firstName) {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = businessName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             if (todayDate != null) {
-                Spacer(Modifier.height(2.dp))
                 Text(
                     text = todayDate.formatFriendly(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        IconButton(onClick = onSettingsClick) {
-            Icon(
-                imageVector = Icons.Default.AccountCircle,
-                contentDescription = stringResource(Res.string.nav_settings),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        ) {
+            BellButton(
+                onClick = { /* notifications screen ships later */ },
+                hasUnread = false,
+            )
+            UserAvatar(
+                name = firstName,
+                onClick = onAvatarClick,
             )
         }
     }
