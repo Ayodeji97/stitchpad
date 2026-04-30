@@ -138,9 +138,13 @@ fun ReportsScreen(
 
     var showRangePicker by remember { mutableStateOf(false) }
 
-    // kotlinx.datetime.Clock.System is unresolved on iOS in 0.6.x — use kotlin.time
-    // and convert via epoch millis (matches the ViewModel's nowMillis pattern).
-    val today = remember(timeZone) {
+    // 'today' is sourced from state (computed in the VM via nowMillis). Using
+    // a remember-block here would freeze the date at first composition and
+    // leave urgency labels stale across midnight. We fall back to a fresh
+    // Clock read only until the first VM emission populates state.today.
+    // kotlinx.datetime.Clock.System is unresolved on iOS in 0.6.x — use
+    // kotlin.time + epoch-millis conversion (matches the VM's nowMillis pattern).
+    val today = state.today ?: run {
         val millis = Clock.System.now().toEpochMilliseconds()
         Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
     }
@@ -257,18 +261,27 @@ private fun ReportsContent(
     today: LocalDate,
     onAction: (ReportsAction) -> Unit
 ) {
-    val deltaSuffix = when (period) {
+    // When the user has tapped Custom but not yet picked a range, the
+    // ViewModel's calculator falls back to WEEK math so the screen doesn't
+    // blank — keep the UI labels aligned with that effective period (so the
+    // tile doesn't claim 'vs prior range' while the math is actually
+    // last-week-vs-this-week). Once a range is picked, switch to Custom.
+    val effectivePeriod = if (period == ReportsPeriod.CUSTOM && customRange == null) {
+        ReportsPeriod.WEEK
+    } else {
+        period
+    }
+    val deltaSuffix = when (effectivePeriod) {
         ReportsPeriod.WEEK -> stringResource(Res.string.reports_delta_vs_last_week)
         ReportsPeriod.MONTH -> stringResource(Res.string.reports_delta_vs_last_month)
         ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_delta_vs_last_custom)
     }
-    // For Custom, prefer the actual dates ("Apr 14 – 23") over the generic
-    // "Custom range" label — the chip up top already shows the full range,
-    // but echoing the dates inside each tile reinforces what the value
-    // represents at the point of reading. Falls back to the generic string
-    // until the user has picked a range.
+    // For Custom (with a range), prefer the actual dates ('Apr 14 – 23')
+    // over the generic 'Custom range' label — the chip up top already shows
+    // the full range, but echoing the dates inside each tile reinforces
+    // what the value represents at the point of reading.
     val customRangeLabel = customRange?.let(::formatTileRangeLabel)
-    val periodLabel = when (period) {
+    val periodLabel = when (effectivePeriod) {
         ReportsPeriod.WEEK -> stringResource(Res.string.reports_period_this_week)
         ReportsPeriod.MONTH -> stringResource(Res.string.reports_period_this_month)
         ReportsPeriod.CUSTOM ->

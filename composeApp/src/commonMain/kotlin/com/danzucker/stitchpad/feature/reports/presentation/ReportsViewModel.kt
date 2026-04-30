@@ -195,6 +195,7 @@ class ReportsViewModel(
                 productionCounts = productionCounts,
                 topCustomers = topCustomers,
                 debtors = debtors,
+                today = today,
                 errorMessage = error
             )
         }
