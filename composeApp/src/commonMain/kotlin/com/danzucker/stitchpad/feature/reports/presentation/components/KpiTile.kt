@@ -40,6 +40,7 @@ fun KpiTile(
     kpi: Kpi,
     valueFormatter: (Double) -> String,
     deltaSuffix: String,
+    periodLabel: String,
     modifier: Modifier = Modifier,
     sparklineColor: Color = DesignTokens.success500,
     invertDeltaSign: Boolean = false
@@ -98,6 +99,7 @@ fun KpiTile(
             DeltaChip(
                 kpi = kpi,
                 suffix = deltaSuffix,
+                periodLabel = periodLabel,
                 invertSign = invertDeltaSign
             )
             if (kpi.sparkline.isNotEmpty()) {
@@ -116,21 +118,28 @@ fun KpiTile(
 }
 
 @Composable
-private fun DeltaChip(kpi: Kpi, suffix: String, invertSign: Boolean) {
+private fun DeltaChip(kpi: Kpi, suffix: String, periodLabel: String, invertSign: Boolean) {
     val delta = kpi.deltaPercent
+    // No prior-period data: show the period name (e.g. "This week") instead
+    // of a dash placeholder. This is the first-launch state — the sparkline
+    // still renders so the user gets a feel for movement within the period.
+    if (delta == null) {
+        Text(
+            text = periodLabel,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        return
+    }
     val (arrow, color) = when {
-        delta == null -> "—" to MaterialTheme.colorScheme.onSurfaceVariant
         delta > 0.0 -> "▲" to deltaColor(positive = !invertSign)
         delta < 0.0 -> "▼" to deltaColor(positive = invertSign)
         else -> "—" to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val pctText = delta?.let { "${(abs(it) * 10).roundToInt() / 10.0}%" } ?: ""
+    val pctText = "${(abs(delta) * 10).roundToInt() / 10.0}%"
     Text(
-        text = if (delta == null) {
-            "$arrow  $suffix"
-        } else {
-            "$arrow $pctText  $suffix"
-        },
+        text = "$arrow $pctText  $suffix",
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.SemiBold,
         color = color

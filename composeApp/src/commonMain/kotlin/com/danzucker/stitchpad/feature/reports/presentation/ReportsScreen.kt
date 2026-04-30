@@ -66,6 +66,9 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_delta_vs_last_custom
 import stitchpad.composeapp.generated.resources.reports_delta_vs_last_month
 import stitchpad.composeapp.generated.resources.reports_delta_vs_last_week
+import stitchpad.composeapp.generated.resources.reports_period_custom
+import stitchpad.composeapp.generated.resources.reports_period_this_month
+import stitchpad.composeapp.generated.resources.reports_period_this_week
 import stitchpad.composeapp.generated.resources.reports_reminder_template
 import stitchpad.composeapp.generated.resources.reports_title
 import stitchpad.composeapp.generated.resources.reports_whatsapp_launch_failed
@@ -232,6 +235,11 @@ private fun ReportsContent(
         ReportsPeriod.MONTH -> stringResource(Res.string.reports_delta_vs_last_month)
         ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_delta_vs_last_custom)
     }
+    val periodLabel = when (period) {
+        ReportsPeriod.WEEK -> stringResource(Res.string.reports_period_this_week)
+        ReportsPeriod.MONTH -> stringResource(Res.string.reports_period_this_month)
+        ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_period_custom)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -245,7 +253,11 @@ private fun ReportsContent(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)
     ) {
         if (kpiSummary != null) {
-            KpiGrid(summary = kpiSummary, deltaSuffix = deltaSuffix)
+            KpiGrid(
+                summary = kpiSummary,
+                deltaSuffix = deltaSuffix,
+                periodLabel = periodLabel
+            )
         }
         if (productionCounts != null) {
             ProductionStatusCard(counts = productionCounts)

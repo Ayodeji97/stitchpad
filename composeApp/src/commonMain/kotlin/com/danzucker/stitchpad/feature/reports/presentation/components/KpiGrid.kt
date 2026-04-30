@@ -27,6 +27,7 @@ import kotlin.math.roundToInt
 fun KpiGrid(
     summary: KpiSummary,
     deltaSuffix: String,
+    periodLabel: String,
     modifier: Modifier = Modifier
 ) {
     val purple = Color(0xFF7B4DB5)
@@ -45,6 +46,7 @@ fun KpiGrid(
                 kpi = summary.revenue,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,
+                periodLabel = periodLabel,
                 sparklineColor = DesignTokens.success500
             )
             KpiTile(
@@ -56,6 +58,7 @@ fun KpiGrid(
                 kpi = summary.collected,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,
+                periodLabel = periodLabel,
                 sparklineColor = DesignTokens.success500
             )
         }
@@ -69,6 +72,7 @@ fun KpiGrid(
                 kpi = summary.outstanding,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,
+                periodLabel = periodLabel,
                 sparklineColor = DesignTokens.error500,
                 // Outstanding rising = bad: a + delta should render red.
                 invertDeltaSign = true
@@ -82,6 +86,7 @@ fun KpiGrid(
                 kpi = summary.orders,
                 valueFormatter = ::formatCount,
                 deltaSuffix = deltaSuffix,
+                periodLabel = periodLabel,
                 sparklineColor = purple
             )
         }

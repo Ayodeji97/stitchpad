@@ -112,6 +112,9 @@
     <string name="reports_section_top_customers">Top Customers</string>
     <string name="reports_section_outstanding">Outstanding Balances</string>
     <string name="reports_section_production">Production Status</string>
+    <string name="reports_period_this_week">This week</string>
+    <string name="reports_period_this_month">This month</string>
+    <string name="reports_period_custom">Custom range</string>
     <string name="reports_kpi_revenue">Revenue</string>
     <string name="reports_kpi_collected">Collected</string>
     <string name="reports_kpi_outstanding">Outstanding</string>
