@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -11,10 +10,9 @@ import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
-import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
-import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,20 +23,14 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
-
-private const val DAYS_IN_WEEK = 7
 
 @OptIn(ExperimentalTime::class)
 @Suppress("TooManyFunctions")
@@ -182,7 +174,7 @@ class DashboardViewModel(
                 val uiState = FocusResolver.resolveUiState(buckets, nextBestActions, orders, customers)
                 val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
                 val focus = FocusResolver.resolveFocus(uiState, buckets, nextBestActions, customers, reconnect)
-                val weeklyGoal = resolveWeeklyGoal(orders, today, goal)
+                val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
 
                 _state.update {
                     it.copy(
@@ -214,32 +206,6 @@ class DashboardViewModel(
         }
     }
 
-    /**
-     * Builds the WeeklyGoalsCard's UI render model from the user's saved [goal] and
-     * collected revenue derived from orders updated in the current ISO week
-     * (Monday-Sunday). Returns `null` when the user has not set a goal yet — the
-     * card renders its empty "Set your first goal" state in that case.
-     */
-    private fun resolveWeeklyGoal(
-        orders: List<Order>,
-        today: LocalDate,
-        goal: WeeklyGoal?
-    ): WeeklyGoalUi? {
-        if (goal == null) return null
-        val daysFromMonday = today.dayOfWeek.ordinal
-        val weekStart = today.minus(daysFromMonday, DateTimeUnit.DAY)
-        val weekStartMillis = weekStart.atStartOfDayIn(timeZone).toEpochMilliseconds()
-        val collected = orders
-            .filter { it.updatedAt >= weekStartMillis }
-            .sumOf { (it.totalPrice - it.balanceRemaining).coerceAtLeast(0.0) }
-        val daysLeft = (DAYS_IN_WEEK - 1 - daysFromMonday).coerceIn(0, DAYS_IN_WEEK)
-        return WeeklyGoalUi(
-            targetAmount = goal.targetAmount,
-            collectedAmount = collected,
-            daysLeft = daysLeft
-        )
-    }
-
     private fun computeGreeting(): Greeting {
         val hour = Instant.fromEpochMilliseconds(nowMillis()).toLocalDateTime(timeZone).hour
         return when {
@@ -248,5 +214,4 @@ class DashboardViewModel(
             else -> Greeting.EVENING
         }
     }
-
 }
