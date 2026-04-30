@@ -40,7 +40,6 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_aging_due_in_days
 import stitchpad.composeapp.generated.resources.reports_aging_due_today
 import stitchpad.composeapp.generated.resources.reports_aging_due_tomorrow
-import stitchpad.composeapp.generated.resources.reports_aging_no_due_date
 import stitchpad.composeapp.generated.resources.reports_aging_overdue_days
 import stitchpad.composeapp.generated.resources.reports_aging_overdue_one_day
 import stitchpad.composeapp.generated.resources.reports_section_outstanding
@@ -191,7 +190,7 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
     if (deadline == null) {
         return UrgencyStyle(
             amountColor = red,
-            agingText = stringResource(Res.string.reports_aging_no_due_date),
+            agingText = null,
             agingColor = muted,
             agingWeight = FontWeight.Normal
         )
