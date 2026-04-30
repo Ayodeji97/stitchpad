@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
 import androidx.compose.ui.graphics.Color
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineColumnData
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 
 private const val MAX_TODAY_WORK_ROWS = 5
@@ -42,18 +41,6 @@ internal fun buildTodayWorkRows(
         )
     }
 }
-
-/**
- * Builds a [PipelineColumnData] from a list of [DashboardOrderRow]s and the true total count.
- * Visible rows are capped at 2 (matching the dual-card's MAX_ROWS_PER_COLUMN constant).
- */
-internal fun pipelineColumnFrom(
-    rows: List<DashboardOrderRow>,
-    totalCount: Int,
-): PipelineColumnData = PipelineColumnData(
-    totalCount = totalCount,
-    visibleRows = rows.take(2),
-)
 
 // — private helpers —
 

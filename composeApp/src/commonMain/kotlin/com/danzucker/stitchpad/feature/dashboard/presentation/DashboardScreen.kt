@@ -49,7 +49,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellBut
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineDualCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectChipStrip
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.UserAvatar
@@ -59,7 +59,6 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
-import com.danzucker.stitchpad.feature.dashboard.presentation.model.pipelineColumnFrom
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NextBestActionCard
 import com.danzucker.stitchpad.ui.components.StitchPadFab
@@ -313,8 +312,8 @@ private fun DashboardContent(
             )
         }
 
-        // 6. Pipeline (dual-column card). Empty state shows EmptyIllustrationCard with CTA.
-        val pipelineEmpty = state.pipelineInProgress.isEmpty() && state.pipelinePending.isEmpty()
+        // 6. Pipeline (stacked subsections). Empty state shows EmptyIllustrationCard with CTA.
+        val pipelineEmpty = state.pipelineInProgressTotal == 0 && state.pipelinePendingTotal == 0
         if (pipelineEmpty) {
             EmptyIllustrationCard(
                 slot = EmptyIllustrationSlot.Pipeline,
@@ -324,12 +323,12 @@ private fun DashboardContent(
                 onCtaClick = { onAction(DashboardAction.OnCreateOrderClick) },
             )
         } else {
-            PipelineDualCard(
-                inProgress = pipelineColumnFrom(state.pipelineInProgress, state.pipelineInProgressTotal),
-                notStarted = pipelineColumnFrom(state.pipelinePending, state.pipelinePendingTotal),
+            PipelineSection(
+                inProgress = state.pipelineInProgress,
+                inProgressTotal = state.pipelineInProgressTotal,
+                notStarted = state.pipelinePending,
+                notStartedTotal = state.pipelinePendingTotal,
                 onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
-                onInProgressMoreClick = { onAction(DashboardAction.OnViewPipelineInProgressClick) },
-                onNotStartedMoreClick = { onAction(DashboardAction.OnViewPipelineNotStartedClick) },
             )
         }
 

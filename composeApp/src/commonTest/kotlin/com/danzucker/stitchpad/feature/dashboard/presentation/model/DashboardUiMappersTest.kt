@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineColumnData
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -123,46 +122,4 @@ class DashboardUiMappersTest {
         assertEquals("Bridal Gown", single.primaryLabel)
     }
 
-    // — pipelineColumnFrom —
-
-    @Test
-    fun pipelineColumnFromCapsVisibleAtTwo() {
-        val fourRows = (1..4).map { row("p$it", daysUntilDeadline = it) }
-
-        val column = pipelineColumnFrom(rows = fourRows, totalCount = 4)
-
-        assertEquals(4, column.totalCount)
-        assertEquals(2, column.visibleRows.size)
-    }
-
-    @Test
-    fun pipelineColumnFromPreservesTotalSeparate() {
-        val oneRow = listOf(row("p1"))
-
-        val column = pipelineColumnFrom(rows = oneRow, totalCount = 5)
-
-        assertEquals(5, column.totalCount)
-        assertEquals(1, column.visibleRows.size)
-    }
-
-    @Test
-    fun pipelineColumnFromEmptyRowsProducesZeroVisible() {
-        val column = pipelineColumnFrom(rows = emptyList(), totalCount = 0)
-
-        assertEquals(0, column.totalCount)
-        assertTrue(column.visibleRows.isEmpty())
-    }
-
-    @Test
-    fun pipelineColumnFromReturnsFirstTwoRowsInOrder() {
-        val rows = listOf(
-            row("p1", daysUntilDeadline = 3),
-            row("p2", daysUntilDeadline = 7),
-            row("p3", daysUntilDeadline = 12),
-        )
-
-        val column = pipelineColumnFrom(rows = rows, totalCount = 3)
-
-        assertEquals(listOf("p1", "p2"), column.visibleRows.map { it.orderId })
-    }
 }
