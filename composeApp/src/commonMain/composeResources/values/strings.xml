@@ -591,6 +591,10 @@
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
+    <!-- TodayWorkCard -->
+    <string name="dashboard_today_work_title">Today\'s Work</string>
+    <string name="dashboard_today_work_view_all">View all (%1$d)</string>
+
     <!-- Dashboard FocusTodayCard -->
     <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
     <string name="focus_first_order_cta">Create order for %1$s</string>
