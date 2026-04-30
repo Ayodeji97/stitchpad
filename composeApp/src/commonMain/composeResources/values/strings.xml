@@ -595,6 +595,12 @@
     <string name="dashboard_today_work_title">Today\'s Work</string>
     <string name="dashboard_today_work_view_all">View all (%1$d)</string>
 
+    <!-- PipelineDualCard -->
+    <string name="dashboard_pipeline_in_progress_header">In progress · %1$d</string>
+    <string name="dashboard_pipeline_not_started_header">Not started · %1$d</string>
+    <string name="dashboard_pipeline_view_all">View all</string>
+    <string name="dashboard_pipeline_view_more">View more</string>
+
     <!-- Dashboard FocusTodayCard -->
     <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
     <string name="focus_first_order_cta">Create order for %1$s</string>
