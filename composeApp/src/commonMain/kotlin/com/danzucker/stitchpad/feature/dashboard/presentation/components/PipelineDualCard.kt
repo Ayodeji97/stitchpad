@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -134,7 +135,7 @@ private fun PipelineColumn(
     Column(modifier = modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
         ) {
             Icon(
                 imageVector = headerIcon,
@@ -158,7 +159,8 @@ private fun PipelineColumn(
                         onClick = { onRowClick(row.orderId) },
                         role = Role.Button,
                     )
-                    .padding(vertical = 4.dp),
+                    .minimumInteractiveComponentSize()
+                    .padding(vertical = DesignTokens.space1),
             ) {
                 Text(
                     text = row.customerName,
@@ -174,7 +176,7 @@ private fun PipelineColumn(
                     maxLines = 1,
                 )
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(DesignTokens.space1))
         }
         if (data.totalCount > MAX_ROWS_PER_COLUMN) {
             Spacer(Modifier.height(2.dp))
