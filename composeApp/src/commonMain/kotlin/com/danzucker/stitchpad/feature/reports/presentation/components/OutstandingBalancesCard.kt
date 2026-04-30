@@ -43,10 +43,6 @@ import stitchpad.composeapp.generated.resources.reports_aging_due_tomorrow
 import stitchpad.composeapp.generated.resources.reports_aging_overdue_days
 import stitchpad.composeapp.generated.resources.reports_aging_overdue_one_day
 import stitchpad.composeapp.generated.resources.reports_section_outstanding
-import stitchpad.composeapp.generated.resources.reports_status_due_today
-import stitchpad.composeapp.generated.resources.reports_status_next_week
-import stitchpad.composeapp.generated.resources.reports_status_overdue
-import stitchpad.composeapp.generated.resources.reports_status_this_week
 
 private const val DAYS_THIS_WEEK = 7
 private const val DAYS_NEXT_WEEK = 14
@@ -153,25 +149,7 @@ private fun OutstandingRow(
                 )
             }
         }
-        StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
         WhatsAppButton(onClick = onWhatsAppClick)
-    }
-}
-
-@Composable
-private fun StatusPill(label: String, fg: Color, bg: Color) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(DesignTokens.radiusFull))
-            .background(bg)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = fg
-        )
     }
 }
 
@@ -195,10 +173,7 @@ private fun WhatsAppButton(onClick: () -> Unit) {
 }
 
 private data class UrgencyStyle(
-    val label: String,
     val amountColor: Color,
-    val pillFg: Color,
-    val pillBg: Color,
     val agingText: String?,
     val agingColor: Color,
     val agingWeight: FontWeight
@@ -207,21 +182,14 @@ private data class UrgencyStyle(
 @Composable
 private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
     val saffron = DesignTokens.primary500
-    val saffronTint = DesignTokens.primary100
     val red = DesignTokens.error500
-    val redTint = DesignTokens.error50
     val orange = DesignTokens.warning500
-    val orangeTint = DesignTokens.warning50
     val green = DesignTokens.success500
-    val greenTint = DesignTokens.success50
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
     if (deadline == null) {
         return UrgencyStyle(
-            label = stringResource(Res.string.reports_status_overdue),
             amountColor = red,
-            pillFg = red,
-            pillBg = redTint,
             agingText = null,
             agingColor = muted,
             agingWeight = FontWeight.Normal
@@ -230,10 +198,7 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
     val daysUntil = today.daysUntil(deadline)
     return when {
         daysUntil < 0 -> UrgencyStyle(
-            label = stringResource(Res.string.reports_status_overdue),
             amountColor = red,
-            pillFg = red,
-            pillBg = redTint,
             agingText = if (daysUntil == -1) {
                 stringResource(Res.string.reports_aging_overdue_one_day)
             } else {
@@ -243,19 +208,13 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             agingWeight = FontWeight.SemiBold
         )
         daysUntil == 0 -> UrgencyStyle(
-            label = stringResource(Res.string.reports_status_due_today),
             amountColor = orange,
-            pillFg = orange,
-            pillBg = orangeTint,
             agingText = stringResource(Res.string.reports_aging_due_today),
             agingColor = orange,
             agingWeight = FontWeight.SemiBold
         )
         daysUntil <= DAYS_THIS_WEEK -> UrgencyStyle(
-            label = stringResource(Res.string.reports_status_this_week),
             amountColor = saffron,
-            pillFg = saffron,
-            pillBg = saffronTint,
             agingText = if (daysUntil == 1) {
                 stringResource(Res.string.reports_aging_due_tomorrow)
             } else {
@@ -265,19 +224,13 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             agingWeight = FontWeight.Normal
         )
         daysUntil <= DAYS_NEXT_WEEK -> UrgencyStyle(
-            label = stringResource(Res.string.reports_status_next_week),
             amountColor = green,
-            pillFg = green,
-            pillBg = greenTint,
             agingText = stringResource(Res.string.reports_aging_due_in_days, daysUntil),
             agingColor = muted,
             agingWeight = FontWeight.Normal
         )
         else -> UrgencyStyle(
-            label = stringResource(Res.string.reports_status_next_week),
             amountColor = muted,
-            pillFg = green,
-            pillBg = greenTint,
             agingText = stringResource(Res.string.reports_aging_due_in_days, daysUntil),
             agingColor = muted,
             agingWeight = FontWeight.Normal
