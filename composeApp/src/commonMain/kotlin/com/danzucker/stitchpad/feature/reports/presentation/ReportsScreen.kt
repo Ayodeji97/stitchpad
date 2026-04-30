@@ -73,6 +73,7 @@ import stitchpad.composeapp.generated.resources.reports_period_custom
 import stitchpad.composeapp.generated.resources.reports_period_this_month
 import stitchpad.composeapp.generated.resources.reports_period_this_week
 import stitchpad.composeapp.generated.resources.reports_reminder_template
+import stitchpad.composeapp.generated.resources.reports_select_date_range_cd
 import stitchpad.composeapp.generated.resources.reports_title
 import stitchpad.composeapp.generated.resources.reports_whatsapp_launch_failed
 import kotlin.time.Clock
@@ -158,7 +159,9 @@ fun ReportsScreen(
                     IconButton(onClick = { showRangePicker = true }) {
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = null,
+                            contentDescription = stringResource(
+                                Res.string.reports_select_date_range_cd
+                            ),
                             modifier = Modifier.size(22.dp)
                         )
                     }

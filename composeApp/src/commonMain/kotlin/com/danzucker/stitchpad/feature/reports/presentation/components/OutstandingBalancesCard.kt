@@ -44,6 +44,7 @@ import stitchpad.composeapp.generated.resources.reports_aging_due_tomorrow
 import stitchpad.composeapp.generated.resources.reports_aging_overdue_days
 import stitchpad.composeapp.generated.resources.reports_aging_overdue_one_day
 import stitchpad.composeapp.generated.resources.reports_section_outstanding
+import stitchpad.composeapp.generated.resources.reports_send_whatsapp_reminder_cd
 
 private const val DAYS_THIS_WEEK = 7
 private const val DAYS_NEXT_WEEK = 14
@@ -169,7 +170,9 @@ private fun WhatsAppButton(onClick: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Chat,
-            contentDescription = null,
+            contentDescription = stringResource(
+                Res.string.reports_send_whatsapp_reminder_cd
+            ),
             tint = Color.White,
             modifier = Modifier.size(15.dp)
         )

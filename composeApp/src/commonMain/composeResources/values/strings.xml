@@ -147,6 +147,8 @@
     <string name="reports_picker_select_end">Select end date</string>
     <string name="reports_picker_prev_month_cd">Previous month</string>
     <string name="reports_picker_next_month_cd">Next month</string>
+    <string name="reports_select_date_range_cd">Select date range</string>
+    <string name="reports_send_whatsapp_reminder_cd">Send WhatsApp reminder</string>
     <string name="reports_paywall_title">Unlock Reports</string>
     <string name="reports_paywall_body">See revenue trends, top customers, production status, and outstanding balances at a glance.</string>
     <string name="reports_paywall_cta">Upgrade to Premium</string>
