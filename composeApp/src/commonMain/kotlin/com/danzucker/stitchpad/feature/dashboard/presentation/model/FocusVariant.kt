@@ -6,16 +6,19 @@ import com.danzucker.stitchpad.core.presentation.UiText
  * Drives [IllustratedFocusCard]'s illustration, accent colour, and copy template.
  * Resolved by the ViewModel based on the current state of orders, customers, NBAs, and pipeline.
  *
- * Priority order (first match wins): FirstOrder → Focus → Pickup → Earn → Steady → Quiet.
- * The brand-new state (0 customers, 0 orders) renders no focus card — no variant.
+ * Priority order (first match wins):
+ *   BrandNew → FirstOrder → Focus → Pickup → Earn → Steady → Quiet.
+ * BrandNew is the most exclusive — the pre-customer, pre-order state, shown only
+ * when the workshop is completely empty (0 customers, 0 orders).
  */
 enum class FocusVariant {
+    BrandNew,
     FirstOrder,
     Quiet,
     Steady,
     Earn,
     Focus,
-    Pickup
+    Pickup,
 }
 
 /**

@@ -13,7 +13,16 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.onboarding_measurements
+import stitchpad.composeapp.generated.resources.dashboard_empty_customers
+import stitchpad.composeapp.generated.resources.dashboard_empty_nba
+import stitchpad.composeapp.generated.resources.dashboard_empty_pipeline
+import stitchpad.composeapp.generated.resources.dashboard_hero_busy
+import stitchpad.composeapp.generated.resources.dashboard_hero_first_order
+import stitchpad.composeapp.generated.resources.dashboard_hero_money
+import stitchpad.composeapp.generated.resources.dashboard_hero_pickup
+import stitchpad.composeapp.generated.resources.dashboard_hero_quiet
+import stitchpad.composeapp.generated.resources.dashboard_hero_steady
+import stitchpad.composeapp.generated.resources.dashboard_hero_welcome
 
 /**
  * Slots for empty-state illustrations. One drawable per slot, mirrored
@@ -28,28 +37,27 @@ enum class EmptyIllustrationSlot {
 /**
  * Maps a FocusVariant to its hero illustration drawable.
  *
- * V1 placeholder strategy: every branch returns the existing onboarding
- * placeholder. When the V2 illustrations are generated, replace each
- * branch with the variant-specific drawable
- * (e.g. Res.drawable.dashboard_hero_busy).
+ * Each variant maps to its dedicated V2 illustration generated for the
+ * dashboard redesign. Every branch is exhaustive — adding a new variant
+ * without a corresponding drawable will fail at compile time.
  */
 fun heroIllustrationFor(variant: FocusVariant): DrawableResource = when (variant) {
-    FocusVariant.FirstOrder -> Res.drawable.onboarding_measurements
-    FocusVariant.Quiet -> Res.drawable.onboarding_measurements
-    FocusVariant.Steady -> Res.drawable.onboarding_measurements
-    FocusVariant.Earn -> Res.drawable.onboarding_measurements
-    FocusVariant.Focus -> Res.drawable.onboarding_measurements
-    FocusVariant.Pickup -> Res.drawable.onboarding_measurements
+    FocusVariant.BrandNew -> Res.drawable.dashboard_hero_welcome
+    FocusVariant.FirstOrder -> Res.drawable.dashboard_hero_first_order
+    FocusVariant.Quiet -> Res.drawable.dashboard_hero_quiet
+    FocusVariant.Steady -> Res.drawable.dashboard_hero_steady
+    FocusVariant.Earn -> Res.drawable.dashboard_hero_money
+    FocusVariant.Focus -> Res.drawable.dashboard_hero_busy
+    FocusVariant.Pickup -> Res.drawable.dashboard_hero_pickup
 }
 
 /**
- * Maps an empty-state slot to its illustration drawable. Same placeholder
- * strategy as [heroIllustrationFor].
+ * Maps an empty-state slot to its illustration drawable.
  */
 fun emptyIllustrationFor(slot: EmptyIllustrationSlot): DrawableResource = when (slot) {
-    EmptyIllustrationSlot.Pipeline -> Res.drawable.onboarding_measurements
-    EmptyIllustrationSlot.Nba -> Res.drawable.onboarding_measurements
-    EmptyIllustrationSlot.Customers -> Res.drawable.onboarding_measurements
+    EmptyIllustrationSlot.Pipeline -> Res.drawable.dashboard_empty_pipeline
+    EmptyIllustrationSlot.Nba -> Res.drawable.dashboard_empty_nba
+    EmptyIllustrationSlot.Customers -> Res.drawable.dashboard_empty_customers
 }
 
 @Composable

@@ -106,6 +106,7 @@ class DashboardViewModel(
     private fun handleFocusCtaClick() {
         val current = _state.value
         when (current.focusVariant) {
+            FocusVariant.BrandNew -> emitEvent(DashboardEvent.NavigateToOrderForm)
             FocusVariant.FirstOrder -> emitEvent(DashboardEvent.NavigateToOrderForm)
             FocusVariant.Focus -> {
                 val firstUrgentId = current.overdue.firstOrNull()?.orderId

@@ -255,7 +255,7 @@ class FocusResolverTest {
     }
 
     @Test
-    fun loadingAndBrandNewReturnPlaceholderQuiet() {
+    fun loadingReturnsPlaceholderQuiet() {
         val loading = FocusResolver.resolveFocus(
             uiState = DashboardUiState.Loading,
             buckets = emptyBuckets,
@@ -263,6 +263,12 @@ class FocusResolverTest {
             customers = emptyList(),
             reconnect = emptyList()
         )
+        assertEquals(FocusVariant.Quiet, loading.variant)
+        assertNull(loading.ctaLabel)
+    }
+
+    @Test
+    fun brandNewFocusUsesBrandNewVariant() {
         val brandNew = FocusResolver.resolveFocus(
             uiState = DashboardUiState.BrandNew,
             buckets = emptyBuckets,
@@ -270,9 +276,7 @@ class FocusResolverTest {
             customers = emptyList(),
             reconnect = emptyList()
         )
-        assertEquals(FocusVariant.Quiet, loading.variant)
-        assertNull(loading.ctaLabel)
-        assertEquals(FocusVariant.Quiet, brandNew.variant)
+        assertEquals(FocusVariant.BrandNew, brandNew.variant)
         assertNull(brandNew.ctaLabel)
     }
 }

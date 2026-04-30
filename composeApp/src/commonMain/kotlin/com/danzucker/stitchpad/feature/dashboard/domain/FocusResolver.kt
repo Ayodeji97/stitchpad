@@ -180,9 +180,16 @@ object FocusResolver {
                 }
             )
         }
-        DashboardUiState.Loading, DashboardUiState.BrandNew -> FocusResolution(
-            // BrandNew renders the IllustratedFocusCard with the Quiet palette as a
-            // fallback until a dedicated BrandNew variant + illustration ships.
+        DashboardUiState.BrandNew -> FocusResolution(
+            variant = FocusVariant.BrandNew,
+            headline = UiText.StringResourceText(Res.string.focus_quiet_title),
+            supporting = null,
+            ctaLabel = null
+        )
+        DashboardUiState.Loading -> FocusResolution(
+            // Loading is the transient initial state before data arrives.
+            // The screen renders LoadingDots instead of the focus card, so
+            // this bundle is a placeholder that is never displayed.
             variant = FocusVariant.Quiet,
             headline = UiText.StringResourceText(Res.string.focus_quiet_title),
             supporting = null,

@@ -44,6 +44,16 @@ private fun paletteFor(
     primary: Color,
     surface: Color,
 ): FocusCardPalette = when (variant) {
+    FocusVariant.BrandNew -> FocusCardPalette(
+        border = primary.copy(alpha = 0.4f),
+        ctaTint = primary,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                primary.copy(alpha = 0.12f),
+                surface,
+            ),
+        ),
+    )
     FocusVariant.FirstOrder -> FocusCardPalette(
         border = DesignTokens.info500.copy(alpha = 0.25f),
         ctaTint = DesignTokens.info500,
@@ -95,7 +105,7 @@ private fun paletteFor(
  * V2 hero focus card — text-on-left, 88dp illustration-on-right layout.
  *
  * The whole card is a single tap target via [Surface] + [Modifier.clickable].
- * Six variant palettes (FirstOrder/Quiet/Steady/Earn/Focus/Pickup) drive the
+ * Seven variant palettes (BrandNew/FirstOrder/Quiet/Steady/Earn/Focus/Pickup) drive the
  * border, CTA tint, and optional gradient background.
  *
  * @param variant Drives palette: border colour, CTA tint, optional gradient.
@@ -302,6 +312,21 @@ private fun IllustratedFocusCardPickupDarkPreview() {
             title = "1 order is ready for pickup",
             supporting = "Kunle Adeyemi's senator wear is ready. Message customer or mark delivered.",
             ctaLabel = "Open order",
+            onClick = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+@Suppress("UnusedPrivateMember")
+private fun IllustratedFocusCardBrandNewPreview() {
+    StitchPadTheme {
+        IllustratedFocusCard(
+            variant = FocusVariant.BrandNew,
+            title = "Let's create your first order",
+            supporting = "Add a customer, save measurements, and create your first custom outfit.",
+            ctaLabel = "Create first order",
             onClick = {},
         )
     }
