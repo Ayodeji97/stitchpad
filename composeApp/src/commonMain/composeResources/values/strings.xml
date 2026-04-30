@@ -530,6 +530,10 @@
     <!-- Currency -->
     <string name="currency_naira">₦%1$s</string>
 
+    <!-- Dashboard header buttons -->
+    <string name="cd_notifications">Notifications</string>
+    <string name="cd_open_settings">Open settings</string>
+
     <!-- Dashboard -->
     <string name="dashboard_greeting_morning">Good morning, %1$s</string>
     <string name="dashboard_greeting_afternoon">Good afternoon, %1$s</string>
