@@ -125,6 +125,11 @@
     <string name="reports_status_this_week">This Week</string>
     <string name="reports_status_next_week">Next Week</string>
     <string name="reports_due_label">Due: %1$s</string>
+    <string name="reports_aging_overdue_days">%1$d days overdue</string>
+    <string name="reports_aging_overdue_one_day">1 day overdue</string>
+    <string name="reports_aging_due_today">Due today</string>
+    <string name="reports_aging_due_tomorrow">Due tomorrow</string>
+    <string name="reports_aging_due_in_days">Due in %1$d days</string>
     <string name="reports_view_all">View all</string>
     <string name="reports_badge_vip">VIP</string>
     <string name="reports_badge_repeat">Repeat</string>

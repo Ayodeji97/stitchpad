@@ -37,6 +37,11 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.reports_aging_due_in_days
+import stitchpad.composeapp.generated.resources.reports_aging_due_today
+import stitchpad.composeapp.generated.resources.reports_aging_due_tomorrow
+import stitchpad.composeapp.generated.resources.reports_aging_overdue_days
+import stitchpad.composeapp.generated.resources.reports_aging_overdue_one_day
 import stitchpad.composeapp.generated.resources.reports_section_outstanding
 import stitchpad.composeapp.generated.resources.reports_status_due_today
 import stitchpad.composeapp.generated.resources.reports_status_next_week
@@ -118,28 +123,37 @@ private fun OutstandingRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        // Fixed-width column so every row's amount + pill share the same
-        // geometry. The amount fills the column width and is text-centered,
-        // so the visual midpoint of the number sits at the same x across
-        // rows regardless of amount length; the pill (narrower) is centered
-        // by the column's horizontalAlignment to that same midpoint.
+        // Right column: amount on top, relative-aging subtitle below
+        // ("12 days overdue" / "Due today" / "Due in 3 days"). Both are
+        // start-aligned within a fixed 110dp width so columns line up
+        // across rows. Pill sits as a sibling so it doesn't shift the
+        // column geometry.
         Column(
-            modifier = Modifier.width(132.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.width(110.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
-                modifier = Modifier.fillMaxWidth(),
                 text = "₦" + formatPrice(debtor.totalOwed),
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = monoFamily,
                 fontWeight = FontWeight.Bold,
                 color = urgency.amountColor,
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.Start,
                 maxLines = 1
             )
-            StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
+            if (urgency.agingText != null) {
+                Text(
+                    text = urgency.agingText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = urgency.agingWeight,
+                    color = urgency.agingColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
+        StatusPill(label = urgency.label, fg = urgency.pillFg, bg = urgency.pillBg)
         WhatsAppButton(onClick = onWhatsAppClick)
     }
 }
@@ -184,7 +198,10 @@ private data class UrgencyStyle(
     val label: String,
     val amountColor: Color,
     val pillFg: Color,
-    val pillBg: Color
+    val pillBg: Color,
+    val agingText: String?,
+    val agingColor: Color,
+    val agingWeight: FontWeight
 )
 
 @Composable
@@ -204,7 +221,10 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             label = stringResource(Res.string.reports_status_overdue),
             amountColor = red,
             pillFg = red,
-            pillBg = redTint
+            pillBg = redTint,
+            agingText = null,
+            agingColor = muted,
+            agingWeight = FontWeight.Normal
         )
     }
     val daysUntil = today.daysUntil(deadline)
@@ -213,31 +233,54 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             label = stringResource(Res.string.reports_status_overdue),
             amountColor = red,
             pillFg = red,
-            pillBg = redTint
+            pillBg = redTint,
+            agingText = if (daysUntil == -1) {
+                stringResource(Res.string.reports_aging_overdue_one_day)
+            } else {
+                stringResource(Res.string.reports_aging_overdue_days, -daysUntil)
+            },
+            agingColor = red,
+            agingWeight = FontWeight.SemiBold
         )
         daysUntil == 0 -> UrgencyStyle(
             label = stringResource(Res.string.reports_status_due_today),
             amountColor = orange,
             pillFg = orange,
-            pillBg = orangeTint
+            pillBg = orangeTint,
+            agingText = stringResource(Res.string.reports_aging_due_today),
+            agingColor = orange,
+            agingWeight = FontWeight.SemiBold
         )
         daysUntil <= DAYS_THIS_WEEK -> UrgencyStyle(
             label = stringResource(Res.string.reports_status_this_week),
             amountColor = saffron,
             pillFg = saffron,
-            pillBg = saffronTint
+            pillBg = saffronTint,
+            agingText = if (daysUntil == 1) {
+                stringResource(Res.string.reports_aging_due_tomorrow)
+            } else {
+                stringResource(Res.string.reports_aging_due_in_days, daysUntil)
+            },
+            agingColor = muted,
+            agingWeight = FontWeight.Normal
         )
         daysUntil <= DAYS_NEXT_WEEK -> UrgencyStyle(
             label = stringResource(Res.string.reports_status_next_week),
             amountColor = green,
             pillFg = green,
-            pillBg = greenTint
+            pillBg = greenTint,
+            agingText = stringResource(Res.string.reports_aging_due_in_days, daysUntil),
+            agingColor = muted,
+            agingWeight = FontWeight.Normal
         )
         else -> UrgencyStyle(
             label = stringResource(Res.string.reports_status_next_week),
             amountColor = muted,
             pillFg = green,
-            pillBg = greenTint
+            pillBg = greenTint,
+            agingText = stringResource(Res.string.reports_aging_due_in_days, daysUntil),
+            agingColor = muted,
+            agingWeight = FontWeight.Normal
         )
     }
 }
