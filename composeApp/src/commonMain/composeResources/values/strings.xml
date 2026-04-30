@@ -103,9 +103,6 @@
     <string name="reports_tab_week">Week</string>
     <string name="reports_tab_month">Month</string>
     <string name="reports_tab_custom">Custom</string>
-    <string name="reports_label_this_week">This week</string>
-    <string name="reports_label_this_month">This month</string>
-    <string name="reports_label_custom">Custom range</string>
     <string name="reports_delta_vs_last_week">vs last week</string>
     <string name="reports_delta_vs_last_month">vs last month</string>
     <string name="reports_delta_vs_last_custom">vs prior range</string>
@@ -123,11 +120,6 @@
     <string name="reports_status_in_progress">In Progress</string>
     <string name="reports_status_ready">Ready</string>
     <string name="reports_status_delivered">Delivered</string>
-    <string name="reports_status_overdue">Overdue</string>
-    <string name="reports_status_due_today">Due Today</string>
-    <string name="reports_status_this_week">This Week</string>
-    <string name="reports_status_next_week">Next Week</string>
-    <string name="reports_due_label">Due: %1$s</string>
     <string name="reports_aging_overdue_days">%1$d days overdue</string>
     <string name="reports_aging_overdue_one_day">1 day overdue</string>
     <string name="reports_aging_due_today">Due today</string>
