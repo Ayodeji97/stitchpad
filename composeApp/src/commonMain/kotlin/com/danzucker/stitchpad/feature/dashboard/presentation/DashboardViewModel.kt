@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -12,12 +11,12 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusResolution
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
-import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
@@ -64,11 +63,6 @@ import kotlin.time.ExperimentalTime
 
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
-
-private const val NBA_LIMIT = 5
-private const val FINISH_STALE_DAYS = 7
-private const val DELIVER_STALE_DAYS = 3
-private const val START_SOON_DAYS = 7
 
 private const val RECONNECT_LIMIT = 5
 private const val RECONNECT_MIN_DAYS = 14
@@ -212,7 +206,7 @@ class DashboardViewModel(
                     .toLocalDateTime(timeZone).date
                 val customersById = customers.associateBy { it.id }
                 val buckets = BucketCalculator.compute(orders, today, timeZone)
-                val nextBestActions = deriveNextBestActions(orders, customersById, today)
+                val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
                 val uiState = resolveUiState(buckets, nextBestActions, orders, customers)
                 val reconnect = computeReconnectCandidates(orders, customers, today)
                 val focus = resolveFocus(uiState, buckets, nextBestActions, customers, reconnect)
@@ -480,127 +474,6 @@ class DashboardViewModel(
         )
     }
 
-    @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private fun deriveNextBestActions(
-        orders: List<Order>,
-        customersById: Map<String, Customer>,
-        today: LocalDate
-    ): List<NextBestAction> {
-        val candidates = mutableListOf<NextBestAction>()
-
-        orders.forEach { order ->
-            if (order.status == OrderStatus.DELIVERED) return@forEach
-            val customer = customersById[order.customerId] ?: return@forEach
-            if (customer.phone.isBlank()) return@forEach
-            val garment = order.items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
-            val deadlineDate = order.deadline?.toLocalDate(timeZone)
-            val daysUntilDeadline = deadlineDate?.let { today.daysUntil(it) }
-
-            val action = when {
-                deadlineDate != null && deadlineDate < today && order.balanceRemaining > 0.0 ->
-                    buildAction(
-                        type = NextBestActionType.CollectOverdue,
-                        order = order,
-                        customer = customer,
-                        garment = garment,
-                        balance = order.balanceRemaining,
-                        days = today.daysUntil(deadlineDate).let { -it }
-                    )
-                order.status == OrderStatus.READY && order.balanceRemaining > 0.0 ->
-                    buildAction(
-                        type = NextBestActionType.CollectOnReady,
-                        order = order,
-                        customer = customer,
-                        garment = garment,
-                        balance = order.balanceRemaining,
-                        days = daysSinceLastTransitionTo(order, OrderStatus.READY, today)
-                    )
-                order.status == OrderStatus.IN_PROGRESS &&
-                    daysSinceLastTransitionTo(order, OrderStatus.IN_PROGRESS, today) > FINISH_STALE_DAYS ->
-                    buildAction(
-                        type = NextBestActionType.FinishStale,
-                        order = order,
-                        customer = customer,
-                        garment = garment,
-                        balance = order.balanceRemaining,
-                        days = daysSinceLastTransitionTo(order, OrderStatus.IN_PROGRESS, today)
-                    )
-                order.status == OrderStatus.READY &&
-                    daysSinceLastTransitionTo(order, OrderStatus.READY, today) > DELIVER_STALE_DAYS ->
-                    buildAction(
-                        type = NextBestActionType.DeliverStale,
-                        order = order,
-                        customer = customer,
-                        garment = garment,
-                        balance = order.balanceRemaining,
-                        days = daysSinceLastTransitionTo(order, OrderStatus.READY, today)
-                    )
-                order.status == OrderStatus.PENDING &&
-                    order.depositPaid == 0.0 &&
-                    order.totalPrice > 0.0 ->
-                    buildAction(
-                        type = NextBestActionType.CollectDeposit,
-                        order = order,
-                        customer = customer,
-                        garment = garment,
-                        balance = order.totalPrice,
-                        days = daysSinceCreation(order, today)
-                    )
-                order.status == OrderStatus.PENDING &&
-                    daysUntilDeadline != null && daysUntilDeadline in 0..START_SOON_DAYS ->
-                    buildAction(
-                        type = NextBestActionType.StartSoon,
-                        order = order,
-                        customer = customer,
-                        garment = garment,
-                        balance = 0.0,
-                        days = daysUntilDeadline
-                    )
-                else -> null
-            }
-            if (action != null) candidates += action
-        }
-
-        return candidates
-            .sortedWith(
-                compareBy<NextBestAction> { it.type.ordinal }
-                    .thenBy { if (it.type == NextBestActionType.StartSoon) it.daysCount else 0 }
-                    .thenByDescending { it.balanceAmount }
-            )
-            .take(NBA_LIMIT)
-    }
-
-    private fun buildAction(
-        type: NextBestActionType,
-        order: Order,
-        customer: Customer,
-        garment: String,
-        balance: Double,
-        days: Int
-    ): NextBestAction = NextBestAction(
-        type = type,
-        orderId = order.id,
-        customerId = customer.id,
-        customerName = order.customerName.ifBlank { customer.name },
-        customerPhone = customer.phone,
-        garmentLabel = garment,
-        balanceAmount = balance,
-        daysCount = days
-    )
-
-    private fun daysSinceLastTransitionTo(order: Order, target: OrderStatus, today: LocalDate): Int {
-        val lastTransition = order.statusHistory.lastOrNull { it.status == target }
-        val anchorMillis = lastTransition?.changedAt ?: order.updatedAt
-        if (anchorMillis == 0L) return 0
-        val anchorDate = anchorMillis.toLocalDate(timeZone)
-        return anchorDate.daysUntil(today)
-    }
-
-    private fun daysSinceCreation(order: Order, today: LocalDate): Int {
-        if (order.createdAt == 0L) return 0
-        return order.createdAt.toLocalDate(timeZone).daysUntil(today)
-    }
-
     private fun computeGreeting(): Greeting {
         val hour = Instant.fromEpochMilliseconds(nowMillis()).toLocalDateTime(timeZone).hour
         return when {
@@ -613,8 +486,3 @@ class DashboardViewModel(
     private fun Long.toLocalDate(tz: TimeZone): LocalDate =
         Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).date
 }
-
-private fun GarmentType.simpleLabel(): String =
-    name.lowercase().split('_').joinToString(" ") { part ->
-        part.replaceFirstChar { it.uppercase() }
-    }
