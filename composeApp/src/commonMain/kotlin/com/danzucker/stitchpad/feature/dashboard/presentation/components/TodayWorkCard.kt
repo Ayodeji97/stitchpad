@@ -1,9 +1,9 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,15 +60,16 @@ fun TodayWorkCard(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 if (hasMore) {
-                    Text(
-                        text = stringResource(Res.string.dashboard_today_work_view_all, rows.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clickable(onClick = onViewAllClick)
-                            .padding(vertical = 8.dp),
-                    )
+                    TextButton(
+                        onClick = onViewAllClick,
+                        contentPadding = PaddingValues(horizontal = DesignTokens.space2, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.dashboard_today_work_view_all, rows.size),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(DesignTokens.space2))
