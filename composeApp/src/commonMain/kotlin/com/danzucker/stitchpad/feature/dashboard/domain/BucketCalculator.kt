@@ -1,16 +1,14 @@
 package com.danzucker.stitchpad.feature.dashboard.domain
 
-import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
+import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.ExperimentalTime
 
 private const val PIPELINE_PREVIEW_LIMIT = 3
 
@@ -27,7 +25,6 @@ private const val PIPELINE_PREVIEW_LIMIT = 3
  *    each, excluding anything already surfaced in triage (overdue / due-today /
  *    ready). Totals reflect the full count before the cap.
  */
-@OptIn(ExperimentalTime::class)
 object BucketCalculator {
 
     @Suppress("LongMethod")
@@ -89,10 +86,6 @@ object BucketCalculator {
     }
 }
 
-@OptIn(ExperimentalTime::class)
-private fun Long.toLocalDate(tz: TimeZone): LocalDate =
-    Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).date
-
 private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
     val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
     val deadlineDate = deadline?.toLocalDate(tz)
@@ -120,8 +113,3 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
         daysUntilDeadline = daysUntil
     )
 }
-
-private fun GarmentType.simpleLabel(): String =
-    name.lowercase().split('_').joinToString(" ") { part ->
-        part.replaceFirstChar { it.uppercase() }
-    }

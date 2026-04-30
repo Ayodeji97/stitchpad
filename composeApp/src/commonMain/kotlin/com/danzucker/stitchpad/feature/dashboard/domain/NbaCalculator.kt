@@ -1,17 +1,15 @@
 package com.danzucker.stitchpad.feature.dashboard.domain
 
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
+import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.ExperimentalTime
 
 private const val NBA_LIMIT = 5
 private const val FINISH_STALE_DAYS = 7
@@ -34,7 +32,6 @@ private const val START_SOON_DAYS = 7
  *   - CollectDeposit   — PENDING with no deposit booked yet
  *   - StartSoon        — PENDING due within [START_SOON_DAYS]
  */
-@OptIn(ExperimentalTime::class)
 object NbaCalculator {
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -163,12 +160,3 @@ object NbaCalculator {
         return order.createdAt.toLocalDate(timeZone).daysUntil(today)
     }
 }
-
-@OptIn(ExperimentalTime::class)
-private fun Long.toLocalDate(tz: TimeZone): LocalDate =
-    Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).date
-
-private fun GarmentType.simpleLabel(): String =
-    name.lowercase().split('_').joinToString(" ") { part ->
-        part.replaceFirstChar { it.uppercase() }
-    }

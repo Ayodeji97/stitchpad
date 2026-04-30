@@ -3,13 +3,11 @@ package com.danzucker.stitchpad.feature.dashboard.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.ExperimentalTime
 
 private const val RECONNECT_LIMIT = 5
 private const val RECONNECT_MIN_DAYS = 14
@@ -26,7 +24,6 @@ private const val RECONNECT_MIN_DAYS = 14
  * customer (so days-since can be computed without a per-customer scan of the
  * full order list).
  */
-@OptIn(ExperimentalTime::class)
 object ReconnectCalculator {
 
     fun compute(
@@ -74,7 +71,3 @@ object ReconnectCalculator {
             .toList()
     }
 }
-
-@OptIn(ExperimentalTime::class)
-private fun Long.toLocalDate(tz: TimeZone): LocalDate =
-    Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).date
