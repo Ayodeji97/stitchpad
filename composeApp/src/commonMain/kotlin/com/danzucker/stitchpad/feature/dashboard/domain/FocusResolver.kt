@@ -181,7 +181,8 @@ object FocusResolver {
             )
         }
         DashboardUiState.Loading, DashboardUiState.BrandNew -> FocusResolution(
-            // Card not rendered in these states; values are placeholders.
+            // BrandNew renders the IllustratedFocusCard with the Quiet palette as a
+            // fallback until a dedicated BrandNew variant + illustration ships.
             variant = FocusVariant.Quiet,
             headline = UiText.StringResourceText(Res.string.focus_quiet_title),
             supporting = null,

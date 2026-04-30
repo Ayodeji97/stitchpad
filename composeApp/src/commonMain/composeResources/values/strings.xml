@@ -605,7 +605,7 @@
     <string name="dashboard_pipeline_view_all">View all</string>
     <string name="dashboard_pipeline_view_more">View more</string>
 
-    <!-- Dashboard FocusTodayCard -->
+    <!-- Dashboard IllustratedFocusCard -->
     <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
     <string name="focus_first_order_cta">Create order for %1$s</string>
     <string name="focus_quiet_title">No deadlines today.</string>
@@ -640,12 +640,12 @@
     <string name="affordance_nba_empty_supporting">Suggested moves appear here when there are payments to collect or orders to chase.</string>
     <string name="affordance_nba_empty_cta">View all orders</string>
 
-    <!-- QuickStartTiles (S2) -->
+    <!-- Dashboard quick start (deprecated) -->
     <string name="quickstart_create_order">Create first order</string>
     <string name="quickstart_add_customer">Add customer</string>
     <string name="quickstart_add_measurement">Add measurement</string>
 
-    <!-- ReconnectStrip -->
+    <!-- Dashboard ReconnectChipStrip -->
     <string name="reconnect_section">Reconnect</string>
     <string name="reconnect_last_order_days">Last order %1$dd ago</string>
     <string name="reconnect_no_orders_yet">No orders yet</string>
