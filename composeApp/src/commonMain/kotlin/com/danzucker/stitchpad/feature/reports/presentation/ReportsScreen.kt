@@ -421,10 +421,38 @@ private val previewTopCustomers = CappedList(
 
 private val previewDebtors = CappedList(
     items = listOf(
-        DebtorEntry("c1", "Ade Yinka", 78_500.0, 1, oldestDeadline = LocalDate(2026, 5, 10)),
-        DebtorEntry("c2", "Blessing Tosin", 45_000.0, 1, oldestDeadline = LocalDate(2026, 4, 29)),
-        DebtorEntry("c3", "Pooja Paul", 32_500.0, 1, oldestDeadline = LocalDate(2026, 5, 1)),
-        DebtorEntry("c4", "Posi John", 15_000.0, 1, oldestDeadline = LocalDate(2026, 5, 6))
+        DebtorEntry(
+            customerId = "c1",
+            customerName = "Ade Yinka",
+            totalOwed = 78_500.0,
+            orderCount = 1,
+            oldestDeadline = LocalDate(2026, 5, 10),
+            canSendWhatsAppReminder = true
+        ),
+        DebtorEntry(
+            customerId = "c2",
+            customerName = "Blessing Tosin",
+            totalOwed = 45_000.0,
+            orderCount = 1,
+            oldestDeadline = LocalDate(2026, 4, 29),
+            canSendWhatsAppReminder = true
+        ),
+        DebtorEntry(
+            customerId = "c3",
+            customerName = "Pooja Paul",
+            totalOwed = 32_500.0,
+            orderCount = 1,
+            oldestDeadline = LocalDate(2026, 5, 1),
+            canSendWhatsAppReminder = false
+        ),
+        DebtorEntry(
+            customerId = "c4",
+            customerName = "Posi John",
+            totalOwed = 15_000.0,
+            orderCount = 1,
+            oldestDeadline = LocalDate(2026, 5, 6),
+            canSendWhatsAppReminder = true
+        )
     ),
     totalCount = 7
 )

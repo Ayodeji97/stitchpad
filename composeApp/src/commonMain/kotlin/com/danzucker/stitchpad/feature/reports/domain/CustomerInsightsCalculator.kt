@@ -142,7 +142,8 @@ object CustomerInsightsCalculator {
                     orderCount = acc.orderCount,
                     oldestDeadline = acc.oldestDeadlineMillis?.let { millis ->
                         Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
-                    }
+                    },
+                    canSendWhatsAppReminder = customer.phone.isNotBlank()
                 )
             }
             .sortedWith(

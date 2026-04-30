@@ -154,7 +154,9 @@ private fun OutstandingRow(
                 )
             }
         }
-        WhatsAppButton(onClick = onWhatsAppClick)
+        if (debtor.canSendWhatsAppReminder) {
+            WhatsAppButton(onClick = onWhatsAppClick)
+        }
     }
 }
 

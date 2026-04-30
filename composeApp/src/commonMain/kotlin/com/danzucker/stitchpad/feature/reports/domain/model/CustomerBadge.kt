@@ -6,7 +6,7 @@ package com.danzucker.stitchpad.feature.reports.domain.model
  * overall customer relationship.
  */
 enum class CustomerBadge {
-    /** Lifetime orders >= 5 OR lifetime spend >= ₦200,000. */
+    /** Lifetime orders >= 5 OR lifetime spend >= ₦500,000. */
     VIP,
 
     /** Lifetime orders >= 2 (and not VIP). */
