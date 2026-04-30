@@ -51,14 +51,15 @@ fun UserAvatar(
         // requiredSize lets the 48dp IconButton overflow the 36dp Box without clipping.
         IconButton(
             onClick = onClick,
-            modifier = Modifier.requiredSize(48.dp),
+            modifier = Modifier
+                .requiredSize(48.dp)
+                .semantics { contentDescription = openSettingsDesc },
         ) {
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(gradient)
-                    .semantics { contentDescription = openSettingsDesc },
+                    .background(gradient),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

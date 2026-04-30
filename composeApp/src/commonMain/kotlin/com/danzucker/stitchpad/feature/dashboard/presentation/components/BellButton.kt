@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -14,7 +13,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -49,12 +47,17 @@ fun BellButton(
         if (hasUnread) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(12.dp)
                     .align(Alignment.TopEnd)
-                    .clip(CircleShape)
-                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                    .background(MaterialTheme.colorScheme.error, CircleShape),
-            )
+                    .background(MaterialTheme.colorScheme.surface, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(MaterialTheme.colorScheme.error, CircleShape),
+                )
+            }
         }
     }
 }
