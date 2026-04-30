@@ -597,6 +597,7 @@
 
     <!-- ReconnectChipStrip -->
     <string name="dashboard_reconnect_label">Reconnect</string>
+    <string name="dashboard_reconnect_view_all">View all reconnect candidates</string>
 
     <!-- PipelineDualCard -->
     <string name="dashboard_pipeline_in_progress_header">In progress · %1$d</string>

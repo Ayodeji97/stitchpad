@@ -33,6 +33,7 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_reconnect_label
+import stitchpad.composeapp.generated.resources.dashboard_reconnect_view_all
 
 private val LEADING_ICON_SIZE = 14.dp
 
@@ -100,7 +101,7 @@ fun ReconnectChipStrip(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
+                    contentDescription = stringResource(Res.string.dashboard_reconnect_view_all),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -135,10 +136,13 @@ private fun ReconnectChip(candidate: ReconnectCandidate, onClick: () -> Unit) {
 }
 
 /** Formats [days] into a compact relative-time label, e.g. "45d" or "2mo". */
-private fun formatDaysAgo(days: Int): String = when {
-    days < 30 -> "${days}d"
-    days < 365 -> "${days / 30}mo"
-    else -> "${days / 365}y"
+private fun formatDaysAgo(days: Int): String {
+    val d = days.coerceAtLeast(0)
+    return when {
+        d < 30 -> "${d}d"
+        d < 365 -> "${d / 30}mo"
+        else -> "${d / 365}y"
+    }
 }
 
 private fun sampleCandidates(): List<ReconnectCandidate> = listOf(
