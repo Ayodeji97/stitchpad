@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.reports.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
@@ -16,7 +17,7 @@ data class ReportsState(
     val hasAnyOrders: Boolean = false,
     val kpiSummary: KpiSummary? = null,
     val productionCounts: ProductionCounts? = null,
-    val topCustomers: List<CustomerRanking> = emptyList(),
-    val debtors: List<DebtorEntry> = emptyList(),
+    val topCustomers: CappedList<CustomerRanking> = CappedList.empty(),
+    val debtors: CappedList<DebtorEntry> = CappedList.empty(),
     val errorMessage: UiText? = null
 )

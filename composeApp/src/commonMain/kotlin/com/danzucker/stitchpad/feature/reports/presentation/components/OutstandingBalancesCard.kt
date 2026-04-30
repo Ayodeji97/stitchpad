@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
@@ -49,14 +50,14 @@ private const val DAYS_NEXT_WEEK = 14
 
 @Composable
 fun OutstandingBalancesCard(
-    debtors: List<DebtorEntry>,
+    debtors: CappedList<DebtorEntry>,
     today: LocalDate,
     onDebtorClick: (String) -> Unit,
     onSendReminder: (String) -> Unit,
     onViewAllClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (debtors.isEmpty()) return
+    if (debtors.items.isEmpty()) return
     val mono = JetBrainsMonoFamily()
     Column(
         modifier = modifier
@@ -72,9 +73,12 @@ fun OutstandingBalancesCard(
     ) {
         CardHeader(
             title = stringResource(Res.string.reports_section_outstanding),
-            onViewAllClick = onViewAllClick
+            // Hide the link when there's nothing extra hiding behind it; show
+            // total when there is, so the user knows it's worth tapping.
+            onViewAllClick = onViewAllClick.takeIf { debtors.hasMore },
+            viewAllCount = debtors.totalCount.takeIf { debtors.hasMore }
         )
-        debtors.forEachIndexed { index, debtor ->
+        debtors.items.forEachIndexed { index, debtor ->
             OutstandingRow(
                 debtor = debtor,
                 today = today,
@@ -82,7 +86,7 @@ fun OutstandingBalancesCard(
                 onRowClick = { onDebtorClick(debtor.customerId) },
                 onWhatsAppClick = { onSendReminder(debtor.customerId) }
             )
-            if (index < debtors.lastIndex) {
+            if (index < debtors.items.lastIndex) {
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     thickness = 0.5.dp
@@ -121,13 +125,12 @@ private fun OutstandingRow(
         )
         // Right column: amount on top, relative-aging subtitle below
         // ("12 days overdue" / "Due today" / "Due in 3 days"). Both are
-        // start-aligned within a fixed 110dp width so columns line up
-        // across rows. Pill sits as a sibling so it doesn't shift the
-        // column geometry.
+        // center-aligned within a fixed 110dp width so the amounts read
+        // as a clean centered column across rows.
         Column(
             modifier = Modifier.width(110.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "₦" + formatPrice(debtor.totalOwed),
@@ -135,7 +138,7 @@ private fun OutstandingRow(
                 fontFamily = monoFamily,
                 fontWeight = FontWeight.Bold,
                 color = urgency.amountColor,
-                textAlign = TextAlign.Start,
+                textAlign = TextAlign.Center,
                 maxLines = 1
             )
             if (urgency.agingText != null) {
@@ -144,6 +147,7 @@ private fun OutstandingRow(
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = urgency.agingWeight,
                     color = urgency.agingColor,
+                    textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

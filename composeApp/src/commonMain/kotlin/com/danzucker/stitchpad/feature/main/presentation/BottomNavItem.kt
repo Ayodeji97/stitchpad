@@ -1,10 +1,10 @@
 package com.danzucker.stitchpad.feature.main.presentation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
@@ -24,22 +24,22 @@ sealed class BottomNavItem(
 ) {
     data object Customers : BottomNavItem(
         route = CustomerListRoute,
-        icon = Icons.Default.Person,
+        icon = Icons.Default.People,
         labelRes = Res.string.nav_customers
     )
     data object Orders : BottomNavItem(
         route = OrderListRoute,
-        icon = Icons.Default.ShoppingCart,
+        icon = Icons.Default.ShoppingBag,
         labelRes = Res.string.nav_orders
     )
     data object Dashboard : BottomNavItem(
         route = DashboardRoute,
-        icon = Icons.Default.Home,
+        icon = Icons.Default.Dashboard,
         labelRes = Res.string.nav_dashboard
     )
     data object Reports : BottomNavItem(
         route = ReportsRoute,
-        icon = Icons.AutoMirrored.Filled.TrendingUp,
+        icon = Icons.Default.BarChart,
         labelRes = Res.string.nav_reports
     )
 

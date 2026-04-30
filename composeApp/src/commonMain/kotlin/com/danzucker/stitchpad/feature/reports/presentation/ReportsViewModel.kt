@@ -74,6 +74,10 @@ class ReportsViewModel(
                 customRangeFlow.value = action.range
                 periodFlow.value = ReportsPeriod.CUSTOM
             }
+            ReportsAction.OnClearCustomRange -> {
+                customRangeFlow.value = null
+                periodFlow.value = ReportsPeriod.WEEK
+            }
             is ReportsAction.OnTopCustomerClick -> emitEvent(
                 ReportsEvent.NavigateToCustomerDetail(action.customerId)
             )
@@ -178,7 +182,7 @@ class ReportsViewModel(
             customRange = inputs.customRange
         )
         val debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
-        cachedDebtors = debtors
+        cachedDebtors = debtors.items
 
         _state.update {
             it.copy(

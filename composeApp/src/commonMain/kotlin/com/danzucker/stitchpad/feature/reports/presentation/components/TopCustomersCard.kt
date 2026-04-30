@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -44,15 +45,16 @@ import stitchpad.composeapp.generated.resources.reports_orders_count_one
 import stitchpad.composeapp.generated.resources.reports_section_top_customers
 import stitchpad.composeapp.generated.resources.reports_top_customers_total_spent
 import stitchpad.composeapp.generated.resources.reports_view_all
+import stitchpad.composeapp.generated.resources.reports_view_all_with_count
 
 @Composable
 fun TopCustomersCard(
-    rankings: List<CustomerRanking>,
+    rankings: CappedList<CustomerRanking>,
     onCustomerClick: (String) -> Unit,
     onViewAllClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (rankings.isEmpty()) return
+    if (rankings.items.isEmpty()) return
     val mono = JetBrainsMonoFamily()
     Column(
         modifier = modifier
@@ -68,15 +70,19 @@ fun TopCustomersCard(
     ) {
         CardHeader(
             title = stringResource(Res.string.reports_section_top_customers),
-            onViewAllClick = onViewAllClick
+            // Hide the link entirely when nothing is hidden behind it — without
+            // overflow "View all" is a lie. When there is overflow, surface the
+            // total so the user knows what's waiting on the next screen.
+            onViewAllClick = onViewAllClick.takeIf { rankings.hasMore },
+            viewAllCount = rankings.totalCount.takeIf { rankings.hasMore }
         )
-        rankings.forEachIndexed { index, ranking ->
+        rankings.items.forEachIndexed { index, ranking ->
             TopCustomerRow(
                 ranking = ranking,
                 monoFamily = mono,
                 onClick = { onCustomerClick(ranking.customerId) }
             )
-            if (index < rankings.lastIndex) {
+            if (index < rankings.items.lastIndex) {
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     thickness = 0.5.dp
@@ -203,7 +209,8 @@ private data class BadgeStyle(
 @Composable
 internal fun CardHeader(
     title: String,
-    onViewAllClick: (() -> Unit)? = null
+    onViewAllClick: (() -> Unit)? = null,
+    viewAllCount: Int? = null
 ) {
     Row(
         modifier = Modifier
@@ -219,12 +226,17 @@ internal fun CardHeader(
             color = MaterialTheme.colorScheme.onSurface
         )
         if (onViewAllClick != null) {
+            val label = if (viewAllCount != null) {
+                stringResource(Res.string.reports_view_all_with_count, viewAllCount)
+            } else {
+                stringResource(Res.string.reports_view_all)
+            }
             Row(
                 modifier = Modifier.clickable(onClick = onViewAllClick),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(Res.string.reports_view_all),
+                    text = label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = DesignTokens.primary500

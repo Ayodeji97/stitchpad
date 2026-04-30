@@ -124,8 +124,8 @@ class ReportsViewModelTest {
         assertFalse(vm.state.value.isLoading)
         assertFalse(vm.state.value.hasAnyOrders)
         assertNull(vm.state.value.kpiSummary)
-        assertTrue(vm.state.value.topCustomers.isEmpty())
-        assertTrue(vm.state.value.debtors.isEmpty())
+        assertTrue(vm.state.value.topCustomers.items.isEmpty())
+        assertTrue(vm.state.value.debtors.items.isEmpty())
     }
 
     @Test
@@ -137,8 +137,8 @@ class ReportsViewModelTest {
         assertFalse(vm.state.value.isLoading)
         assertFalse(vm.state.value.hasAnyOrders)
         assertNull(vm.state.value.kpiSummary)
-        assertTrue(vm.state.value.topCustomers.isEmpty())
-        assertTrue(vm.state.value.debtors.isEmpty())
+        assertTrue(vm.state.value.topCustomers.items.isEmpty())
+        assertTrue(vm.state.value.debtors.items.isEmpty())
     }
 
     @Test
@@ -165,9 +165,9 @@ class ReportsViewModelTest {
         assertEquals(60_000.0, kpis.outstanding.current)
         assertEquals(2.0, kpis.orders.current)
         // Top customers — only customers who collected anything
-        assertEquals(listOf("Adaeze"), vm.state.value.topCustomers.map { it.customerName })
+        assertEquals(listOf("Adaeze"), vm.state.value.topCustomers.items.map { it.customerName })
         // Debtors — both have unpaid balance
-        assertEquals(setOf("Adaeze", "Bola"), vm.state.value.debtors.map { it.customerName }.toSet())
+        assertEquals(setOf("Adaeze", "Bola"), vm.state.value.debtors.items.map { it.customerName }.toSet())
     }
 
     @Test
