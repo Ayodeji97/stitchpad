@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
@@ -9,16 +10,6 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import kotlinx.datetime.LocalDate
 
 enum class Greeting { MORNING, AFTERNOON, EVENING }
-
-data class DashboardOrderRow(
-    val orderId: String,
-    val customerName: String,
-    val primaryLabel: String,
-    /** Positive number of days the order is overdue, or null when not overdue. */
-    val daysLate: Int? = null,
-    /** Positive number of days until the deadline (future only). Null otherwise. */
-    val daysUntilDeadline: Int? = null
-)
 
 data class DashboardState(
     /**

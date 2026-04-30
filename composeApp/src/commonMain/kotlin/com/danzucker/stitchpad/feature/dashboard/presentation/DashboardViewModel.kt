@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusResolution
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
@@ -63,7 +65,6 @@ import kotlin.time.ExperimentalTime
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
 
-private const val PIPELINE_PREVIEW_LIMIT = 3
 private const val NBA_LIMIT = 5
 private const val FINISH_STALE_DAYS = 7
 private const val DELIVER_STALE_DAYS = 3
@@ -210,10 +211,11 @@ class DashboardViewModel(
                 val today = Instant.fromEpochMilliseconds(nowMillis())
                     .toLocalDateTime(timeZone).date
                 val customersById = customers.associateBy { it.id }
-                val buckets = computeBuckets(orders, customersById, today)
-                val uiState = resolveUiState(buckets, orders, customers)
+                val buckets = BucketCalculator.compute(orders, today, timeZone)
+                val nextBestActions = deriveNextBestActions(orders, customersById, today)
+                val uiState = resolveUiState(buckets, nextBestActions, orders, customers)
                 val reconnect = computeReconnectCandidates(orders, customers, today)
-                val focus = resolveFocus(uiState, buckets, customers, reconnect)
+                val focus = resolveFocus(uiState, buckets, nextBestActions, customers, reconnect)
                 val weeklyGoal = resolveWeeklyGoal(orders, today, goal)
 
                 _state.update {
@@ -228,7 +230,7 @@ class DashboardViewModel(
                         ready = buckets.ready,
                         outstandingAmount = buckets.outstandingAmount,
                         outstandingOrderCount = buckets.outstandingOrderCount,
-                        nextBestActions = buckets.nextBestActions,
+                        nextBestActions = nextBestActions,
                         pipelineInProgress = buckets.pipelineInProgress,
                         pipelineInProgressTotal = buckets.pipelineInProgressTotal,
                         pipelinePending = buckets.pipelinePending,
@@ -263,6 +265,7 @@ class DashboardViewModel(
     @Suppress("ReturnCount")
     private fun resolveUiState(
         buckets: Buckets,
+        nextBestActions: List<NextBestAction>,
         orders: List<Order>,
         customers: List<Customer>
     ): DashboardUiState {
@@ -272,7 +275,7 @@ class DashboardViewModel(
             return DashboardUiState.BusyDay
         }
         if (buckets.ready.isNotEmpty()) return DashboardUiState.ReadyForPickup
-        if (buckets.nextBestActions.isNotEmpty()) return DashboardUiState.NbaActive
+        if (nextBestActions.isNotEmpty()) return DashboardUiState.NbaActive
         val pipelineTotal = buckets.pipelineInProgressTotal + buckets.pipelinePendingTotal
         if (pipelineTotal > 0) return DashboardUiState.PipelineSteady
         return DashboardUiState.QuietDay
@@ -288,6 +291,7 @@ class DashboardViewModel(
     private fun resolveFocus(
         uiState: DashboardUiState,
         buckets: Buckets,
+        nextBestActions: List<NextBestAction>,
         customers: List<Customer>,
         reconnect: List<ReconnectCandidate>
     ): FocusResolution = when (uiState) {
@@ -346,12 +350,12 @@ class DashboardViewModel(
             )
         }
         DashboardUiState.NbaActive -> {
-            val topNba = buckets.nextBestActions.first()
+            val topNba = nextBestActions.first()
             FocusResolution(
                 variant = FocusVariant.Earn,
                 headline = UiText.StringResourceText(
                     Res.string.focus_earn_title,
-                    arrayOf(buckets.nextBestActions.size)
+                    arrayOf(nextBestActions.size)
                 ),
                 supporting = UiText.StringResourceText(
                     Res.string.focus_earn_supporting,
@@ -473,79 +477,6 @@ class DashboardViewModel(
             targetAmount = goal.targetAmount,
             collectedAmount = collected,
             daysLeft = daysLeft
-        )
-    }
-
-    @Suppress("LongMethod")
-    private fun computeBuckets(
-        orders: List<Order>,
-        customersById: Map<String, Customer>,
-        today: LocalDate
-    ): Buckets {
-        val active = orders.filter { it.status != OrderStatus.DELIVERED }
-
-        val overdue = active
-            .filter { order ->
-                val deadlineDate = order.deadline?.toLocalDate(timeZone)
-                deadlineDate != null && deadlineDate < today
-            }
-            .sortedBy { it.deadline }
-            .map { it.toRow(today) }
-
-        val dueToday = active
-            .filter { order ->
-                order.deadline?.toLocalDate(timeZone) == today
-            }
-            .map { it.toRow(today) }
-
-        val ready = orders
-            .filter { it.status == OrderStatus.READY }
-            .map { it.toRow(today) }
-
-        val unpaid = active.filter { it.balanceRemaining > 0.0 }
-
-        val triageOrderIds = buildSet {
-            active.forEach { order ->
-                val deadlineDate = order.deadline?.toLocalDate(timeZone)
-                if (deadlineDate != null && deadlineDate <= today) add(order.id)
-            }
-            orders.filter { it.status == OrderStatus.READY }.forEach { add(it.id) }
-        }
-
-        val pipelineCandidates = active
-            .filter { it.id !in triageOrderIds }
-            .sortedWith(compareBy(nullsLast()) { it.deadline })
-
-        val pipelineInProgressAll = pipelineCandidates.filter { it.status == OrderStatus.IN_PROGRESS }
-        val pipelinePendingAll = pipelineCandidates.filter { it.status == OrderStatus.PENDING }
-
-        return Buckets(
-            overdue = overdue,
-            dueToday = dueToday,
-            ready = ready,
-            outstandingAmount = unpaid.sumOf { it.balanceRemaining },
-            outstandingOrderCount = unpaid.size,
-            pipelineInProgress = pipelineInProgressAll.take(PIPELINE_PREVIEW_LIMIT)
-                .map { it.toPipelineRow(today) },
-            pipelineInProgressTotal = pipelineInProgressAll.size,
-            pipelinePending = pipelinePendingAll.take(PIPELINE_PREVIEW_LIMIT)
-                .map { it.toPipelineRow(today) },
-            pipelinePendingTotal = pipelinePendingAll.size,
-            nextBestActions = deriveNextBestActions(orders, customersById, today)
-        )
-    }
-
-    private fun Order.toPipelineRow(today: LocalDate): DashboardOrderRow {
-        val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
-        val deadlineDate = deadline?.toLocalDate(timeZone)
-        val daysUntil = deadlineDate
-            ?.takeIf { it > today }
-            ?.let { today.daysUntil(it) }
-        return DashboardOrderRow(
-            orderId = id,
-            customerName = customerName,
-            primaryLabel = garment,
-            daysUntilDeadline = daysUntil
         )
     }
 
@@ -681,46 +612,6 @@ class DashboardViewModel(
 
     private fun Long.toLocalDate(tz: TimeZone): LocalDate =
         Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).date
-
-    private fun Order.toRow(today: LocalDate): DashboardOrderRow {
-        val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
-        val deadlineDate = deadline?.toLocalDate(timeZone)
-        val daysLate = deadlineDate
-            ?.takeIf { it < today }
-            ?.daysUntil(today)
-        return DashboardOrderRow(
-            orderId = id,
-            customerName = customerName,
-            primaryLabel = garment,
-            daysLate = daysLate
-        )
-    }
-
-    private data class Buckets(
-        val overdue: List<DashboardOrderRow>,
-        val dueToday: List<DashboardOrderRow>,
-        val ready: List<DashboardOrderRow>,
-        val outstandingAmount: Double,
-        val outstandingOrderCount: Int,
-        val pipelineInProgress: List<DashboardOrderRow>,
-        val pipelineInProgressTotal: Int,
-        val pipelinePending: List<DashboardOrderRow>,
-        val pipelinePendingTotal: Int,
-        val nextBestActions: List<NextBestAction>
-    ) {
-        /**
-         * True when nothing in the dashboard genuinely needs the user's attention
-         * "now" — i.e., no overdue / due-today / ready-for-pickup orders.
-         *
-         * Outstanding balance on pipeline orders (PENDING / IN_PROGRESS) is
-         * deliberately excluded — money owed on work-in-flight is future revenue,
-         * not urgent triage, so it should not push the dashboard into BusyDay/Focus.
-         * Unpaid OVERDUE / READY orders are still surfaced via their own buckets.
-         */
-        fun isAllTriageEmpty(): Boolean = overdue.isEmpty() &&
-            dueToday.isEmpty() &&
-            ready.isEmpty()
-    }
 }
 
 private fun GarmentType.simpleLabel(): String =
