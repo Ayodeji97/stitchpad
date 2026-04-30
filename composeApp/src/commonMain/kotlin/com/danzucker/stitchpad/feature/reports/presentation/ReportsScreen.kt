@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
@@ -49,6 +51,7 @@ import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsEm
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsLoadingSkeleton
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsPaywallCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsTabRow
+import com.danzucker.stitchpad.feature.reports.presentation.components.SelectedRangeChip
 import com.danzucker.stitchpad.feature.reports.presentation.components.TopCustomersCard
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -176,8 +179,27 @@ fun ReportsScreen(
             ReportsTabRow(
                 selected = state.selectedPeriod,
                 onSelect = { onAction(ReportsAction.OnPeriodSelected(it)) },
-                onCustomTap = { showRangePicker = true }
+                onCustomTap = {
+                    // Switch to CUSTOM up-front so the pill reflects the user's
+                    // intent immediately; data falls back to Week math until a
+                    // range is actually picked.
+                    onAction(ReportsAction.OnPeriodSelected(ReportsPeriod.CUSTOM))
+                    showRangePicker = true
+                }
             )
+            val activeRange = state.customRange
+            if (state.selectedPeriod == ReportsPeriod.CUSTOM && activeRange != null) {
+                SelectedRangeChip(
+                    range = activeRange,
+                    onClick = { showRangePicker = true },
+                    onClear = { onAction(ReportsAction.OnClearCustomRange) },
+                    modifier = Modifier.padding(
+                        start = DesignTokens.space4,
+                        end = DesignTokens.space4,
+                        bottom = DesignTokens.space2
+                    )
+                )
+            }
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
                     state.isLoading -> ReportsLoadingSkeleton(
@@ -199,6 +221,7 @@ fun ReportsScreen(
                         topCustomers = state.topCustomers,
                         debtors = state.debtors,
                         period = state.selectedPeriod,
+                        customRange = state.customRange,
                         today = today,
                         onAction = onAction
                     )
@@ -224,9 +247,10 @@ fun ReportsScreen(
 private fun ReportsContent(
     kpiSummary: KpiSummary?,
     productionCounts: ProductionCounts?,
-    topCustomers: List<CustomerRanking>,
-    debtors: List<DebtorEntry>,
+    topCustomers: CappedList<CustomerRanking>,
+    debtors: CappedList<DebtorEntry>,
     period: ReportsPeriod,
+    customRange: CustomRange?,
     today: LocalDate,
     onAction: (ReportsAction) -> Unit
 ) {
@@ -235,10 +259,17 @@ private fun ReportsContent(
         ReportsPeriod.MONTH -> stringResource(Res.string.reports_delta_vs_last_month)
         ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_delta_vs_last_custom)
     }
+    // For Custom, prefer the actual dates ("Apr 14 – 23") over the generic
+    // "Custom range" label — the chip up top already shows the full range,
+    // but echoing the dates inside each tile reinforces what the value
+    // represents at the point of reading. Falls back to the generic string
+    // until the user has picked a range.
+    val customRangeLabel = customRange?.let(::formatTileRangeLabel)
     val periodLabel = when (period) {
         ReportsPeriod.WEEK -> stringResource(Res.string.reports_period_this_week)
         ReportsPeriod.MONTH -> stringResource(Res.string.reports_period_this_month)
-        ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_period_custom)
+        ReportsPeriod.CUSTOM ->
+            customRangeLabel ?: stringResource(Res.string.reports_period_custom)
     }
     Column(
         modifier = Modifier
@@ -276,6 +307,33 @@ private fun ReportsContent(
             onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) },
             onViewAllClick = { /* Stage 4: navigate to expanded list */ }
         )
+    }
+}
+
+// Compact range label for the KPI tile footer (third line). The
+// SelectedRangeChip shows the full date with year up top, so each tile
+// can drop the year and stay terse:
+//   same month       -> "Apr 14 – 23"
+//   different months -> "Apr 28 – May 5"
+//   different years  -> "Dec 28, 2025 – Jan 3, 2026" (rare; keep year)
+private val MONTH_ABBREV = listOf(
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+)
+
+private fun formatTileRangeLabel(range: CustomRange): String {
+    val start = range.start
+    val end = range.end
+    val startMonth = MONTH_ABBREV[start.monthNumber - 1]
+    val endMonth = MONTH_ABBREV[end.monthNumber - 1]
+    return when {
+        start.year == end.year && start.monthNumber == end.monthNumber ->
+            "$startMonth ${start.dayOfMonth} – ${end.dayOfMonth}"
+        start.year == end.year ->
+            "$startMonth ${start.dayOfMonth} – $endMonth ${end.dayOfMonth}"
+        else ->
+            "$startMonth ${start.dayOfMonth}, ${start.year} – " +
+                "$endMonth ${end.dayOfMonth}, ${end.year}"
     }
 }
 
@@ -347,18 +405,25 @@ private val previewProduction = ProductionCounts(
     delivered = 12
 )
 
-private val previewTopCustomers = listOf(
-    CustomerRanking("c1", "Ade Yinka", 512_400.0, 12, badge = CustomerBadge.VIP),
-    CustomerRanking("c2", "Blessing Tosin", 328_750.0, 9, badge = CustomerBadge.REPEAT),
-    CustomerRanking("c3", "Pooja Paul", 276_300.0, 7, badge = CustomerBadge.REPEAT),
-    CustomerRanking("c4", "Posi John", 198_600.0, 6, badge = CustomerBadge.VIP)
+// 4 shown out of 12 total → preview should render "View all (12)".
+private val previewTopCustomers = CappedList(
+    items = listOf(
+        CustomerRanking("c1", "Ade Yinka", 512_400.0, 12, badge = CustomerBadge.VIP),
+        CustomerRanking("c2", "Blessing Tosin", 328_750.0, 9, badge = CustomerBadge.REPEAT),
+        CustomerRanking("c3", "Pooja Paul", 276_300.0, 7, badge = CustomerBadge.REPEAT),
+        CustomerRanking("c4", "Posi John", 198_600.0, 6, badge = CustomerBadge.VIP)
+    ),
+    totalCount = 12
 )
 
-private val previewDebtors = listOf(
-    DebtorEntry("c1", "Ade Yinka", 78_500.0, 1, oldestDeadline = LocalDate(2026, 5, 10)),
-    DebtorEntry("c2", "Blessing Tosin", 45_000.0, 1, oldestDeadline = LocalDate(2026, 4, 29)),
-    DebtorEntry("c3", "Pooja Paul", 32_500.0, 1, oldestDeadline = LocalDate(2026, 5, 1)),
-    DebtorEntry("c4", "Posi John", 15_000.0, 1, oldestDeadline = LocalDate(2026, 5, 6))
+private val previewDebtors = CappedList(
+    items = listOf(
+        DebtorEntry("c1", "Ade Yinka", 78_500.0, 1, oldestDeadline = LocalDate(2026, 5, 10)),
+        DebtorEntry("c2", "Blessing Tosin", 45_000.0, 1, oldestDeadline = LocalDate(2026, 4, 29)),
+        DebtorEntry("c3", "Pooja Paul", 32_500.0, 1, oldestDeadline = LocalDate(2026, 5, 1)),
+        DebtorEntry("c4", "Posi John", 15_000.0, 1, oldestDeadline = LocalDate(2026, 5, 6))
+    ),
+    totalCount = 7
 )
 
 @Suppress("UnusedPrivateMember")
