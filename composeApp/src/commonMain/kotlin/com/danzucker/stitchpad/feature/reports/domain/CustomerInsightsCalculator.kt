@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.reports.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
@@ -15,11 +16,14 @@ import kotlinx.datetime.toLocalDateTime
 
 private const val DEFAULT_LIMIT = 5
 
-// Hybrid VIP / Repeat thresholds — locked design decision (V2 plan):
-// VIP if lifetime orders >= 5 OR lifetime spend >= 200_000.
+// Hybrid VIP / Repeat thresholds — defaults locked for V2.
+// VIP if lifetime orders >= 5 OR lifetime spend >= 500_000.
 // Repeat if lifetime orders >= 2 (and not VIP).
+// Future: a Settings screen will let each tailor configure their own
+// thresholds (different price ranges across cities/markets); these
+// constants will become the seed values for that.
 private const val VIP_ORDER_COUNT = 5
-private const val VIP_LIFETIME_SPEND = 200_000.0
+private const val VIP_LIFETIME_SPEND = 500_000.0
 private const val REPEAT_ORDER_COUNT = 2
 
 /**
@@ -37,8 +41,8 @@ object CustomerInsightsCalculator {
         timeZone: TimeZone,
         limit: Int = DEFAULT_LIMIT,
         customRange: CustomRange? = null
-    ): List<CustomerRanking> {
-        if (customers.isEmpty()) return emptyList()
+    ): CappedList<CustomerRanking> {
+        if (customers.isEmpty()) return CappedList.empty()
         val (windowStart, windowEnd) = reportsWindow(period, today, timeZone, 0, customRange)
         val customersById = customers.associateBy { it.id }
 
@@ -63,7 +67,10 @@ object CustomerInsightsCalculator {
             acc.count += 1
         }
 
-        return accByCustomer
+        // Realise the full ranked list once so totalCount reflects every eligible
+        // customer (post-filter, pre-cap). The card uses totalCount to decide
+        // whether "View all" is meaningful and what overflow count to show.
+        val ranked = accByCustomer
             .asSequence()
             .mapNotNull { (customerId, acc) ->
                 // Drop customers who placed orders this period but haven't paid anything yet.
@@ -83,8 +90,9 @@ object CustomerInsightsCalculator {
                 compareByDescending<CustomerRanking> { it.totalCollected }
                     .thenBy { it.customerName }
             )
-            .take(limit)
             .toList()
+
+        return CappedList(items = ranked.take(limit), totalCount = ranked.size)
     }
 
     private fun badgeFor(lifetimeOrders: Int, lifetimeSpend: Double): CustomerBadge = when {
@@ -98,8 +106,8 @@ object CustomerInsightsCalculator {
         customers: List<Customer>,
         timeZone: TimeZone,
         limit: Int = DEFAULT_LIMIT
-    ): List<DebtorEntry> {
-        if (customers.isEmpty()) return emptyList()
+    ): CappedList<DebtorEntry> {
+        if (customers.isEmpty()) return CappedList.empty()
         val customersById = customers.associateBy { it.id }
 
         data class Acc(
@@ -123,7 +131,7 @@ object CustomerInsightsCalculator {
                 }
             }
 
-        return accByCustomer
+        val ranked = accByCustomer
             .asSequence()
             .mapNotNull { (customerId, acc) ->
                 val customer = customersById[customerId] ?: return@mapNotNull null
@@ -141,7 +149,8 @@ object CustomerInsightsCalculator {
                 compareByDescending<DebtorEntry> { it.totalOwed }
                     .thenBy { it.customerName }
             )
-            .take(limit)
             .toList()
+
+        return CappedList(items = ranked.take(limit), totalCount = ranked.size)
     }
 }

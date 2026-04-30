@@ -73,7 +73,7 @@ class CustomerInsightsCalculatorTest {
             today = today,
             timeZone = tz
         )
-        assertTrue(result.isEmpty())
+        assertTrue(result.items.isEmpty())
     }
 
     @Test
@@ -91,7 +91,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(listOf("Bola", "Chiamaka", "Adaeze"), result.map { it.customerName })
+        assertEquals(listOf("Bola", "Chiamaka", "Adaeze"), result.items.map { it.customerName })
     }
 
     @Test
@@ -105,9 +105,9 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(1, result.size)
-        assertEquals(40_000.0, result[0].totalCollected)
-        assertEquals(3, result[0].orderCount)
+        assertEquals(1, result.items.size)
+        assertEquals(40_000.0, result.items[0].totalCollected)
+        assertEquals(3, result.items[0].orderCount)
     }
 
     @Test
@@ -120,9 +120,9 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(1, result.size)
-        assertEquals(5_000.0, result[0].totalCollected)
-        assertEquals(1, result[0].orderCount)
+        assertEquals(1, result.items.size)
+        assertEquals(5_000.0, result.items[0].totalCollected)
+        assertEquals(1, result.items[0].orderCount)
     }
 
     @Test
@@ -141,7 +141,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(listOf("NoPhone", "WithPhone"), result.map { it.customerName })
+        assertEquals(listOf("NoPhone", "WithPhone"), result.items.map { it.customerName })
     }
 
     @Test
@@ -160,7 +160,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(listOf("Adaeze", "Mary", "Zoe"), result.map { it.customerName })
+        assertEquals(listOf("Adaeze", "Mary", "Zoe"), result.items.map { it.customerName })
     }
 
     @Test
@@ -178,7 +178,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(listOf("PaidUp"), result.map { it.customerName })
+        assertEquals(listOf("PaidUp"), result.items.map { it.customerName })
     }
 
     @Test
@@ -198,8 +198,8 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.CUSTOM, today, tz, customRange = range
         )
-        assertEquals(1, result.size)
-        assertEquals(10_000.0, result[0].totalCollected)
+        assertEquals(1, result.items.size)
+        assertEquals(10_000.0, result.items[0].totalCollected)
     }
 
     @Test
@@ -212,25 +212,25 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(CustomerBadge.VIP, result.single().badge)
+        assertEquals(CustomerBadge.VIP, result.items.single().badge)
     }
 
     @Test
     fun topCustomersBadgeVipFromLifetimeSpend() {
-        // Single big order pushing >= ₦200k → VIP via spend rule.
+        // Single big order pushing >= ₦500k → VIP via spend rule.
         val customers = listOf(customer("c1", "Adaeze"))
         val orders = listOf(
-            order(id = "o1", customerId = "c1", totalPrice = 250_000.0)
+            order(id = "o1", customerId = "c1", totalPrice = 600_000.0)
         )
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(CustomerBadge.VIP, result.single().badge)
+        assertEquals(CustomerBadge.VIP, result.items.single().badge)
     }
 
     @Test
     fun topCustomersBadgeRepeatBelowVipThresholds() {
-        // 2-4 lifetime orders, < ₦200k spend → Repeat.
+        // 2-4 lifetime orders, < ₦500k spend → Repeat.
         val customers = listOf(customer("c1", "Adaeze"))
         val orders = (1..3).map { i ->
             order(id = "o$i", customerId = "c1", totalPrice = 10_000.0)
@@ -238,7 +238,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(CustomerBadge.REPEAT, result.single().badge)
+        assertEquals(CustomerBadge.REPEAT, result.items.single().badge)
     }
 
     @Test
@@ -251,7 +251,7 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz
         )
-        assertEquals(CustomerBadge.NONE, result.single().badge)
+        assertEquals(CustomerBadge.NONE, result.items.single().badge)
     }
 
     @Test
@@ -263,8 +263,40 @@ class CustomerInsightsCalculatorTest {
         val result = CustomerInsightsCalculator.topCustomers(
             orders, customers, ReportsPeriod.WEEK, today, tz, limit = 3
         )
-        assertEquals(3, result.size)
-        assertEquals(listOf("Customer10", "Customer9", "Customer8"), result.map { it.customerName })
+        assertEquals(3, result.items.size)
+        assertEquals(listOf("Customer10", "Customer9", "Customer8"), result.items.map { it.customerName })
+    }
+
+    @Test
+    fun topCustomersTotalCountReflectsAllEligibleEvenWhenCapped() {
+        // 10 paying customers, capped at 3. totalCount must report all 10 — that's
+        // what powers "View all (10)" on the Reports card.
+        val customers = (1..10).map { customer("c$it", "Customer$it") }
+        val orders = (1..10).map {
+            order(id = "o$it", customerId = "c$it", totalPrice = (it * 1_000.0))
+        }
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz, limit = 3
+        )
+        assertEquals(10, result.totalCount)
+        assertTrue(result.hasMore)
+    }
+
+    @Test
+    fun topCustomersHasMoreFalseWhenAllFitWithinLimit() {
+        // 2 paying customers, default limit (5). Nothing hidden → hasMore == false,
+        // so the card hides "View all" entirely.
+        val customers = listOf(customer("c1", "Adaeze"), customer("c2", "Bola"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0),
+            order(id = "o2", customerId = "c2", totalPrice = 20_000.0)
+        )
+        val result = CustomerInsightsCalculator.topCustomers(
+            orders, customers, ReportsPeriod.WEEK, today, tz
+        )
+        assertEquals(2, result.totalCount)
+        assertEquals(2, result.items.size)
+        assertEquals(false, result.hasMore)
     }
 
     // -------- debtors --------
@@ -280,7 +312,7 @@ class CustomerInsightsCalculatorTest {
             )
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertTrue(result.isEmpty())
+        assertTrue(result.items.isEmpty())
     }
 
     @Test
@@ -295,10 +327,10 @@ class CustomerInsightsCalculatorTest {
             )
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertEquals(1, result.size)
-        assertEquals(45_000.0, result[0].totalOwed)
+        assertEquals(1, result.items.size)
+        assertEquals(45_000.0, result.items[0].totalOwed)
         // Counts only the unpaid, non-delivered orders.
-        assertEquals(2, result[0].orderCount)
+        assertEquals(2, result.items[0].orderCount)
     }
 
     @Test
@@ -316,8 +348,8 @@ class CustomerInsightsCalculatorTest {
             )
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].orderCount)
+        assertEquals(1, result.items.size)
+        assertEquals(1, result.items[0].orderCount)
     }
 
     @Test
@@ -333,7 +365,7 @@ class CustomerInsightsCalculatorTest {
             order(id = "o3", customerId = "c3", totalPrice = 10_000.0, balanceRemaining = 10_000.0)
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertEquals(listOf("Bola", "Adaeze", "Chiamaka"), result.map { it.customerName })
+        assertEquals(listOf("Bola", "Adaeze", "Chiamaka"), result.items.map { it.customerName })
     }
 
     @Test
@@ -352,8 +384,8 @@ class CustomerInsightsCalculatorTest {
             )
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertEquals(1, result.size)
-        assertEquals(LocalDate(2026, 3, 1), result[0].oldestDeadline)
+        assertEquals(1, result.items.size)
+        assertEquals(LocalDate(2026, 3, 1), result.items[0].oldestDeadline)
     }
 
     @Test
@@ -366,8 +398,8 @@ class CustomerInsightsCalculatorTest {
             )
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertEquals(1, result.size)
-        assertNull(result[0].oldestDeadline)
+        assertEquals(1, result.items.size)
+        assertNull(result.items[0].oldestDeadline)
     }
 
     @Test
@@ -377,7 +409,7 @@ class CustomerInsightsCalculatorTest {
             order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 0.0)
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertTrue(result.isEmpty())
+        assertTrue(result.items.isEmpty())
     }
 
     @Test
@@ -387,6 +419,38 @@ class CustomerInsightsCalculatorTest {
             order(id = "o1", customerId = "ghost", totalPrice = 99_000.0, balanceRemaining = 99_000.0)
         )
         val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
-        assertTrue(result.isEmpty())
+        assertTrue(result.items.isEmpty())
+    }
+
+    @Test
+    fun debtorsTotalCountReflectsAllOwingEvenWhenCapped() {
+        // 8 debtors, capped at 3. totalCount must surface 8 so the card can
+        // render "View all (8)" instead of a misleading bare "View all".
+        val customers = (1..8).map { customer("c$it", "Debtor$it") }
+        val orders = (1..8).map {
+            order(
+                id = "o$it",
+                customerId = "c$it",
+                totalPrice = (it * 1_000.0),
+                balanceRemaining = (it * 1_000.0)
+            )
+        }
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz, limit = 3)
+        assertEquals(3, result.items.size)
+        assertEquals(8, result.totalCount)
+        assertTrue(result.hasMore)
+    }
+
+    @Test
+    fun debtorsHasMoreFalseWhenAllFitWithinLimit() {
+        val customers = listOf(customer("c1", "Adaeze"), customer("c2", "Bola"))
+        val orders = listOf(
+            order(id = "o1", customerId = "c1", totalPrice = 10_000.0, balanceRemaining = 5_000.0),
+            order(id = "o2", customerId = "c2", totalPrice = 20_000.0, balanceRemaining = 20_000.0)
+        )
+        val result = CustomerInsightsCalculator.debtors(orders, customers, tz)
+        assertEquals(2, result.totalCount)
+        assertEquals(2, result.items.size)
+        assertEquals(false, result.hasMore)
     }
 }
