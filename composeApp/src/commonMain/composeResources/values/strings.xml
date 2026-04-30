@@ -130,6 +130,7 @@
     <string name="reports_aging_due_today">Due today</string>
     <string name="reports_aging_due_tomorrow">Due tomorrow</string>
     <string name="reports_aging_due_in_days">Due in %1$d days</string>
+    <string name="reports_aging_no_due_date">No due date</string>
     <string name="reports_view_all">View all</string>
     <string name="reports_badge_vip">VIP</string>
     <string name="reports_badge_repeat">Repeat</string>
