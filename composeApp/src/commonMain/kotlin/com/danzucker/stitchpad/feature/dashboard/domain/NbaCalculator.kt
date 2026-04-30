@@ -50,6 +50,14 @@ object NbaCalculator {
             val garment = order.items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
             val deadlineDate = order.deadline?.toLocalDate(timeZone)
             val daysUntilDeadline = deadlineDate?.let { today.daysUntil(it) }
+            // Computed once per order — only READY / IN_PROGRESS branches consume it. Avoids the
+            // earlier per-branch double-scan of statusHistory inside the when expression.
+            val transitionDays = when (order.status) {
+                OrderStatus.READY,
+                OrderStatus.IN_PROGRESS ->
+                    daysSinceLastTransitionTo(order, order.status, today, timeZone)
+                else -> 0
+            }
 
             val action = when {
                 deadlineDate != null && deadlineDate < today && order.balanceRemaining > 0.0 ->
@@ -68,27 +76,25 @@ object NbaCalculator {
                         customer = customer,
                         garment = garment,
                         balance = order.balanceRemaining,
-                        days = daysSinceLastTransitionTo(order, OrderStatus.READY, today, timeZone)
+                        days = transitionDays
                     )
-                order.status == OrderStatus.IN_PROGRESS &&
-                    daysSinceLastTransitionTo(order, OrderStatus.IN_PROGRESS, today, timeZone) > FINISH_STALE_DAYS ->
+                order.status == OrderStatus.IN_PROGRESS && transitionDays > FINISH_STALE_DAYS ->
                     buildAction(
                         type = NextBestActionType.FinishStale,
                         order = order,
                         customer = customer,
                         garment = garment,
                         balance = order.balanceRemaining,
-                        days = daysSinceLastTransitionTo(order, OrderStatus.IN_PROGRESS, today, timeZone)
+                        days = transitionDays
                     )
-                order.status == OrderStatus.READY &&
-                    daysSinceLastTransitionTo(order, OrderStatus.READY, today, timeZone) > DELIVER_STALE_DAYS ->
+                order.status == OrderStatus.READY && transitionDays > DELIVER_STALE_DAYS ->
                     buildAction(
                         type = NextBestActionType.DeliverStale,
                         order = order,
                         customer = customer,
                         garment = garment,
                         balance = order.balanceRemaining,
-                        days = daysSinceLastTransitionTo(order, OrderStatus.READY, today, timeZone)
+                        days = transitionDays
                     )
                 order.status == OrderStatus.PENDING &&
                     order.depositPaid == 0.0 &&
