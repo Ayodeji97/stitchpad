@@ -278,16 +278,16 @@ private fun DashboardContent(
             )
         }
 
-        // BrandNew renders an onboarding-focused screen: hero + 3-step tile grid,
-        // no empty-state cards. The other six states fall through to the
-        // standard sections below.
+        // BrandNew adds a 3-step onboarding tile grid above the standard
+        // sections. The other six states skip this insert. The remaining
+        // sections (weekly goal, work pipeline, etc.) still render so the
+        // operator sees the empty-state guidance for each.
         if (state.uiState == DashboardUiState.BrandNew) {
             OnboardingStepsCard(
                 onAddCustomerClick = { onAction(DashboardAction.OnNewCustomerClick) },
                 onSaveMeasurementsClick = { onAction(DashboardAction.OnAddMeasurementClick) },
                 onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
             )
-            return@Column
         }
 
         // 3. Weekly goal card
