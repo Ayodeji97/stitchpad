@@ -651,8 +651,8 @@
     <string name="onboarding_step_order_desc">Create your first custom outfit</string>
 
     <!-- Add-customer-first gate screen (shown when BrandNew taps a CTA that needs a customer) -->
-    <string name="add_customer_first_title">Add a customer first</string>
-    <string name="add_customer_first_supporting">To create orders and save measurements, start by adding a customer to your shop. You'll be able to do everything else once they're in.</string>
+    <string name="add_customer_first_title">Add your first customer</string>
+    <string name="add_customer_first_supporting">Every order starts with a customer. Add your first one to save measurements and start creating outfits made just for them.</string>
     <string name="add_customer_first_cta">Add customer</string>
     <string name="add_customer_first_back_cd">Back to dashboard</string>
 
