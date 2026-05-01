@@ -126,6 +126,7 @@ fun DashboardRoot(
     onNavigateToCustomers: () -> Unit,
     onNavigateToGoalSetup: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToAddCustomerFirst: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -143,6 +144,7 @@ fun DashboardRoot(
             DashboardEvent.NavigateToCustomers -> onNavigateToCustomers()
             DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
             DashboardEvent.NavigateToSettings -> onNavigateToSettings()
+            DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
             is DashboardEvent.LaunchWhatsApp -> {
                 scope.launch {
                     val message = buildWhatsAppMessage(event.action, signature)

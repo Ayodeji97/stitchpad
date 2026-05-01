@@ -13,4 +13,12 @@ sealed interface DashboardEvent {
     data object NavigateToCustomers : DashboardEvent
     data object NavigateToGoalSetup : DashboardEvent
     data object NavigateToSettings : DashboardEvent
+
+    /**
+     * BrandNew safety gate: when there are no customers yet, taps that
+     * would dead-end on the order/measurement form (hero CTA, "Create
+     * order" tile, "Measurement" tile) route here instead. The screen
+     * itself routes onward to the customer form.
+     */
+    data object NavigateToAddCustomerFirst : DashboardEvent
 }

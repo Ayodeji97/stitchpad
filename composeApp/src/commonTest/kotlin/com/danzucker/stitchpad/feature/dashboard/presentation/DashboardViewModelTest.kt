@@ -1010,6 +1010,53 @@ class DashboardViewModelTest {
     // --- Focus CTA routing ---
 
     @Test
+    fun focusCtaClick_inBrandNewVariant_emitsNavigateToAddCustomerFirst() = runTest {
+        signIn()
+        // No customers, no orders → BrandNew. The hero CTA must route to
+        // the gate screen, not OrderForm (no customer exists yet).
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, event)
+    }
+
+    @Test
+    fun createOrderClick_inBrandNew_emitsNavigateToAddCustomerFirst() = runTest {
+        signIn()
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnCreateOrderClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, event)
+    }
+
+    @Test
+    fun addMeasurementClick_inBrandNew_emitsNavigateToAddCustomerFirst() = runTest {
+        signIn()
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnAddMeasurementClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, event)
+    }
+
+    @Test
+    fun addMeasurementClick_outsideBrandNew_emitsNavigateToCustomers() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnAddMeasurementClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToCustomers, event)
+    }
+
+    @Test
     fun focusCtaClick_inFirstOrderVariant_emitsNavigateToOrderForm() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())

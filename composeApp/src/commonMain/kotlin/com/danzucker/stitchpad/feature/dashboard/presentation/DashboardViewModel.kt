@@ -82,9 +82,21 @@ class DashboardViewModel(
             DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
             DashboardAction.OnNewOrderClick -> emitEvent(DashboardEvent.NavigateToOrderForm)
-            DashboardAction.OnCreateOrderClick -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            DashboardAction.OnCreateOrderClick -> emitEvent(
+                if (_state.value.uiState == DashboardUiState.BrandNew) {
+                    DashboardEvent.NavigateToAddCustomerFirst
+                } else {
+                    DashboardEvent.NavigateToOrderForm
+                }
+            )
             DashboardAction.OnNewCustomerClick -> emitEvent(DashboardEvent.NavigateToCustomerForm)
-            DashboardAction.OnAddMeasurementClick -> emitEvent(DashboardEvent.NavigateToCustomers)
+            DashboardAction.OnAddMeasurementClick -> emitEvent(
+                if (_state.value.uiState == DashboardUiState.BrandNew) {
+                    DashboardEvent.NavigateToAddCustomerFirst
+                } else {
+                    DashboardEvent.NavigateToCustomers
+                }
+            )
             DashboardAction.OnGoalsCardClick -> emitEvent(DashboardEvent.NavigateToGoalSetup)
             DashboardAction.OnFocusCtaClick -> handleFocusCtaClick()
             DashboardAction.OnSettingsClick -> emitEvent(DashboardEvent.NavigateToSettings)
@@ -106,7 +118,7 @@ class DashboardViewModel(
     private fun handleFocusCtaClick() {
         val current = _state.value
         when (current.focusVariant) {
-            FocusVariant.BrandNew -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            FocusVariant.BrandNew -> emitEvent(DashboardEvent.NavigateToAddCustomerFirst)
             FocusVariant.FirstOrder -> emitEvent(DashboardEvent.NavigateToOrderForm)
             FocusVariant.Focus -> {
                 val firstUrgentId = current.overdue.firstOrNull()?.orderId

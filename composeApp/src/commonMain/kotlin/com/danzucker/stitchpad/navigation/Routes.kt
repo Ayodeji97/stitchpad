@@ -53,6 +53,15 @@ data class OrderDetailRoute(val orderId: String)
 @Serializable
 data object DashboardRoute
 
+/**
+ * Gate screen pushed from the dashboard when the user is BrandNew and
+ * taps an action that requires an existing customer ("Create first order"
+ * hero CTA, "Create order" tile, "Measurement" tile). The screen itself
+ * routes onward to [CustomerFormRoute].
+ */
+@Serializable
+data object AddCustomerFirstRoute
+
 @Serializable
 data object GoalSetupRoute
 

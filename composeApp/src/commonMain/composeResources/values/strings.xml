@@ -645,10 +645,16 @@
     <!-- Dashboard onboarding steps (BrandNew state, 3-up tile grid) -->
     <string name="onboarding_step_customer_label">Add customer</string>
     <string name="onboarding_step_customer_desc">Add a new customer to get started</string>
-    <string name="onboarding_step_measurement_label">Save measurements</string>
+    <string name="onboarding_step_measurement_label">Measurement</string>
     <string name="onboarding_step_measurement_desc">Record body measurements</string>
     <string name="onboarding_step_order_label">Create order</string>
     <string name="onboarding_step_order_desc">Create your first custom outfit</string>
+
+    <!-- Add-customer-first gate screen (shown when BrandNew taps a CTA that needs a customer) -->
+    <string name="add_customer_first_title">Add a customer first</string>
+    <string name="add_customer_first_supporting">To create orders and save measurements, start by adding a customer to your shop. You'll be able to do everything else once they're in.</string>
+    <string name="add_customer_first_cta">Add customer</string>
+    <string name="add_customer_first_back_cd">Back to dashboard</string>
 
     <!-- Dashboard ReconnectChipStrip -->
     <string name="reconnect_section">Reconnect</string>
