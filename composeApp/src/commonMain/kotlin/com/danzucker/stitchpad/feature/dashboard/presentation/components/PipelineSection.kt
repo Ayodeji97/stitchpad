@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
@@ -58,11 +59,16 @@ fun PipelineSection(
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (isEmpty) {
+            // Saffron tint backdrop. Bumped up on dark mode where 12% alpha
+            // disappears against a near-black surface; light mode keeps the
+            // more subtle wash so the card doesn't look saturated.
+            val backdropAlpha = if (isSystemInDarkTheme()) 0.22f else 0.14f
             EmptyIllustrationCard(
                 slot = EmptyIllustrationSlot.Pipeline,
                 title = stringResource(Res.string.dashboard_pipeline_empty_title),
                 supporting = stringResource(Res.string.dashboard_pipeline_empty_supporting),
-                illustrationBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                illustrationBackground = MaterialTheme.colorScheme.primary.copy(alpha = backdropAlpha),
+                largeIllustration = true,
             )
             return@Column
         }

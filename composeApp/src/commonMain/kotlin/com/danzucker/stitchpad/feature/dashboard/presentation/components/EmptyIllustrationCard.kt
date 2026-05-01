@@ -30,6 +30,8 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 private val ILLUSTRATION_SIZE = 72.dp
 private val ILLUSTRATION_BACKDROP_SIZE = 96.dp
+private val ILLUSTRATION_BACKDROP_WIDTH_LARGE = 128.dp
+private val ILLUSTRATION_SIZE_LARGE = 96.dp
 
 @Composable
 fun EmptyIllustrationCard(
@@ -40,8 +42,12 @@ fun EmptyIllustrationCard(
     ctaLabel: String? = null,
     onCtaClick: () -> Unit = {},
     illustrationBackground: Color? = null,
+    largeIllustration: Boolean = false,
 ) {
     val drawable = remember(slot) { emptyIllustrationFor(slot) }
+    val illustrationSize = if (largeIllustration) ILLUSTRATION_SIZE_LARGE else ILLUSTRATION_SIZE
+    val backdropWidth = if (largeIllustration) ILLUSTRATION_BACKDROP_WIDTH_LARGE else ILLUSTRATION_BACKDROP_SIZE
+    val backdropHeight = ILLUSTRATION_BACKDROP_SIZE
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
@@ -56,17 +62,17 @@ fun EmptyIllustrationCard(
             if (illustrationBackground != null) {
                 Box(
                     modifier = Modifier
-                        .size(ILLUSTRATION_BACKDROP_SIZE)
+                        .size(width = backdropWidth, height = backdropHeight)
                         .background(
                             color = illustrationBackground,
                             shape = RoundedCornerShape(DesignTokens.radiusLg),
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    DashboardIllustration(drawable = drawable, size = ILLUSTRATION_SIZE)
+                    DashboardIllustration(drawable = drawable, size = illustrationSize)
                 }
             } else {
-                DashboardIllustration(drawable = drawable, size = ILLUSTRATION_SIZE)
+                DashboardIllustration(drawable = drawable, size = illustrationSize)
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(

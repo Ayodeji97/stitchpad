@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -62,7 +64,9 @@ fun OnboardingStepsCard(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
     ) {
         OnboardingStepTile(
@@ -70,21 +74,27 @@ fun OnboardingStepsCard(
             label = stringResource(Res.string.onboarding_step_customer_label),
             description = stringResource(Res.string.onboarding_step_customer_desc),
             onClick = onAddCustomerClick,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
         )
         OnboardingStepTile(
             icon = Icons.Default.Straighten,
             label = stringResource(Res.string.onboarding_step_measurement_label),
             description = stringResource(Res.string.onboarding_step_measurement_desc),
             onClick = onSaveMeasurementsClick,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
         )
         OnboardingStepTile(
             icon = Icons.AutoMirrored.Filled.NoteAdd,
             label = stringResource(Res.string.onboarding_step_order_label),
             description = stringResource(Res.string.onboarding_step_order_desc),
             onClick = onCreateOrderClick,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
         )
     }
 }
@@ -135,7 +145,7 @@ private fun OnboardingStepTile(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = scheme.onSurface,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

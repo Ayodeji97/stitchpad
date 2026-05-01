@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,15 +31,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
+private val PROMINENT_ILLUSTRATION_SIZE = 140.dp
+private val SPARKLE_BADGE_SIZE = 36.dp
+
 private data class FocusCardPalette(
     val border: Color,
     val ctaTint: Color,
     val backgroundGradient: Brush?,
+    val prominent: Boolean = false,
 )
 
 private fun paletteFor(
@@ -53,6 +61,7 @@ private fun paletteFor(
                 surface,
             ),
         ),
+        prominent = true,
     )
     FocusVariant.FirstOrder -> FocusCardPalette(
         border = DesignTokens.info500.copy(alpha = 0.25f),
@@ -130,6 +139,18 @@ fun IllustratedFocusCard(
     val drawable = remember(variant) { heroIllustrationFor(variant) }
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
 
+    val titleStyle = if (palette.prominent) {
+        MaterialTheme.typography.headlineSmall
+    } else {
+        MaterialTheme.typography.titleSmall
+    }
+    val supportingStyle = if (palette.prominent) {
+        MaterialTheme.typography.bodyMedium
+    } else {
+        MaterialTheme.typography.bodySmall
+    }
+    val cardPadding: Dp = if (palette.prominent) DesignTokens.space5 else DesignTokens.space4
+
     // Surface(onClick=...) is not available in this project's Material3 version.
     // Using Surface + Modifier.clickable follows the pattern from WeeklyGoalsCard.
     Surface(
@@ -150,27 +171,31 @@ fun IllustratedFocusCard(
                         Modifier
                     },
                 )
-                .padding(DesignTokens.space4),
+                .padding(cardPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                if (palette.prominent) {
+                    SparkleBadge(tint = palette.ctaTint)
+                    Spacer(Modifier.height(DesignTokens.space3))
+                }
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = titleStyle,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 if (supporting != null) {
-                    Spacer(Modifier.height(DesignTokens.space1))
+                    Spacer(Modifier.height(DesignTokens.space2))
                     Text(
                         text = supporting,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = supportingStyle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (ctaLabel != null) {
-                    Spacer(Modifier.height(DesignTokens.space2))
+                    Spacer(Modifier.height(DesignTokens.space3))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
@@ -190,8 +215,28 @@ fun IllustratedFocusCard(
                     }
                 }
             }
-            DashboardIllustration(drawable = drawable)
+            DashboardIllustration(
+                drawable = drawable,
+                size = if (palette.prominent) PROMINENT_ILLUSTRATION_SIZE else 88.dp,
+            )
         }
+    }
+}
+
+@Composable
+private fun SparkleBadge(tint: Color) {
+    Box(
+        modifier = Modifier
+            .size(SPARKLE_BADGE_SIZE)
+            .background(color = tint.copy(alpha = 0.15f), shape = CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

@@ -145,7 +145,7 @@
     <string name="reports_paywall_body">See revenue trends, top customers, production status, and outstanding balances at a glance.</string>
     <string name="reports_paywall_cta">Upgrade to Premium</string>
     <string name="reports_reminder_template">Hi %1$s, friendly reminder — you have an outstanding balance of ₦%2$s on your order. Could you settle it when convenient? Thanks!</string>
-    <string name="reports_whatsapp_launch_failed">Couldn\'t open WhatsApp</string>
+    <string name="reports_whatsapp_launch_failed">Couldn't open WhatsApp</string>
     <string name="reports_orders_count">×%1$d orders</string>
     <string name="reports_orders_count_one">×1 order</string>
     <string name="reports_empty_title">No revenue yet</string>
@@ -592,7 +592,7 @@
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
     <!-- TodayWorkCard -->
-    <string name="dashboard_today_work_title">Today\'s Work</string>
+    <string name="dashboard_today_work_title">Today's Work</string>
     <string name="dashboard_today_work_view_all">View all (%1$d)</string>
 
     <!-- ReconnectChipStrip -->
@@ -600,7 +600,7 @@
     <string name="dashboard_reconnect_view_all">View all reconnect candidates</string>
 
     <!-- Dashboard IllustratedFocusCard -->
-    <string name="focus_brand_new_title">Let\'s create your first order</string>
+    <string name="focus_brand_new_title">Let's create your first order</string>
     <string name="focus_brand_new_supporting">Add a customer, save measurements, and create your first custom outfit.</string>
     <string name="focus_brand_new_cta">Create first order</string>
     <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
@@ -624,7 +624,7 @@
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
     <string name="dashboard_pipeline_empty_title">No work in flight yet</string>
-    <string name="dashboard_pipeline_empty_supporting">When you create orders, they\'ll appear here.</string>
+    <string name="dashboard_pipeline_empty_supporting">When you create orders, they'll appear here.</string>
     <string name="dashboard_pipeline_empty_cta">Create order</string>
     <string name="dashboard_nba_empty_title">No suggested moves</string>
     <string name="dashboard_nba_empty_supporting">Show up when balances or deadlines need follow-up.</string>
