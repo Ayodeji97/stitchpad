@@ -16,18 +16,23 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_due_in_days
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_empty_supporting
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_empty_title
 import stitchpad.composeapp.generated.resources.dashboard_pipeline_in_progress
 import stitchpad.composeapp.generated.resources.dashboard_pipeline_pending
 import stitchpad.composeapp.generated.resources.dashboard_section_pipeline
 
 /**
- * V1-style stacked pipeline section.
+ * V1-style stacked work-pipeline section.
  *
- * Renders a "PIPELINE" section label followed by two stacked subsections:
- * "In progress (n)" and "Not started yet (n)". Each subsection only renders
- * when its total count is > 0. Each row is a full-width [AccentedOrderRow]
- * using a neutral accent colour (outline / surfaceVariant), matching the
- * original V1 accentColorsFor(RowAccent.Pipeline) output.
+ * Renders a "Work pipeline" section header followed by either:
+ *  - the stacked "In progress (n)" / "Not started yet (n)" subsections when
+ *    there is work, or
+ *  - an empty-state illustration card with a saffron-tinted backdrop when
+ *    both totals are zero.
+ *
+ * The header sits above whatever inner state is rendered so the label
+ * never disappears between empty and populated.
  */
 @Composable
 fun PipelineSection(
@@ -40,17 +45,27 @@ fun PipelineSection(
 ) {
     val accentFg = MaterialTheme.colorScheme.outline
     val accentBg = MaterialTheme.colorScheme.surfaceVariant
+    val isEmpty = inProgressTotal == 0 && notStartedTotal == 0
 
     Column(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = modifier,
     ) {
         Text(
-            text = stringResource(Res.string.dashboard_section_pipeline).uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            text = stringResource(Res.string.dashboard_section_pipeline),
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
         )
+        if (isEmpty) {
+            EmptyIllustrationCard(
+                slot = EmptyIllustrationSlot.Pipeline,
+                title = stringResource(Res.string.dashboard_pipeline_empty_title),
+                supporting = stringResource(Res.string.dashboard_pipeline_empty_supporting),
+                illustrationBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            )
+            return@Column
+        }
         if (inProgressTotal > 0) {
             PipelineSubsection(
                 title = stringResource(Res.string.dashboard_pipeline_in_progress, inProgressTotal),
@@ -167,6 +182,36 @@ private fun PipelineSectionDarkPreview() {
             inProgressTotal = 3,
             notStarted = sampleNotStartedRows(),
             notStartedTotal = 2,
+            onRowClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun PipelineSectionEmptyLightPreview() {
+    StitchPadTheme {
+        PipelineSection(
+            inProgress = emptyList(),
+            inProgressTotal = 0,
+            notStarted = emptyList(),
+            notStartedTotal = 0,
+            onRowClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun PipelineSectionEmptyDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        PipelineSection(
+            inProgress = emptyList(),
+            inProgressTotal = 0,
+            notStarted = emptyList(),
+            notStartedTotal = 0,
             onRowClick = {},
         )
     }

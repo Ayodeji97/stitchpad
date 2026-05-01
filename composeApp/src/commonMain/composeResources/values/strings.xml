@@ -563,7 +563,7 @@
     <!-- Dashboard NBA + pipeline + loading -->
     <string name="dashboard_loading_cd">Loading dashboard</string>
     <string name="dashboard_section_next_actions">Next best actions</string>
-    <string name="dashboard_section_pipeline">Pipeline</string>
+    <string name="dashboard_section_pipeline">Work pipeline</string>
     <string name="dashboard_pipeline_in_progress">In progress (%1$d)</string>
     <string name="dashboard_pipeline_pending">Not started yet (%1$d)</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->

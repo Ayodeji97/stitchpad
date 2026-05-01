@@ -100,9 +100,6 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_finish_stale_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
-import stitchpad.composeapp.generated.resources.dashboard_pipeline_empty_cta
-import stitchpad.composeapp.generated.resources.dashboard_pipeline_empty_supporting
-import stitchpad.composeapp.generated.resources.dashboard_pipeline_empty_title
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_overdue
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_ready
@@ -325,25 +322,15 @@ private fun DashboardContent(
             )
         }
 
-        // 6. Pipeline (stacked subsections). Empty state shows EmptyIllustrationCard with CTA.
-        val pipelineEmpty = state.pipelineInProgressTotal == 0 && state.pipelinePendingTotal == 0
-        if (pipelineEmpty) {
-            EmptyIllustrationCard(
-                slot = EmptyIllustrationSlot.Pipeline,
-                title = stringResource(Res.string.dashboard_pipeline_empty_title),
-                supporting = stringResource(Res.string.dashboard_pipeline_empty_supporting),
-                ctaLabel = stringResource(Res.string.dashboard_pipeline_empty_cta),
-                onCtaClick = { onAction(DashboardAction.OnCreateOrderClick) },
-            )
-        } else {
-            PipelineSection(
-                inProgress = state.pipelineInProgress,
-                inProgressTotal = state.pipelineInProgressTotal,
-                notStarted = state.pipelinePending,
-                notStartedTotal = state.pipelinePendingTotal,
-                onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
-            )
-        }
+        // 6. Work pipeline — self-handles empty + populated states. The
+        //    "Work pipeline" header sits above whichever inner state renders.
+        PipelineSection(
+            inProgress = state.pipelineInProgress,
+            inProgressTotal = state.pipelineInProgressTotal,
+            notStarted = state.pipelinePending,
+            notStartedTotal = state.pipelinePendingTotal,
+            onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
+        )
 
         // 7. Reconnect chip-strip (hides itself when candidates list is empty)
         ReconnectChipStrip(
