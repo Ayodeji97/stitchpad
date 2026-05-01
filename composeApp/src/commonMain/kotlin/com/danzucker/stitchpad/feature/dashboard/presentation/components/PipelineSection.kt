@@ -59,10 +59,10 @@ fun PipelineSection(
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (isEmpty) {
-            // Saffron tint backdrop. Bumped up on dark mode where 12% alpha
-            // disappears against a near-black surface; light mode keeps the
-            // more subtle wash so the card doesn't look saturated.
-            val backdropAlpha = if (isSystemInDarkTheme()) 0.22f else 0.14f
+            // Saffron tint backdrop. Kept very low — saffron against a
+            // near-black surface saturates into brown quickly, so dark
+            // gets a tighter alpha than light.
+            val backdropAlpha = if (isSystemInDarkTheme()) 0.08f else 0.12f
             EmptyIllustrationCard(
                 slot = EmptyIllustrationSlot.Pipeline,
                 title = stringResource(Res.string.dashboard_pipeline_empty_title),
