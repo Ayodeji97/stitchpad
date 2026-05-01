@@ -36,6 +36,7 @@ data class DashboardState(
     val focusHeadline: UiText? = null,
     val focusSupporting: UiText? = null,
     val focusCtaLabel: UiText? = null,
+    val focusCtaSubtitle: UiText? = null,
     // Reconnect (S2/S3/S4 surfaces)
     val reconnectCandidates: List<ReconnectCandidate> = emptyList(),
     // Weekly goal — null when the user hasn't set one. Sourced from WeeklyGoalRepository.

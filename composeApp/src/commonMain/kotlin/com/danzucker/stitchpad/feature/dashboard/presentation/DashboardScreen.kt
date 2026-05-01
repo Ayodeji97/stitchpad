@@ -294,6 +294,7 @@ private fun DashboardContent(
                 title = focusTitle,
                 supporting = state.focusSupporting?.asString(),
                 ctaLabel = state.focusCtaLabel?.asString(),
+                ctaSubtitle = state.focusCtaSubtitle?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
             )
         }

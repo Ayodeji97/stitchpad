@@ -30,5 +30,11 @@ data class FocusResolution(
     val variant: FocusVariant,
     val headline: UiText,
     val supporting: UiText?,
-    val ctaLabel: UiText?
+    val ctaLabel: UiText?,
+    /**
+     * Optional second line shown beneath the CTA, smaller and muted.
+     * Used to split off a "for [customer name]" target from the action verb
+     * — e.g. CTA reads "Create order →" with subtitle "for Omobolanle Johnson".
+     */
+    val ctaSubtitle: UiText? = null
 )

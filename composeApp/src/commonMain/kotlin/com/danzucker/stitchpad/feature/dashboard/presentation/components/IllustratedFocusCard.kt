@@ -139,6 +139,7 @@ fun IllustratedFocusCard(
     ctaLabel: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    ctaSubtitle: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val primary = scheme.primary
@@ -219,6 +220,14 @@ fun IllustratedFocusCard(
                             contentDescription = null,
                             tint = palette.ctaTint,
                             modifier = Modifier.size(DesignTokens.iconInline),
+                        )
+                    }
+                    if (ctaSubtitle != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = ctaSubtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -334,7 +343,8 @@ private fun IllustratedFocusCardFirstOrderPreview() {
             variant = FocusVariant.FirstOrder,
             title = "Time for your first order",
             supporting = "Save measurements for Ola Kunle and start creating their first outfit.",
-            ctaLabel = "Create order for Ola Kunle",
+            ctaLabel = "Create order",
+            ctaSubtitle = "for Ola Kunle",
             onClick = {},
         )
     }

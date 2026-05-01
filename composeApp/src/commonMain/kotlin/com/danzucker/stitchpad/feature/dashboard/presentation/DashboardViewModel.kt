@@ -224,6 +224,7 @@ class DashboardViewModel(
                         focusHeadline = focus.headline,
                         focusSupporting = focus.supporting,
                         focusCtaLabel = focus.ctaLabel,
+                        focusCtaSubtitle = focus.ctaSubtitle,
                         reconnectCandidates = reconnect,
                         weeklyGoal = weeklyGoal,
                         errorMessage = error
