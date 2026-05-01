@@ -10,6 +10,9 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.focus_brand_new_cta
+import stitchpad.composeapp.generated.resources.focus_brand_new_supporting
+import stitchpad.composeapp.generated.resources.focus_brand_new_title
 import stitchpad.composeapp.generated.resources.focus_busy_cta
 import stitchpad.composeapp.generated.resources.focus_busy_supporting
 import stitchpad.composeapp.generated.resources.focus_busy_title
@@ -182,9 +185,9 @@ object FocusResolver {
         }
         DashboardUiState.BrandNew -> FocusResolution(
             variant = FocusVariant.BrandNew,
-            headline = UiText.StringResourceText(Res.string.focus_quiet_title),
-            supporting = null,
-            ctaLabel = null
+            headline = UiText.StringResourceText(Res.string.focus_brand_new_title),
+            supporting = UiText.StringResourceText(Res.string.focus_brand_new_supporting),
+            ctaLabel = UiText.StringResourceText(Res.string.focus_brand_new_cta)
         )
         DashboardUiState.Loading -> FocusResolution(
             // Loading is the transient initial state before data arrives.

@@ -49,6 +49,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellBut
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectChipStrip
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
@@ -278,6 +279,18 @@ private fun DashboardContent(
                 ctaLabel = state.focusCtaLabel?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
             )
+        }
+
+        // BrandNew renders an onboarding-focused screen: hero + 3-step tile grid,
+        // no empty-state cards. The other six states fall through to the
+        // standard sections below.
+        if (state.uiState == DashboardUiState.BrandNew) {
+            OnboardingStepsCard(
+                onAddCustomerClick = { onAction(DashboardAction.OnNewCustomerClick) },
+                onSaveMeasurementsClick = { onAction(DashboardAction.OnAddMeasurementClick) },
+                onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
+            )
+            return@Column
         }
 
         // 3. Weekly goal card

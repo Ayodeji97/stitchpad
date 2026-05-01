@@ -277,6 +277,9 @@ class FocusResolverTest {
             reconnect = emptyList()
         )
         assertEquals(FocusVariant.BrandNew, brandNew.variant)
-        assertNull(brandNew.ctaLabel)
+        // BrandNew is the onboarding state — must surface a CTA so the new
+        // user has a clear path forward (Create first order).
+        assertNotNull(brandNew.ctaLabel)
+        assertNotNull(brandNew.supporting)
     }
 }

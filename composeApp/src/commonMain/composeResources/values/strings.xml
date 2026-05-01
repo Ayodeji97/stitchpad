@@ -600,6 +600,9 @@
     <string name="dashboard_reconnect_view_all">View all reconnect candidates</string>
 
     <!-- Dashboard IllustratedFocusCard -->
+    <string name="focus_brand_new_title">Let\'s create your first order</string>
+    <string name="focus_brand_new_supporting">Add a customer, save measurements, and create your first custom outfit.</string>
+    <string name="focus_brand_new_cta">Create first order</string>
     <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
     <string name="focus_first_order_cta">Create order for %1$s</string>
     <string name="focus_quiet_title">No deadlines today.</string>
@@ -638,6 +641,14 @@
     <string name="quickstart_create_order">Create first order</string>
     <string name="quickstart_add_customer">Add customer</string>
     <string name="quickstart_add_measurement">Add measurement</string>
+
+    <!-- Dashboard onboarding steps (BrandNew state, 3-up tile grid) -->
+    <string name="onboarding_step_customer_label">Add customer</string>
+    <string name="onboarding_step_customer_desc">Add a new customer to get started</string>
+    <string name="onboarding_step_measurement_label">Save measurements</string>
+    <string name="onboarding_step_measurement_desc">Record body measurements</string>
+    <string name="onboarding_step_order_label">Create order</string>
+    <string name="onboarding_step_order_desc">Create your first custom outfit</string>
 
     <!-- Dashboard ReconnectChipStrip -->
     <string name="reconnect_section">Reconnect</string>
