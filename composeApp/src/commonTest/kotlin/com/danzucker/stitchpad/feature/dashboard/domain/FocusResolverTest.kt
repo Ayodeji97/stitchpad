@@ -166,8 +166,10 @@ class FocusResolverTest {
             reconnect = emptyList()
         )
         assertEquals(FocusVariant.FirstOrder, focus.variant)
+        // FirstOrder is the prominent BrandNew-paired hero — must surface
+        // both a supporting line ("Save measurements for X...") and a CTA.
+        assertNotNull(focus.supporting)
         assertNotNull(focus.ctaLabel)
-        assertNull(focus.supporting)
     }
 
     @Test

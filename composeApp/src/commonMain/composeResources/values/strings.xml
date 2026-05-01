@@ -603,7 +603,8 @@
     <string name="focus_brand_new_title">Let's create your first order</string>
     <string name="focus_brand_new_supporting">Add a customer, save measurements, and create your first custom outfit.</string>
     <string name="focus_brand_new_cta">Create first order</string>
-    <string name="focus_first_order_title">One customer added. Turn them into your first order.</string>
+    <string name="focus_first_order_title">Time for your first order</string>
+    <string name="focus_first_order_supporting">Save measurements for %1$s and start creating their first outfit.</string>
     <string name="focus_first_order_cta">Create order for %1$s</string>
     <string name="focus_quiet_title">No deadlines today.</string>
     <string name="focus_quiet_supporting">Reconnect with a past customer.</string>

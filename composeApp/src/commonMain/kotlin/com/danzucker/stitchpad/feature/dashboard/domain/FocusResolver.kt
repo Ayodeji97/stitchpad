@@ -20,6 +20,7 @@ import stitchpad.composeapp.generated.resources.focus_earn_cta
 import stitchpad.composeapp.generated.resources.focus_earn_supporting
 import stitchpad.composeapp.generated.resources.focus_earn_title
 import stitchpad.composeapp.generated.resources.focus_first_order_cta
+import stitchpad.composeapp.generated.resources.focus_first_order_supporting
 import stitchpad.composeapp.generated.resources.focus_first_order_title
 import stitchpad.composeapp.generated.resources.focus_pickup_cta
 import stitchpad.composeapp.generated.resources.focus_pickup_supporting
@@ -91,7 +92,10 @@ object FocusResolver {
             FocusResolution(
                 variant = FocusVariant.FirstOrder,
                 headline = UiText.StringResourceText(Res.string.focus_first_order_title),
-                supporting = null,
+                supporting = UiText.StringResourceText(
+                    Res.string.focus_first_order_supporting,
+                    arrayOf(firstCustomer.name)
+                ),
                 ctaLabel = UiText.StringResourceText(
                     Res.string.focus_first_order_cta,
                     arrayOf(firstCustomer.name)

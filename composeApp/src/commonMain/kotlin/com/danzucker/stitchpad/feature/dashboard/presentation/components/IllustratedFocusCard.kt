@@ -64,9 +64,17 @@ private fun paletteFor(
         prominent = true,
     )
     FocusVariant.FirstOrder -> FocusCardPalette(
-        border = DesignTokens.info500.copy(alpha = 0.25f),
-        ctaTint = DesignTokens.info500,
-        backgroundGradient = null,
+        // FirstOrder is BrandNew's continuation — same saffron prominent
+        // treatment so the two onboarding milestones feel like a pair.
+        border = primary.copy(alpha = 0.4f),
+        ctaTint = primary,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                primary.copy(alpha = 0.12f),
+                surface,
+            ),
+        ),
+        prominent = true,
     )
     FocusVariant.Quiet -> FocusCardPalette(
         border = DesignTokens.success500.copy(alpha = 0.25f),
@@ -324,8 +332,8 @@ private fun IllustratedFocusCardFirstOrderPreview() {
     StitchPadTheme {
         IllustratedFocusCard(
             variant = FocusVariant.FirstOrder,
-            title = "Turn your customer into your first order",
-            supporting = "Add a customer, save measurements, and create your first custom outfit.",
+            title = "Time for your first order",
+            supporting = "Save measurements for Ola Kunle and start creating their first outfit.",
             ctaLabel = "Create order for Ola Kunle",
             onClick = {},
         )
