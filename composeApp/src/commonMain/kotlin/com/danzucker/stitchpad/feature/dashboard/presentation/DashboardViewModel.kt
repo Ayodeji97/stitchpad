@@ -100,6 +100,7 @@ class DashboardViewModel(
             DashboardAction.OnGoalsCardClick -> emitEvent(DashboardEvent.NavigateToGoalSetup)
             DashboardAction.OnFocusCtaClick -> handleFocusCtaClick()
             DashboardAction.OnSettingsClick -> emitEvent(DashboardEvent.NavigateToSettings)
+            DashboardAction.OnSetupChecklistAdvance -> emitEvent(DashboardEvent.NavigateToOrderForm)
             is DashboardAction.OnReconnectCandidateClick -> emitEvent(
                 DashboardEvent.LaunchWhatsAppForReconnect(action.candidate)
             )

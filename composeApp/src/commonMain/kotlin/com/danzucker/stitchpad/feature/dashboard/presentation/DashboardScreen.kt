@@ -52,6 +52,10 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.Illustr
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectChipStrip
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupChecklistCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStep
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepKey
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.UserAvatar
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -116,6 +120,20 @@ import kotlin.math.roundToLong
 
 private const val THOUSANDS = 1_000L
 private const val MILLIONS = 1_000_000L
+
+/**
+ * Static FirstCustomer checklist: customer is created (step 1 ✅), the
+ * first order is the next nudge (step 2 active), due-date and deposit
+ * follow (steps 3–4 pending). When the first order is created the
+ * dashboard transitions out of FirstCustomer and this card stops
+ * rendering — no need to recompute "done" status from inside this state.
+ */
+private fun firstCustomerChecklistSteps(): List<SetupStep> = listOf(
+    SetupStep(SetupStepKey.CustomerCreated, 1, SetupStepStatus.Done),
+    SetupStep(SetupStepKey.AddFirstOrder, 2, SetupStepStatus.Active),
+    SetupStep(SetupStepKey.SetDueDate, 3, SetupStepStatus.Pending),
+    SetupStep(SetupStepKey.RecordDeposit, 4, SetupStepStatus.Pending),
+)
 
 @Composable
 fun DashboardRoot(
@@ -289,6 +307,18 @@ private fun DashboardContent(
                 onAddCustomerClick = { onAction(DashboardAction.OnNewCustomerClick) },
                 onSaveMeasurementsClick = { onAction(DashboardAction.OnAddMeasurementClick) },
                 onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
+            )
+        }
+
+        // FirstCustomer (1+ customers, 0 orders) gets the 4-step setup
+        // checklist between the hero and the rest of the dashboard. Step 1
+        // is done; step 2 is active and tappable; steps 3-4 are pending.
+        // Once the first order is created, the state flips out of
+        // FirstCustomer and the checklist disappears.
+        if (state.uiState == DashboardUiState.FirstCustomer) {
+            SetupChecklistCard(
+                steps = firstCustomerChecklistSteps(),
+                onActiveStepClick = { _ -> onAction(DashboardAction.OnSetupChecklistAdvance) },
             )
         }
 

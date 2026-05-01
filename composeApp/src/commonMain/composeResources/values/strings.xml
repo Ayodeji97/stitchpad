@@ -651,6 +651,18 @@
     <string name="onboarding_step_order_label">Create order</string>
     <string name="onboarding_step_order_desc">Create your first custom outfit</string>
 
+    <!-- Setup checklist (FirstCustomer state) -->
+    <string name="setup_checklist_title">Setup checklist</string>
+    <string name="setup_checklist_progress">%1$d%% done</string>
+    <string name="setup_step_customer_label">Customer created</string>
+    <string name="setup_step_customer_desc_done">Completed</string>
+    <string name="setup_step_order_label">Add first order</string>
+    <string name="setup_step_order_desc">Create an order for your customer</string>
+    <string name="setup_step_due_date_label">Set due date</string>
+    <string name="setup_step_due_date_desc">Plan when the order will be ready</string>
+    <string name="setup_step_deposit_label">Record first deposit</string>
+    <string name="setup_step_deposit_desc">Add the initial payment to the order</string>
+
     <!-- Add-customer-first gate screen (shown when BrandNew taps a CTA that needs a customer) -->
     <string name="add_customer_first_title">Add your first customer</string>
     <string name="add_customer_first_supporting">Every order starts with a customer. Add your first one to save measurements and start creating outfits made just for them.</string>

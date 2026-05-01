@@ -1069,6 +1069,18 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun setupChecklistAdvance_emitsNavigateToOrderForm() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnSetupChecklistAdvance)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToOrderForm, event)
+    }
+
+    @Test
     fun focusCtaClick_inFocusBusyVariant_emitsNavigateToFirstUrgentOrder() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())

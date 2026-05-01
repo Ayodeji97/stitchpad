@@ -36,4 +36,11 @@ sealed interface DashboardAction {
 
     /** Opens the full reconnect list (trailing chevron in ReconnectChipStrip). */
     data object OnViewReconnectClick : DashboardAction
+
+    /**
+     * Tapped the active row of the FirstCustomer setup checklist.
+     * Currently the only routable step is "Add first order"; the other
+     * pending steps are not yet tappable in the UI.
+     */
+    data object OnSetupChecklistAdvance : DashboardAction
 }
