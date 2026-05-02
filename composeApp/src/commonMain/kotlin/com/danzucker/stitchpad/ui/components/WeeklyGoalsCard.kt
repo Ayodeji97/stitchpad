@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,8 +44,6 @@ import stitchpad.composeapp.generated.resources.dashboard_hero_steady
 
 private val PROGRESS_BAR_HEIGHT = 8.dp
 private val GOAL_BADGE_SIZE = 52.dp
-private val WATERMARK_SIZE = 140.dp
-private val WATERMARK_OFFSET_X = 24.dp
 private const val PROGRESS_TRACK_ALPHA = 0.16f
 
 /**
@@ -129,17 +126,20 @@ private fun EmptyCard(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             // Faint mannequin watermark on the right edge of the card.
-            // Sits behind the content so the CTA button stays fully legible
-            // on top. Slightly bigger than the card height + offset off the
-            // right edge so it bleeds visually like the mockup.
+            // matchParentSize() lets the Row's natural height dictate the
+            // Box height — without this, the Image's fixed size was forcing
+            // the card taller than its content and leaving a band of empty
+            // padding above/below the actual copy.
+            // ContentScale.Fit + alignment CenterEnd keeps the painter on
+            // the right side, scaled to the card height, with the rest of
+            // the Image bounds left transparent.
             Image(
                 painter = painterResource(Res.drawable.dashboard_hero_steady),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
+                alignment = Alignment.CenterEnd,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(WATERMARK_SIZE)
-                    .offset(x = WATERMARK_OFFSET_X)
+                    .matchParentSize()
                     .alpha(watermarkAlpha),
             )
             Row(
