@@ -125,6 +125,14 @@ import kotlin.math.roundToLong
 private const val THOUSANDS = 1_000L
 private const val MILLIONS = 1_000_000L
 
+// Scroll bottom padding. With FAB visible we need clearance so the last
+// content row isn't obscured: FAB is 50dp tall + 16dp bottom margin = 66dp
+// occupied at the bottom-right corner; 80dp gives a 14dp breathing gap.
+// Without FAB (BrandNew, Loading) we drop to a normal page margin so the
+// content doesn't leave a visible empty band on tall screens.
+private val FAB_BOTTOM_PADDING = 80.dp
+private val NO_FAB_BOTTOM_PADDING = 24.dp
+
 /**
  * Static FirstCustomer checklist: customer is created (step 1 ✅), the
  * first order is the next nudge (step 2 active), due-date and deposit
@@ -251,7 +259,8 @@ fun DashboardScreen(
             DashboardUiState.ReadyForPickup -> DashboardContent(
                 state = state,
                 onAction = onAction,
-                modifier = contentModifier
+                modifier = contentModifier,
+                bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
             )
         }
     }
@@ -272,14 +281,15 @@ private fun LoadingState(modifier: Modifier = Modifier) {
 private fun DashboardContent(
     state: DashboardState,
     onAction: (DashboardAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    bottomPadding: androidx.compose.ui.unit.Dp = FAB_BOTTOM_PADDING,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = DesignTokens.space4)
-            .padding(bottom = 96.dp),
+            .padding(bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
     ) {
         Spacer(Modifier.height(DesignTokens.space4))
