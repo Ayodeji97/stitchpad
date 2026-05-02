@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,16 +30,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import org.jetbrains.compose.resources.painterResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.dashboard_hero_steady
 
 private val PROGRESS_BAR_HEIGHT = 8.dp
 private val GOAL_BADGE_SIZE = 52.dp
+private val WATERMARK_SIZE = 140.dp
+private val WATERMARK_OFFSET_X = 24.dp
 private const val PROGRESS_TRACK_ALPHA = 0.16f
 
 /**
@@ -106,6 +116,8 @@ private fun EmptyCard(
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
     val scheme = MaterialTheme.colorScheme
 
+    val watermarkAlpha = if (isSystemInDarkTheme()) 0.10f else 0.08f
+
     Surface(
         shape = shape,
         color = scheme.surface,
@@ -115,14 +127,30 @@ private fun EmptyCard(
             .clip(shape)
             .clickable(onClick = onClick)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-            modifier = Modifier.padding(DesignTokens.space4)
-        ) {
-            GoalIconBadge()
-            EmptyCardCopy(state = state, modifier = Modifier.weight(1f))
-            EmptyCardCta(label = state.ctaLabel, onClick = onClick)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Faint mannequin watermark on the right edge of the card.
+            // Sits behind the content so the CTA button stays fully legible
+            // on top. Slightly bigger than the card height + offset off the
+            // right edge so it bleeds visually like the mockup.
+            Image(
+                painter = painterResource(Res.drawable.dashboard_hero_steady),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(WATERMARK_SIZE)
+                    .offset(x = WATERMARK_OFFSET_X)
+                    .alpha(watermarkAlpha),
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                modifier = Modifier.padding(DesignTokens.space4)
+            ) {
+                GoalIconBadge()
+                EmptyCardCopy(state = state, modifier = Modifier.weight(1f))
+                EmptyCardCta(label = state.ctaLabel, onClick = onClick)
+            }
         }
     }
 }

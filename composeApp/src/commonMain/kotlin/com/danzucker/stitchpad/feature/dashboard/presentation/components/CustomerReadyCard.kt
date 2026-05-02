@@ -6,17 +6,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Sell
@@ -47,9 +47,8 @@ import stitchpad.composeapp.generated.resources.customer_ready_added_today
 import stitchpad.composeapp.generated.resources.customer_ready_badge_new
 import stitchpad.composeapp.generated.resources.customer_ready_badge_no_orders
 import stitchpad.composeapp.generated.resources.customer_ready_message_cd
-import stitchpad.composeapp.generated.resources.customer_ready_open_cd
 
-private val AVATAR_SIZE = 56.dp
+private val AVATAR_SIZE = 52.dp
 private val ONLINE_DOT_SIZE = 12.dp
 private val MESSAGE_BUTTON_SIZE = 44.dp
 
@@ -80,7 +79,6 @@ fun CustomerReadyCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
-    val openLabel = stringResource(Res.string.customer_ready_open_cd, customer.name)
 
     Surface(
         shape = shape,
@@ -104,12 +102,6 @@ fun CustomerReadyCard(
                     customer.name
                 ),
                 onClick = onMessageClick,
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = openLabel,
-                tint = scheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -153,6 +145,7 @@ private fun AvatarWithDot(initials: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CustomerInfo(customer: CustomerReadyUi, modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -174,7 +167,13 @@ private fun CustomerInfo(customer: CustomerReadyUi, modifier: Modifier = Modifie
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(DesignTokens.space1))
-        Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+        // FlowRow lets the badges wrap to a second line when the available
+        // width can't hold both — narrow phones land on this fallback,
+        // wider screens render them side-by-side as the mockup shows.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+        ) {
             BadgePill(
                 icon = Icons.Default.Group,
                 label = stringResource(Res.string.customer_ready_badge_new),
@@ -286,9 +285,7 @@ private fun CustomerReadyCardLightPreview() {
             ),
             onCardClick = {},
             onMessageClick = {},
-            modifier = Modifier
-                .padding(DesignTokens.space4)
-                .offset(),
+            modifier = Modifier.padding(DesignTokens.space4),
         )
     }
 }
