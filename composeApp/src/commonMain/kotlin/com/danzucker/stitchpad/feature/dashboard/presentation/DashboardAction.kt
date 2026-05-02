@@ -43,4 +43,13 @@ sealed interface DashboardAction {
      * pending steps are not yet tappable in the UI.
      */
     data object OnSetupChecklistAdvance : DashboardAction
+
+    /** Tapped the body of the "Your customer" card → open detail. */
+    data class OnCustomerReadyClick(val customerId: String) : DashboardAction
+
+    /**
+     * Tapped the round Message button on the "Your customer" card →
+     * launch WhatsApp using the customer's name + phone.
+     */
+    data class OnCustomerReadyMessageClick(val customerId: String) : DashboardAction
 }

@@ -50,6 +50,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIl
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectChipStrip
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupChecklistCard
@@ -104,6 +105,7 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_finish_stale_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
+import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_overdue
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_ready
@@ -145,6 +147,7 @@ fun DashboardRoot(
     onNavigateToGoalSetup: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
+    onNavigateToCustomerDetail: (String) -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -163,6 +166,7 @@ fun DashboardRoot(
             DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
             DashboardEvent.NavigateToSettings -> onNavigateToSettings()
             DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
+            is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
             is DashboardEvent.LaunchWhatsApp -> {
                 scope.launch {
                     val message = buildWhatsAppMessage(event.action, signature)
@@ -321,6 +325,28 @@ private fun DashboardContent(
                 steps = firstCustomerChecklistSteps(),
                 onActiveStepClick = { _ -> onAction(DashboardAction.OnSetupChecklistAdvance) },
             )
+            val readyCustomer = state.customerReady
+            if (readyCustomer != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                    Text(
+                        text = stringResource(Res.string.customer_ready_section_label),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    CustomerReadyCard(
+                        customer = readyCustomer,
+                        onCardClick = {
+                            onAction(DashboardAction.OnCustomerReadyClick(readyCustomer.customerId))
+                        },
+                        onMessageClick = {
+                            onAction(
+                                DashboardAction.OnCustomerReadyMessageClick(readyCustomer.customerId)
+                            )
+                        },
+                    )
+                }
+            }
         }
 
         // 3. Weekly goal card

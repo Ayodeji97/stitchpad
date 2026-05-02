@@ -21,4 +21,7 @@ sealed interface DashboardEvent {
      * itself routes onward to the customer form.
      */
     data object NavigateToAddCustomerFirst : DashboardEvent
+
+    /** Open the customer detail screen — used by the FirstCustomer card. */
+    data class NavigateToCustomerDetail(val customerId: String) : DashboardEvent
 }

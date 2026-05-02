@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
@@ -31,6 +32,7 @@ import kotlin.time.ExperimentalTime
 
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
+private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 
 @OptIn(ExperimentalTime::class)
 @Suppress("TooManyFunctions")
@@ -101,6 +103,26 @@ class DashboardViewModel(
             DashboardAction.OnFocusCtaClick -> handleFocusCtaClick()
             DashboardAction.OnSettingsClick -> emitEvent(DashboardEvent.NavigateToSettings)
             DashboardAction.OnSetupChecklistAdvance -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            is DashboardAction.OnCustomerReadyClick -> emitEvent(
+                DashboardEvent.NavigateToCustomerDetail(action.customerId)
+            )
+            is DashboardAction.OnCustomerReadyMessageClick -> {
+                val customer = _state.value.customerReady
+                if (customer != null && customer.customerId == action.customerId) {
+                    emitEvent(
+                        DashboardEvent.LaunchWhatsAppForReconnect(
+                            com.danzucker.stitchpad.feature.dashboard.presentation.model
+                                .ReconnectCandidate(
+                                    customerId = customer.customerId,
+                                    customerName = customer.name,
+                                    customerPhone = customer.phone,
+                                    daysSinceLastInteraction = 0,
+                                    hasOrderHistory = false,
+                                )
+                        )
+                    )
+                }
+            }
             is DashboardAction.OnReconnectCandidateClick -> emitEvent(
                 DashboardEvent.LaunchWhatsAppForReconnect(action.candidate)
             )
@@ -202,6 +224,24 @@ class DashboardViewModel(
                 val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
                 val focus = FocusResolver.resolveFocus(uiState, buckets, nextBestActions, customers, reconnect)
                 val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
+                // "Your customer" card surfaces only on FirstCustomer. Pick the
+                // most recently added so a user who just created a second
+                // customer sees that one first, not whoever was created earlier.
+                val customerReady = if (uiState == DashboardUiState.FirstCustomer) {
+                    customers.maxByOrNull { it.createdAt }?.let { c ->
+                        val daysSinceAdded = ((nowMillis() - c.createdAt) /
+                            ONE_DAY_MILLIS).toInt().coerceAtLeast(0)
+                        CustomerReadyUi(
+                            customerId = c.id,
+                            name = c.name,
+                            phone = c.phone,
+                            daysSinceAdded = daysSinceAdded,
+                            hasOrders = false,
+                        )
+                    }
+                } else {
+                    null
+                }
 
                 _state.update {
                     it.copy(
@@ -226,6 +266,7 @@ class DashboardViewModel(
                         focusCtaLabel = focus.ctaLabel,
                         focusCtaSubtitle = focus.ctaSubtitle,
                         reconnectCandidates = reconnect,
+                        customerReady = customerReady,
                         weeklyGoal = weeklyGoal,
                         errorMessage = error
                     )

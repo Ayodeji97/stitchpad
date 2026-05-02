@@ -1081,6 +1081,37 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun customerReadyClick_emitsNavigateToCustomerDetail() = runTest {
+        signIn()
+        val customer = fakeCustomer(id = "cust-1")
+        customerRepository.customersList = listOf(customer)
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnCustomerReadyClick("cust-1"))
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.NavigateToCustomerDetail>(event)
+        assertEquals("cust-1", event.customerId)
+    }
+
+    @Test
+    fun customerReadyMessageClick_emitsLaunchWhatsAppForReconnect() = runTest {
+        signIn()
+        // FirstCustomer state populates state.customerReady; the message
+        // click looks up the customer by ID and synthesizes a candidate
+        // for the existing WhatsApp launch event.
+        customerRepository.customersList = listOf(fakeCustomer(id = "cust-1", name = "Bola"))
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnCustomerReadyMessageClick("cust-1"))
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.LaunchWhatsAppForReconnect>(event)
+        assertEquals("cust-1", event.candidate.customerId)
+        assertEquals("Bola", event.candidate.customerName)
+    }
+
+    @Test
     fun focusCtaClick_inFocusBusyVariant_emitsNavigateToFirstUrgentOrder() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())

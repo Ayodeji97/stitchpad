@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
@@ -39,6 +40,9 @@ data class DashboardState(
     val focusCtaSubtitle: UiText? = null,
     // Reconnect (S2/S3/S4 surfaces)
     val reconnectCandidates: List<ReconnectCandidate> = emptyList(),
+    // "Your customer" card on FirstCustomer state — most recently added
+    // customer with quick-message + open-detail affordances. Null otherwise.
+    val customerReady: CustomerReadyUi? = null,
     // Weekly goal — null when the user hasn't set one. Sourced from WeeklyGoalRepository.
     val weeklyGoal: WeeklyGoalUi? = null,
     val errorMessage: UiText? = null

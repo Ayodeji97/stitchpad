@@ -653,6 +653,15 @@
     <string name="onboarding_step_order_label">Create order</string>
     <string name="onboarding_step_order_desc">Create your first custom outfit</string>
 
+    <!-- Customer-ready card (FirstCustomer state) -->
+    <string name="customer_ready_section_label">Your customer</string>
+    <string name="customer_ready_added_today">Added today</string>
+    <string name="customer_ready_added_days_ago">Added %1$d days ago</string>
+    <string name="customer_ready_badge_new">New customer</string>
+    <string name="customer_ready_badge_no_orders">No orders yet</string>
+    <string name="customer_ready_message_cd">Message %1$s</string>
+    <string name="customer_ready_open_cd">Open %1$s details</string>
+
     <!-- Setup checklist (FirstCustomer state) -->
     <string name="setup_checklist_title">Setup checklist</string>
     <string name="setup_checklist_progress">%1$d of %2$d done</string>

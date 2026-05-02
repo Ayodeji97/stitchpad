@@ -267,6 +267,9 @@ private fun MainNavGraph(
                 },
                 onNavigateToAddCustomerFirst = {
                     navController.navigate(AddCustomerFirstRoute)
+                },
+                onNavigateToCustomerDetail = { customerId ->
+                    navController.navigate(CustomerDetailRoute(customerId = customerId))
                 }
             )
         }
