@@ -95,7 +95,6 @@ fun SetupChecklistCard(
     modifier: Modifier = Modifier,
 ) {
     val doneCount = steps.count { it.status == SetupStepStatus.Done }
-    val percent = if (steps.isEmpty()) 0 else (doneCount * 100) / steps.size
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
@@ -107,7 +106,7 @@ fun SetupChecklistCard(
             modifier = Modifier.padding(DesignTokens.space4),
             verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         ) {
-            ChecklistHeader(percent = percent)
+            ChecklistHeader(done = doneCount, total = steps.size)
             steps.forEach { step ->
                 ChecklistRow(
                     step = step,
@@ -119,7 +118,8 @@ fun SetupChecklistCard(
 }
 
 @Composable
-private fun ChecklistHeader(percent: Int) {
+private fun ChecklistHeader(done: Int, total: Int) {
+    val ratio = if (total <= 0) 0f else done.toFloat() / total.toFloat()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
@@ -132,7 +132,7 @@ private fun ChecklistHeader(percent: Int) {
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = stringResource(Res.string.setup_checklist_progress, percent),
+            text = stringResource(Res.string.setup_checklist_progress, done, total),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -146,7 +146,7 @@ private fun ChecklistHeader(percent: Int) {
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(percent / 100f)
+                    .fillMaxWidth(ratio)
                     .height(PROGRESS_TRACK_HEIGHT)
                     .background(
                         color = MaterialTheme.colorScheme.primary,

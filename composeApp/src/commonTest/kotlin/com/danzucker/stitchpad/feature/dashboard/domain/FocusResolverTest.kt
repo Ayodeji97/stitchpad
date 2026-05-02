@@ -166,10 +166,30 @@ class FocusResolverTest {
             reconnect = emptyList()
         )
         assertEquals(FocusVariant.FirstOrder, focus.variant)
-        // FirstOrder is the prominent BrandNew-paired hero — must surface
-        // both a supporting line ("Save measurements for X...") and a CTA.
+        // Single customer → personalised hero: supporting line + CTA
+        // subtitle both reference the customer's name.
         assertNotNull(focus.supporting)
         assertNotNull(focus.ctaLabel)
+        assertNotNull(focus.ctaSubtitle)
+    }
+
+    @Test
+    fun firstCustomerWithMultipleCustomersDropsCtaSubtitle() {
+        // 2+ customers, 0 orders → still FirstCustomer, but the hero
+        // shouldn't pin onto whichever customer was created first.
+        // Drop the "for {name}" subtitle so the user picks on the next
+        // screen instead of feeling forced into a specific customer.
+        val focus = FocusResolver.resolveFocus(
+            uiState = DashboardUiState.FirstCustomer,
+            buckets = emptyBuckets,
+            nextBestActions = emptyList(),
+            customers = listOf(customer(name = "Bola"), customer(name = "Tunde")),
+            reconnect = emptyList()
+        )
+        assertEquals(FocusVariant.FirstOrder, focus.variant)
+        assertNotNull(focus.supporting)
+        assertNotNull(focus.ctaLabel)
+        assertNull(focus.ctaSubtitle)
     }
 
     @Test

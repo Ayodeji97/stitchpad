@@ -605,6 +605,7 @@
     <string name="focus_brand_new_cta">Create first order</string>
     <string name="focus_first_order_title">Time for your first order</string>
     <string name="focus_first_order_supporting">Save measurements for %1$s and start creating their first outfit.</string>
+    <string name="focus_first_order_supporting_multi">Pick a customer, save their measurements, and create their first outfit.</string>
     <string name="focus_first_order_cta">Create order</string>
     <string name="focus_first_order_cta_subtitle">for %1$s</string>
     <string name="focus_quiet_title">No deadlines today.</string>
@@ -654,7 +655,7 @@
 
     <!-- Setup checklist (FirstCustomer state) -->
     <string name="setup_checklist_title">Setup checklist</string>
-    <string name="setup_checklist_progress">%1$d%% done</string>
+    <string name="setup_checklist_progress">%1$d of %2$d done</string>
     <string name="setup_step_customer_label">Customer created</string>
     <string name="setup_step_customer_desc_done">Completed</string>
     <string name="setup_step_order_label">Add first order</string>

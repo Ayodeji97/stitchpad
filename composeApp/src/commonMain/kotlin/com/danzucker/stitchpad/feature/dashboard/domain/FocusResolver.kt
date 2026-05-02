@@ -22,6 +22,7 @@ import stitchpad.composeapp.generated.resources.focus_earn_title
 import stitchpad.composeapp.generated.resources.focus_first_order_cta
 import stitchpad.composeapp.generated.resources.focus_first_order_cta_subtitle
 import stitchpad.composeapp.generated.resources.focus_first_order_supporting
+import stitchpad.composeapp.generated.resources.focus_first_order_supporting_multi
 import stitchpad.composeapp.generated.resources.focus_first_order_title
 import stitchpad.composeapp.generated.resources.focus_pickup_cta
 import stitchpad.composeapp.generated.resources.focus_pickup_supporting
@@ -89,19 +90,32 @@ object FocusResolver {
         reconnect: List<ReconnectCandidate>
     ): FocusResolution = when (uiState) {
         DashboardUiState.FirstCustomer -> {
-            val firstCustomer = customers.first()
+            // With one customer the hero is personalised — name in the
+            // supporting line and a "for {name}" subtitle under the CTA.
+            // With two or more, locking the hero onto a single customer
+            // makes the user feel forced to start with that one — drop
+            // the name and let them pick on the next screen.
+            val onlyCustomer = customers.singleOrNull()
             FocusResolution(
                 variant = FocusVariant.FirstOrder,
                 headline = UiText.StringResourceText(Res.string.focus_first_order_title),
-                supporting = UiText.StringResourceText(
-                    Res.string.focus_first_order_supporting,
-                    arrayOf(firstCustomer.name)
-                ),
+                supporting = if (onlyCustomer != null) {
+                    UiText.StringResourceText(
+                        Res.string.focus_first_order_supporting,
+                        arrayOf(onlyCustomer.name)
+                    )
+                } else {
+                    UiText.StringResourceText(Res.string.focus_first_order_supporting_multi)
+                },
                 ctaLabel = UiText.StringResourceText(Res.string.focus_first_order_cta),
-                ctaSubtitle = UiText.StringResourceText(
-                    Res.string.focus_first_order_cta_subtitle,
-                    arrayOf(firstCustomer.name)
-                )
+                ctaSubtitle = if (onlyCustomer != null) {
+                    UiText.StringResourceText(
+                        Res.string.focus_first_order_cta_subtitle,
+                        arrayOf(onlyCustomer.name)
+                    )
+                } else {
+                    null
+                }
             )
         }
         DashboardUiState.BusyDay -> {
