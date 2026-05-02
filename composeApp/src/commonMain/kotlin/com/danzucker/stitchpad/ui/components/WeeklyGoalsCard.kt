@@ -13,9 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,8 +36,8 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 private val PROGRESS_BAR_HEIGHT = 8.dp
+private val GOAL_BADGE_SIZE = 52.dp
 private const val PROGRESS_TRACK_ALPHA = 0.16f
-private const val EMPTY_BORDER_ALPHA = 0.5f
 
 /**
  * Two-state visual model for [WeeklyGoalsCard].
@@ -46,8 +50,16 @@ private const val EMPTY_BORDER_ALPHA = 0.5f
  */
 sealed interface WeeklyGoalsCardState {
     data class Empty(
-        val label: String,
-        val ctaLabel: String
+        /** Pill chip above the title — e.g. "GET STARTED". */
+        val sectionLabel: String,
+        /** Big bold title — the empty card's reason for existing. */
+        val title: String,
+        /** One-line description shown beneath the title. */
+        val supporting: String,
+        /** Saffron CTA button label on the right. */
+        val ctaLabel: String,
+        /** Legacy field — kept for source compatibility, no longer rendered. */
+        val label: String = title
     ) : WeeklyGoalsCardState
 
     data class Filled(
@@ -92,12 +104,12 @@ private fun EmptyCard(
     modifier: Modifier
 ) {
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
-    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = EMPTY_BORDER_ALPHA)
+    val scheme = MaterialTheme.colorScheme
 
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, borderColor),
+        color = scheme.surface,
+        border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.4f)),
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
@@ -105,32 +117,92 @@ private fun EmptyCard(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             modifier = Modifier.padding(DesignTokens.space4)
         ) {
-            Text(
-                text = state.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1)
-            ) {
-                Text(
-                    text = state.ctaLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(DesignTokens.iconInline)
-                )
-            }
+            GoalIconBadge()
+            EmptyCardCopy(state = state, modifier = Modifier.weight(1f))
+            EmptyCardCta(label = state.ctaLabel, onClick = onClick)
         }
+    }
+}
+
+@Composable
+private fun GoalIconBadge() {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .size(GOAL_BADGE_SIZE)
+            .background(color = scheme.primary.copy(alpha = 0.12f), shape = CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.GpsFixed,
+            contentDescription = null,
+            tint = scheme.primary,
+            modifier = Modifier.size(26.dp),
+        )
+    }
+}
+
+@Composable
+private fun EmptyCardCopy(state: WeeklyGoalsCardState.Empty, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // "GET STARTED" pill chip
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(DesignTokens.radiusSm))
+                .background(color = scheme.primary.copy(alpha = 0.14f))
+                .padding(horizontal = DesignTokens.space2, vertical = 3.dp),
+        ) {
+            Text(
+                text = state.sectionLabel.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = scheme.primary,
+            )
+        }
+        Text(
+            text = state.title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = scheme.onSurface,
+        )
+        Text(
+            text = state.supporting,
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun EmptyCardCta(label: String, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = scheme.primary,
+            contentColor = scheme.onPrimary,
+        ),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = DesignTokens.space3,
+            vertical = DesignTokens.space2,
+        ),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.size(DesignTokens.space1))
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            modifier = Modifier.size(DesignTokens.iconInline),
+        )
     }
 }
 
@@ -266,7 +338,9 @@ private fun WeeklyGoalsCardEmptyPreview() {
         ) {
             WeeklyGoalsCard(
                 state = WeeklyGoalsCardState.Empty(
-                    label = "Set your first revenue goal",
+                    sectionLabel = "Get started",
+                    title = "Set your first revenue goal",
+                    supporting = "Start simple and track what you want to earn this month.",
                     ctaLabel = "Get started"
                 ),
                 onClick = {}

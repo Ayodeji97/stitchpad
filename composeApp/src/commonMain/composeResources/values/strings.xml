@@ -693,6 +693,8 @@
     <string name="goals_days_left">%1$d days left</string>
     <string name="goals_revenue_label">Revenue goal</string>
     <string name="goals_set_first_label">Set your first revenue goal</string>
+    <string name="goals_set_first_supporting">Start simple and track what you want to earn this month.</string>
+    <string name="goals_set_first_section">Get started</string>
     <string name="goals_set_first_cta">Get started</string>
     <!-- Shown when collected revenue meets or exceeds the target for the week -->
     <string name="goals_achieved_section_label">Ahead of target</string>

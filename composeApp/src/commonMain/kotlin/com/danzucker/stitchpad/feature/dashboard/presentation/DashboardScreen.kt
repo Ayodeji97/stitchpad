@@ -117,6 +117,8 @@ import stitchpad.composeapp.generated.resources.goals_revenue_label
 import stitchpad.composeapp.generated.resources.goals_section_label
 import stitchpad.composeapp.generated.resources.goals_set_first_cta
 import stitchpad.composeapp.generated.resources.goals_set_first_label
+import stitchpad.composeapp.generated.resources.goals_set_first_section
+import stitchpad.composeapp.generated.resources.goals_set_first_supporting
 import stitchpad.composeapp.generated.resources.reconnect_whatsapp_template
 import kotlin.math.roundToLong
 
@@ -408,7 +410,9 @@ private fun WeeklyGoalsSection(
 ) {
     val cardState: WeeklyGoalsCardState = if (weeklyGoal == null) {
         WeeklyGoalsCardState.Empty(
-            label = stringResource(Res.string.goals_set_first_label),
+            sectionLabel = stringResource(Res.string.goals_set_first_section),
+            title = stringResource(Res.string.goals_set_first_label),
+            supporting = stringResource(Res.string.goals_set_first_supporting),
             ctaLabel = stringResource(Res.string.goals_set_first_cta)
         )
     } else {
