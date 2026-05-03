@@ -819,6 +819,11 @@
     <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>
     <string name="order_detail_footer_caption_delivered">Order #%1$s · Delivered %2$s</string>
 
+    <!-- Payment card financial labels -->
+    <string name="order_detail_payment_total">Total</string>
+    <string name="order_detail_payment_paid">Paid</string>
+    <string name="order_detail_payment_balance">Balance</string>
+
     <!-- Production stages -->
     <string name="order_stage_pending">Pending</string>
     <string name="order_stage_cutting">Cutting</string>
