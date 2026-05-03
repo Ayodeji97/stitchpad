@@ -38,7 +38,6 @@ data class OrderDetailState(
     val notesDraft: String = "",
 
     // Status sheet
-    val pendingStatusTransition: StatusTransition? = null,
     val selectedNewStatus: OrderStatus? = null,
     val selectedNewSubStatus: OrderSubStatus? = null,
 

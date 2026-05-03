@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
-import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 
@@ -29,10 +28,6 @@ sealed interface OrderDetailAction {
     data class OnSelectStatusTransition(val transition: StatusTransition) : OrderDetailAction
     data object OnDismissStatusSheet : OrderDetailAction
 
-    // Kept for existing balance-warning flow:
-    data class OnSelectNewStatus(val status: OrderStatus) : OrderDetailAction
-    data object OnConfirmStatusUpdate : OrderDetailAction
-    data object OnDismissStatusUpdate : OrderDetailAction
     data object OnBalanceWarningRecordPayment : OrderDetailAction
     data object OnBalanceWarningProceed : OrderDetailAction
     data object OnBalanceWarningDismiss : OrderDetailAction

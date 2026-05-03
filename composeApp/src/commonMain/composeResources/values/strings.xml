@@ -480,13 +480,6 @@
     <string name="order_detail_share">Share order receipt</string>
     <string name="cd_edit_order">Edit order</string>
 
-    <!-- Order status update dialog -->
-    <string name="order_status_update_title">Update status</string>
-    <string name="order_status_update_message">Move this order to \"%1$s\"?</string>
-    <string name="order_status_update_confirm">Update</string>
-    <string name="order_status_update_cancel">Cancel</string>
-    <string name="order_status_update_current">Current</string>
-
     <!-- Balance-owed warning shown when moving an order to Ready/Delivered with money still owed -->
     <string name="balance_warning_ready_title">Mark ready with balance owed?</string>
     <string name="balance_warning_delivered_title">Mark delivered with balance owed?</string>

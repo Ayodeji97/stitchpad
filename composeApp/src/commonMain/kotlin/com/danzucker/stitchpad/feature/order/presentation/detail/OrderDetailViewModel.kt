@@ -112,18 +112,6 @@ class OrderDetailViewModel(
             OrderDetailAction.OnDismissStatusSheet ->
                 _state.update { it.copy(showStatusSheet = false) }
 
-            // Existing balance-warning flow (preserve for backwards compat)
-            is OrderDetailAction.OnSelectNewStatus ->
-                _state.update { it.copy(selectedNewStatus = action.status) }
-            OrderDetailAction.OnConfirmStatusUpdate -> updateStatusViaWarningFlow()
-            OrderDetailAction.OnDismissStatusUpdate ->
-                _state.update {
-                    it.copy(
-                        selectedNewStatus = null,
-                        selectedNewSubStatus = null,
-                        showStatusSheet = false,
-                    )
-                }
             OrderDetailAction.OnBalanceWarningRecordPayment -> {
                 _state.update {
                     it.copy(
@@ -359,13 +347,6 @@ class OrderDetailViewModel(
         }
         _state.update { it.copy(showStatusSheet = false) }
         performStatusUpdate(transition.toStatus, transition.toSubStatus)
-    }
-
-    private fun updateStatusViaWarningFlow() {
-        val target = _state.value.selectedNewStatus ?: return
-        val targetSub = _state.value.selectedNewSubStatus
-        _state.update { it.copy(selectedNewStatus = null, selectedNewSubStatus = null) }
-        performStatusUpdate(target, targetSub)
     }
 
     private fun performStatusUpdate(newStatus: OrderStatus, newSubStatus: OrderSubStatus?) {
