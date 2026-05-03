@@ -546,8 +546,13 @@ private fun DashboardContent(
         // calmer states (PipelineSteady / QuietDay / FirstCustomer / BrandNew)
         // the Weekly Goal stays at the top of the body because motivation
         // matters more than triage when nothing is on fire.
+        // First-order setup overrides NBA promotion: the OrderSetupActionCard
+        // below is meant to REPLACE the NBA carousel for users still in
+        // onboarding, so we don't want a promoted carousel above the goal
+        // card AND a setup card below it surfacing the same incomplete order.
         val promoteNbaAboveGoal = state.uiState in PROMOTED_NBA_STATES &&
-            state.nextBestActions.isNotEmpty()
+            state.nextBestActions.isNotEmpty() &&
+            firstOrderSetup == null
         if (promoteNbaAboveGoal) {
             NextBestActionsSection(
                 actions = state.nextBestActions,
@@ -572,7 +577,11 @@ private fun DashboardContent(
             buildTodayWorkRows(state.overdue, state.dueToday, state.ready)
                 .filter { it.orderId !in nbaOrderIds }
         }
-        if (todayWorkRows.isNotEmpty()) {
+        // ReadyForPickup intentionally suppresses TodayWorkCard — the focus
+        // card already pins the top ready customer and the pipeline section
+        // covers the rest. Without this guard the card always re-renders here
+        // because state.ready is non-empty by definition in that state.
+        if (todayWorkRows.isNotEmpty() && state.uiState != DashboardUiState.ReadyForPickup) {
             TodayWorkCard(
                 rows = todayWorkRows,
                 onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },

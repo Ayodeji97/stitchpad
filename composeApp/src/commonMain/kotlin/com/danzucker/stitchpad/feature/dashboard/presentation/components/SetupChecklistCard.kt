@@ -222,8 +222,11 @@ private fun ChecklistRow(step: SetupStep, onClick: () -> Unit) {
 @Composable
 private fun StepIconBadge(step: SetupStep) {
     val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminanceIsDark()
+    val successBg = if (isDark) SUCCESS_DARK_BG else SUCCESS_LIGHT_BG
+    val successFg = if (isDark) SUCCESS_DARK_FG else SUCCESS_LIGHT_FG
     val (background, tint, icon) = when (step.status) {
-        SetupStepStatus.Done -> Triple(SUCCESS_TINT_BG, SUCCESS_TINT_FG, Icons.Default.Check)
+        SetupStepStatus.Done -> Triple(successBg, successFg, Icons.Default.Check)
         SetupStepStatus.Active -> Triple(
             scheme.primary.copy(alpha = 0.14f),
             scheme.primary,
@@ -250,10 +253,13 @@ private fun StepIconBadge(step: SetupStep) {
     }
 }
 
-// Theme-agnostic success ring for the "Completed" state. We don't have a
-// success-tonal token in the design system yet, so this is baked in.
-private val SUCCESS_TINT_BG = Color(0xFFDFF3E6)
-private val SUCCESS_TINT_FG = Color(0xFF2D9E6B)
+// Success ring for the "Completed" state. Light/dark pairs match the
+// CustomerReadyCard pattern — the tonal palette in DesignTokens still
+// lacks a success token, so these are baked in until we add one.
+private val SUCCESS_LIGHT_BG = Color(0xFFDFF3E6)
+private val SUCCESS_LIGHT_FG = Color(0xFF2D9E6B)
+private val SUCCESS_DARK_BG = Color(0xFF153D2A)
+private val SUCCESS_DARK_FG = Color(0xFF5EDBA0)
 
 private fun iconForKey(key: SetupStepKey): ImageVector = when (key) {
     SetupStepKey.CustomerCreated -> Icons.Default.Check
@@ -264,12 +270,14 @@ private fun iconForKey(key: SetupStepKey): ImageVector = when (key) {
 
 @Composable
 private fun StepText(step: SetupStep, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminanceIsDark()
     val labelText = labelFor(step.key)
     val descText = descFor(step.key, step.status)
     val descColor = if (step.status == SetupStepStatus.Done) {
-        SUCCESS_TINT_FG
+        if (isDark) SUCCESS_DARK_FG else SUCCESS_LIGHT_FG
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        scheme.onSurfaceVariant
     }
     Column(modifier = modifier) {
         Row(

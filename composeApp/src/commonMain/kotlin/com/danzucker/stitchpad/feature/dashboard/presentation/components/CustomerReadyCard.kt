@@ -256,7 +256,7 @@ private fun MessageRoundButton(contentDescription: String, onClick: () -> Unit) 
     }
 }
 
-private fun Color.luminanceIsDark(): Boolean {
+internal fun Color.luminanceIsDark(): Boolean {
     val r = red
     val g = green
     val b = blue

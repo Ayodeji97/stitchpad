@@ -154,7 +154,21 @@ class DashboardViewModel(
         val current = _state.value
         when (current.focusVariant) {
             FocusVariant.BrandNew -> emitEvent(DashboardEvent.NavigateToAddCustomerFirst)
-            FocusVariant.FirstOrder -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            FocusVariant.FirstOrder -> {
+                // Two FocusResolver sub-cases collapse into FirstOrder:
+                //  1. No order yet → open the new-order form.
+                //  2. One order without a deadline → "Complete setup" CTA;
+                //     route to the edit form so the user lands on the field
+                //     they need to fill, not a blank new-order form.
+                val incompleteOrderId = current.firstOrderSetup
+                    ?.takeIf { it.hasOrder }
+                    ?.orderId
+                if (incompleteOrderId != null) {
+                    emitEvent(DashboardEvent.NavigateToEditOrder(incompleteOrderId))
+                } else {
+                    emitEvent(DashboardEvent.NavigateToOrderForm)
+                }
+            }
             FocusVariant.Focus -> {
                 val firstUrgentId = current.overdue.firstOrNull()?.orderId
                     ?: current.dueToday.firstOrNull()?.orderId
