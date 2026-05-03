@@ -89,7 +89,9 @@ fun OrderMeasurementsPreviewCard(
                         val value = measurement.fields[label]
                         MeasurementTile(
                             label = label,
-                            value = if (value != null) "%.0f $unitSuffix".format(value) else "—",
+                            // String.format is JVM-only — use direct conversion so iOS compiles too.
+                            // Tailors work in whole inches/cm; rounding to Int matches the mockups.
+                            value = if (value != null) "${value.toInt()} $unitSuffix" else "—",
                             modifier = Modifier.weight(1f),
                         )
                     }
