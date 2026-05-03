@@ -166,6 +166,7 @@ fun OrderDetailRoot(
             OrderDetailEvent.PaymentRecorded -> {
                 snackbarScope.launch { snackbarHostState.showSnackbar(paymentRecordedMessage) }
             }
+            else -> Unit
         }
     }
 
@@ -341,7 +342,7 @@ fun OrderDetailScreen(
     }
 
     // Status update dialog — pick any status
-    if (state.showStatusUpdateDialog && state.order != null) {
+    if (state.showStatusSheet && state.order != null) {
         val currentStatus = state.order.status
         AlertDialog(
             onDismissRequest = { onAction(OrderDetailAction.OnDismissStatusUpdate) },
