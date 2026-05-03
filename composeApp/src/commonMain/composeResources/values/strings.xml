@@ -840,4 +840,28 @@
     <string name="payment_type_deposit">Deposit</string>
     <string name="payment_type_progress">Progress payment</string>
     <string name="payment_type_final">Final payment</string>
+
+    <!-- Hero card — balance row -->
+    <string name="order_detail_balance_due">Balance due</string>
+
+    <!-- Hero card — priority pills -->
+    <string name="order_priority_high_pill">High</string>
+    <string name="order_priority_rush_pill">Rush</string>
+
+    <!-- Status transition sheet -->
+    <string name="status_sheet_title">Move from &quot;%1$s&quot; to…</string>
+    <string name="status_sheet_subtitle_pending">Move backward in the timeline</string>
+    <string name="status_sheet_subtitle_cutting">Cut the fabric</string>
+    <string name="status_sheet_subtitle_sewing">Stitch the garment</string>
+    <string name="status_sheet_subtitle_fitting">Customer comes in to try on</string>
+    <string name="status_sheet_subtitle_ready">Garment finished — message customer</string>
+    <string name="status_sheet_subtitle_delivered">Customer has collected</string>
+
+    <!-- Record Payment V2 dialog -->
+    <string name="record_payment_dialog_title">Record payment</string>
+    <string name="record_payment_dialog_amount_label">Amount</string>
+    <string name="record_payment_dialog_type_label">Type</string>
+    <string name="record_payment_dialog_method_label">Method</string>
+    <string name="record_payment_dialog_mark_paid_full">Mark paid in full · ₦%1$s</string>
+    <string name="payment_capped_at_balance">Capped at balance %1$s</string>
 </resources>
