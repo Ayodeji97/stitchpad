@@ -13,6 +13,17 @@ enum class OrderPriority {
     RUSH
 }
 
+/**
+ * Sub-stages within IN_PROGRESS that match how tailors narrate work
+ * (cutting → sewing → fitting). Only meaningful when [Order.status] is
+ * [OrderStatus.IN_PROGRESS]; null otherwise.
+ */
+enum class OrderSubStatus {
+    CUTTING,
+    SEWING,
+    FITTING,
+}
+
 data class OrderItem(
     val id: String,
     val garmentType: GarmentType,
