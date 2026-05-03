@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Event
@@ -62,6 +63,8 @@ import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
 import stitchpad.composeapp.generated.resources.order_detail_message_customer
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
+import stitchpad.composeapp.generated.resources.order_detail_overdue_days_one
+import stitchpad.composeapp.generated.resources.order_detail_overdue_days_other
 import stitchpad.composeapp.generated.resources.order_detail_send_reminder
 import stitchpad.composeapp.generated.resources.order_detail_share_receipt
 import stitchpad.composeapp.generated.resources.order_detail_start_work
@@ -315,7 +318,7 @@ private fun StatusPill(
             OrderStatus.IN_PROGRESS -> StatusPillData(
                 bg = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                 fg = MaterialTheme.colorScheme.primary,
-                icon = if (subStatus == OrderSubStatus.FITTING) Icons.Default.Build else Icons.Default.Build,
+                icon = if (subStatus == OrderSubStatus.FITTING) Icons.Default.Accessibility else Icons.Default.Build,
                 label = stringResource(Res.string.order_status_in_progress),
             )
             OrderStatus.READY -> StatusPillData(
@@ -455,7 +458,11 @@ private fun BalanceSection(
 
 @Composable
 private fun OverdueBanner(overdueDaysAgo: Int) {
-    val daysText = if (overdueDaysAgo == 1) "1 day" else "$overdueDaysAgo days"
+    val daysText = if (overdueDaysAgo == 1) {
+        stringResource(Res.string.order_detail_overdue_days_one)
+    } else {
+        stringResource(Res.string.order_detail_overdue_days_other, overdueDaysAgo)
+    }
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.10f),

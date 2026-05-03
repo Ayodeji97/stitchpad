@@ -110,7 +110,17 @@ class OrderDetailViewModel(
             is OrderDetailAction.OnSelectStatusTransition ->
                 handleStatusTransition(action.transition)
             OrderDetailAction.OnDismissStatusSheet ->
-                _state.update { it.copy(showStatusSheet = false) }
+                _state.update {
+                    it.copy(
+                        showStatusSheet = false,
+                        // Defensive clear: if the sheet's onDismissRequest fires after
+                        // handleStatusTransition has already populated these (rare iOS sheet
+                        // timing edge case per feedback_ios_modal_bottom_sheet_timing memory),
+                        // leaving them set would silently suppress the next balance-warning.
+                        selectedNewStatus = null,
+                        selectedNewSubStatus = null,
+                    )
+                }
 
             OrderDetailAction.OnBalanceWarningRecordPayment -> {
                 _state.update {

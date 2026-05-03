@@ -838,6 +838,10 @@
     <string name="payment_type_progress">Progress payment</string>
     <string name="payment_type_final">Final payment</string>
 
+    <!-- Hero card — overdue banner day plurals -->
+    <string name="order_detail_overdue_days_one">1 day</string>
+    <string name="order_detail_overdue_days_other">%1$d days</string>
+
     <!-- Hero card — balance row -->
     <string name="order_detail_balance_due">Balance due</string>
 
@@ -847,6 +851,7 @@
 
     <!-- Status transition sheet -->
     <string name="status_sheet_title">Move from &quot;%1$s&quot; to…</string>
+    <string name="status_sheet_back_to_prefix">Back to %1$s</string>
     <string name="status_sheet_subtitle_pending">Move backward in the timeline</string>
     <string name="status_sheet_subtitle_cutting">Cut the fabric</string>
     <string name="status_sheet_subtitle_sewing">Stitch the garment</string>

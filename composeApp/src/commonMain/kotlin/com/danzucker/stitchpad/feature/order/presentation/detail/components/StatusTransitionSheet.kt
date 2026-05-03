@@ -47,6 +47,7 @@ import stitchpad.composeapp.generated.resources.order_stage_fitting
 import stitchpad.composeapp.generated.resources.order_stage_pending
 import stitchpad.composeapp.generated.resources.order_stage_ready
 import stitchpad.composeapp.generated.resources.order_stage_sewing
+import stitchpad.composeapp.generated.resources.status_sheet_back_to_prefix
 import stitchpad.composeapp.generated.resources.status_sheet_subtitle_cutting
 import stitchpad.composeapp.generated.resources.status_sheet_subtitle_delivered
 import stitchpad.composeapp.generated.resources.status_sheet_subtitle_fitting
@@ -159,8 +160,12 @@ private fun TransitionRow(
     } else {
         MaterialTheme.colorScheme.primary
     }
-    val titlePrefix = if (isBackMove) "Back to " else ""
-    val title = titlePrefix + stageName(targetStage)
+    val targetStageName = stageName(targetStage)
+    val title = if (isBackMove) {
+        stringResource(Res.string.status_sheet_back_to_prefix, targetStageName)
+    } else {
+        targetStageName
+    }
     val subtitle = stageSubtitle(targetStage)
 
     Surface(
