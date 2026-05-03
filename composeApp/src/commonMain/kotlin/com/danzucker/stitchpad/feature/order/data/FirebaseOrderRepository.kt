@@ -4,11 +4,14 @@ import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
+import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
@@ -21,6 +24,7 @@ import kotlin.time.Clock
 
 private const val TAG = "OrderRepo"
 
+@Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
@@ -140,6 +144,100 @@ class FirebaseOrderRepository(
             if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "updateOrderStatus failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun recordPayment(
+        userId: String,
+        orderId: String,
+        payment: Payment,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                val now = Clock.System.now().toEpochMilliseconds()
+                val updatedDto = dto.copy(
+                    payments = dto.payments + payment.toPaymentDto(),
+                    // Zero out the legacy field on first write — once payments is
+                    // populated the read-side ignores depositPaid anyway.
+                    depositPaid = 0.0,
+                    updatedAt = now,
+                )
+                set(docRef, updatedDto)
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "recordPayment failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun updateSubStatus(
+        userId: String,
+        orderId: String,
+        subStatus: OrderSubStatus?,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                val now = Clock.System.now().toEpochMilliseconds()
+                set(docRef, dto.copy(subStatus = subStatus?.name, updatedAt = now))
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "updateSubStatus failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun updateNotes(
+        userId: String,
+        orderId: String,
+        notes: String?,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                val now = Clock.System.now().toEpochMilliseconds()
+                set(docRef, dto.copy(notes = notes, updatedAt = now))
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "updateNotes failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun archiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                val now = Clock.System.now().toEpochMilliseconds()
+                set(docRef, dto.copy(archivedAt = now, updatedAt = now))
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "archiveOrder failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }

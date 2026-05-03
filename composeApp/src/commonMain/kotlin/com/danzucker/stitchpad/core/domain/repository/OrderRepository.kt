@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface OrderRepository {
     fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>>
     fun observeOrder(userId: String, orderId: String): Flow<Result<Order, DataError.Network>>
