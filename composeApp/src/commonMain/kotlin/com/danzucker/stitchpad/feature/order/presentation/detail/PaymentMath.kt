@@ -10,26 +10,6 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
  * isolation without building an expect-class sharer fake for commonTest.
  */
 
-internal data class RecordedPayment(
-    val newDeposit: Double,
-    val newBalance: Double,
-)
-
-/**
- * Increment [currentDeposit] by [amountJustPaid], clamped to [totalPrice]. Returns the
- * new deposit and derived balance (never negative). A tailor who over-taps "mark paid in
- * full" or types an amount larger than the balance is recorded as fully paid, not owed money.
- */
-internal fun computeRecordedPayment(
-    currentDeposit: Double,
-    totalPrice: Double,
-    amountJustPaid: Double,
-): RecordedPayment {
-    val newDeposit = (currentDeposit + amountJustPaid).coerceAtMost(totalPrice)
-    val newBalance = (totalPrice - newDeposit).coerceAtLeast(0.0)
-    return RecordedPayment(newDeposit = newDeposit, newBalance = newBalance)
-}
-
 /**
  * Cap digit-only user input so the amount cannot exceed the outstanding balance.
  * Leading zeros are trimmed, letters (never expected from a numeric keyboard) are dropped.

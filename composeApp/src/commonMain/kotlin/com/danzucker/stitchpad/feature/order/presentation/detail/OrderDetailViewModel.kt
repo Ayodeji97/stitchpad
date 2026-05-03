@@ -284,6 +284,7 @@ class OrderDetailViewModel(
             id = Uuid.random().toString(),
             amount = amountJustPaid,
             method = PaymentMethod.OTHER,
+            // Phase 1: hardcoded — RecordPaymentDialogV2 (Task 5.4) adds Type/Method selectors.
             type = PaymentType.DEPOSIT,
             recordedAt = now,
             note = null,

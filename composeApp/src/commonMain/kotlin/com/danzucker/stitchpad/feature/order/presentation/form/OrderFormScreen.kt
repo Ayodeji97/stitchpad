@@ -1140,6 +1140,12 @@ private fun DetailsStep(
                 val digits = raw.filter { it.isDigit() }
                 onAction(OrderFormAction.OnDepositChange(digits))
             },
+            readOnly = state.isEditMode,
+            supportingText = if (state.isEditMode) {
+                { Text("Use Record Payment on the order details screen to update.") }
+            } else {
+                null
+            },
             visualTransformation = ThousandsSeparatorTransformation,
             label = { Text(stringResource(Res.string.order_form_deposit_label)) },
             placeholder = { Text(stringResource(Res.string.order_form_deposit_placeholder)) },

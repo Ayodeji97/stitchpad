@@ -6,9 +6,6 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
-import com.danzucker.stitchpad.core.domain.model.Payment
-import com.danzucker.stitchpad.core.domain.model.PaymentMethod
-import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -22,15 +19,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class FocusResolverTest {
-
-    @Suppress("UnusedPrivateMember")
-    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
-        id = "test-deposit",
-        amount = amount,
-        method = PaymentMethod.OTHER,
-        type = PaymentType.DEPOSIT,
-        recordedAt = recordedAt,
-    )
 
     private val emptyBuckets = Buckets(
         overdue = emptyList(),
