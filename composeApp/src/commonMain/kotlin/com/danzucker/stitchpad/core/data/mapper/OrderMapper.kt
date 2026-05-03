@@ -17,6 +17,15 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
 import kotlin.time.Clock
 
 fun OrderDto.toOrder(userId: String): Order {
+    val parsedStatus = runCatching { OrderStatus.valueOf(status) }
+        .getOrDefault(OrderStatus.PENDING)
+    val parsedSubStatus = if (parsedStatus == OrderStatus.IN_PROGRESS) {
+        subStatus?.let { runCatching { OrderSubStatus.valueOf(it) }.getOrNull() }
+    } else {
+        // Force null when not IN_PROGRESS so an inconsistent document can't
+        // surface a misleading sub-stage in the UI.
+        null
+    }
     // Migrate legacy docs: if payments list is empty but the old depositPaid field has a value,
     // synthesise a single payment so the computed Order.depositPaid is non-zero.
     val resolvedPayments = if (payments.isNotEmpty()) {
@@ -28,7 +37,7 @@ fun OrderDto.toOrder(userId: String): Order {
                 amount = depositPaid,
                 method = PaymentMethod.OTHER,
                 type = PaymentType.DEPOSIT,
-                recordedAt = updatedAt,
+                recordedAt = createdAt,
             )
         )
     } else {
@@ -40,9 +49,8 @@ fun OrderDto.toOrder(userId: String): Order {
         customerId = customerId,
         customerName = customerName,
         items = items.map { it.toOrderItem() },
-        status = runCatching { OrderStatus.valueOf(status) }
-            .getOrDefault(OrderStatus.PENDING),
-        subStatus = subStatus?.let { runCatching { OrderSubStatus.valueOf(it) }.getOrNull() },
+        status = parsedStatus,
+        subStatus = parsedSubStatus,
         priority = runCatching { OrderPriority.valueOf(priority) }
             .getOrDefault(OrderPriority.NORMAL),
         statusHistory = statusHistory.map { it.toStatusChange() },
