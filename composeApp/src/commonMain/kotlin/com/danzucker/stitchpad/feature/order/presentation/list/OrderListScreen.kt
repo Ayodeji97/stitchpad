@@ -580,8 +580,13 @@ private fun OrderListScreenFilledPreview() {
                         statusHistory = emptyList(),
                         totalPrice = 20_000.0,
                         payments = listOf(
-                            Payment(id = "p2", amount = 10_000.0, method = PaymentMethod.OTHER,
-                                type = PaymentType.DEPOSIT, recordedAt = 0L)
+                            Payment(
+                                id = "p2",
+                                amount = 10_000.0,
+                                method = PaymentMethod.OTHER,
+                                type = PaymentType.DEPOSIT,
+                                recordedAt = 0L
+                            )
                         ),
                         deadline = now + 2 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
                     ),
@@ -592,8 +597,13 @@ private fun OrderListScreenFilledPreview() {
                         statusHistory = emptyList(),
                         totalPrice = 4_000.0,
                         payments = listOf(
-                            Payment(id = "p3", amount = 2_000.0, method = PaymentMethod.OTHER,
-                                type = PaymentType.DEPOSIT, recordedAt = 0L)
+                            Payment(
+                                id = "p3",
+                                amount = 2_000.0,
+                                method = PaymentMethod.OTHER,
+                                type = PaymentType.DEPOSIT,
+                                recordedAt = 0L
+                            )
                         ),
                         deadline = null, notes = null, createdAt = 0L, updatedAt = 0L
                     )
