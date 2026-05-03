@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -69,6 +70,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderDetailOverflowMenu
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NairaAmountField
@@ -106,6 +108,7 @@ import stitchpad.composeapp.generated.resources.order_detail_deposit_paid
 import stitchpad.composeapp.generated.resources.order_detail_fabric_photo
 import stitchpad.composeapp.generated.resources.order_detail_financial_section
 import stitchpad.composeapp.generated.resources.order_detail_items_section
+import stitchpad.composeapp.generated.resources.order_detail_more
 import stitchpad.composeapp.generated.resources.order_detail_not_found_message
 import stitchpad.composeapp.generated.resources.order_detail_not_found_title
 import stitchpad.composeapp.generated.resources.order_detail_notes_section
@@ -216,13 +219,29 @@ fun OrderDetailScreen(
                         IconButton(onClick = { onAction(OrderDetailAction.OnShareClick) }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = stringResource(Res.string.order_detail_share)
+                                contentDescription = stringResource(Res.string.order_detail_share),
                             )
                         }
                         IconButton(onClick = { onAction(OrderDetailAction.OnEditClick) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(Res.string.cd_edit_order)
+                                contentDescription = stringResource(Res.string.cd_edit_order),
+                            )
+                        }
+                        Box {
+                            IconButton(onClick = { onAction(OrderDetailAction.OnOverflowMenuToggle) }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(Res.string.order_detail_more),
+                                )
+                            }
+                            OrderDetailOverflowMenu(
+                                expanded = state.showOverflowMenu,
+                                showArchive = state.order.status != OrderStatus.DELIVERED,
+                                onDismiss = { onAction(OrderDetailAction.OnOverflowMenuToggle) },
+                                onDuplicateClick = { onAction(OrderDetailAction.OnDuplicateClick) },
+                                onArchiveClick = { onAction(OrderDetailAction.OnArchiveClick) },
+                                onDeleteClick = { onAction(OrderDetailAction.OnDeleteClick) },
                             )
                         }
                     }
