@@ -79,17 +79,16 @@ class ReconnectCalculatorTest {
     }
 
     @Test
-    fun newCustomerWithNoOrderHistoryAlwaysPasses() {
+    fun newCustomerWithNoOrderHistoryIsExcluded() {
+        // Reconnect is for "stale customer with past business", not "just-added customer".
+        // No-history customers belong to FirstCustomer / onboarding surfaces instead.
         val result = ReconnectCalculator.compute(
             orders = emptyList(),
             customers = listOf(customer("new")),
             today = today,
             timeZone = tz
         )
-        val candidate = result.single()
-        assertEquals("new", candidate.customerId)
-        assertEquals(0, candidate.daysSinceLastInteraction)
-        assertEquals(false, candidate.hasOrderHistory)
+        assertTrue(result.isEmpty())
     }
 
     @Test

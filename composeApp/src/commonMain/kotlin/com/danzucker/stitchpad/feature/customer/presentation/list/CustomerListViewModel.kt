@@ -122,6 +122,7 @@ class CustomerListViewModel(
                         _state.update { state ->
                             state.copy(
                                 customers = filterCustomers(result.data, state.searchQuery, state.deliveryFilter),
+                                hasAnyCustomers = result.data.isNotEmpty(),
                                 isLoading = false
                             )
                         }

@@ -34,7 +34,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -87,18 +86,24 @@ class DashboardViewModelTest {
     private fun epochMillisAt(date: LocalDate): Long =
         date.atStartOfDayIn(testTimeZone).toEpochMilliseconds()
 
+    // Default deadline is 9 days past `today` (2026-04-22 → 2026-05-01).
+    // Picked to land safely outside overdue/dueToday/ready bucketing AND
+    // outside the FirstCustomer "no-due-date" sub-state so existing tests
+    // continue exercising their intended state. Tests that specifically
+    // need a deadline-less order pass `deadline = null` explicitly.
     private fun fakeOrder(
         id: String = "o1",
         customerId: String = "c1",
         status: OrderStatus = OrderStatus.PENDING,
-        deadline: LocalDate? = null,
+        deadline: LocalDate? = LocalDate(2026, 5, 1),
         customerName: String = "Ada Lovelace",
         totalPrice: Double = 0.0,
         depositPaid: Double = 0.0,
         balanceRemaining: Double = 0.0,
         garment: GarmentType = GarmentType.AGBADA,
         statusEnteredOn: LocalDate? = null,
-        createdAt: Long = 0L
+        createdAt: Long = 0L,
+        updatedAt: Long = 0L
     ): Order {
         val statusHistory = if (statusEnteredOn != null) {
             listOf(StatusChange(status = status, changedAt = epochMillisAt(statusEnteredOn)))
@@ -127,7 +132,7 @@ class DashboardViewModelTest {
             deadline = deadline?.let(::epochMillisAt),
             notes = null,
             createdAt = createdAt,
-            updatedAt = 0L
+            updatedAt = updatedAt
         )
     }
 
@@ -978,16 +983,14 @@ class DashboardViewModelTest {
     // --- Reconnect candidates ---
 
     @Test
-    fun reconnectCandidates_includesCustomerWithNoOrders() = runTest {
+    fun reconnectCandidates_excludesCustomerWithNoOrderHistory() = runTest {
+        // No-history customers belong on FirstCustomer / onboarding surfaces, not Reconnect.
         signIn()
         customerRepository.customersList = listOf(fakeCustomer(id = "c1", name = "Ola Kunle"))
 
         val vm = createViewModel()
 
-        val candidates = vm.state.value.reconnectCandidates
-        assertEquals(1, candidates.size)
-        assertEquals("Ola Kunle", candidates.first().customerName)
-        assertFalse(candidates.first().hasOrderHistory)
+        assertTrue(vm.state.value.reconnectCandidates.isEmpty())
     }
 
     @Test
@@ -998,7 +1001,15 @@ class DashboardViewModelTest {
             fakeCustomer(id = "quiet-cust", name = "Quiet")
         )
         orderRepository.ordersList = listOf(
-            fakeOrder(id = "o1", customerId = "active-cust", status = OrderStatus.IN_PROGRESS)
+            fakeOrder(id = "o1", customerId = "active-cust", status = OrderStatus.IN_PROGRESS),
+            // "quiet-cust" needs a delivered order >=14d old to qualify as a reconnect
+            // candidate at all. today = 2026-04-22; 31 days back = 2026-03-22.
+            fakeOrder(
+                id = "o-quiet",
+                customerId = "quiet-cust",
+                status = OrderStatus.DELIVERED,
+                updatedAt = epochMillisAt(LocalDate(2026, 3, 22))
+            )
         )
 
         val vm = createViewModel()
@@ -1010,6 +1021,53 @@ class DashboardViewModelTest {
     // --- Focus CTA routing ---
 
     @Test
+    fun focusCtaClick_inBrandNewVariant_emitsNavigateToAddCustomerFirst() = runTest {
+        signIn()
+        // No customers, no orders → BrandNew. The hero CTA must route to
+        // the gate screen, not OrderForm (no customer exists yet).
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnFocusCtaClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, event)
+    }
+
+    @Test
+    fun createOrderClick_inBrandNew_emitsNavigateToAddCustomerFirst() = runTest {
+        signIn()
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnCreateOrderClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, event)
+    }
+
+    @Test
+    fun addMeasurementClick_inBrandNew_emitsNavigateToAddCustomerFirst() = runTest {
+        signIn()
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnAddMeasurementClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, event)
+    }
+
+    @Test
+    fun addMeasurementClick_outsideBrandNew_emitsNavigateToCustomers() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnAddMeasurementClick)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToCustomers, event)
+    }
+
+    @Test
     fun focusCtaClick_inFirstOrderVariant_emitsNavigateToOrderForm() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())
@@ -1019,6 +1077,49 @@ class DashboardViewModelTest {
 
         val event = vm.events.first()
         assertEquals(DashboardEvent.NavigateToOrderForm, event)
+    }
+
+    @Test
+    fun setupChecklistAdvance_emitsNavigateToOrderForm() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnSetupChecklistAdvance)
+
+        val event = vm.events.first()
+        assertEquals(DashboardEvent.NavigateToOrderForm, event)
+    }
+
+    @Test
+    fun customerReadyClick_emitsNavigateToCustomerDetail() = runTest {
+        signIn()
+        val customer = fakeCustomer(id = "cust-1")
+        customerRepository.customersList = listOf(customer)
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnCustomerReadyClick("cust-1"))
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.NavigateToCustomerDetail>(event)
+        assertEquals("cust-1", event.customerId)
+    }
+
+    @Test
+    fun customerReadyMessageClick_emitsLaunchWhatsAppForReconnect() = runTest {
+        signIn()
+        // FirstCustomer state populates state.customerReady; the message
+        // click looks up the customer by ID and synthesizes a candidate
+        // for the existing WhatsApp launch event.
+        customerRepository.customersList = listOf(fakeCustomer(id = "cust-1", name = "Bola"))
+
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnCustomerReadyMessageClick("cust-1"))
+
+        val event = vm.events.first()
+        assertIs<DashboardEvent.LaunchWhatsAppForReconnect>(event)
+        assertEquals("cust-1", event.candidate.customerId)
+        assertEquals("Bola", event.candidate.customerName)
     }
 
     @Test
@@ -1226,8 +1327,8 @@ class DashboardViewModelTest {
     @Test
     fun busyDay_focusHeadline_excludesReadyFromUrgentCount() = runTest {
         // Regression for the headline math fix: when overdue=1 and ready=2, the
-        // urgent-count headline must report "1 need attention", not "3" — ready
-        // orders are no longer rolled into the urgency total.
+        // urgent-count headline must report "1 order needs attention", not "3" —
+        // ready orders are no longer rolled into the urgency total.
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())
         orderRepository.ordersList = listOf(
@@ -1279,14 +1380,20 @@ class DashboardViewModelTest {
     fun focusCtaClick_inQuietVariant_withReconnectCandidate_emitsLaunchWhatsAppForReconnect() = runTest {
         signIn()
         // Customer "active" anchors the system into a non-empty orders state (so we land
-        // on QuietDay rather than FirstCustomer); their delivered order excludes them from
-        // triage. Customer "quiet" has no orders → eligible reconnect candidate.
+        // on QuietDay rather than FirstCustomer). Customer "quiet" has a delivered order
+        // from 31 days ago (today = 2026-04-22) → eligible reconnect candidate.
         customerRepository.customersList = listOf(
             fakeCustomer(id = "active", name = "Active"),
             fakeCustomer(id = "quiet", name = "Quiet")
         )
         orderRepository.ordersList = listOf(
-            fakeOrder(id = "done", customerId = "active", status = OrderStatus.DELIVERED)
+            fakeOrder(id = "done", customerId = "active", status = OrderStatus.DELIVERED),
+            fakeOrder(
+                id = "quiet-done",
+                customerId = "quiet",
+                status = OrderStatus.DELIVERED,
+                updatedAt = epochMillisAt(LocalDate(2026, 3, 22))
+            )
         )
 
         val vm = createViewModel()

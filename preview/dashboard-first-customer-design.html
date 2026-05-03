@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — FirstCustomer Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p200:#FBDF8A; --p300:#F9CC50;
+      --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00; --p700:#9E7200;
+      --p800:#7A5800; --p900:#4F3800;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --err:#D93B3B; --err50:#FCEAEA;
+      --suc:#2D9E6B; --suc50:#E8F7F1;
+      --warn:#E07B20; --warn50:#FEF3E8;
+      --info:#2B7FD4; --info50:#E7F2FC;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s8:32px; --s10:40px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px;
+      --r-fab:16px;
+
+      --font-body:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+
+      --bg:var(--n50); --surf:var(--n0); --on-surf:var(--n800);
+      --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200); --primary:var(--p500); --on-pri:#fff;
+      --pri-pill:rgba(232,168,0,.1);
+      --hero-tint:rgba(232,168,0,.08);
+      --check-active-bg:rgba(232,168,0,.07);
+      --check-active-bdr:rgba(232,168,0,.4);
+    }
+
+    .phone-screen.dark{
+      --bg:#121110; --surf:#1E1C1A; --on-surf:#E5E3DF;
+      --on-surf2:#A8A49D; --on-surf3:#7D7970;
+      --bdr:#3A3731;
+      --err50:#3D1515; --suc50:#0E3D2A; --warn50:#3D2510; --info50:#0C2A4A;
+      --err:#E89090; --suc:#5EDBA0; --warn:#F0AA60; --info:#7BB8F0;
+      --p100:#4F3800;
+      --pri-pill:rgba(79,56,0,.5);
+      --hero-tint:rgba(232,168,0,.05);
+      --check-active-bg:rgba(232,168,0,.10);
+      --check-active-bdr:rgba(232,168,0,.45);
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:var(--font-body);background:#0f0e0d;color:#E5E3DF;min-height:100vh}
+    body{padding:36px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:24px}
+
+    .page-head{max-width:720px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+    .brand{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .brand .logo{font-size:24px;color:var(--p500);letter-spacing:-.02em}
+    .page-head h1{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:#fff}
+    .page-head .lede{font-size:14px;line-height:1.6;color:rgba(255,255,255,.7);max-width:600px}
+
+    .toolbar{display:flex;gap:10px;align-items:center}
+    .theme-toggle{
+      font-size:12px;font-weight:700;padding:6px 14px;border:none;cursor:pointer;
+      border-radius:var(--r-full);background:var(--p500);color:#fff;
+      font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    }
+    .theme-toggle .material-icons-round{font-size:14px}
+
+    /* Phone frame */
+    .phone-shell{
+      width:340px;height:740px;border-radius:42px;padding:10px;
+      background:var(--n800);position:relative;overflow:hidden;
+      box-shadow:0 0 0 1px rgba(255,255,255,.07),0 28px 70px rgba(0,0,0,.6);
+    }
+    .phone-shell::before{
+      content:'';position:absolute;top:16px;left:50%;transform:translateX(-50%);
+      width:108px;height:30px;background:#080807;border-radius:var(--r-full);z-index:10;
+    }
+    .phone-screen{
+      width:100%;height:100%;border-radius:33px;background:var(--bg);
+      overflow:hidden;position:relative;display:flex;flex-direction:column;
+    }
+
+    .status-bar{
+      height:44px;padding:12px var(--s4) 0;
+      display:flex;align-items:flex-end;justify-content:space-between;
+      flex-shrink:0;background:var(--bg);
+    }
+    .status-time{font-size:14px;font-weight:700;color:var(--on-surf)}
+    .status-icons{display:flex;gap:5px;align-items:center}
+    .status-icons .material-icons-round{font-size:14px;color:var(--on-surf2)}
+
+    .screen-content{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;background:var(--bg);position:relative;padding:var(--s4) var(--s4) 96px}
+    .screen-content::-webkit-scrollbar{display:none}
+
+    .bottom-nav{
+      height:64px;background:var(--surf);border-top:1px solid var(--bdr);
+      display:flex;align-items:flex-start;padding-top:var(--s2);flex-shrink:0;
+    }
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:var(--s1) 0}
+    .nav-item .material-icons-round{font-size:22px;color:var(--on-surf3)}
+    .nav-item span{font-size:10px;font-weight:600;color:var(--on-surf3);letter-spacing:.02em}
+    .nav-item.active .material-icons-round,.nav-item.active span{color:var(--p600)}
+    .nav-item .nav-pill{width:46px;height:26px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center}
+    .nav-item.active .nav-pill{background:var(--pri-pill)}
+
+    .fab{
+      position:absolute;bottom:80px;right:var(--s4);
+      width:50px;height:50px;border-radius:var(--r-fab);
+      background:var(--primary);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px rgba(232,168,0,.4);z-index:5;
+    }
+    .fab .material-icons-round{font-size:24px;color:var(--on-pri);font-weight:700}
+
+    /* === Header === */
+    .header-row{
+      display:flex;justify-content:space-between;align-items:flex-start;
+      gap:var(--s3);margin-bottom:var(--s4);
+    }
+    .greeting{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+    .greeting .hello{font-size:18px;font-weight:800;color:var(--on-surf);letter-spacing:-.01em;line-height:1.2}
+    .greeting .date{font-size:12px;color:var(--on-surf2)}
+    .header-actions{display:flex;align-items:center;gap:var(--s2)}
+    .icon-btn{
+      width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+      position:relative;
+    }
+    .icon-btn .material-icons-round{font-size:22px;color:var(--on-surf2)}
+    .icon-btn .dot{
+      position:absolute;top:6px;right:6px;
+      width:8px;height:8px;border-radius:50%;background:var(--err);
+      border:2px solid var(--bg);box-sizing:content-box;
+    }
+    .avatar{
+      width:34px;height:34px;border-radius:50%;
+      background:linear-gradient(135deg,var(--p400),var(--p600));
+      display:flex;align-items:center;justify-content:center;
+      color:var(--on-pri);font-weight:800;font-size:14px;
+    }
+
+    /* === Prominent FocusCard (saffron, sparkle badge) === */
+    .focus-prominent{
+      background:linear-gradient(135deg,var(--hero-tint),var(--surf));
+      border:1px solid var(--check-active-bdr);
+      border-radius:var(--r-lg);padding:var(--s5);
+      margin-bottom:var(--s4);
+      display:flex;gap:var(--s3);align-items:center;
+    }
+    .focus-prominent .text{flex:1;display:flex;flex-direction:column;gap:0;min-width:0}
+    .focus-prominent .sparkle{
+      width:36px;height:36px;border-radius:50%;
+      background:rgba(232,168,0,.15);
+      display:flex;align-items:center;justify-content:center;
+      margin-bottom:var(--s3);
+    }
+    .focus-prominent .sparkle .material-icons-round{font-size:20px;color:var(--p600)}
+    .focus-prominent h2{
+      font-size:21px;font-weight:800;color:var(--on-surf);
+      letter-spacing:-.015em;line-height:1.2;
+    }
+    .focus-prominent .sub{
+      font-size:13px;color:var(--on-surf2);line-height:1.45;
+      margin-top:var(--s2);
+    }
+    .focus-prominent .cta{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:14px;font-weight:800;color:var(--p600);
+      margin-top:var(--s3);
+    }
+    .focus-prominent .cta .material-icons-round{font-size:16px}
+    .focus-prominent .illu{
+      width:128px;height:128px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-size:72px;
+    }
+    .phone-screen.dark .focus-prominent .sparkle{background:rgba(232,168,0,.2)}
+    .phone-screen.dark .focus-prominent .sparkle .material-icons-round{color:var(--p400)}
+    .phone-screen.dark .focus-prominent .cta{color:var(--p400)}
+
+    /* === Setup checklist === */
+    .checklist{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s4);
+      margin-bottom:var(--s4);display:flex;flex-direction:column;gap:var(--s3);
+    }
+    .checklist-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s2)}
+    .checklist-head h3{font-size:14px;font-weight:800;color:var(--on-surf);letter-spacing:-.005em}
+    .checklist-head .progress-wrap{display:flex;align-items:center;gap:var(--s2);min-width:0}
+    .checklist-head .progress-text{font-size:11px;font-weight:700;color:var(--on-surf2);white-space:nowrap}
+    .progress-track{
+      width:80px;height:5px;border-radius:var(--r-full);
+      background:var(--bdr);overflow:hidden;
+    }
+    .progress-fill{
+      height:100%;background:var(--p500);border-radius:var(--r-full);
+    }
+    .check-rows{display:flex;flex-direction:column;gap:var(--s2)}
+    .check-row{
+      display:flex;align-items:center;gap:var(--s3);
+      padding:var(--s3);border-radius:var(--r-md);
+      border:1px solid var(--bdr);background:var(--surf);
+      min-height:60px;
+    }
+    .check-row.done{
+      background:var(--suc50);border-color:transparent;
+    }
+    .check-row.active{
+      background:var(--check-active-bg);
+      border-color:var(--check-active-bdr);
+    }
+    .check-icon{
+      width:32px;height:32px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;font-weight:800;font-size:13px;
+      background:var(--n100);color:var(--on-surf2);
+    }
+    .check-row.done .check-icon{background:var(--suc);color:#fff}
+    .check-row.done .check-icon .material-icons-round{font-size:18px}
+    .check-row.active .check-icon{background:var(--p500);color:#fff}
+    .phone-screen.dark .check-icon{background:var(--n700)}
+    .phone-screen.dark .check-row.done{background:rgba(45,158,107,.12)}
+    .check-text{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+    .check-text .label{font-size:13.5px;font-weight:700;color:var(--on-surf);line-height:1.2}
+    .check-text .desc{font-size:11.5px;color:var(--on-surf2);line-height:1.35}
+    .check-row.done .check-text .desc{color:var(--suc);font-weight:700}
+    .check-chevron{
+      color:var(--on-surf3);
+      flex-shrink:0;
+    }
+    .check-chevron .material-icons-round{font-size:20px}
+    .check-row.active .check-chevron{color:var(--p600)}
+    .phone-screen.dark .check-row.active .check-chevron{color:var(--p400)}
+
+    /* === Customer ready strip === */
+    .section-label{
+      font-size:13px;font-weight:800;color:var(--on-surf);
+      letter-spacing:-.005em;
+      margin-bottom:var(--s2);
+    }
+    .customer-pill{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3);
+      display:flex;align-items:center;gap:var(--s3);
+      margin-bottom:var(--s4);
+    }
+    .customer-pill .av{
+      width:40px;height:40px;border-radius:50%;
+      background:#FCE5D8;color:#A35924;
+      font-weight:800;font-size:14px;
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;
+    }
+    .phone-screen.dark .customer-pill .av{background:#3D2518;color:#F2B07A}
+    .customer-pill .info{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+    .customer-pill .name{font-size:14px;font-weight:700;color:var(--on-surf);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .customer-pill .meta{font-size:11.5px;color:var(--on-surf2)}
+    .pill-btn{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:6px 12px;border-radius:var(--r-full);
+      background:var(--suc50);color:var(--suc);
+      font-size:12px;font-weight:700;
+      flex-shrink:0;
+    }
+    .pill-btn .material-icons-round{font-size:14px}
+
+    /* === Work pipeline empty === */
+    .work-pipeline-head{
+      font-size:13px;font-weight:800;color:var(--on-surf);
+      letter-spacing:-.005em;margin-bottom:var(--s2);
+    }
+    .work-empty-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s4);
+      display:flex;align-items:center;gap:var(--s3);
+    }
+    .work-empty-card .backdrop{
+      width:120px;height:96px;border-radius:var(--r-lg);
+      background:rgba(232,168,0,.12);
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;font-size:48px;
+    }
+    .phone-screen.dark .work-empty-card .backdrop{background:rgba(232,168,0,.08)}
+    .work-empty-card .we-text{flex:1;min-width:0}
+    .work-empty-card .we-title{font-size:14px;font-weight:800;color:var(--on-surf)}
+    .work-empty-card .we-sub{font-size:12px;color:var(--on-surf2);margin-top:3px;line-height:1.4}
+
+    /* === Page chrome / TOC === */
+    .toc{
+      position:sticky;top:0;z-index:20;
+      background:rgba(15,14,13,.92);backdrop-filter:blur(8px);
+      padding:14px 24px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+      border-bottom:1px solid rgba(255,255,255,.06);width:100%;
+    }
+    .toc a{font-size:12px;font-weight:700;color:rgba(255,255,255,.6);padding:6px 12px;border-radius:var(--r-full);background:rgba(255,255,255,.05);text-decoration:none}
+    .toc a:hover{background:rgba(255,255,255,.1);color:#fff}
+
+    .legend{
+      max-width:760px;width:100%;
+      background:rgba(232,168,0,.06);border:1px solid rgba(232,168,0,.25);
+      border-radius:16px;padding:18px 22px;display:flex;flex-direction:column;gap:8px;
+    }
+    .legend h2{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .legend ul{list-style:none;display:flex;flex-direction:column;gap:5px;font-size:13px;line-height:1.55;color:rgba(255,255,255,.78)}
+    .legend ul li{display:flex;gap:8px}
+    .legend ul li::before{content:'•';color:var(--p400);font-weight:800;flex-shrink:0}
+    .legend .src{display:inline-block;background:rgba(255,255,255,.08);padding:0 6px;border-radius:4px;font-size:11px;font-family:var(--font-mono);color:rgba(255,255,255,.85)}
+
+    .pair{display:flex;gap:36px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+    .pair-col{display:flex;flex-direction:column;gap:14px;align-items:center}
+    .pair-col .label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+  </style>
+</head>
+<body>
+  <div class="page-head">
+    <div class="brand"><span class="logo">◆</span> StitchPad</div>
+    <h1>FirstCustomer Dashboard — proposed combined design</h1>
+    <p class="lede">Combining the strongest patterns from the three ChatGPT mockups: shipped prominent hero (BrandNew-paired), <b>setup checklist with progress</b>, and a <b>customer-ready strip</b> for instant access. Skipping redundant tile rows.</p>
+  </div>
+
+  <div class="toolbar">
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons-round">brightness_6</span> Toggle dark</button>
+  </div>
+
+  <div class="legend">
+    <h2>What I picked, and why</h2>
+    <ul>
+      <li><span class="src">From A</span> &nbsp;The "Focus today" sparkle pill on the hero — already shipped via prominent palette.</li>
+      <li><span class="src">From B</span> &nbsp;Setup checklist with 4 stacked steps + 25% progress bar. The current step is saffron-tinted with a chevron — the only step that's tappable. Future steps are muted; finished steps are green.</li>
+      <li><span class="src">From B</span> &nbsp;Customer-ready strip — small pill with avatar + name + Message button. Lets the operator reach the customer they just added without leaving the dashboard.</li>
+      <li><span class="src">Shipped</span> &nbsp;Work pipeline empty card with saffron backdrop — kept, copy nudged.</li>
+      <li><span class="src">Skipped</span> &nbsp;A's "Quick actions" 3-tile (redundant with the checklist). B's "What happens next" tiles (duplicates checklist labels). C's "Why this matters" tiles (educational but bloats the screen).</li>
+    </ul>
+  </div>
+
+  <div class="pair">
+    <div class="pair-col">
+      <div class="label">Light · FirstCustomer</div>
+      <div class="phone-shell">
+        <div class="phone-screen" id="phone-light">
+          <div class="status-bar">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <span class="material-icons-round">signal_cellular_alt</span>
+              <span class="material-icons-round">wifi</span>
+              <span class="material-icons-round">battery_full</span>
+            </div>
+          </div>
+          <div class="screen-content">
+            <div class="header-row">
+              <div class="greeting">
+                <div class="hello">Good morning, Olawale</div>
+                <div class="date">Friday, 1 May</div>
+              </div>
+              <div class="header-actions">
+                <div class="icon-btn">
+                  <span class="material-icons-round">notifications</span>
+                  <span class="dot"></span>
+                </div>
+                <div class="avatar">O</div>
+              </div>
+            </div>
+
+            <div class="focus-prominent">
+              <div class="text">
+                <div class="sparkle"><span class="material-icons-round">auto_awesome</span></div>
+                <h2>Time for your first order</h2>
+                <p class="sub">Omobolanle Johnson is ready. Add an order, due date, and deposit to get started.</p>
+                <div class="cta">Create order for Omobolanle <span class="material-icons-round">arrow_forward</span></div>
+              </div>
+              <div class="illu">🪡</div>
+            </div>
+
+            <div class="checklist">
+              <div class="checklist-head">
+                <h3>Setup checklist</h3>
+                <div class="progress-wrap">
+                  <span class="progress-text">1 of 4</span>
+                  <div class="progress-track"><div class="progress-fill" style="width:25%"></div></div>
+                </div>
+              </div>
+              <div class="check-rows">
+                <div class="check-row done">
+                  <div class="check-icon"><span class="material-icons-round">check</span></div>
+                  <div class="check-text">
+                    <span class="label">Customer added</span>
+                    <span class="desc">Completed</span>
+                  </div>
+                </div>
+                <div class="check-row active">
+                  <div class="check-icon">2</div>
+                  <div class="check-text">
+                    <span class="label">Add first order</span>
+                    <span class="desc">Create the order to start work</span>
+                  </div>
+                  <div class="check-chevron"><span class="material-icons-round">chevron_right</span></div>
+                </div>
+                <div class="check-row">
+                  <div class="check-icon">3</div>
+                  <div class="check-text">
+                    <span class="label">Set due date</span>
+                    <span class="desc">Plan when the order will be ready</span>
+                  </div>
+                  <div class="check-chevron"><span class="material-icons-round">chevron_right</span></div>
+                </div>
+                <div class="check-row">
+                  <div class="check-icon">4</div>
+                  <div class="check-text">
+                    <span class="label">Record first deposit</span>
+                    <span class="desc">Add the initial payment</span>
+                  </div>
+                  <div class="check-chevron"><span class="material-icons-round">chevron_right</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-label">Your customer</div>
+            <div class="customer-pill">
+              <div class="av">OJ</div>
+              <div class="info">
+                <span class="name">Omobolanle Johnson</span>
+                <span class="meta">Added today</span>
+              </div>
+              <div class="pill-btn"><span class="material-icons-round">chat</span> Message</div>
+            </div>
+
+            <div class="work-pipeline-head">Work pipeline</div>
+            <div class="work-empty-card">
+              <div class="backdrop">👗</div>
+              <div class="we-text">
+                <div class="we-title">No work in flight yet</div>
+                <div class="we-sub">When you create the first order, it'll appear here.</div>
+              </div>
+            </div>
+          </div>
+          <div class="fab"><span class="material-icons-round">add</span></div>
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">grid_view</span></div><span>Dashboard</span></div>
+            <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">people</span></div><span>Customers</span></div>
+            <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">shopping_bag</span></div><span>Orders</span></div>
+            <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">bar_chart</span></div><span>Reports</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pair-col">
+      <div class="label">Dark · FirstCustomer</div>
+      <div class="phone-shell">
+        <div class="phone-screen dark" id="phone-dark">
+          <div class="status-bar">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <span class="material-icons-round">signal_cellular_alt</span>
+              <span class="material-icons-round">wifi</span>
+              <span class="material-icons-round">battery_full</span>
+            </div>
+          </div>
+          <div class="screen-content">
+            <div class="header-row">
+              <div class="greeting">
+                <div class="hello">Good morning, Olawale</div>
+                <div class="date">Friday, 1 May</div>
+              </div>
+              <div class="header-actions">
+                <div class="icon-btn">
+                  <span class="material-icons-round">notifications</span>
+                  <span class="dot"></span>
+                </div>
+                <div class="avatar">O</div>
+              </div>
+            </div>
+
+            <div class="focus-prominent">
+              <div class="text">
+                <div class="sparkle"><span class="material-icons-round">auto_awesome</span></div>
+                <h2>Time for your first order</h2>
+                <p class="sub">Omobolanle Johnson is ready. Add an order, due date, and deposit to get started.</p>
+                <div class="cta">Create order for Omobolanle <span class="material-icons-round">arrow_forward</span></div>
+              </div>
+              <div class="illu">🪡</div>
+            </div>
+
+            <div class="checklist">
+              <div class="checklist-head">
+                <h3>Setup checklist</h3>
+                <div class="progress-wrap">
+                  <span class="progress-text">1 of 4</span>
+                  <div class="progress-track"><div class="progress-fill" style="width:25%"></div></div>
+                </div>
+              </div>
+              <div class="check-rows">
+                <div class="check-row done">
+                  <div class="check-icon"><span class="material-icons-round">check</span></div>
+                  <div class="check-text">
+                    <span class="label">Customer added</span>
+                    <span class="desc">Completed</span>
+                  </div>
+                </div>
+                <div class="check-row active">
+                  <div class="check-icon">2</div>
+                  <div class="check-text">
+                    <span class="label">Add first order</span>
+                    <span class="desc">Create the order to start work</span>
+                  </div>
+                  <div class="check-chevron"><span class="material-icons-round">chevron_right</span></div>
+                </div>
+                <div class="check-row">
+                  <div class="check-icon">3</div>
+                  <div class="check-text">
+                    <span class="label">Set due date</span>
+                    <span class="desc">Plan when the order will be ready</span>
+                  </div>
+                  <div class="check-chevron"><span class="material-icons-round">chevron_right</span></div>
+                </div>
+                <div class="check-row">
+                  <div class="check-icon">4</div>
+                  <div class="check-text">
+                    <span class="label">Record first deposit</span>
+                    <span class="desc">Add the initial payment</span>
+                  </div>
+                  <div class="check-chevron"><span class="material-icons-round">chevron_right</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-label">Your customer</div>
+            <div class="customer-pill">
+              <div class="av">OJ</div>
+              <div class="info">
+                <span class="name">Omobolanle Johnson</span>
+                <span class="meta">Added today</span>
+              </div>
+              <div class="pill-btn"><span class="material-icons-round">chat</span> Message</div>
+            </div>
+
+            <div class="work-pipeline-head">Work pipeline</div>
+            <div class="work-empty-card">
+              <div class="backdrop">👗</div>
+              <div class="we-text">
+                <div class="we-title">No work in flight yet</div>
+                <div class="we-sub">When you create the first order, it'll appear here.</div>
+              </div>
+            </div>
+          </div>
+          <div class="fab"><span class="material-icons-round">add</span></div>
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">grid_view</span></div><span>Dashboard</span></div>
+            <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">people</span></div><span>Customers</span></div>
+            <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">shopping_bag</span></div><span>Orders</span></div>
+            <div class="nav-item"><div class="nav-pill"><span class="material-icons-round">bar_chart</span></div><span>Reports</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" style="margin-top:20px">
+    <h2>How this maps to existing code</h2>
+    <ul>
+      <li><b>Hero</b> — `IllustratedFocusCard` with `prominent=true`, FirstOrder variant. Already shipped. Just a copy refinement (drop "is ready" wording, mention all three remaining steps).</li>
+      <li><b>Setup checklist</b> — new component `SetupChecklistCard` in feature/dashboard/presentation/components/. Pure UI, takes a list of `ChecklistStep(label, description, status: Done/Active/Pending)`. The dashboard ViewModel computes the list from current state (customers exist? → step 1 done; orders exist? → step 2 done; etc.).</li>
+      <li><b>Customer-ready strip</b> — new lightweight component, takes the single FirstCustomer's name + initials. "Message" CTA emits the existing WhatsApp-launch flow.</li>
+      <li><b>Work pipeline</b> — already shipped. Empty card stays as-is, drop the "See how it works" link if we don't have target docs (keeps it visually quiet).</li>
+      <li><b>Hidden on FirstCustomer</b> — weekly goal empty card, NBA empty card, reconnect strip. The setup checklist replaces the "what's next" guidance those previously fragmented across 3 cards.</li>
+    </ul>
+  </div>
+
+  <script>
+    function toggleTheme(){
+      document.querySelectorAll('.phone-screen').forEach(p=>p.classList.toggle('dark'));
+    }
+  </script>
+</body>
+</html>

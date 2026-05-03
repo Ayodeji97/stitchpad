@@ -171,10 +171,12 @@ fun CustomerListScreen(
                     .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space2)
             )
 
-            DeliveryFilterChips(
-                selected = state.deliveryFilter,
-                onSelected = { onAction(CustomerListAction.OnDeliveryFilterChange(it)) }
-            )
+            if (state.hasAnyCustomers) {
+                DeliveryFilterChips(
+                    selected = state.deliveryFilter,
+                    onSelected = { onAction(CustomerListAction.OnDeliveryFilterChange(it)) }
+                )
+            }
 
             when {
                 state.isLoading -> {

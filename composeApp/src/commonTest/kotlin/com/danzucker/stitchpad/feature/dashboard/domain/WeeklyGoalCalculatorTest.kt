@@ -15,14 +15,24 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/**
+ * Cycles are anchored to the goal's `updatedAt` (creation/last-edit day),
+ * not the ISO calendar week. A goal set on Saturday runs Sat-Fri, then
+ * rolls into the next Sat-Fri cycle automatically.
+ */
 class WeeklyGoalCalculatorTest {
 
     private val tz = TimeZone.UTC
-    // 2026-04-22 is a Wednesday — week start (Mon) is 2026-04-20.
-    private val today = LocalDate(2026, 4, 22)
+
+    /** Goal was set on Saturday 2026-05-02 (mirrors the bug report context). */
+    private val goalCreated = LocalDate(2026, 5, 2)
+    private val goalCreatedMillis = millisAt(goalCreated)
 
     private fun millisAt(date: LocalDate, hour: Int = 12): Long =
         LocalDateTime(date, LocalTime(hour, 0)).toInstant(tz).toEpochMilliseconds()
+
+    private fun goal(targetAmount: Double = 100_000.0): WeeklyGoal =
+        WeeklyGoal(targetAmount = targetAmount, updatedAt = goalCreatedMillis)
 
     private fun order(
         updatedAt: LocalDate,
@@ -50,7 +60,7 @@ class WeeklyGoalCalculatorTest {
 
     @Test
     fun nullGoalReturnsNull() {
-        val result = WeeklyGoalCalculator.compute(emptyList(), today, goal = null, timeZone = tz)
+        val result = WeeklyGoalCalculator.compute(emptyList(), goalCreated, goal = null, timeZone = tz)
         assertNull(result)
     }
 
@@ -58,8 +68,8 @@ class WeeklyGoalCalculatorTest {
     fun goalWithNoOrdersReturnsZeroCollected() {
         val result = WeeklyGoalCalculator.compute(
             orders = emptyList(),
-            today = today,
-            goal = WeeklyGoal(targetAmount = 100_000.0, updatedAt = 0L),
+            today = goalCreated,
+            goal = goal(),
             timeZone = tz
         )!!
         assertEquals(0.0, result.collectedAmount)
@@ -67,28 +77,28 @@ class WeeklyGoalCalculatorTest {
     }
 
     @Test
-    fun ordersBeforeWeekStartAreExcluded() {
-        // Last week's Sunday (2026-04-19) is before this Monday's start.
+    fun ordersBeforeCycleStartAreExcluded() {
+        // Day before the goal was created — outside the first cycle.
         val result = WeeklyGoalCalculator.compute(
             orders = listOf(
-                order(updatedAt = today.minusDays(3), totalPrice = 50_000.0)
+                order(updatedAt = goalCreated.minusDays(1), totalPrice = 50_000.0)
             ),
-            today = today,
-            goal = WeeklyGoal(targetAmount = 100_000.0, updatedAt = 0L),
+            today = goalCreated,
+            goal = goal(),
             timeZone = tz
         )!!
         assertEquals(0.0, result.collectedAmount)
     }
 
     @Test
-    fun collectedAmountSumsPaidPortionOfThisWeeksOrders() {
+    fun collectedAmountSumsPaidPortionOfCurrentCycle() {
         val result = WeeklyGoalCalculator.compute(
             orders = listOf(
-                order(updatedAt = today.minusDays(2), totalPrice = 30_000.0, balanceRemaining = 10_000.0),
-                order(updatedAt = today, totalPrice = 50_000.0, balanceRemaining = 0.0)
+                order(updatedAt = goalCreated, totalPrice = 30_000.0, balanceRemaining = 10_000.0),
+                order(updatedAt = goalCreated.plusDays(2), totalPrice = 50_000.0, balanceRemaining = 0.0)
             ),
-            today = today,
-            goal = WeeklyGoal(targetAmount = 100_000.0, updatedAt = 0L),
+            today = goalCreated.plusDays(3),
+            goal = goal(),
             timeZone = tz
         )!!
         // (30_000 - 10_000) + (50_000 - 0) = 70_000
@@ -97,39 +107,66 @@ class WeeklyGoalCalculatorTest {
 
     @Test
     fun negativePaidPortionsClampToZero() {
-        // Pathological: balance > totalPrice (shouldn't happen but the formula must clamp).
         val result = WeeklyGoalCalculator.compute(
             orders = listOf(
-                order(updatedAt = today, totalPrice = 1_000.0, balanceRemaining = 5_000.0)
+                order(updatedAt = goalCreated, totalPrice = 1_000.0, balanceRemaining = 5_000.0)
             ),
-            today = today,
-            goal = WeeklyGoal(targetAmount = 100_000.0, updatedAt = 0L),
+            today = goalCreated,
+            goal = goal(),
             timeZone = tz
         )!!
         assertEquals(0.0, result.collectedAmount)
     }
 
+    /**
+     * On the day a goal is created the user should still see a full window
+     * ahead — six days remaining after today. This is the regression the
+     * "1 days left on Saturday after just creating the goal" bug exposed.
+     */
     @Test
-    fun daysLeftIsSixOnMondayAndZeroOnSunday() {
-        val monday = LocalDate(2026, 4, 20)
-        val sunday = LocalDate(2026, 4, 26)
-        val goal = WeeklyGoal(targetAmount = 100_000.0, updatedAt = 0L)
+    fun daysLeftIsSixOnCycleStartAndZeroOnCycleEnd() {
+        val cycleEnd = goalCreated.plusDays(6) // 2026-05-08 (Friday)
 
-        val mondayResult = WeeklyGoalCalculator.compute(emptyList(), monday, goal, tz)!!
-        val sundayResult = WeeklyGoalCalculator.compute(emptyList(), sunday, goal, tz)!!
+        val onStart = WeeklyGoalCalculator.compute(emptyList(), goalCreated, goal(), tz)!!
+        val onEnd = WeeklyGoalCalculator.compute(emptyList(), cycleEnd, goal(), tz)!!
 
-        assertEquals(6, mondayResult.daysLeft)
-        assertEquals(0, sundayResult.daysLeft)
+        assertEquals(6, onStart.daysLeft)
+        assertEquals(0, onEnd.daysLeft)
+    }
+
+    /**
+     * Past the first cycle, the calculator rolls forward to the next 7-day
+     * window. A user who set a goal three weeks ago and opens the app today
+     * gets a fresh "6 days left" today, not "0 days left forever".
+     */
+    @Test
+    fun cycleRollsOverAfterSevenDays() {
+        // 8 days after creation = day 1 of cycle 2.
+        val nextCycleDay1 = goalCreated.plusDays(8)
+        val result = WeeklyGoalCalculator.compute(
+            orders = listOf(
+                // Cycle 1 order — must NOT be counted.
+                order(updatedAt = goalCreated.plusDays(2), totalPrice = 999_000.0, balanceRemaining = 0.0),
+                // Cycle 2 order — counted.
+                order(updatedAt = nextCycleDay1, totalPrice = 25_000.0, balanceRemaining = 0.0)
+            ),
+            today = nextCycleDay1,
+            goal = goal(),
+            timeZone = tz
+        )!!
+        assertEquals(25_000.0, result.collectedAmount)
+        // Day 1 of new cycle (one day in) → 5 days left after today.
+        assertEquals(5, result.daysLeft)
     }
 
     @Test
     fun progressPercentDerivesFromCollectedOverTarget() {
         val result = WeeklyGoalCalculator.compute(
             orders = listOf(
-                order(updatedAt = today, totalPrice = 25_000.0, balanceRemaining = 0.0)
+                order(updatedAt = goalCreated, totalPrice = 25_000.0, balanceRemaining = 0.0)
             ),
-            today = today,
-            goal = WeeklyGoal(targetAmount = 100_000.0, updatedAt = 0L),
+            today = goalCreated,
+            goal = goal(),
             timeZone = tz
         )!!
         assertEquals(0.25f, result.progressPercent)
@@ -137,4 +174,7 @@ class WeeklyGoalCalculatorTest {
 
     private fun LocalDate.minusDays(n: Long): LocalDate =
         LocalDate.fromEpochDays((toEpochDays() - n).toInt())
+
+    private fun LocalDate.plusDays(n: Long): LocalDate =
+        LocalDate.fromEpochDays((toEpochDays() + n).toInt())
 }

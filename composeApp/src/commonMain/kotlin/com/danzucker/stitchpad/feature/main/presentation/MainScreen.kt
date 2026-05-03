@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
+import com.danzucker.stitchpad.feature.dashboard.presentation.AddCustomerFirstScreen
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
@@ -45,6 +46,7 @@ import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
+import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
@@ -247,6 +249,9 @@ private fun MainNavGraph(
                 onNavigateToOrderForm = {
                     navController.navigate(OrderFormRoute())
                 },
+                onNavigateToEditOrder = { orderId ->
+                    navController.navigate(OrderFormRoute(orderId = orderId))
+                },
                 onNavigateToCustomerForm = {
                     navController.navigate(CustomerFormRoute())
                 },
@@ -262,7 +267,25 @@ private fun MainNavGraph(
                     navController.navigate(SettingsPlaceholderRoute) {
                         launchSingleTop = true
                     }
+                },
+                onNavigateToAddCustomerFirst = {
+                    navController.navigate(AddCustomerFirstRoute)
+                },
+                onNavigateToCustomerDetail = { customerId ->
+                    navController.navigate(CustomerDetailRoute(customerId = customerId))
                 }
+            )
+        }
+        composable<AddCustomerFirstRoute> {
+            AddCustomerFirstScreen(
+                onAddCustomerClick = {
+                    navController.navigate(CustomerFormRoute()) {
+                        // Pop the gate so back-from-CustomerForm returns to dashboard
+                        // rather than re-showing the gate.
+                        popUpTo(AddCustomerFirstRoute) { inclusive = true }
+                    }
+                },
+                onBack = { navController.navigateUp() },
             )
         }
         composable<ReportsRoute> {

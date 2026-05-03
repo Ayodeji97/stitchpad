@@ -38,7 +38,10 @@ class FocusResolverTest {
     private fun customer(name: String = "Test", id: String = "c1"): Customer =
         Customer(id = id, userId = "u", name = name, phone = "08011112222")
 
-    private fun order(): Order = Order(
+    // Default to a non-null deadline so the resolver doesn't treat the
+    // fixture as "first order with no due date" and pin it to FirstCustomer.
+    // Tests that need a deadline-less order can override via `.copy(deadline = null)`.
+    private fun order(deadline: Long? = 1L): Order = Order(
         id = "o1",
         userId = "u",
         customerId = "c1",
@@ -50,7 +53,7 @@ class FocusResolverTest {
         totalPrice = 0.0,
         depositPaid = 0.0,
         balanceRemaining = 0.0,
-        deadline = null,
+        deadline = deadline,
         notes = null,
         createdAt = 0L,
         updatedAt = 0L
@@ -166,8 +169,30 @@ class FocusResolverTest {
             reconnect = emptyList()
         )
         assertEquals(FocusVariant.FirstOrder, focus.variant)
+        // Single customer → personalised hero: supporting line + CTA
+        // subtitle both reference the customer's name.
+        assertNotNull(focus.supporting)
         assertNotNull(focus.ctaLabel)
-        assertNull(focus.supporting)
+        assertNotNull(focus.ctaSubtitle)
+    }
+
+    @Test
+    fun firstCustomerWithMultipleCustomersDropsCtaSubtitle() {
+        // 2+ customers, 0 orders → still FirstCustomer, but the hero
+        // shouldn't pin onto whichever customer was created first.
+        // Drop the "for {name}" subtitle so the user picks on the next
+        // screen instead of feeling forced into a specific customer.
+        val focus = FocusResolver.resolveFocus(
+            uiState = DashboardUiState.FirstCustomer,
+            buckets = emptyBuckets,
+            nextBestActions = emptyList(),
+            customers = listOf(customer(name = "Bola"), customer(name = "Tunde")),
+            reconnect = emptyList()
+        )
+        assertEquals(FocusVariant.FirstOrder, focus.variant)
+        assertNotNull(focus.supporting)
+        assertNotNull(focus.ctaLabel)
+        assertNull(focus.ctaSubtitle)
     }
 
     @Test
@@ -182,6 +207,9 @@ class FocusResolverTest {
         assertEquals(FocusVariant.Focus, focus.variant)
         assertNotNull(focus.supporting)
         assertNotNull(focus.ctaLabel)
+        // BusyDay must surface a section pill ("● ACTION NEEDED") to match
+        // the prominent hero pattern shared with Steady/BrandNew/FirstOrder.
+        assertNotNull(focus.sectionLabel)
     }
 
     @Test
@@ -255,7 +283,7 @@ class FocusResolverTest {
     }
 
     @Test
-    fun loadingAndBrandNewReturnPlaceholderQuiet() {
+    fun loadingReturnsPlaceholderQuiet() {
         val loading = FocusResolver.resolveFocus(
             uiState = DashboardUiState.Loading,
             buckets = emptyBuckets,
@@ -263,6 +291,12 @@ class FocusResolverTest {
             customers = emptyList(),
             reconnect = emptyList()
         )
+        assertEquals(FocusVariant.Quiet, loading.variant)
+        assertNull(loading.ctaLabel)
+    }
+
+    @Test
+    fun brandNewFocusUsesBrandNewVariant() {
         val brandNew = FocusResolver.resolveFocus(
             uiState = DashboardUiState.BrandNew,
             buckets = emptyBuckets,
@@ -270,9 +304,10 @@ class FocusResolverTest {
             customers = emptyList(),
             reconnect = emptyList()
         )
-        assertEquals(FocusVariant.Quiet, loading.variant)
-        assertNull(loading.ctaLabel)
-        assertEquals(FocusVariant.Quiet, brandNew.variant)
-        assertNull(brandNew.ctaLabel)
+        assertEquals(FocusVariant.BrandNew, brandNew.variant)
+        // BrandNew is the onboarding state — must surface a CTA so the new
+        // user has a clear path forward (Create first order).
+        assertNotNull(brandNew.ctaLabel)
+        assertNotNull(brandNew.supporting)
     }
 }

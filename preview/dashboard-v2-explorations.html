@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Dashboard V2 Explorations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       TOKENS — copied verbatim from dashboard-redesign.html for
+       guaranteed visual parity with the currently shipped design.
+       ============================================================ */
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p200:#FBDF8A; --p300:#F9CC50;
+      --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00; --p700:#9E7200;
+      --p800:#7A5800; --p900:#4F3800;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --err:#D93B3B; --err50:#FCEAEA;
+      --suc:#2D9E6B; --suc50:#E8F7F1;
+      --warn:#E07B20; --warn50:#FEF3E8;
+      --info:#2B7FD4; --info50:#E7F2FC;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s8:32px; --s10:40px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px;
+      --r-fab:16px;
+
+      --font-body:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+
+      --bg:var(--n50); --surf:var(--n0); --on-surf:var(--n800);
+      --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200); --primary:var(--p500); --on-pri:#fff;
+      --pri-pill:rgba(232,168,0,.1);
+    }
+    .phone-screen.dark{
+      --bg:#121110; --surf:#1E1C1A; --on-surf:#E5E3DF;
+      --on-surf2:#A8A49D; --on-surf3:#7D7970;
+      --bdr:#3A3731;
+      --err50:#3D1515; --suc50:#0E3D2A; --warn50:#3D2510; --info50:#0C2A4A;
+      --err:#E89090; --suc:#5EDBA0; --warn:#F0AA60; --info:#7BB8F0;
+      --p100:#4F3800;
+      --pri-pill:rgba(79,56,0,.5);
+    }
+    .phone-screen.dark .goals-bar{background:#2A2825}
+    .phone-screen.dark .av-saffron{background:#4F3800;color:#F9CC50}
+    .phone-screen.dark .av-blue{background:#0C2A4A;color:#7BB8F0}
+    .phone-screen.dark .av-green{background:#0E3D2A;color:#5EDBA0}
+    .phone-screen.dark .av-orange{background:#3D2510;color:#F0AA60}
+    .phone-screen.dark .av-purple{background:#2D1F3D;color:#C4A0E8}
+    .phone-screen.dark .av-pink{background:#3D152A;color:#E890B0}
+    .phone-screen.dark .hero-revenue{background:linear-gradient(135deg,#2A2218,#221C12 60%,var(--surf));border-color:rgba(232,168,0,.4)}
+    .phone-screen.dark .hero-pickup{background:linear-gradient(135deg,#16291F,#0F2218 60%,var(--surf));border-color:rgba(45,158,107,.3)}
+    .phone-screen.dark .hero-welcome .hero-icon{background:#4F3800;color:#F9CC50}
+    .phone-screen.dark .col-todo .col-head .material-icons-round,
+    .phone-screen.dark .col-money .col-head .material-icons-round{color:var(--on-surf2)}
+    .phone-screen.dark .pipeline-strip{background:#1E1C1A}
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:var(--font-body);background:#0f0e0d;color:#E5E3DF;min-height:100vh}
+    body{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:48px}
+
+    /* ============================================================
+       PAGE CHROME
+       ============================================================ */
+    .page-head{max-width:780px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+    .brand{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .brand .logo{font-size:28px;color:var(--p500);letter-spacing:-.02em}
+    .page-head h1{font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:#fff}
+    .page-head .lede{font-size:15px;line-height:1.6;color:rgba(255,255,255,.7);max-width:680px}
+    .page-head .meta{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+
+    .thesis{
+      max-width:780px;width:100%;
+      background:rgba(232,168,0,.06);border:1px solid rgba(232,168,0,.25);
+      border-radius:16px;padding:22px 26px;display:flex;flex-direction:column;gap:12px;
+    }
+    .thesis h2{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .thesis p{font-size:14px;line-height:1.6;color:rgba(255,255,255,.82)}
+    .thesis p strong{color:#fff}
+    .thesis .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:6px}
+    .thesis .three .slot{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}
+    .thesis .three .slot .slot-label{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .thesis .three .slot .slot-body{font-size:12.5px;color:rgba(255,255,255,.85);line-height:1.45}
+
+    .toc{
+      position:sticky;top:0;z-index:20;
+      background:rgba(15,14,13,.92);backdrop-filter:blur(8px);
+      padding:14px 24px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:center;
+      border-bottom:1px solid rgba(255,255,255,.06);width:100%;
+    }
+    .toc a{font-size:12px;font-weight:700;color:rgba(255,255,255,.6);padding:6px 12px;border-radius:var(--r-full);background:rgba(255,255,255,.05);text-decoration:none}
+    .toc a:hover{background:rgba(255,255,255,.1);color:#fff}
+    .theme-toggle{
+      font-size:12px;font-weight:700;padding:6px 14px;border:none;cursor:pointer;
+      border-radius:var(--r-full);background:var(--p500);color:#fff;
+      font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    }
+    .theme-toggle .material-icons-round{font-size:14px}
+
+    /* ============================================================
+       VARIANT ROW
+       ============================================================ */
+    .variant-row{display:flex;flex-direction:column;gap:18px;width:100%;max-width:780px;align-items:center}
+    .variant-head{display:flex;flex-direction:column;gap:6px;padding:0 4px;text-align:center;max-width:560px}
+    .variant-head .id{font-size:12px;font-weight:800;letter-spacing:.1em;color:var(--p400);text-transform:uppercase}
+    .variant-head h3{font-size:24px;font-weight:700;color:#fff;letter-spacing:-.01em}
+    .variant-head .thesis-line{font-size:13.5px;color:rgba(255,255,255,.65);line-height:1.5}
+
+    .phone-shell{
+      width:340px;height:740px;border-radius:42px;padding:10px;
+      background:var(--n800);position:relative;overflow:hidden;
+      box-shadow:0 0 0 1px rgba(255,255,255,.07),0 28px 70px rgba(0,0,0,.6);
+    }
+    .phone-shell::before{
+      content:'';position:absolute;top:16px;left:50%;transform:translateX(-50%);
+      width:108px;height:30px;background:#080807;border-radius:var(--r-full);z-index:10;
+    }
+    .phone-screen{
+      width:100%;height:100%;border-radius:33px;background:var(--bg);
+      overflow:hidden;position:relative;display:flex;flex-direction:column;
+    }
+
+    .status-bar{
+      height:46px;padding:12px var(--s4) 0;
+      display:flex;align-items:flex-end;justify-content:space-between;
+      flex-shrink:0;background:var(--bg);
+    }
+    .status-time{font-size:14px;font-weight:700;color:var(--on-surf)}
+    .status-icons{display:flex;gap:5px;align-items:center}
+    .status-icons .material-icons-round{font-size:14px;color:var(--on-surf2)}
+
+    .screen-content{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;background:var(--bg);position:relative;padding:var(--s4) var(--s4) 96px}
+    .screen-content::-webkit-scrollbar{display:none}
+
+    .bottom-nav{
+      height:68px;background:var(--surf);border-top:1px solid var(--n100);
+      display:flex;align-items:flex-start;padding-top:var(--s2);flex-shrink:0;
+    }
+    .phone-screen.dark .bottom-nav{border-top-color:var(--bdr)}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:var(--s1) 0}
+    .nav-item .material-icons-round{font-size:22px;color:var(--on-surf3)}
+    .nav-item span{font-size:10px;font-weight:600;color:var(--on-surf3);letter-spacing:.02em}
+    .nav-item.active .material-icons-round,.nav-item.active span{color:var(--p600)}
+    .nav-item .nav-pill{width:46px;height:26px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center}
+    .nav-item.active .nav-pill{background:var(--pri-pill)}
+
+    .fab{
+      position:absolute;bottom:84px;right:var(--s4);
+      width:50px;height:50px;border-radius:var(--r-fab);
+      background:var(--primary);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px rgba(232,168,0,.4);z-index:5;
+    }
+    .fab .material-icons-round{font-size:24px;color:var(--on-pri);font-weight:700}
+
+    /* ============================================================
+       SHARED DASHBOARD PRIMITIVES
+       (mirror dashboard-redesign.html where possible)
+       ============================================================ */
+    .greeting{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--s4)}
+    .greeting .gt-text{display:flex;flex-direction:column;gap:2px}
+    .greeting .hello{font-size:20px;font-weight:700;color:var(--on-surf);letter-spacing:-.01em}
+    .greeting .date{font-size:13px;color:var(--on-surf2)}
+    .greeting .gt-chip{
+      font-size:11px;font-weight:800;font-family:var(--font-mono);
+      padding:5px 10px;border-radius:var(--r-full);
+      background:var(--p50);color:var(--p700);letter-spacing:.02em;
+    }
+    .phone-screen.dark .greeting .gt-chip{background:#4F3800;color:#F9CC50}
+    .greeting .summary{font-size:12px;color:var(--on-surf2);margin-top:2px;line-height:1.4}
+
+    /* Hero variants ------------------------------------------------ */
+    .hero{
+      background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);
+      padding:var(--s4);margin-bottom:var(--s4);
+    }
+    .hero-revenue{
+      border-color:rgba(232,168,0,.4);
+      background:linear-gradient(135deg,#FFFBEF,#FFF8E7 60%,var(--surf));
+    }
+    .hero .hero-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s2)}
+    .hero .hero-trophy{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--suc)}
+    .hero .hero-trophy .material-icons-round{font-size:14px}
+    .hero .hero-meta{font-size:11px;color:var(--on-surf3);font-weight:600}
+    .hero .hero-amount{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--p700);letter-spacing:-.005em}
+    .hero .hero-amount .of{color:var(--on-surf2);font-size:13px;font-weight:600;margin-left:6px}
+    .hero .hero-bar{height:8px;background:var(--n100);border-radius:var(--r-full);overflow:hidden;margin-top:var(--s3)}
+    .hero .hero-bar .fill{height:100%;background:linear-gradient(90deg,var(--p400),var(--p500));border-radius:var(--r-full)}
+    .hero .hero-bar .fill.full{background:var(--suc)}
+    .hero .hero-foot{display:flex;justify-content:space-between;align-items:center;margin-top:var(--s2);font-size:12px;color:var(--on-surf2)}
+    .hero .hero-cta{font-size:12px;font-weight:700;color:var(--p700);display:inline-flex;align-items:center;gap:4px}
+    .hero .hero-cta .material-icons-round{font-size:14px}
+
+    /* Hero — pickup (matches user screenshot's ReadyForPickup card style) */
+    .hero-pickup{
+      border-color:rgba(45,158,107,.3);
+      background:linear-gradient(135deg,#F1F9F4,#E8F7F1 60%,var(--surf));
+      display:flex;align-items:flex-start;gap:var(--s3);
+    }
+    .hero-pickup .hp-icon{width:44px;height:44px;border-radius:var(--r-md);background:var(--suc50);color:var(--suc);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero-pickup .hp-icon .material-icons-round{font-size:24px}
+    .hero-pickup .hp-body{flex:1;display:flex;flex-direction:column;gap:4px}
+    .hero-pickup .hp-title{font-size:15px;font-weight:700;color:var(--on-surf);line-height:1.35}
+    .hero-pickup .hp-supporting{font-size:12.5px;color:var(--on-surf2)}
+    .hero-pickup .hp-cta{font-size:13px;font-weight:700;color:var(--suc);display:inline-flex;align-items:center;gap:4px;margin-top:6px}
+    .hero-pickup .hp-cta .material-icons-round{font-size:15px}
+
+    /* Hero — welcome */
+    .hero-welcome{
+      display:flex;flex-direction:column;align-items:center;text-align:center;
+      padding:var(--s6) var(--s5);gap:var(--s2);
+    }
+    .hero-welcome .hero-icon{
+      width:64px;height:64px;border-radius:var(--r-xl);background:var(--p50);
+      display:flex;align-items:center;justify-content:center;color:var(--primary);margin-bottom:var(--s2);
+    }
+    .hero-welcome .hero-icon .material-icons-round{font-size:32px}
+    .hero-welcome h2{font-size:18px;font-weight:700;color:var(--on-surf);letter-spacing:-.01em;line-height:1.25}
+    .hero-welcome p{font-size:13px;color:var(--on-surf2);line-height:1.5;max-width:240px}
+    .hero-welcome .cta{
+      margin-top:var(--s3);background:var(--primary);color:var(--on-pri);
+      font-size:13px;font-weight:600;padding:10px var(--s5);border-radius:var(--r-md);
+    }
+
+    /* The split — TWO-COLUMN GRID -------------------------------- */
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-bottom:var(--s4)}
+    .split-col{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+    .col-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s1);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--on-surf2)}
+    .col-head .count{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--on-surf2);background:var(--n100);padding:1px 6px;border-radius:var(--r-full)}
+    .phone-screen.dark .col-head .count{background:#2A2825}
+    .col-list{display:flex;flex-direction:column;gap:6px}
+    .col-item{
+      display:flex;align-items:flex-start;gap:6px;padding:6px 0;
+      border-top:1px solid var(--bdr);
+    }
+    .col-item:first-child{border-top:none;padding-top:2px}
+    .col-item .accent{width:3px;align-self:stretch;border-radius:var(--r-full);flex-shrink:0}
+    .col-item.overdue .accent{background:var(--err)}
+    .col-item.due .accent{background:var(--warn)}
+    .col-item.ready .accent{background:var(--suc)}
+    .col-item .ci-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+    .col-item .ci-name{font-size:12.5px;font-weight:700;color:var(--on-surf);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .col-item .ci-sub{font-size:10.5px;color:var(--on-surf2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .col-item .ci-amount{font-family:var(--font-mono);font-size:11.5px;font-weight:700;color:var(--p700);align-self:flex-start}
+    .col-item.overdue .ci-amount{color:var(--err)}
+    .col-more{
+      margin-top:4px;font-size:11px;font-weight:700;color:var(--p700);
+      display:inline-flex;align-items:center;gap:3px;align-self:flex-start;
+    }
+    .col-more .material-icons-round{font-size:13px}
+
+    /* Pipeline strip footer */
+    .pipeline-strip{
+      background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);
+      padding:var(--s3) var(--s4);margin-bottom:var(--s4);
+      display:flex;align-items:center;gap:var(--s3);cursor:pointer;
+    }
+    .pipeline-strip .ps-spark{display:flex;gap:3px}
+    .pipeline-strip .ps-spark .blk{width:10px;height:14px;border-radius:2px;background:var(--n200)}
+    .phone-screen.dark .pipeline-strip .ps-spark .blk{background:var(--n700)}
+    .pipeline-strip .ps-spark .blk.in-progress{background:var(--p400)}
+    .pipeline-strip .ps-spark .blk.pending{background:var(--n300)}
+    .phone-screen.dark .pipeline-strip .ps-spark .blk.pending{background:var(--n600)}
+    .pipeline-strip .ps-text{flex:1;display:flex;flex-direction:column;gap:1px}
+    .pipeline-strip .ps-title{font-size:12px;font-weight:700;color:var(--on-surf)}
+    .pipeline-strip .ps-sub{font-size:10.5px;color:var(--on-surf2)}
+    .pipeline-strip .material-icons-round{color:var(--on-surf3);font-size:18px}
+
+    /* Avatars (shared) */
+    .av{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border-radius:var(--r-md);width:30px;height:30px}
+    .av-saffron{background:var(--p50);color:var(--p700)}
+    .av-blue{background:var(--info50);color:var(--info)}
+    .av-green{background:var(--suc50);color:var(--suc)}
+    .av-orange{background:var(--warn50);color:var(--warn)}
+    .av-purple{background:#F3EAFA;color:#7B4DB5}
+    .av-pink{background:#FBEAF0;color:#C4447A}
+
+    /* V2 state-strip annotation (under V2's phone) */
+    .state-strip{
+      width:100%;max-width:560px;
+      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;
+    }
+    .state-strip h4{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .state-strip .ss-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .state-strip .ss-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+    .state-strip .ss-card .ss-state{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--p400)}
+    .state-strip .ss-card .ss-hero{font-size:11.5px;color:rgba(255,255,255,.85);line-height:1.35}
+    .state-strip .ss-card .ss-hero strong{color:#fff}
+
+    /* V3 — money-first specific (richer cards) */
+    .money-stack{display:flex;flex-direction:column;gap:var(--s2);margin-bottom:var(--s4)}
+    .money-card{
+      background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);
+      padding:var(--s3);display:flex;align-items:center;gap:var(--s3);
+    }
+    .money-card.urgent{border-color:rgba(217,59,59,.3)}
+    .money-card .mc-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+    .money-card .mc-name{font-size:13.5px;font-weight:700;color:var(--on-surf)}
+    .money-card .mc-why{font-size:11.5px;color:var(--on-surf2)}
+    .money-card.urgent .mc-why{color:var(--err)}
+    .money-card .mc-amount{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--p700)}
+    .money-card.urgent .mc-amount{color:var(--err)}
+    .money-card .mc-action{
+      font-size:11px;font-weight:700;color:#fff;background:var(--primary);
+      padding:6px 10px;border-radius:var(--r-full);display:inline-flex;align-items:center;gap:3px;
+    }
+    .money-card .mc-action .material-icons-round{font-size:13px}
+
+    /* V3 compact work rows */
+    .work-compact{display:flex;flex-direction:column;gap:6px;margin-bottom:var(--s4)}
+    .work-compact .wc-row{display:flex;align-items:center;gap:var(--s2);padding:6px 0;border-bottom:1px solid var(--bdr)}
+    .work-compact .wc-row:last-child{border-bottom:none}
+    .work-compact .wc-row .accent{width:3px;height:20px;border-radius:var(--r-full)}
+    .work-compact .wc-row.overdue .accent{background:var(--err)}
+    .work-compact .wc-row.due .accent{background:var(--warn)}
+    .work-compact .wc-row.ready .accent{background:var(--suc)}
+    .work-compact .wc-text{flex:1;font-size:12.5px;font-weight:600;color:var(--on-surf);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .work-compact .wc-text .wc-sub{color:var(--on-surf2);font-weight:500;margin-left:4px}
+    .work-compact .wc-chip{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:var(--r-full)}
+    .work-compact .wc-row.overdue .wc-chip{background:var(--err50);color:var(--err)}
+    .work-compact .wc-row.due .wc-chip{background:var(--warn50);color:var(--warn)}
+    .work-compact .wc-row.ready .wc-chip{background:var(--suc50);color:var(--suc)}
+
+    /* Section heading */
+    .section-head{
+      font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--on-surf2);margin-bottom:var(--s2);margin-top:var(--s3);
+      display:flex;justify-content:space-between;align-items:baseline;
+    }
+    .section-head:first-of-type{margin-top:0}
+    .section-head .right{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--p700);text-transform:none;letter-spacing:0}
+
+    /* V4 — collapsed hero variation */
+    .hero-collapsed{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:var(--s3) var(--s4);
+    }
+    .hero-collapsed .hc-name{font-size:13px;font-weight:700;color:var(--on-surf)}
+    .hero-collapsed .hc-amount{font-family:var(--font-mono);font-size:13px;color:var(--on-surf2);font-weight:600}
+    .hero-collapsed .hc-amount strong{color:var(--p700)}
+    .hero-collapsed .material-icons-round{color:var(--on-surf3);font-size:18px}
+
+    /* V4 — pipeline-pointer (no full strip) */
+    .pipeline-pointer{
+      font-size:12px;color:var(--on-surf2);text-align:center;padding:var(--s3) 0;
+      display:inline-flex;align-items:center;gap:4px;justify-content:center;width:100%;
+    }
+    .pipeline-pointer .material-icons-round{font-size:14px;color:var(--on-surf3)}
+
+    /* Caption under each phone */
+    .note{font-size:12px;color:rgba(255,255,255,.55);font-style:italic;margin-top:6px;text-align:center;max-width:380px;line-height:1.5}
+
+    /* Footer evaluation strip */
+    .evaluate{
+      max-width:780px;width:100%;
+      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+      border-radius:16px;padding:22px 26px;display:flex;flex-direction:column;gap:14px;
+    }
+    .evaluate h2{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .evaluate ol{list-style:decimal;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;line-height:1.55;color:rgba(255,255,255,.78)}
+    .evaluate ol li::marker{color:var(--p400);font-weight:700}
+    .evaluate .axes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+    .evaluate .axes .axis{background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px}
+    .evaluate .axes .axis-label{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400);margin-bottom:4px}
+    .evaluate .axes .axis-q{font-size:13px;color:rgba(255,255,255,.85);line-height:1.4}
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div class="brand"><span class="logo material-icons-round">straighten</span><span>StitchPad</span></div>
+    <span class="meta">Dashboard · V2 · Exploration</span>
+    <h1>Money &amp; Today — four spins</h1>
+    <p class="lede">
+      The current dashboard renders nine vertically-stacked sections — a long scroll that buries the operator's two real jobs.
+      All four variants below collapse the screen into a <strong>revenue hero + two-column split (do work / collect money) + pipeline strip</strong>.
+      Each variant tests one design question. Pick one to take into Compose.
+    </p>
+  </header>
+
+  <section class="thesis">
+    <h2>Shared thesis — the split</h2>
+    <p>
+      The dashboard answers two questions a tailor asks every morning: <strong>"what am I working on today?"</strong> and <strong>"who owes me money?"</strong>
+      Stacking these into a long scroll forces the user to context-switch mid-thumb. Putting them side-by-side in two parallel columns lets the eye sweep both jobs in one glance — the dashboard becomes a <em>desk</em>, not a feed.
+    </p>
+    <div class="three">
+      <div class="slot"><span class="slot-label">Top — Hero</span><span class="slot-body">Revenue progress against weekly goal. Adapts to FocusVariant when the user hasn't earned a hero (e.g. brand-new, ready-for-pickup).</span></div>
+      <div class="slot"><span class="slot-label">Middle — Split</span><span class="slot-body">Two parallel columns. Left = today's work (overdue / due / ready). Right = money to collect (NBA collect prompts).</span></div>
+      <div class="slot"><span class="slot-label">Bottom — Pipeline</span><span class="slot-body">Compact strip with a 5-block status spark. Tap → drill into the full Orders tab.</span></div>
+    </div>
+  </section>
+
+  <nav class="toc">
+    <a href="#v1">V1 Classic</a>
+    <a href="#v2">V2 Adaptive</a>
+    <a href="#v3">V3 Money-first</a>
+    <a href="#v4">V4 Calm</a>
+    <button class="theme-toggle" id="theme-toggle"><span class="material-icons-round" id="theme-icon">dark_mode</span><span id="theme-label">Dark</span></button>
+  </nav>
+
+  <!-- =========================================================
+       V1 — CLASSIC SPLIT (BusyDay)
+       ========================================================= -->
+  <section class="variant-row" id="v1">
+    <div class="variant-head">
+      <span class="id">V1 — Classic Split</span>
+      <h3>The baseline. Revenue hero + parallel columns + pipeline strip.</h3>
+      <div class="thesis-line">Tests whether the split alone — without further treatment — already beats the 9-section scroll.</div>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+
+        <div class="greeting">
+          <div class="gt-text">
+            <div class="hello">Good morning, Olawale</div>
+            <div class="date">Tuesday, 30 Apr</div>
+          </div>
+          <span class="gt-chip">5 active</span>
+        </div>
+
+        <!-- Hero: revenue progress -->
+        <div class="hero hero-revenue">
+          <div class="hero-head">
+            <span class="hero-trophy"><span class="material-icons-round">emoji_events</span>This week</span>
+            <span class="hero-meta">3 days left</span>
+          </div>
+          <div class="hero-amount">₦82,500<span class="of">of ₦120,000</span></div>
+          <div class="hero-bar"><div class="fill" style="width:69%"></div></div>
+          <div class="hero-foot">
+            <span>69% of weekly goal</span>
+            <span class="hero-cta">Raise goal <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+        </div>
+
+        <!-- The split -->
+        <div class="split">
+          <div class="split-col col-todo">
+            <div class="col-head"><span><span class="material-icons-round" style="font-size:13px;vertical-align:middle">task_alt</span> To do</span><span class="count">3</span></div>
+            <div class="col-list">
+              <div class="col-item overdue"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mr Kola</div><div class="ci-sub">Agbada · 2d late</div></div></div>
+              <div class="col-item due"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mrs Chika</div><div class="ci-sub">Dress · today</div></div></div>
+              <div class="col-item ready"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mrs Funke</div><div class="ci-sub">Senator · ready</div></div></div>
+            </div>
+            <span class="col-more">View 2 more <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+          <div class="split-col col-money">
+            <div class="col-head"><span><span class="material-icons-round" style="font-size:13px;vertical-align:middle">payments</span> Get paid</span><span class="count">₦87k</span></div>
+            <div class="col-list">
+              <div class="col-item overdue"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mr Kola</div><div class="ci-sub">2d late</div></div><span class="ci-amount">₦42k</span></div>
+              <div class="col-item"><div class="accent" style="background:var(--p400)"></div><div class="ci-text"><div class="ci-name">Tola B.</div><div class="ci-sub">Balance</div></div><span class="ci-amount">₦25k</span></div>
+              <div class="col-item"><div class="accent" style="background:var(--p400)"></div><div class="ci-text"><div class="ci-name">Ade Y.</div><div class="ci-sub">Deposit</div></div><span class="ci-amount">₦12k</span></div>
+            </div>
+            <span class="col-more">View 1 more <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+        </div>
+
+        <!-- Pipeline strip footer -->
+        <div class="pipeline-strip">
+          <div class="ps-spark">
+            <span class="blk in-progress"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+            <span class="blk"></span>
+          </div>
+          <div class="ps-text">
+            <div class="ps-title">Pipeline · 12 orders</div>
+            <div class="ps-sub">1 in progress · 11 not started yet</div>
+          </div>
+          <span class="material-icons-round">chevron_right</span>
+        </div>
+
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+      </div>
+    </div></div>
+    <div class="note">Whole dashboard fits in one viewport. Eye sweeps left (work) → right (money) in one motion. State shown: BusyDay.</div>
+  </section>
+
+  <!-- =========================================================
+       V2 — ADAPTIVE HERO SPLIT (ReadyForPickup — matches user's screenshots)
+       ========================================================= -->
+  <section class="variant-row" id="v2">
+    <div class="variant-head">
+      <span class="id">V2 — Adaptive Hero Split</span>
+      <h3>Same columns. Hero swaps with FocusVariant.</h3>
+      <div class="thesis-line">Proves the split survives every state. Phone shows ReadyForPickup (the state from your screenshot) — the strip below shows how the hero morphs across the other states.</div>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+
+        <div class="greeting">
+          <div class="gt-text">
+            <div class="hello">Good afternoon, Olawale</div>
+            <div class="date">Thursday, 30 Apr</div>
+          </div>
+          <span class="gt-chip">12 active</span>
+        </div>
+
+        <!-- Hero: pickup-as-hero (matches the screenshot's green ready-for-pickup card) -->
+        <div class="hero hero-pickup">
+          <div class="hp-icon"><span class="material-icons-round">check_circle</span></div>
+          <div class="hp-body">
+            <div class="hp-title">1 ready for pickup.</div>
+            <div class="hp-supporting">Reach out about pickup or mark delivered.</div>
+            <span class="hp-cta">Open Ade yinka <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+        </div>
+
+        <!-- Split — same structure as V1 but with state-appropriate data -->
+        <div class="split">
+          <div class="split-col col-todo">
+            <div class="col-head"><span><span class="material-icons-round" style="font-size:13px;vertical-align:middle">task_alt</span> To do</span><span class="count">1</span></div>
+            <div class="col-list">
+              <div class="col-item ready"><div class="accent"></div><div class="ci-text"><div class="ci-name">Ade yinka</div><div class="ci-sub">Senator · ready</div></div></div>
+            </div>
+            <span class="col-more" style="opacity:.5">All caught up</span>
+          </div>
+          <div class="split-col col-money">
+            <div class="col-head"><span><span class="material-icons-round" style="font-size:13px;vertical-align:middle">payments</span> Get paid</span><span class="count">₦3m</span></div>
+            <div class="col-list">
+              <div class="col-item"><div class="accent" style="background:var(--p400)"></div><div class="ci-text"><div class="ci-name">Adewale paul</div><div class="ci-sub">Balance · vintage</div></div><span class="ci-amount">₦1.5m</span></div>
+              <div class="col-item"><div class="accent" style="background:var(--p400)"></div><div class="ci-text"><div class="ci-name">Blessing T.</div><div class="ci-sub">Deposit</div></div><span class="ci-amount">₦950k</span></div>
+              <div class="col-item"><div class="accent" style="background:var(--p400)"></div><div class="ci-text"><div class="ci-name">Tola O.</div><div class="ci-sub">Balance</div></div><span class="ci-amount">₦550k</span></div>
+            </div>
+            <span class="col-more">View 1 more <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+        </div>
+
+        <!-- Pipeline strip footer — busy 12-order pipeline -->
+        <div class="pipeline-strip">
+          <div class="ps-spark">
+            <span class="blk in-progress"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+          </div>
+          <div class="ps-text">
+            <div class="ps-title">Pipeline · 12 orders</div>
+            <div class="ps-sub">1 in progress · 11 not started yet</div>
+          </div>
+          <span class="material-icons-round">chevron_right</span>
+        </div>
+
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+      </div>
+    </div></div>
+
+    <div class="state-strip">
+      <h4>How the hero adapts across other states</h4>
+      <div class="ss-grid">
+        <div class="ss-card">
+          <span class="ss-state">BusyDay</span>
+          <span class="ss-hero"><strong>Revenue card.</strong> Trophy + ₦82k of ₦120k weekly + bar. Same one V1 shows.</span>
+        </div>
+        <div class="ss-card">
+          <span class="ss-state">QuietDay</span>
+          <span class="ss-hero"><strong>Reconnect-as-hero.</strong> "3 customers haven't ordered in 3 weeks · message Tola →"</span>
+        </div>
+        <div class="ss-card">
+          <span class="ss-state">BrandNew</span>
+          <span class="ss-hero"><strong>Welcome-as-hero.</strong> Saffron icon + "Add your first customer" CTA. Columns suppressed.</span>
+        </div>
+      </div>
+    </div>
+    <div class="note">Same structure, different hero. The "AHEAD OF TARGET" trophy state from your screenshots becomes a small chip on the BusyDay hero.</div>
+  </section>
+
+  <!-- =========================================================
+       V3 — MONEY-FIRST SPLIT (BusyDay)
+       ========================================================= -->
+  <section class="variant-row" id="v3">
+    <div class="variant-head">
+      <span class="id">V3 — Money-first Split</span>
+      <h3>Get paid above. Today's work below.</h3>
+      <div class="thesis-line">Per <em>"surface revenue-driving actions, not triage"</em> — tests whether money should sit <strong>above</strong> work, not beside it.</div>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+
+        <div class="greeting">
+          <div class="gt-text">
+            <div class="hello">Good morning, Olawale</div>
+            <div class="date">Tuesday, 30 Apr</div>
+          </div>
+          <span class="gt-chip">₦87k owed</span>
+        </div>
+
+        <!-- Money-first: full-width collect cards -->
+        <div class="section-head"><span>Get paid</span><span class="right">₦87,000</span></div>
+        <div class="money-stack">
+          <div class="money-card urgent">
+            <div class="av av-orange">MK</div>
+            <div class="mc-text">
+              <div class="mc-name">Mr Kola</div>
+              <div class="mc-why">2 days late · Agbada</div>
+            </div>
+            <span class="mc-amount">₦42k</span>
+            <span class="mc-action">Collect <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+          <div class="money-card">
+            <div class="av av-pink">TB</div>
+            <div class="mc-text">
+              <div class="mc-name">Tola B.</div>
+              <div class="mc-why">Balance · ready Friday</div>
+            </div>
+            <span class="mc-amount">₦25k</span>
+            <span class="mc-action">Collect <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+          <div class="money-card">
+            <div class="av av-purple">AY</div>
+            <div class="mc-text">
+              <div class="mc-name">Ade Y.</div>
+              <div class="mc-why">Deposit · starting Mon</div>
+            </div>
+            <span class="mc-amount">₦12k</span>
+            <span class="mc-action">Collect <span class="material-icons-round">arrow_forward</span></span>
+          </div>
+        </div>
+
+        <!-- Today's work: compressed list -->
+        <div class="section-head"><span>Today's work</span><span class="right">5 orders</span></div>
+        <div class="work-compact">
+          <div class="wc-row overdue">
+            <span class="accent"></span>
+            <span class="wc-text">Mr Kola<span class="wc-sub">· Agbada</span></span>
+            <span class="wc-chip">2d late</span>
+          </div>
+          <div class="wc-row due">
+            <span class="accent"></span>
+            <span class="wc-text">Mrs Chika<span class="wc-sub">· Dress</span></span>
+            <span class="wc-chip">Today</span>
+          </div>
+          <div class="wc-row ready">
+            <span class="accent"></span>
+            <span class="wc-text">Mrs Funke<span class="wc-sub">· Senator</span></span>
+            <span class="wc-chip">Ready</span>
+          </div>
+          <div class="wc-row ready">
+            <span class="accent"></span>
+            <span class="wc-text">Ade yinka<span class="wc-sub">· Senator</span></span>
+            <span class="wc-chip">Ready</span>
+          </div>
+        </div>
+
+        <!-- Pipeline strip footer -->
+        <div class="pipeline-strip">
+          <div class="ps-spark">
+            <span class="blk in-progress"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+            <span class="blk pending"></span>
+            <span class="blk"></span>
+          </div>
+          <div class="ps-text">
+            <div class="ps-title">Pipeline · 12 orders</div>
+            <div class="ps-sub">1 in progress · 11 not started yet</div>
+          </div>
+          <span class="material-icons-round">chevron_right</span>
+        </div>
+
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+      </div>
+    </div></div>
+    <div class="note">Money in front of you the moment the screen opens. Each collect card is a one-tap WhatsApp action. Risk: tailors who think work-first may feel rushed into chasing money.</div>
+  </section>
+
+  <!-- =========================================================
+       V4 — CALM SPLIT (PipelineSteady — mid density)
+       ========================================================= -->
+  <section class="variant-row" id="v4">
+    <div class="variant-head">
+      <span class="id">V4 — Calm Split</span>
+      <h3>Same split. Less density. Trust the operator.</h3>
+      <div class="thesis-line">Hero collapsed to a one-line chip. Each column shows 2 rows + "Show more". No pipeline strip — pipeline lives one tap away on the Orders tab.</div>
+    </div>
+    <div class="phone-shell"><div class="phone-screen">
+      <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+      <div class="screen-content">
+
+        <div class="greeting">
+          <div class="gt-text">
+            <div class="hello">Good morning, Olawale</div>
+            <div class="date">Tuesday, 30 Apr</div>
+            <div class="summary">5 orders moving · ₦87k outstanding</div>
+          </div>
+        </div>
+
+        <!-- Hero collapsed -->
+        <div class="hero hero-collapsed">
+          <span class="hc-name">Revenue · this week</span>
+          <span class="hc-amount"><strong>₦210k</strong> / ₦300k</span>
+          <span class="material-icons-round">expand_more</span>
+        </div>
+
+        <!-- The split — calmer, 2-row default -->
+        <div class="split">
+          <div class="split-col col-todo">
+            <div class="col-head"><span><span class="material-icons-round" style="font-size:13px;vertical-align:middle">task_alt</span> To do</span><span class="count">3</span></div>
+            <div class="col-list">
+              <div class="col-item overdue"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mr Kola</div><div class="ci-sub">Agbada · 2d late</div></div></div>
+              <div class="col-item due"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mrs Chika</div><div class="ci-sub">Dress · today</div></div></div>
+            </div>
+            <span class="col-more">Show 1 more <span class="material-icons-round">expand_more</span></span>
+          </div>
+          <div class="split-col col-money">
+            <div class="col-head"><span><span class="material-icons-round" style="font-size:13px;vertical-align:middle">payments</span> Get paid</span><span class="count">₦87k</span></div>
+            <div class="col-list">
+              <div class="col-item overdue"><div class="accent"></div><div class="ci-text"><div class="ci-name">Mr Kola</div><div class="ci-sub">2d late</div></div><span class="ci-amount">₦42k</span></div>
+              <div class="col-item"><div class="accent" style="background:var(--p400)"></div><div class="ci-text"><div class="ci-name">Tola B.</div><div class="ci-sub">Balance</div></div><span class="ci-amount">₦25k</span></div>
+            </div>
+            <span class="col-more">Show 2 more <span class="material-icons-round">expand_more</span></span>
+          </div>
+        </div>
+
+        <!-- No pipeline strip — gentle pointer instead -->
+        <div class="pipeline-pointer">
+          <span class="material-icons-round">timeline</span>
+          12 orders in your pipeline · open the Orders tab
+        </div>
+
+      </div>
+      <div class="fab"><span class="material-icons-round">add</span></div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-pill"><span class="material-icons-round">dashboard</span></div><span>Dashboard</span></div>
+        <div class="nav-item"><span class="material-icons-round">people</span><span>Customers</span></div>
+        <div class="nav-item"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+        <div class="nav-item"><span class="material-icons-round">bar_chart</span><span>Reports</span></div>
+      </div>
+    </div></div>
+    <div class="note">Stripped to the bone. Tests whether reducing density helps clarity (you breathe) or starves the operator (you can't see what matters without tapping). State shown: PipelineSteady.</div>
+  </section>
+
+  <!-- =========================================================
+       FOOTER — HOW TO PICK A WINNER
+       ========================================================= -->
+  <section class="evaluate">
+    <h2>Pick a winner</h2>
+    <ol>
+      <li>Open this file alongside <code>preview/dashboard-redesign.html</code>. Compare the V2 phone (ReadyForPickup) directly against the screenshot you took today — same state, two designs.</li>
+      <li>For each variant, ask: <em>"can a tailor on a Lagos commute glance at this and know their next move in &lt; 3 seconds?"</em></li>
+      <li>Toggle dark mode. Which variant still feels readable on a sun-bright phone screen?</li>
+      <li>Pick one. The next plan covers the Compose implementation: each slot maps to existing composables (Tile, AccentedOrderRow, NextBestActionCard, WeeklyGoalsCard) and existing calculator outputs — no new domain logic required.</li>
+    </ol>
+    <div class="axes">
+      <div class="axis">
+        <div class="axis-label">Decision axis 1</div>
+        <div class="axis-q">Should money sit <strong>beside</strong> work (V1/V2/V4) or <strong>above</strong> it (V3)?</div>
+      </div>
+      <div class="axis">
+        <div class="axis-label">Decision axis 2</div>
+        <div class="axis-q">Should the dashboard be <strong>dense</strong> (V1/V2/V3) or <strong>calm</strong> (V4)?</div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (function(){
+      const btn = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      const screens = document.querySelectorAll('.phone-screen');
+      let isDark = true;
+      function apply(){
+        screens.forEach(s => s.classList.toggle('dark', isDark));
+        icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+        label.textContent = isDark ? 'Light' : 'Dark';
+      }
+      btn.addEventListener('click', () => { isDark = !isDark; apply(); });
+      apply();
+    })();
+  </script>
+
+</body>
+</html>

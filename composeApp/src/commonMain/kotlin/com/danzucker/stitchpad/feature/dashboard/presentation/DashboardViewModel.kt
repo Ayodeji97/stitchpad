@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -11,7 +13,10 @@ import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import kotlinx.coroutines.channels.Channel
@@ -31,6 +36,7 @@ import kotlin.time.ExperimentalTime
 
 private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
+private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 
 @OptIn(ExperimentalTime::class)
 @Suppress("TooManyFunctions")
@@ -62,6 +68,10 @@ class DashboardViewModel(
             initialValue = DashboardState()
         )
 
+    // Single sealed-action dispatch table — every DashboardAction handled in
+    // one place. Splitting into per-group helpers would scatter the contract
+    // across the file without clarifying any one branch.
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: DashboardAction) {
         when (action) {
             is DashboardAction.OnOrderClick -> emitEvent(
@@ -76,14 +86,64 @@ class DashboardViewModel(
             )
             DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
             DashboardAction.OnNewOrderClick -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            DashboardAction.OnCreateOrderClick -> emitEvent(
+                if (_state.value.uiState == DashboardUiState.BrandNew) {
+                    DashboardEvent.NavigateToAddCustomerFirst
+                } else {
+                    DashboardEvent.NavigateToOrderForm
+                }
+            )
             DashboardAction.OnNewCustomerClick -> emitEvent(DashboardEvent.NavigateToCustomerForm)
-            DashboardAction.OnAddMeasurementClick -> emitEvent(DashboardEvent.NavigateToCustomers)
+            DashboardAction.OnAddMeasurementClick -> emitEvent(
+                if (_state.value.uiState == DashboardUiState.BrandNew) {
+                    DashboardEvent.NavigateToAddCustomerFirst
+                } else {
+                    DashboardEvent.NavigateToCustomers
+                }
+            )
             DashboardAction.OnGoalsCardClick -> emitEvent(DashboardEvent.NavigateToGoalSetup)
             DashboardAction.OnFocusCtaClick -> handleFocusCtaClick()
             DashboardAction.OnSettingsClick -> emitEvent(DashboardEvent.NavigateToSettings)
+            DashboardAction.OnSetupChecklistAdvance -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            is DashboardAction.OnSetupOrderEditClick ->
+                emitEvent(DashboardEvent.NavigateToEditOrder(action.orderId))
+            is DashboardAction.OnCustomerReadyClick -> emitEvent(
+                DashboardEvent.NavigateToCustomerDetail(action.customerId)
+            )
+            is DashboardAction.OnCustomerReadyMessageClick -> {
+                val customer = _state.value.customerReady
+                if (customer != null && customer.customerId == action.customerId) {
+                    emitEvent(
+                        DashboardEvent.LaunchWhatsAppForReconnect(
+                            com.danzucker.stitchpad.feature.dashboard.presentation.model
+                                .ReconnectCandidate(
+                                    customerId = customer.customerId,
+                                    customerName = customer.name,
+                                    customerPhone = customer.phone,
+                                    daysSinceLastInteraction = 0,
+                                    hasOrderHistory = false,
+                                )
+                        )
+                    )
+                }
+            }
             is DashboardAction.OnReconnectCandidateClick -> emitEvent(
                 DashboardEvent.LaunchWhatsAppForReconnect(action.candidate)
+            )
+            is DashboardAction.OnReconnectClick -> {
+                val candidate = _state.value.reconnectCandidates
+                    .firstOrNull { it.customerId == action.customerId }
+                if (candidate != null) {
+                    emitEvent(DashboardEvent.LaunchWhatsAppForReconnect(candidate))
+                }
+            }
+            is DashboardAction.OnReconnectViewCustomerClick -> emitEvent(
+                DashboardEvent.NavigateToCustomerDetail(action.customerId)
             )
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
@@ -93,7 +153,22 @@ class DashboardViewModel(
     private fun handleFocusCtaClick() {
         val current = _state.value
         when (current.focusVariant) {
-            FocusVariant.FirstOrder -> emitEvent(DashboardEvent.NavigateToOrderForm)
+            FocusVariant.BrandNew -> emitEvent(DashboardEvent.NavigateToAddCustomerFirst)
+            FocusVariant.FirstOrder -> {
+                // Two FocusResolver sub-cases collapse into FirstOrder:
+                //  1. No order yet → open the new-order form.
+                //  2. One order without a deadline → "Complete setup" CTA;
+                //     route to the edit form so the user lands on the field
+                //     they need to fill, not a blank new-order form.
+                val incompleteOrderId = current.firstOrderSetup
+                    ?.takeIf { it.hasOrder }
+                    ?.orderId
+                if (incompleteOrderId != null) {
+                    emitEvent(DashboardEvent.NavigateToEditOrder(incompleteOrderId))
+                } else {
+                    emitEvent(DashboardEvent.NavigateToOrderForm)
+                }
+            }
             FocusVariant.Focus -> {
                 val firstUrgentId = current.overdue.firstOrNull()?.orderId
                     ?: current.dueToday.firstOrNull()?.orderId
@@ -173,8 +248,42 @@ class DashboardViewModel(
                 val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
                 val uiState = FocusResolver.resolveUiState(buckets, nextBestActions, orders, customers)
                 val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
-                val focus = FocusResolver.resolveFocus(uiState, buckets, nextBestActions, customers, reconnect)
+                val focus = FocusResolver.resolveFocus(
+                    uiState = uiState,
+                    buckets = buckets,
+                    nextBestActions = nextBestActions,
+                    customers = customers,
+                    orders = orders,
+                    reconnect = reconnect,
+                )
                 val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
+                // "Your customer" card surfaces only on FirstCustomer. Pick the
+                // most recently added so a user who just created a second
+                // customer sees that one first, not whoever was created earlier.
+                // "Your customer" card is the no-orders-yet celebration —
+                // once an order exists the screen pivots to the Order setup
+                // checklist + order row, so the customer card stops earning
+                // its space.
+                val customerReady = if (
+                    uiState == DashboardUiState.FirstCustomer && orders.isEmpty()
+                ) {
+                    customers.maxByOrNull { it.createdAt }?.let { c ->
+                        val daysSinceAdded = (
+                            (nowMillis() - c.createdAt) /
+                                ONE_DAY_MILLIS
+                            ).toInt().coerceAtLeast(0)
+                        CustomerReadyUi(
+                            customerId = c.id,
+                            name = c.name,
+                            phone = c.phone,
+                            daysSinceAdded = daysSinceAdded,
+                            hasOrders = false,
+                        )
+                    }
+                } else {
+                    null
+                }
+                val firstOrderSetup = computeFirstOrderSetup(customers, orders)
 
                 _state.update {
                     it.copy(
@@ -197,7 +306,11 @@ class DashboardViewModel(
                         focusHeadline = focus.headline,
                         focusSupporting = focus.supporting,
                         focusCtaLabel = focus.ctaLabel,
+                        focusCtaSubtitle = focus.ctaSubtitle,
+                        focusSectionLabel = focus.sectionLabel,
                         reconnectCandidates = reconnect,
+                        customerReady = customerReady,
+                        firstOrderSetup = firstOrderSetup,
                         weeklyGoal = weeklyGoal,
                         errorMessage = error
                     )
@@ -212,6 +325,46 @@ class DashboardViewModel(
             hour < MORNING_CUTOFF_HOUR -> Greeting.MORNING
             hour < AFTERNOON_CUTOFF_HOUR -> Greeting.AFTERNOON
             else -> Greeting.EVENING
+        }
+    }
+
+    /**
+     * Drives the persistent "Order setup" checklist. Returns non-null only
+     * during the first-order onboarding window:
+     *   - has at least one customer, AND
+     *   - has 0 or 1 orders, AND
+     *   - the first order (if any) is missing a deadline OR a deposit.
+     *
+     * Once the first order has both a deadline and a deposit > 0, OR the
+     * user has more than one order (past onboarding), this returns null
+     * and the checklist disappears.
+     */
+    private fun computeFirstOrderSetup(
+        customers: List<Customer>,
+        orders: List<Order>,
+    ): FirstOrderSetupUi? {
+        if (customers.isEmpty() || orders.size > 1) return null
+
+        val firstOrder = orders.minByOrNull { it.createdAt }
+        val customerName = firstOrder?.customerName?.takeIf { it.isNotBlank() }
+            ?: customers.minByOrNull { it.createdAt }?.name
+        val hasOrder = firstOrder != null
+        val hasDueDate = firstOrder?.deadline != null
+        val hasDeposit = (firstOrder?.depositPaid ?: 0.0) > 0.0
+        val setupComplete = hasOrder && hasDueDate && hasDeposit
+
+        return if (customerName != null && !setupComplete) {
+            FirstOrderSetupUi(
+                customerName = customerName,
+                orderId = firstOrder?.id,
+                hasOrder = hasOrder,
+                hasDueDate = hasDueDate,
+                hasDeposit = hasDeposit,
+                garmentLabel = firstOrder?.items?.firstOrNull()?.garmentType?.simpleLabel().orEmpty(),
+                totalAmount = firstOrder?.totalPrice ?: 0.0,
+            )
+        } else {
+            null
         }
     }
 }

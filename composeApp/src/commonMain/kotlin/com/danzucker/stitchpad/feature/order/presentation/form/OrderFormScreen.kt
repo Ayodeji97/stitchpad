@@ -37,8 +37,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -60,7 +58,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -89,6 +86,7 @@ import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -98,12 +96,11 @@ import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.common_cancel
-import stitchpad.composeapp.generated.resources.common_ok
 import stitchpad.composeapp.generated.resources.garment_gender_female
 import stitchpad.composeapp.generated.resources.garment_gender_male
 import stitchpad.composeapp.generated.resources.garment_gender_unisex
@@ -1014,7 +1011,6 @@ private fun PhotoSourceRow(
 
 // ── Step 3: Details ─────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DetailsStep(
     state: OrderFormState,
@@ -1170,25 +1166,20 @@ private fun DetailsStep(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = state.deadline)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    onAction(OrderFormAction.OnDeadlineChange(datePickerState.selectedDateMillis))
-                    showDatePicker = false
-                }) {
-                    Text(stringResource(Res.string.common_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(Res.string.common_cancel))
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
+        val timeZone = TimeZone.currentSystemDefault()
+        val initialDate = state.deadline?.let { millis ->
+            Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
         }
+        CustomDatePickerDialog(
+            initial = initialDate,
+            timeZone = timeZone,
+            onDismiss = { showDatePicker = false },
+            onConfirm = { picked ->
+                val millis = picked.atStartOfDayIn(timeZone).toEpochMilliseconds()
+                onAction(OrderFormAction.OnDeadlineChange(millis))
+                showDatePicker = false
+            }
+        )
     }
 }
 

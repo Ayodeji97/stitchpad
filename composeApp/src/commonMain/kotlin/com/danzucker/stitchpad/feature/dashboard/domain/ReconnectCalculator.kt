@@ -13,11 +13,13 @@ private const val RECONNECT_LIMIT = 5
 private const val RECONNECT_MIN_DAYS = 14
 
 /**
- * Builds the list of customers to surface in the ReconnectStrip. A candidate is
- * a customer with no active (non-DELIVERED) order. Customers with order history
- * must have been inactive for at least [RECONNECT_MIN_DAYS] days; customers
- * with no order history (e.g. just-added) always pass. Capped at
- * [RECONNECT_LIMIT].
+ * Builds the list of customers to surface in the reconnect carousel. A candidate is
+ * a customer with order history but no active (non-DELIVERED) order, who has been
+ * inactive for at least [RECONNECT_MIN_DAYS] days. Capped at [RECONNECT_LIMIT].
+ *
+ * Customers with no order history are intentionally excluded — they belong to
+ * "first order" surfaces (FirstCustomer "Your customer" card, onboarding tiles),
+ * not "reconnect with a stale customer" semantics.
  *
  * The single pass over `orders` builds two facts at once: which customers have
  * any active order (so they can be excluded), and the max `updatedAt` per
@@ -65,7 +67,7 @@ object ReconnectCalculator {
                     hasOrderHistory = mostRecentMillis != null
                 )
             }
-            .filter { !it.hasOrderHistory || it.daysSinceLastInteraction >= RECONNECT_MIN_DAYS }
+            .filter { it.hasOrderHistory && it.daysSinceLastInteraction >= RECONNECT_MIN_DAYS }
             .sortedByDescending { it.daysSinceLastInteraction }
             .take(RECONNECT_LIMIT)
             .toList()
