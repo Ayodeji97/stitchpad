@@ -107,6 +107,7 @@ import stitchpad.composeapp.generated.resources.garment_gender_unisex
 import stitchpad.composeapp.generated.resources.order_form_add_item
 import stitchpad.composeapp.generated.resources.order_form_create_button
 import stitchpad.composeapp.generated.resources.order_form_deadline_label
+import stitchpad.composeapp.generated.resources.order_form_deposit_edit_locked_hint
 import stitchpad.composeapp.generated.resources.order_form_deposit_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_placeholder
 import stitchpad.composeapp.generated.resources.order_form_description_label
@@ -1142,7 +1143,7 @@ private fun DetailsStep(
             },
             readOnly = state.isEditMode,
             supportingText = if (state.isEditMode) {
-                { Text("Use Record Payment on the order details screen to update.") }
+                { Text(stringResource(Res.string.order_form_deposit_edit_locked_hint)) }
             } else {
                 null
             },

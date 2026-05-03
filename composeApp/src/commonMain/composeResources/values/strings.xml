@@ -503,6 +503,7 @@
 
     <!-- Order form -->
     <string name="order_form_item_number">Item %1$d</string>
+    <string name="order_form_deposit_edit_locked_hint">Use Record Payment on the order details screen to update.</string>
     <string name="common_ok">OK</string>
     <string name="common_cancel">Cancel</string>
 
