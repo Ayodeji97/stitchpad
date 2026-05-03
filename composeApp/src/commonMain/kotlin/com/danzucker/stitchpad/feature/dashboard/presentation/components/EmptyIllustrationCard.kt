@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +35,8 @@ private val ILLUSTRATION_BACKDROP_SIZE = 96.dp
 private val ILLUSTRATION_BACKDROP_WIDTH_LARGE = 128.dp
 private val ILLUSTRATION_SIZE_LARGE = 96.dp
 
+enum class EmptyCardCtaStyle { Text, OutlinedPill }
+
 @Composable
 fun EmptyIllustrationCard(
     slot: EmptyIllustrationSlot,
@@ -43,6 +47,7 @@ fun EmptyIllustrationCard(
     onCtaClick: () -> Unit = {},
     illustrationBackground: Color? = null,
     largeIllustration: Boolean = false,
+    ctaStyle: EmptyCardCtaStyle = EmptyCardCtaStyle.Text,
 ) {
     val drawable = remember(slot) { emptyIllustrationFor(slot) }
     val illustrationSize = if (largeIllustration) ILLUSTRATION_SIZE_LARGE else ILLUSTRATION_SIZE
@@ -88,16 +93,39 @@ fun EmptyIllustrationCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (ctaLabel != null) {
-                    Spacer(Modifier.height(DesignTokens.space1))
-                    TextButton(
-                        onClick = onCtaClick,
-                        contentPadding = PaddingValues(horizontal = DesignTokens.space2, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = ctaLabel,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
+                    Spacer(Modifier.height(DesignTokens.space2))
+                    when (ctaStyle) {
+                        EmptyCardCtaStyle.Text -> TextButton(
+                            onClick = onCtaClick,
+                            contentPadding = PaddingValues(
+                                horizontal = DesignTokens.space2,
+                                vertical = 4.dp,
+                            ),
+                        ) {
+                            Text(
+                                text = ctaLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        EmptyCardCtaStyle.OutlinedPill -> OutlinedButton(
+                            onClick = onCtaClick,
+                            shape = RoundedCornerShape(DesignTokens.radiusFull),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            contentPadding = PaddingValues(
+                                horizontal = DesignTokens.space3,
+                                vertical = DesignTokens.space1,
+                            ),
+                        ) {
+                            Text(
+                                text = ctaLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -127,8 +155,12 @@ private fun EmptyIllustrationCardNbaPreview() {
     StitchPadTheme {
         EmptyIllustrationCard(
             slot = EmptyIllustrationSlot.Nba,
-            title = "No suggested moves",
-            supporting = "Show up when balances or deadlines need follow-up.",
+            title = "Nothing urgent right now",
+            supporting = "Use this time to reconnect with customers or review orders.",
+            ctaLabel = "Reconnect customers",
+            onCtaClick = {},
+            ctaStyle = EmptyCardCtaStyle.OutlinedPill,
+            largeIllustration = true,
         )
     }
 }

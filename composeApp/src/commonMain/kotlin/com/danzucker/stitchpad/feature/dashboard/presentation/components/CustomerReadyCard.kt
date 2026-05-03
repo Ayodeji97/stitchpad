@@ -92,7 +92,7 @@ fun CustomerReadyCard(
         Row(
             modifier = Modifier.padding(DesignTokens.space4),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
             AvatarWithDot(initials = initialsOf(customer.name))
             CustomerInfo(customer = customer, modifier = Modifier.weight(1f))
@@ -197,23 +197,26 @@ private fun BadgePill(icon: ImageVector, label: String, tone: BadgeTone) {
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminanceIsDark()
     val (bg, fg) = when (tone) {
-        BadgeTone.Success -> if (isDark) SUCCESS_DARK_BG to SUCCESS_DARK_FG
-            else SUCCESS_BG to SUCCESS_FG
+        BadgeTone.Success -> if (isDark) {
+            SUCCESS_DARK_BG to SUCCESS_DARK_FG
+        } else {
+            SUCCESS_BG to SUCCESS_FG
+        }
         BadgeTone.Neutral -> scheme.surfaceVariant to scheme.onSurfaceVariant
     }
     Row(
         modifier = Modifier
             .clip(CircleShape)
             .background(color = bg)
-            .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = fg,
-            modifier = Modifier.size(12.dp),
+            modifier = Modifier.size(10.dp),
         )
         Text(
             text = label,

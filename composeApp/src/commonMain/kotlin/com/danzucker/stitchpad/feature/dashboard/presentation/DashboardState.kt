@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
@@ -38,11 +39,17 @@ data class DashboardState(
     val focusSupporting: UiText? = null,
     val focusCtaLabel: UiText? = null,
     val focusCtaSubtitle: UiText? = null,
+    /** Optional uppercase pill above the title in prominent variants (e.g. "● CALM DAY"). */
+    val focusSectionLabel: UiText? = null,
     // Reconnect (S2/S3/S4 surfaces)
     val reconnectCandidates: List<ReconnectCandidate> = emptyList(),
     // "Your customer" card on FirstCustomer state — most recently added
     // customer with quick-message + open-detail affordances. Null otherwise.
     val customerReady: CustomerReadyUi? = null,
+    // Drives the persistent "Order setup" checklist. Non-null while the
+    // first order is still missing a due date or a deposit; null after both
+    // are set, or once the user has more than one order (past onboarding).
+    val firstOrderSetup: FirstOrderSetupUi? = null,
     // Weekly goal — null when the user hasn't set one. Sourced from WeeklyGoalRepository.
     val weeklyGoal: WeeklyGoalUi? = null,
     val errorMessage: UiText? = null

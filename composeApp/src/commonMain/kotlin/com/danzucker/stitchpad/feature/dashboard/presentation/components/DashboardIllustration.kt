@@ -14,7 +14,6 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_empty_customers
-import stitchpad.composeapp.generated.resources.dashboard_empty_nba
 import stitchpad.composeapp.generated.resources.dashboard_empty_pipeline
 import stitchpad.composeapp.generated.resources.dashboard_hero_busy
 import stitchpad.composeapp.generated.resources.dashboard_hero_first_order
@@ -56,7 +55,7 @@ fun heroIllustrationFor(variant: FocusVariant): DrawableResource = when (variant
  */
 fun emptyIllustrationFor(slot: EmptyIllustrationSlot): DrawableResource = when (slot) {
     EmptyIllustrationSlot.Pipeline -> Res.drawable.dashboard_empty_pipeline
-    EmptyIllustrationSlot.Nba -> Res.drawable.dashboard_empty_nba
+    EmptyIllustrationSlot.Nba -> Res.drawable.dashboard_hero_quiet
     EmptyIllustrationSlot.Customers -> Res.drawable.dashboard_empty_customers
 }
 

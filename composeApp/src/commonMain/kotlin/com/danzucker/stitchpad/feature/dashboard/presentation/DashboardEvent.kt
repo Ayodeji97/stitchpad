@@ -9,6 +9,14 @@ sealed interface DashboardEvent {
     data class LaunchWhatsAppForReconnect(val candidate: ReconnectCandidate) : DashboardEvent
     data object NavigateToOrders : DashboardEvent
     data object NavigateToOrderForm : DashboardEvent
+
+    /**
+     * Open the order edit form pre-populated for [orderId]. Used by the
+     * Setup Checklist's SetDueDate / RecordDeposit step taps so the user
+     * lands on the screen that actually edits those fields, instead of
+     * the read-only Order Detail surface.
+     */
+    data class NavigateToEditOrder(val orderId: String) : DashboardEvent
     data object NavigateToCustomerForm : DashboardEvent
     data object NavigateToCustomers : DashboardEvent
     data object NavigateToGoalSetup : DashboardEvent

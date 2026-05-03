@@ -77,7 +77,7 @@ class DashboardUiMappersTest {
             dueToday = emptyList(),
             ready = emptyList(),
         )
-        assertEquals("3d late", rows.single().chipText)
+        assertEquals("3 days late", rows.single().chipText)
     }
 
     @Test

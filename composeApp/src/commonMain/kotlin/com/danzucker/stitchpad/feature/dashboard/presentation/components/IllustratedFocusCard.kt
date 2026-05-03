@@ -45,6 +45,13 @@ private data class FocusCardPalette(
     val ctaTint: Color,
     val backgroundGradient: Brush?,
     val prominent: Boolean = false,
+    /**
+     * Tint of the optional uppercase pill ("● CALM DAY") rendered above
+     * the title in prominent variants. Defaults to the CTA tint when
+     * unspecified — Steady overrides it to green so the pill mood
+     * differs from the saffron action button.
+     */
+    val sectionPillTint: Color? = null,
 )
 
 private fun paletteFor(
@@ -77,44 +84,89 @@ private fun paletteFor(
         prominent = true,
     )
     FocusVariant.Quiet -> FocusCardPalette(
-        border = DesignTokens.success500.copy(alpha = 0.25f),
-        ctaTint = DesignTokens.success500,
-        backgroundGradient = null,
-    )
-    FocusVariant.Steady -> FocusCardPalette(
-        border = DesignTokens.info500.copy(alpha = 0.25f),
-        ctaTint = DesignTokens.info500,
-        backgroundGradient = null,
-    )
-    FocusVariant.Earn -> FocusCardPalette(
-        border = primary.copy(alpha = 0.4f),
-        ctaTint = primary,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                primary.copy(alpha = 0.12f),
-                surface,
-            ),
-        ),
-    )
-    FocusVariant.Focus -> FocusCardPalette(
-        border = DesignTokens.error500.copy(alpha = 0.3f),
-        ctaTint = DesignTokens.error500,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                DesignTokens.error500.copy(alpha = 0.08f),
-                surface,
-            ),
-        ),
-    )
-    FocusVariant.Pickup -> FocusCardPalette(
+        // Quiet-day variant — green section pill ("● QUIET DAY"), prominent
+        // sizing + soft green gradient. CTA stays saffron rather than green
+        // because the supporting copy nudges the user *toward* growth work
+        // (reconnect, add an order) — saffron action on green mood matches
+        // the Steady split: "things are calm, here's how to fill that calm."
         border = DesignTokens.success500.copy(alpha = 0.3f),
-        ctaTint = DesignTokens.success500,
+        ctaTint = primary,
+        sectionPillTint = DesignTokens.success500,
         backgroundGradient = Brush.linearGradient(
             listOf(
                 DesignTokens.success500.copy(alpha = 0.10f),
                 surface,
             ),
         ),
+        prominent = true,
+    )
+    FocusVariant.Steady -> FocusCardPalette(
+        // Calm-day variant — green section pill ("● CALM DAY"), prominent
+        // sizing (large title + 140dp illustration), soft green gradient.
+        // The CTA stays saffron though: green is the *mood*, saffron is the
+        // *action*, matching the rest of the dashboard's button language.
+        border = DesignTokens.success500.copy(alpha = 0.3f),
+        ctaTint = primary,
+        sectionPillTint = DesignTokens.success500,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                DesignTokens.success500.copy(alpha = 0.10f),
+                surface,
+            ),
+        ),
+        prominent = true,
+    )
+    FocusVariant.Earn -> FocusCardPalette(
+        // NbaActive variant — saffron section pill ("● EARN TODAY"),
+        // prominent sizing, soft saffron gradient. Mood and action are both
+        // about revenue work (collect / start / finish), so the pill and CTA
+        // share the saffron tint — no need to split moods like Steady or
+        // Quiet do.
+        border = primary.copy(alpha = 0.4f),
+        ctaTint = primary,
+        sectionPillTint = primary,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                primary.copy(alpha = 0.12f),
+                surface,
+            ),
+        ),
+        prominent = true,
+    )
+    FocusVariant.Focus -> FocusCardPalette(
+        // Busy-day variant — red section pill ("● ACTION NEEDED"), prominent
+        // sizing (large title + 140dp illustration), soft red gradient.
+        // Pill and CTA share the error tint here: unlike Steady (where green
+        // mood vs. saffron action splits the two), urgency *is* the action,
+        // so the whole card reads in one accent colour.
+        border = DesignTokens.error500.copy(alpha = 0.4f),
+        ctaTint = DesignTokens.error500,
+        sectionPillTint = DesignTokens.error500,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                DesignTokens.error500.copy(alpha = 0.10f),
+                surface,
+            ),
+        ),
+        prominent = true,
+    )
+    FocusVariant.Pickup -> FocusCardPalette(
+        // Ready-for-pickup variant — green section pill ("● PICKUP READY"),
+        // prominent sizing (large title + 140dp illustration), soft green
+        // gradient. Pill and CTA share the success tint: this is a positive
+        // "work is done, just complete the loop" moment, so green throughout
+        // reinforces the celebratory framing — no need to split moods like
+        // Steady (green pill / saffron action) does.
+        border = DesignTokens.success500.copy(alpha = 0.4f),
+        ctaTint = DesignTokens.success500,
+        sectionPillTint = DesignTokens.success500,
+        backgroundGradient = Brush.linearGradient(
+            listOf(
+                DesignTokens.success500.copy(alpha = 0.12f),
+                surface,
+            ),
+        ),
+        prominent = true,
     )
 }
 
@@ -140,6 +192,7 @@ fun IllustratedFocusCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     ctaSubtitle: String? = null,
+    sectionLabel: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val primary = scheme.primary
@@ -186,7 +239,14 @@ fun IllustratedFocusCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 if (palette.prominent) {
-                    SparkleBadge(tint = palette.ctaTint)
+                    if (sectionLabel != null) {
+                        SectionLabelPill(
+                            label = sectionLabel,
+                            tint = palette.sectionPillTint ?: palette.ctaTint,
+                        )
+                    } else {
+                        SparkleBadge(tint = palette.ctaTint)
+                    }
                     Spacer(Modifier.height(DesignTokens.space3))
                 }
                 Text(
@@ -257,6 +317,35 @@ private fun SparkleBadge(tint: Color) {
     }
 }
 
+@Composable
+private fun SectionLabelPill(label: String, tint: Color) {
+    Surface(
+        shape = CircleShape,
+        color = tint.copy(alpha = 0.15f),
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = DesignTokens.space3,
+                vertical = DesignTokens.space1,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(color = tint, shape = CircleShape),
+            )
+            Text(
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = tint,
+            )
+        }
+    }
+}
+
 // region — Previews (6 light + 2 dark for high-contrast variants)
 
 @Suppress("UnusedPrivateMember")
@@ -266,9 +355,10 @@ private fun IllustratedFocusCardFocusPreview() {
     StitchPadTheme {
         IllustratedFocusCard(
             variant = FocusVariant.Focus,
-            title = "2 orders need attention today",
-            supporting = "1 overdue fitting · 1 dress due today · ₦120,000 to collect",
-            ctaLabel = "View priorities",
+            title = "2 orders need attention",
+            supporting = "1 overdue · 1 due today",
+            ctaLabel = "Open Gose Wale",
+            sectionLabel = "Action needed",
             onClick = {},
         )
     }
@@ -311,9 +401,10 @@ private fun IllustratedFocusCardSteadyPreview() {
     StitchPadTheme {
         IllustratedFocusCard(
             variant = FocusVariant.Steady,
-            title = "Workshop is steady",
-            supporting = "5 orders are moving smoothly. Nothing is overdue today.",
-            ctaLabel = "Open pipeline",
+            title = "Shop is steady",
+            supporting = "1 order in progress. Use this time to review the order and keep things moving.",
+            ctaLabel = "Open order",
+            sectionLabel = "Calm day",
             onClick = {},
         )
     }
@@ -357,9 +448,10 @@ private fun IllustratedFocusCardFocusDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         IllustratedFocusCard(
             variant = FocusVariant.Focus,
-            title = "2 orders need attention today",
-            supporting = "1 overdue fitting · 1 dress due today · ₦120,000 to collect",
-            ctaLabel = "View priorities",
+            title = "2 orders need attention",
+            supporting = "1 overdue · 1 due today",
+            ctaLabel = "Open Gose Wale",
+            sectionLabel = "Action needed",
             onClick = {},
         )
     }

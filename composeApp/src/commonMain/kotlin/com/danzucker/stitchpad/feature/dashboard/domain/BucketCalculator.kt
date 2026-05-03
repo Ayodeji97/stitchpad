@@ -110,6 +110,7 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
         orderId = id,
         customerName = customerName,
         primaryLabel = garment,
-        daysUntilDeadline = daysUntil
+        daysUntilDeadline = daysUntil,
+        createdAtEpochMillis = createdAt
     )
 }

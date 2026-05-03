@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkBucket
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkRowUi
-import com.danzucker.stitchpad.ui.components.AccentedOrderRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -75,13 +75,8 @@ fun TodayWorkCard(
             Spacer(Modifier.height(DesignTokens.space2))
             visible.forEachIndexed { index, row ->
                 if (index > 0) Spacer(Modifier.height(DesignTokens.space2))
-                AccentedOrderRow(
-                    customerName = row.customerName,
-                    primaryLabel = row.primaryLabel,
-                    accentColor = row.accentColor,
-                    chipText = row.chipText,
-                    chipTextColor = row.chipTextColor,
-                    chipBackground = row.chipBackground,
+                TodayWorkRichRow(
+                    row = row,
                     onClick = { onRowClick(row.orderId) },
                 )
             }
@@ -109,6 +104,7 @@ private fun TodayWorkCardPreview() {
                     primaryLabel = "Senator Wear · Ready",
                     accent = DesignTokens.success500,
                     chip = "Ready pickup",
+                    bucket = TodayWorkBucket.Ready,
                 ),
                 TodayWorkRowUi.preview(
                     orderId = "3",
@@ -116,6 +112,7 @@ private fun TodayWorkCardPreview() {
                     primaryLabel = "Bridesmaid Dress · Fitting 2 PM",
                     accent = DesignTokens.warning500,
                     chip = "Fitting today",
+                    bucket = TodayWorkBucket.DueToday,
                 ),
             ),
             onRowClick = {},
@@ -137,6 +134,7 @@ private fun TodayWorkCardOverflowPreview() {
                     primaryLabel = "Garment · today",
                     accent = DesignTokens.warning500,
                     chip = "Due today",
+                    bucket = TodayWorkBucket.DueToday,
                 )
             },
             onRowClick = {},
@@ -165,6 +163,7 @@ private fun TodayWorkCardDarkPreview() {
                     primaryLabel = "Senator Wear · Ready",
                     accent = DesignTokens.success500,
                     chip = "Ready pickup",
+                    bucket = TodayWorkBucket.Ready,
                 ),
             ),
             onRowClick = {},

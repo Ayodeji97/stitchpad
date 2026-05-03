@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Weekly Goal Achieved (Streamlined Hero)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --suc:#2D9E6B; --suc-light:#5EDBA0;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-full:999px;
+
+      --font-body:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+    }
+
+    /* Light defaults */
+    .stage{
+      --bg:var(--n50); --surf:var(--n0); --on-surf:var(--n800);
+      --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200);
+      --suc-bg:rgba(45,158,107,.10);
+      --suc-track:rgba(45,158,107,.16);
+      --pri-pill:rgba(232,168,0,.12);
+      --suc-fill:var(--suc);
+      --suc-on-pill:var(--suc);
+    }
+    .stage.dark{
+      --bg:#121110; --surf:#1E1C1A; --on-surf:#E5E3DF;
+      --on-surf2:#A8A49D; --on-surf3:#7D7970;
+      --bdr:#3A3731;
+      --suc-bg:rgba(94,219,160,.14);
+      --suc-track:rgba(94,219,160,.18);
+      --pri-pill:rgba(232,168,0,.18);
+      --suc-fill:var(--suc-light);
+      --suc-on-pill:var(--suc-light);
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:var(--font-body);background:#0f0e0d;color:#E5E3DF;min-height:100vh}
+    body{padding:48px 24px 100px;display:flex;flex-direction:column;align-items:center;gap:32px}
+
+    .page-head{max-width:760px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+    .brand{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .brand .logo{font-size:24px;color:var(--p500);letter-spacing:-.02em}
+    .page-head h1{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:#fff}
+    .page-head .lede{font-size:14px;line-height:1.6;color:rgba(255,255,255,.72);max-width:620px}
+
+    .toolbar{display:flex;gap:10px;align-items:center}
+    .toggle{
+      font-size:12px;font-weight:700;padding:6px 14px;border:none;cursor:pointer;
+      border-radius:var(--r-full);background:var(--p500);color:#fff;
+      font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    }
+
+    .grid{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:24px;max-width:1200px;width:100%}
+    @media (max-width: 1100px){.grid{grid-template-columns:1fr 1fr}}
+    @media (max-width: 720px){.grid{grid-template-columns:1fr}}
+
+    .col{display:flex;flex-direction:column;gap:14px;align-items:center}
+    .col h2{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+    .col .sub{font-size:12px;color:rgba(255,255,255,.5);text-align:center;max-width:340px;line-height:1.5}
+    .col .height-tag{font-size:11px;font-weight:700;color:var(--suc-light);font-variant-numeric:tabular-nums}
+
+    .stage{
+      width:340px;background:var(--bg);padding:18px;border-radius:24px;
+      box-shadow:0 12px 32px rgba(0,0,0,.45);
+    }
+
+    /* === Card — shared shell === */
+    .card{
+      background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);
+      padding:var(--s4);color:var(--on-surf);display:flex;flex-direction:column;
+    }
+
+    /* === Variant A — current compact (image 1) === */
+    .v-current .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .v-current .trophy-inline{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--suc-fill)}
+    .v-current .trophy-inline .material-icons-round{font-size:14px}
+    .v-current .days{font-size:12px;color:var(--on-surf2);font-weight:500}
+    .v-current .amount-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px}
+    .v-current .title{font-size:16px;font-weight:800;letter-spacing:-.01em}
+    .v-current .progress-text{font-size:14px;font-weight:800;color:var(--suc-fill)}
+    .v-current .bar{height:8px;background:var(--suc-track);border-radius:var(--r-full);overflow:hidden}
+    .v-current .bar > span{display:block;height:100%;width:100%;background:var(--suc-fill);border-radius:var(--r-full)}
+    .v-current .cta{margin-top:10px;font-size:14px;font-weight:800;color:var(--suc-fill);display:inline-flex;align-items:center;gap:4px}
+    .v-current .cta .material-icons-round{font-size:18px}
+
+    /* === Variant B — Canva proposal (image 2) === */
+    .v-canva .header-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid var(--bdr);margin-bottom:14px}
+    .v-canva .trophy-circle{
+      display:inline-flex;align-items:center;gap:10px;
+    }
+    .v-canva .trophy-circle .badge{
+      width:38px;height:38px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(232,168,0,.15);
+      border:1px solid rgba(232,168,0,.4);
+    }
+    .v-canva .trophy-circle .badge .material-icons-round{font-size:20px;color:var(--p500)}
+    .v-canva .trophy-circle .label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--suc-fill)}
+    .v-canva .clock-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--on-surf2)}
+    .v-canva .clock-pill .material-icons-round{font-size:14px;color:var(--p500)}
+    .v-canva .body-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .v-canva .body-row .title{font-size:22px;font-weight:800;letter-spacing:-.01em}
+    .v-canva .body-row .check-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+    .v-canva .body-row .check-row .material-icons-round{font-size:16px;color:var(--suc-fill)}
+    .v-canva .body-row .check-row span:last-child{font-size:12px;color:var(--on-surf2)}
+    .v-canva .body-row .progress{font-size:22px;font-weight:800;color:var(--suc-fill);text-align:right;line-height:1.1}
+    .v-canva .body-row .progress .target{color:var(--on-surf3);text-decoration:line-through;font-size:18px}
+    .v-canva .bar{height:12px;background:var(--suc-track);border-radius:var(--r-full);overflow:hidden;margin:6px 0 10px}
+    .v-canva .bar > span{display:block;height:100%;width:100%;background:linear-gradient(90deg, var(--suc-fill), var(--suc-light));border-radius:var(--r-full);box-shadow:0 1px 6px rgba(94,219,160,.4)}
+    .v-canva .footer-row{display:flex;justify-content:space-between;font-size:12px;padding-bottom:14px;border-bottom:1px solid var(--bdr);margin-bottom:14px}
+    .v-canva .footer-row .left{color:var(--suc-fill);font-weight:700;display:inline-flex;align-items:center;gap:6px}
+    .v-canva .footer-row .left::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--suc-fill)}
+    .v-canva .footer-row .right{color:var(--on-surf2)}
+    .v-canva .cta{font-size:14px;font-weight:800;color:var(--p500);display:inline-flex;align-items:center;gap:6px}
+    .v-canva .cta .material-icons-round{font-size:18px}
+
+    /* === Variant C — streamlined hero (proposal) === */
+    .v-stream .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .v-stream .trophy-circle{display:inline-flex;align-items:center;gap:10px}
+    .v-stream .trophy-circle .badge{
+      width:34px;height:34px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:var(--suc-bg);
+    }
+    .v-stream .trophy-circle .badge .material-icons-round{font-size:18px;color:var(--suc-fill)}
+    .v-stream .trophy-circle .label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--suc-fill)}
+    .v-stream .days-pill{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 10px;border-radius:var(--r-full);
+      background:var(--pri-pill);
+      font-size:11px;font-weight:800;color:var(--p500);
+    }
+    .v-stream .days-pill .material-icons-round{font-size:12px}
+    .v-stream .body-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .v-stream .body-row .title{font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+    .v-stream .body-row .progress{font-size:20px;font-weight:800;color:var(--suc-fill);text-align:right;line-height:1.1;font-feature-settings:"tnum"}
+    .v-stream .body-row .progress .target{color:var(--on-surf3);text-decoration:line-through;font-size:16px;font-weight:700}
+    .v-stream .bar{height:10px;background:var(--suc-track);border-radius:var(--r-full);overflow:hidden}
+    .v-stream .bar > span{display:block;height:100%;width:100%;background:var(--suc-fill);border-radius:var(--r-full)}
+    .v-stream .cta{margin-top:14px;font-size:14px;font-weight:800;color:var(--suc-fill);display:inline-flex;align-items:center;gap:4px}
+    .v-stream .cta .material-icons-round{font-size:18px}
+
+    /* annotation pills under each card */
+    .annot{font-size:11px;line-height:1.55;color:rgba(255,255,255,.55);max-width:340px;text-align:left;background:rgba(255,255,255,.04);border-radius:10px;padding:10px 12px;border-left:3px solid var(--suc-light)}
+    .annot strong{color:rgba(255,255,255,.85);font-weight:700}
+    .annot .strike{text-decoration:line-through;color:rgba(255,255,255,.4)}
+  </style>
+</head>
+<body>
+  <div class="page-head">
+    <div class="brand"><span class="logo material-icons-round">checkroom</span> StitchPad · Weekly Goal Achieved</div>
+    <h1>Streamlined hero — comparison sketch</h1>
+    <p class="lede">Three side-by-side: today's compact card, the Canva mockup you shared, and the trimmed hero we discussed. Same content density question — does the celebration earn its vertical?</p>
+    <div class="toolbar">
+      <button class="toggle" onclick="document.querySelectorAll('.stage').forEach(s=>s.classList.toggle('dark'))">
+        <span class="material-icons-round">dark_mode</span> Toggle theme
+      </button>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- === A — current compact === -->
+    <div class="col">
+      <h2>A · Current compact</h2>
+      <div class="sub">Live in the app today. Trophy + days, single amount line, bar, "Raise your goal" CTA.</div>
+      <div class="stage dark">
+        <div class="card v-current">
+          <div class="header-row">
+            <span class="trophy-inline"><span class="material-icons-round">emoji_events</span>Ahead of target</span>
+            <span class="days">5 days left</span>
+          </div>
+          <div class="amount-row">
+            <span class="title">Revenue goal</span>
+            <span class="progress-text">₦700k / ₦300k</span>
+          </div>
+          <div class="bar"><span></span></div>
+          <div class="cta">Raise your goal <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+      </div>
+      <div class="height-tag">≈ 132dp tall</div>
+    </div>
+
+    <!-- === B — Canva proposal === -->
+    <div class="col">
+      <h2>B · Canva mockup</h2>
+      <div class="sub">Big trophy circle, "Weekly target exceeded" check row, big strikethrough numbers, footer earned + target line, "Edit goal" CTA.</div>
+      <div class="stage dark">
+        <div class="card v-canva">
+          <div class="header-row">
+            <span class="trophy-circle">
+              <span class="badge"><span class="material-icons-round">emoji_events</span></span>
+              <span class="label">Ahead of target</span>
+            </span>
+            <span class="clock-pill"><span class="material-icons-round">schedule</span> 5 days left</span>
+          </div>
+          <div class="body-row">
+            <div>
+              <div class="title">Revenue goal</div>
+              <div class="check-row">
+                <span class="material-icons-round">check_circle</span>
+                <span>Weekly target exceeded</span>
+              </div>
+            </div>
+            <div class="progress">₦700k <span class="target">/ ₦300k</span></div>
+          </div>
+          <div class="bar"><span></span></div>
+          <div class="footer-row">
+            <span class="left">₦700,000 earned</span>
+            <span class="right">Target ₦300,000</span>
+          </div>
+          <div class="cta">Edit goal <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+      </div>
+      <div class="height-tag">≈ 290dp tall</div>
+    </div>
+
+    <!-- === C — streamlined hero === -->
+    <div class="col">
+      <h2>C · Streamlined hero <span style="color:var(--suc-light)">←</span></h2>
+      <div class="sub">Trophy circle stays. "Weekly target exceeded" row gone. Footer earned/target gone. "Raise your goal" stays — momentum, not maintenance.</div>
+      <div class="stage dark">
+        <div class="card v-stream">
+          <div class="header-row">
+            <span class="trophy-circle">
+              <span class="badge"><span class="material-icons-round">emoji_events</span></span>
+              <span class="label">Ahead of target</span>
+            </span>
+            <span class="days-pill"><span class="material-icons-round">schedule</span> 5 days left</span>
+          </div>
+          <div class="body-row">
+            <span class="title">Revenue goal</span>
+            <span class="progress">₦700k <span class="target">/ ₦300k</span></span>
+          </div>
+          <div class="bar"><span></span></div>
+          <div class="cta">Raise your goal <span class="material-icons-round">arrow_forward</span></div>
+        </div>
+      </div>
+      <div class="height-tag">≈ 180dp tall</div>
+      <div class="annot">
+        <strong>What I cut from B and why:</strong><br/>
+        · <span class="strike">"Weekly target exceeded" check row</span> — the strikethrough ₦300k already says it.<br/>
+        · <span class="strike">"₦700,000 earned · Target ₦300,000" footer</span> — same numbers as the title row, said differently.<br/>
+        · <span class="strike">Edit goal</span> → <strong>Raise your goal</strong> — at this moment the user has proven they can take more; preserve momentum.<br/>
+        <br/>
+        <strong>What I kept from B:</strong><br/>
+        · Trophy in a circle badge — keeps the celebratory hero feel.<br/>
+        · Big strikethrough ₦700k / <span class="strike" style="color:rgba(255,255,255,.4)">₦300k</span> — does the work two rows in B did.<br/>
+        · Days-left as a saffron pill (vs. plain text in A) — pulls more weight in the header.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="page-head" style="margin-top:24px">
+    <p class="lede" style="font-size:13px"><strong style="color:#fff">Net:</strong> ~180dp vs Canva's ~290dp. Still ~1.4× the current compact (132dp), but reads as a hero — not as a status row.</p>
+  </div>
+
+</body>
+</html>

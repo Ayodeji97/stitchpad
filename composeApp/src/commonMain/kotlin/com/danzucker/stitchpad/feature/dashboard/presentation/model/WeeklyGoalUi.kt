@@ -11,7 +11,8 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.model
 data class WeeklyGoalUi(
     val targetAmount: Double,
     val collectedAmount: Double,
-    val daysLeft: Int
+    val daysLeft: Int,
+    val pace: WeeklyGoalPace = WeeklyGoalPace.OnPace
 ) {
     val progressPercent: Float
         get() = if (targetAmount > 0) {

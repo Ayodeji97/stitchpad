@@ -139,6 +139,12 @@
     <string name="reports_picker_select_end">Select end date</string>
     <string name="reports_picker_prev_month_cd">Previous month</string>
     <string name="reports_picker_next_month_cd">Next month</string>
+
+    <!-- Generic single-date picker (deadline, etc.) -->
+    <string name="date_picker_eyebrow">Select date</string>
+    <string name="date_picker_placeholder">Pick a date</string>
+    <string name="date_picker_prev_month_cd">Previous month</string>
+    <string name="date_picker_next_month_cd">Next month</string>
     <string name="reports_select_date_range_cd">Select date range</string>
     <string name="reports_send_whatsapp_reminder_cd">Send WhatsApp reminder</string>
     <string name="reports_paywall_title">Unlock Reports</string>
@@ -563,14 +569,25 @@
     <!-- Dashboard NBA + pipeline + loading -->
     <string name="dashboard_loading_cd">Loading dashboard</string>
     <string name="dashboard_section_next_actions">Next best actions</string>
+    <string name="dashboard_section_next_actions_subtitle">Revenue moves to make today</string>
     <string name="dashboard_section_pipeline">Work pipeline</string>
     <string name="dashboard_pipeline_in_progress">In progress (%1$d)</string>
     <string name="dashboard_pipeline_pending">Not started yet (%1$d)</string>
+    <!-- V2 pipeline subsection labels — saffron-coloured, dot-separated count -->
+    <string name="dashboard_pipeline_in_progress_v2">In progress · %1$d</string>
+    <string name="dashboard_pipeline_pending_v2">Not started · %1$d</string>
+    <!-- V2 pipeline order row metadata footer -->
+    <string name="dashboard_pipeline_row_custom_size">Custom size</string>
+    <string name="dashboard_pipeline_row_bespoke">Bespoke</string>
+    <string name="dashboard_pipeline_row_created">Created %1$s</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
     <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
-    <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$dd past deadline</string>
+    <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$d days past deadline</string>
+    <string name="dashboard_nba_collect_overdue_sub_one">%1$s · 1 day past deadline</string>
     <string name="dashboard_nba_collect_ready_title">Collect ₦%1$s from %2$s</string>
-    <string name="dashboard_nba_collect_ready_sub">%1$s · ready %2$dd</string>
+    <string name="dashboard_nba_collect_ready_sub_today">%1$s · ready today</string>
+    <string name="dashboard_nba_collect_ready_sub_one">%1$s · ready 1 day</string>
+    <string name="dashboard_nba_collect_ready_sub">%1$s · ready %2$d days</string>
     <string name="dashboard_nba_finish_stale_title">Finish %1$s’s %2$s</string>
     <string name="dashboard_nba_finish_stale_sub">Started %1$dd ago</string>
     <string name="dashboard_nba_finish_stale_sub_due">Started %1$dd ago, due in %2$dd</string>
@@ -583,7 +600,8 @@
     <string name="dashboard_nba_start_soon_sub_today">Due today</string>
     <string name="dashboard_nba_cta_send_reminder">Send reminder</string>
     <string name="dashboard_nba_cta_view_order">View order</string>
-    <string name="dashboard_nba_cta_collect_deposit">View order</string>
+    <string name="dashboard_nba_cta_collect_deposit">Collect deposit</string>
+    <string name="dashboard_nba_cta_open_order">Open order</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Tap %3$s.</string>
     <!-- WhatsApp message templates -->
     <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: ₦%3$s. — %4$s</string>
@@ -599,6 +617,14 @@
     <string name="dashboard_reconnect_label">Reconnect</string>
     <string name="dashboard_reconnect_view_all">View all reconnect candidates</string>
 
+    <!-- Reconnect hero carousel -->
+    <string name="dashboard_reconnect_subtitle">Customers worth following up with</string>
+    <string name="dashboard_reconnect_count">%1$d customers</string>
+    <string name="dashboard_reconnect_card_last_order">Last order %1$d days ago</string>
+    <string name="dashboard_reconnect_worth_following_up">Worth following up</string>
+    <string name="dashboard_reconnect_send_message">Send message</string>
+    <string name="dashboard_reconnect_view_customer">View customer</string>
+
     <!-- Dashboard IllustratedFocusCard -->
     <string name="focus_brand_new_title">Let's create your first order</string>
     <string name="focus_brand_new_supporting">Add a customer, save measurements, and create your first custom outfit.</string>
@@ -608,29 +634,60 @@
     <string name="focus_first_order_supporting_multi">Pick a customer, save their measurements, and create their first outfit.</string>
     <string name="focus_first_order_cta">Create order</string>
     <string name="focus_first_order_cta_subtitle">for %1$s</string>
-    <string name="focus_quiet_title">No deadlines today.</string>
+    <!-- Sub-state: order created but missing a due date -->
+    <string name="focus_setup_order_title">Finish setting up %1$s's order</string>
+    <string name="focus_setup_order_supporting">Add a due date and collect a deposit to stay on track.</string>
+    <string name="focus_setup_order_cta">Complete setup</string>
+
+    <!-- "Next action" order setup card (replaces NBA carousel during onboarding) -->
+    <string name="order_setup_action_section">Next action</string>
+    <string name="order_setup_action_title">Complete %1$s</string>
+    <!-- Subtitle pattern: "Senator · ₦200,000 order" -->
+    <string name="order_setup_action_subtitle">%1$s · ₦%2$s order</string>
+    <string name="order_setup_action_missing_both">Missing due date and deposit</string>
+    <string name="order_setup_action_missing_due_date">Missing due date</string>
+    <string name="order_setup_action_missing_deposit">Missing deposit</string>
+    <string name="order_setup_action_cta">Open order</string>
+    <string name="focus_quiet_section_label">Quiet day</string>
+    <string name="focus_quiet_title">No deadlines today</string>
     <string name="focus_quiet_supporting">Reconnect with a past customer.</string>
     <string name="focus_quiet_cta">Message %1$s</string>
     <string name="focus_quiet_cta_no_candidate">Add a new order</string>
-    <string name="focus_steady_title">Shop is steady.</string>
-    <string name="focus_steady_supporting">%1$d orders moving</string>
-    <string name="focus_steady_cta">Open next order</string>
-    <string name="focus_earn_title">%1$d ways to earn today.</string>
+    <string name="focus_steady_section_label">Calm day</string>
+    <string name="focus_steady_title">Shop is steady</string>
+    <string name="focus_steady_supporting">%1$d orders in progress. Use this time to review the work and keep things moving.</string>
+    <string name="focus_steady_supporting_one">%1$d order in progress. Use this time to review the order and keep things moving.</string>
+    <string name="focus_steady_cta">Open order</string>
+    <string name="focus_earn_section_label">Earn today</string>
+    <string name="focus_earn_title">%1$d ways to earn today</string>
+    <string name="focus_earn_title_one">%1$d way to earn today</string>
     <string name="focus_earn_supporting">Start with %1$s</string>
     <string name="focus_earn_cta">Take action</string>
-    <string name="focus_busy_title">%1$d need attention today.</string>
+    <string name="focus_busy_section_label">Action needed</string>
+    <string name="focus_busy_title_one">1 order needs attention</string>
+    <string name="focus_busy_title">%1$d orders need attention</string>
     <string name="focus_busy_supporting">%1$d overdue · %2$d due today</string>
-    <string name="focus_busy_cta">Open %1$s</string>
-    <string name="focus_pickup_title">%1$d ready for pickup.</string>
-    <string name="focus_pickup_supporting">Reach out about pickup or mark delivered.</string>
-    <string name="focus_pickup_cta">Open %1$s</string>
+    <string name="focus_busy_supporting_overdue_only_one">1 overdue today</string>
+    <string name="focus_busy_supporting_overdue_only">%1$d overdue today</string>
+    <string name="focus_busy_supporting_due_today_only_one">1 due today</string>
+    <string name="focus_busy_supporting_due_today_only">%1$d due today</string>
+    <string name="focus_busy_cta">Open %1$s's order</string>
+    <string name="focus_pickup_section_label">Pickup ready</string>
+    <string name="focus_pickup_title_one">1 order ready for pickup</string>
+    <string name="focus_pickup_title">%1$d orders ready for pickup</string>
+    <string name="focus_pickup_supporting">Reach out about pickup or mark delivered</string>
+    <string name="focus_pickup_cta">Open %1$s's order</string>
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
-    <string name="dashboard_pipeline_empty_title">No work in flight yet</string>
-    <string name="dashboard_pipeline_empty_supporting">When you create orders, they'll appear here.</string>
-    <string name="dashboard_pipeline_empty_cta">Create order</string>
+    <string name="dashboard_pipeline_empty_section">Empty pipeline</string>
+    <string name="dashboard_pipeline_empty_title">Nothing in progress yet</string>
+    <string name="dashboard_pipeline_empty_supporting">Start your first order to unlock cutting, sewing, fitting, and delivery stages.</string>
+    <string name="dashboard_pipeline_empty_cta">Add first order</string>
     <string name="dashboard_nba_empty_title">No suggested moves</string>
     <string name="dashboard_nba_empty_supporting">Show up when balances or deadlines need follow-up.</string>
+    <string name="dashboard_nba_quiet_title">Nothing urgent right now</string>
+    <string name="dashboard_nba_quiet_supporting">Use this time to reconnect with customers or review orders.</string>
+    <string name="dashboard_nba_quiet_cta">Reconnect customers</string>
 
     <!-- Empty section affordances -->
     <string name="affordance_pipeline_empty_title">Pipeline empty</string>
@@ -648,7 +705,7 @@
     <!-- Dashboard onboarding steps (BrandNew state, 3-up tile grid) -->
     <string name="onboarding_step_customer_label">Add customer</string>
     <string name="onboarding_step_customer_desc">Add a new customer to get started</string>
-    <string name="onboarding_step_measurement_label">Measurement</string>
+    <string name="onboarding_step_measurement_label">Measure</string>
     <string name="onboarding_step_measurement_desc">Record body measurements</string>
     <string name="onboarding_step_order_label">Create order</string>
     <string name="onboarding_step_order_desc">Create your first custom outfit</string>
@@ -691,7 +748,16 @@
     <!-- WeeklyGoalsCard -->
     <string name="goals_section_label">This week</string>
     <string name="goals_days_left">%1$d days left</string>
+    <string name="goals_days_left_one">%1$d day left</string>
     <string name="goals_revenue_label">Revenue goal</string>
+    <string name="goals_supporting">Track your weekly earnings target.</string>
+    <string name="goals_motivation_behind">Pick up the pace this week</string>
+    <string name="goals_motivation_on_pace">You're on track</string>
+    <string name="goals_motivation_ahead">Strong week — keep it up</string>
+    <string name="goals_motivation_near_goal">Almost there — final push</string>
+    <string name="goals_percent_of_goal">%1$s of goal</string>
+    <string name="goals_earned">%1$s earned</string>
+    <string name="goals_to_go">%1$s to go</string>
     <string name="goals_set_first_label">Set your first revenue goal</string>
     <string name="goals_set_first_supporting">Start simple and track what you want to earn this month.</string>
     <string name="goals_set_first_section">Get started</string>

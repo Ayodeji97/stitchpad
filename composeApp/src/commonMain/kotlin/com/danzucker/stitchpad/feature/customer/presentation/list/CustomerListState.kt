@@ -8,6 +8,12 @@ data class CustomerListState(
     val customers: List<Customer> = emptyList(),
     val searchQuery: String = "",
     val deliveryFilter: DeliveryPreference? = null,
+    /**
+     * True once the user has at least one customer in the unfiltered list.
+     * Drives whether the delivery-filter chip row is shown — chips would
+     * just be visual noise on a brand-new account's empty Customers tab.
+     */
+    val hasAnyCustomers: Boolean = false,
     val isLoading: Boolean = true,
     /**
      * True once the orders flow has emitted [com.danzucker.stitchpad.core.domain.error.Result.Success]

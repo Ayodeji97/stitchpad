@@ -2,6 +2,7 @@
 
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,16 +14,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -46,13 +51,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyCardCtaStyle
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.OrderSetupActionCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectChipStrip
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectHeroSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupChecklistCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStep
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepKey
@@ -60,9 +67,11 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.UserAvatar
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
 import com.danzucker.stitchpad.ui.components.LoadingDots
@@ -81,6 +90,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.currency_naira
+import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
@@ -90,35 +100,49 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_overdue_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_overdue_sub_one
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_overdue_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_ready_sub
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_ready_sub_one
+import stitchpad.composeapp.generated.resources.dashboard_nba_collect_ready_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_ready_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_cta_collect_deposit
+import stitchpad.composeapp.generated.resources.dashboard_nba_cta_open_order
 import stitchpad.composeapp.generated.resources.dashboard_nba_cta_send_reminder
 import stitchpad.composeapp.generated.resources.dashboard_nba_cta_view_order
 import stitchpad.composeapp.generated.resources.dashboard_nba_deliver_stale_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_deliver_stale_title
-import stitchpad.composeapp.generated.resources.dashboard_nba_empty_supporting
-import stitchpad.composeapp.generated.resources.dashboard_nba_empty_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_finish_stale_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_finish_stale_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_quiet_cta
+import stitchpad.composeapp.generated.resources.dashboard_nba_quiet_supporting
+import stitchpad.composeapp.generated.resources.dashboard_nba_quiet_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
-import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
+import stitchpad.composeapp.generated.resources.dashboard_section_next_actions_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_overdue
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_ready
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_launch_failed
 import stitchpad.composeapp.generated.resources.goals_achieved_cta
 import stitchpad.composeapp.generated.resources.goals_achieved_section_label
 import stitchpad.composeapp.generated.resources.goals_days_left
+import stitchpad.composeapp.generated.resources.goals_days_left_one
+import stitchpad.composeapp.generated.resources.goals_earned
+import stitchpad.composeapp.generated.resources.goals_motivation_ahead
+import stitchpad.composeapp.generated.resources.goals_motivation_behind
+import stitchpad.composeapp.generated.resources.goals_motivation_near_goal
+import stitchpad.composeapp.generated.resources.goals_motivation_on_pace
+import stitchpad.composeapp.generated.resources.goals_percent_of_goal
 import stitchpad.composeapp.generated.resources.goals_revenue_label
 import stitchpad.composeapp.generated.resources.goals_section_label
 import stitchpad.composeapp.generated.resources.goals_set_first_cta
 import stitchpad.composeapp.generated.resources.goals_set_first_label
 import stitchpad.composeapp.generated.resources.goals_set_first_section
 import stitchpad.composeapp.generated.resources.goals_set_first_supporting
+import stitchpad.composeapp.generated.resources.goals_supporting
+import stitchpad.composeapp.generated.resources.goals_to_go
 import stitchpad.composeapp.generated.resources.reconnect_whatsapp_template
 import kotlin.math.roundToLong
 
@@ -130,8 +154,55 @@ private const val MILLIONS = 1_000_000L
 // occupied at the bottom-right corner; 80dp gives a 14dp breathing gap.
 // Without FAB (BrandNew, Loading) we drop to a normal page margin so the
 // content doesn't leave a visible empty band on tall screens.
-private val FAB_BOTTOM_PADDING = 80.dp
+// 80dp left the chevron of the last visible row sitting under the FAB at
+// the bottom of the scroll. 120dp gives the row enough additional travel
+// to clear the FAB so its tap target is always reachable.
+private val FAB_BOTTOM_PADDING = 120.dp
 private val NO_FAB_BOTTOM_PADDING = 24.dp
+
+/**
+ * Dashboard states where the user opens the screen expecting *what to do
+ * next* (urgency / revenue moves) rather than *how the goal is going*. On
+ * these states the NBA carousel is rendered above Weekly Goal so the
+ * actionable revenue work is the first thing reached after the hero.
+ */
+private val PROMOTED_NBA_STATES = setOf(
+    DashboardUiState.BusyDay,
+    DashboardUiState.ReadyForPickup,
+    DashboardUiState.NbaActive,
+)
+
+/**
+ * Dashboard states where the "Nothing urgent right now" empty NBA card
+ * adds something the hero hasn't already said. Restricted to PipelineSteady
+ * because:
+ *  - ReadyForPickup hero IS the urgent action (deliver), so the empty
+ *    card directly contradicts it.
+ *  - QuietDay hero already nudges the user toward reconnect work, so the
+ *    empty card just duplicates that message.
+ *  - BrandNew / FirstCustomer have no past customers to reconnect with —
+ *    the empty card's CTA would be dead UI.
+ *  - BusyDay / NbaActive always have non-empty NBAs, so this branch is
+ *    unreachable from those states.
+ */
+private val EMPTY_NBA_CARD_STATES = setOf(
+    DashboardUiState.PipelineSteady,
+)
+
+/**
+ * Dashboard states where an *empty* Work Pipeline section is silenced
+ * because some other surface on the screen already covers the same intent.
+ * On BusyDay / ReadyForPickup the active orders are routed into triage
+ * buckets so the empty hero would lie ("Nothing in progress yet"); on
+ * QuietDay the focus hero's "Add a new order →" CTA + the FAB already
+ * surface the same affordance, and the empty hero's "Add first order"
+ * copy is wrong for a user who has delivered orders before.
+ */
+private val PIPELINE_EMPTY_HIDDEN_STATES = setOf(
+    DashboardUiState.BusyDay,
+    DashboardUiState.ReadyForPickup,
+    DashboardUiState.QuietDay,
+)
 
 /**
  * Static FirstCustomer checklist: customer is created (step 1 ✅), the
@@ -140,18 +211,38 @@ private val NO_FAB_BOTTOM_PADDING = 24.dp
  * dashboard transitions out of FirstCustomer and this card stops
  * rendering — no need to recompute "done" status from inside this state.
  */
-private fun firstCustomerChecklistSteps(): List<SetupStep> = listOf(
-    SetupStep(SetupStepKey.CustomerCreated, 1, SetupStepStatus.Done),
-    SetupStep(SetupStepKey.AddFirstOrder, 2, SetupStepStatus.Active),
-    SetupStep(SetupStepKey.SetDueDate, 3, SetupStepStatus.Pending),
-    SetupStep(SetupStepKey.RecordDeposit, 4, SetupStepStatus.Pending),
-)
+/**
+ * Builds the 4-row "Order setup" checklist from the live first-order state.
+ * Customer is always Done by the time this is rendered (the checklist is
+ * gated on having at least one customer). The first non-done step becomes
+ * Active, the rest stay Pending — only the Active row is tappable.
+ */
+private fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep> {
+    val orderStatus = if (setup.hasOrder) SetupStepStatus.Done else SetupStepStatus.Active
+    val dueStatus = when {
+        !setup.hasOrder -> SetupStepStatus.Pending
+        setup.hasDueDate -> SetupStepStatus.Done
+        else -> SetupStepStatus.Active
+    }
+    val depositStatus = when {
+        !setup.hasOrder || !setup.hasDueDate -> SetupStepStatus.Pending
+        setup.hasDeposit -> SetupStepStatus.Done
+        else -> SetupStepStatus.Active
+    }
+    return listOf(
+        SetupStep(SetupStepKey.CustomerCreated, 1, SetupStepStatus.Done),
+        SetupStep(SetupStepKey.AddFirstOrder, 2, orderStatus),
+        SetupStep(SetupStepKey.SetDueDate, 3, dueStatus),
+        SetupStep(SetupStepKey.RecordDeposit, 4, depositStatus),
+    )
+}
 
 @Composable
 fun DashboardRoot(
     onNavigateToOrderDetail: (String) -> Unit,
     onNavigateToOrders: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
+    onNavigateToEditOrder: (String) -> Unit,
     onNavigateToCustomerForm: () -> Unit,
     onNavigateToCustomers: () -> Unit,
     onNavigateToGoalSetup: () -> Unit,
@@ -171,6 +262,7 @@ fun DashboardRoot(
             is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
             DashboardEvent.NavigateToOrders -> onNavigateToOrders()
             DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
+            is DashboardEvent.NavigateToEditOrder -> onNavigateToEditOrder(event.orderId)
             DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()
             DashboardEvent.NavigateToCustomers -> onNavigateToCustomers()
             DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
@@ -311,6 +403,7 @@ private fun DashboardContent(
                 supporting = state.focusSupporting?.asString(),
                 ctaLabel = state.focusCtaLabel?.asString(),
                 ctaSubtitle = state.focusCtaSubtitle?.asString(),
+                sectionLabel = state.focusSectionLabel?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
             )
         }
@@ -327,16 +420,32 @@ private fun DashboardContent(
             )
         }
 
-        // FirstCustomer (1+ customers, 0 orders) gets the 4-step setup
-        // checklist between the hero and the rest of the dashboard. Step 1
-        // is done; step 2 is active and tappable; steps 3-4 are pending.
-        // Once the first order is created, the state flips out of
-        // FirstCustomer and the checklist disappears.
-        if (state.uiState == DashboardUiState.FirstCustomer) {
+        // "Order setup" persists across whatever uiState the dashboard
+        // resolves to, until the first order has both a due date AND a
+        // deposit. Step states reflect live data, so the user sees real
+        // progress (1 of 4 → 2 of 4 → 3 of 4) as they fill things in.
+        val firstOrderSetup = state.firstOrderSetup
+        if (firstOrderSetup != null) {
             SetupChecklistCard(
-                steps = firstCustomerChecklistSteps(),
-                onActiveStepClick = { _ -> onAction(DashboardAction.OnSetupChecklistAdvance) },
+                steps = firstOrderChecklistSteps(firstOrderSetup),
+                onActiveStepClick = { key ->
+                    when (key) {
+                        SetupStepKey.AddFirstOrder ->
+                            onAction(DashboardAction.OnSetupChecklistAdvance)
+                        // Set due date + Record deposit both live on the
+                        // Edit Order form, not the read-only Order Detail
+                        // screen — route there instead so the field the
+                        // user wants to fill is the field they land on.
+                        SetupStepKey.SetDueDate, SetupStepKey.RecordDeposit ->
+                            firstOrderSetup.orderId?.let { id ->
+                                onAction(DashboardAction.OnSetupOrderEditClick(id))
+                            }
+                        SetupStepKey.CustomerCreated -> Unit
+                    }
+                },
             )
+        }
+        if (state.uiState == DashboardUiState.FirstCustomer) {
             val readyCustomer = state.customerReady
             if (readyCustomer != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
@@ -361,15 +470,38 @@ private fun DashboardContent(
             }
         }
 
+        // Section ordering for revenue-focused / urgent states. On
+        // BusyDay / ReadyForPickup / NbaActive the user opens the dashboard
+        // expecting to see *what to do next*, not *how the goal is going* —
+        // so the NBA carousel is promoted above the Weekly Goal card. On
+        // calmer states (PipelineSteady / QuietDay / FirstCustomer / BrandNew)
+        // the Weekly Goal stays at the top of the body because motivation
+        // matters more than triage when nothing is on fire.
+        val promoteNbaAboveGoal = state.uiState in PROMOTED_NBA_STATES &&
+            state.nextBestActions.isNotEmpty()
+        if (promoteNbaAboveGoal) {
+            NextBestActionsSection(
+                actions = state.nextBestActions,
+                onAction = onAction
+            )
+        }
+
         // 3. Weekly goal card
         WeeklyGoalsSection(
             weeklyGoal = state.weeklyGoal,
             onClick = { onAction(DashboardAction.OnGoalsCardClick) },
         )
 
-        // 4. Today's work
-        val todayWorkRows = remember(state.overdue, state.dueToday, state.ready) {
+        // 4. Today's work — dedup any rows whose order already has an NBA
+        //    surfaced on this dashboard. Showing the same Gose Wale order in
+        //    Today's Work AND in the NBA card just below it triples the
+        //    "Gose Wale" mentions on screen for no extra information.
+        val nbaOrderIds = remember(state.nextBestActions) {
+            state.nextBestActions.mapTo(mutableSetOf()) { it.orderId }
+        }
+        val todayWorkRows = remember(state.overdue, state.dueToday, state.ready, nbaOrderIds) {
             buildTodayWorkRows(state.overdue, state.dueToday, state.ready)
+                .filter { it.orderId !in nbaOrderIds }
         }
         if (todayWorkRows.isNotEmpty()) {
             TodayWorkCard(
@@ -379,35 +511,83 @@ private fun DashboardContent(
             )
         }
 
-        // 5. Next best actions (horizontal carousel). Empty state shows EmptyIllustrationCard.
-        if (state.nextBestActions.isNotEmpty()) {
+        // 5. The "next action" surface. Branches in priority order:
+        //    a) During first-order onboarding once an order exists, show the
+        //       compact OrderSetupActionCard pointing at the incomplete order
+        //       — this REPLACES the NBA carousel so we're not surfacing the
+        //       same "collect deposit" action twice in different visual
+        //       languages.
+        //    b) Otherwise, if NBAs exist *and* haven't already been promoted
+        //       above the Weekly Goal, show the carousel here.
+        //    c) Otherwise, show the "Nothing urgent right now" hero — but
+        //       only in states where reconnecting makes sense. BrandNew and
+        //       FirstCustomer have no past customers to reconnect with, so
+        //       the empty card would be dead UI (and its CTA misleading) in
+        //       those.
+        val activeOrderId = firstOrderSetup?.orderId
+        if (firstOrderSetup != null && firstOrderSetup.hasOrder && activeOrderId != null) {
+            OrderSetupActionCard(
+                setup = firstOrderSetup,
+                // Routes to Edit Order (not Order Detail) so the user lands
+                // on the form that actually edits the missing fields.
+                onClick = { onAction(DashboardAction.OnSetupOrderEditClick(activeOrderId)) },
+            )
+        } else if (!promoteNbaAboveGoal && state.nextBestActions.isNotEmpty()) {
             NextBestActionsSection(
                 actions = state.nextBestActions,
                 onAction = onAction
             )
-        } else {
+        } else if (
+            state.nextBestActions.isEmpty() &&
+            state.uiState in EMPTY_NBA_CARD_STATES
+        ) {
             EmptyIllustrationCard(
                 slot = EmptyIllustrationSlot.Nba,
-                title = stringResource(Res.string.dashboard_nba_empty_title),
-                supporting = stringResource(Res.string.dashboard_nba_empty_supporting),
+                title = stringResource(Res.string.dashboard_nba_quiet_title),
+                supporting = stringResource(Res.string.dashboard_nba_quiet_supporting),
+                ctaLabel = stringResource(Res.string.dashboard_nba_quiet_cta),
+                onCtaClick = { onAction(DashboardAction.OnViewReconnectClick) },
+                ctaStyle = EmptyCardCtaStyle.OutlinedPill,
+                largeIllustration = true,
             )
         }
 
-        // 6. Work pipeline — self-handles empty + populated states. The
-        //    "Work pipeline" header sits above whichever inner state renders.
-        PipelineSection(
-            inProgress = state.pipelineInProgress,
-            inProgressTotal = state.pipelineInProgressTotal,
-            notStarted = state.pipelinePending,
-            notStartedTotal = state.pipelinePendingTotal,
-            onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
-        )
+        // 6. Work pipeline — self-handles empty + populated states. Hidden
+        //    during first-order onboarding because the OrderSetupActionCard
+        //    above already surfaces that single order; the empty hero would
+        //    just repeat "Add first order" which the focus card and Setup
+        //    Checklist are already saying. Pipeline returns once
+        //    `firstOrderSetup` flips to null (setup complete or 2+ orders).
+        //
+        //    Also hidden on BusyDay / ReadyForPickup / QuietDay when the
+        //    pipeline is empty:
+        //     - BusyDay / ReadyForPickup: every active order is already
+        //       surfaced in Today's Work + the urgent NBA card; the empty
+        //       hero would falsely claim "Nothing in progress yet".
+        //     - QuietDay: hero already says "Add a new order →" and the
+        //       FAB does the same; a third "Add first order" CTA is noise,
+        //       and the "first" copy is wrong for users who have already
+        //       delivered orders.
+        val pipelineEmpty = state.pipelineInProgressTotal + state.pipelinePendingTotal == 0
+        val hidePipelineWhenEmpty = pipelineEmpty && state.uiState in PIPELINE_EMPTY_HIDDEN_STATES
+        if (firstOrderSetup == null && !hidePipelineWhenEmpty) {
+            PipelineSection(
+                inProgress = state.pipelineInProgress,
+                inProgressTotal = state.pipelineInProgressTotal,
+                notStarted = state.pipelinePending,
+                notStartedTotal = state.pipelinePendingTotal,
+                onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
+                onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
+            )
+        }
 
-        // 7. Reconnect chip-strip (hides itself when candidates list is empty)
-        ReconnectChipStrip(
+        // 7. Reconnect hero carousel — paginated up to 3 candidates with full count
+        //    surfaced via the header pill. Hides itself when no candidates.
+        ReconnectHeroSection(
             candidates = state.reconnectCandidates,
-            onCandidateClick = { id -> onAction(DashboardAction.OnReconnectClick(id)) },
-            onMoreClick = { onAction(DashboardAction.OnViewReconnectClick) },
+            onCardClick = { id -> onAction(DashboardAction.OnReconnectViewCustomerClick(id)) },
+            onMessageClick = { id -> onAction(DashboardAction.OnReconnectClick(id)) },
+            onViewAllClick = { onAction(DashboardAction.OnViewReconnectClick) },
         )
     }
 }
@@ -418,35 +598,86 @@ private fun WeeklyGoalsSection(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardState: WeeklyGoalsCardState = if (weeklyGoal == null) {
-        WeeklyGoalsCardState.Empty(
-            sectionLabel = stringResource(Res.string.goals_set_first_section),
-            title = stringResource(Res.string.goals_set_first_label),
-            supporting = stringResource(Res.string.goals_set_first_supporting),
-            ctaLabel = stringResource(Res.string.goals_set_first_cta)
-        )
-    } else {
-        val achieved = weeklyGoal.targetAmount > 0 &&
-            weeklyGoal.collectedAmount >= weeklyGoal.targetAmount
-        WeeklyGoalsCardState.Filled(
-            sectionLabel = if (achieved) {
-                stringResource(Res.string.goals_achieved_section_label)
-            } else {
-                stringResource(Res.string.goals_section_label)
-            },
-            daysLeftLabel = stringResource(Res.string.goals_days_left, weeklyGoal.daysLeft),
-            revenueLabel = stringResource(Res.string.goals_revenue_label),
-            progressText = formatGoalProgress(weeklyGoal),
-            progressPercent = weeklyGoal.progressPercent,
-            achievedCtaLabel = if (achieved) {
-                stringResource(Res.string.goals_achieved_cta)
-            } else {
-                null
-            }
-        )
+    val cardState: WeeklyGoalsCardState = when {
+        weeklyGoal == null -> emptyWeeklyGoalsState()
+        weeklyGoal.targetAmount > 0 &&
+            weeklyGoal.collectedAmount >= weeklyGoal.targetAmount ->
+            achievedWeeklyGoalsState(weeklyGoal)
+        else -> inProgressWeeklyGoalsState(weeklyGoal)
     }
     WeeklyGoalsCard(state = cardState, onClick = onClick, modifier = modifier)
 }
+
+@Composable
+private fun emptyWeeklyGoalsState(): WeeklyGoalsCardState.Empty =
+    WeeklyGoalsCardState.Empty(
+        sectionLabel = stringResource(Res.string.goals_set_first_section),
+        title = stringResource(Res.string.goals_set_first_label),
+        supporting = stringResource(Res.string.goals_set_first_supporting),
+        ctaLabel = stringResource(Res.string.goals_set_first_cta)
+    )
+
+@Composable
+private fun achievedWeeklyGoalsState(weeklyGoal: WeeklyGoalUi): WeeklyGoalsCardState.Filled {
+    val collectedAbbrev = stringResource(
+        Res.string.currency_naira,
+        formatAbbreviated(weeklyGoal.collectedAmount)
+    )
+    val targetAbbrev = stringResource(
+        Res.string.currency_naira,
+        formatAbbreviated(weeklyGoal.targetAmount)
+    )
+    return WeeklyGoalsCardState.Filled(
+        sectionLabel = stringResource(Res.string.goals_achieved_section_label),
+        daysLeftLabel = daysLeftLabel(weeklyGoal.daysLeft),
+        revenueLabel = stringResource(Res.string.goals_revenue_label),
+        progressText = formatGoalProgress(weeklyGoal),
+        progressPercent = weeklyGoal.progressPercent,
+        achievedCtaLabel = stringResource(Res.string.goals_achieved_cta),
+        achievedAmountLabel = collectedAbbrev,
+        achievedTargetLabel = targetAbbrev,
+    )
+}
+
+@Composable
+private fun inProgressWeeklyGoalsState(weeklyGoal: WeeklyGoalUi): WeeklyGoalsCardState.Filled {
+    val percentInt = (weeklyGoal.progressPercent * 100f).toInt().coerceIn(0, 999)
+    val toGoAmount = (weeklyGoal.targetAmount - weeklyGoal.collectedAmount).coerceAtLeast(0.0)
+    val earned = stringResource(
+        Res.string.currency_naira,
+        formatNaira(weeklyGoal.collectedAmount)
+    )
+    val toGo = stringResource(
+        Res.string.currency_naira,
+        formatNaira(toGoAmount)
+    )
+    val motivationRes = when (weeklyGoal.pace) {
+        WeeklyGoalPace.Behind -> Res.string.goals_motivation_behind
+        WeeklyGoalPace.OnPace -> Res.string.goals_motivation_on_pace
+        WeeklyGoalPace.Ahead -> Res.string.goals_motivation_ahead
+        WeeklyGoalPace.NearGoal -> Res.string.goals_motivation_near_goal
+    }
+    return WeeklyGoalsCardState.Filled(
+        sectionLabel = stringResource(Res.string.goals_section_label),
+        daysLeftLabel = daysLeftLabel(weeklyGoal.daysLeft),
+        revenueLabel = stringResource(Res.string.goals_revenue_label),
+        progressText = formatGoalProgress(weeklyGoal),
+        progressPercent = weeklyGoal.progressPercent,
+        supporting = stringResource(Res.string.goals_supporting),
+        motivationLabel = stringResource(motivationRes),
+        progressPercentLabel = stringResource(Res.string.goals_percent_of_goal, "$percentInt%"),
+        earnedLabel = stringResource(Res.string.goals_earned, earned),
+        toGoLabel = stringResource(Res.string.goals_to_go, toGo),
+    )
+}
+
+@Composable
+private fun daysLeftLabel(daysLeft: Int): String =
+    if (daysLeft == 1) {
+        stringResource(Res.string.goals_days_left_one, daysLeft)
+    } else {
+        stringResource(Res.string.goals_days_left, daysLeft)
+    }
 
 @Composable
 private fun formatGoalProgress(goal: WeeklyGoalUi): String {
@@ -461,7 +692,16 @@ private fun formatGoalProgress(goal: WeeklyGoalUi): String {
     return "$collected / $target"
 }
 
-/** Horizontal carousel for Next Best Actions. Only rendered when [actions] is non-empty. */
+/**
+ * Horizontal carousel for Next Best Actions. Each card spans the full
+ * LazyRow width via `fillParentMaxWidth()` so the financial stake on the
+ * trailing metric reads at a glance, with horizontal swipe to peek the
+ * next action.
+ *
+ * TODO: When `actions.size > 3`, cap the visible list to 3 and surface a
+ * "View all" affordance (matching the ReconnectHeroSection 3-dot pattern)
+ * that opens a dedicated full-screen NBAs list.
+ */
 @Composable
 private fun NextBestActionsSection(
     actions: List<NextBestAction>,
@@ -470,21 +710,19 @@ private fun NextBestActionsSection(
     Column(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)
     ) {
-        Text(
-            text = stringResource(Res.string.dashboard_section_next_actions).uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = DesignTokens.space4)
-        )
+        NextBestActionsHeader()
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-            contentPadding = PaddingValues(horizontal = DesignTokens.space4)
+            contentPadding = PaddingValues(horizontal = DesignTokens.space4),
         ) {
             items(actions, key = { it.id }) { action ->
                 NbaCard(
                     action = action,
-                    onClick = { onAction(DashboardAction.OnNextActionPrimaryClick(action)) }
+                    onClick = { onAction(DashboardAction.OnNextActionPrimaryClick(action)) },
+                    onOpenOrderClick = { orderId ->
+                        onAction(DashboardAction.OnOrderClick(orderId))
+                    },
+                    modifier = Modifier.fillParentMaxWidth(),
                 )
             }
         }
@@ -492,12 +730,57 @@ private fun NextBestActionsSection(
 }
 
 @Composable
-private fun NbaCard(action: NextBestAction, onClick: () -> Unit) {
+private fun NextBestActionsHeader() {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = Modifier.padding(horizontal = DesignTokens.space4),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(NBA_HEADER_BADGE_SIZE)
+                .background(color = scheme.primary.copy(alpha = 0.14f), shape = CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Payments,
+                contentDescription = null,
+                tint = scheme.primary,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(Res.string.dashboard_section_next_actions),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = scheme.onSurface,
+            )
+            Text(
+                text = stringResource(Res.string.dashboard_section_next_actions_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private val NBA_HEADER_BADGE_SIZE = 52.dp
+
+@Composable
+private fun NbaCard(
+    action: NextBestAction,
+    onClick: () -> Unit,
+    onOpenOrderClick: (orderId: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val presentation = nbaPresentationFor(action)
     NextBestActionCard(
         accent = presentation.accent,
         accentBackground = presentation.accentBackground,
-        icon = presentation.icon,
+        typeIcon = presentation.typeIcon,
+        ctaIcon = presentation.ctaIcon,
         typeLabel = presentation.typeLabel,
         customerName = action.customerName,
         primaryLine = presentation.primaryLine,
@@ -509,18 +792,41 @@ private fun NbaCard(action: NextBestAction, onClick: () -> Unit) {
             presentation.secondaryLine,
             presentation.ctaLabel
         ),
-        onClick = onClick
+        onClick = onClick,
+        secondaryActionLabel = presentation.secondaryActionLabel,
+        onSecondaryClick = if (presentation.secondaryActionLabel != null) {
+            { onOpenOrderClick(action.orderId) }
+        } else {
+            null
+        },
+        modifier = modifier,
     )
 }
 
 private data class NbaPresentation(
     val accent: Color,
     val accentBackground: Color,
-    val icon: ImageVector,
+    /** Icon shown inside the top type pill (next to e.g. "OVERDUE"). */
+    val typeIcon: ImageVector,
+    /**
+     * Icon shown inside the CTA pill (next to e.g. "Send reminder"). Often
+     * differs from [typeIcon]: the type pill conveys *what status* the order
+     * is in, while the CTA icon conveys *what the user is about to do*.
+     */
+    val ctaIcon: ImageVector,
     val typeLabel: String,
     val primaryLine: String,
     val secondaryLine: String,
-    val ctaLabel: String
+    val ctaLabel: String,
+    /**
+     * When non-null, renders an "Open order →" style text link on the right
+     * of the CTA pill row. Set for money-collecting NBAs where the primary
+     * CTA opens WhatsApp / payment, so the user still has a one-tap escape
+     * to the order detail. Operational NBAs (FinishStale / DeliverStale /
+     * StartSoon) leave it null because their primary CTA already opens the
+     * order — a duplicate secondary would be noise.
+     */
+    val secondaryActionLabel: String? = null,
 )
 
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -532,41 +838,63 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
         NextBestActionType.CollectOverdue -> NbaPresentation(
             accent = if (isDark) DesignTokens.errorDarkText else DesignTokens.error500,
             accentBackground = if (isDark) DesignTokens.errorDarkBg else DesignTokens.error50,
-            icon = Icons.Default.Error,
+            typeIcon = Icons.Default.Error,
+            ctaIcon = Icons.Default.Notifications,
             typeLabel = "Overdue",
             primaryLine = stringResource(
                 Res.string.dashboard_nba_collect_overdue_title,
                 amount,
                 action.customerName
             ),
-            secondaryLine = stringResource(
-                Res.string.dashboard_nba_collect_overdue_sub,
-                action.garmentLabel,
-                action.daysCount
-            ),
-            ctaLabel = stringResource(Res.string.dashboard_nba_cta_send_reminder)
+            secondaryLine = if (action.daysCount == 1) {
+                stringResource(
+                    Res.string.dashboard_nba_collect_overdue_sub_one,
+                    action.garmentLabel
+                )
+            } else {
+                stringResource(
+                    Res.string.dashboard_nba_collect_overdue_sub,
+                    action.garmentLabel,
+                    action.daysCount
+                )
+            },
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_send_reminder),
+            secondaryActionLabel = stringResource(Res.string.dashboard_nba_cta_open_order),
         )
         NextBestActionType.CollectOnReady -> NbaPresentation(
             accent = if (isDark) DesignTokens.primary400 else DesignTokens.primary600,
             accentBackground = if (isDark) DesignTokens.primary900 else DesignTokens.primary50,
-            icon = Icons.Default.Payments,
+            typeIcon = Icons.Default.Payments,
+            ctaIcon = Icons.Default.Notifications,
             typeLabel = "Ready · Unpaid",
             primaryLine = stringResource(
                 Res.string.dashboard_nba_collect_ready_title,
                 amount,
                 action.customerName
             ),
-            secondaryLine = stringResource(
-                Res.string.dashboard_nba_collect_ready_sub,
-                action.garmentLabel,
-                action.daysCount
-            ),
-            ctaLabel = stringResource(Res.string.dashboard_nba_cta_send_reminder)
+            secondaryLine = when (action.daysCount) {
+                0 -> stringResource(
+                    Res.string.dashboard_nba_collect_ready_sub_today,
+                    action.garmentLabel
+                )
+                1 -> stringResource(
+                    Res.string.dashboard_nba_collect_ready_sub_one,
+                    action.garmentLabel
+                )
+                else -> stringResource(
+                    Res.string.dashboard_nba_collect_ready_sub,
+                    action.garmentLabel,
+                    action.daysCount
+                )
+            },
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_send_reminder),
+            secondaryActionLabel = stringResource(Res.string.dashboard_nba_cta_open_order),
         )
         NextBestActionType.FinishStale -> NbaPresentation(
             accent = if (isDark) DesignTokens.warningDarkText else DesignTokens.warning500,
             accentBackground = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50,
-            icon = Icons.Default.Edit,
+            typeIcon = Icons.Default.Edit,
+            ctaIcon = Icons.Default.Edit,
             typeLabel = "In progress",
             primaryLine = stringResource(
                 Res.string.dashboard_nba_finish_stale_title,
@@ -582,7 +910,8 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
         NextBestActionType.DeliverStale -> NbaPresentation(
             accent = if (isDark) DesignTokens.successDarkText else DesignTokens.success500,
             accentBackground = if (isDark) DesignTokens.successDarkBg else DesignTokens.success50,
-            icon = Icons.Default.CheckCircle,
+            typeIcon = Icons.Default.CheckCircle,
+            ctaIcon = Icons.Default.CheckCircle,
             typeLabel = "Ready to deliver",
             primaryLine = stringResource(
                 Res.string.dashboard_nba_deliver_stale_title,
@@ -596,9 +925,13 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             ctaLabel = stringResource(Res.string.dashboard_nba_cta_view_order)
         )
         NextBestActionType.CollectDeposit -> NbaPresentation(
-            accent = if (isDark) DesignTokens.infoDarkText else DesignTokens.info500,
-            accentBackground = if (isDark) DesignTokens.infoDarkBg else DesignTokens.info50,
-            icon = Icons.Default.Payments,
+            // Saffron-aligned: deposit asks aren't a "status" the way overdue
+            // (red) or ready (green) are — they're a primary brand action, so
+            // they take primary tones rather than the info/blue palette.
+            accent = if (isDark) DesignTokens.primary400 else DesignTokens.primary600,
+            accentBackground = if (isDark) DesignTokens.primary900 else DesignTokens.primary50,
+            typeIcon = Icons.Default.Payments,
+            ctaIcon = Icons.Default.Payments,
             typeLabel = "No deposit",
             primaryLine = stringResource(
                 Res.string.dashboard_nba_collect_deposit_title,
@@ -609,12 +942,14 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
                 action.garmentLabel,
                 amount
             ),
-            ctaLabel = stringResource(Res.string.dashboard_nba_cta_collect_deposit)
+            ctaLabel = stringResource(Res.string.dashboard_nba_cta_collect_deposit),
+            secondaryActionLabel = stringResource(Res.string.dashboard_nba_cta_open_order),
         )
         NextBestActionType.StartSoon -> NbaPresentation(
             accent = if (isDark) DesignTokens.warningDarkText else DesignTokens.warning500,
             accentBackground = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50,
-            icon = Icons.Default.Today,
+            typeIcon = Icons.Default.Today,
+            ctaIcon = Icons.Default.Today,
             typeLabel = "Starting soon",
             primaryLine = stringResource(
                 Res.string.dashboard_nba_start_soon_title,

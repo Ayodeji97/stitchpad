@@ -37,12 +37,23 @@ sealed interface DashboardAction {
     /** Opens the full reconnect list (trailing chevron in ReconnectChipStrip). */
     data object OnViewReconnectClick : DashboardAction
 
+    /** Tapped the body or "View customer" link on a reconnect hero card → open detail. */
+    data class OnReconnectViewCustomerClick(val customerId: String) : DashboardAction
+
     /**
      * Tapped the active row of the FirstCustomer setup checklist.
      * Currently the only routable step is "Add first order"; the other
      * pending steps are not yet tappable in the UI.
      */
     data object OnSetupChecklistAdvance : DashboardAction
+
+    /**
+     * Tapped Setup Checklist step 3 (Set due date) or step 4 (Record
+     * deposit) — both fields live on the Edit Order form, not on the
+     * read-only Order Detail screen. Carries the first order's id so
+     * the form opens pre-populated.
+     */
+    data class OnSetupOrderEditClick(val orderId: String) : DashboardAction
 
     /** Tapped the body of the "Your customer" card → open detail. */
     data class OnCustomerReadyClick(val customerId: String) : DashboardAction

@@ -38,6 +38,7 @@ internal fun buildTodayWorkRows(
             chipText = chipTextFor(row, label),
             chipTextColor = accent,
             chipBackground = bg,
+            bucket = bucketFor(label),
         )
     }
 }
@@ -45,6 +46,12 @@ internal fun buildTodayWorkRows(
 // — private helpers —
 
 private enum class BucketLabel { Overdue, DueToday, Ready }
+
+private fun bucketFor(label: BucketLabel): TodayWorkBucket = when (label) {
+    BucketLabel.Overdue -> TodayWorkBucket.Overdue
+    BucketLabel.DueToday -> TodayWorkBucket.DueToday
+    BucketLabel.Ready -> TodayWorkBucket.Ready
+}
 
 private fun accentColorFor(label: BucketLabel): Color = when (label) {
     BucketLabel.Overdue -> DesignTokens.error500
@@ -59,8 +66,10 @@ private fun accentBgFor(label: BucketLabel): Color = when (label) {
 }
 
 /**
- * Returns a short chip label for the row:
- * - Overdue: "<N>d late" (if daysLate is available), else "Overdue"
+ * Returns a chip label for the row:
+ * - Overdue: "1 day late" / "<N> days late" (long form so the chip reads
+ *   as a sentence — "1d late" looked like a typo in the rich row layout)
+ * - Overdue with no daysLate: "Overdue"
  * - DueToday: "Due today"
  * - Ready: "Ready"
  *
@@ -70,7 +79,11 @@ private fun accentBgFor(label: BucketLabel): Color = when (label) {
  * The chip text is short enough that English-only is acceptable for V1.
  */
 private fun chipTextFor(row: DashboardOrderRow, label: BucketLabel): String = when (label) {
-    BucketLabel.Overdue -> row.daysLate?.let { "${it}d late" } ?: "Overdue"
+    BucketLabel.Overdue -> when (val days = row.daysLate) {
+        null -> "Overdue"
+        1 -> "1 day late"
+        else -> "$days days late"
+    }
     BucketLabel.DueToday -> "Due today"
     BucketLabel.Ready -> "Ready"
 }

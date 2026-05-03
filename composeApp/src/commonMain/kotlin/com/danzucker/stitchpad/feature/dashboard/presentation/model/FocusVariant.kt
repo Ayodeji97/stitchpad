@@ -36,5 +36,10 @@ data class FocusResolution(
      * Used to split off a "for [customer name]" target from the action verb
      * — e.g. CTA reads "Create order →" with subtitle "for Omobolanle Johnson".
      */
-    val ctaSubtitle: UiText? = null
+    val ctaSubtitle: UiText? = null,
+    /**
+     * Optional uppercase pill rendered above the title in prominent variants
+     * (e.g. "● CALM DAY"). The dot + text adopt the variant's CTA tint.
+     */
+    val sectionLabel: UiText? = null
 )
