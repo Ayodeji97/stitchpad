@@ -5,6 +5,8 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,10 @@ class FakeOrderRepository : OrderRepository {
     var lastUpdatedOrder: Order? = null
     var lastDeletedOrderId: String? = null
     var lastStatusUpdate: Pair<String, OrderStatus>? = null
+    var lastRecordedPayment: Pair<String, Payment>? = null
+    var lastSubStatusUpdate: Pair<String, OrderSubStatus?>? = null
+    var lastNotesUpdate: Pair<String, String?>? = null
+    var lastArchivedOrderId: String? = null
     private var nextIdSuffix = 0
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
@@ -91,6 +97,57 @@ class FakeOrderRepository : OrderRepository {
         shouldReturnError?.let { return Result.Error(it) }
         lastDeletedOrderId = orderId
         ordersFlow.value = ordersFlow.value.filterNot { it.id == orderId }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun recordPayment(
+        userId: String,
+        orderId: String,
+        payment: Payment,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastRecordedPayment = orderId to payment
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(payments = existing.payments + payment) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun updateSubStatus(
+        userId: String,
+        orderId: String,
+        subStatus: OrderSubStatus?,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastSubStatusUpdate = orderId to subStatus
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(subStatus = subStatus) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun updateNotes(
+        userId: String,
+        orderId: String,
+        notes: String?,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastNotesUpdate = orderId to notes
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(notes = notes) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun archiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastArchivedOrderId = orderId
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(archivedAt = 1L) else existing
+        }
         return Result.Success(Unit)
     }
 

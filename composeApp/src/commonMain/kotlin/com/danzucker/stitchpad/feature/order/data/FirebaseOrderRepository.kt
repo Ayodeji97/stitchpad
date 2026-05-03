@@ -40,9 +40,15 @@ class FirebaseOrderRepository(
         ordersCollection(userId)
             .snapshots()
             .map { snapshot ->
-                val orders = snapshot.documents.mapNotNull { doc ->
-                    runCatching { doc.data<OrderDto>().toOrder(userId) }.getOrNull()
-                }
+                val orders = snapshot.documents
+                    .mapNotNull { doc ->
+                        runCatching { doc.data<OrderDto>().toOrder(userId) }.getOrNull()
+                    }
+                    // Filter archived orders client-side. The GitLive Firebase
+                    // SDK doesn't support `whereEqualTo(field, null)` cleanly
+                    // across platforms, and the per-user dataset is small
+                    // enough (< 1k orders) that client-side filtering is fine.
+                    .filter { it.archivedAt == null }
                 Result.Success(orders) as Result<List<Order>, DataError.Network>
             }
             .catch { throwable ->
