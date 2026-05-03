@@ -23,6 +23,7 @@ enum class SecondaryCta {
 
 data class CtaPair(val primary: PrimaryCta, val secondary: SecondaryCta)
 
+@Suppress("CyclomaticComplexMethod")
 internal fun resolvePrimaryCta(
     status: OrderStatus,
     subStatus: OrderSubStatus?,
