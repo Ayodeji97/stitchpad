@@ -36,12 +36,11 @@ object WeeklyGoalPaceCalculator {
     ): WeeklyGoalPace {
         if (targetAmount <= 0.0) return WeeklyGoalPace.OnPace
         val progress = (collectedAmount / targetAmount).coerceAtLeast(0.0)
-        if (progress >= NEAR_GOAL_THRESHOLD) return WeeklyGoalPace.NearGoal
-
         val daysElapsed = (DAYS_IN_WEEK - daysLeft).coerceIn(0, DAYS_IN_WEEK)
         val expected = daysElapsed.toDouble() / DAYS_IN_WEEK.toDouble()
         val delta = progress - expected
         return when {
+            progress >= NEAR_GOAL_THRESHOLD -> WeeklyGoalPace.NearGoal
             delta >= PACE_TOLERANCE -> WeeklyGoalPace.Ahead
             delta <= -PACE_TOLERANCE -> WeeklyGoalPace.Behind
             else -> WeeklyGoalPace.OnPace

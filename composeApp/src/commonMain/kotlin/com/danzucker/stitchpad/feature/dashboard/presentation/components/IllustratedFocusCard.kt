@@ -54,119 +54,68 @@ private data class FocusCardPalette(
     val sectionPillTint: Color? = null,
 )
 
+/**
+ * Builds a prominent palette where the gradient and section-pill follow a
+ * single accent. Each variant below picks its accent (saffron for onboarding,
+ * green for calm/celebratory, red for urgent) and an optional split between
+ * the pill mood and the CTA action.
+ */
+private fun prominentPalette(
+    accent: Color,
+    surface: Color,
+    ctaTint: Color = accent,
+    sectionPillTint: Color? = null,
+    borderAlpha: Float = 0.4f,
+    gradientAlpha: Float = 0.12f,
+): FocusCardPalette = FocusCardPalette(
+    border = accent.copy(alpha = borderAlpha),
+    ctaTint = ctaTint,
+    sectionPillTint = sectionPillTint,
+    backgroundGradient = Brush.linearGradient(
+        listOf(accent.copy(alpha = gradientAlpha), surface),
+    ),
+    prominent = true,
+)
+
 private fun paletteFor(
     variant: FocusVariant,
     primary: Color,
     surface: Color,
 ): FocusCardPalette = when (variant) {
-    FocusVariant.BrandNew -> FocusCardPalette(
-        border = primary.copy(alpha = 0.4f),
-        ctaTint = primary,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                primary.copy(alpha = 0.12f),
-                surface,
-            ),
-        ),
-        prominent = true,
-    )
-    FocusVariant.FirstOrder -> FocusCardPalette(
-        // FirstOrder is BrandNew's continuation — same saffron prominent
-        // treatment so the two onboarding milestones feel like a pair.
-        border = primary.copy(alpha = 0.4f),
-        ctaTint = primary,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                primary.copy(alpha = 0.12f),
-                surface,
-            ),
-        ),
-        prominent = true,
-    )
-    FocusVariant.Quiet -> FocusCardPalette(
-        // Quiet-day variant — green section pill ("● QUIET DAY"), prominent
-        // sizing + soft green gradient. CTA stays saffron rather than green
-        // because the supporting copy nudges the user *toward* growth work
-        // (reconnect, add an order) — saffron action on green mood matches
-        // the Steady split: "things are calm, here's how to fill that calm."
-        border = DesignTokens.success500.copy(alpha = 0.3f),
+    // BrandNew + FirstOrder: saffron prominent treatment so the two
+    // onboarding milestones feel like a pair.
+    FocusVariant.BrandNew,
+    FocusVariant.FirstOrder -> prominentPalette(accent = primary, surface = surface)
+    // Quiet + Steady: green mood pill, saffron CTA — green is the mood,
+    // saffron is the action, matching the rest of the dashboard's button language.
+    FocusVariant.Quiet,
+    FocusVariant.Steady -> prominentPalette(
+        accent = DesignTokens.success500,
+        surface = surface,
         ctaTint = primary,
         sectionPillTint = DesignTokens.success500,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                DesignTokens.success500.copy(alpha = 0.10f),
-                surface,
-            ),
-        ),
-        prominent = true,
+        borderAlpha = 0.3f,
+        gradientAlpha = 0.10f,
     )
-    FocusVariant.Steady -> FocusCardPalette(
-        // Calm-day variant — green section pill ("● CALM DAY"), prominent
-        // sizing (large title + 140dp illustration), soft green gradient.
-        // The CTA stays saffron though: green is the *mood*, saffron is the
-        // *action*, matching the rest of the dashboard's button language.
-        border = DesignTokens.success500.copy(alpha = 0.3f),
-        ctaTint = primary,
-        sectionPillTint = DesignTokens.success500,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                DesignTokens.success500.copy(alpha = 0.10f),
-                surface,
-            ),
-        ),
-        prominent = true,
-    )
-    FocusVariant.Earn -> FocusCardPalette(
-        // NbaActive variant — saffron section pill ("● EARN TODAY"),
-        // prominent sizing, soft saffron gradient. Mood and action are both
-        // about revenue work (collect / start / finish), so the pill and CTA
-        // share the saffron tint — no need to split moods like Steady or
-        // Quiet do.
-        border = primary.copy(alpha = 0.4f),
-        ctaTint = primary,
+    // Earn (NbaActive): mood and action are both revenue work — pill + CTA
+    // share saffron, no mood split.
+    FocusVariant.Earn -> prominentPalette(
+        accent = primary,
+        surface = surface,
         sectionPillTint = primary,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                primary.copy(alpha = 0.12f),
-                surface,
-            ),
-        ),
-        prominent = true,
     )
-    FocusVariant.Focus -> FocusCardPalette(
-        // Busy-day variant — red section pill ("● ACTION NEEDED"), prominent
-        // sizing (large title + 140dp illustration), soft red gradient.
-        // Pill and CTA share the error tint here: unlike Steady (where green
-        // mood vs. saffron action splits the two), urgency *is* the action,
-        // so the whole card reads in one accent colour.
-        border = DesignTokens.error500.copy(alpha = 0.4f),
-        ctaTint = DesignTokens.error500,
+    // Focus (BusyDay): urgency *is* the action — whole card in error tint.
+    FocusVariant.Focus -> prominentPalette(
+        accent = DesignTokens.error500,
+        surface = surface,
         sectionPillTint = DesignTokens.error500,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                DesignTokens.error500.copy(alpha = 0.10f),
-                surface,
-            ),
-        ),
-        prominent = true,
+        gradientAlpha = 0.10f,
     )
-    FocusVariant.Pickup -> FocusCardPalette(
-        // Ready-for-pickup variant — green section pill ("● PICKUP READY"),
-        // prominent sizing (large title + 140dp illustration), soft green
-        // gradient. Pill and CTA share the success tint: this is a positive
-        // "work is done, just complete the loop" moment, so green throughout
-        // reinforces the celebratory framing — no need to split moods like
-        // Steady (green pill / saffron action) does.
-        border = DesignTokens.success500.copy(alpha = 0.4f),
-        ctaTint = DesignTokens.success500,
+    // Pickup: celebratory "loop closed" moment — green throughout.
+    FocusVariant.Pickup -> prominentPalette(
+        accent = DesignTokens.success500,
+        surface = surface,
         sectionPillTint = DesignTokens.success500,
-        backgroundGradient = Brush.linearGradient(
-            listOf(
-                DesignTokens.success500.copy(alpha = 0.12f),
-                surface,
-            ),
-        ),
-        prominent = true,
     )
 }
 

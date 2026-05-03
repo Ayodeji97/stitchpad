@@ -68,7 +68,10 @@ class DashboardViewModel(
             initialValue = DashboardState()
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    // Single sealed-action dispatch table — every DashboardAction handled in
+    // one place. Splitting into per-group helpers would scatter the contract
+    // across the file without clarifying any one branch.
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: DashboardAction) {
         when (action) {
             is DashboardAction.OnOrderClick -> emitEvent(
@@ -326,33 +329,28 @@ class DashboardViewModel(
         customers: List<Customer>,
         orders: List<Order>,
     ): FirstOrderSetupUi? {
-        if (customers.isEmpty()) return null
-        if (orders.size > 1) return null
+        if (customers.isEmpty() || orders.size > 1) return null
 
         val firstOrder = orders.minByOrNull { it.createdAt }
         val customerName = firstOrder?.customerName?.takeIf { it.isNotBlank() }
             ?: customers.minByOrNull { it.createdAt }?.name
-            ?: return null
-
         val hasOrder = firstOrder != null
         val hasDueDate = firstOrder?.deadline != null
         val hasDeposit = (firstOrder?.depositPaid ?: 0.0) > 0.0
+        val setupComplete = hasOrder && hasDueDate && hasDeposit
 
-        // Setup is complete — bail. Once they're done with onboarding, the
-        // dashboard returns to its normal triage layout.
-        if (hasOrder && hasDueDate && hasDeposit) return null
-
-        val garmentLabel = firstOrder?.items?.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
-        val totalAmount = firstOrder?.totalPrice ?: 0.0
-
-        return FirstOrderSetupUi(
-            customerName = customerName,
-            orderId = firstOrder?.id,
-            hasOrder = hasOrder,
-            hasDueDate = hasDueDate,
-            hasDeposit = hasDeposit,
-            garmentLabel = garmentLabel,
-            totalAmount = totalAmount,
-        )
+        return if (customerName != null && !setupComplete) {
+            FirstOrderSetupUi(
+                customerName = customerName,
+                orderId = firstOrder?.id,
+                hasOrder = hasOrder,
+                hasDueDate = hasDueDate,
+                hasDeposit = hasDeposit,
+                garmentLabel = firstOrder?.items?.firstOrNull()?.garmentType?.simpleLabel().orEmpty(),
+                totalAmount = firstOrder?.totalPrice ?: 0.0,
+            )
+        } else {
+            null
+        }
     }
 }

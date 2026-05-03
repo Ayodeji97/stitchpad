@@ -106,7 +106,11 @@ object FocusResolver {
      * For `Loading` and `BrandNew` returns a placeholder bundle that the screen
      * ignores — those states render LoadingDots / blank header instead.
      */
-    @Suppress("LongMethod")
+    // Sealed-type dispatch over every DashboardUiState. Splitting each branch
+    // into its own helper would scatter related copy/CTA logic across eight
+    // files for no clarity gain — the single when keeps the priority order
+    // visible at a glance.
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     fun resolveFocus(
         uiState: DashboardUiState,
         buckets: Buckets,

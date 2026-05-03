@@ -82,6 +82,7 @@ import com.danzucker.stitchpad.ui.components.WeeklyGoalsCardState
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.getString
@@ -258,44 +259,23 @@ fun DashboardRoot(
     val signature = state.businessName ?: state.firstName
 
     ObserveAsEvents(viewModel.events) { event ->
-        when (event) {
-            is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
-            DashboardEvent.NavigateToOrders -> onNavigateToOrders()
-            DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
-            is DashboardEvent.NavigateToEditOrder -> onNavigateToEditOrder(event.orderId)
-            DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()
-            DashboardEvent.NavigateToCustomers -> onNavigateToCustomers()
-            DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
-            DashboardEvent.NavigateToSettings -> onNavigateToSettings()
-            DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
-            is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
-            is DashboardEvent.LaunchWhatsApp -> {
-                scope.launch {
-                    val message = buildWhatsAppMessage(event.action, signature)
-                    val launched = whatsAppLauncher.launch(event.action.customerPhone, message)
-                    if (!launched) {
-                        snackbarHostState.showSnackbar(
-                            getString(Res.string.dashboard_whatsapp_launch_failed)
-                        )
-                    }
-                }
-            }
-            is DashboardEvent.LaunchWhatsAppForReconnect -> {
-                scope.launch {
-                    val message = getString(
-                        Res.string.reconnect_whatsapp_template,
-                        firstNameOf(event.candidate.customerName)
-                            .ifBlank { event.candidate.customerName }
-                    )
-                    val launched = whatsAppLauncher.launch(event.candidate.customerPhone, message)
-                    if (!launched) {
-                        snackbarHostState.showSnackbar(
-                            getString(Res.string.dashboard_whatsapp_launch_failed)
-                        )
-                    }
-                }
-            }
-        }
+        handleDashboardEvent(
+            event = event,
+            scope = scope,
+            snackbarHostState = snackbarHostState,
+            signature = signature,
+            whatsAppLauncher = whatsAppLauncher,
+            onNavigateToOrderDetail = onNavigateToOrderDetail,
+            onNavigateToOrders = onNavigateToOrders,
+            onNavigateToOrderForm = onNavigateToOrderForm,
+            onNavigateToEditOrder = onNavigateToEditOrder,
+            onNavigateToCustomerForm = onNavigateToCustomerForm,
+            onNavigateToCustomers = onNavigateToCustomers,
+            onNavigateToGoalSetup = onNavigateToGoalSetup,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToAddCustomerFirst = onNavigateToAddCustomerFirst,
+            onNavigateToCustomerDetail = onNavigateToCustomerDetail,
+        )
     }
 
     val errorText = state.errorMessage?.asString()
@@ -311,6 +291,90 @@ fun DashboardRoot(
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction
     )
+}
+
+@Suppress("LongParameterList")
+private fun handleDashboardEvent(
+    event: DashboardEvent,
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    signature: String,
+    whatsAppLauncher: WhatsAppLauncher,
+    onNavigateToOrderDetail: (String) -> Unit,
+    onNavigateToOrders: () -> Unit,
+    onNavigateToOrderForm: () -> Unit,
+    onNavigateToEditOrder: (String) -> Unit,
+    onNavigateToCustomerForm: () -> Unit,
+    onNavigateToCustomers: () -> Unit,
+    onNavigateToGoalSetup: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToAddCustomerFirst: () -> Unit,
+    onNavigateToCustomerDetail: (String) -> Unit,
+) {
+    when (event) {
+        is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
+        DashboardEvent.NavigateToOrders -> onNavigateToOrders()
+        DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
+        is DashboardEvent.NavigateToEditOrder -> onNavigateToEditOrder(event.orderId)
+        DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()
+        DashboardEvent.NavigateToCustomers -> onNavigateToCustomers()
+        DashboardEvent.NavigateToGoalSetup -> onNavigateToGoalSetup()
+        DashboardEvent.NavigateToSettings -> onNavigateToSettings()
+        DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
+        is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+        is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
+            scope,
+            snackbarHostState,
+            whatsAppLauncher,
+            event,
+            signature
+        )
+        is DashboardEvent.LaunchWhatsAppForReconnect -> launchWhatsAppForReconnect(
+            scope,
+            snackbarHostState,
+            whatsAppLauncher,
+            event
+        )
+    }
+}
+
+private fun launchWhatsAppForAction(
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    whatsAppLauncher: WhatsAppLauncher,
+    event: DashboardEvent.LaunchWhatsApp,
+    signature: String,
+) {
+    scope.launch {
+        val message = buildWhatsAppMessage(event.action, signature)
+        val launched = whatsAppLauncher.launch(event.action.customerPhone, message)
+        if (!launched) {
+            snackbarHostState.showSnackbar(
+                getString(Res.string.dashboard_whatsapp_launch_failed)
+            )
+        }
+    }
+}
+
+private fun launchWhatsAppForReconnect(
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    whatsAppLauncher: WhatsAppLauncher,
+    event: DashboardEvent.LaunchWhatsAppForReconnect,
+) {
+    scope.launch {
+        val message = getString(
+            Res.string.reconnect_whatsapp_template,
+            firstNameOf(event.candidate.customerName)
+                .ifBlank { event.candidate.customerName }
+        )
+        val launched = whatsAppLauncher.launch(event.candidate.customerPhone, message)
+        if (!launched) {
+            snackbarHostState.showSnackbar(
+                getString(Res.string.dashboard_whatsapp_launch_failed)
+            )
+        }
+    }
 }
 
 @Composable
@@ -369,6 +433,11 @@ private fun LoadingState(modifier: Modifier = Modifier) {
     }
 }
 
+// Layout orchestrator — section visibility branches read top-to-bottom in
+// the same order the user sees them on screen. Extracting each into its own
+// composable would scatter that ordering across the file without making any
+// single branch easier to reason about.
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 private fun DashboardContent(
     state: DashboardState,
