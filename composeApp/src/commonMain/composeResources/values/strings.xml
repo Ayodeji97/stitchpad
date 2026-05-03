@@ -609,6 +609,9 @@
     <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: ₦%4$s. — %5$s</string>
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
+    <!-- Order detail launcher failure strings -->
+    <string name="order_detail_whatsapp_launch_failed">Couldn\'t open WhatsApp. Make sure it\'s installed and try again.</string>
+    <string name="order_detail_dialer_launch_failed">Couldn\'t open the dialer.</string>
 
     <!-- TodayWorkCard -->
     <string name="dashboard_today_work_title">Today's Work</string>

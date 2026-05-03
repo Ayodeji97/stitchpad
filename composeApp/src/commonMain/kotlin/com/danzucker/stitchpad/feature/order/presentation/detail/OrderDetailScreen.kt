@@ -61,6 +61,8 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.DialerLauncher
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCustomerCard
@@ -83,6 +85,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.balance_warning_delivered_message
@@ -107,6 +110,7 @@ import stitchpad.composeapp.generated.resources.order_detail_archive_confirm_cta
 import stitchpad.composeapp.generated.resources.order_detail_archive_confirm_title
 import stitchpad.composeapp.generated.resources.order_detail_back_button
 import stitchpad.composeapp.generated.resources.order_detail_delivered_label
+import stitchpad.composeapp.generated.resources.order_detail_dialer_launch_failed
 import stitchpad.composeapp.generated.resources.order_detail_due_label
 import stitchpad.composeapp.generated.resources.order_detail_more
 import stitchpad.composeapp.generated.resources.order_detail_not_found_message
@@ -116,6 +120,7 @@ import stitchpad.composeapp.generated.resources.order_detail_pickup_today
 import stitchpad.composeapp.generated.resources.order_detail_share
 import stitchpad.composeapp.generated.resources.order_detail_title
 import stitchpad.composeapp.generated.resources.order_detail_was_due_label
+import stitchpad.composeapp.generated.resources.order_detail_whatsapp_launch_failed
 import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_success
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
@@ -131,6 +136,7 @@ import kotlin.time.Clock
 private const val MILLIS_PER_DAY: Long = 86_400_000L
 private const val MEASUREMENTS_CARD_INDEX: Int = 5
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun OrderDetailRoot(
     onNavigateToOrderForm: (String) -> Unit,
@@ -138,6 +144,8 @@ fun OrderDetailRoot(
     onNavigateBack: () -> Unit
 ) {
     val viewModel: OrderDetailViewModel = koinViewModel()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
+    val dialerLauncher: DialerLauncher = koinInject()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
@@ -146,6 +154,8 @@ fun OrderDetailRoot(
     val paymentRecordedMessage = stringResource(Res.string.order_record_payment_snackbar_success)
     val orderArchivedMessage = stringResource(Res.string.order_archived_snackbar)
     val notesSavedMessage = stringResource(Res.string.order_detail_notes_saved_toast)
+    val whatsAppFailedMessage = stringResource(Res.string.order_detail_whatsapp_launch_failed)
+    val dialerFailedMessage = stringResource(Res.string.order_detail_dialer_launch_failed)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -163,9 +173,22 @@ fun OrderDetailRoot(
             OrderDetailEvent.NotesSaved -> {
                 snackbarScope.launch { snackbarHostState.showSnackbar(notesSavedMessage) }
             }
-            // Platform launchers wired in Task 6.3 — for now, no-op so the when stays exhaustive.
-            is OrderDetailEvent.LaunchWhatsApp -> Unit
-            is OrderDetailEvent.LaunchDialer -> Unit
+            is OrderDetailEvent.LaunchWhatsApp -> {
+                snackbarScope.launch {
+                    val launched = whatsAppLauncher.launch(event.phone, event.message)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(whatsAppFailedMessage)
+                    }
+                }
+            }
+            is OrderDetailEvent.LaunchDialer -> {
+                snackbarScope.launch {
+                    val launched = dialerLauncher.launch(event.phone)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(dialerFailedMessage)
+                    }
+                }
+            }
             is OrderDetailEvent.NavigateToCreateOrder -> Unit
             is OrderDetailEvent.NavigateToMeasurementsList -> Unit
             OrderDetailEvent.ScrollToMeasurements -> {

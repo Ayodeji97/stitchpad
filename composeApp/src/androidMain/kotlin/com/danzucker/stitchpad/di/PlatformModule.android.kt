@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
@@ -16,4 +17,5 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { OrderReceiptSharer(androidContext()) }
     single { WhatsAppLauncher(androidContext()) }
+    single { DialerLauncher(androidContext()) }
 }
