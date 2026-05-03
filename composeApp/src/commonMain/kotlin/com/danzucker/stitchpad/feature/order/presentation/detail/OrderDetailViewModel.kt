@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -47,6 +48,8 @@ class OrderDetailViewModel(
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
 
     private var hasStartedObserving = false
+    private var measurementJob: Job? = null
+    private var loadedMeasurementId: String? = null
     private val _state = MutableStateFlow(OrderDetailState())
 
     private val _events = Channel<OrderDetailEvent>()
@@ -114,7 +117,13 @@ class OrderDetailViewModel(
                 _state.update { it.copy(selectedNewStatus = action.status) }
             OrderDetailAction.OnConfirmStatusUpdate -> updateStatusViaWarningFlow()
             OrderDetailAction.OnDismissStatusUpdate ->
-                _state.update { it.copy(selectedNewStatus = null) }
+                _state.update {
+                    it.copy(
+                        selectedNewStatus = null,
+                        selectedNewSubStatus = null,
+                        showStatusSheet = false,
+                    )
+                }
             OrderDetailAction.OnBalanceWarningRecordPayment -> {
                 _state.update {
                     it.copy(
@@ -294,8 +303,10 @@ class OrderDetailViewModel(
     }
 
     private fun loadMeasurementIfNeeded(customerId: String, measurementId: String, userId: String) {
-        if (_state.value.measurement?.id == measurementId) return
-        viewModelScope.launch {
+        if (loadedMeasurementId == measurementId) return
+        loadedMeasurementId = measurementId
+        measurementJob?.cancel()
+        measurementJob = viewModelScope.launch {
             measurementRepository.observeMeasurements(userId, customerId).collect { res ->
                 if (res is Result.Success) {
                     val match = res.data.firstOrNull { it.id == measurementId }
