@@ -8,16 +8,31 @@ data class OrderDto(
     val customerId: String = "",
     val customerName: String = "",
     val status: String = "PENDING",
+    val subStatus: String? = null,
     val priority: String = "NORMAL",
     val totalPrice: Double = 0.0,
+    /** Legacy field kept for backward-compat when reading old Firestore docs. */
     val depositPaid: Double = 0.0,
+    /** Legacy field kept for backward-compat when reading old Firestore docs. */
     val balanceRemaining: Double = 0.0,
+    val payments: List<PaymentDto> = emptyList(),
     val deadline: Long? = null,
     val notes: String? = null,
+    val archivedAt: Long? = null,
     val items: List<OrderItemDto> = emptyList(),
     val statusHistory: List<StatusChangeDto> = emptyList(),
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
+)
+
+@Serializable
+data class PaymentDto(
+    val id: String = "",
+    val amount: Double = 0.0,
+    val method: String = "OTHER",
+    val type: String = "DEPOSIT",
+    val recordedAt: Long = 0L,
+    val note: String? = null,
 )
 
 @Serializable

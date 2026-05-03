@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
@@ -13,6 +16,9 @@ import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
+import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -269,18 +275,20 @@ class OrderDetailViewModel(
         submitPayment(amount)
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun submitPayment(amountJustPaid: Double) {
         val order = _state.value.order ?: return
         if (amountJustPaid <= 0.0) return
-        val (newDeposit, newBalance) = computeRecordedPayment(
-            currentDeposit = order.depositPaid,
-            totalPrice = order.totalPrice,
-            amountJustPaid = amountJustPaid,
+        val now = Clock.System.now().toEpochMilliseconds()
+        val newPayment = Payment(
+            id = Uuid.random().toString(),
+            amount = amountJustPaid,
+            method = PaymentMethod.OTHER,
+            type = PaymentType.DEPOSIT,
+            recordedAt = now,
+            note = null,
         )
-        val updatedOrder = order.copy(
-            depositPaid = newDeposit,
-            balanceRemaining = newBalance,
-        )
+        val updatedOrder = order.copy(payments = order.payments + newPayment)
         _state.update {
             it.copy(
                 showRecordPaymentDialog = false,

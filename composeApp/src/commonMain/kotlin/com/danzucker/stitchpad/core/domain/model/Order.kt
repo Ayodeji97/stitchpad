@@ -47,13 +47,20 @@ data class Order(
     val customerName: String,
     val items: List<OrderItem>,
     val status: OrderStatus,
+    val subStatus: OrderSubStatus? = null,
     val priority: OrderPriority,
     val statusHistory: List<StatusChange>,
     val totalPrice: Double,
-    val depositPaid: Double,
-    val balanceRemaining: Double,
+    val payments: List<Payment> = emptyList(),
     val deadline: Long?,
     val notes: String?,
+    val archivedAt: Long? = null,
     val createdAt: Long,
-    val updatedAt: Long
-)
+    val updatedAt: Long,
+) {
+    /** Sum of all recorded payments. Replaces the prior persisted `depositPaid` field. */
+    val depositPaid: Double get() = payments.sumOf { it.amount }
+
+    /** Outstanding balance. Always recomputed from [totalPrice] and [payments]. */
+    val balanceRemaining: Double get() = (totalPrice - depositPaid).coerceAtLeast(0.0)
+}

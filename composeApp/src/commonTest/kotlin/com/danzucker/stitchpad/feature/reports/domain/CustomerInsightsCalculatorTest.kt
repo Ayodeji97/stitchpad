@@ -6,6 +6,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -19,6 +22,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CustomerInsightsCalculatorTest {
+
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
 
     private val tz = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -42,25 +53,27 @@ class CustomerInsightsCalculatorTest {
         balanceRemaining: Double = 0.0,
         status: OrderStatus = OrderStatus.PENDING,
         deadline: Long? = null
-    ): Order = Order(
-        id = id,
-        userId = "u",
-        customerId = customerId,
-        customerName = "Test",
-        items = listOf(
-            OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
-        ),
-        status = status,
-        priority = OrderPriority.NORMAL,
-        statusHistory = emptyList(),
-        totalPrice = totalPrice,
-        depositPaid = totalPrice - balanceRemaining,
-        balanceRemaining = balanceRemaining,
-        deadline = deadline,
-        notes = null,
-        createdAt = updatedAt,
-        updatedAt = updatedAt
-    )
+    ): Order {
+        val depositAmount = (totalPrice - balanceRemaining).coerceAtLeast(0.0)
+        return Order(
+            id = id,
+            userId = "u",
+            customerId = customerId,
+            customerName = "Test",
+            items = listOf(
+                OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
+            ),
+            status = status,
+            priority = OrderPriority.NORMAL,
+            statusHistory = emptyList(),
+            totalPrice = totalPrice,
+            payments = if (depositAmount > 0.0) listOf(depositPayment(depositAmount)) else emptyList(),
+            deadline = deadline,
+            notes = null,
+            createdAt = updatedAt,
+            updatedAt = updatedAt,
+        )
+    }
 
     // -------- topCustomers --------
 

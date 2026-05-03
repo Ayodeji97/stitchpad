@@ -9,6 +9,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -86,6 +89,14 @@ class DashboardViewModelTest {
     private fun epochMillisAt(date: LocalDate): Long =
         date.atStartOfDayIn(testTimeZone).toEpochMilliseconds()
 
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
+
     // Default deadline is 9 days past `today` (2026-04-22 → 2026-05-01).
     // Picked to land safely outside overdue/dueToday/ready bucketing AND
     // outside the FirstCustomer "no-due-date" sub-state so existing tests
@@ -97,7 +108,7 @@ class DashboardViewModelTest {
         status: OrderStatus = OrderStatus.PENDING,
         deadline: LocalDate? = LocalDate(2026, 5, 1),
         customerName: String = "Ada Lovelace",
-        totalPrice: Double = 0.0,
+        totalPrice: Double? = null,
         depositPaid: Double = 0.0,
         balanceRemaining: Double = 0.0,
         garment: GarmentType = GarmentType.AGBADA,
@@ -105,6 +116,7 @@ class DashboardViewModelTest {
         createdAt: Long = 0L,
         updatedAt: Long = 0L
     ): Order {
+        val resolvedTotalPrice = totalPrice ?: (depositPaid + balanceRemaining)
         val statusHistory = if (statusEnteredOn != null) {
             listOf(StatusChange(status = status, changedAt = epochMillisAt(statusEnteredOn)))
         } else {
@@ -120,19 +132,18 @@ class DashboardViewModelTest {
                     id = "i1",
                     garmentType = garment,
                     description = "",
-                    price = totalPrice
+                    price = resolvedTotalPrice
                 )
             ),
             status = status,
             priority = OrderPriority.NORMAL,
             statusHistory = statusHistory,
-            totalPrice = totalPrice,
-            depositPaid = depositPaid,
-            balanceRemaining = balanceRemaining,
+            totalPrice = resolvedTotalPrice,
+            payments = if (depositPaid > 0.0) listOf(depositPayment(depositPaid)) else emptyList(),
             deadline = deadline?.let(::epochMillisAt),
             notes = null,
             createdAt = createdAt,
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
         )
     }
 

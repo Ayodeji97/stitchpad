@@ -6,6 +6,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -16,6 +19,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ReconnectCalculatorTest {
+
+    @Suppress("UnusedPrivateMember")
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
 
     private val tz = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -39,12 +51,10 @@ class ReconnectCalculatorTest {
             priority = OrderPriority.NORMAL,
             statusHistory = emptyList(),
             totalPrice = 0.0,
-            depositPaid = 0.0,
-            balanceRemaining = 0.0,
             deadline = null,
             notes = null,
             createdAt = millisAt(updatedAt),
-            updatedAt = millisAt(updatedAt)
+            updatedAt = millisAt(updatedAt),
         )
 
     private fun activeOrder(customerId: String, updatedAt: LocalDate): Order =

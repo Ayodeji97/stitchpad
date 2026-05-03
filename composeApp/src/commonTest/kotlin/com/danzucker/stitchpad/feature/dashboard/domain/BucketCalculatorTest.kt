@@ -5,6 +5,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -17,6 +20,14 @@ import kotlin.test.assertTrue
 
 class BucketCalculatorTest {
 
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
+
     private val tz = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
 
@@ -28,28 +39,31 @@ class BucketCalculatorTest {
         status: OrderStatus = OrderStatus.PENDING,
         deadline: LocalDate? = null,
         balanceRemaining: Double = 0.0,
-        totalPrice: Double = 0.0,
+        totalPrice: Double? = null,
         garment: GarmentType = GarmentType.AGBADA,
         customerName: String = "Test"
-    ): Order = Order(
-        id = id,
-        userId = "u",
-        customerId = "c1",
-        customerName = customerName,
-        items = listOf(
-            OrderItem(id = "i-$id", garmentType = garment, description = "", price = totalPrice)
-        ),
-        status = status,
-        priority = OrderPriority.NORMAL,
-        statusHistory = emptyList(),
-        totalPrice = totalPrice,
-        depositPaid = totalPrice - balanceRemaining,
-        balanceRemaining = balanceRemaining,
-        deadline = deadline?.let { millisAt(it) },
-        notes = null,
-        createdAt = millisAt(today),
-        updatedAt = millisAt(today)
-    )
+    ): Order {
+        val resolvedTotalPrice = totalPrice ?: balanceRemaining
+        val depositAmount = (resolvedTotalPrice - balanceRemaining).coerceAtLeast(0.0)
+        return Order(
+            id = id,
+            userId = "u",
+            customerId = "c1",
+            customerName = customerName,
+            items = listOf(
+                OrderItem(id = "i-$id", garmentType = garment, description = "", price = resolvedTotalPrice)
+            ),
+            status = status,
+            priority = OrderPriority.NORMAL,
+            statusHistory = emptyList(),
+            totalPrice = resolvedTotalPrice,
+            payments = if (depositAmount > 0.0) listOf(depositPayment(depositAmount)) else emptyList(),
+            deadline = deadline?.let { millisAt(it) },
+            notes = null,
+            createdAt = millisAt(today),
+            updatedAt = millisAt(today),
+        )
+    }
 
     @Test
     fun emptyOrdersProducesEmptyBuckets() {

@@ -9,6 +9,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.billing.data.InMemoryEntitlementsRepository
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
@@ -38,6 +41,14 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReportsViewModelTest {
+
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
 
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
@@ -97,25 +108,27 @@ class ReportsViewModelTest {
         totalPrice: Double = 10_000.0,
         balanceRemaining: Double = 0.0,
         status: OrderStatus = OrderStatus.PENDING
-    ): Order = Order(
-        id = id,
-        userId = "test-uid",
-        customerId = customerId,
-        customerName = "Test",
-        items = listOf(
-            OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
-        ),
-        status = status,
-        priority = OrderPriority.NORMAL,
-        statusHistory = emptyList(),
-        totalPrice = totalPrice,
-        depositPaid = totalPrice - balanceRemaining,
-        balanceRemaining = balanceRemaining,
-        deadline = null,
-        notes = null,
-        createdAt = updatedAt,
-        updatedAt = updatedAt
-    )
+    ): Order {
+        val depositAmount = (totalPrice - balanceRemaining).coerceAtLeast(0.0)
+        return Order(
+            id = id,
+            userId = "test-uid",
+            customerId = customerId,
+            customerName = "Test",
+            items = listOf(
+                OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
+            ),
+            status = status,
+            priority = OrderPriority.NORMAL,
+            statusHistory = emptyList(),
+            totalPrice = totalPrice,
+            payments = if (depositAmount > 0.0) listOf(depositPayment(depositAmount)) else emptyList(),
+            deadline = null,
+            notes = null,
+            createdAt = updatedAt,
+            updatedAt = updatedAt,
+        )
+    }
 
     @Test
     fun unauthedUserDoesNotCrashAndStaysEmpty() = runTest {

@@ -5,6 +5,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,6 +16,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReceiptFormatterTest {
+
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
 
     private val testUser = User(
         id = "user1",
@@ -46,8 +57,7 @@ class ReceiptFormatterTest {
         priority = OrderPriority.RUSH,
         statusHistory = emptyList(),
         totalPrice = 70000.0,
-        depositPaid = 30000.0,
-        balanceRemaining = 40000.0,
+        payments = listOf(depositPayment(30000.0)),
         deadline = 1745798400000L,
         notes = null,
         createdAt = 1745193600000L,
@@ -124,7 +134,7 @@ class ReceiptFormatterTest {
 
     @Test
     fun zeroBalanceMeansFullyPaid() {
-        val paidOrder = testOrder.copy(balanceRemaining = 0.0)
+        val paidOrder = testOrder.copy(payments = listOf(depositPayment(amount = testOrder.totalPrice)))
         val result = ReceiptFormatter.format(paidOrder, testUser, garmentNames)
         assertTrue(result.isFullyPaid)
     }
@@ -184,7 +194,7 @@ class ReceiptFormatterTest {
 
     @Test
     fun fullyPaidOrderUsesReceiptLabel() {
-        val paidOrder = testOrder.copy(balanceRemaining = 0.0)
+        val paidOrder = testOrder.copy(payments = listOf(depositPayment(amount = testOrder.totalPrice)))
         val result = ReceiptFormatter.format(paidOrder, testUser, garmentNames)
         assertEquals("RECEIPT", result.documentTypeLabel)
     }

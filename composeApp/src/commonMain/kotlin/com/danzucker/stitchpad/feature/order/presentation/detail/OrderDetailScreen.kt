@@ -63,6 +63,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.sharing.formatPrice
@@ -1211,8 +1214,15 @@ private fun OrderDetailScreenFilledPreview() {
                     priority = OrderPriority.NORMAL,
                     statusHistory = listOf(StatusChange(OrderStatus.PENDING, now - 86_400_000)),
                     totalPrice = 100_000.0,
-                    depositPaid = 40_000.0,
-                    balanceRemaining = 60_000.0,
+                    payments = listOf(
+                        Payment(
+                            id = "p1",
+                            amount = 40_000.0,
+                            method = PaymentMethod.OTHER,
+                            type = PaymentType.DEPOSIT,
+                            recordedAt = 0L,
+                        )
+                    ),
                     deadline = now + 86_400_000 * 3,
                     notes = "Needs to be ready by Friday for the wedding.",
                     createdAt = now - 86_400_000,
