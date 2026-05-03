@@ -34,7 +34,9 @@ class FakeOrderRepository : OrderRepository {
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         ordersFlow.map { list ->
             shouldReturnError?.let { return@map Result.Error(it) }
-            Result.Success(list)
+            // Mirror FirebaseOrderRepository's archive filter so VM tests
+            // see the same observable surface as production.
+            Result.Success(list.filter { it.archivedAt == null })
         }
 
     override fun observeOrder(
