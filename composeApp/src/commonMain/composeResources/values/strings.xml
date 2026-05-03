@@ -776,4 +776,63 @@
     <string name="goals_setup_save">Save goal</string>
     <string name="goals_setup_back_cd">Back</string>
     <string name="goals_setup_error_save">Couldn&apos;t save your goal. Check your connection and try again.</string>
+
+    <!-- ============================================================ -->
+    <!-- Order Detail V2 -->
+    <!-- ============================================================ -->
+    <string name="order_detail_more">More options</string>
+    <string name="order_detail_garment_section">Garment details</string>
+    <string name="order_detail_payment_section">Payment</string>
+    <string name="order_detail_production_timeline">Production timeline</string>
+    <string name="order_detail_measurements_preview">Measurements (preview)</string>
+    <string name="order_detail_notes_empty_hint">Tap to add a note about this order</string>
+    <string name="order_detail_notes_save">Save</string>
+    <string name="order_detail_notes_cancel">Cancel</string>
+    <string name="order_detail_notes_saved_toast">Notes saved</string>
+    <string name="order_detail_fabric_caption">Fabric</string>
+    <string name="order_detail_payment_history_label">Payment history</string>
+    <string name="order_detail_payment_history_count">%1$d payment recorded · expand</string>
+    <string name="order_detail_payment_history_count_plural">%1$d payments recorded</string>
+    <string name="order_detail_no_payments">No payments recorded yet</string>
+    <string name="order_detail_overflow_duplicate">Duplicate order</string>
+    <string name="order_detail_overflow_archive">Archive order</string>
+    <string name="order_detail_overflow_delete">Delete order</string>
+    <string name="order_detail_archive_confirm_title">Archive this order?</string>
+    <string name="order_detail_archive_confirm_body">It will be hidden from the dashboard and orders list. You can restore it from Reports.</string>
+    <string name="order_detail_archive_confirm_cta">Archive</string>
+    <string name="order_detail_send_reminder">Send reminder</string>
+    <string name="order_detail_message_customer">Message customer</string>
+    <string name="order_detail_mark_delivered">Mark delivered</string>
+    <string name="order_detail_confirm_fitting">Confirm fitting</string>
+    <string name="order_detail_start_work">Start work</string>
+    <string name="order_detail_share_receipt">Share receipt</string>
+    <string name="order_detail_duplicate_order">Duplicate order</string>
+    <string name="order_detail_due_label">Due %1$s</string>
+    <string name="order_detail_was_due_label">Was due %1$s</string>
+    <string name="order_detail_pickup_today">Pickup today</string>
+    <string name="order_detail_fitting_at_label">Fitting %1$s</string>
+    <string name="order_detail_delivered_label">Delivered %1$s</string>
+    <string name="order_detail_overdue_banner">Customer is waiting · %1$s overdue</string>
+    <string name="order_detail_no_phone">No phone number saved</string>
+    <string name="order_detail_link_measurements">Link measurements</string>
+    <string name="order_detail_no_measurements">No measurements linked</string>
+    <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>
+    <string name="order_detail_footer_caption_delivered">Order #%1$s · Delivered %2$s</string>
+
+    <!-- Production stages -->
+    <string name="order_stage_pending">Pending</string>
+    <string name="order_stage_cutting">Cutting</string>
+    <string name="order_stage_sewing">Sewing</string>
+    <string name="order_stage_fitting">Fitting</string>
+    <string name="order_stage_ready">Ready</string>
+    <string name="order_stage_delivered">Delivered</string>
+
+    <!-- Payment dialog -->
+    <string name="payment_method_cash">Cash</string>
+    <string name="payment_method_transfer">Transfer</string>
+    <string name="payment_method_pos">POS</string>
+    <string name="payment_method_other">Other</string>
+    <string name="payment_type_deposit">Deposit</string>
+    <string name="payment_type_progress">Progress payment</string>
+    <string name="payment_type_final">Final payment</string>
 </resources>
