@@ -47,6 +47,7 @@ class OrderFormViewModel(
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
+    private val seedFromOrderId: String? = savedStateHandle["seedFromOrderId"]
     private var userId: String? = null
 
     // Preserved across edit: carry original metadata so save() doesn't overwrite them.
@@ -167,7 +168,11 @@ class OrderFormViewModel(
         viewModelScope.launch {
             userId = authRepository.getCurrentUser()?.id ?: return@launch
             observeCustomers()
-            if (orderId != null) loadOrder(orderId)
+            if (orderId != null) {
+                loadOrder(orderId)
+            } else if (seedFromOrderId != null) {
+                loadOrderForSeed(seedFromOrderId)
+            }
         }
     }
 
@@ -235,6 +240,40 @@ class OrderFormViewModel(
                             depositPaid = if (order.depositPaid > 0) order.depositPaid.toLong().toString() else "",
                             notes = order.notes ?: "",
                             isLoading = false
+                        )
+                    }
+                    resolvePendingCustomer()
+                }
+                is Result.Error -> {
+                    _state.update {
+                        it.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                    }
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun loadOrderForSeed(sourceOrderId: String) {
+        val uid = userId ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            when (val result = orderRepository.getOrder(uid, sourceOrderId)) {
+                is Result.Success -> {
+                    val source = result.data
+                    pendingCustomerId = source.customerId
+                    _state.update {
+                        it.copy(
+                            // Seeded order is brand new — no preserved metadata, no payments,
+                            // and each item gets a fresh id so storage paths don't collide.
+                            items = source.items.map { item ->
+                                item.copy(id = Uuid.random().toString()).toFormState()
+                            },
+                            deadline = source.deadline,
+                            priority = source.priority,
+                            depositPaid = "",
+                            notes = source.notes ?: "",
+                            isLoading = false,
                         )
                     }
                     resolvePendingCustomer()

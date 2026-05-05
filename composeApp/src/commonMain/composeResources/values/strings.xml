@@ -786,6 +786,7 @@
     <string name="order_detail_notes_cancel">Cancel</string>
     <string name="order_detail_notes_saved_toast">Notes saved</string>
     <string name="order_detail_fabric_caption">Fabric</string>
+    <string name="order_detail_style_caption">Style</string>
     <string name="order_detail_payment_history_label">Payment history</string>
     <string name="order_detail_payment_history_count">%1$d payment recorded · expand</string>
     <string name="order_detail_payment_history_count_plural">%1$d payments recorded</string>

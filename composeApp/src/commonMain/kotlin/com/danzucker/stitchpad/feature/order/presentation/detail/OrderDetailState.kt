@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 
@@ -15,6 +16,7 @@ data class OrderDetailState(
     val user: User? = null,
     val customer: Customer? = null,
     val measurement: Measurement? = null,
+    val style: Style? = null,
     val isLoading: Boolean = true,
 
     // Dialogs / sheets

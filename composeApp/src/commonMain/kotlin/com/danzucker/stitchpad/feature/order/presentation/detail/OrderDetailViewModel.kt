@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
@@ -41,6 +42,7 @@ class OrderDetailViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val measurementRepository: MeasurementRepository,
+    private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
     private val receiptSharer: OrderReceiptSharer,
 ) : ViewModel() {
@@ -50,6 +52,8 @@ class OrderDetailViewModel(
     private var hasStartedObserving = false
     private var measurementJob: Job? = null
     private var loadedMeasurementId: String? = null
+    private var styleJob: Job? = null
+    private var loadedStyleId: String? = null
     private val _state = MutableStateFlow(OrderDetailState())
 
     private val _events = Channel<OrderDetailEvent>()
@@ -279,6 +283,10 @@ class OrderDetailViewModel(
                         if (measurementId != null) {
                             loadMeasurementIfNeeded(result.data.customerId, measurementId, userId)
                         }
+                        val styleId = result.data.items.firstOrNull()?.styleId
+                        if (styleId != null) {
+                            loadStyleIfNeeded(result.data.customerId, styleId, userId)
+                        }
                     }
                     is Result.Error -> {
                         _state.update {
@@ -309,6 +317,20 @@ class OrderDetailViewModel(
                 if (res is Result.Success) {
                     val match = res.data.firstOrNull { it.id == measurementId }
                     if (match != null) _state.update { it.copy(measurement = match) }
+                }
+            }
+        }
+    }
+
+    private fun loadStyleIfNeeded(customerId: String, styleId: String, userId: String) {
+        if (loadedStyleId == styleId) return
+        loadedStyleId = styleId
+        styleJob?.cancel()
+        styleJob = viewModelScope.launch {
+            styleRepository.observeStyles(userId, customerId).collect { res ->
+                if (res is Result.Success) {
+                    val match = res.data.firstOrNull { it.id == styleId }
+                    if (match != null) _state.update { it.copy(style = match) }
                 }
             }
         }

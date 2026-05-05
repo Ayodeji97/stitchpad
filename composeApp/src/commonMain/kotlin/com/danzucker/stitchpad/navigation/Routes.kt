@@ -45,7 +45,10 @@ data class StyleFormRoute(val customerId: String, val styleId: String? = null)
 data object OrderListRoute
 
 @Serializable
-data class OrderFormRoute(val orderId: String? = null)
+data class OrderFormRoute(
+    val orderId: String? = null,
+    val seedFromOrderId: String? = null,
+)
 
 @Serializable
 data class OrderDetailRoute(val orderId: String)

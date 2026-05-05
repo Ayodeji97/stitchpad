@@ -141,7 +141,9 @@ private const val MEASUREMENTS_CARD_INDEX: Int = 5
 fun OrderDetailRoot(
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateToMeasurementForm: (customerId: String) -> Unit,
+    onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
+    onNavigateBack: () -> Unit,
 ) {
     val viewModel: OrderDetailViewModel = koinViewModel()
     val whatsAppLauncher: WhatsAppLauncher = koinInject()
@@ -189,8 +191,10 @@ fun OrderDetailRoot(
                     }
                 }
             }
-            is OrderDetailEvent.NavigateToCreateOrder -> Unit
-            is OrderDetailEvent.NavigateToMeasurementsList -> Unit
+            is OrderDetailEvent.NavigateToCreateOrder ->
+                onNavigateToDuplicateOrder(event.seedFromOrderId)
+            is OrderDetailEvent.NavigateToMeasurementsList ->
+                onNavigateToMeasurementForm(event.customerId)
             OrderDetailEvent.ScrollToMeasurements -> {
                 snackbarScope.launch {
                     measurementsListState.animateScrollToItem(MEASUREMENTS_CARD_INDEX)
@@ -648,7 +652,11 @@ private fun OrderDetailContent(
             )
         }
         item {
-            OrderGarmentDetailsCard(items = order.items, priority = order.priority)
+            OrderGarmentDetailsCard(
+                items = order.items,
+                style = state.style,
+                priority = order.priority,
+            )
         }
         item {
             OrderPaymentCard(
