@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.style.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Style
@@ -30,12 +31,14 @@ class StyleFormViewModelTest {
 
     private lateinit var styleRepository: FakeStyleRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var orderRepository: FakeOrderRepository
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         styleRepository = FakeStyleRepository()
         authRepository = FakeAuthRepository()
+        orderRepository = FakeOrderRepository()
     }
 
     @AfterTest
@@ -46,15 +49,18 @@ class StyleFormViewModelTest {
     private fun TestScope.createViewModel(
         customerId: String = "customer-1",
         styleId: String? = null,
+        linkToOrderId: String? = null,
     ): StyleFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
             if (styleId != null) put("styleId", styleId)
+            if (linkToOrderId != null) put("linkToOrderId", linkToOrderId)
         }
         val vm = StyleFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             styleRepository = styleRepository,
             authRepository = authRepository,
+            orderRepository = orderRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

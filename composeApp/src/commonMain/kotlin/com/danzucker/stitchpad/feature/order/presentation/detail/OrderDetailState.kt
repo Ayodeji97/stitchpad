@@ -22,6 +22,9 @@ data class OrderDetailState(
     val showMeasurementPickerSheet: Boolean = false,
     val availableMeasurements: List<Measurement> = emptyList(),
 
+    val showStylePickerSheet: Boolean = false,
+    val availableStyles: List<Style> = emptyList(),
+
     // Dialogs / sheets
     val showDeleteDialog: Boolean = false,
     val showStatusSheet: Boolean = false,

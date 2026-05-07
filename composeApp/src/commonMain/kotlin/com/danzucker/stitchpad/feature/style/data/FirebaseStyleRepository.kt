@@ -56,7 +56,7 @@ class FirebaseStyleRepository(
         customerId: String,
         description: String,
         photoBytes: ByteArray
-    ): EmptyResult<DataError.Network> {
+    ): Result<String, DataError.Network> {
         val docRef = stylesCollection(userId, customerId).document
         val path = storagePath(userId, customerId, docRef.id)
         var uploaded = false
@@ -74,7 +74,7 @@ class FirebaseStyleRepository(
                 updatedAt = 0L
             )
             docRef.set(style.toStyleDto())
-            Result.Success(Unit)
+            Result.Success(docRef.id)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "createStyle failed styleId=${docRef.id}"

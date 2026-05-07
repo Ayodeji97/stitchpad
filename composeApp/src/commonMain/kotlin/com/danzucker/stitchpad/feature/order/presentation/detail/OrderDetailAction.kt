@@ -60,6 +60,11 @@ sealed interface OrderDetailAction {
     data object OnSendReminderClick : OrderDetailAction
     data object OnAddStyleClick : OrderDetailAction
 
+    // Styles
+    data class OnSelectStyle(val styleId: String) : OrderDetailAction
+    data object OnCreateNewStyleClick : OrderDetailAction
+    data object OnDismissStylePickerSheet : OrderDetailAction
+
     // Measurements
     data object OnLinkMeasurementsClick : OrderDetailAction
     data class OnSelectMeasurement(val measurementId: String) : OrderDetailAction

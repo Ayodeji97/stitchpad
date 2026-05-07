@@ -17,7 +17,7 @@ interface StyleRepository {
         customerId: String,
         description: String,
         photoBytes: ByteArray
-    ): EmptyResult<DataError.Network>
+    ): Result<String, DataError.Network>
 
     suspend fun updateStyle(
         userId: String,

@@ -53,7 +53,7 @@ class OrderDetailViewModel(
     private var measurementsJob: Job? = null
     private var loadedMeasurementsCustomerId: String? = null
     private var styleJob: Job? = null
-    private var loadedStyleId: String? = null
+    private var loadedStylesCustomerId: String? = null
     private val _state = MutableStateFlow(OrderDetailState())
 
     private val _events = Channel<OrderDetailEvent>()
@@ -225,12 +225,22 @@ class OrderDetailViewModel(
             OrderDetailAction.OnWhatsAppClick -> launchWhatsApp()
             OrderDetailAction.OnCallClick -> launchDialer()
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
-            OrderDetailAction.OnAddStyleClick -> {
+            OrderDetailAction.OnAddStyleClick ->
+                _state.update { it.copy(showStylePickerSheet = true) }
+
+            // Styles
+            is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId)
+
+            OrderDetailAction.OnCreateNewStyleClick -> {
+                _state.update { it.copy(showStylePickerSheet = false) }
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
-                    _events.send(OrderDetailEvent.NavigateToStyleGallery(customerId))
+                    _events.send(OrderDetailEvent.NavigateToStyleForm(customerId, orderId))
                 }
             }
+
+            OrderDetailAction.OnDismissStylePickerSheet ->
+                _state.update { it.copy(showStylePickerSheet = false) }
 
             // Measurements
             OrderDetailAction.OnLinkMeasurementsClick ->
@@ -293,10 +303,7 @@ class OrderDetailViewModel(
                         _state.update { it.copy(order = result.data, isLoading = false) }
                         loadCustomerIfNeeded(result.data.customerId, userId)
                         loadMeasurementsIfNeeded(result.data.customerId, userId)
-                        val styleId = result.data.items.firstOrNull()?.styleId
-                        if (styleId != null) {
-                            loadStyleIfNeeded(result.data.customerId, styleId, userId)
-                        }
+                        loadStylesIfNeeded(result.data.customerId, userId)
                     }
                     is Result.Error -> {
                         _state.update {
@@ -356,15 +363,39 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun loadStyleIfNeeded(customerId: String, styleId: String, userId: String) {
-        if (loadedStyleId == styleId) return
-        loadedStyleId = styleId
+    private fun loadStylesIfNeeded(customerId: String, userId: String) {
+        if (loadedStylesCustomerId == customerId) return
+        loadedStylesCustomerId = customerId
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
             styleRepository.observeStyles(userId, customerId).collect { res ->
                 if (res is Result.Success) {
-                    val match = res.data.firstOrNull { it.id == styleId }
-                    if (match != null) _state.update { it.copy(style = match) }
+                    _state.update { current ->
+                        val linkedId = current.order?.items?.firstOrNull()?.styleId
+                        val linked = linkedId?.let { id -> res.data.firstOrNull { it.id == id } }
+                        current.copy(
+                            availableStyles = res.data,
+                            style = linked,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun linkExistingStyle(styleId: String) {
+        _state.update { it.copy(showStylePickerSheet = false) }
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (firstItem.styleId != styleId) {
+            val updatedItems = listOf(firstItem.copy(styleId = styleId)) + order.items.drop(1)
+            viewModelScope.launch {
+                val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                    is Result.Success -> Unit
+                    is Result.Error -> _state.update {
+                        it.copy(errorMessage = res.error.toOrderUiText())
+                    }
                 }
             }
         }

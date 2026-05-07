@@ -77,6 +77,7 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Orde
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderProductionTimeline
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.RecordPaymentDialogV2
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -143,7 +144,7 @@ fun OrderDetailRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToMeasurementForm: (customerId: String, linkToOrderId: String) -> Unit,
     onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
-    onNavigateToStyleGallery: (customerId: String) -> Unit,
+    onNavigateToStyleForm: (customerId: String, linkToOrderId: String) -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val viewModel: OrderDetailViewModel = koinViewModel()
@@ -196,8 +197,8 @@ fun OrderDetailRoot(
                 onNavigateToDuplicateOrder(event.seedFromOrderId)
             is OrderDetailEvent.NavigateToMeasurementForm ->
                 onNavigateToMeasurementForm(event.customerId, event.linkToOrderId)
-            is OrderDetailEvent.NavigateToStyleGallery ->
-                onNavigateToStyleGallery(event.customerId)
+            is OrderDetailEvent.NavigateToStyleForm ->
+                onNavigateToStyleForm(event.customerId, event.linkToOrderId)
         }
     }
 
@@ -407,6 +408,17 @@ fun OrderDetailScreen(
             onSelectMeasurement = { onAction(OrderDetailAction.OnSelectMeasurement(it)) },
             onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewMeasurementClick) },
             onDismiss = { onAction(OrderDetailAction.OnDismissMeasurementPickerSheet) },
+        )
+    }
+
+    // Style picker sheet — lets user link an existing style or create a new one
+    if (state.showStylePickerSheet && state.order != null) {
+        StylePickerSheet(
+            styles = state.availableStyles,
+            selectedStyleId = state.order.items.firstOrNull()?.styleId,
+            onSelectStyle = { onAction(OrderDetailAction.OnSelectStyle(it)) },
+            onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewStyleClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },
         )
     }
 
