@@ -69,10 +69,17 @@ fun OrderCustomerCard(
             .fillMaxWidth()
             .clickable(onClick = onCustomerClick, role = Role.Button),
     ) {
-        Column(modifier = Modifier.padding(DesignTokens.space4)) {
+        Column(
+            modifier = Modifier.padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                top = DesignTokens.space4,
+                bottom = DesignTokens.space3,
+            ),
+        ) {
             CardHeader()
 
-            Spacer(Modifier.height(DesignTokens.space3))
+            Spacer(Modifier.height(DesignTokens.space2))
 
             Text(
                 text = customerName,
@@ -111,7 +118,7 @@ fun OrderCustomerCard(
                 }
             }
 
-            Spacer(Modifier.height(DesignTokens.space3))
+            Spacer(Modifier.height(DesignTokens.space2))
 
             if (phone.isNullOrBlank()) {
                 AddPhoneCta(onClick = onAddPhoneClick)

@@ -5,9 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,6 +86,8 @@ fun OrderGarmentDetailsCard(
             Spacer(Modifier.height(DesignTokens.space3))
 
             // Per-item rows. Multi-item rows are stacked with space3 between them.
+            // The priority pill anchors to the bottom of the FIRST row's left column,
+            // filling the dead space next to the 128dp fabric thumbnail.
             items.forEachIndexed { index, item ->
                 if (index > 0) {
                     Spacer(Modifier.height(DesignTokens.space3))
@@ -92,18 +96,10 @@ fun OrderGarmentDetailsCard(
                 val showCta = needsFabricInfo(item) && isFirstItemNeedingFabric
                 GarmentItemRow(
                     item = item,
-                    // Only the FIRST item needing fabric (missing photo OR missing name)
-                    // shows the inline CTA, so a multi-item order doesn't get a stack of
-                    // identical buttons.
                     onAddFabricPhotoClick = if (showCta) onAddFabricPhotoClick else null,
                     onAddFabricNameClick = if (showCta) onAddFabricNameClick else null,
+                    priority = if (index == 0) priority else OrderPriority.NORMAL,
                 )
-            }
-
-            // Priority pill — only for non-NORMAL priority
-            if (priority != OrderPriority.NORMAL) {
-                Spacer(Modifier.height(DesignTokens.space3))
-                PriorityPill(priority = priority)
             }
         }
     }
@@ -114,13 +110,14 @@ private fun GarmentItemRow(
     item: OrderItem,
     onAddFabricPhotoClick: (() -> Unit)?,
     onAddFabricNameClick: (() -> Unit)?,
+    priority: OrderPriority,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             Text(
                 text = garmentDisplayName(item.garmentType),
                 style = MaterialTheme.typography.bodyLarge,
@@ -180,6 +177,10 @@ private fun GarmentItemRow(
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
+            }
+            if (priority != OrderPriority.NORMAL) {
+                Spacer(Modifier.weight(1f))
+                PriorityPill(priority = priority)
             }
         }
 
