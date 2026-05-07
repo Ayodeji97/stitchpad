@@ -35,6 +35,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
  * Themed text field for auth screens — icon prefix + optional eye-toggle suffix.
  * Always renders on dark surfaces (matches AuthCard).
  */
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun AuthTextField(
     label: String,

@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength", "MaximumLineLength")
+
 package com.danzucker.stitchpad.feature.auth.presentation.components.icons
 
 import androidx.compose.foundation.Image

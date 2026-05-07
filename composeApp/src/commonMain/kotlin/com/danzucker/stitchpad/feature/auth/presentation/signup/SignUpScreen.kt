@@ -221,6 +221,7 @@ fun SignUpScreen(
                 val termsLink = stringResource(Res.string.signup_terms_link)
                 val termsAnd = stringResource(Res.string.signup_terms_and)
                 val privacyLink = stringResource(Res.string.signup_privacy_link)
+                val checkboxColor = if (state.acceptedTerms) DesignTokens.primary500 else Color(0xFF3A3731)
                 Row(
                     verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -232,10 +233,7 @@ fun SignUpScreen(
                         modifier = Modifier
                             .size(20.dp)
                             .clip(RoundedCornerShape(5.dp))
-                            .background(
-                                if (state.acceptedTerms) DesignTokens.primary500
-                                else Color(0xFF3A3731)
-                            ),
+                            .background(checkboxColor),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (state.acceptedTerms) {

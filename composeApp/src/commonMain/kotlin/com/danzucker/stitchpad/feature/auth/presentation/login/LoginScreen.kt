@@ -171,6 +171,7 @@ fun LoginScreen(
                 )
 
                 // 5. Remember-me + Forgot-password row
+                val rememberMeColor = if (state.rememberMe) DesignTokens.primary500 else Color(0xFF3A3731)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -185,10 +186,7 @@ fun LoginScreen(
                             modifier = Modifier
                                 .size(20.dp)
                                 .clip(RoundedCornerShape(5.dp))
-                                .background(
-                                    if (state.rememberMe) DesignTokens.primary500
-                                    else Color(0xFF3A3731)
-                                ),
+                                .background(rememberMeColor),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (state.rememberMe) {
