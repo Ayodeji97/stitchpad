@@ -929,4 +929,11 @@
     <string name="workshop_logo_coming_soon">Logo upload coming soon</string>
     <string name="workshop_brand_tagline">TAILORED FOR YOU</string>
     <string name="brand_name">STITCHPAD</string>
+
+    <!-- WhatsApp / Workshop Phase 2 -->
+    <string name="error_whatsapp_invalid">Enter a valid Nigerian WhatsApp number (10 digits)</string>
+    <string name="workshop_whatsapp_label">WhatsApp number</string>
+    <string name="workshop_whatsapp_required">Required</string>
+    <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
+    <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 </resources>
