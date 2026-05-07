@@ -51,6 +51,7 @@ import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
 
 private val FABRIC_THUMBNAIL_SIZE = 128.dp
+private val FABRIC_PLACEHOLDER_SIZE = 96.dp
 
 @Composable
 fun OrderGarmentDetailsCard(
@@ -233,7 +234,7 @@ private fun FabricThumbnail(photoUrl: String) {
 private fun FabricPlaceholder() {
     Box(
         modifier = Modifier
-            .size(FABRIC_THUMBNAIL_SIZE)
+            .size(FABRIC_PLACEHOLDER_SIZE)
             .background(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
