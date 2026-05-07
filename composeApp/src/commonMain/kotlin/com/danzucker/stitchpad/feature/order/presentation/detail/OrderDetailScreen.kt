@@ -645,6 +645,7 @@ private fun OrderDetailContent(
                 isOverdue = isOverdue,
                 overdueDaysAgo = overdueDaysAgo,
                 dueLabel = dueLabel,
+                totalPrice = order.totalPrice,
                 balanceRemaining = order.balanceRemaining,
                 cta = cta,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },

@@ -74,6 +74,7 @@ import stitchpad.composeapp.generated.resources.order_detail_send_reminder
 import stitchpad.composeapp.generated.resources.order_detail_share_receipt
 import stitchpad.composeapp.generated.resources.order_detail_start_work
 import stitchpad.composeapp.generated.resources.order_detail_style_caption
+import stitchpad.composeapp.generated.resources.order_detail_total_price
 import stitchpad.composeapp.generated.resources.order_detail_update_status
 import stitchpad.composeapp.generated.resources.order_overdue_label
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
@@ -98,6 +99,7 @@ fun OrderHeroCard(
     isOverdue: Boolean,
     overdueDaysAgo: Int,
     dueLabel: UiText,
+    totalPrice: Double,
     balanceRemaining: Double,
     cta: CtaPair,
     onPrimaryCta: () -> Unit,
@@ -140,6 +142,7 @@ fun OrderHeroCard(
                     priority = priority,
                     isOverdue = isOverdue,
                     dueLabel = dueLabel,
+                    totalPrice = totalPrice,
                     balanceRemaining = balanceRemaining,
                 )
 
@@ -260,6 +263,7 @@ private fun HeroDetails(
     priority: OrderPriority,
     isOverdue: Boolean,
     dueLabel: UiText,
+    totalPrice: Double,
     balanceRemaining: Double,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -308,7 +312,11 @@ private fun HeroDetails(
             verticalAlignment = Alignment.Bottom,
         ) {
             DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
-            BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
+            PriceSection(
+                totalPrice = totalPrice,
+                balanceRemaining = balanceRemaining,
+                isOverdue = isOverdue,
+            )
         }
     }
 }
@@ -449,7 +457,8 @@ private fun DueDateSection(
 }
 
 @Composable
-private fun BalanceSection(
+private fun PriceSection(
+    totalPrice: Double,
     balanceRemaining: Double,
     isOverdue: Boolean,
 ) {
@@ -461,9 +470,21 @@ private fun BalanceSection(
 
     Column(horizontalAlignment = Alignment.End) {
         Text(
+            text = stringResource(Res.string.order_detail_total_price),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "₦${formatPrice(totalPrice)}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
             text = stringResource(Res.string.order_detail_balance_due),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
         )
         Text(
             text = "₦${formatPrice(balanceRemaining)}",
@@ -616,6 +637,7 @@ private fun OrderHeroCardInProgressLightPreview() {
             isOverdue = false,
             overdueDaysAgo = 0,
             dueLabel = UiText.DynamicString("Due 30 Apr"),
+            totalPrice = 75000.0,
             balanceRemaining = 60000.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.IN_PROGRESS,
@@ -647,6 +669,7 @@ private fun OrderHeroCardReadyLightPreview() {
             isOverdue = false,
             overdueDaysAgo = 0,
             dueLabel = UiText.DynamicString("Due 30 Apr"),
+            totalPrice = 30000.0,
             balanceRemaining = 25000.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.READY,
@@ -678,6 +701,7 @@ private fun OrderHeroCardFittingLightPreview() {
             isOverdue = false,
             overdueDaysAgo = 0,
             dueLabel = UiText.DynamicString("Fitting today"),
+            totalPrice = 40000.0,
             balanceRemaining = 40000.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.IN_PROGRESS,
@@ -709,6 +733,7 @@ private fun OrderHeroCardOverdueLightPreview() {
             isOverdue = true,
             overdueDaysAgo = 3,
             dueLabel = UiText.DynamicString("Was due 27 Apr"),
+            totalPrice = 35000.0,
             balanceRemaining = 18000.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.IN_PROGRESS,
@@ -740,6 +765,7 @@ private fun OrderHeroCardDeliveredDarkPreview() {
             isOverdue = false,
             overdueDaysAgo = 0,
             dueLabel = UiText.DynamicString("Delivered 28 Apr"),
+            totalPrice = 80000.0,
             balanceRemaining = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.DELIVERED,
@@ -771,6 +797,7 @@ private fun OrderHeroCardEmptyAddStylePreview() {
             isOverdue = false,
             overdueDaysAgo = 0,
             dueLabel = UiText.DynamicString("Due 29 May"),
+            totalPrice = 40000.0,
             balanceRemaining = 40000.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.PENDING,
