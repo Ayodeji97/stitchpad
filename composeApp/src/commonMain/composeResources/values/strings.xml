@@ -814,6 +814,10 @@
     <string name="order_detail_no_phone">No phone number saved</string>
     <string name="order_detail_add_style">Add style</string>
     <string name="order_detail_link_measurements">Link measurements</string>
+    <string name="measurement_picker_title">Link a measurement</string>
+    <string name="measurement_picker_empty">No measurements yet for this customer.</string>
+    <string name="measurement_picker_taken_caption">Taken %1$s · %2$d fields</string>
+    <string name="measurement_picker_create_new">Create new measurement</string>
     <string name="order_detail_measured_caption">Measured %1$s</string>
     <string name="order_detail_no_measurements">No measurements linked yet</string>
     <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>

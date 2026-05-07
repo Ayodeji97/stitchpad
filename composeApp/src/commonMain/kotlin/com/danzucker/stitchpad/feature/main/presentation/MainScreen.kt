@@ -233,8 +233,10 @@ private fun MainNavGraph(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
-                onNavigateToMeasurementForm = { customerId ->
-                    navController.navigate(MeasurementFormRoute(customerId = customerId))
+                onNavigateToMeasurementForm = { customerId, linkToOrderId ->
+                    navController.navigate(
+                        MeasurementFormRoute(customerId = customerId, linkToOrderId = linkToOrderId),
+                    )
                 },
                 onNavigateToDuplicateOrder = { sourceOrderId ->
                     navController.navigate(OrderFormRoute(seedFromOrderId = sourceOrderId))

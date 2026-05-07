@@ -19,6 +19,9 @@ data class OrderDetailState(
     val style: Style? = null,
     val isLoading: Boolean = true,
 
+    val showMeasurementPickerSheet: Boolean = false,
+    val availableMeasurements: List<Measurement> = emptyList(),
+
     // Dialogs / sheets
     val showDeleteDialog: Boolean = false,
     val showStatusSheet: Boolean = false,

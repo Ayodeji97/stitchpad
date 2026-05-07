@@ -62,6 +62,9 @@ sealed interface OrderDetailAction {
 
     // Measurements
     data object OnLinkMeasurementsClick : OrderDetailAction
+    data class OnSelectMeasurement(val measurementId: String) : OrderDetailAction
+    data object OnCreateNewMeasurementClick : OrderDetailAction
+    data object OnDismissMeasurementPickerSheet : OrderDetailAction
 
     // Misc
     data object OnErrorDismiss : OrderDetailAction

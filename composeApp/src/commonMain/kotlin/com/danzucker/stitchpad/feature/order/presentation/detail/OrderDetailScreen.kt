@@ -64,6 +64,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCustomerCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderDetailOverflowMenu
@@ -140,7 +141,7 @@ private const val MILLIS_PER_DAY: Long = 86_400_000L
 fun OrderDetailRoot(
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
-    onNavigateToMeasurementForm: (customerId: String) -> Unit,
+    onNavigateToMeasurementForm: (customerId: String, linkToOrderId: String) -> Unit,
     onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
     onNavigateToStyleGallery: (customerId: String) -> Unit,
     onNavigateBack: () -> Unit,
@@ -193,8 +194,8 @@ fun OrderDetailRoot(
             }
             is OrderDetailEvent.NavigateToCreateOrder ->
                 onNavigateToDuplicateOrder(event.seedFromOrderId)
-            is OrderDetailEvent.NavigateToMeasurementsList ->
-                onNavigateToMeasurementForm(event.customerId)
+            is OrderDetailEvent.NavigateToMeasurementForm ->
+                onNavigateToMeasurementForm(event.customerId, event.linkToOrderId)
             is OrderDetailEvent.NavigateToStyleGallery ->
                 onNavigateToStyleGallery(event.customerId)
         }
@@ -395,6 +396,17 @@ fun OrderDetailScreen(
             currentSubStatus = state.order.subStatus,
             onTransitionSelected = { onAction(OrderDetailAction.OnSelectStatusTransition(it)) },
             onDismiss = { onAction(OrderDetailAction.OnDismissStatusSheet) },
+        )
+    }
+
+    // Measurement picker sheet — lets user link an existing measurement or create a new one
+    if (state.showMeasurementPickerSheet && state.order != null) {
+        MeasurementPickerSheet(
+            measurements = state.availableMeasurements,
+            selectedMeasurementId = state.order.items.firstOrNull()?.measurementId,
+            onSelectMeasurement = { onAction(OrderDetailAction.OnSelectMeasurement(it)) },
+            onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewMeasurementClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissMeasurementPickerSheet) },
         )
     }
 

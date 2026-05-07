@@ -50,8 +50,8 @@ class OrderDetailViewModel(
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
 
     private var hasStartedObserving = false
-    private var measurementJob: Job? = null
-    private var loadedMeasurementId: String? = null
+    private var measurementsJob: Job? = null
+    private var loadedMeasurementsCustomerId: String? = null
     private var styleJob: Job? = null
     private var loadedStyleId: String? = null
     private val _state = MutableStateFlow(OrderDetailState())
@@ -233,12 +233,21 @@ class OrderDetailViewModel(
             }
 
             // Measurements
-            OrderDetailAction.OnLinkMeasurementsClick -> {
+            OrderDetailAction.OnLinkMeasurementsClick ->
+                _state.update { it.copy(showMeasurementPickerSheet = true) }
+
+            is OrderDetailAction.OnSelectMeasurement -> linkExistingMeasurement(action.measurementId)
+
+            OrderDetailAction.OnCreateNewMeasurementClick -> {
+                _state.update { it.copy(showMeasurementPickerSheet = false) }
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
-                    _events.send(OrderDetailEvent.NavigateToMeasurementsList(customerId))
+                    _events.send(OrderDetailEvent.NavigateToMeasurementForm(customerId, orderId))
                 }
             }
+
+            OrderDetailAction.OnDismissMeasurementPickerSheet ->
+                _state.update { it.copy(showMeasurementPickerSheet = false) }
 
             // Misc
             OrderDetailAction.OnErrorDismiss ->
@@ -283,10 +292,7 @@ class OrderDetailViewModel(
                     is Result.Success -> {
                         _state.update { it.copy(order = result.data, isLoading = false) }
                         loadCustomerIfNeeded(result.data.customerId, userId)
-                        val measurementId = result.data.items.firstOrNull()?.measurementId
-                        if (measurementId != null) {
-                            loadMeasurementIfNeeded(result.data.customerId, measurementId, userId)
-                        }
+                        loadMeasurementsIfNeeded(result.data.customerId, userId)
                         val styleId = result.data.items.firstOrNull()?.styleId
                         if (styleId != null) {
                             loadStyleIfNeeded(result.data.customerId, styleId, userId)
@@ -312,15 +318,39 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun loadMeasurementIfNeeded(customerId: String, measurementId: String, userId: String) {
-        if (loadedMeasurementId == measurementId) return
-        loadedMeasurementId = measurementId
-        measurementJob?.cancel()
-        measurementJob = viewModelScope.launch {
+    private fun loadMeasurementsIfNeeded(customerId: String, userId: String) {
+        if (loadedMeasurementsCustomerId == customerId) return
+        loadedMeasurementsCustomerId = customerId
+        measurementsJob?.cancel()
+        measurementsJob = viewModelScope.launch {
             measurementRepository.observeMeasurements(userId, customerId).collect { res ->
                 if (res is Result.Success) {
-                    val match = res.data.firstOrNull { it.id == measurementId }
-                    if (match != null) _state.update { it.copy(measurement = match) }
+                    _state.update { current ->
+                        val linkedId = current.order?.items?.firstOrNull()?.measurementId
+                        val linked = linkedId?.let { id -> res.data.firstOrNull { it.id == id } }
+                        current.copy(
+                            availableMeasurements = res.data,
+                            measurement = linked,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun linkExistingMeasurement(measurementId: String) {
+        _state.update { it.copy(showMeasurementPickerSheet = false) }
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (firstItem.measurementId != measurementId) {
+            val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) + order.items.drop(1)
+            viewModelScope.launch {
+                val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                    is Result.Success -> Unit // observeOrder Flow re-emits with the new measurementId
+                    is Result.Error -> _state.update {
+                        it.copy(errorMessage = res.error.toOrderUiText())
+                    }
                 }
             }
         }
