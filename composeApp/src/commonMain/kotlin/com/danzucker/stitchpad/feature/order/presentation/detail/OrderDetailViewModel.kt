@@ -300,7 +300,30 @@ class OrderDetailViewModel(
             orderRepository.observeOrder(userId, orderId).collect { result ->
                 when (result) {
                     is Result.Success -> {
-                        _state.update { it.copy(order = result.data, isLoading = false) }
+                        // Re-derive linked style + measurement from already-loaded
+                        // collection lists when the order's items[0].styleId or
+                        // .measurementId changes (e.g., from a picker auto-link).
+                        // Without this, only the *collection* flows update those
+                        // fields, so picking an existing style/measurement leaves
+                        // state.style or state.measurement stale.
+                        _state.update { current ->
+                            val newOrder = result.data
+                            val firstItem = newOrder.items.firstOrNull()
+                            val linkedStyle = firstItem?.styleId?.let { id ->
+                                current.availableStyles.firstOrNull { it.id == id }
+                                    ?: current.style?.takeIf { it.id == id }
+                            }
+                            val linkedMeasurement = firstItem?.measurementId?.let { id ->
+                                current.availableMeasurements.firstOrNull { it.id == id }
+                                    ?: current.measurement?.takeIf { it.id == id }
+                            }
+                            current.copy(
+                                order = newOrder,
+                                isLoading = false,
+                                style = linkedStyle,
+                                measurement = linkedMeasurement,
+                            )
+                        }
                         loadCustomerIfNeeded(result.data.customerId, userId)
                         loadMeasurementsIfNeeded(result.data.customerId, userId)
                         loadStylesIfNeeded(result.data.customerId, userId)
