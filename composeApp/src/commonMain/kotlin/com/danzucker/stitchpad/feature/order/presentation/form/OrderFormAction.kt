@@ -24,6 +24,7 @@ sealed interface OrderFormAction {
     data class OnItemMeasurementChange(val itemId: String, val measurementId: String?) : OrderFormAction
     data class OnItemFabricPhotoPicked(val itemId: String, val photoBytes: ByteArray) : OrderFormAction
     data class OnItemFabricPhotoRemoved(val itemId: String) : OrderFormAction
+    data class OnItemFabricNameChange(val itemId: String, val fabricName: String) : OrderFormAction
 
     // Step 3 - Details
     data class OnDeadlineChange(val deadline: Long?) : OrderFormAction

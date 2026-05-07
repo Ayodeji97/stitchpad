@@ -448,6 +448,8 @@
     <string name="order_form_step_indicator">Step %1$d of %2$d</string>
     <string name="order_form_no_style">None</string>
     <string name="order_form_no_measurement">None</string>
+    <string name="order_form_fabric_name_label">Fabric name (optional)</string>
+    <string name="order_form_fabric_name_placeholder">e.g. Royal Lace, Ankara</string>
     <string name="order_form_fabric_photo_label">Fabric photo (optional)</string>
     <string name="order_form_snap_fabric">Snap fabric photo</string>
     <string name="order_form_photo_take">Take photo</string>
@@ -817,6 +819,7 @@
     <string name="order_detail_no_phone">No phone number saved</string>
     <string name="order_detail_add_style">Add style</string>
     <string name="order_detail_add_fabric">Add fabric photo</string>
+    <string name="order_detail_add_fabric_name">Add fabric name</string>
     <string name="order_detail_link_measurements">Link measurements</string>
     <string name="measurement_picker_title">Link a measurement</string>
     <string name="measurement_picker_empty">No measurements yet for this customer.</string>

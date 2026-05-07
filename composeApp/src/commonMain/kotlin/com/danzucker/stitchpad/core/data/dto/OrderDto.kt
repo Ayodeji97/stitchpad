@@ -44,7 +44,8 @@ data class OrderItemDto(
     val styleId: String? = null,
     val measurementId: String? = null,
     val fabricPhotoUrl: String? = null,
-    val fabricPhotoStoragePath: String? = null
+    val fabricPhotoStoragePath: String? = null,
+    val fabricName: String? = null,
 )
 
 @Serializable

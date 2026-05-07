@@ -43,10 +43,11 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_add_fabric
+import stitchpad.composeapp.generated.resources.order_detail_add_fabric_name
 import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
 
-private val FABRIC_THUMBNAIL_SIZE = 96.dp
+private val FABRIC_THUMBNAIL_SIZE = 128.dp
 
 @Composable
 fun OrderGarmentDetailsCard(
@@ -85,14 +86,13 @@ fun OrderGarmentDetailsCard(
                 if (index > 0) {
                     Spacer(Modifier.height(DesignTokens.space3))
                 }
+                val isFirstItemNeedingFabric = items.indexOfFirst { needsFabricInfo(it) } == index
                 GarmentItemRow(
                     item = item,
-                    // Only the FIRST item with no fabric shows the inline CTA, so a
-                    // multi-item order doesn't get a stack of identical buttons.
-                    onAddFabricClick = if (
-                        item.fabricPhotoUrl.isNullOrBlank() &&
-                        items.indexOfFirst { it.fabricPhotoUrl.isNullOrBlank() } == index
-                    ) {
+                    // Only the FIRST item needing fabric (missing photo OR missing name)
+                    // shows the inline CTA, so a multi-item order doesn't get a stack of
+                    // identical buttons.
+                    onAddFabricClick = if (needsFabricInfo(item) && isFirstItemNeedingFabric) {
                         onAddFabricClick
                     } else {
                         null
@@ -126,6 +126,16 @@ private fun GarmentItemRow(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            if (!item.fabricName.isNullOrBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = item.fabricName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (item.description.isNotBlank()) {
                 Spacer(Modifier.height(2.dp))
                 Text(
@@ -139,14 +149,22 @@ private fun GarmentItemRow(
             // Currently OrderItem has no quantity field; OrderForm always emits qty=1.
             // The "Qty 1" text in the previous design was a placeholder for a future
             // multi-quantity feature. Drop it for now — re-add when the model gains qty.
-            if (onAddFabricClick != null) {
+            val needsPhoto = item.fabricPhotoUrl.isNullOrBlank()
+            val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
+            val showCta = (needsPhoto || needsName) && onAddFabricClick != null
+            val ctaLabel = when {
+                needsPhoto -> Res.string.order_detail_add_fabric
+                needsName -> Res.string.order_detail_add_fabric_name
+                else -> null
+            }
+            if (showCta && ctaLabel != null) {
                 Spacer(Modifier.height(DesignTokens.space1))
                 TextButton(
-                    onClick = onAddFabricClick,
+                    onClick = onAddFabricClick!!,
                     contentPadding = PaddingValues(0.dp),
                 ) {
                     Text(
-                        text = stringResource(Res.string.order_detail_add_fabric),
+                        text = stringResource(ctaLabel),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -266,6 +284,10 @@ private fun SectionIconTile(
     }
 }
 
+/** Returns true when an item is still missing fabric photo or fabric name. */
+private fun needsFabricInfo(item: OrderItem): Boolean =
+    item.fabricPhotoUrl.isNullOrBlank() || item.fabricName.isNullOrBlank()
+
 // region — Previews
 
 @Suppress("UnusedPrivateMember")
@@ -281,6 +303,29 @@ private fun OrderGarmentDetailsCardSingleNormalFabricPreview() {
                     description = "Ankara print",
                     price = 60_000.0,
                     fabricPhotoUrl = "https://example.com/fabric.jpg",
+                    fabricName = "Royal Lace",
+                ),
+            ),
+            priority = OrderPriority.NORMAL,
+            onAddFabricClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderGarmentDetailsCardPhotoSetNameMissingPreview() {
+    StitchPadTheme {
+        OrderGarmentDetailsCard(
+            items = listOf(
+                OrderItem(
+                    id = "i1",
+                    garmentType = GarmentType.AGBADA,
+                    description = "Gold damask",
+                    price = 100_000.0,
+                    fabricPhotoUrl = "https://example.com/fabric.jpg",
+                    fabricName = null,
                 ),
             ),
             priority = OrderPriority.NORMAL,

@@ -137,6 +137,9 @@ class OrderFormViewModel(
             is OrderFormAction.OnItemFabricPhotoRemoved -> updateItem(action.itemId) {
                 it.copy(fabricPhotoBytes = null, fabricPhotoUrl = null, fabricPhotoStoragePath = null)
             }
+            is OrderFormAction.OnItemFabricNameChange -> updateItem(action.itemId) {
+                it.copy(fabricName = action.fabricName)
+            }
             is OrderFormAction.OnDeadlineChange -> {
                 _state.update { it.copy(deadline = action.deadline) }
             }
@@ -295,7 +298,8 @@ class OrderFormViewModel(
         styleId = styleId,
         measurementId = measurementId,
         fabricPhotoUrl = fabricPhotoUrl,
-        fabricPhotoStoragePath = fabricPhotoStoragePath
+        fabricPhotoStoragePath = fabricPhotoStoragePath,
+        fabricName = fabricName.orEmpty(),
     )
 
     @OptIn(ExperimentalUuidApi::class)
@@ -344,7 +348,8 @@ class OrderFormViewModel(
                     styleId = item.styleId,
                     measurementId = item.measurementId,
                     fabricPhotoUrl = fabricUrl,
-                    fabricPhotoStoragePath = fabricPath
+                    fabricPhotoStoragePath = fabricPath,
+                    fabricName = item.fabricName.trim().ifBlank { null },
                 )
             }
 

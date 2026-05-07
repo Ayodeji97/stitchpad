@@ -112,6 +112,8 @@ import stitchpad.composeapp.generated.resources.order_form_deposit_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_placeholder
 import stitchpad.composeapp.generated.resources.order_form_description_label
 import stitchpad.composeapp.generated.resources.order_form_description_placeholder
+import stitchpad.composeapp.generated.resources.order_form_fabric_name_label
+import stitchpad.composeapp.generated.resources.order_form_fabric_name_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_photo_label
 import stitchpad.composeapp.generated.resources.order_form_garment_type_label
 import stitchpad.composeapp.generated.resources.order_form_item_number
@@ -769,6 +771,18 @@ private fun OrderItemCard(
                     }
                 }
             }
+
+            // Fabric name
+            Spacer(Modifier.height(DesignTokens.space3))
+            OutlinedTextField(
+                value = item.fabricName,
+                onValueChange = { onAction(OrderFormAction.OnItemFabricNameChange(item.id, it)) },
+                label = { Text(stringResource(Res.string.order_form_fabric_name_label)) },
+                placeholder = { Text(stringResource(Res.string.order_form_fabric_name_placeholder)) },
+                singleLine = true,
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             // Fabric photo
             Spacer(Modifier.height(DesignTokens.space3))

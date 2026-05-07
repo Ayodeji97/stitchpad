@@ -1,7 +1,10 @@
 package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
+import com.danzucker.stitchpad.core.data.dto.OrderItemDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
@@ -101,5 +104,35 @@ class OrderMapperTest {
         val dtoOut = order.toOrderDto()
         assertEquals(1, dtoOut.payments.size)
         assertEquals("p1", dtoOut.payments.single().id)
+    }
+
+    @Test
+    fun fabricName_roundTrips_dtoToItemAndBack() {
+        val dto = OrderItemDto(
+            id = "item1",
+            garmentType = "SHIRT",
+            description = "Blue shirt",
+            price = 30_000.0,
+            fabricName = "Royal Lace",
+        )
+        val item = dto.toOrderItem()
+        assertEquals("Royal Lace", item.fabricName)
+
+        val dtoOut = item.toOrderItemDto()
+        assertEquals("Royal Lace", dtoOut.fabricName)
+    }
+
+    @Test
+    fun fabricName_nullPreserved_throughRoundTrip() {
+        val dto = OrderItemDto(
+            id = "item2",
+            garmentType = "SENATOR",
+            description = "White senator",
+            price = 80_000.0,
+            fabricName = null,
+        )
+        val item = dto.toOrderItem()
+        assertNull(item.fabricName)
+        assertNull(item.toOrderItemDto().fabricName)
     }
 }

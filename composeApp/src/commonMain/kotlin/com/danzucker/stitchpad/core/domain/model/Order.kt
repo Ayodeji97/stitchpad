@@ -32,7 +32,8 @@ data class OrderItem(
     val styleId: String? = null,
     val measurementId: String? = null,
     val fabricPhotoUrl: String? = null,
-    val fabricPhotoStoragePath: String? = null
+    val fabricPhotoStoragePath: String? = null,
+    val fabricName: String? = null,
 )
 
 data class StatusChange(
