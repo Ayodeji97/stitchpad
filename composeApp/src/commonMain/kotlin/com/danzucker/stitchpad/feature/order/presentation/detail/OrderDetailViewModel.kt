@@ -227,6 +227,12 @@ class OrderDetailViewModel(
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
             OrderDetailAction.OnAddStyleClick ->
                 _state.update { it.copy(showStylePickerSheet = true) }
+            OrderDetailAction.OnAddPhoneClick -> {
+                val customerId = _state.value.order?.customerId ?: return
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToCustomerForm(customerId))
+                }
+            }
 
             // Styles
             is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId)

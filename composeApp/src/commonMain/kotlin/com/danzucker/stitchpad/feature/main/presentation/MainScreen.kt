@@ -233,6 +233,9 @@ private fun MainNavGraph(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
+                onNavigateToCustomerForm = { customerId ->
+                    navController.navigate(CustomerFormRoute(customerId = customerId))
+                },
                 onNavigateToMeasurementForm = { customerId, linkToOrderId ->
                     navController.navigate(
                         MeasurementFormRoute(customerId = customerId, linkToOrderId = linkToOrderId),

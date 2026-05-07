@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -23,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,28 +33,36 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.order_detail_add_phone
 import stitchpad.composeapp.generated.resources.order_detail_customer_section
+import stitchpad.composeapp.generated.resources.order_detail_customer_since
 
 private val WHATSAPP_GREEN = Color(0xFF25D366)
+private val LEFT_INDENT = 28.dp + DesignTokens.space2
 
 @Composable
 fun OrderCustomerCard(
     customerName: String,
     phone: String?,
+    customerCreatedAt: Long?,
     onWhatsAppClick: () -> Unit,
     onCallClick: () -> Unit,
+    onAddPhoneClick: () -> Unit,
     onCustomerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(DesignTokens.radiusLg)
     Surface(
-        shape = shape,
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
@@ -59,82 +70,146 @@ fun OrderCustomerCard(
             .clickable(onClick = onCustomerClick, role = Role.Button),
     ) {
         Column(modifier = Modifier.padding(DesignTokens.space4)) {
-            // Header row
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-            ) {
-                SectionIconTile(
-                    imageVector = Icons.Outlined.Person,
-                    contentDescription = null,
-                )
-                Text(
-                    text = stringResource(Res.string.order_detail_customer_section),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            CardHeader()
 
             Spacer(Modifier.height(DesignTokens.space3))
 
-            // Customer name — indented to align with section label (28dp icon + 8dp gap)
             Text(
                 text = customerName,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 28.dp + DesignTokens.space2),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = LEFT_INDENT),
             )
+
+            val sinceCaption = customerCreatedAt
+                ?.takeIf { it > 0L }
+                ?.let { formatCustomerSince(it) }
+            if (sinceCaption != null) {
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(start = LEFT_INDENT),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Event,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.order_detail_customer_since,
+                            sinceCaption,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             Spacer(Modifier.height(DesignTokens.space3))
 
-            // Action chips
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                modifier = Modifier.padding(start = 28.dp + DesignTokens.space2),
-            ) {
-                AssistChip(
-                    onClick = onWhatsAppClick,
-                    enabled = phone != null,
-                    label = {
-                        Text(
-                            text = "WhatsApp",
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Chat,
-                            contentDescription = null,
-                            modifier = Modifier.size(DesignTokens.iconInline),
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        labelColor = WHATSAPP_GREEN,
-                        leadingIconContentColor = WHATSAPP_GREEN,
-                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    ),
-                )
-                AssistChip(
-                    onClick = onCallClick,
-                    enabled = phone != null,
-                    label = {
-                        Text(
-                            text = "Call",
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = null,
-                            modifier = Modifier.size(DesignTokens.iconInline),
-                        )
-                    },
+            if (phone.isNullOrBlank()) {
+                AddPhoneCta(onClick = onAddPhoneClick)
+            } else {
+                ReachOutChips(
+                    onWhatsAppClick = onWhatsAppClick,
+                    onCallClick = onCallClick,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CardHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
+        SectionIconTile(
+            imageVector = Icons.Outlined.Person,
+            contentDescription = null,
+        )
+        Text(
+            text = stringResource(Res.string.order_detail_customer_section),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(DesignTokens.iconInline),
+        )
+    }
+}
+
+@Composable
+private fun ReachOutChips(
+    onWhatsAppClick: () -> Unit,
+    onCallClick: () -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        modifier = Modifier.padding(start = LEFT_INDENT),
+    ) {
+        AssistChip(
+            onClick = onWhatsAppClick,
+            label = {
+                Text(
+                    text = "WhatsApp",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null,
+                    modifier = Modifier.size(DesignTokens.iconInline),
+                )
+            },
+            colors = AssistChipDefaults.assistChipColors(
+                labelColor = WHATSAPP_GREEN,
+                leadingIconContentColor = WHATSAPP_GREEN,
+            ),
+        )
+        AssistChip(
+            onClick = onCallClick,
+            label = {
+                Text(
+                    text = "Call",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = null,
+                    modifier = Modifier.size(DesignTokens.iconInline),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun AddPhoneCta(onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.padding(start = LEFT_INDENT - DesignTokens.space2),
+    ) {
+        Text(
+            text = stringResource(Res.string.order_detail_add_phone),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -161,6 +236,13 @@ private fun SectionIconTile(
     }
 }
 
+private fun formatCustomerSince(epochMillis: Long): String {
+    val date = Instant.fromEpochMilliseconds(epochMillis)
+        .toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+    return "$month ${date.year}"
+}
+
 // region — Previews
 
 @Suppress("UnusedPrivateMember")
@@ -171,8 +253,10 @@ private fun OrderCustomerCardLightWithPhonePreview() {
         OrderCustomerCard(
             customerName = "Adaeze Okoro",
             phone = "+2348012345678",
+            customerCreatedAt = 1_746_316_800_000L,
             onWhatsAppClick = {},
             onCallClick = {},
+            onAddPhoneClick = {},
             onCustomerClick = {},
         )
     }
@@ -186,8 +270,10 @@ private fun OrderCustomerCardLightNoPhonePreview() {
         OrderCustomerCard(
             customerName = "Adaeze Okoro",
             phone = null,
+            customerCreatedAt = 1_746_316_800_000L,
             onWhatsAppClick = {},
             onCallClick = {},
+            onAddPhoneClick = {},
             onCustomerClick = {},
         )
     }
@@ -201,8 +287,10 @@ private fun OrderCustomerCardDarkWithPhonePreview() {
         OrderCustomerCard(
             customerName = "Kunle Adeyemi",
             phone = "+2348087654321",
+            customerCreatedAt = 1_743_638_400_000L,
             onWhatsAppClick = {},
             onCallClick = {},
+            onAddPhoneClick = {},
             onCustomerClick = {},
         )
     }
@@ -216,8 +304,10 @@ private fun OrderCustomerCardDarkNoPhonePreview() {
         OrderCustomerCard(
             customerName = "Kunle Adeyemi",
             phone = null,
+            customerCreatedAt = 1_743_638_400_000L,
             onWhatsAppClick = {},
             onCallClick = {},
+            onAddPhoneClick = {},
             onCustomerClick = {},
         )
     }

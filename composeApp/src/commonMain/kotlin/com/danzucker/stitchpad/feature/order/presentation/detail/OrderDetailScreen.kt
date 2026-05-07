@@ -144,6 +144,7 @@ private const val MILLIS_PER_DAY: Long = 86_400_000L
 fun OrderDetailRoot(
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToCustomerForm: (customerId: String) -> Unit,
     onNavigateToMeasurementForm: (customerId: String, linkToOrderId: String) -> Unit,
     onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
     onNavigateToStyleForm: (customerId: String, linkToOrderId: String) -> Unit,
@@ -167,6 +168,7 @@ fun OrderDetailRoot(
         when (event) {
             is OrderDetailEvent.NavigateToOrderForm -> onNavigateToOrderForm(event.orderId)
             is OrderDetailEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+            is OrderDetailEvent.NavigateToCustomerForm -> onNavigateToCustomerForm(event.customerId)
             OrderDetailEvent.NavigateBack -> onNavigateBack()
             OrderDetailEvent.OrderDeleted -> onNavigateBack()
             OrderDetailEvent.OrderArchived -> {
@@ -689,8 +691,10 @@ private fun OrderDetailContent(
             OrderCustomerCard(
                 customerName = order.customerName,
                 phone = state.customer?.phone,
+                customerCreatedAt = state.customer?.createdAt,
                 onWhatsAppClick = { onAction(OrderDetailAction.OnWhatsAppClick) },
                 onCallClick = { onAction(OrderDetailAction.OnCallClick) },
+                onAddPhoneClick = { onAction(OrderDetailAction.OnAddPhoneClick) },
                 onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }

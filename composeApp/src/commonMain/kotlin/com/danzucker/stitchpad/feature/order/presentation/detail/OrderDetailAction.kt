@@ -59,6 +59,7 @@ sealed interface OrderDetailAction {
     data object OnCallClick : OrderDetailAction
     data object OnSendReminderClick : OrderDetailAction
     data object OnAddStyleClick : OrderDetailAction
+    data object OnAddPhoneClick : OrderDetailAction
 
     // Styles
     data class OnSelectStyle(val styleId: String) : OrderDetailAction

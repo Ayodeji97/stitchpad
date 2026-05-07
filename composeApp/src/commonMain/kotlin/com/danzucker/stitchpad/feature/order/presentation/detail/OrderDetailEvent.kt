@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 sealed interface OrderDetailEvent {
     data class NavigateToOrderForm(val orderId: String) : OrderDetailEvent
     data class NavigateToCustomerDetail(val customerId: String) : OrderDetailEvent
+    data class NavigateToCustomerForm(val customerId: String) : OrderDetailEvent
     data class NavigateToCreateOrder(val seedFromOrderId: String) : OrderDetailEvent
     data class NavigateToMeasurementForm(val customerId: String, val linkToOrderId: String) : OrderDetailEvent
     data class NavigateToStyleForm(val customerId: String, val linkToOrderId: String) : OrderDetailEvent
