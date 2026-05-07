@@ -259,9 +259,34 @@ class OrderDetailViewModel(
             OrderDetailAction.OnDismissMeasurementPickerSheet ->
                 _state.update { it.copy(showMeasurementPickerSheet = false) }
 
+            // Deadline
+            OrderDetailAction.OnSetDeadlineClick ->
+                _state.update { it.copy(showDatePickerDialog = true) }
+
+            is OrderDetailAction.OnDeadlineSelected -> setDeadline(action.epochMillis)
+
+            OrderDetailAction.OnDismissDatePickerDialog ->
+                _state.update { it.copy(showDatePickerDialog = false) }
+
             // Misc
             OrderDetailAction.OnErrorDismiss ->
                 _state.update { it.copy(errorMessage = null) }
+        }
+    }
+
+    private fun setDeadline(epochMillis: Long) {
+        _state.update { it.copy(showDatePickerDialog = false) }
+        val order = _state.value.order ?: return
+        if (order.deadline == epochMillis) return
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val updated = order.copy(deadline = epochMillis)
+            when (val res = orderRepository.updateOrder(userId, updated)) {
+                is Result.Success -> Unit
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = res.error.toOrderUiText())
+                }
+            }
         }
     }
 

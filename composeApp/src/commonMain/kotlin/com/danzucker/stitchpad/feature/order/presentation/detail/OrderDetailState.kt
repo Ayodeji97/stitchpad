@@ -33,6 +33,7 @@ data class OrderDetailState(
     val showRecordPaymentDialog: Boolean = false,
     val showArchiveDialog: Boolean = false,
     val showOverflowMenu: Boolean = false,
+    val showDatePickerDialog: Boolean = false,
 
     // Payment dialog state
     val paymentAmountInput: String = "",

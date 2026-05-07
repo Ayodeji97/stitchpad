@@ -79,12 +79,14 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Reco
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -481,6 +483,23 @@ fun OrderDetailScreen(
             onDismiss = { onAction(OrderDetailAction.OnDismissRecordPayment) },
         )
     }
+
+    // Set-deadline date picker
+    if (state.showDatePickerDialog && state.order != null) {
+        val timeZone = TimeZone.currentSystemDefault()
+        val initialDate = state.order.deadline?.let { millis ->
+            Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
+        }
+        CustomDatePickerDialog(
+            initial = initialDate,
+            timeZone = timeZone,
+            onDismiss = { onAction(OrderDetailAction.OnDismissDatePickerDialog) },
+            onConfirm = { picked ->
+                val millis = picked.atStartOfDayIn(timeZone).toEpochMilliseconds()
+                onAction(OrderDetailAction.OnDeadlineSelected(millis))
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -663,6 +682,7 @@ private fun OrderDetailContent(
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
                 onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
+                onSetDeadlineClick = { onAction(OrderDetailAction.OnSetDeadlineClick) },
             )
         }
         item {

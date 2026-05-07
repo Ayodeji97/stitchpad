@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,6 +73,7 @@ import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_one
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_other
 import stitchpad.composeapp.generated.resources.order_detail_send_reminder
+import stitchpad.composeapp.generated.resources.order_detail_set_deadline
 import stitchpad.composeapp.generated.resources.order_detail_share_receipt
 import stitchpad.composeapp.generated.resources.order_detail_start_work
 import stitchpad.composeapp.generated.resources.order_detail_style_caption
@@ -105,6 +108,7 @@ fun OrderHeroCard(
     onPrimaryCta: () -> Unit,
     onSecondaryCta: () -> Unit,
     onAddStyleClick: () -> Unit,
+    onSetDeadlineClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val borderColor = if (isOverdue) {
@@ -144,6 +148,7 @@ fun OrderHeroCard(
                     dueLabel = dueLabel,
                     totalPrice = totalPrice,
                     balanceRemaining = balanceRemaining,
+                    onSetDeadlineClick = onSetDeadlineClick,
                 )
 
                 // ── Overdue banner ────────────────────────────────────────────
@@ -265,6 +270,7 @@ private fun HeroDetails(
     dueLabel: UiText?,
     totalPrice: Double,
     balanceRemaining: Double,
+    onSetDeadlineClick: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -328,21 +334,19 @@ private fun HeroDetails(
         }
 
         // Due / balance row — top-aligned so the single-line Due hugs the top
-        // of the (taller) Balance section instead of floating to the bottom.
-        // When dueLabel is null (no deadline + not Ready), Balance keeps the
-        // right-aligned slot to itself instead of leaving an orphan calendar
-        // icon with a bare "Due " label on the left.
+        // of the (taller) Balance section. When no deadline is set, the left
+        // slot becomes a "Set deadline" CTA instead of leaving the row
+        // lopsided — matches the empty-state CTA pattern (Add style, Link
+        // measurements) used elsewhere in the redesign.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (dueLabel != null) {
-                Arrangement.SpaceBetween
-            } else {
-                Arrangement.End
-            },
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
             if (dueLabel != null) {
                 DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
+            } else {
+                SetDeadlineCta(onClick = onSetDeadlineClick)
             }
             BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
         }
@@ -480,6 +484,31 @@ private fun DueDateSection(
             text = dueLabel.asString(),
             style = MaterialTheme.typography.bodySmall,
             color = dateColor,
+        )
+    }
+}
+
+@Composable
+private fun SetDeadlineCta(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(DesignTokens.radiusFull))
+            .clickable(onClick = onClick, role = Role.Button)
+            .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Event,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            text = stringResource(Res.string.order_detail_set_deadline),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }
@@ -663,6 +692,7 @@ private fun OrderHeroCardInProgressLightPreview() {
             onPrimaryCta = {},
             onSecondaryCta = {},
             onAddStyleClick = {},
+            onSetDeadlineClick = {},
         )
     }
 }
@@ -695,6 +725,7 @@ private fun OrderHeroCardReadyLightPreview() {
             onPrimaryCta = {},
             onSecondaryCta = {},
             onAddStyleClick = {},
+            onSetDeadlineClick = {},
         )
     }
 }
@@ -727,6 +758,7 @@ private fun OrderHeroCardFittingLightPreview() {
             onPrimaryCta = {},
             onSecondaryCta = {},
             onAddStyleClick = {},
+            onSetDeadlineClick = {},
         )
     }
 }
@@ -759,6 +791,7 @@ private fun OrderHeroCardOverdueLightPreview() {
             onPrimaryCta = {},
             onSecondaryCta = {},
             onAddStyleClick = {},
+            onSetDeadlineClick = {},
         )
     }
 }
@@ -791,6 +824,7 @@ private fun OrderHeroCardDeliveredDarkPreview() {
             onPrimaryCta = {},
             onSecondaryCta = {},
             onAddStyleClick = {},
+            onSetDeadlineClick = {},
         )
     }
 }
@@ -823,6 +857,7 @@ private fun OrderHeroCardEmptyAddStylePreview() {
             onPrimaryCta = {},
             onSecondaryCta = {},
             onAddStyleClick = {},
+            onSetDeadlineClick = {},
         )
     }
 }

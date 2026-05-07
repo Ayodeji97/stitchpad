@@ -71,6 +71,11 @@ sealed interface OrderDetailAction {
     data object OnCreateNewMeasurementClick : OrderDetailAction
     data object OnDismissMeasurementPickerSheet : OrderDetailAction
 
+    // Deadline
+    data object OnSetDeadlineClick : OrderDetailAction
+    data class OnDeadlineSelected(val epochMillis: Long) : OrderDetailAction
+    data object OnDismissDatePickerDialog : OrderDetailAction
+
     // Misc
     data object OnErrorDismiss : OrderDetailAction
 }
