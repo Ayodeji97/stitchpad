@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -47,7 +46,6 @@ fun OrderCustomerCard(
     phone: String?,
     onWhatsAppClick: () -> Unit,
     onCallClick: () -> Unit,
-    onMeasurementsClick: () -> Unit,
     onCustomerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -135,22 +133,6 @@ fun OrderCustomerCard(
                         )
                     },
                 )
-                AssistChip(
-                    onClick = onMeasurementsClick,
-                    label = {
-                        Text(
-                            text = "Sizes",
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Straighten,
-                            contentDescription = null,
-                            modifier = Modifier.size(DesignTokens.iconInline),
-                        )
-                    },
-                )
             }
         }
     }
@@ -191,7 +173,6 @@ private fun OrderCustomerCardLightWithPhonePreview() {
             phone = "+2348012345678",
             onWhatsAppClick = {},
             onCallClick = {},
-            onMeasurementsClick = {},
             onCustomerClick = {},
         )
     }
@@ -207,7 +188,6 @@ private fun OrderCustomerCardLightNoPhonePreview() {
             phone = null,
             onWhatsAppClick = {},
             onCallClick = {},
-            onMeasurementsClick = {},
             onCustomerClick = {},
         )
     }
@@ -223,7 +203,6 @@ private fun OrderCustomerCardDarkWithPhonePreview() {
             phone = "+2348087654321",
             onWhatsAppClick = {},
             onCallClick = {},
-            onMeasurementsClick = {},
             onCustomerClick = {},
         )
     }
@@ -239,7 +218,6 @@ private fun OrderCustomerCardDarkNoPhonePreview() {
             phone = null,
             onWhatsAppClick = {},
             onCallClick = {},
-            onMeasurementsClick = {},
             onCustomerClick = {},
         )
     }

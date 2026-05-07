@@ -812,8 +812,10 @@
     <string name="order_detail_delivered_label">Delivered %1$s</string>
     <string name="order_detail_overdue_banner">Customer is waiting · %1$s overdue</string>
     <string name="order_detail_no_phone">No phone number saved</string>
+    <string name="order_detail_add_style">Add style</string>
     <string name="order_detail_link_measurements">Link measurements</string>
-    <string name="order_detail_no_measurements">No measurements linked</string>
+    <string name="order_detail_measured_caption">Measured %1$s</string>
+    <string name="order_detail_no_measurements">No measurements linked yet</string>
     <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>
     <string name="order_detail_footer_caption_delivered">Order #%1$s · Delivered %2$s</string>
 
@@ -836,8 +838,8 @@
     <string name="payment_method_pos">POS</string>
     <string name="payment_method_other">Other</string>
     <string name="payment_type_deposit">Deposit</string>
-    <string name="payment_type_progress">Progress payment</string>
-    <string name="payment_type_final">Final payment</string>
+    <string name="payment_type_progress">Progress pay</string>
+    <string name="payment_type_final">Final pay</string>
 
     <!-- Hero card — overdue banner day plurals -->
     <string name="order_detail_overdue_days_one">1 day</string>
@@ -863,7 +865,7 @@
     <!-- Record Payment V2 dialog -->
     <string name="record_payment_dialog_title">Record payment</string>
     <string name="record_payment_dialog_amount_label">Amount</string>
-    <string name="record_payment_dialog_type_label">Type</string>
+    <string name="record_payment_dialog_type_label">Payment type</string>
     <string name="record_payment_dialog_method_label">Method</string>
     <string name="record_payment_dialog_mark_paid_full">Mark paid in full · ₦%1$s</string>
     <string name="payment_capped_at_balance">Capped at balance %1$s</string>

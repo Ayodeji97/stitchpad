@@ -58,9 +58,9 @@ sealed interface OrderDetailAction {
     data object OnWhatsAppClick : OrderDetailAction
     data object OnCallClick : OrderDetailAction
     data object OnSendReminderClick : OrderDetailAction
+    data object OnAddStyleClick : OrderDetailAction
 
     // Measurements
-    data object OnMeasurementsScrollClick : OrderDetailAction
     data object OnLinkMeasurementsClick : OrderDetailAction
 
     // Misc

@@ -73,7 +73,7 @@ class OrderDetailViewModel(
             initialValue = OrderDetailState(),
         )
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun onAction(action: OrderDetailAction) {
         when (action) {
             // Navigation
@@ -225,10 +225,14 @@ class OrderDetailViewModel(
             OrderDetailAction.OnWhatsAppClick -> launchWhatsApp()
             OrderDetailAction.OnCallClick -> launchDialer()
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
+            OrderDetailAction.OnAddStyleClick -> {
+                val customerId = _state.value.order?.customerId ?: return
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToStyleGallery(customerId))
+                }
+            }
 
             // Measurements
-            OrderDetailAction.OnMeasurementsScrollClick ->
-                viewModelScope.launch { _events.send(OrderDetailEvent.ScrollToMeasurements) }
             OrderDetailAction.OnLinkMeasurementsClick -> {
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {

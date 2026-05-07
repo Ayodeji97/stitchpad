@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.order_detail_add_style
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
 import stitchpad.composeapp.generated.resources.order_detail_style_caption
 
@@ -49,6 +51,7 @@ fun OrderGarmentDetailsCard(
     items: List<OrderItem>,
     style: Style?,
     priority: OrderPriority,
+    onAddStyleClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
@@ -83,7 +86,12 @@ fun OrderGarmentDetailsCard(
                 val isFirstStyleMatch = style != null &&
                     item.styleId == style.id &&
                     items.indexOfFirst { it.styleId == style.id } == index
-                GarmentItemRow(item = item, style = if (isFirstStyleMatch) style else null)
+                val isFirstItem = index == 0
+                GarmentItemRow(
+                    item = item,
+                    style = if (isFirstStyleMatch) style else null,
+                    onAddStyleClick = if (isFirstItem && style == null) onAddStyleClick else null,
+                )
             }
 
             // Priority pill — only for non-NORMAL priority
@@ -96,7 +104,11 @@ fun OrderGarmentDetailsCard(
 }
 
 @Composable
-private fun GarmentItemRow(item: OrderItem, style: Style?) {
+private fun GarmentItemRow(
+    item: OrderItem,
+    style: Style?,
+    onAddStyleClick: (() -> Unit)? = null,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -124,6 +136,19 @@ private fun GarmentItemRow(item: OrderItem, style: Style?) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // "Add style" CTA — only shown on the first item when no style is linked
+            if (style == null && onAddStyleClick != null) {
+                TextButton(
+                    onClick = onAddStyleClick,
+                    modifier = Modifier.padding(start = 0.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.order_detail_add_style),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
         }
 
         // Style thumbnail when available, garment-type icon placeholder otherwise.

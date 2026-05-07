@@ -34,13 +34,17 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_link_measurements
+import stitchpad.composeapp.generated.resources.order_detail_measured_caption
 import stitchpad.composeapp.generated.resources.order_detail_measurements_preview
 import stitchpad.composeapp.generated.resources.order_detail_no_measurements
 
-private const val MAX_PREVIEW_TILES = 3
+private const val MAX_PREVIEW_FIELDS = 3
 
 @Composable
 fun OrderMeasurementsPreviewCard(
@@ -79,23 +83,55 @@ fun OrderMeasurementsPreviewCard(
             Spacer(Modifier.height(DesignTokens.space3))
 
             if (measurement != null) {
-                val unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "in" else "cm"
-                val tileLabels = primaryFieldLabels.take(MAX_PREVIEW_TILES)
+                val unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "″" else "cm"
+                val fields = primaryFieldLabels.take(MAX_PREVIEW_FIELDS)
+
+                // Horizontal value row: Label + value pairs separated by " · " dots
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                    verticalAlignment = Alignment.Bottom,
                 ) {
-                    tileLabels.forEach { label ->
+                    fields.forEachIndexed { index, label ->
                         val value = measurement.fields[label]
-                        MeasurementTile(
-                            label = label,
-                            // String.format is JVM-only — use direct conversion so iOS compiles too.
-                            // Tailors work in whole inches/cm; rounding to Int matches the mockups.
-                            value = if (value != null) "${value.toInt()} $unitSuffix" else "—",
-                            modifier = Modifier.weight(1f),
-                        )
+                        val displayValue = if (value != null) "${value.toInt()}$unitSuffix" else "—"
+
+                        if (index > 0) {
+                            Text(
+                                text = "·",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = displayValue,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
+
+                Spacer(Modifier.height(DesignTokens.space2))
+
+                // "Measured DD MMM YYYY" caption
+                Text(
+                    text = stringResource(
+                        Res.string.order_detail_measured_caption,
+                        formatShortDate(measurement.dateTaken),
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else {
                 Column(horizontalAlignment = Alignment.Start) {
                     Text(
@@ -116,36 +152,11 @@ fun OrderMeasurementsPreviewCard(
     }
 }
 
-@Composable
-private fun MeasurementTile(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusMd),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = modifier,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = DesignTokens.space2),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(DesignTokens.space1))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-    }
+private fun formatShortDate(epochMillis: Long): String {
+    val date = Instant.fromEpochMilliseconds(epochMillis)
+        .toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+    return "${date.dayOfMonth} $month ${date.year}"
 }
 
 @Composable
@@ -186,7 +197,7 @@ private fun OrderMeasurementsPreviewCardPopulatedLightPreview() {
                 fields = mapOf("Chest" to 42.0, "Waist" to 34.0, "Length" to 38.0),
                 unit = MeasurementUnit.INCHES,
                 notes = null,
-                dateTaken = 0L,
+                dateTaken = 1_743_638_400_000L, // 3 Apr 2025
                 createdAt = 0L,
             ),
             primaryFieldLabels = listOf("Chest", "Waist", "Length"),
@@ -209,7 +220,7 @@ private fun OrderMeasurementsPreviewCardPopulatedDarkPreview() {
                 fields = mapOf("Chest" to 42.0, "Waist" to 34.0, "Length" to 38.0),
                 unit = MeasurementUnit.INCHES,
                 notes = null,
-                dateTaken = 0L,
+                dateTaken = 1_743_638_400_000L, // 3 Apr 2025
                 createdAt = 0L,
             ),
             primaryFieldLabels = listOf("Chest", "Waist", "Length"),

@@ -134,7 +134,6 @@ import stitchpad.composeapp.generated.resources.share_receipt_title
 import kotlin.time.Clock
 
 private const val MILLIS_PER_DAY: Long = 86_400_000L
-private const val MEASUREMENTS_CARD_INDEX: Int = 5
 
 @Suppress("CyclomaticComplexMethod")
 @Composable
@@ -143,6 +142,7 @@ fun OrderDetailRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToMeasurementForm: (customerId: String) -> Unit,
     onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
+    onNavigateToStyleGallery: (customerId: String) -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val viewModel: OrderDetailViewModel = koinViewModel()
@@ -195,11 +195,8 @@ fun OrderDetailRoot(
                 onNavigateToDuplicateOrder(event.seedFromOrderId)
             is OrderDetailEvent.NavigateToMeasurementsList ->
                 onNavigateToMeasurementForm(event.customerId)
-            OrderDetailEvent.ScrollToMeasurements -> {
-                snackbarScope.launch {
-                    measurementsListState.animateScrollToItem(MEASUREMENTS_CARD_INDEX)
-                }
-            }
+            is OrderDetailEvent.NavigateToStyleGallery ->
+                onNavigateToStyleGallery(event.customerId)
         }
     }
 
@@ -647,7 +644,6 @@ private fun OrderDetailContent(
                 phone = state.customer?.phone,
                 onWhatsAppClick = { onAction(OrderDetailAction.OnWhatsAppClick) },
                 onCallClick = { onAction(OrderDetailAction.OnCallClick) },
-                onMeasurementsClick = { onAction(OrderDetailAction.OnMeasurementsScrollClick) },
                 onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }
@@ -656,6 +652,7 @@ private fun OrderDetailContent(
                 items = order.items,
                 style = state.style,
                 priority = order.priority,
+                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
             )
         }
         item {

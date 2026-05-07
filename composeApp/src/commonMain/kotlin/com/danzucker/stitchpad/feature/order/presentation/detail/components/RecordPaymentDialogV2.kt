@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -72,11 +73,15 @@ fun RecordPaymentDialogV2(
             )
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = onConfirm,
                 enabled = isConfirmEnabled,
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
             ) {
-                Text(text = stringResource(Res.string.order_record_payment_confirm))
+                Text(
+                    text = stringResource(Res.string.order_record_payment_confirm),
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         },
         dismissButton = {
@@ -150,21 +155,20 @@ private fun RecordPaymentDialogV2Content(
                     null
                 },
             )
-        }
-
-        // ── Mark paid in full shortcut ────────────────────────────────────────
-        TextButton(
-            onClick = onMarkPaidInFull,
-            enabled = balanceRemaining > 0.0,
-            modifier = Modifier.align(Alignment.End),
-        ) {
-            Text(
-                text = stringResource(
-                    Res.string.record_payment_dialog_mark_paid_full,
-                    formatPrice(balanceRemaining),
-                ),
-                style = MaterialTheme.typography.labelSmall,
-            )
+            // ── Mark paid in full shortcut (inline, under the amount field) ──
+            TextButton(
+                onClick = onMarkPaidInFull,
+                enabled = balanceRemaining > 0.0,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.record_payment_dialog_mark_paid_full,
+                        formatPrice(balanceRemaining),
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
 
         // ── Type segmented control ────────────────────────────────────────────
