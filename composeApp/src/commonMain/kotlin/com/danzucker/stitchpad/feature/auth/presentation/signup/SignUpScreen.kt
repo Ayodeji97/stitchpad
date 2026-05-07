@@ -102,6 +102,7 @@ fun SignUpRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
+            SignUpEvent.ShowComingSoon -> { /* handled in Task 1.13 visual rebuild */ }
         }
     }
 

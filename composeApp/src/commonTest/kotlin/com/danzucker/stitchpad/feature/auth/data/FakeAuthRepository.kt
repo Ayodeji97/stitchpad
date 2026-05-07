@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 class FakeAuthRepository : AuthRepository {
     var shouldReturnError: AuthError? = null
     var resetEmailSentTo: String? = null
+    var signUpInvocationCount = 0
     private var currentUser: User? = null
 
     var currentBusinessName: String?
@@ -22,6 +23,7 @@ class FakeAuthRepository : AuthRepository {
         password: String,
         displayName: String
     ): Result<User, AuthError> {
+        signUpInvocationCount++
         shouldReturnError?.let { return Result.Error(it) }
         val user = User(
             id = "test-uid",
