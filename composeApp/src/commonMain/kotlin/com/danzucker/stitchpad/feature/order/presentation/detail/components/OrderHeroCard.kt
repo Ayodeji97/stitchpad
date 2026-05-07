@@ -98,7 +98,7 @@ fun OrderHeroCard(
     priority: OrderPriority,
     isOverdue: Boolean,
     overdueDaysAgo: Int,
-    dueLabel: UiText,
+    dueLabel: UiText?,
     totalPrice: Double,
     balanceRemaining: Double,
     cta: CtaPair,
@@ -262,7 +262,7 @@ private fun HeroDetails(
     subStatus: OrderSubStatus?,
     priority: OrderPriority,
     isOverdue: Boolean,
-    dueLabel: UiText,
+    dueLabel: UiText?,
     totalPrice: Double,
     balanceRemaining: Double,
 ) {
@@ -329,12 +329,21 @@ private fun HeroDetails(
 
         // Due / balance row — top-aligned so the single-line Due hugs the top
         // of the (taller) Balance section instead of floating to the bottom.
+        // When dueLabel is null (no deadline + not Ready), Balance keeps the
+        // right-aligned slot to itself instead of leaving an orphan calendar
+        // icon with a bare "Due " label on the left.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = if (dueLabel != null) {
+                Arrangement.SpaceBetween
+            } else {
+                Arrangement.End
+            },
             verticalAlignment = Alignment.Top,
         ) {
-            DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
+            if (dueLabel != null) {
+                DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
+            }
             BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
         }
     }

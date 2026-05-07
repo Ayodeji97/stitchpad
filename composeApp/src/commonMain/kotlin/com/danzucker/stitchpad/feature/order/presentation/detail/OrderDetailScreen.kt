@@ -762,15 +762,21 @@ private fun handleSecondaryCta(cta: SecondaryCta, onAction: (OrderDetailAction) 
 }
 
 @Composable
-private fun formatDueLabel(order: Order, isOverdue: Boolean): UiText {
+private fun formatDueLabel(order: Order, isOverdue: Boolean): UiText? {
     val deadlineDate = order.deadline?.let {
         Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.currentSystemDefault()).date
     }
     val readableDeadline = deadlineDate?.let {
         val month = it.month.name.take(3).lowercase().replaceFirstChar(Char::uppercase)
         "${it.dayOfMonth} $month"
-    } ?: ""
+    }
+    // Ready always shows "Pickup today" regardless of deadline; other states need
+    // an actual deadline to render — without one we return null so the hero hides
+    // the date row entirely instead of showing a bare "Due " label.
     return when {
+        order.status == OrderStatus.READY ->
+            UiText.StringResourceText(Res.string.order_detail_pickup_today)
+        readableDeadline == null -> null
         order.status == OrderStatus.DELIVERED -> UiText.StringResourceText(
             Res.string.order_detail_delivered_label,
             arrayOf(readableDeadline),
@@ -779,8 +785,10 @@ private fun formatDueLabel(order: Order, isOverdue: Boolean): UiText {
             Res.string.order_detail_was_due_label,
             arrayOf(readableDeadline),
         )
-        order.status == OrderStatus.READY -> UiText.StringResourceText(Res.string.order_detail_pickup_today)
-        else -> UiText.StringResourceText(Res.string.order_detail_due_label, arrayOf(readableDeadline))
+        else -> UiText.StringResourceText(
+            Res.string.order_detail_due_label,
+            arrayOf(readableDeadline),
+        )
     }
 }
 
