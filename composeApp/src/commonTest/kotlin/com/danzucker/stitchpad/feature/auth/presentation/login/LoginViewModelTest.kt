@@ -119,4 +119,25 @@ class LoginViewModelTest {
         val event = viewModel.events.first()
         assertIs<LoginEvent.NavigateToSignUp>(event)
     }
+
+    @Test
+    fun `OnRememberMeToggle flips rememberMe`() = runTest {
+        assertTrue(viewModel.state.first().rememberMe)
+        viewModel.onAction(LoginAction.OnRememberMeToggle)
+        assertFalse(viewModel.state.first().rememberMe)
+    }
+
+    @Test
+    fun `OnGoogleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(LoginAction.OnGoogleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(LoginEvent.ShowComingSoon, event)
+    }
+
+    @Test
+    fun `OnAppleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(LoginAction.OnAppleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(LoginEvent.ShowComingSoon, event)
+    }
 }

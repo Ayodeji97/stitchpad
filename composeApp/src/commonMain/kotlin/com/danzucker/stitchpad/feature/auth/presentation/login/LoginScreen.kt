@@ -101,6 +101,11 @@ fun LoginRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
+            LoginEvent.ShowComingSoon -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Coming soon!")
+                }
+            }
         }
     }
 

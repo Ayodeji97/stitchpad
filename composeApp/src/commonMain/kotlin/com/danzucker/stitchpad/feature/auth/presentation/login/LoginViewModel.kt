@@ -56,6 +56,15 @@ class LoginViewModel(
                     _events.send(LoginEvent.NavigateToForgotPassword)
                 }
             }
+            LoginAction.OnRememberMeToggle -> {
+                _state.update { it.copy(rememberMe = !it.rememberMe) }
+            }
+            LoginAction.OnGoogleSignInClick -> {
+                viewModelScope.launch { _events.send(LoginEvent.ShowComingSoon) }
+            }
+            LoginAction.OnAppleSignInClick -> {
+                viewModelScope.launch { _events.send(LoginEvent.ShowComingSoon) }
+            }
         }
     }
 
