@@ -634,6 +634,7 @@ private fun OrderDetailContent(
     ) {
         item {
             OrderHeroCard(
+                stylePhotoUrl = state.style?.photoUrl,
                 fabricPhotoUrl = firstItem?.fabricPhotoUrl,
                 garmentTypeIcon = Icons.Default.Checkroom,
                 garmentName = garmentName,
@@ -648,6 +649,7 @@ private fun OrderDetailContent(
                 cta = cta,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
+                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
             )
         }
         item {

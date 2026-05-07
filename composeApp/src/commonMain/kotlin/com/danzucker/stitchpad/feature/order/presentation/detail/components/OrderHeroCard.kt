@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -30,9 +32,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -56,6 +60,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.order_detail_add_style
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
 import stitchpad.composeapp.generated.resources.order_detail_confirm_fitting
 import stitchpad.composeapp.generated.resources.order_detail_duplicate_order
@@ -68,6 +73,7 @@ import stitchpad.composeapp.generated.resources.order_detail_overdue_days_other
 import stitchpad.composeapp.generated.resources.order_detail_send_reminder
 import stitchpad.composeapp.generated.resources.order_detail_share_receipt
 import stitchpad.composeapp.generated.resources.order_detail_start_work
+import stitchpad.composeapp.generated.resources.order_detail_style_caption
 import stitchpad.composeapp.generated.resources.order_detail_update_status
 import stitchpad.composeapp.generated.resources.order_overdue_label
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
@@ -81,6 +87,7 @@ import stitchpad.composeapp.generated.resources.order_status_ready
 @Suppress("LongParameterList", "LongMethod")
 @Composable
 fun OrderHeroCard(
+    stylePhotoUrl: String?,
     fabricPhotoUrl: String?,
     garmentTypeIcon: ImageVector,
     garmentName: String,
@@ -95,6 +102,7 @@ fun OrderHeroCard(
     cta: CtaPair,
     onPrimaryCta: () -> Unit,
     onSecondaryCta: () -> Unit,
+    onAddStyleClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val borderColor = if (isOverdue) {
@@ -109,45 +117,142 @@ fun OrderHeroCard(
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(
-            modifier = Modifier.padding(DesignTokens.space3),
-            verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        ) {
-            // ── Hero row ──────────────────────────────────────────────────────
-            HeroRow(
+        Column {
+            // ── Full-width hero image ─────────────────────────────────────────
+            HeroImage(
+                stylePhotoUrl = stylePhotoUrl,
                 fabricPhotoUrl = fabricPhotoUrl,
                 garmentTypeIcon = garmentTypeIcon,
                 garmentName = garmentName,
-                customerName = customerName,
-                status = status,
-                subStatus = subStatus,
-                priority = priority,
-                isOverdue = isOverdue,
-                dueLabel = dueLabel,
-                balanceRemaining = balanceRemaining,
+                onAddStyleClick = onAddStyleClick,
             )
 
-            // ── Overdue banner ────────────────────────────────────────────────
-            if (isOverdue) {
-                OverdueBanner(overdueDaysAgo = overdueDaysAgo)
-            }
+            // ── Text content + CTAs ───────────────────────────────────────────
+            Column(
+                modifier = Modifier.padding(DesignTokens.space3),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+            ) {
+                HeroDetails(
+                    garmentName = garmentName,
+                    customerName = customerName,
+                    status = status,
+                    subStatus = subStatus,
+                    priority = priority,
+                    isOverdue = isOverdue,
+                    dueLabel = dueLabel,
+                    balanceRemaining = balanceRemaining,
+                )
 
-            // ── Dual CTA row ──────────────────────────────────────────────────
-            CtaRow(
-                cta = cta,
-                isOverdue = isOverdue,
-                onPrimaryCta = onPrimaryCta,
-                onSecondaryCta = onSecondaryCta,
+                // ── Overdue banner ────────────────────────────────────────────
+                if (isOverdue) {
+                    OverdueBanner(overdueDaysAgo = overdueDaysAgo)
+                }
+
+                // ── Dual CTA row ──────────────────────────────────────────────
+                CtaRow(
+                    cta = cta,
+                    isOverdue = isOverdue,
+                    onPrimaryCta = onPrimaryCta,
+                    onSecondaryCta = onSecondaryCta,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroImage(
+    stylePhotoUrl: String?,
+    fabricPhotoUrl: String?,
+    garmentTypeIcon: ImageVector,
+    garmentName: String,
+    onAddStyleClick: () -> Unit,
+) {
+    val photoUrl = stylePhotoUrl ?: fabricPhotoUrl
+    val captionText = when {
+        stylePhotoUrl != null -> stringResource(Res.string.order_detail_style_caption)
+        fabricPhotoUrl != null -> stringResource(Res.string.order_detail_fabric_caption)
+        else -> null
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clip(
+                RoundedCornerShape(
+                    topStart = DesignTokens.radiusLg,
+                    topEnd = DesignTokens.radiusLg,
+                ),
+            )
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        if (photoUrl != null) {
+            SubcomposeAsyncImage(
+                model = photoUrl,
+                contentDescription = garmentName,
+                contentScale = ContentScale.Crop,
+                loading = {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        LoadingDots()
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            // Empty state — placeholder icon + Add style CTA
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                ) {
+                    Icon(
+                        imageVector = garmentTypeIcon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(56.dp),
+                    )
+                    TextButton(onClick = onAddStyleClick) {
+                        Text(
+                            text = stringResource(Res.string.order_detail_add_style),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (captionText != null) {
+            Text(
+                text = captionText,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(DesignTokens.space2)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(DesignTokens.radiusFull),
+                    )
+                    .padding(horizontal = DesignTokens.space3, vertical = 4.dp),
             )
         }
     }
 }
 
-@Suppress("LongParameterList", "LongMethod")
+@Suppress("LongParameterList")
 @Composable
-private fun HeroRow(
-    fabricPhotoUrl: String?,
-    garmentTypeIcon: ImageVector,
+private fun HeroDetails(
     garmentName: String,
     customerName: String,
     status: OrderStatus,
@@ -157,139 +262,53 @@ private fun HeroRow(
     dueLabel: UiText,
     balanceRemaining: Double,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // ── Fabric thumbnail ──────────────────────────────────────────────────
-        FabricThumbnail(
-            fabricPhotoUrl = fabricPhotoUrl,
-            garmentTypeIcon = garmentTypeIcon,
-            garmentName = garmentName,
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = garmentName,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
 
-        // ── Text column ───────────────────────────────────────────────────────
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = garmentName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = customerName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // Status + priority pills
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
-                modifier = Modifier.padding(top = 2.dp),
-            ) {
-                StatusPill(status = status, subStatus = subStatus, isOverdue = isOverdue)
-                if (priority != OrderPriority.NORMAL) {
-                    PriorityPill(priority = priority)
-                }
-            }
-
-            // Due / balance row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
-                BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
-            }
-        }
-    }
-}
-
-@Composable
-private fun FabricThumbnail(
-    fabricPhotoUrl: String?,
-    garmentTypeIcon: ImageVector,
-    garmentName: String,
-) {
-    if (fabricPhotoUrl != null) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
-                ),
-        ) {
-            SubcomposeAsyncImage(
-                model = fabricPhotoUrl,
-                contentDescription = garmentName,
-                contentScale = ContentScale.Crop,
-                loading = {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        LoadingDots()
-                    }
-                },
-                modifier = Modifier
-                    .size(96.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    ),
-            )
-            // Caption pill at bottom
-            val fabricCaption = stringResource(Res.string.order_detail_fabric_caption)
-            Text(
-                text = fabricCaption,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 4.dp)
-                    .background(
-                        color = Color.Black.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(DesignTokens.radiusFull),
-                    )
-                    .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
-            )
-        }
-    } else {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
-                ),
-            contentAlignment = Alignment.Center,
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = garmentTypeIcon,
+                imageVector = Icons.Default.Person,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp),
             )
+            Text(
+                text = customerName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Status + priority pills
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            modifier = Modifier.padding(top = 2.dp),
+        ) {
+            StatusPill(status = status, subStatus = subStatus, isOverdue = isOverdue)
+            if (priority != OrderPriority.NORMAL) {
+                PriorityPill(priority = priority)
+            }
+        }
+
+        // Due / balance row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
+            BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
         }
     }
 }
@@ -586,6 +605,7 @@ private fun secondaryCtaLabel(cta: SecondaryCta): String = when (cta) {
 private fun OrderHeroCardInProgressLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
+            stylePhotoUrl = null,
             fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Vintage Buba",
@@ -605,6 +625,7 @@ private fun OrderHeroCardInProgressLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
+            onAddStyleClick = {},
         )
     }
 }
@@ -615,6 +636,7 @@ private fun OrderHeroCardInProgressLightPreview() {
 private fun OrderHeroCardReadyLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
+            stylePhotoUrl = "https://example.com/style.jpg",
             fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Inventory2,
             garmentName = "Senator Outfit",
@@ -634,6 +656,7 @@ private fun OrderHeroCardReadyLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
+            onAddStyleClick = {},
         )
     }
 }
@@ -644,6 +667,7 @@ private fun OrderHeroCardReadyLightPreview() {
 private fun OrderHeroCardFittingLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
+            stylePhotoUrl = null,
             fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Person,
             garmentName = "Agbada Set",
@@ -663,6 +687,7 @@ private fun OrderHeroCardFittingLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
+            onAddStyleClick = {},
         )
     }
 }
@@ -673,6 +698,7 @@ private fun OrderHeroCardFittingLightPreview() {
 private fun OrderHeroCardOverdueLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
+            stylePhotoUrl = null,
             fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Kaftan",
@@ -692,6 +718,7 @@ private fun OrderHeroCardOverdueLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
+            onAddStyleClick = {},
         )
     }
 }
@@ -702,6 +729,7 @@ private fun OrderHeroCardOverdueLightPreview() {
 private fun OrderHeroCardDeliveredDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         OrderHeroCard(
+            stylePhotoUrl = null,
             fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.CheckCircle,
             garmentName = "Bridal Gown",
@@ -721,6 +749,38 @@ private fun OrderHeroCardDeliveredDarkPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
+            onAddStyleClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderHeroCardEmptyAddStylePreview() {
+    StitchPadTheme {
+        OrderHeroCard(
+            stylePhotoUrl = null,
+            fabricPhotoUrl = null,
+            garmentTypeIcon = Icons.Default.Build,
+            garmentName = "Agbada",
+            customerName = "Gose Wale",
+            status = OrderStatus.PENDING,
+            subStatus = null,
+            priority = OrderPriority.URGENT,
+            isOverdue = false,
+            overdueDaysAgo = 0,
+            dueLabel = UiText.DynamicString("Due 29 May"),
+            balanceRemaining = 40000.0,
+            cta = resolvePrimaryCta(
+                status = OrderStatus.PENDING,
+                subStatus = null,
+                isOverdue = false,
+                balanceRemaining = 40000.0,
+            ),
+            onPrimaryCta = {},
+            onSecondaryCta = {},
+            onAddStyleClick = {},
         )
     }
 }
