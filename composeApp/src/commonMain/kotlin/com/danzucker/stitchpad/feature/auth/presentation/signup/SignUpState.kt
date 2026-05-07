@@ -9,9 +9,11 @@ data class SignUpState(
     val confirmPassword: String = "",
     val isPasswordVisible: Boolean = false,
     val isConfirmPasswordVisible: Boolean = false,
+    val acceptedTerms: Boolean = false,
     val isLoading: Boolean = false,
+    val isSsoLoading: Boolean = false,
     val displayNameError: UiText? = null,
     val emailError: UiText? = null,
     val passwordError: UiText? = null,
-    val confirmPasswordError: UiText? = null
+    val confirmPasswordError: UiText? = null,
 )
