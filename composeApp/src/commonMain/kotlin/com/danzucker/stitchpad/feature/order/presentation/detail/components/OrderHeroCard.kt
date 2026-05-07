@@ -303,20 +303,39 @@ private fun HeroDetails(
             }
         }
 
-        // Due / balance row
+        // Total row — single line, right-aligned. Gives the at-a-glance order
+        // size without inflating the right column of the Due/Balance row, which
+        // would create a gap above the single-line Due text on the left.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp),
+                .padding(top = DesignTokens.space2),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.order_detail_total_price),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = " ₦${formatPrice(totalPrice)}",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Due / balance row — top-aligned so the single-line Due hugs the top
+        // of the (taller) Balance section instead of floating to the bottom.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
+            verticalAlignment = Alignment.Top,
         ) {
             DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
-            PriceSection(
-                totalPrice = totalPrice,
-                balanceRemaining = balanceRemaining,
-                isOverdue = isOverdue,
-            )
+            BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
         }
     }
 }
@@ -457,8 +476,7 @@ private fun DueDateSection(
 }
 
 @Composable
-private fun PriceSection(
-    totalPrice: Double,
+private fun BalanceSection(
     balanceRemaining: Double,
     isOverdue: Boolean,
 ) {
@@ -470,21 +488,9 @@ private fun PriceSection(
 
     Column(horizontalAlignment = Alignment.End) {
         Text(
-            text = stringResource(Res.string.order_detail_total_price),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = "₦${formatPrice(totalPrice)}",
-            style = MaterialTheme.typography.bodyMedium,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
             text = stringResource(Res.string.order_detail_balance_due),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
         )
         Text(
             text = "₦${formatPrice(balanceRemaining)}",
