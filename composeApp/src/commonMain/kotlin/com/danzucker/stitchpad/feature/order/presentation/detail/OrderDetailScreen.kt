@@ -668,7 +668,6 @@ private fun OrderDetailContent(
         item {
             OrderHeroCard(
                 stylePhotoUrl = state.style?.photoUrl,
-                fabricPhotoUrl = firstItem?.fabricPhotoUrl,
                 garmentTypeIcon = Icons.Default.Checkroom,
                 garmentName = garmentName,
                 customerName = order.customerName,
@@ -701,9 +700,8 @@ private fun OrderDetailContent(
         item {
             OrderGarmentDetailsCard(
                 items = order.items,
-                style = state.style,
                 priority = order.priority,
-                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
+                onAddFabricClick = { onAction(OrderDetailAction.OnAddFabricClick) },
             )
         }
         item {

@@ -816,6 +816,7 @@
     <string name="order_detail_overdue_banner">Customer is waiting · %1$s overdue</string>
     <string name="order_detail_no_phone">No phone number saved</string>
     <string name="order_detail_add_style">Add style</string>
+    <string name="order_detail_add_fabric">Add fabric photo</string>
     <string name="order_detail_link_measurements">Link measurements</string>
     <string name="measurement_picker_title">Link a measurement</string>
     <string name="measurement_picker_empty">No measurements yet for this customer.</string>

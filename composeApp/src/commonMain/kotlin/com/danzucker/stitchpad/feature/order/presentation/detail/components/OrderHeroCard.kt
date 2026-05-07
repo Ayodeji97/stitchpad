@@ -66,7 +66,6 @@ import stitchpad.composeapp.generated.resources.order_detail_add_style
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
 import stitchpad.composeapp.generated.resources.order_detail_confirm_fitting
 import stitchpad.composeapp.generated.resources.order_detail_duplicate_order
-import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
 import stitchpad.composeapp.generated.resources.order_detail_message_customer
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
@@ -92,7 +91,6 @@ import stitchpad.composeapp.generated.resources.order_status_ready
 @Composable
 fun OrderHeroCard(
     stylePhotoUrl: String?,
-    fabricPhotoUrl: String?,
     garmentTypeIcon: ImageVector,
     garmentName: String,
     customerName: String,
@@ -127,7 +125,6 @@ fun OrderHeroCard(
             // ── Full-width hero image ─────────────────────────────────────────
             HeroImage(
                 stylePhotoUrl = stylePhotoUrl,
-                fabricPhotoUrl = fabricPhotoUrl,
                 garmentTypeIcon = garmentTypeIcon,
                 garmentName = garmentName,
                 onAddStyleClick = onAddStyleClick,
@@ -171,16 +168,15 @@ fun OrderHeroCard(
 @Composable
 private fun HeroImage(
     stylePhotoUrl: String?,
-    fabricPhotoUrl: String?,
     garmentTypeIcon: ImageVector,
     garmentName: String,
     onAddStyleClick: () -> Unit,
 ) {
-    val photoUrl = stylePhotoUrl ?: fabricPhotoUrl
-    val captionText = when {
-        stylePhotoUrl != null -> stringResource(Res.string.order_detail_style_caption)
-        fabricPhotoUrl != null -> stringResource(Res.string.order_detail_fabric_caption)
-        else -> null
+    val photoUrl = stylePhotoUrl
+    val captionText = if (stylePhotoUrl != null) {
+        stringResource(Res.string.order_detail_style_caption)
+    } else {
+        null
     }
 
     Box(
@@ -671,7 +667,6 @@ private fun OrderHeroCardInProgressLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
             stylePhotoUrl = null,
-            fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Vintage Buba",
             customerName = "Adewale Paul",
@@ -704,7 +699,6 @@ private fun OrderHeroCardReadyLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
             stylePhotoUrl = "https://example.com/style.jpg",
-            fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Inventory2,
             garmentName = "Senator Outfit",
             customerName = "Chukwuemeka Nwosu",
@@ -737,7 +731,6 @@ private fun OrderHeroCardFittingLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
             stylePhotoUrl = null,
-            fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Person,
             garmentName = "Agbada Set",
             customerName = "Tunde Bakare",
@@ -770,7 +763,6 @@ private fun OrderHeroCardOverdueLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
             stylePhotoUrl = null,
-            fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Kaftan",
             customerName = "Blessing Okafor",
@@ -803,7 +795,6 @@ private fun OrderHeroCardDeliveredDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         OrderHeroCard(
             stylePhotoUrl = null,
-            fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.CheckCircle,
             garmentName = "Bridal Gown",
             customerName = "Amaka Eze",
@@ -836,7 +827,6 @@ private fun OrderHeroCardEmptyAddStylePreview() {
     StitchPadTheme {
         OrderHeroCard(
             stylePhotoUrl = null,
-            fabricPhotoUrl = null,
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Agbada",
             customerName = "Gose Wale",
