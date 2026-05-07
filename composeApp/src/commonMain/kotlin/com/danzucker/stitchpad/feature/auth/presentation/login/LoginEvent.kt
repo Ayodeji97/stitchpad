@@ -7,4 +7,5 @@ sealed interface LoginEvent {
     data object NavigateToForgotPassword : LoginEvent
     data object NavigateToHome : LoginEvent
     data class ShowError(val message: UiText) : LoginEvent
+    data object ShowComingSoon : LoginEvent
 }
