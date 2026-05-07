@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
+import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.channels.Channel
@@ -15,10 +17,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
-import stitchpad.composeapp.generated.resources.error_phone_too_long
-import stitchpad.composeapp.generated.resources.error_phone_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
+import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
 
 class WorkshopSetupViewModel(
     private val userRepository: UserRepository,
@@ -37,15 +38,15 @@ class WorkshopSetupViewModel(
             is WorkshopSetupAction.OnBusinessNameChange -> {
                 _state.update { it.copy(businessName = action.name, businessNameError = null) }
             }
-            is WorkshopSetupAction.OnPhoneChange -> {
-                val filtered = action.phone.filter { it.isDigit() || it in "+- ()" }.take(20)
-                _state.update { it.copy(phone = filtered, phoneError = null) }
+            is WorkshopSetupAction.OnWhatsAppNumberChange -> {
+                val filtered = action.raw.filter { it.isDigit() || it in "+- ()" }.take(20)
+                _state.update { it.copy(whatsappNumber = filtered, whatsappError = null) }
             }
             WorkshopSetupAction.OnBusinessNameBlur -> {
                 if (_state.value.businessName.isNotBlank()) validateBusinessName()
             }
-            WorkshopSetupAction.OnPhoneBlur -> {
-                if (_state.value.phone.isNotBlank()) validatePhone()
+            WorkshopSetupAction.OnWhatsAppNumberBlur -> {
+                if (_state.value.whatsappNumber.isNotBlank()) validateWhatsAppNumber()
             }
             WorkshopSetupAction.OnContinueClick -> onContinue()
             WorkshopSetupAction.OnSkipClick -> {
@@ -69,30 +70,24 @@ class WorkshopSetupViewModel(
         return true
     }
 
-    private fun validatePhone(): Boolean {
-        val phone = _state.value.phone
-        if (phone.isBlank()) return true
-        val digitsOnly = phone.filter { it.isDigit() }
-        return when {
-            digitsOnly.length < 7 -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_too_short) }
-                false
-            }
-            digitsOnly.length > 15 -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_too_long) }
-                false
-            }
-            else -> true
+    private fun validateWhatsAppNumber(): Boolean {
+        val raw = _state.value.whatsappNumber
+        if (raw.isBlank()) return true
+        return if (validateNigerianMobileE164(raw)) {
+            true
+        } else {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
+            false
         }
     }
 
     private fun onContinue() {
         val nameValid = validateBusinessName()
-        val phoneValid = validatePhone()
-        if (!nameValid || !phoneValid) return
+        val waValid = validateWhatsAppNumber()
+        if (!nameValid || !waValid) return
 
-        val currentState = _state.value
-        val hasData = currentState.businessName.isNotBlank() || currentState.phone.isNotBlank()
+        val state = _state.value
+        val hasData = state.businessName.isNotBlank() || state.whatsappNumber.isNotBlank()
 
         if (!hasData) {
             viewModelScope.launch {
@@ -115,11 +110,12 @@ class WorkshopSetupViewModel(
                     _events.send(WorkshopSetupEvent.NavigateToLogin)
                     return@launch
                 }
-
+                val whatsappE164 = state.whatsappNumber.trim().takeIf { it.isNotBlank() }
+                    ?.let { "+" + normaliseNigerianPhone(it) }
                 val result = userRepository.createUserProfile(
                     userId = user.id,
-                    businessName = currentState.businessName.trim().ifBlank { null },
-                    phone = currentState.phone.trim().ifBlank { null }
+                    businessName = state.businessName.trim().ifBlank { null },
+                    whatsappNumber = whatsappE164,
                 )
                 when (result) {
                     is Result.Success -> {

@@ -9,17 +9,17 @@ class FakeUserRepository : UserRepository {
     var shouldReturnError: DataError.Network? = null
     var lastUserId: String? = null
     var lastBusinessName: String? = null
-    var lastPhone: String? = null
+    var lastWhatsAppNumber: String? = null
 
     override suspend fun createUserProfile(
         userId: String,
         businessName: String?,
-        phone: String?
+        whatsappNumber: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUserId = userId
         lastBusinessName = businessName
-        lastPhone = phone
+        lastWhatsAppNumber = whatsappNumber
         return Result.Success(Unit)
     }
 }

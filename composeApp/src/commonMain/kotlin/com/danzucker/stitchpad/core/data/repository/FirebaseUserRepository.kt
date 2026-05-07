@@ -18,7 +18,7 @@ class FirebaseUserRepository(
     override suspend fun createUserProfile(
         userId: String,
         businessName: String?,
-        phone: String?
+        whatsappNumber: String?,
     ): EmptyResult<DataError.Network> {
         return try {
             val document = firestore.collection("users").document(userId)
@@ -38,7 +38,10 @@ class FirebaseUserRepository(
                 )
             }
             businessName?.let { data["businessName"] = it }
-            phone?.let { data["phone"] = it }
+            whatsappNumber?.let {
+                data["whatsappNumber"] = it
+                data["phone"] = it // kept for one release for backward compat
+            }
             document.set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {

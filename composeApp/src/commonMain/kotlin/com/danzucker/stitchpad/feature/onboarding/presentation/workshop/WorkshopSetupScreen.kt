@@ -156,16 +156,16 @@ fun WorkshopSetupScreen(
                     errorText = state.businessNameError?.let { stringResource(it) },
                 )
 
-                // 4. Phone field
+                // 4. WhatsApp number field
                 AuthTextField(
                     label = stringResource(Res.string.workshop_phone_label),
-                    value = state.phone,
-                    onValueChange = { onAction(WorkshopSetupAction.OnPhoneChange(it)) },
+                    value = state.whatsappNumber,
+                    onValueChange = { onAction(WorkshopSetupAction.OnWhatsAppNumberChange(it)) },
                     leadingIcon = Icons.Outlined.Phone,
                     placeholder = stringResource(Res.string.workshop_phone_placeholder),
                     keyboardType = KeyboardType.Phone,
                     helperText = stringResource(Res.string.workshop_phone_hint),
-                    errorText = state.phoneError?.let { stringResource(it) },
+                    errorText = state.whatsappError?.let { stringResource(it) },
                 )
 
                 // 5. Logo upload tile
@@ -315,7 +315,7 @@ private fun WorkshopSetupScreenFilledPreview() {
         WorkshopSetupScreen(
             state = WorkshopSetupState(
                 businessName = "Ade Fashions",
-                phone = "+2348012345678",
+                whatsappNumber = "0803 123 4567",
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},

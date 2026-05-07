@@ -10,7 +10,7 @@ class FakeAuthRepository : AuthRepository {
     var shouldReturnError: AuthError? = null
     var resetEmailSentTo: String? = null
     var signUpInvocationCount = 0
-    private var currentUser: User? = null
+    var currentUser: User? = null
 
     var currentBusinessName: String?
         get() = currentUser?.businessName
