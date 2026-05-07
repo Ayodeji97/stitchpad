@@ -2,61 +2,52 @@ package com.danzucker.stitchpad.feature.auth.presentation.signup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.feature.onboarding.presentation.components.StitchPadLogo
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
+import com.danzucker.stitchpad.feature.auth.presentation.components.SsoButtonRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -64,30 +55,33 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.cd_password_hide
-import stitchpad.composeapp.generated.resources.cd_password_show
-import stitchpad.composeapp.generated.resources.placeholder_email
-import stitchpad.composeapp.generated.resources.placeholder_password
-import stitchpad.composeapp.generated.resources.signup_button
+import stitchpad.composeapp.generated.resources.auth_coming_soon
 import stitchpad.composeapp.generated.resources.signup_confirm_password_label
 import stitchpad.composeapp.generated.resources.signup_email_label
 import stitchpad.composeapp.generated.resources.signup_have_account
 import stitchpad.composeapp.generated.resources.signup_log_in
+import stitchpad.composeapp.generated.resources.signup_microcopy
 import stitchpad.composeapp.generated.resources.signup_name_label
 import stitchpad.composeapp.generated.resources.signup_name_placeholder
-import stitchpad.composeapp.generated.resources.signup_password_hint
+import stitchpad.composeapp.generated.resources.signup_password_helper
 import stitchpad.composeapp.generated.resources.signup_password_label
+import stitchpad.composeapp.generated.resources.signup_privacy_link
+import stitchpad.composeapp.generated.resources.signup_subtitle
+import stitchpad.composeapp.generated.resources.signup_terms_and
+import stitchpad.composeapp.generated.resources.signup_terms_link
+import stitchpad.composeapp.generated.resources.signup_terms_prefix
 import stitchpad.composeapp.generated.resources.signup_title
 
 @Composable
 fun SignUpRoot(
     onNavigateToLogin: () -> Unit,
     onNavigateToHome: () -> Unit,
-    viewModel: SignUpViewModel = koinViewModel()
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    viewModel: SignUpViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val comingSoon = stringResource(Res.string.auth_coming_soon)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -102,417 +96,256 @@ fun SignUpRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
-            SignUpEvent.ShowComingSoon -> { /* handled in Task 1.13 visual rebuild */ }
+            SignUpEvent.ShowComingSoon -> {
+                scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+            }
         }
     }
 
     SignUpScreen(
         state = state,
-        snackbarHostState = snackbarHostState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
     )
 }
 
-@Suppress("CyclomaticComplexMethod")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
     state: SignUpState,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onAction: (SignUpAction) -> Unit
+    onAction: (SignUpAction) -> Unit,
 ) {
-    val inputColors = OutlinedTextFieldDefaults.colors(
-        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-        focusedContainerColor = MaterialTheme.colorScheme.surface
-    )
-    var hasNameFocused by remember { mutableStateOf(false) }
-    var hasEmailFocused by remember { mutableStateOf(false) }
-    var hasPasswordFocused by remember { mutableStateOf(false) }
-    var hasConfirmPasswordFocused by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DesignTokens.neutral900),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            AuthHero(height = 240.dp, logoDiameter = 64.dp, showTagline = false)
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { focusManager.clearFocus() })
-                }
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Saffron header with logo
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(DesignTokens.primary500),
-                contentAlignment = Alignment.Center
-            ) {
-                StitchPadLogo(size = 64.dp)
-            }
-
-            // White card overlapping header
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = (-24).dp)
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = DesignTokens.space4, vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            AuthCard {
+                // 1. Title
                 Text(
                     text = stringResource(Res.string.signup_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = TextStyle(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFFF5F2ED),
+                        textAlign = TextAlign.Center,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
                 )
-                Spacer(modifier = Modifier.height(28.dp))
 
-                // Full name field
-                LabeledField(label = stringResource(Res.string.signup_name_label)) {
-                    val nameInteractionSource = remember { MutableInteractionSource() }
-                    BasicTextField(
-                        value = state.displayName,
-                        onValueChange = {
-                            if (it.length <= 50) {
-                                onAction(SignUpAction.OnDisplayNameChange(it))
-                            }
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        interactionSource = nameInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    hasNameFocused = true
-                                } else if (hasNameFocused) {
-                                    onAction(SignUpAction.OnDisplayNameBlur)
-                                }
-                            },
-                        decorationBox = { innerTextField ->
-                            OutlinedTextFieldDefaults.DecorationBox(
-                                value = state.displayName,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = VisualTransformation.None,
-                                interactionSource = nameInteractionSource,
-                                isError = state.displayNameError != null,
-                                placeholder = { Text(stringResource(Res.string.signup_name_placeholder)) },
-                                supportingText = state.displayNameError?.let { error -> { Text(error.asString()) } },
-                                colors = inputColors,
-                                container = {
-                                    OutlinedTextFieldDefaults.ContainerBox(
-                                        enabled = true,
-                                        isError = state.displayNameError != null,
-                                        interactionSource = nameInteractionSource,
-                                        colors = inputColors,
-                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                                        focusedBorderThickness = 1.dp,
-                                        unfocusedBorderThickness = 1.dp
-                                    )
-                                }
-                            )
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space3))
+                // 2. Subtitle
+                Text(
+                    text = stringResource(Res.string.signup_subtitle),
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color(0xFFA8A49D),
+                        textAlign = TextAlign.Center,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
 
-                // Email field
-                LabeledField(label = stringResource(Res.string.signup_email_label)) {
-                    val emailInteractionSource = remember { MutableInteractionSource() }
-                    BasicTextField(
-                        value = state.email,
-                        onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        interactionSource = emailInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    hasEmailFocused = true
-                                } else if (hasEmailFocused) {
-                                    onAction(SignUpAction.OnEmailBlur)
-                                }
-                            },
-                        decorationBox = { innerTextField ->
-                            OutlinedTextFieldDefaults.DecorationBox(
-                                value = state.email,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = VisualTransformation.None,
-                                interactionSource = emailInteractionSource,
-                                isError = state.emailError != null,
-                                placeholder = { Text(stringResource(Res.string.placeholder_email)) },
-                                supportingText = state.emailError?.let { error -> { Text(error.asString()) } },
-                                colors = inputColors,
-                                container = {
-                                    OutlinedTextFieldDefaults.ContainerBox(
-                                        enabled = true,
-                                        isError = state.emailError != null,
-                                        interactionSource = emailInteractionSource,
-                                        colors = inputColors,
-                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                                        focusedBorderThickness = 1.dp,
-                                        unfocusedBorderThickness = 1.dp
-                                    )
-                                }
-                            )
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space3))
+                // 3. Full name field
+                AuthTextField(
+                    label = stringResource(Res.string.signup_name_label),
+                    value = state.displayName,
+                    onValueChange = { onAction(SignUpAction.OnDisplayNameChange(it)) },
+                    leadingIcon = Icons.Outlined.Person,
+                    placeholder = stringResource(Res.string.signup_name_placeholder),
+                    errorText = state.displayNameError?.asString(),
+                )
 
-                // Password field
-                LabeledField(label = stringResource(Res.string.signup_password_label)) {
-                    val passwordVisualTransformation = if (state.isPasswordVisible) {
-                        VisualTransformation.None
+                // 4. Email field
+                AuthTextField(
+                    label = stringResource(Res.string.signup_email_label),
+                    value = state.email,
+                    onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
+                    leadingIcon = Icons.Outlined.Mail,
+                    keyboardType = KeyboardType.Email,
+                    placeholder = "Enter your email address",
+                    errorText = state.emailError?.asString(),
+                )
+
+                // 5. Password field
+                val passwordHelper = stringResource(Res.string.signup_password_helper)
+                AuthTextField(
+                    label = stringResource(Res.string.signup_password_label),
+                    value = state.password,
+                    onValueChange = { onAction(SignUpAction.OnPasswordChange(it)) },
+                    leadingIcon = Icons.Outlined.Lock,
+                    isPassword = true,
+                    isPasswordVisible = state.isPasswordVisible,
+                    onTogglePassword = { onAction(SignUpAction.OnTogglePasswordVisibility) },
+                    trailingPasswordVisibilityIcon = if (state.isPasswordVisible) {
+                        Icons.Outlined.VisibilityOff
                     } else {
-                        PasswordVisualTransformation()
-                    }
-                    val passwordInteractionSource = remember { MutableInteractionSource() }
-                    BasicTextField(
-                        value = state.password,
-                        onValueChange = { onAction(SignUpAction.OnPasswordChange(it)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Next
-                        ),
-                        visualTransformation = passwordVisualTransformation,
-                        interactionSource = passwordInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    hasPasswordFocused = true
-                                } else if (hasPasswordFocused) {
-                                    onAction(SignUpAction.OnPasswordBlur)
-                                }
-                            },
-                        decorationBox = { innerTextField ->
-                            OutlinedTextFieldDefaults.DecorationBox(
-                                value = state.password,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = passwordVisualTransformation,
-                                interactionSource = passwordInteractionSource,
-                                isError = state.passwordError != null,
-                                placeholder = { Text(stringResource(Res.string.placeholder_password)) },
-                                supportingText = state.passwordError?.let { error ->
-                                    {
-                                        Text(error.asString())
-                                    }
-                                } ?: {
-                                    Text(
-                                        text = stringResource(Res.string.signup_password_hint),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { onAction(SignUpAction.OnTogglePasswordVisibility) }
-                                    ) {
-                                        Icon(
-                                            imageVector = if (state.isPasswordVisible) {
-                                                Icons.Outlined.VisibilityOff
-                                            } else {
-                                                Icons.Outlined.Visibility
-                                            },
-                                            contentDescription = if (state.isPasswordVisible) {
-                                                stringResource(Res.string.cd_password_hide)
-                                            } else {
-                                                stringResource(Res.string.cd_password_show)
-                                            },
-                                            tint = DesignTokens.neutral400
-                                        )
-                                    }
-                                },
-                                colors = inputColors,
-                                container = {
-                                    OutlinedTextFieldDefaults.ContainerBox(
-                                        enabled = true,
-                                        isError = state.passwordError != null,
-                                        interactionSource = passwordInteractionSource,
-                                        colors = inputColors,
-                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                                        focusedBorderThickness = 1.dp,
-                                        unfocusedBorderThickness = 1.dp
-                                    )
-                                }
-                            )
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space3))
+                        Icons.Outlined.Visibility
+                    },
+                    placeholder = "Create a password",
+                    helperText = when {
+                        state.passwordError != null -> null
+                        state.password.length >= 6 -> passwordHelper
+                        else -> passwordHelper
+                    },
+                    helperIcon = when {
+                        state.passwordError != null -> null
+                        state.password.length >= 6 -> Icons.Outlined.CheckCircle
+                        else -> null
+                    },
+                    isHelperSuccess = state.passwordError == null && state.password.length >= 6,
+                    errorText = state.passwordError?.asString(),
+                )
 
-                // Confirm password field
-                LabeledField(label = stringResource(Res.string.signup_confirm_password_label)) {
-                    val confirmPasswordVisualTransformation = if (state.isConfirmPasswordVisible) {
-                        VisualTransformation.None
+                // 6. Confirm password field
+                AuthTextField(
+                    label = stringResource(Res.string.signup_confirm_password_label),
+                    value = state.confirmPassword,
+                    onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
+                    leadingIcon = Icons.Outlined.Lock,
+                    isPassword = true,
+                    isPasswordVisible = state.isConfirmPasswordVisible,
+                    onTogglePassword = { onAction(SignUpAction.OnToggleConfirmPasswordVisibility) },
+                    trailingPasswordVisibilityIcon = if (state.isConfirmPasswordVisible) {
+                        Icons.Outlined.VisibilityOff
                     } else {
-                        PasswordVisualTransformation()
-                    }
-                    val confirmPasswordInteractionSource = remember { MutableInteractionSource() }
-                    BasicTextField(
-                        value = state.confirmPassword,
-                        onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus() }
-                        ),
-                        visualTransformation = confirmPasswordVisualTransformation,
-                        interactionSource = confirmPasswordInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    hasConfirmPasswordFocused = true
-                                } else if (hasConfirmPasswordFocused) {
-                                    onAction(SignUpAction.OnConfirmPasswordBlur)
-                                }
-                            },
-                        decorationBox = { innerTextField ->
-                            OutlinedTextFieldDefaults.DecorationBox(
-                                value = state.confirmPassword,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = confirmPasswordVisualTransformation,
-                                interactionSource = confirmPasswordInteractionSource,
-                                isError = state.confirmPasswordError != null,
-                                placeholder = { Text(stringResource(Res.string.placeholder_password)) },
-                                supportingText = state.confirmPasswordError?.let { error ->
-                                    {
-                                        Text(error.asString())
-                                    }
-                                },
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { onAction(SignUpAction.OnToggleConfirmPasswordVisibility) }
-                                    ) {
-                                        Icon(
-                                            imageVector = if (state.isConfirmPasswordVisible) {
-                                                Icons.Outlined.VisibilityOff
-                                            } else {
-                                                Icons.Outlined.Visibility
-                                            },
-                                            contentDescription = if (state.isConfirmPasswordVisible) {
-                                                stringResource(Res.string.cd_password_hide)
-                                            } else {
-                                                stringResource(Res.string.cd_password_show)
-                                            },
-                                            tint = DesignTokens.neutral400
-                                        )
-                                    }
-                                },
-                                colors = inputColors,
-                                container = {
-                                    OutlinedTextFieldDefaults.ContainerBox(
-                                        enabled = true,
-                                        isError = state.confirmPasswordError != null,
-                                        interactionSource = confirmPasswordInteractionSource,
-                                        colors = inputColors,
-                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                                        focusedBorderThickness = 1.dp,
-                                        unfocusedBorderThickness = 1.dp
-                                    )
-                                }
-                            )
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(28.dp))
+                        Icons.Outlined.Visibility
+                    },
+                    placeholder = "Re-enter your password",
+                    errorText = state.confirmPasswordError?.asString(),
+                )
 
-                // Register button
-                Button(
-                    onClick = { onAction(SignUpAction.OnSignUpClick) },
-                    enabled = !state.isLoading,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                // 7. Terms checkbox row
+                val termsPrefix = stringResource(Res.string.signup_terms_prefix)
+                val termsLink = stringResource(Res.string.signup_terms_link)
+                val termsAnd = stringResource(Res.string.signup_terms_and)
+                val privacyLink = stringResource(Res.string.signup_privacy_link)
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .clickable { onAction(SignUpAction.OnTermsToggle) },
                 ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(Res.string.signup_button))
-                    }
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space4))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(Res.string.signup_have_account),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = stringResource(Res.string.signup_log_in),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = DesignTokens.primary500,
+                    Box(
                         modifier = Modifier
-                            .clickable { onAction(SignUpAction.OnLoginClick) }
-                            .padding(DesignTokens.space2)
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(
+                                if (state.acceptedTerms) DesignTokens.primary500
+                                else Color(0xFF3A3731)
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (state.acceptedTerms) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = null,
+                                tint = DesignTokens.neutral900,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
+                                append("$termsPrefix ")
+                            }
+                            withStyle(
+                                SpanStyle(
+                                    color = DesignTokens.primary400,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                )
+                            ) {
+                                append(termsLink)
+                            }
+                            withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
+                                append(" $termsAnd ")
+                            }
+                            withStyle(
+                                SpanStyle(
+                                    color = DesignTokens.primary400,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                )
+                            ) {
+                                append(privacyLink)
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
                     )
                 }
-                Spacer(modifier = Modifier.height(DesignTokens.space10))
+
+                // 8. Create account button
+                Button(
+                    onClick = { onAction(SignUpAction.OnSignUpClick) },
+                    enabled = !state.isLoading && state.acceptedTerms,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DesignTokens.primary500,
+                        contentColor = DesignTokens.neutral900,
+                        disabledContainerColor = DesignTokens.primary500.copy(alpha = 0.5f),
+                        disabledContentColor = DesignTokens.neutral900.copy(alpha = 0.5f),
+                    ),
+                ) {
+                    Text(
+                        text = "Create account",
+                        style = TextStyle(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
+                }
+
+                // 9. Footer — already have an account
+                val haveAccount = stringResource(Res.string.signup_have_account)
+                val logIn = stringResource(Res.string.signup_log_in)
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = Color(0xFFA8A49D), fontSize = 14.sp)) {
+                            append("$haveAccount ")
+                        }
+                        withStyle(
+                            SpanStyle(
+                                color = DesignTokens.primary400,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                        ) {
+                            append(logIn)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAction(SignUpAction.OnLoginClick) },
+                    textAlign = TextAlign.Center,
+                )
+
+                // 10. SSO button row
+                SsoButtonRow(
+                    onGoogleClick = { onAction(SignUpAction.OnGoogleSignInClick) },
+                    onAppleClick = { onAction(SignUpAction.OnAppleSignInClick) },
+                    enabled = !state.isSsoLoading,
+                )
+
+                // 11. Microcopy
+                Text(
+                    text = stringResource(Res.string.signup_microcopy),
+                    style = TextStyle(
+                        fontSize = 12.5.sp,
+                        color = Color(0xFF7D7970),
+                        textAlign = TextAlign.Center,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun LabeledField(
-    label: String,
-    content: @Composable () -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        content()
     }
 }
 
@@ -535,9 +368,10 @@ private fun SignUpScreenFilledPreview() {
                 displayName = "Ade Fashions",
                 email = "ade@gmail.com",
                 password = "password123",
-                confirmPassword = "password123"
+                confirmPassword = "password123",
+                acceptedTerms = true,
             ),
-            onAction = {}
+            onAction = {},
         )
     }
 }
