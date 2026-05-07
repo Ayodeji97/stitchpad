@@ -896,4 +896,34 @@
     <string name="whatsapp_message_in_progress">Hi %1$s, quick update on your outfit — work is in progress and on track.</string>
     <string name="whatsapp_message_ready">Hi %1$s, your outfit is ready for pickup — let me know what time works for you.</string>
     <string name="whatsapp_message_delivered">Hi %1$s, hope the outfit suits you well — would love a photo when you wear it!</string>
+
+    <!-- Login redesign additions -->
+    <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>
+    <string name="login_remember_me">Remember me</string>
+    <string name="login_secure_microcopy">Secure sign-in for your tailoring business</string>
+
+    <!-- Signup redesign additions -->
+    <string name="signup_subtitle">Get started with StitchPad and manage your tailoring business in one place.</string>
+    <string name="signup_terms_prefix">I agree to the</string>
+    <string name="signup_terms_link">Terms of Service</string>
+    <string name="signup_terms_and">and</string>
+    <string name="signup_privacy_link">Privacy Policy</string>
+    <string name="signup_password_helper">Use at least 6 characters</string>
+    <string name="signup_microcopy">You can add customers, orders, and payments after sign up.</string>
+
+    <!-- SSO -->
+    <string name="auth_or_continue_with">or continue with</string>
+    <string name="auth_continue_with_google">Continue with Google</string>
+    <string name="auth_continue_with_apple">Continue with Apple</string>
+    <string name="auth_coming_soon">Coming soon</string>
+
+    <!-- Workshop redesign additions -->
+    <string name="workshop_quick_setup">Quick setup</string>
+    <string name="workshop_logo_label">Business logo</string>
+    <string name="workshop_logo_optional">(optional)</string>
+    <string name="workshop_logo_upload_title">Upload logo</string>
+    <string name="workshop_logo_upload_sub">PNG, JPG or SVG · Max 2MB</string>
+    <string name="workshop_logo_coming_soon">Logo upload coming soon</string>
+    <string name="workshop_brand_tagline">TAILORED FOR YOU</string>
+    <string name="brand_name">STITCHPAD</string>
 </resources>
