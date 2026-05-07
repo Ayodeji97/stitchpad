@@ -2,22 +2,31 @@ package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -61,53 +70,30 @@ fun RecordPaymentDialogV2(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val isConfirmEnabled = amountInput.isNotBlank() && (amountInput.toDoubleOrNull() ?: 0.0) > 0.0
-
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.record_payment_dialog_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = isConfirmEnabled,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-            ) {
-                Text(
-                    text = stringResource(Res.string.order_record_payment_confirm),
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.common_cancel))
-            }
-        },
-        text = {
-            RecordPaymentDialogV2Content(
-                balanceRemaining = balanceRemaining,
-                amountInput = amountInput,
-                method = method,
-                type = type,
-                wasCapped = wasCapped,
-                onAmountChange = onAmountChange,
-                onMethodSelect = onMethodSelect,
-                onTypeSelect = onTypeSelect,
-                onMarkPaidInFull = onMarkPaidInFull,
-            )
-        },
-    )
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        RecordPaymentSheetContent(
+            balanceRemaining = balanceRemaining,
+            amountInput = amountInput,
+            method = method,
+            type = type,
+            wasCapped = wasCapped,
+            onAmountChange = onAmountChange,
+            onMethodSelect = onMethodSelect,
+            onTypeSelect = onTypeSelect,
+            onMarkPaidInFull = onMarkPaidInFull,
+            onConfirm = onConfirm,
+            onDismiss = onDismiss,
+        )
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Suppress("LongMethod")
 @Composable
-private fun RecordPaymentDialogV2Content(
+private fun RecordPaymentSheetContent(
     balanceRemaining: Double,
     amountInput: String,
     method: PaymentMethod,
@@ -117,13 +103,27 @@ private fun RecordPaymentDialogV2Content(
     onMethodSelect: (PaymentMethod) -> Unit,
     onTypeSelect: (PaymentType) -> Unit,
     onMarkPaidInFull: () -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
+    val isConfirmEnabled = amountInput.isNotBlank() && (amountInput.toDoubleOrNull() ?: 0.0) > 0.0
+
     Column(
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = DesignTokens.space4)
+            .padding(bottom = DesignTokens.space4),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
     ) {
-        // ── Amount field ──────────────────────────────────────────────────────
+        Text(
+            text = stringResource(Res.string.record_payment_dialog_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
         Column(
-            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
             Text(
                 text = stringResource(Res.string.record_payment_dialog_amount_label),
@@ -155,25 +155,27 @@ private fun RecordPaymentDialogV2Content(
                     null
                 },
             )
-            // ── Mark paid in full shortcut (inline, under the amount field) ──
-            TextButton(
+            // Mark paid in full as a small chip directly beneath the amount field.
+            AssistChip(
                 onClick = onMarkPaidInFull,
                 enabled = balanceRemaining > 0.0,
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Text(
-                    text = stringResource(
-                        Res.string.record_payment_dialog_mark_paid_full,
-                        formatPrice(balanceRemaining),
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+                label = {
+                    Text(
+                        text = stringResource(
+                            Res.string.record_payment_dialog_mark_paid_full,
+                            formatPrice(balanceRemaining),
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    labelColor = MaterialTheme.colorScheme.primary,
+                ),
+            )
         }
 
-        // ── Type segmented control ────────────────────────────────────────────
         Column(
-            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
             Text(
                 text = stringResource(Res.string.record_payment_dialog_type_label),
@@ -181,28 +183,39 @@ private fun RecordPaymentDialogV2Content(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                PaymentType.entries.forEachIndexed { index, t ->
-                    SegmentedButton(
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+            ) {
+                PaymentType.entries.forEach { t ->
+                    FilterChip(
                         selected = t == type,
                         onClick = { onTypeSelect(t) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = PaymentType.entries.size,
-                        ),
-                    ) {
-                        Text(
-                            text = paymentTypeLabel(t),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
+                        label = {
+                            Text(
+                                text = paymentTypeLabel(t),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                        leadingIcon = if (t == type) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.height(DesignTokens.iconInline),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    )
                 }
             }
         }
 
-        // ── Method segmented control ──────────────────────────────────────────
         Column(
-            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
             Text(
                 text = stringResource(Res.string.record_payment_dialog_method_label),
@@ -210,22 +223,62 @@ private fun RecordPaymentDialogV2Content(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                PaymentMethod.entries.forEachIndexed { index, m ->
-                    SegmentedButton(
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+            ) {
+                PaymentMethod.entries.forEach { m ->
+                    FilterChip(
                         selected = m == method,
                         onClick = { onMethodSelect(m) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = PaymentMethod.entries.size,
-                        ),
-                    ) {
-                        Text(
-                            text = paymentMethodLabel(m),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
+                        label = {
+                            Text(
+                                text = paymentMethodLabel(m),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                        leadingIcon = if (m == method) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.height(DesignTokens.iconInline),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    )
                 }
+            }
+        }
+
+        Spacer(Modifier.height(DesignTokens.space2))
+
+        Button(
+            onClick = onConfirm,
+            enabled = isConfirmEnabled,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+        ) {
+            Text(
+                text = stringResource(Res.string.order_record_payment_confirm),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(vertical = DesignTokens.space1),
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.common_cancel),
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
     }
@@ -246,15 +299,15 @@ private fun paymentMethodLabel(method: PaymentMethod): String = when (method) {
     PaymentMethod.OTHER -> stringResource(Res.string.payment_method_other)
 }
 
-// region — Previews (render dialog content only — AlertDialog needs an Activity for consistent preview)
+// region — Previews (render content only — ModalBottomSheet needs an Activity for proper preview)
 
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun RecordPaymentDialogV2EmptyLightPreview() {
+private fun RecordPaymentSheetEmptyLightPreview() {
     StitchPadTheme {
         Surface {
-            RecordPaymentDialogV2Content(
+            RecordPaymentSheetContent(
                 balanceRemaining = 45000.0,
                 amountInput = "",
                 method = PaymentMethod.TRANSFER,
@@ -264,6 +317,8 @@ private fun RecordPaymentDialogV2EmptyLightPreview() {
                 onMethodSelect = {},
                 onTypeSelect = {},
                 onMarkPaidInFull = {},
+                onConfirm = {},
+                onDismiss = {},
             )
         }
     }
@@ -272,10 +327,10 @@ private fun RecordPaymentDialogV2EmptyLightPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun RecordPaymentDialogV2CappedProgressCashLightPreview() {
+private fun RecordPaymentSheetCappedProgressCashLightPreview() {
     StitchPadTheme {
         Surface {
-            RecordPaymentDialogV2Content(
+            RecordPaymentSheetContent(
                 balanceRemaining = 20000.0,
                 amountInput = "20000",
                 method = PaymentMethod.CASH,
@@ -285,6 +340,8 @@ private fun RecordPaymentDialogV2CappedProgressCashLightPreview() {
                 onMethodSelect = {},
                 onTypeSelect = {},
                 onMarkPaidInFull = {},
+                onConfirm = {},
+                onDismiss = {},
             )
         }
     }
@@ -293,10 +350,10 @@ private fun RecordPaymentDialogV2CappedProgressCashLightPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun RecordPaymentDialogV2CappedProgressCashDarkPreview() {
+private fun RecordPaymentSheetCappedProgressCashDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         Surface {
-            RecordPaymentDialogV2Content(
+            RecordPaymentSheetContent(
                 balanceRemaining = 20000.0,
                 amountInput = "20000",
                 method = PaymentMethod.CASH,
@@ -306,6 +363,8 @@ private fun RecordPaymentDialogV2CappedProgressCashDarkPreview() {
                 onMethodSelect = {},
                 onTypeSelect = {},
                 onMarkPaidInFull = {},
+                onConfirm = {},
+                onDismiss = {},
             )
         }
     }
