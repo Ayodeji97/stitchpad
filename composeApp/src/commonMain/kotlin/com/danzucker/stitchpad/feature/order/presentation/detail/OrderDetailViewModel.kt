@@ -232,6 +232,17 @@ class OrderDetailViewModel(
                     _events.send(OrderDetailEvent.NavigateToOrderForm(orderId))
                 }
             }
+            OrderDetailAction.OnAddFabricNameClick -> {
+                val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
+                _state.update {
+                    it.copy(showFabricNameDialog = true, fabricNameDraft = currentName)
+                }
+            }
+            is OrderDetailAction.OnFabricNameDraftChange ->
+                _state.update { it.copy(fabricNameDraft = action.text) }
+            OrderDetailAction.OnSaveFabricName -> saveFabricName()
+            OrderDetailAction.OnDismissFabricNameDialog ->
+                _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
             OrderDetailAction.OnAddPhoneClick -> {
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
@@ -282,6 +293,25 @@ class OrderDetailViewModel(
             // Misc
             OrderDetailAction.OnErrorDismiss ->
                 _state.update { it.copy(errorMessage = null) }
+        }
+    }
+
+    private fun saveFabricName() {
+        val snapshot = _state.value
+        val order = snapshot.order
+        val firstItem = order?.items?.firstOrNull()
+        val newName = snapshot.fabricNameDraft.trim().ifBlank { null }
+        _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
+        if (order == null || firstItem == null || firstItem.fabricName == newName) return
+        val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                is Result.Success -> Unit
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = res.error.toOrderUiText())
+                }
+            }
         }
     }
 

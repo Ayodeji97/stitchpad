@@ -60,6 +60,10 @@ sealed interface OrderDetailAction {
     data object OnSendReminderClick : OrderDetailAction
     data object OnAddStyleClick : OrderDetailAction
     data object OnAddFabricClick : OrderDetailAction
+    data object OnAddFabricNameClick : OrderDetailAction
+    data class OnFabricNameDraftChange(val text: String) : OrderDetailAction
+    data object OnSaveFabricName : OrderDetailAction
+    data object OnDismissFabricNameDialog : OrderDetailAction
     data object OnAddPhoneClick : OrderDetailAction
 
     // Styles

@@ -34,6 +34,8 @@ data class OrderDetailState(
     val showArchiveDialog: Boolean = false,
     val showOverflowMenu: Boolean = false,
     val showDatePickerDialog: Boolean = false,
+    val showFabricNameDialog: Boolean = false,
+    val fabricNameDraft: String = "",
 
     // Payment dialog state
     val paymentAmountInput: String = "",

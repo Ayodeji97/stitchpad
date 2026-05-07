@@ -40,6 +40,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_add_fabric
@@ -53,7 +54,8 @@ private val FABRIC_THUMBNAIL_SIZE = 128.dp
 fun OrderGarmentDetailsCard(
     items: List<OrderItem>,
     priority: OrderPriority,
-    onAddFabricClick: () -> Unit,
+    onAddFabricPhotoClick: () -> Unit,
+    onAddFabricNameClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -87,16 +89,14 @@ fun OrderGarmentDetailsCard(
                     Spacer(Modifier.height(DesignTokens.space3))
                 }
                 val isFirstItemNeedingFabric = items.indexOfFirst { needsFabricInfo(it) } == index
+                val showCta = needsFabricInfo(item) && isFirstItemNeedingFabric
                 GarmentItemRow(
                     item = item,
                     // Only the FIRST item needing fabric (missing photo OR missing name)
                     // shows the inline CTA, so a multi-item order doesn't get a stack of
                     // identical buttons.
-                    onAddFabricClick = if (needsFabricInfo(item) && isFirstItemNeedingFabric) {
-                        onAddFabricClick
-                    } else {
-                        null
-                    },
+                    onAddFabricPhotoClick = if (showCta) onAddFabricPhotoClick else null,
+                    onAddFabricNameClick = if (showCta) onAddFabricNameClick else null,
                 )
             }
 
@@ -112,7 +112,8 @@ fun OrderGarmentDetailsCard(
 @Composable
 private fun GarmentItemRow(
     item: OrderItem,
-    onAddFabricClick: (() -> Unit)?,
+    onAddFabricPhotoClick: (() -> Unit)?,
+    onAddFabricNameClick: (() -> Unit)?,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -151,16 +152,26 @@ private fun GarmentItemRow(
             // multi-quantity feature. Drop it for now — re-add when the model gains qty.
             val needsPhoto = item.fabricPhotoUrl.isNullOrBlank()
             val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
-            val showCta = (needsPhoto || needsName) && onAddFabricClick != null
-            val ctaLabel = when {
-                needsPhoto -> Res.string.order_detail_add_fabric
-                needsName -> Res.string.order_detail_add_fabric_name
-                else -> null
+            val ctaLabel: StringResource?
+            val ctaCallback: (() -> Unit)?
+            when {
+                needsPhoto -> {
+                    ctaLabel = Res.string.order_detail_add_fabric
+                    ctaCallback = onAddFabricPhotoClick
+                }
+                needsName -> {
+                    ctaLabel = Res.string.order_detail_add_fabric_name
+                    ctaCallback = onAddFabricNameClick
+                }
+                else -> {
+                    ctaLabel = null
+                    ctaCallback = null
+                }
             }
-            if (showCta && ctaLabel != null) {
+            if (ctaLabel != null && ctaCallback != null) {
                 Spacer(Modifier.height(DesignTokens.space1))
                 TextButton(
-                    onClick = onAddFabricClick!!,
+                    onClick = ctaCallback,
                     contentPadding = PaddingValues(0.dp),
                 ) {
                     Text(
@@ -307,7 +318,8 @@ private fun OrderGarmentDetailsCardSingleNormalFabricPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            onAddFabricClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
         )
     }
 }
@@ -329,7 +341,8 @@ private fun OrderGarmentDetailsCardPhotoSetNameMissingPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            onAddFabricClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
         )
     }
 }
@@ -350,7 +363,8 @@ private fun OrderGarmentDetailsCardUrgentNoFabricPreview() {
                 ),
             ),
             priority = OrderPriority.URGENT,
-            onAddFabricClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
         )
     }
 }
@@ -378,7 +392,8 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            onAddFabricClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
         )
     }
 }
@@ -399,7 +414,8 @@ private fun OrderGarmentDetailsCardRushDarkPreview() {
                 ),
             ),
             priority = OrderPriority.RUSH,
-            onAddFabricClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
         )
     }
 }

@@ -820,6 +820,10 @@
     <string name="order_detail_add_style">Add style</string>
     <string name="order_detail_add_fabric">Add fabric photo</string>
     <string name="order_detail_add_fabric_name">Add fabric name</string>
+    <string name="order_detail_fabric_name_dialog_title">Add fabric name</string>
+    <string name="order_detail_fabric_name_dialog_label">Fabric name</string>
+    <string name="order_detail_fabric_name_dialog_placeholder">e.g. Royal Lace, Ankara</string>
+    <string name="order_detail_fabric_name_save">Save</string>
     <string name="order_detail_link_measurements">Link measurements</string>
     <string name="measurement_picker_title">Link a measurement</string>
     <string name="measurement_picker_empty">No measurements yet for this customer.</string>

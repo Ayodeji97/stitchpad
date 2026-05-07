@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -116,6 +117,10 @@ import stitchpad.composeapp.generated.resources.order_detail_back_button
 import stitchpad.composeapp.generated.resources.order_detail_delivered_label
 import stitchpad.composeapp.generated.resources.order_detail_dialer_launch_failed
 import stitchpad.composeapp.generated.resources.order_detail_due_label
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_dialog_label
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_dialog_placeholder
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_dialog_title
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_save
 import stitchpad.composeapp.generated.resources.order_detail_more
 import stitchpad.composeapp.generated.resources.order_detail_not_found_message
 import stitchpad.composeapp.generated.resources.order_detail_not_found_title
@@ -502,6 +507,69 @@ fun OrderDetailScreen(
             },
         )
     }
+
+    // Inline fabric-name editor — quick add without leaving the detail screen
+    if (state.showFabricNameDialog) {
+        FabricNameDialog(
+            draft = state.fabricNameDraft,
+            onDraftChange = { onAction(OrderDetailAction.OnFabricNameDraftChange(it)) },
+            onSave = { onAction(OrderDetailAction.OnSaveFabricName) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissFabricNameDialog) },
+        )
+    }
+}
+
+@Composable
+private fun FabricNameDialog(
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.order_detail_fabric_name_dialog_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = onDraftChange,
+                label = { Text(stringResource(Res.string.order_detail_fabric_name_dialog_label)) },
+                placeholder = {
+                    Text(stringResource(Res.string.order_detail_fabric_name_dialog_placeholder))
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = draft.isNotBlank(),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+            ) {
+                Text(
+                    text = stringResource(Res.string.order_detail_fabric_name_save),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.common_cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        shape = RoundedCornerShape(DesignTokens.radiusXl),
+        containerColor = MaterialTheme.colorScheme.surface,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -701,7 +769,8 @@ private fun OrderDetailContent(
             OrderGarmentDetailsCard(
                 items = order.items,
                 priority = order.priority,
-                onAddFabricClick = { onAction(OrderDetailAction.OnAddFabricClick) },
+                onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
+                onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }
         item {
