@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -93,7 +94,7 @@ fun OrderMeasurementsPreviewCard(
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     fields.forEachIndexed { index, label ->
-                        val value = measurement.fields[label]
+                        val value = resolveFieldValue(measurement, label)
                         val displayValue = if (value != null) "${value.toInt()}$unitSuffix" else "—"
 
                         if (index > 0) {
@@ -150,6 +151,20 @@ fun OrderMeasurementsPreviewCard(
             }
         }
     }
+}
+
+// GarmentType.fieldLabels uses display strings ("Neck", "Chest"), but
+// Measurement.fields is keyed by MeasurementField.key (snake_case like
+// "neck_circumference", "trouser_waist"). Resolve via BodyProfileTemplate by
+// matching the display label to a MeasurementField, then look up by its key.
+private fun resolveFieldValue(measurement: Measurement, label: String): Double? {
+    measurement.fields[label]?.let { return it }
+    val key = BodyProfileTemplate
+        .sectionsFor(measurement.gender)
+        .flatMap { it.fields }
+        .firstOrNull { it.label.equals(label, ignoreCase = true) }
+        ?.key
+    return key?.let { measurement.fields[it] }
 }
 
 private fun formatShortDate(epochMillis: Long): String {
