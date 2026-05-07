@@ -54,6 +54,9 @@ class WorkshopSetupViewModel(
                     _events.send(WorkshopSetupEvent.NavigateToHome)
                 }
             }
+            WorkshopSetupAction.OnLogoUploadClick -> {
+                viewModelScope.launch { _events.send(WorkshopSetupEvent.ShowComingSoon) }
+            }
         }
     }
 

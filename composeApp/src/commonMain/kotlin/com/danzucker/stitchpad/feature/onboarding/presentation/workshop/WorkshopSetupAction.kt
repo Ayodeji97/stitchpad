@@ -7,4 +7,5 @@ sealed interface WorkshopSetupAction {
     data object OnPhoneBlur : WorkshopSetupAction
     data object OnContinueClick : WorkshopSetupAction
     data object OnSkipClick : WorkshopSetupAction
+    data object OnLogoUploadClick : WorkshopSetupAction
 }
