@@ -65,7 +65,14 @@ fun OrderGarmentDetailsCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(DesignTokens.space4)) {
+        Column(
+            modifier = Modifier.padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                top = DesignTokens.space4,
+                bottom = DesignTokens.space3,
+            ),
+        ) {
             // Per-item rows. The first row hosts the section header inside its
             // left column so the fabric thumbnail spans from the top of the card
             // body and total card height collapses by ~40dp.
@@ -118,12 +125,20 @@ private fun GarmentItemRow(
                 }
                 Spacer(Modifier.height(DesignTokens.space3))
             }
-            Text(
-                text = garmentDisplayName(item.garmentType),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+            ) {
+                Text(
+                    text = garmentDisplayName(item.garmentType),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (priority != OrderPriority.NORMAL) {
+                    PriorityPill(priority = priority)
+                }
+            }
             if (!item.fabricName.isNullOrBlank()) {
                 Spacer(Modifier.height(2.dp))
                 Text(
@@ -177,10 +192,6 @@ private fun GarmentItemRow(
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-            }
-            if (priority != OrderPriority.NORMAL) {
-                Spacer(Modifier.height(DesignTokens.space3))
-                PriorityPill(priority = priority)
             }
         }
 
