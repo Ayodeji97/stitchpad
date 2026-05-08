@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -104,6 +106,7 @@ fun SignUpRoot(
 
     SignUpScreen(
         state = state,
+        snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
     )
 }
@@ -111,6 +114,7 @@ fun SignUpRoot(
 @Composable
 fun SignUpScreen(
     state: SignUpState,
+    snackbarHostState: SnackbarHostState,
     onAction: (SignUpAction) -> Unit,
 ) {
     Box(
@@ -344,6 +348,13 @@ fun SignUpScreen(
                 )
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp),
+        )
     }
 }
 
@@ -352,7 +363,11 @@ fun SignUpScreen(
 @Preview
 private fun SignUpScreenPreview() {
     StitchPadTheme {
-        SignUpScreen(state = SignUpState(), onAction = {})
+        SignUpScreen(
+            state = SignUpState(),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+        )
     }
 }
 
@@ -369,6 +384,7 @@ private fun SignUpScreenFilledPreview() {
                 confirmPassword = "password123",
                 acceptedTerms = true,
             ),
+            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
         )
     }

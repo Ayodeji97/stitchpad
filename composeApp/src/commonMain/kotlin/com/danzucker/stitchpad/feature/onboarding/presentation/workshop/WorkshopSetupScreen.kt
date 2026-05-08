@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -98,6 +100,7 @@ fun WorkshopSetupRoot(
 
     WorkshopSetupScreen(
         state = state,
+        snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
     )
 }
@@ -105,6 +108,7 @@ fun WorkshopSetupRoot(
 @Composable
 fun WorkshopSetupScreen(
     state: WorkshopSetupState,
+    snackbarHostState: SnackbarHostState,
     onAction: (WorkshopSetupAction) -> Unit,
 ) {
     Box(
@@ -280,6 +284,13 @@ fun WorkshopSetupScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp),
+        )
     }
 }
 
@@ -288,7 +299,11 @@ fun WorkshopSetupScreen(
 @Preview
 private fun WorkshopSetupScreenPreview() {
     StitchPadTheme {
-        WorkshopSetupScreen(state = WorkshopSetupState(), onAction = {})
+        WorkshopSetupScreen(
+            state = WorkshopSetupState(),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+        )
     }
 }
 
@@ -302,6 +317,7 @@ private fun WorkshopSetupScreenFilledPreview() {
                 businessName = "Ade Fashions",
                 phone = "+2348012345678",
             ),
+            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
         )
     }
