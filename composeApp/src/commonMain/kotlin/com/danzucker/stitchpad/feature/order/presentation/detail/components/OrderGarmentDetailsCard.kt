@@ -140,7 +140,7 @@ private fun GarmentItemRow(
                 }
             }
             if (!item.fabricName.isNullOrBlank()) {
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(DesignTokens.space2))
                 Text(
                     text = item.fabricName,
                     style = MaterialTheme.typography.bodyMedium,
@@ -150,7 +150,7 @@ private fun GarmentItemRow(
                 )
             }
             if (item.description.isNotBlank()) {
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(DesignTokens.space2))
                 Text(
                     text = item.description,
                     style = MaterialTheme.typography.bodyMedium,
