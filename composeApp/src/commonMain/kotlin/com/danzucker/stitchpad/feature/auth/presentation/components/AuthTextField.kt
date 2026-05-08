@@ -52,6 +52,7 @@ fun AuthTextField(
     isPasswordVisible: Boolean = false,
     onTogglePassword: (() -> Unit)? = null,
     trailingPasswordVisibilityIcon: ImageVector? = null,
+    passwordVisibilityContentDescription: String? = null,
     errorText: String? = null,
     helperText: String? = null,
     helperIcon: ImageVector? = null,
@@ -127,7 +128,7 @@ fun AuthTextField(
                 IconButton(onClick = onTogglePassword, modifier = Modifier.size(20.dp)) {
                     Icon(
                         imageVector = trailingPasswordVisibilityIcon,
-                        contentDescription = null,
+                        contentDescription = passwordVisibilityContentDescription,
                         tint = Color(0xFF7D7970),
                         modifier = Modifier.size(20.dp),
                     )

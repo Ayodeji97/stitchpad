@@ -58,6 +58,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_coming_soon
+import stitchpad.composeapp.generated.resources.cd_password_hide
+import stitchpad.composeapp.generated.resources.cd_password_show
 import stitchpad.composeapp.generated.resources.placeholder_email
 import stitchpad.composeapp.generated.resources.signup_confirm_password_label
 import stitchpad.composeapp.generated.resources.signup_confirm_password_placeholder
@@ -115,6 +117,7 @@ fun SignUpRoot(
     )
 }
 
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 fun SignUpScreen(
     state: SignUpState,
@@ -193,6 +196,13 @@ fun SignUpScreen(
                     } else {
                         Icons.Outlined.Visibility
                     },
+                    passwordVisibilityContentDescription = stringResource(
+                        if (state.isPasswordVisible) {
+                            Res.string.cd_password_hide
+                        } else {
+                            Res.string.cd_password_show
+                        }
+                    ),
                     placeholder = stringResource(Res.string.signup_password_placeholder),
                     helperText = when {
                         state.passwordError != null -> null
@@ -223,6 +233,13 @@ fun SignUpScreen(
                     } else {
                         Icons.Outlined.Visibility
                     },
+                    passwordVisibilityContentDescription = stringResource(
+                        if (state.isConfirmPasswordVisible) {
+                            Res.string.cd_password_hide
+                        } else {
+                            Res.string.cd_password_show
+                        }
+                    ),
                     placeholder = stringResource(Res.string.signup_confirm_password_placeholder),
                     errorText = state.confirmPasswordError?.asString(),
                     onFocusLost = { onAction(SignUpAction.OnConfirmPasswordBlur) },

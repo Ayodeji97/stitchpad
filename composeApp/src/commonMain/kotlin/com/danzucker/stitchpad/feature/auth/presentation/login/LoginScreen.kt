@@ -56,6 +56,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_coming_soon
+import stitchpad.composeapp.generated.resources.cd_password_hide
+import stitchpad.composeapp.generated.resources.cd_password_show
 import stitchpad.composeapp.generated.resources.login_button
 import stitchpad.composeapp.generated.resources.login_email_label
 import stitchpad.composeapp.generated.resources.login_forgot_password
@@ -176,6 +178,13 @@ fun LoginScreen(
                         } else {
                             Icons.Outlined.Visibility
                         },
+                        passwordVisibilityContentDescription = stringResource(
+                            if (state.isPasswordVisible) {
+                                Res.string.cd_password_hide
+                            } else {
+                                Res.string.cd_password_show
+                            }
+                        ),
                         placeholder = stringResource(Res.string.placeholder_password),
                         errorText = state.passwordError?.asString(),
                         onFocusLost = { onAction(LoginAction.OnPasswordBlur) },
