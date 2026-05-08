@@ -39,7 +39,7 @@ class WorkshopSetupViewModel(
                 _state.update { it.copy(businessName = action.name, businessNameError = null) }
             }
             is WorkshopSetupAction.OnWhatsAppNumberChange -> {
-                val filtered = action.raw.filter { it.isDigit() || it in "+- ()" }.take(20)
+                val filtered = action.raw.filter { it.isDigit() || it in "+- ()" }.take(MAX_WHATSAPP_INPUT_LENGTH)
                 _state.update { it.copy(whatsappNumber = filtered, whatsappError = null) }
             }
             WorkshopSetupAction.OnBusinessNameBlur -> {
@@ -132,5 +132,10 @@ class WorkshopSetupViewModel(
                 _state.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    private companion object {
+        // Longest a Nigerian number can be: +2348031234567 (E.164) = 14 chars.
+        const val MAX_WHATSAPP_INPUT_LENGTH = 14
     }
 }
