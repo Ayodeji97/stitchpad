@@ -135,4 +135,74 @@ class OrderMapperTest {
         assertNull(item.fabricName)
         assertNull(item.toOrderItemDto().fabricName)
     }
+
+    @Test
+    fun migrateLegacyDeposit_synthesisesPaymentWhenListEmptyAndDepositPositive() {
+        val migrated = migrateLegacyDeposit(
+            payments = emptyList(),
+            depositPaid = 10_000.0,
+            createdAt = 1_700_000_000_000L,
+        )
+        assertEquals(1, migrated.size)
+        val p = migrated.single()
+        assertEquals(10_000.0, p.amount)
+        assertEquals(PaymentMethod.OTHER.name, p.method)
+        assertEquals(PaymentType.DEPOSIT.name, p.type)
+        assertEquals("legacy-deposit", p.id)
+    }
+
+    @Test
+    fun migrateLegacyDeposit_returnsExistingListWhenPaymentsAlreadyPresent() {
+        val existing = listOf(
+            PaymentDto(id = "p1", amount = 5_000.0, method = "TRANSFER", type = "PROGRESS"),
+        )
+        val migrated = migrateLegacyDeposit(
+            payments = existing,
+            depositPaid = 99_999.0,
+            createdAt = 0L,
+        )
+        assertEquals(existing, migrated)
+    }
+
+    @Test
+    fun migrateLegacyDeposit_emptyListZeroDeposit_returnsEmpty() {
+        val migrated = migrateLegacyDeposit(emptyList(), 0.0, 0L)
+        assertTrue(migrated.isEmpty())
+    }
+
+    @Test
+    fun recordPaymentWritePath_legacyDepositIsPreserved() {
+        // Regression for data-loss bug: a legacy doc has depositPaid=10k and
+        // payments=[]. When recordPayment writes a new ₦5k progress payment,
+        // the legacy ₦10k must be migrated into payments BEFORE depositPaid is
+        // zeroed — otherwise the original deposit vanishes.
+        val legacyDto = OrderDto(
+            depositPaid = 10_000.0,
+            payments = emptyList(),
+            createdAt = 1_700_000_000_000L,
+        )
+        val newPayment = PaymentDto(
+            id = "p-new",
+            amount = 5_000.0,
+            method = "TRANSFER",
+            type = "PROGRESS",
+            recordedAt = 1_700_000_500_000L,
+        )
+
+        val migratedPayments = migrateLegacyDeposit(
+            payments = legacyDto.payments,
+            depositPaid = legacyDto.depositPaid,
+            createdAt = legacyDto.createdAt,
+        )
+        val updatedDto = legacyDto.copy(
+            payments = migratedPayments + newPayment,
+            depositPaid = 0.0,
+        )
+
+        assertEquals(2, updatedDto.payments.size)
+        assertEquals(15_000.0, updatedDto.payments.sumOf { it.amount })
+        assertEquals(0.0, updatedDto.depositPaid)
+        // And the migrated order's computed depositPaid still surfaces the full ₦15k.
+        assertEquals(15_000.0, updatedDto.toOrder("u1").depositPaid)
+    }
 }

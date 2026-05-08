@@ -16,6 +16,30 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import kotlin.time.Clock
 
+/** Returns a `payments` list that already absorbs any legacy `depositPaid`.
+ *
+ *  Mirrors the read-side migration so write paths (e.g. recordPayment) don't
+ *  silently drop the legacy deposit when they zero out `depositPaid`.
+ */
+fun migrateLegacyDeposit(
+    payments: List<PaymentDto>,
+    depositPaid: Double,
+    createdAt: Long,
+): List<PaymentDto> = if (payments.isNotEmpty() || depositPaid <= 0.0) {
+    payments
+} else {
+    listOf(
+        PaymentDto(
+            id = "legacy-deposit",
+            amount = depositPaid,
+            method = PaymentMethod.OTHER.name,
+            type = PaymentType.DEPOSIT.name,
+            recordedAt = createdAt,
+            note = null,
+        )
+    )
+}
+
 fun OrderDto.toOrder(userId: String): Order {
     val parsedStatus = runCatching { OrderStatus.valueOf(status) }
         .getOrDefault(OrderStatus.PENDING)
@@ -28,21 +52,8 @@ fun OrderDto.toOrder(userId: String): Order {
     }
     // Migrate legacy docs: if payments list is empty but the old depositPaid field has a value,
     // synthesise a single payment so the computed Order.depositPaid is non-zero.
-    val resolvedPayments = if (payments.isNotEmpty()) {
-        payments.map { it.toPayment() }
-    } else if (depositPaid > 0.0) {
-        listOf(
-            Payment(
-                id = "legacy-deposit",
-                amount = depositPaid,
-                method = PaymentMethod.OTHER,
-                type = PaymentType.DEPOSIT,
-                recordedAt = createdAt,
-            )
-        )
-    } else {
-        emptyList()
-    }
+    val resolvedPayments = migrateLegacyDeposit(payments, depositPaid, createdAt)
+        .map { it.toPayment() }
     return Order(
         id = id,
         userId = userId,

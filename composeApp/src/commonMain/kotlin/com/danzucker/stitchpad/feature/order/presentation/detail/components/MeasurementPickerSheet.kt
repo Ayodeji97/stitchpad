@@ -41,6 +41,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.gender_female
+import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_picker_create_new
 import stitchpad.composeapp.generated.resources.measurement_picker_empty
 import stitchpad.composeapp.generated.resources.measurement_picker_taken_caption
@@ -159,7 +161,7 @@ private fun MeasurementRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = genderLabel(measurement.gender),
+                text = stringResource(genderLabelRes(measurement.gender)),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -187,9 +189,9 @@ private fun MeasurementRow(
     }
 }
 
-private fun genderLabel(gender: CustomerGender): String = when (gender) {
-    CustomerGender.MALE -> "Male"
-    CustomerGender.FEMALE -> "Female"
+private fun genderLabelRes(gender: CustomerGender) = when (gender) {
+    CustomerGender.MALE -> Res.string.gender_male
+    CustomerGender.FEMALE -> Res.string.gender_female
 }
 
 private fun formatShortDate(epochMillis: Long): String {

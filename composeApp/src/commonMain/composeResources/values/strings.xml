@@ -468,6 +468,8 @@
     <string name="order_detail_customer_section">Customer</string>
     <string name="order_detail_customer_since">Customer since %1$s</string>
     <string name="order_detail_add_phone">Add phone number</string>
+    <string name="action_whatsapp">WhatsApp</string>
+    <string name="action_call">Call</string>
     <string name="order_detail_items_section">Items</string>
     <string name="order_detail_financial_section">Payment</string>
     <string name="order_detail_total_price">Total</string>

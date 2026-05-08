@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.data
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
+import com.danzucker.stitchpad.core.data.mapper.migrateLegacyDeposit
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
@@ -166,10 +167,16 @@ class FirebaseOrderRepository(
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
                 val now = Clock.System.now().toEpochMilliseconds()
+                // Absorb any legacy depositPaid into the payments list BEFORE
+                // appending the new one — otherwise zeroing depositPaid below
+                // permanently drops the legacy deposit.
+                val migratedPayments = migrateLegacyDeposit(
+                    payments = dto.payments,
+                    depositPaid = dto.depositPaid,
+                    createdAt = dto.createdAt,
+                )
                 val updatedDto = dto.copy(
-                    payments = dto.payments + payment.toPaymentDto(),
-                    // Zero out the legacy field on first write — once payments is
-                    // populated the read-side ignores depositPaid anyway.
+                    payments = migratedPayments + payment.toPaymentDto(),
                     depositPaid = 0.0,
                     updatedAt = now,
                 )

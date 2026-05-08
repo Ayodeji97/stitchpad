@@ -36,6 +36,30 @@ class FirebaseCustomerRepository(
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
 
+    override fun observeCustomer(
+        userId: String,
+        customerId: String,
+    ): Flow<Result<Customer, DataError.Network>> =
+        firestore.collection("users")
+            .document(userId)
+            .collection("customers")
+            .document(customerId)
+            .snapshots
+            .map { snapshot ->
+                if (!snapshot.exists) {
+                    Result.Error(DataError.Network.NOT_FOUND) as Result<Customer, DataError.Network>
+                } else {
+                    val dto = snapshot.data<CustomerDto>()
+                    Result.Success(dto.toCustomer(userId))
+                }
+            }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) {
+                    "observeCustomer failed customerId=$customerId"
+                }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
+
     override suspend fun getCustomer(
         userId: String,
         customerId: String

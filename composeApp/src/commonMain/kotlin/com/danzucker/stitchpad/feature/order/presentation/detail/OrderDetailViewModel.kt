@@ -50,13 +50,15 @@ class OrderDetailViewModel(
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
 
     private var hasStartedObserving = false
+    private var customerJob: Job? = null
+    private var loadedCustomerId: String? = null
     private var measurementsJob: Job? = null
     private var loadedMeasurementsCustomerId: String? = null
     private var styleJob: Job? = null
     private var loadedStylesCustomerId: String? = null
     private val _state = MutableStateFlow(OrderDetailState())
 
-    private val _events = Channel<OrderDetailEvent>()
+    private val _events = Channel<OrderDetailEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     val state = _state
@@ -410,11 +412,19 @@ class OrderDetailViewModel(
     }
 
     private fun loadCustomerIfNeeded(customerId: String, userId: String) {
-        if (_state.value.customer?.id == customerId) return
-        viewModelScope.launch {
-            when (val res = customerRepository.getCustomer(userId, customerId)) {
-                is Result.Success -> _state.update { it.copy(customer = res.data) }
-                is Result.Error -> Unit
+        if (loadedCustomerId == customerId) return
+        loadedCustomerId = customerId
+        customerJob?.cancel()
+        customerJob = viewModelScope.launch {
+            // Observe (not getCustomer) so phone/name edits made via the
+            // CustomerForm flight propagate back to the order detail without
+            // requiring a screen recreation. The empty-phone CTA depends on
+            // this — without observe, the new phone is invisible until the
+            // VM is destroyed and rebuilt.
+            customerRepository.observeCustomer(userId, customerId).collect { res ->
+                if (res is Result.Success) {
+                    _state.update { it.copy(customer = res.data) }
+                }
             }
         }
     }
@@ -608,11 +618,15 @@ class OrderDetailViewModel(
     private fun submitPayment(amountJustPaid: Double) {
         val state = _state.value
         val order = state.order ?: return
-        if (amountJustPaid <= 0.0) return
+        // capPaymentDigits intentionally echoes user input when balance is 0.0
+        // (so the field stays editable visually), so we must guard AFTER
+        // coercing — otherwise a 0-balance order accepts a phantom payment.
+        val safeAmount = amountJustPaid.coerceAtMost(order.balanceRemaining)
+        if (safeAmount <= 0.0) return
         val now = Clock.System.now().toEpochMilliseconds()
         val payment = Payment(
             id = Uuid.random().toString(),
-            amount = amountJustPaid.coerceAtMost(order.balanceRemaining),
+            amount = safeAmount,
             method = state.paymentMethodSelection,
             type = state.paymentTypeSelection,
             recordedAt = now,

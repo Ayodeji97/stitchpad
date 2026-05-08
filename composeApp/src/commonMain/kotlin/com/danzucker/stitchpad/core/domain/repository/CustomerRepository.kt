@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface CustomerRepository {
     fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>>
+    fun observeCustomer(userId: String, customerId: String): Flow<Result<Customer, DataError.Network>>
     suspend fun getCustomer(userId: String, customerId: String): Result<Customer, DataError.Network>
     suspend fun createCustomer(userId: String, customer: Customer): EmptyResult<DataError.Network>
     suspend fun updateCustomer(userId: String, customer: Customer): EmptyResult<DataError.Network>

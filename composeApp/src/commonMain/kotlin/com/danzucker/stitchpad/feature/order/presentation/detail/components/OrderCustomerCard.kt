@@ -43,6 +43,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.action_call
+import stitchpad.composeapp.generated.resources.action_whatsapp
 import stitchpad.composeapp.generated.resources.order_detail_add_phone
 import stitchpad.composeapp.generated.resources.order_detail_customer_section
 import stitchpad.composeapp.generated.resources.order_detail_customer_since
@@ -171,7 +173,7 @@ private fun ReachOutChips(
             onClick = onWhatsAppClick,
             label = {
                 Text(
-                    text = "WhatsApp",
+                    text = stringResource(Res.string.action_whatsapp),
                     style = MaterialTheme.typography.labelMedium,
                 )
             },
@@ -191,7 +193,7 @@ private fun ReachOutChips(
             onClick = onCallClick,
             label = {
                 Text(
-                    text = "Call",
+                    text = stringResource(Res.string.action_call),
                     style = MaterialTheme.typography.labelMedium,
                 )
             },
