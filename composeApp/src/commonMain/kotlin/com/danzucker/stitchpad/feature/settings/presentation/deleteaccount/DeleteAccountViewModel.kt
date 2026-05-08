@@ -4,10 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -35,7 +33,6 @@ private const val LOCALE = "en"
 @Suppress("TooManyFunctions")
 class DeleteAccountViewModel(
     private val authRepository: AuthRepository,
-    private val userRepository: UserRepository,
     private val deletionFeedbackRepository: DeletionFeedbackRepository,
 ) : ViewModel() {
 
@@ -133,10 +130,16 @@ class DeleteAccountViewModel(
     }
 
     /**
-     * Order matters: feedback first (we lose write permission once the auth user
-     * is gone), then a best-effort client sweep of subcollections, then the
-     * authoritative auth.delete(). The Cloud Function (onAuthUserDeleted) sweeps
-     * any orphan documents the client missed.
+     * Order matters:
+     * 1. Save anonymous feedback while we still have write permission.
+     * 2. Auth delete — authoritative. If this fails, the user's data is still
+     *    intact and they can retry; we deliberately do NOT sweep Firestore
+     *    before this point, because a sweep + auth-delete-failure would leave
+     *    the user signed in with no customers / measurements / orders.
+     * 3. Cleanup of orphaned documents under users/{uid} is the
+     *    onAuthUserDeleted Cloud Function's job (deferred to a follow-up PR).
+     *    Until that lands, deleted users' subcollections persist as orphans —
+     *    inaccessible (security rules deny without auth) but storage-billable.
      */
     private fun runDeletePipeline() {
         val current = _state.value
@@ -150,8 +153,6 @@ class DeleteAccountViewModel(
                 return@launch
             }
 
-            // 1. Save anonymous feedback. Failures here log but never block the
-            // user's right to delete their account.
             val feedback = DeletionFeedback(
                 reason = current.selectedReason ?: return@launch,
                 additionalNotes = current.additionalNotes.takeIf { it.isNotBlank() },
@@ -166,14 +167,6 @@ class DeleteAccountViewModel(
                     AppLogger.e(tag = TAG, throwable = error) { "submitFeedback threw" }
                 }
 
-            // 2. Best-effort client sweep of users/{uid} subcollections.
-            runCatching { userRepository.deleteUserData(authUser.id) }
-                .onFailure { error ->
-                    AppLogger.e(tag = TAG, throwable = error) { "deleteUserData threw" }
-                }
-
-            // 3. Authoritative auth deletion. requires-recent-login flips us back
-            // to the reauth sheet with a snackbar.
             when (val result = authRepository.deleteAccount()) {
                 is Result.Success -> {
                     _state.update { it.copy(phase = DeletePhase.Goodbye) }
@@ -182,13 +175,11 @@ class DeleteAccountViewModel(
                 }
                 is Result.Error -> {
                     AppLogger.e(tag = TAG) { "deleteAccount failed error=${result.error}" }
-                    val nextPhase = if (result.error == AuthError.REQUIRES_RECENT_LOGIN) {
-                        DeletePhase.Reauth
-                    } else {
-                        DeletePhase.Reauth
-                    }
                     _state.update {
-                        it.copy(phase = nextPhase, reauthError = result.error.toUiText())
+                        it.copy(
+                            phase = DeletePhase.Reauth,
+                            reauthError = result.error.toUiText(),
+                        )
                     }
                 }
             }
