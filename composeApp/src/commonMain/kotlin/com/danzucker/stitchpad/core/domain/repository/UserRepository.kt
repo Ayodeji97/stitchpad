@@ -23,7 +23,5 @@ interface UserRepository {
         avatarColorIndex: Int?
     ): EmptyResult<DataError.Network>
 
-    suspend fun deleteUserData(userId: String): EmptyResult<DataError.Network>
-
     fun observeUser(userId: String): Flow<User?>
 }

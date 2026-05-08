@@ -40,6 +40,7 @@ import com.danzucker.stitchpad.feature.settings.domain.DeletionReason
 import com.danzucker.stitchpad.feature.settings.presentation.components.ReauthBottomSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.BackHandler
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -60,6 +61,17 @@ fun DeleteAccountScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (DeleteAccountAction) -> Unit,
 ) {
+    // Goodbye phase: hijack system back to route through OnGoodbyeContinue, so
+    // a back-press from the goodbye screen lands the (already-deleted) user on
+    // Login like the CTA does, instead of popping back to a Settings screen
+    // that no longer has a valid auth user.
+    BackHandler(enabled = state.phase == DeletePhase.Goodbye) {
+        onAction(DeleteAccountAction.OnGoodbyeContinue)
+    }
+    // Processing phase: swallow back so a tap can't tear down the in-flight
+    // delete pipeline mid-operation.
+    BackHandler(enabled = state.phase == DeletePhase.Processing) { /* swallow */ }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,

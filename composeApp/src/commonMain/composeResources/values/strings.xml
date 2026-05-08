@@ -1064,7 +1064,7 @@
     <string name="delete_account_progress_body">Saving your feedback, removing your data, and signing you out. This usually takes a few seconds.</string>
 
     <string name="delete_account_goodbye_title">Your account is closed</string>
-    <string name="delete_account_goodbye_body">All your data has been removed. Thank you for trying StitchPad — if you ever come back, you\'ll start fresh.</string>
+    <string name="delete_account_goodbye_body">You\'ve been signed out. Final data cleanup is finishing in the background. Thank you for trying StitchPad.</string>
     <string name="delete_account_goodbye_cta">Back to sign in</string>
 
     <string name="delete_account_failed">Could not delete your account. Please try again.</string>

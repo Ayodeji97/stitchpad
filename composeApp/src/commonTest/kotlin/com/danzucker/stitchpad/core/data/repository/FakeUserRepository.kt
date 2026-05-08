@@ -17,7 +17,6 @@ class FakeUserRepository : UserRepository {
     var lastPhone: String? = null
     var lastDisplayName: String? = null
     var lastAvatarColorIndex: Int? = null
-    var deleteUserDataCalled: Boolean = false
     val userFlow = MutableStateFlow<User?>(null)
 
     override suspend fun createUserProfile(
@@ -53,13 +52,6 @@ class FakeUserRepository : UserRepository {
         lastPhone = phoneNumber
         lastWhatsAppNumber = whatsappNumber
         lastAvatarColorIndex = avatarColorIndex
-        return Result.Success(Unit)
-    }
-
-    override suspend fun deleteUserData(userId: String): EmptyResult<DataError.Network> {
-        shouldReturnError?.let { return Result.Error(it) }
-        deleteUserDataCalled = true
-        lastUserId = userId
         return Result.Success(Unit)
     }
 

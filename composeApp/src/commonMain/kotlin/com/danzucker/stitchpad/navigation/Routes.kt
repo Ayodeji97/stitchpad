@@ -92,7 +92,4 @@ data object ChangePasswordRoute
 data object DeleteAccountRoute
 
 @Serializable
-data object DeleteAccountGoodbyeRoute
-
-@Serializable
 data object ReportsRoute

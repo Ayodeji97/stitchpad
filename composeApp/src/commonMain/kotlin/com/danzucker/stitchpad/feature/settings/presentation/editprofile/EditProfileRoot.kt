@@ -26,11 +26,15 @@ fun EditProfileRoot(
             EditProfileEvent.NavigateBack -> onNavigateBack()
             is EditProfileEvent.ShowSnackbar -> {
                 scope.launch {
-                    val message = when (val text = event.message) {
-                        is UiText.DynamicString -> text.value
-                        is UiText.StringResourceText -> getString(text.id)
-                    }
-                    snackbarHostState.showSnackbar(message)
+                    snackbarHostState.showSnackbar(resolve(event.message))
+                }
+            }
+            is EditProfileEvent.SaveSucceeded -> {
+                scope.launch {
+                    // Suspend until the snackbar dismisses so the user actually
+                    // sees the confirmation; only then tear down the scaffold.
+                    snackbarHostState.showSnackbar(resolve(event.message))
+                    onNavigateBack()
                 }
             }
         }
@@ -41,4 +45,9 @@ fun EditProfileRoot(
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
     )
+}
+
+private suspend fun resolve(text: UiText): String = when (text) {
+    is UiText.DynamicString -> text.value
+    is UiText.StringResourceText -> getString(text.id)
 }

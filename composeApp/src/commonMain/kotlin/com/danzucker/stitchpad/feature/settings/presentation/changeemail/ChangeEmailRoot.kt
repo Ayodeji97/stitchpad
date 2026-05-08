@@ -27,11 +27,19 @@ fun ChangeEmailRoot(
             ChangeEmailEvent.NavigateBack -> onNavigateBack()
             is ChangeEmailEvent.ShowSnackbar -> {
                 scope.launch {
-                    val message = when (val text = event.message) {
-                        is UiText.DynamicString -> text.value
-                        is UiText.StringResourceText -> getString(text.id)
-                    }
-                    snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Long)
+                    snackbarHostState.showSnackbar(
+                        message = resolve(event.message),
+                        duration = SnackbarDuration.Long,
+                    )
+                }
+            }
+            is ChangeEmailEvent.SaveSucceeded -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = resolve(event.message),
+                        duration = SnackbarDuration.Long,
+                    )
+                    onNavigateBack()
                 }
             }
         }
@@ -42,4 +50,9 @@ fun ChangeEmailRoot(
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
     )
+}
+
+private suspend fun resolve(text: UiText): String = when (text) {
+    is UiText.DynamicString -> text.value
+    is UiText.StringResourceText -> getString(text.id)
 }

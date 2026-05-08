@@ -211,10 +211,11 @@ class EditProfileViewModel(
             )
             _state.update { it.copy(isSaving = false) }
             when (result) {
-                is Result.Success -> {
-                    emit(EditProfileEvent.ShowSnackbar(UiText.StringResourceText(Res.string.edit_profile_saved)))
-                    emit(EditProfileEvent.NavigateBack)
-                }
+                is Result.Success -> emit(
+                    EditProfileEvent.SaveSucceeded(
+                        UiText.StringResourceText(Res.string.edit_profile_saved)
+                    )
+                )
                 is Result.Error -> {
                     AppLogger.e(tag = TAG) { "updateProfile failed error=${result.error}" }
                     emit(EditProfileEvent.ShowSnackbar(UiText.StringResourceText(Res.string.edit_profile_save_failed)))

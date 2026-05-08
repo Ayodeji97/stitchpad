@@ -184,14 +184,11 @@ class ChangePasswordViewModel(
             val result = authRepository.updatePassword(current.newPassword)
             _state.update { it.copy(isSubmitting = false) }
             when (result) {
-                is Result.Success -> {
-                    emit(
-                        ChangePasswordEvent.ShowSnackbar(
-                            UiText.StringResourceText(Res.string.change_password_updated)
-                        )
+                is Result.Success -> emit(
+                    ChangePasswordEvent.SaveSucceeded(
+                        UiText.StringResourceText(Res.string.change_password_updated)
                     )
-                    emit(ChangePasswordEvent.NavigateBack)
-                }
+                )
                 is Result.Error -> {
                     AppLogger.e(tag = TAG) { "updatePassword failed error=${result.error}" }
                     emit(ChangePasswordEvent.ShowSnackbar(result.error.toUiText()))

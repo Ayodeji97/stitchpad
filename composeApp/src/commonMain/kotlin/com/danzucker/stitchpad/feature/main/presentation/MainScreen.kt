@@ -40,7 +40,6 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
-import com.danzucker.stitchpad.feature.settings.presentation.SettingsComingSoonScreen
 import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeEmailRoot
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
@@ -55,7 +54,6 @@ import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
-import com.danzucker.stitchpad.navigation.DeleteAccountGoodbyeRoute
 import com.danzucker.stitchpad.navigation.DeleteAccountRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
@@ -69,9 +67,6 @@ import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.viewmodel.koinViewModel
-import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.delete_account_goodbye_title
 
 @Composable
 fun MainRoot(onSignedOut: () -> Unit) {
@@ -346,15 +341,6 @@ private fun MainNavGraph(
             DeleteAccountRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onSignedOut = onSignedOut,
-            )
-        }
-        composable<DeleteAccountGoodbyeRoute> {
-            // The Goodbye view is rendered inline within DeleteAccountScreen as a
-            // phase, so this route is a placeholder reserved for a future split if
-            // the flow ever needs a hard navigation between processing and goodbye.
-            SettingsComingSoonScreen(
-                title = Res.string.delete_account_goodbye_title,
-                onBack = { navController.navigateUp() },
             )
         }
     }

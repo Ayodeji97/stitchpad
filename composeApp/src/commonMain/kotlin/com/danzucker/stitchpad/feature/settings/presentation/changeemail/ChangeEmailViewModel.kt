@@ -143,14 +143,11 @@ class ChangeEmailViewModel(
             val result = authRepository.updateEmail(newEmail)
             _state.update { it.copy(isSubmitting = false) }
             when (result) {
-                is Result.Success -> {
-                    emit(
-                        ChangeEmailEvent.ShowSnackbar(
-                            UiText.StringResourceText(Res.string.change_email_sent)
-                        )
+                is Result.Success -> emit(
+                    ChangeEmailEvent.SaveSucceeded(
+                        UiText.StringResourceText(Res.string.change_email_sent)
                     )
-                    emit(ChangeEmailEvent.NavigateBack)
-                }
+                )
                 is Result.Error -> {
                     AppLogger.e(tag = TAG) { "updateEmail failed error=${result.error}" }
                     emit(ChangeEmailEvent.ShowSnackbar(result.error.toUiText()))

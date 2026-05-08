@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.map
 
 private const val TAG = "UserRepo"
 private const val USERS = "users"
-private val USER_SUBCOLLECTIONS = listOf("customers", "measurements", "orders", "styles", "goals")
 
 class FirebaseUserRepository(
     private val firestore: FirebaseFirestore
@@ -96,27 +95,6 @@ class FirebaseUserRepository(
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "updateProfile failed userId=$userId" }
-            Result.Error(DataError.Network.UNKNOWN)
-        }
-    }
-
-    override suspend fun deleteUserData(userId: String): EmptyResult<DataError.Network> {
-        return try {
-            val userDoc = firestore.collection(USERS).document(userId)
-            USER_SUBCOLLECTIONS.forEach { subcollection ->
-                runCatching {
-                    val docs = userDoc.collection(subcollection).get().documents
-                    docs.forEach { it.reference.delete() }
-                }.onFailure { error ->
-                    AppLogger.e(tag = TAG, throwable = error) {
-                        "deleteUserData subcollection sweep failed sub=$subcollection userId=$userId"
-                    }
-                }
-            }
-            userDoc.delete()
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "deleteUserData failed userId=$userId" }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }

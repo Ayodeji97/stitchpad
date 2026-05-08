@@ -25,12 +25,12 @@ fun ChangePasswordRoot(
         when (event) {
             ChangePasswordEvent.NavigateBack -> onNavigateBack()
             is ChangePasswordEvent.ShowSnackbar -> {
+                scope.launch { snackbarHostState.showSnackbar(resolve(event.message)) }
+            }
+            is ChangePasswordEvent.SaveSucceeded -> {
                 scope.launch {
-                    val message = when (val text = event.message) {
-                        is UiText.DynamicString -> text.value
-                        is UiText.StringResourceText -> getString(text.id)
-                    }
-                    snackbarHostState.showSnackbar(message)
+                    snackbarHostState.showSnackbar(resolve(event.message))
+                    onNavigateBack()
                 }
             }
         }
@@ -41,4 +41,9 @@ fun ChangePasswordRoot(
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
     )
+}
+
+private suspend fun resolve(text: UiText): String = when (text) {
+    is UiText.DynamicString -> text.value
+    is UiText.StringResourceText -> getString(text.id)
 }

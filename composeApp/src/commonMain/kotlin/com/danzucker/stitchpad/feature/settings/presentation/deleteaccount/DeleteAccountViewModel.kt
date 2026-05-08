@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedback
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedbackRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,10 @@ class DeleteAccountViewModel(
 
     private val _events = Channel<DeleteAccountEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+
+    /** Cancellable timer for the auto-navigate after the Goodbye screen renders. */
+    private var goodbyeJob: Job? = null
+    private var goodbyeNavigated = false
 
     val state = _state
         .onStart {
@@ -81,8 +86,11 @@ class DeleteAccountViewModel(
             DeleteAccountAction.OnReauthCancel -> emit(DeleteAccountEvent.NavigateBack)
             DeleteAccountAction.OnForgotPassword -> sendPasswordReset()
 
-            DeleteAccountAction.OnGoodbyeContinue ->
-                emit(DeleteAccountEvent.NavigateToLoginAfterDelete)
+            DeleteAccountAction.OnGoodbyeContinue -> {
+                // Cancel the auto-navigate timer if the user tapped the CTA first.
+                goodbyeJob?.cancel()
+                navigateToLoginAfterDeleteOnce()
+            }
 
             DeleteAccountAction.OnBackClick -> emit(DeleteAccountEvent.NavigateBack)
         }
@@ -153,8 +161,18 @@ class DeleteAccountViewModel(
                 return@launch
             }
 
+            val reason = current.selectedReason
+            if (reason == null) {
+                // Defensive: the FSM shouldn't allow Reauth without a reason picked,
+                // but if it ever does we don't want the user trapped on the
+                // non-cancellable Processing dialog. Bounce them back to the reason
+                // sheet with a snackbar.
+                _state.update { it.copy(phase = DeletePhase.Reason) }
+                emit(DeleteAccountEvent.ShowSnackbar(deleteFailedText()))
+                return@launch
+            }
             val feedback = DeletionFeedback(
-                reason = current.selectedReason ?: return@launch,
+                reason = reason,
                 additionalNotes = current.additionalNotes.takeIf { it.isNotBlank() },
                 plan = current.plan,
                 daysActive = current.daysActive,
@@ -170,8 +188,13 @@ class DeleteAccountViewModel(
             when (val result = authRepository.deleteAccount()) {
                 is Result.Success -> {
                     _state.update { it.copy(phase = DeletePhase.Goodbye) }
-                    delay(GOODBYE_DELAY_MS)
-                    emit(DeleteAccountEvent.NavigateToLoginAfterDelete)
+                    // Auto-navigate after the user has had time to read the goodbye
+                    // copy. Stored as a cancellable Job so OnGoodbyeContinue can
+                    // pre-empt it without double-firing the navigation event.
+                    goodbyeJob = viewModelScope.launch {
+                        delay(GOODBYE_DELAY_MS)
+                        navigateToLoginAfterDeleteOnce()
+                    }
                 }
                 is Result.Error -> {
                     AppLogger.e(tag = TAG) { "deleteAccount failed error=${result.error}" }
@@ -184,6 +207,13 @@ class DeleteAccountViewModel(
                 }
             }
         }
+    }
+
+    /** Idempotent dispatcher for the post-delete navigation. */
+    private fun navigateToLoginAfterDeleteOnce() {
+        if (goodbyeNavigated) return
+        goodbyeNavigated = true
+        emit(DeleteAccountEvent.NavigateToLoginAfterDelete)
     }
 
     private fun sendPasswordReset() {
