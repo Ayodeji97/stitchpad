@@ -130,13 +130,14 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val docRef = ordersCollection(userId).document(orderId)
-            // Atomic read-modify-write: Firestore retries on concurrent modification,
-            // preventing lost status updates when two devices update at the same time.
+            // Capture once outside the transaction body — Firestore retries on
+            // concurrent modification, and we want a stable timestamp tied to
+            // when the user took the action, not to which retry attempt won.
+            val now = Clock.System.now().toEpochMilliseconds()
             val notFound = firestore.runTransaction {
                 val snap = get(docRef)
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
-                val now = Clock.System.now().toEpochMilliseconds()
                 val updatedDto = dto.copy(
                     status = newStatus.name,
                     statusHistory = dto.statusHistory + StatusChangeDto(
@@ -162,11 +163,15 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val docRef = ordersCollection(userId).document(orderId)
+            // Capture once outside runTransaction so retries don't shift the
+            // recordedAt/updatedAt timestamps — the value reflects when the
+            // user tapped Save, not which retry won the race.
+            val now = Clock.System.now().toEpochMilliseconds()
+            val stampedPayment = payment.copy(recordedAt = now)
             val notFound = firestore.runTransaction {
                 val snap = get(docRef)
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
-                val now = Clock.System.now().toEpochMilliseconds()
                 // Absorb any legacy depositPaid into the payments list BEFORE
                 // appending the new one — otherwise zeroing depositPaid below
                 // permanently drops the legacy deposit.
@@ -176,7 +181,7 @@ class FirebaseOrderRepository(
                     createdAt = dto.createdAt,
                 )
                 val updatedDto = dto.copy(
-                    payments = migratedPayments + payment.toPaymentDto(),
+                    payments = migratedPayments + stampedPayment.toPaymentDto(),
                     depositPaid = 0.0,
                     updatedAt = now,
                 )
@@ -197,11 +202,11 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val docRef = ordersCollection(userId).document(orderId)
+            val now = Clock.System.now().toEpochMilliseconds()
             val notFound = firestore.runTransaction {
                 val snap = get(docRef)
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
-                val now = Clock.System.now().toEpochMilliseconds()
                 set(docRef, dto.copy(subStatus = subStatus?.name, updatedAt = now))
                 false
             }
@@ -219,11 +224,11 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val docRef = ordersCollection(userId).document(orderId)
+            val now = Clock.System.now().toEpochMilliseconds()
             val notFound = firestore.runTransaction {
                 val snap = get(docRef)
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
-                val now = Clock.System.now().toEpochMilliseconds()
                 set(docRef, dto.copy(notes = notes, updatedAt = now))
                 false
             }
@@ -240,11 +245,11 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val docRef = ordersCollection(userId).document(orderId)
+            val now = Clock.System.now().toEpochMilliseconds()
             val notFound = firestore.runTransaction {
                 val snap = get(docRef)
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
-                val now = Clock.System.now().toEpochMilliseconds()
                 set(docRef, dto.copy(archivedAt = now, updatedAt = now))
                 false
             }

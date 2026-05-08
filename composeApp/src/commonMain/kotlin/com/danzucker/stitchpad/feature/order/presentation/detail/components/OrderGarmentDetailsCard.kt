@@ -49,6 +49,8 @@ import stitchpad.composeapp.generated.resources.order_detail_add_fabric
 import stitchpad.composeapp.generated.resources.order_detail_add_fabric_name
 import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
+import stitchpad.composeapp.generated.resources.order_priority_high_pill
+import stitchpad.composeapp.generated.resources.order_priority_rush_pill
 
 private val FABRIC_THUMBNAIL_SIZE = 128.dp
 private val FABRIC_PLACEHOLDER_SIZE = 96.dp
@@ -272,9 +274,9 @@ private fun FabricPlaceholder() {
 
 @Composable
 private fun PriorityPill(priority: OrderPriority) {
-    val (pillColor, label) = when (priority) {
-        OrderPriority.URGENT -> DesignTokens.warning500 to "High"
-        OrderPriority.RUSH -> DesignTokens.error500 to "Rush"
+    val (pillColor, labelRes) = when (priority) {
+        OrderPriority.URGENT -> DesignTokens.warning500 to Res.string.order_priority_high_pill
+        OrderPriority.RUSH -> DesignTokens.error500 to Res.string.order_priority_rush_pill
         OrderPriority.NORMAL -> return
     }
     Surface(
@@ -282,7 +284,7 @@ private fun PriorityPill(priority: OrderPriority) {
         color = pillColor.copy(alpha = 0.15f),
     ) {
         Text(
-            text = label,
+            text = stringResource(labelRes),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color = pillColor,
