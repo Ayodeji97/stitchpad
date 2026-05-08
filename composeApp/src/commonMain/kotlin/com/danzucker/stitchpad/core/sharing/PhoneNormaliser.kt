@@ -3,12 +3,14 @@ package com.danzucker.stitchpad.core.sharing
 private const val NIGERIAN_TRUNK_PREFIX = "0"
 private const val NIGERIAN_COUNTRY_CODE = "234"
 private const val EXPECTED_NIGERIAN_E164_LENGTH = 13
+private const val NIGERIAN_SUBSCRIBER_LENGTH = 10
 
 /**
  * Strips formatting and resolves Nigerian local numbers to E.164-style digits.
  *  - "0803 123 4567"   → "2348031234567"
  *  - "+234 803 1234567" → "2348031234567"
  *  - "234-803-123-4567" → "2348031234567"
+ *  - "8031234567"       → "2348031234567" (bare 10-digit subscriber, e.g. when UI shows a +234 chip)
  *
  * Non-Nigerian numbers (already including a non-234 country code) are returned digits-only;
  * the caller should ensure customer phones are stored with country context.
@@ -18,6 +20,7 @@ fun normaliseNigerianPhone(raw: String): String {
     return when {
         digits.startsWith(NIGERIAN_COUNTRY_CODE) -> digits
         digits.startsWith(NIGERIAN_TRUNK_PREFIX) -> NIGERIAN_COUNTRY_CODE + digits.drop(1)
+        digits.length == NIGERIAN_SUBSCRIBER_LENGTH -> NIGERIAN_COUNTRY_CODE + digits
         else -> digits
     }
 }

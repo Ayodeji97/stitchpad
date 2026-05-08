@@ -25,6 +25,14 @@ class PhoneNormaliserTest {
         assertEquals("2348031234567", normaliseNigerianPhone("234-803-123-4567"))
     }
 
+    @Test
+    fun `normaliseNigerianPhone treats bare 10-digit subscriber as Nigerian`() {
+        // Workshop WhatsApp field shows a +234 chip, so a bare 10-digit input
+        // (no leading 0 / +234) is unambiguously the local subscriber portion.
+        assertEquals("2348064816695", normaliseNigerianPhone("8064816695"))
+        assertTrue(validateNigerianMobileE164("8064816695"))
+    }
+
     // --- buildWhatsAppUrl ---
 
     @Test
