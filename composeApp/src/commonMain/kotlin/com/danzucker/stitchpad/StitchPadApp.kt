@@ -16,6 +16,8 @@ import com.danzucker.stitchpad.di.orderDataModule
 import com.danzucker.stitchpad.di.orderPresentationModule
 import com.danzucker.stitchpad.di.platformModule
 import com.danzucker.stitchpad.di.reportsPresentationModule
+import com.danzucker.stitchpad.di.settingsDataModule
+import com.danzucker.stitchpad.di.settingsPresentationModule
 import com.danzucker.stitchpad.di.styleDataModule
 import com.danzucker.stitchpad.di.stylePresentationModule
 import org.koin.core.context.startKoin
@@ -42,6 +44,8 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             goalsPresentationModule,
             reportsPresentationModule,
             billingModule,
+            settingsDataModule,
+            settingsPresentationModule,
             platformModule
         )
     }

@@ -80,4 +80,22 @@ data object GoalSetupRoute
 data object SettingsPlaceholderRoute
 
 @Serializable
+data object SettingsRoute
+
+@Serializable
+data object EditProfileRoute
+
+@Serializable
+data object ChangeEmailRoute
+
+@Serializable
+data object ChangePasswordRoute
+
+@Serializable
+data object DeleteAccountRoute
+
+@Serializable
+data object DeleteAccountGoodbyeRoute
+
+@Serializable
 data object ReportsRoute

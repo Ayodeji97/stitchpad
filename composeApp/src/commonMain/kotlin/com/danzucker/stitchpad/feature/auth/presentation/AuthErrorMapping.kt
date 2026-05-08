@@ -5,7 +5,9 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_email_in_use
 import stitchpad.composeapp.generated.resources.error_invalid_credentials
+import stitchpad.composeapp.generated.resources.error_invalid_email
 import stitchpad.composeapp.generated.resources.error_no_internet
+import stitchpad.composeapp.generated.resources.error_provider_not_supported
 import stitchpad.composeapp.generated.resources.error_requires_recent_login
 import stitchpad.composeapp.generated.resources.error_sso_cancelled
 import stitchpad.composeapp.generated.resources.error_sso_email_collision
@@ -26,5 +28,7 @@ fun AuthError.toUiText(): UiText = when (this) {
     AuthError.REQUIRES_RECENT_LOGIN -> UiText.StringResourceText(Res.string.error_requires_recent_login)
     AuthError.SSO_CANCELLED -> UiText.StringResourceText(Res.string.error_sso_cancelled)
     AuthError.SSO_UNAVAILABLE -> UiText.StringResourceText(Res.string.error_sso_unavailable)
+    AuthError.INVALID_EMAIL -> UiText.StringResourceText(Res.string.error_invalid_email)
+    AuthError.PROVIDER_NOT_SUPPORTED -> UiText.StringResourceText(Res.string.error_provider_not_supported)
     AuthError.UNKNOWN -> UiText.StringResourceText(Res.string.error_unknown)
 }

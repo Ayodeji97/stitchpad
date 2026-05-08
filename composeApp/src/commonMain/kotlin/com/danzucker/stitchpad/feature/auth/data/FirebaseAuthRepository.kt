@@ -9,9 +9,12 @@ import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
+import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
+import dev.gitlive.firebase.auth.EmailAuthProvider
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
+import dev.gitlive.firebase.auth.FirebaseAuthInvalidUserException
 import dev.gitlive.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
 import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
@@ -69,8 +72,6 @@ class FirebaseAuthRepository(
 
     private suspend fun exchangeGoogleCredential(cred: GoogleCredential): Result<User, AuthError> {
         return try {
-            // gitlive's iOS wrapper requires both tokens non-null (Obj-C nonnull
-            // contract on FIRGoogleAuthProvider). Android tolerates null accessToken.
             val credential = GoogleAuthProvider.credential(cred.idToken, cred.accessToken)
             val authResult = firebaseAuth.signInWithCredential(credential)
             val firebaseUser = authResult.user
@@ -103,9 +104,6 @@ class FirebaseAuthRepository(
             val firebaseUser = authResult.user
                 ?: return Result.Error(AuthError.UNKNOWN)
 
-            // Apple returns fullName only on the very first Sign-In ever. If Firebase's
-            // user has no displayName yet AND Apple gave us one, seed it now so the
-            // dashboard / receipts / etc. have a name to show.
             if (firebaseUser.displayName.isNullOrBlank() && !cred.fullName.isNullOrBlank()) {
                 runCatching { firebaseUser.updateProfile(displayName = cred.fullName) }
                     .onFailure { AppLogger.e(tag = TAG, throwable = it) { "Apple displayName update failed" } }
@@ -126,23 +124,10 @@ class FirebaseAuthRepository(
             ?: return Result.Error(AuthError.USER_NOT_FOUND)
         val uid = user.uid
         return try {
-            // Order matters: delete the auth account FIRST. This is the App-Store-4.8
-            // requirement and the irreversible step. If it throws REQUIRES_RECENT_LOGIN,
-            // the Firestore doc is still intact and the user can re-auth + retry.
-            // Reverse order would leave an orphan auth account pointing at a deleted
-            // profile, which is the worst possible state on next sign-in.
             user.delete()
 
-            // Force local state flush. gitlive's iOS auth-state listener can lag
-            // after server-side delete, leaving currentUser non-null until the next
-            // token refresh — which means MainScreen's onSignedOut might fire before
-            // FirebaseAuth knows the user is gone. Explicit signOut() clears the
-            // local session synchronously so navigation back to Login is consistent.
             runCatching { firebaseAuth.signOut() }
 
-            // Best-effort Firestore cleanup. If this fails we have an orphan users/{uid}
-            // doc, which is acceptable per the spec's out-of-scope (a Cloud Function
-            // follow-up will reconcile). What matters is the auth account is gone.
             runCatching { userRepository.deleteUserDoc(uid) }
                 .onFailure {
                     AppLogger.e(tag = TAG, throwable = it) {
@@ -186,6 +171,108 @@ class FirebaseAuthRepository(
 
     override val isLoggedIn: Boolean
         get() = firebaseAuth.currentUser != null
+
+    override suspend fun getSignInProvider(): SignInProvider {
+        val user = firebaseAuth.currentUser ?: return SignInProvider.UNKNOWN
+        val providerId = user.providerData
+            .map { it.providerId }
+            .firstOrNull { it != "firebase" }
+            ?: return SignInProvider.UNKNOWN
+        return when (providerId) {
+            "password" -> SignInProvider.EMAIL_PASSWORD
+            "apple.com" -> SignInProvider.APPLE
+            "google.com" -> SignInProvider.GOOGLE
+            else -> SignInProvider.UNKNOWN
+        }
+    }
+
+    override suspend fun reauthenticateWithPassword(password: String): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        val email = user.email ?: return Result.Error(AuthError.INVALID_EMAIL)
+        return try {
+            val credential = EmailAuthProvider.credential(email, password)
+            user.reauthenticate(credential)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "reauthenticateWithPassword failed error=$error" }
+            Result.Error(error)
+        }
+    }
+
+    override suspend fun reauthenticateWithApple(): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return when (val credResult = ssoCredentialProvider.getAppleCredential()) {
+            is Result.Error -> Result.Error(credResult.error.toAuthError())
+            is Result.Success -> reauthenticateWithAppleCredential(user, credResult.data)
+        }
+    }
+
+    private suspend fun reauthenticateWithAppleCredential(
+        user: FirebaseUser,
+        cred: AppleCredential,
+    ): EmptyResult<AuthError> {
+        return try {
+            val firebaseCredential = OAuthProvider.credential(
+                providerId = "apple.com",
+                idToken = cred.idToken,
+                rawNonce = cred.rawNonce,
+            )
+            user.reauthenticate(firebaseCredential)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "reauthenticateWithApple failed error=$error" }
+            Result.Error(error)
+        }
+    }
+
+    override suspend fun reauthenticateWithGoogle(): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return when (val credResult = ssoCredentialProvider.getGoogleCredential()) {
+            is Result.Error -> Result.Error(credResult.error.toAuthError())
+            is Result.Success -> reauthenticateWithGoogleCredential(user, credResult.data)
+        }
+    }
+
+    private suspend fun reauthenticateWithGoogleCredential(
+        user: FirebaseUser,
+        cred: GoogleCredential,
+    ): EmptyResult<AuthError> {
+        return try {
+            val credential = GoogleAuthProvider.credential(cred.idToken, cred.accessToken)
+            user.reauthenticate(credential)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "reauthenticateWithGoogle failed error=$error" }
+            Result.Error(error)
+        }
+    }
+
+    override suspend fun updateEmail(newEmail: String): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return try {
+            user.verifyBeforeUpdateEmail(newEmail)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "updateEmail failed error=$error" }
+            Result.Error(error)
+        }
+    }
+
+    override suspend fun updatePassword(newPassword: String): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return try {
+            user.updatePassword(newPassword)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "updatePassword failed error=$error" }
+            Result.Error(error)
+        }
+    }
 }
 
 private fun FirebaseUser.toDomainUser(): User = User(
@@ -199,12 +286,18 @@ private fun FirebaseUser.toDomainUser(): User = User(
 )
 
 private fun Exception.toAuthError(): AuthError = when {
+    this is FirebaseAuthRecentLoginRequiredException -> AuthError.REQUIRES_RECENT_LOGIN
+    this is FirebaseAuthInvalidUserException -> AuthError.USER_NOT_FOUND
     this is FirebaseAuthUserCollisionException -> AuthError.EMAIL_ALREADY_IN_USE
     this is FirebaseAuthWeakPasswordException -> AuthError.WEAK_PASSWORD
     this is FirebaseAuthInvalidCredentialsException -> AuthError.INVALID_CREDENTIALS
+    message?.contains("RECENT_LOGIN", ignoreCase = true) == true -> AuthError.REQUIRES_RECENT_LOGIN
+    message?.contains("requires-recent-login", ignoreCase = true) == true -> AuthError.REQUIRES_RECENT_LOGIN
     message?.contains("EMAIL_ALREADY_IN_USE", ignoreCase = true) == true -> AuthError.EMAIL_ALREADY_IN_USE
     message?.contains("email-already-in-use", ignoreCase = true) == true -> AuthError.EMAIL_ALREADY_IN_USE
     message?.contains("already in use", ignoreCase = true) == true -> AuthError.EMAIL_ALREADY_IN_USE
+    message?.contains("INVALID_EMAIL", ignoreCase = true) == true -> AuthError.INVALID_EMAIL
+    message?.contains("invalid-email", ignoreCase = true) == true -> AuthError.INVALID_EMAIL
     message?.contains("WRONG_PASSWORD", ignoreCase = true) == true -> AuthError.INVALID_CREDENTIALS
     message?.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true) == true -> AuthError.INVALID_CREDENTIALS
     message?.contains("USER_NOT_FOUND", ignoreCase = true) == true -> AuthError.USER_NOT_FOUND
