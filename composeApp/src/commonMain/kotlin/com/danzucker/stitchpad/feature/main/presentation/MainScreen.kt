@@ -41,6 +41,8 @@ import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.SettingsComingSoonScreen
+import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeEmailRoot
+import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -338,16 +340,10 @@ private fun MainNavGraph(
             )
         }
         composable<ChangeEmailRoute> {
-            SettingsComingSoonScreen(
-                title = Res.string.change_email_title,
-                onBack = { navController.navigateUp() },
-            )
+            ChangeEmailRoot(onNavigateBack = { navController.navigateUp() })
         }
         composable<ChangePasswordRoute> {
-            SettingsComingSoonScreen(
-                title = Res.string.change_password_title,
-                onBack = { navController.navigateUp() },
-            )
+            ChangePasswordRoot(onNavigateBack = { navController.navigateUp() })
         }
         composable<DeleteAccountRoute> {
             SettingsComingSoonScreen(

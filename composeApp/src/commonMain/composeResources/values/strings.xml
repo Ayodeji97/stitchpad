@@ -1028,6 +1028,7 @@
     <string name="change_password_helper">At least 8 characters.</string>
     <string name="change_password_cta">Update password</string>
     <string name="change_password_updated">Password updated</string>
+    <string name="password_reset_email_sent">Reset link sent — check your email</string>
 
     <!-- Re-auth bottom sheet -->
     <string name="reauth_title">Confirm it\'s you</string>
