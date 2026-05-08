@@ -39,8 +39,8 @@ class WorkshopSetupViewModel(
                 _state.update { it.copy(businessName = action.name, businessNameError = null) }
             }
             is WorkshopSetupAction.OnWhatsAppNumberChange -> {
-                val filtered = action.raw.filter { it.isDigit() || it in "+- ()" }.take(MAX_WHATSAPP_INPUT_LENGTH)
-                _state.update { it.copy(whatsappNumber = filtered, whatsappError = null) }
+                val capped = capWhatsAppDigits(action.raw)
+                _state.update { it.copy(whatsappNumber = capped, whatsappError = null) }
             }
             WorkshopSetupAction.OnBusinessNameBlur -> {
                 if (_state.value.businessName.isNotBlank()) validateBusinessName()
@@ -124,7 +124,23 @@ class WorkshopSetupViewModel(
     }
 
     private companion object {
-        // Longest a Nigerian number can be: +2348031234567 (E.164) = 14 chars.
-        const val MAX_WHATSAPP_INPUT_LENGTH = 14
+        // Nigerian E.164 has 13 digits (country code 234 + 10-digit subscriber).
+        // Cap on digit count, not raw length, so that formatted paste like
+        // "+234 803 123 4567" is preserved (17 chars, 13 digits).
+        const val MAX_WHATSAPP_DIGITS = 13
+
+        fun capWhatsAppDigits(raw: String): String = buildString {
+            var digits = 0
+            raw.forEach { c ->
+                val isDigit = c.isDigit()
+                val isAcceptedFormatting = c in "+- ()"
+                val keep = when {
+                    isDigit && digits < MAX_WHATSAPP_DIGITS -> true.also { digits++ }
+                    isAcceptedFormatting -> true
+                    else -> false
+                }
+                if (keep) append(c)
+            }
+        }
     }
 }
