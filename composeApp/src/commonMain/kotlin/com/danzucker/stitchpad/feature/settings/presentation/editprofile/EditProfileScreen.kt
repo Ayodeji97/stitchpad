@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -51,7 +52,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -71,7 +71,6 @@ import stitchpad.composeapp.generated.resources.edit_profile_label_email
 import stitchpad.composeapp.generated.resources.edit_profile_label_phone
 import stitchpad.composeapp.generated.resources.edit_profile_label_whatsapp
 import stitchpad.composeapp.generated.resources.edit_profile_label_your_name
-import stitchpad.composeapp.generated.resources.edit_profile_phone_prefix
 import stitchpad.composeapp.generated.resources.edit_profile_save
 import stitchpad.composeapp.generated.resources.edit_profile_title
 
@@ -291,7 +290,9 @@ private fun ProfileTextField(
     // onBlur is currently unused; validation runs on Save. Kept on the API so the
     // ViewModel's blur actions stay reachable when we wire focus tracking later.
     val unusedHint = onBlur
-    @Suppress("UNUSED_VARIABLE") val unused = unusedHint
+
+    @Suppress("UNUSED_VARIABLE")
+    val unused = unusedHint
 
     OutlinedTextField(
         value = value,

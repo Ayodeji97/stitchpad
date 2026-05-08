@@ -177,7 +177,9 @@ private fun ReauthPasswordForm(
             isError = errorText != null,
             supportingText = if (errorText != null) {
                 { Text(errorText, color = MaterialTheme.colorScheme.error) }
-            } else null,
+            } else {
+                null
+            },
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth(),
         )

@@ -173,11 +173,10 @@ class FirebaseAuthRepository(
         get() = firebaseAuth.currentUser != null
 
     override suspend fun getSignInProvider(): SignInProvider {
-        val user = firebaseAuth.currentUser ?: return SignInProvider.UNKNOWN
-        val providerId = user.providerData
-            .map { it.providerId }
-            .firstOrNull { it != "firebase" }
-            ?: return SignInProvider.UNKNOWN
+        val user = firebaseAuth.currentUser
+        val providerId = user?.providerData
+            ?.map { it.providerId }
+            ?.firstOrNull { it != "firebase" }
         return when (providerId) {
             "password" -> SignInProvider.EMAIL_PASSWORD
             "apple.com" -> SignInProvider.APPLE
@@ -186,6 +185,7 @@ class FirebaseAuthRepository(
         }
     }
 
+    @Suppress("ReturnCount")
     override suspend fun reauthenticateWithPassword(password: String): EmptyResult<AuthError> {
         val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
         val email = user.email ?: return Result.Error(AuthError.INVALID_EMAIL)
@@ -285,6 +285,7 @@ private fun FirebaseUser.toDomainUser(): User = User(
     avatarColorIndex = abs((displayName ?: email ?: uid).hashCode() % 6)
 )
 
+@Suppress("CyclomaticComplexMethod")
 private fun Exception.toAuthError(): AuthError = when {
     this is FirebaseAuthRecentLoginRequiredException -> AuthError.REQUIRES_RECENT_LOGIN
     this is FirebaseAuthInvalidUserException -> AuthError.USER_NOT_FOUND

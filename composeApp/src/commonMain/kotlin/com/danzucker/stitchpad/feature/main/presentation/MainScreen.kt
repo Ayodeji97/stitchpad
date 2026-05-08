@@ -71,11 +71,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.change_email_title
-import stitchpad.composeapp.generated.resources.change_password_title
 import stitchpad.composeapp.generated.resources.delete_account_goodbye_title
-import stitchpad.composeapp.generated.resources.edit_profile_title
-import stitchpad.composeapp.generated.resources.settings_row_delete_account
 
 @Composable
 fun MainRoot(onSignedOut: () -> Unit) {

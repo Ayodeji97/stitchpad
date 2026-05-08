@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 
+@Suppress("TooManyFunctions")
 interface AuthRepository {
     suspend fun signUpWithEmail(email: String, password: String, displayName: String): Result<User, AuthError>
     suspend fun signInWithEmail(email: String, password: String): Result<User, AuthError>

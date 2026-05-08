@@ -128,7 +128,6 @@ fun ProfileHeroCard(
     }
 }
 
-
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable

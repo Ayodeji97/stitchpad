@@ -8,7 +8,6 @@ import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesSto
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
-import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.billing.domain.EntitlementsRepository

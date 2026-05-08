@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
@@ -56,8 +55,8 @@ import stitchpad.composeapp.generated.resources.settings_row_measurement_units
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_centimeters
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_inches
 import stitchpad.composeapp.generated.resources.settings_row_privacy
-import stitchpad.composeapp.generated.resources.settings_row_signin_method
 import stitchpad.composeapp.generated.resources.settings_row_sign_out
+import stitchpad.composeapp.generated.resources.settings_row_signin_method
 import stitchpad.composeapp.generated.resources.settings_row_terms
 import stitchpad.composeapp.generated.resources.settings_section_account
 import stitchpad.composeapp.generated.resources.settings_section_legal
@@ -334,4 +333,3 @@ private fun SettingsScreenDarkPreview() {
         )
     }
 }
-

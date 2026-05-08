@@ -4,13 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
-import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedback
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedbackRepository
 import kotlinx.coroutines.channels.Channel
