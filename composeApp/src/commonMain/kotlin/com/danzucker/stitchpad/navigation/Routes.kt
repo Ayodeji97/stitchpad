@@ -33,19 +33,30 @@ data class CustomerFormRoute(val customerId: String? = null)
 data class CustomerDetailRoute(val customerId: String)
 
 @Serializable
-data class MeasurementFormRoute(val customerId: String, val measurementId: String? = null)
+data class MeasurementFormRoute(
+    val customerId: String,
+    val measurementId: String? = null,
+    val linkToOrderId: String? = null,
+)
 
 @Serializable
 data class StyleGalleryRoute(val customerId: String)
 
 @Serializable
-data class StyleFormRoute(val customerId: String, val styleId: String? = null)
+data class StyleFormRoute(
+    val customerId: String,
+    val styleId: String? = null,
+    val linkToOrderId: String? = null,
+)
 
 @Serializable
 data object OrderListRoute
 
 @Serializable
-data class OrderFormRoute(val orderId: String? = null)
+data class OrderFormRoute(
+    val orderId: String? = null,
+    val seedFromOrderId: String? = null,
+)
 
 @Serializable
 data class OrderDetailRoute(val orderId: String)

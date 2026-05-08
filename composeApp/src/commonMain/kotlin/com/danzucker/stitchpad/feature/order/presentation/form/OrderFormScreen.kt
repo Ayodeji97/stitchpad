@@ -107,10 +107,13 @@ import stitchpad.composeapp.generated.resources.garment_gender_unisex
 import stitchpad.composeapp.generated.resources.order_form_add_item
 import stitchpad.composeapp.generated.resources.order_form_create_button
 import stitchpad.composeapp.generated.resources.order_form_deadline_label
+import stitchpad.composeapp.generated.resources.order_form_deposit_edit_locked_hint
 import stitchpad.composeapp.generated.resources.order_form_deposit_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_placeholder
 import stitchpad.composeapp.generated.resources.order_form_description_label
 import stitchpad.composeapp.generated.resources.order_form_description_placeholder
+import stitchpad.composeapp.generated.resources.order_form_fabric_name_label
+import stitchpad.composeapp.generated.resources.order_form_fabric_name_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_photo_label
 import stitchpad.composeapp.generated.resources.order_form_garment_type_label
 import stitchpad.composeapp.generated.resources.order_form_item_number
@@ -769,6 +772,18 @@ private fun OrderItemCard(
                 }
             }
 
+            // Fabric name
+            Spacer(Modifier.height(DesignTokens.space3))
+            OutlinedTextField(
+                value = item.fabricName,
+                onValueChange = { onAction(OrderFormAction.OnItemFabricNameChange(item.id, it)) },
+                label = { Text(stringResource(Res.string.order_form_fabric_name_label)) },
+                placeholder = { Text(stringResource(Res.string.order_form_fabric_name_placeholder)) },
+                singleLine = true,
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             // Fabric photo
             Spacer(Modifier.height(DesignTokens.space3))
             Text(
@@ -1139,6 +1154,12 @@ private fun DetailsStep(
             onValueChange = { raw ->
                 val digits = raw.filter { it.isDigit() }
                 onAction(OrderFormAction.OnDepositChange(digits))
+            },
+            readOnly = state.isEditMode,
+            supportingText = if (state.isEditMode) {
+                { Text(stringResource(Res.string.order_form_deposit_edit_locked_hint)) }
+            } else {
+                null
             },
             visualTransformation = ThousandsSeparatorTransformation,
             label = { Text(stringResource(Res.string.order_form_deposit_label)) },

@@ -68,6 +68,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -567,7 +570,7 @@ private fun OrderListScreenFilledPreview() {
                         items = listOf(OrderItem("i1", GarmentType.CORSET, "", 40_000.0)),
                         status = OrderStatus.PENDING, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
-                        totalPrice = 40_000.0, depositPaid = 0.0, balanceRemaining = 40_000.0,
+                        totalPrice = 40_000.0,
                         deadline = now - 3 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
                     ),
                     Order(
@@ -575,7 +578,16 @@ private fun OrderListScreenFilledPreview() {
                         items = listOf(OrderItem("i2", GarmentType.SUIT, "", 20_000.0)),
                         status = OrderStatus.PENDING, priority = OrderPriority.URGENT,
                         statusHistory = emptyList(),
-                        totalPrice = 20_000.0, depositPaid = 10_000.0, balanceRemaining = 10_000.0,
+                        totalPrice = 20_000.0,
+                        payments = listOf(
+                            Payment(
+                                id = "p2",
+                                amount = 10_000.0,
+                                method = PaymentMethod.OTHER,
+                                type = PaymentType.DEPOSIT,
+                                recordedAt = 0L
+                            )
+                        ),
                         deadline = now + 2 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
                     ),
                     Order(
@@ -583,7 +595,16 @@ private fun OrderListScreenFilledPreview() {
                         items = listOf(OrderItem("i3", GarmentType.SUIT, "", 4_000.0)),
                         status = OrderStatus.READY, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
-                        totalPrice = 4_000.0, depositPaid = 2_000.0, balanceRemaining = 2_000.0,
+                        totalPrice = 4_000.0,
+                        payments = listOf(
+                            Payment(
+                                id = "p3",
+                                amount = 2_000.0,
+                                method = PaymentMethod.OTHER,
+                                type = PaymentType.DEPOSIT,
+                                recordedAt = 0L
+                            )
+                        ),
                         deadline = null, notes = null, createdAt = 0L, updatedAt = 0L
                     )
                 )

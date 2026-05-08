@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,15 +10,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,15 +27,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,34 +47,50 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.DialerLauncher
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCustomerCard
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderDetailOverflowMenu
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderFooterCaption
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderGarmentDetailsCard
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderHeroCard
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderMeasurementsPreviewCard
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderNotesCard
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderPaymentCard
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderProductionTimeline
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.RecordPaymentDialogV2
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
-import com.danzucker.stitchpad.ui.components.LoadingDots
-import com.danzucker.stitchpad.ui.components.NairaAmountField
+import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.balance_warning_delivered_message
@@ -87,6 +101,8 @@ import stitchpad.composeapp.generated.resources.balance_warning_ready_message
 import stitchpad.composeapp.generated.resources.balance_warning_ready_title
 import stitchpad.composeapp.generated.resources.balance_warning_record_payment
 import stitchpad.composeapp.generated.resources.cd_edit_order
+import stitchpad.composeapp.generated.resources.common_cancel
+import stitchpad.composeapp.generated.resources.order_archived_snackbar
 import stitchpad.composeapp.generated.resources.order_delete_active_intro
 import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
@@ -94,47 +110,31 @@ import stitchpad.composeapp.generated.resources.order_delete_consequences
 import stitchpad.composeapp.generated.resources.order_delete_message
 import stitchpad.composeapp.generated.resources.order_delete_payment_warning
 import stitchpad.composeapp.generated.resources.order_delete_title
+import stitchpad.composeapp.generated.resources.order_detail_archive_confirm_body
+import stitchpad.composeapp.generated.resources.order_detail_archive_confirm_cta
+import stitchpad.composeapp.generated.resources.order_detail_archive_confirm_title
 import stitchpad.composeapp.generated.resources.order_detail_back_button
-import stitchpad.composeapp.generated.resources.order_detail_balance_remaining
-import stitchpad.composeapp.generated.resources.order_detail_customer_section
-import stitchpad.composeapp.generated.resources.order_detail_deadline_section
-import stitchpad.composeapp.generated.resources.order_detail_delete_button
-import stitchpad.composeapp.generated.resources.order_detail_deposit_paid
-import stitchpad.composeapp.generated.resources.order_detail_fabric_photo
-import stitchpad.composeapp.generated.resources.order_detail_financial_section
-import stitchpad.composeapp.generated.resources.order_detail_items_section
+import stitchpad.composeapp.generated.resources.order_detail_delivered_label
+import stitchpad.composeapp.generated.resources.order_detail_dialer_launch_failed
+import stitchpad.composeapp.generated.resources.order_detail_due_label
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_dialog_label
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_dialog_placeholder
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_dialog_title
+import stitchpad.composeapp.generated.resources.order_detail_fabric_name_save
+import stitchpad.composeapp.generated.resources.order_detail_more
 import stitchpad.composeapp.generated.resources.order_detail_not_found_message
 import stitchpad.composeapp.generated.resources.order_detail_not_found_title
-import stitchpad.composeapp.generated.resources.order_detail_notes_section
-import stitchpad.composeapp.generated.resources.order_detail_priority_section
+import stitchpad.composeapp.generated.resources.order_detail_notes_saved_toast
+import stitchpad.composeapp.generated.resources.order_detail_pickup_today
 import stitchpad.composeapp.generated.resources.order_detail_share
-import stitchpad.composeapp.generated.resources.order_detail_status_history
-import stitchpad.composeapp.generated.resources.order_detail_status_section
 import stitchpad.composeapp.generated.resources.order_detail_title
-import stitchpad.composeapp.generated.resources.order_detail_total_price
-import stitchpad.composeapp.generated.resources.order_detail_update_status
-import stitchpad.composeapp.generated.resources.order_overdue_label
-import stitchpad.composeapp.generated.resources.order_priority_normal
-import stitchpad.composeapp.generated.resources.order_priority_rush
-import stitchpad.composeapp.generated.resources.order_priority_urgent
-import stitchpad.composeapp.generated.resources.order_record_payment_amount_label
-import stitchpad.composeapp.generated.resources.order_record_payment_balance_remaining
-import stitchpad.composeapp.generated.resources.order_record_payment_button
-import stitchpad.composeapp.generated.resources.order_record_payment_cancel
-import stitchpad.composeapp.generated.resources.order_record_payment_capped_helper
-import stitchpad.composeapp.generated.resources.order_record_payment_confirm
-import stitchpad.composeapp.generated.resources.order_record_payment_new_balance
-import stitchpad.composeapp.generated.resources.order_record_payment_paid_in_full
+import stitchpad.composeapp.generated.resources.order_detail_was_due_label
+import stitchpad.composeapp.generated.resources.order_detail_whatsapp_launch_failed
 import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_success
-import stitchpad.composeapp.generated.resources.order_record_payment_title
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
-import stitchpad.composeapp.generated.resources.order_status_update_cancel
-import stitchpad.composeapp.generated.resources.order_status_update_confirm
-import stitchpad.composeapp.generated.resources.order_status_update_current
-import stitchpad.composeapp.generated.resources.order_status_update_title
 import stitchpad.composeapp.generated.resources.share_as_image_description
 import stitchpad.composeapp.generated.resources.share_as_image_title
 import stitchpad.composeapp.generated.resources.share_as_pdf_description
@@ -142,27 +142,72 @@ import stitchpad.composeapp.generated.resources.share_as_pdf_title
 import stitchpad.composeapp.generated.resources.share_receipt_title
 import kotlin.time.Clock
 
+private const val MILLIS_PER_DAY: Long = 86_400_000L
+
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun OrderDetailRoot(
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateToCustomerForm: (customerId: String) -> Unit,
+    onNavigateToMeasurementForm: (customerId: String, linkToOrderId: String) -> Unit,
+    onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
+    onNavigateToStyleForm: (customerId: String, linkToOrderId: String) -> Unit,
+    onNavigateBack: () -> Unit,
 ) {
     val viewModel: OrderDetailViewModel = koinViewModel()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
+    val dialerLauncher: DialerLauncher = koinInject()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
+    val measurementsListState = rememberLazyListState()
 
     val paymentRecordedMessage = stringResource(Res.string.order_record_payment_snackbar_success)
+    val orderArchivedMessage = stringResource(Res.string.order_archived_snackbar)
+    val notesSavedMessage = stringResource(Res.string.order_detail_notes_saved_toast)
+    val whatsAppFailedMessage = stringResource(Res.string.order_detail_whatsapp_launch_failed)
+    val dialerFailedMessage = stringResource(Res.string.order_detail_dialer_launch_failed)
+
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is OrderDetailEvent.NavigateToOrderForm -> onNavigateToOrderForm(event.orderId)
             is OrderDetailEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+            is OrderDetailEvent.NavigateToCustomerForm -> onNavigateToCustomerForm(event.customerId)
             OrderDetailEvent.NavigateBack -> onNavigateBack()
             OrderDetailEvent.OrderDeleted -> onNavigateBack()
+            OrderDetailEvent.OrderArchived -> {
+                snackbarScope.launch { snackbarHostState.showSnackbar(orderArchivedMessage) }
+                onNavigateBack()
+            }
             OrderDetailEvent.PaymentRecorded -> {
                 snackbarScope.launch { snackbarHostState.showSnackbar(paymentRecordedMessage) }
             }
+            OrderDetailEvent.NotesSaved -> {
+                snackbarScope.launch { snackbarHostState.showSnackbar(notesSavedMessage) }
+            }
+            is OrderDetailEvent.LaunchWhatsApp -> {
+                snackbarScope.launch {
+                    val launched = whatsAppLauncher.launch(event.phone, event.message)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(whatsAppFailedMessage)
+                    }
+                }
+            }
+            is OrderDetailEvent.LaunchDialer -> {
+                snackbarScope.launch {
+                    val launched = dialerLauncher.launch(event.phone)
+                    if (!launched) {
+                        snackbarHostState.showSnackbar(dialerFailedMessage)
+                    }
+                }
+            }
+            is OrderDetailEvent.NavigateToCreateOrder ->
+                onNavigateToDuplicateOrder(event.seedFromOrderId)
+            is OrderDetailEvent.NavigateToMeasurementForm ->
+                onNavigateToMeasurementForm(event.customerId, event.linkToOrderId)
+            is OrderDetailEvent.NavigateToStyleForm ->
+                onNavigateToStyleForm(event.customerId, event.linkToOrderId)
         }
     }
 
@@ -177,6 +222,7 @@ fun OrderDetailRoot(
     OrderDetailScreen(
         state = state,
         snackbarHostState = snackbarHostState,
+        listState = measurementsListState,
         onAction = viewModel::onAction
     )
 }
@@ -187,6 +233,7 @@ fun OrderDetailRoot(
 fun OrderDetailScreen(
     state: OrderDetailState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    listState: LazyListState = rememberLazyListState(),
     onAction: (OrderDetailAction) -> Unit
 ) {
     Scaffold(
@@ -212,13 +259,29 @@ fun OrderDetailScreen(
                         IconButton(onClick = { onAction(OrderDetailAction.OnShareClick) }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = stringResource(Res.string.order_detail_share)
+                                contentDescription = stringResource(Res.string.order_detail_share),
                             )
                         }
                         IconButton(onClick = { onAction(OrderDetailAction.OnEditClick) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(Res.string.cd_edit_order)
+                                contentDescription = stringResource(Res.string.cd_edit_order),
+                            )
+                        }
+                        Box {
+                            IconButton(onClick = { onAction(OrderDetailAction.OnOverflowMenuToggle) }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(Res.string.order_detail_more),
+                                )
+                            }
+                            OrderDetailOverflowMenu(
+                                expanded = state.showOverflowMenu,
+                                showArchive = state.order.status != OrderStatus.DELIVERED,
+                                onDismiss = { onAction(OrderDetailAction.OnOverflowMenuToggle) },
+                                onDuplicateClick = { onAction(OrderDetailAction.OnDuplicateClick) },
+                                onArchiveClick = { onAction(OrderDetailAction.OnArchiveClick) },
+                                onDeleteClick = { onAction(OrderDetailAction.OnDeleteClick) },
                             )
                         }
                     }
@@ -243,12 +306,11 @@ fun OrderDetailScreen(
             }
             state.order != null -> {
                 OrderDetailContent(
+                    state = state,
                     order = state.order,
                     onAction = onAction,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .verticalScroll(rememberScrollState())
+                    listState = listState,
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                 )
             }
             else -> {
@@ -337,100 +399,54 @@ fun OrderDetailScreen(
         )
     }
 
-    // Status update dialog — pick any status
-    if (state.showStatusUpdateDialog && state.order != null) {
-        val currentStatus = state.order.status
-        AlertDialog(
-            onDismissRequest = { onAction(OrderDetailAction.OnDismissStatusUpdate) },
-            title = {
-                Text(
-                    text = stringResource(Res.string.order_status_update_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                    OrderStatus.entries.forEach { status ->
-                        val isCurrentStatus = status == currentStatus
-                        val isSelected = status == state.selectedNewStatus
-                        val (statusColor, label) = statusColorAndLabel(status)
+    // V2 status picker — modal bottom sheet with sub-status routing
+    if (state.showStatusSheet && state.order != null) {
+        StatusTransitionSheet(
+            currentStatus = state.order.status,
+            currentSubStatus = state.order.subStatus,
+            onTransitionSelected = { onAction(OrderDetailAction.OnSelectStatusTransition(it)) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissStatusSheet) },
+        )
+    }
 
-                        Surface(
-                            onClick = {
-                                if (!isCurrentStatus) {
-                                    onAction(OrderDetailAction.OnSelectNewStatus(status))
-                                }
-                            },
-                            shape = RoundedCornerShape(DesignTokens.radiusMd),
-                            color = when {
-                                isSelected -> MaterialTheme.colorScheme.primaryContainer
-                                isCurrentStatus -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                else -> Color.Transparent
-                            },
-                            enabled = !isCurrentStatus
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space2)
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(DesignTokens.radiusSm),
-                                    color = statusColor.copy(alpha = 0.15f),
-                                    modifier = Modifier.size(10.dp)
-                                ) {}
-                                Spacer(Modifier.width(DesignTokens.space2))
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isCurrentStatus) {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-                                if (isCurrentStatus) {
-                                    Spacer(Modifier.weight(1f))
-                                    Text(
-                                        text = stringResource(Res.string.order_status_update_current),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+    // Measurement picker sheet — lets user link an existing measurement or create a new one
+    if (state.showMeasurementPickerSheet && state.order != null) {
+        MeasurementPickerSheet(
+            measurements = state.availableMeasurements,
+            selectedMeasurementId = state.order.items.firstOrNull()?.measurementId,
+            onSelectMeasurement = { onAction(OrderDetailAction.OnSelectMeasurement(it)) },
+            onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewMeasurementClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissMeasurementPickerSheet) },
+        )
+    }
+
+    // Style picker sheet — lets user link an existing style or create a new one
+    if (state.showStylePickerSheet && state.order != null) {
+        StylePickerSheet(
+            styles = state.availableStyles,
+            selectedStyleId = state.order.items.firstOrNull()?.styleId,
+            onSelectStyle = { onAction(OrderDetailAction.OnSelectStyle(it)) },
+            onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewStyleClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },
+        )
+    }
+
+    // Archive confirm dialog — non-destructive but worth confirming
+    if (state.showArchiveDialog) {
+        AlertDialog(
+            onDismissRequest = { onAction(OrderDetailAction.OnDismissArchiveDialog) },
+            title = { Text(stringResource(Res.string.order_detail_archive_confirm_title)) },
+            text = { Text(stringResource(Res.string.order_detail_archive_confirm_body)) },
             confirmButton = {
-                Button(
-                    onClick = { onAction(OrderDetailAction.OnConfirmStatusUpdate) },
-                    enabled = state.selectedNewStatus != null,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    shape = RoundedCornerShape(DesignTokens.radiusMd)
-                ) {
-                    Text(
-                        text = stringResource(Res.string.order_status_update_confirm),
-                        fontWeight = FontWeight.SemiBold
-                    )
+                TextButton(onClick = { onAction(OrderDetailAction.OnConfirmArchive) }) {
+                    Text(stringResource(Res.string.order_detail_archive_confirm_cta))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onAction(OrderDetailAction.OnDismissStatusUpdate) }) {
-                    Text(
-                        text = stringResource(Res.string.order_status_update_cancel),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                TextButton(onClick = { onAction(OrderDetailAction.OnDismissArchiveDialog) }) {
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
-            shape = RoundedCornerShape(DesignTokens.radiusXl),
-            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
@@ -460,16 +476,100 @@ fun OrderDetailScreen(
 
     // Record payment dialog
     if (state.showRecordPaymentDialog && state.order != null) {
-        RecordPaymentDialog(
+        RecordPaymentDialogV2(
             balanceRemaining = state.order.balanceRemaining,
             amountInput = state.paymentAmountInput,
+            method = state.paymentMethodSelection,
+            type = state.paymentTypeSelection,
             wasCapped = state.wasPaymentCapped,
             onAmountChange = { onAction(OrderDetailAction.OnPaymentAmountChange(it)) },
+            onMethodSelect = { onAction(OrderDetailAction.OnPaymentMethodSelect(it)) },
+            onTypeSelect = { onAction(OrderDetailAction.OnPaymentTypeSelect(it)) },
             onMarkPaidInFull = { onAction(OrderDetailAction.OnMarkPaidInFull) },
             onConfirm = { onAction(OrderDetailAction.OnConfirmRecordPayment) },
-            onDismiss = { onAction(OrderDetailAction.OnDismissRecordPayment) }
+            onDismiss = { onAction(OrderDetailAction.OnDismissRecordPayment) },
         )
     }
+
+    // Set-deadline date picker
+    if (state.showDatePickerDialog && state.order != null) {
+        val timeZone = TimeZone.currentSystemDefault()
+        val initialDate = state.order.deadline?.let { millis ->
+            Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
+        }
+        CustomDatePickerDialog(
+            initial = initialDate,
+            timeZone = timeZone,
+            onDismiss = { onAction(OrderDetailAction.OnDismissDatePickerDialog) },
+            onConfirm = { picked ->
+                val millis = picked.atStartOfDayIn(timeZone).toEpochMilliseconds()
+                onAction(OrderDetailAction.OnDeadlineSelected(millis))
+            },
+        )
+    }
+
+    // Inline fabric-name editor — quick add without leaving the detail screen
+    if (state.showFabricNameDialog) {
+        FabricNameDialog(
+            draft = state.fabricNameDraft,
+            onDraftChange = { onAction(OrderDetailAction.OnFabricNameDraftChange(it)) },
+            onSave = { onAction(OrderDetailAction.OnSaveFabricName) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissFabricNameDialog) },
+        )
+    }
+}
+
+@Composable
+private fun FabricNameDialog(
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.order_detail_fabric_name_dialog_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = onDraftChange,
+                label = { Text(stringResource(Res.string.order_detail_fabric_name_dialog_label)) },
+                placeholder = {
+                    Text(stringResource(Res.string.order_detail_fabric_name_dialog_placeholder))
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = draft.isNotBlank(),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+            ) {
+                Text(
+                    text = stringResource(Res.string.order_detail_fabric_name_save),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.common_cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        shape = RoundedCornerShape(DesignTokens.radiusXl),
+        containerColor = MaterialTheme.colorScheme.surface,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -499,7 +599,6 @@ private fun ShareReceiptBottomSheet(
                 modifier = Modifier.padding(bottom = DesignTokens.space4)
             )
 
-            // Share as Image option
             ShareOption(
                 icon = "🖼️",
                 title = stringResource(Res.string.share_as_image_title),
@@ -509,7 +608,6 @@ private fun ShareReceiptBottomSheet(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Share as PDF option
             ShareOption(
                 icon = "📄",
                 title = stringResource(Res.string.share_as_pdf_title),
@@ -564,109 +662,6 @@ private fun ShareOption(
 }
 
 @Composable
-private fun RecordPaymentDialog(
-    balanceRemaining: Double,
-    amountInput: String,
-    wasCapped: Boolean,
-    onAmountChange: (String) -> Unit,
-    onMarkPaidInFull: () -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val amount = amountInput.toLongOrNull() ?: 0L
-    val newBalance = (balanceRemaining - amount.toDouble()).coerceAtLeast(0.0)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.order_record_payment_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
-                Text(
-                    text = stringResource(
-                        Res.string.order_record_payment_balance_remaining,
-                        "₦${formatPrice(balanceRemaining)}"
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                NairaAmountField(
-                    value = amountInput,
-                    onValueChange = onAmountChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.order_record_payment_amount_label)) },
-                    supportingText = if (wasCapped) {
-                        {
-                            Text(
-                                text = stringResource(Res.string.order_record_payment_capped_helper),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        null
-                    }
-                )
-                if (amount > 0) {
-                    Text(
-                        text = stringResource(
-                            Res.string.order_record_payment_new_balance,
-                            "₦${formatPrice(newBalance)}"
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (newBalance <= 0.0) {
-                            DesignTokens.success500
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                }
-                TextButton(
-                    onClick = onMarkPaidInFull,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(
-                        text = stringResource(Res.string.order_record_payment_paid_in_full),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = amount > 0L,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                shape = RoundedCornerShape(DesignTokens.radiusMd)
-            ) {
-                Text(
-                    text = stringResource(Res.string.order_record_payment_confirm),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.order_record_payment_cancel),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        shape = RoundedCornerShape(DesignTokens.radiusXl),
-        containerColor = MaterialTheme.colorScheme.surface
-    )
-}
-
-@Composable
 private fun OrderDetailNotFound(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -705,385 +700,186 @@ private fun OrderDetailNotFound(
     }
 }
 
-@Suppress("CyclomaticComplexMethod")
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 private fun OrderDetailContent(
+    state: OrderDetailState,
     order: Order,
     onAction: (OrderDetailAction) -> Unit,
-    modifier: Modifier = Modifier
+    listState: LazyListState,
+    modifier: Modifier = Modifier,
 ) {
     val now = Clock.System.now().toEpochMilliseconds()
-    // Match list/triage semantics: READY short-circuits to "Pickup ready" and
-    // DELIVERED is finished work — neither should render the red Overdue label.
-    val isOverdue = order.deadline != null &&
-        order.deadline < now &&
+    val deadline = order.deadline
+    val isOverdue = deadline != null &&
+        deadline < now &&
         order.status != OrderStatus.READY &&
         order.status != OrderStatus.DELIVERED
+    val overdueDaysAgo = if (isOverdue) {
+        ((now - deadline!!) / MILLIS_PER_DAY).toInt().coerceAtLeast(1)
+    } else {
+        0
+    }
+    val cta = remember(order.status, order.subStatus, isOverdue, order.balanceRemaining) {
+        resolvePrimaryCta(order.status, order.subStatus, isOverdue, order.balanceRemaining)
+    }
 
-    Column(modifier = modifier.padding(horizontal = DesignTokens.space4)) {
-        // Customer section
-        SectionHeader(stringResource(Res.string.order_detail_customer_section))
-        Card(
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onAction(OrderDetailAction.OnCustomerClick) }
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(DesignTokens.space3)
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = order.customerName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
+    val firstItem = order.items.firstOrNull()
+    val garmentName = firstItem?.let { garmentDisplayName(it.garmentType) }.orEmpty()
+    val primaryFieldLabels = firstItem?.garmentType?.fieldLabels?.take(3).orEmpty()
+    val dueLabel = formatDueLabel(order, isOverdue)
 
-        Spacer(Modifier.height(DesignTokens.space4))
-
-        // Items section
-        SectionHeader(stringResource(Res.string.order_detail_items_section))
-        Card(
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(DesignTokens.space3)) {
-                order.items.forEachIndexed { index, item ->
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = garmentDisplayName(item.garmentType),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            if (item.description.isNotBlank()) {
-                                Text(
-                                    text = item.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Text(
-                            text = "\u20A6${formatPrice(item.price)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    if (!item.fabricPhotoUrl.isNullOrBlank()) {
-                        Spacer(Modifier.height(DesignTokens.space2))
-                        SubcomposeAsyncImage(
-                            model = item.fabricPhotoUrl,
-                            contentDescription = stringResource(Res.string.order_detail_fabric_photo),
-                            contentScale = ContentScale.Crop,
-                            loading = {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    LoadingDots()
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp)
-                                .clip(RoundedCornerShape(DesignTokens.radiusSm))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                        )
-                    }
-                    if (index < order.items.lastIndex) {
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(vertical = DesignTokens.space2)
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(DesignTokens.space4))
-
-        // Financial section
-        SectionHeader(stringResource(Res.string.order_detail_financial_section))
-        Card(
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(DesignTokens.space3)) {
-                FinancialRow(
-                    label = stringResource(Res.string.order_detail_total_price),
-                    value = "\u20A6${formatPrice(order.totalPrice)}",
-                    isBold = true
-                )
-                Spacer(Modifier.height(DesignTokens.space1))
-                FinancialRow(
-                    label = stringResource(Res.string.order_detail_deposit_paid),
-                    value = "\u20A6${formatPrice(order.depositPaid)}"
-                )
-                Spacer(Modifier.height(DesignTokens.space1))
-                FinancialRow(
-                    label = stringResource(Res.string.order_detail_balance_remaining),
-                    value = "\u20A6${formatPrice(order.balanceRemaining)}",
-                    isBold = true,
-                    valueColor = if (order.balanceRemaining > 0) {
-                        DesignTokens.warning500
-                    } else {
-                        DesignTokens.success500
-                    }
-                )
-                if (order.balanceRemaining > 0) {
-                    Spacer(Modifier.height(DesignTokens.space3))
-                    Button(
-                        onClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.order_record_payment_button),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(DesignTokens.space4))
-
-        // Status section
-        SectionHeader(stringResource(Res.string.order_detail_status_section))
-        Card(
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(DesignTokens.space3)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)
-                    ) {
-                        StatusBadge(status = order.status)
-                        if (isOverdue) {
-                            Text(
-                                text = stringResource(Res.string.order_overdue_label),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = DesignTokens.error500
-                            )
-                        }
-                    }
-                    if (order.status != OrderStatus.DELIVERED) {
-                        Button(
-                            onClick = { onAction(OrderDetailAction.OnUpdateStatusClick) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            shape = RoundedCornerShape(DesignTokens.radiusMd)
-                        ) {
-                            Text(
-                                text = stringResource(Res.string.order_detail_update_status),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-
-                // Status history
-                if (order.statusHistory.isNotEmpty()) {
-                    Spacer(Modifier.height(DesignTokens.space3))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                    Spacer(Modifier.height(DesignTokens.space2))
-                    Text(
-                        text = stringResource(Res.string.order_detail_status_history),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(DesignTokens.space1))
-                    order.statusHistory.sortedByDescending { it.changedAt }.forEach { change ->
-                        StatusHistoryItem(change = change)
-                        Spacer(Modifier.height(DesignTokens.space1))
-                    }
-                }
-            }
-        }
-
-        // Deadline
-        if (order.deadline != null) {
-            Spacer(Modifier.height(DesignTokens.space4))
-            SectionHeader(stringResource(Res.string.order_detail_deadline_section))
-            val deadlineDate = Instant.fromEpochMilliseconds(order.deadline)
-                .toLocalDateTime(TimeZone.currentSystemDefault()).date
-            Text(
-                text = "${deadlineDate.dayOfMonth}/${deadlineDate.monthNumber}/${deadlineDate.year}",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (isOverdue) DesignTokens.error500 else MaterialTheme.colorScheme.onSurface,
-                fontWeight = if (isOverdue) FontWeight.Bold else FontWeight.Normal
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize().padding(horizontal = DesignTokens.space3),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+    ) {
+        item {
+            OrderHeroCard(
+                stylePhotoUrl = state.style?.photoUrl,
+                garmentTypeIcon = Icons.Default.Checkroom,
+                garmentName = garmentName,
+                customerName = order.customerName,
+                status = order.status,
+                subStatus = order.subStatus,
+                priority = order.priority,
+                isOverdue = isOverdue,
+                overdueDaysAgo = overdueDaysAgo,
+                dueLabel = dueLabel,
+                totalPrice = order.totalPrice,
+                balanceRemaining = order.balanceRemaining,
+                cta = cta,
+                onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
+                onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
+                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
+                onSetDeadlineClick = { onAction(OrderDetailAction.OnSetDeadlineClick) },
             )
         }
-
-        // Priority
-        Spacer(Modifier.height(DesignTokens.space4))
-        SectionHeader(stringResource(Res.string.order_detail_priority_section))
-        val priorityLabel = when (order.priority) {
-            OrderPriority.NORMAL -> stringResource(Res.string.order_priority_normal)
-            OrderPriority.URGENT -> stringResource(Res.string.order_priority_urgent)
-            OrderPriority.RUSH -> stringResource(Res.string.order_priority_rush)
-        }
-        val priorityColor = when (order.priority) {
-            OrderPriority.NORMAL -> MaterialTheme.colorScheme.onSurface
-            OrderPriority.URGENT -> DesignTokens.warning500
-            OrderPriority.RUSH -> DesignTokens.error500
-        }
-        Text(
-            text = priorityLabel,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = priorityColor
-        )
-
-        // Notes
-        if (!order.notes.isNullOrBlank()) {
-            Spacer(Modifier.height(DesignTokens.space4))
-            SectionHeader(stringResource(Res.string.order_detail_notes_section))
-            Text(
-                text = order.notes,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        item {
+            OrderCustomerCard(
+                customerName = order.customerName,
+                phone = state.customer?.phone,
+                customerCreatedAt = state.customer?.createdAt,
+                onWhatsAppClick = { onAction(OrderDetailAction.OnWhatsAppClick) },
+                onCallClick = { onAction(OrderDetailAction.OnCallClick) },
+                onAddPhoneClick = { onAction(OrderDetailAction.OnAddPhoneClick) },
+                onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }
-
-        Spacer(Modifier.height(DesignTokens.space6))
-
-        // Delete button
-        Button(
-            onClick = { onAction(OrderDetailAction.OnDeleteClick) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError
-            ),
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = stringResource(Res.string.order_detail_delete_button),
-                fontWeight = FontWeight.SemiBold
+        item {
+            OrderGarmentDetailsCard(
+                items = order.items,
+                priority = order.priority,
+                onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
+                onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }
+        item {
+            OrderPaymentCard(
+                totalPrice = order.totalPrice,
+                payments = order.payments,
+                isExpanded = state.isPaymentHistoryExpanded,
+                onToggleExpanded = { onAction(OrderDetailAction.OnPaymentHistoryToggle) },
+                onRecordPaymentClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
+            )
+        }
+        item {
+            OrderProductionTimeline(
+                currentStatus = order.status,
+                currentSubStatus = order.subStatus,
+                isOverdue = isOverdue,
+                onClick = { onAction(OrderDetailAction.OnUpdateStatusClick) },
+            )
+        }
+        item {
+            OrderMeasurementsPreviewCard(
+                measurement = state.measurement,
+                primaryFieldLabels = primaryFieldLabels,
+                onCardClick = { onAction(OrderDetailAction.OnLinkMeasurementsClick) },
+                onLinkMeasurementsClick = { onAction(OrderDetailAction.OnLinkMeasurementsClick) },
+            )
+        }
+        item {
+            OrderNotesCard(
+                notes = order.notes,
+                isEditing = state.isEditingNotes,
+                draft = state.notesDraft,
+                onCardClick = { onAction(OrderDetailAction.OnNotesEditClick) },
+                onDraftChange = { onAction(OrderDetailAction.OnNotesDraftChange(it)) },
+                onSaveClick = { onAction(OrderDetailAction.OnNotesSaveClick) },
+                onCancelClick = { onAction(OrderDetailAction.OnNotesCancelClick) },
+            )
+        }
+        if (order.status == OrderStatus.DELIVERED) {
+            item {
+                OrderArchiveButton(onClick = { onAction(OrderDetailAction.OnArchiveClick) })
+            }
+        }
+        item {
+            OrderFooterCaption(
+                orderId = order.id,
+                referenceTimestamp = if (order.status == OrderStatus.DELIVERED) {
+                    order.statusHistory
+                        .lastOrNull { it.status == OrderStatus.DELIVERED }?.changedAt
+                        ?: order.updatedAt
+                } else {
+                    order.createdAt
+                },
+                isDelivered = order.status == OrderStatus.DELIVERED,
+            )
+        }
+    }
+}
 
-        Spacer(Modifier.height(DesignTokens.space8))
+private fun handlePrimaryCta(cta: PrimaryCta, onAction: (OrderDetailAction) -> Unit) {
+    when (cta) {
+        PrimaryCta.StartWork,
+        PrimaryCta.UpdateStatus,
+        PrimaryCta.ConfirmFitting,
+        PrimaryCta.MarkDelivered -> onAction(OrderDetailAction.OnUpdateStatusClick)
+        PrimaryCta.ShareReceipt -> onAction(OrderDetailAction.OnShareClick)
+        PrimaryCta.SendReminder -> onAction(OrderDetailAction.OnSendReminderClick)
+    }
+}
+
+private fun handleSecondaryCta(cta: SecondaryCta, onAction: (OrderDetailAction) -> Unit) {
+    when (cta) {
+        SecondaryCta.RecordPayment -> onAction(OrderDetailAction.OnRecordPaymentClick)
+        SecondaryCta.MessageCustomer -> onAction(OrderDetailAction.OnWhatsAppClick)
+        SecondaryCta.StartWork,
+        SecondaryCta.UpdateStatus,
+        SecondaryCta.MarkDelivered -> onAction(OrderDetailAction.OnUpdateStatusClick)
+        SecondaryCta.DuplicateOrder -> onAction(OrderDetailAction.OnDuplicateClick)
     }
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(Modifier.height(DesignTokens.space2))
-}
-
-@Composable
-private fun StatusBadge(status: OrderStatus) {
-    val (color, label) = when (status) {
-        OrderStatus.PENDING -> DesignTokens.statusReceived to stringResource(Res.string.order_status_pending)
-        OrderStatus.IN_PROGRESS -> DesignTokens.statusCutting to stringResource(Res.string.order_status_in_progress)
-        OrderStatus.READY -> DesignTokens.statusReady to stringResource(Res.string.order_status_ready)
-        OrderStatus.DELIVERED -> DesignTokens.statusDelivered to stringResource(Res.string.order_status_delivered)
+private fun formatDueLabel(order: Order, isOverdue: Boolean): UiText? {
+    val deadlineDate = order.deadline?.let {
+        Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.currentSystemDefault()).date
     }
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusSm),
-        color = color.copy(alpha = 0.15f)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
-            modifier = Modifier.padding(horizontal = DesignTokens.space2, vertical = 2.dp)
-        )
+    val readableDeadline = deadlineDate?.let {
+        val month = it.month.name.take(3).lowercase().replaceFirstChar(Char::uppercase)
+        "${it.dayOfMonth} $month"
     }
-}
-
-@Composable
-private fun StatusHistoryItem(change: StatusChange) {
-    val date = Instant.fromEpochMilliseconds(change.changedAt)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
-    val dateStr = "${date.dayOfMonth}/${date.monthNumber}/${date.year} ${date.hour}:${date.minute.toString().padStart(
-        2,
-        '0'
-    )}"
-    val label = statusLabel(change.status)
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium
+    // Ready always shows "Pickup today" regardless of deadline; other states need
+    // an actual deadline to render — without one we return null so the hero hides
+    // the date row entirely instead of showing a bare "Due " label.
+    return when {
+        order.status == OrderStatus.READY ->
+            UiText.StringResourceText(Res.string.order_detail_pickup_today)
+        readableDeadline == null -> null
+        order.status == OrderStatus.DELIVERED -> UiText.StringResourceText(
+            Res.string.order_detail_delivered_label,
+            arrayOf(readableDeadline),
         )
-        Text(
-            text = dateStr,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        isOverdue -> UiText.StringResourceText(
+            Res.string.order_detail_was_due_label,
+            arrayOf(readableDeadline),
         )
-    }
-}
-
-@Composable
-private fun FinancialRow(
-    label: String,
-    value: String,
-    isBold: Boolean = false,
-    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
-) {
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
-            color = valueColor
+        else -> UiText.StringResourceText(
+            Res.string.order_detail_due_label,
+            arrayOf(readableDeadline),
         )
     }
 }
@@ -1094,14 +890,6 @@ private fun statusLabel(status: OrderStatus): String = when (status) {
     OrderStatus.IN_PROGRESS -> stringResource(Res.string.order_status_in_progress)
     OrderStatus.READY -> stringResource(Res.string.order_status_ready)
     OrderStatus.DELIVERED -> stringResource(Res.string.order_status_delivered)
-}
-
-@Composable
-private fun statusColorAndLabel(status: OrderStatus): Pair<Color, String> = when (status) {
-    OrderStatus.PENDING -> DesignTokens.statusReceived to stringResource(Res.string.order_status_pending)
-    OrderStatus.IN_PROGRESS -> DesignTokens.statusCutting to stringResource(Res.string.order_status_in_progress)
-    OrderStatus.READY -> DesignTokens.statusReady to stringResource(Res.string.order_status_ready)
-    OrderStatus.DELIVERED -> DesignTokens.statusDelivered to stringResource(Res.string.order_status_delivered)
 }
 
 @Composable
@@ -1211,8 +999,15 @@ private fun OrderDetailScreenFilledPreview() {
                     priority = OrderPriority.NORMAL,
                     statusHistory = listOf(StatusChange(OrderStatus.PENDING, now - 86_400_000)),
                     totalPrice = 100_000.0,
-                    depositPaid = 40_000.0,
-                    balanceRemaining = 60_000.0,
+                    payments = listOf(
+                        Payment(
+                            id = "p1",
+                            amount = 40_000.0,
+                            method = PaymentMethod.OTHER,
+                            type = PaymentType.DEPOSIT,
+                            recordedAt = 0L,
+                        )
+                    ),
                     deadline = now + 86_400_000 * 3,
                     notes = "Needs to be ready by Friday for the wedding.",
                     createdAt = now - 86_400_000,

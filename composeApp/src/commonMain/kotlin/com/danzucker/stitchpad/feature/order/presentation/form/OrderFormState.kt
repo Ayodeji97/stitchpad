@@ -42,5 +42,6 @@ constructor(
     val measurementId: String? = null,
     val fabricPhotoBytes: ByteArray? = null,
     val fabricPhotoUrl: String? = null,
-    val fabricPhotoStoragePath: String? = null
+    val fabricPhotoStoragePath: String? = null,
+    val fabricName: String = "",
 )

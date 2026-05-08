@@ -2,13 +2,17 @@ package com.danzucker.stitchpad.feature.order.data
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
+import com.danzucker.stitchpad.core.data.mapper.migrateLegacyDeposit
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
+import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
@@ -21,6 +25,7 @@ import kotlin.time.Clock
 
 private const val TAG = "OrderRepo"
 
+@Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
@@ -36,9 +41,15 @@ class FirebaseOrderRepository(
         ordersCollection(userId)
             .snapshots()
             .map { snapshot ->
-                val orders = snapshot.documents.mapNotNull { doc ->
-                    runCatching { doc.data<OrderDto>().toOrder(userId) }.getOrNull()
-                }
+                val orders = snapshot.documents
+                    .mapNotNull { doc ->
+                        runCatching { doc.data<OrderDto>().toOrder(userId) }.getOrNull()
+                    }
+                    // Filter archived orders client-side. The GitLive Firebase
+                    // SDK doesn't support `whereEqualTo(field, null)` cleanly
+                    // across platforms, and the per-user dataset is small
+                    // enough (< 1k orders) that client-side filtering is fine.
+                    .filter { it.archivedAt == null }
                 Result.Success(orders) as Result<List<Order>, DataError.Network>
             }
             .catch { throwable ->
@@ -119,13 +130,14 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         return try {
             val docRef = ordersCollection(userId).document(orderId)
-            // Atomic read-modify-write: Firestore retries on concurrent modification,
-            // preventing lost status updates when two devices update at the same time.
+            // Capture once outside the transaction body — Firestore retries on
+            // concurrent modification, and we want a stable timestamp tied to
+            // when the user took the action, not to which retry attempt won.
+            val now = Clock.System.now().toEpochMilliseconds()
             val notFound = firestore.runTransaction {
                 val snap = get(docRef)
                 if (!snap.exists) return@runTransaction true
                 val dto = snap.data<OrderDto>()
-                val now = Clock.System.now().toEpochMilliseconds()
                 val updatedDto = dto.copy(
                     status = newStatus.name,
                     statusHistory = dto.statusHistory + StatusChangeDto(
@@ -140,6 +152,110 @@ class FirebaseOrderRepository(
             if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "updateOrderStatus failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun recordPayment(
+        userId: String,
+        orderId: String,
+        payment: Payment,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            // Capture once outside runTransaction so retries don't shift the
+            // recordedAt/updatedAt timestamps — the value reflects when the
+            // user tapped Save, not which retry won the race.
+            val now = Clock.System.now().toEpochMilliseconds()
+            val stampedPayment = payment.copy(recordedAt = now)
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                // Absorb any legacy depositPaid into the payments list BEFORE
+                // appending the new one — otherwise zeroing depositPaid below
+                // permanently drops the legacy deposit.
+                val migratedPayments = migrateLegacyDeposit(
+                    payments = dto.payments,
+                    depositPaid = dto.depositPaid,
+                    createdAt = dto.createdAt,
+                )
+                val updatedDto = dto.copy(
+                    payments = migratedPayments + stampedPayment.toPaymentDto(),
+                    depositPaid = 0.0,
+                    updatedAt = now,
+                )
+                set(docRef, updatedDto)
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "recordPayment failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun updateSubStatus(
+        userId: String,
+        orderId: String,
+        subStatus: OrderSubStatus?,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val now = Clock.System.now().toEpochMilliseconds()
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                set(docRef, dto.copy(subStatus = subStatus?.name, updatedAt = now))
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "updateSubStatus failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun updateNotes(
+        userId: String,
+        orderId: String,
+        notes: String?,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val now = Clock.System.now().toEpochMilliseconds()
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                set(docRef, dto.copy(notes = notes, updatedAt = now))
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "updateNotes failed orderId=$orderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun archiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val docRef = ordersCollection(userId).document(orderId)
+            val now = Clock.System.now().toEpochMilliseconds()
+            val notFound = firestore.runTransaction {
+                val snap = get(docRef)
+                if (!snap.exists) return@runTransaction true
+                val dto = snap.data<OrderDto>()
+                set(docRef, dto.copy(archivedAt = now, updatedAt = now))
+                false
+            }
+            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "archiveOrder failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }

@@ -6,6 +6,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import kotlinx.datetime.LocalDate
@@ -18,6 +21,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class NbaCalculatorTest {
+
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
 
     private val tz = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -34,30 +45,32 @@ class NbaCalculatorTest {
         status: OrderStatus = OrderStatus.PENDING,
         deadline: LocalDate? = null,
         balanceRemaining: Double = 0.0,
-        totalPrice: Double = 1_000.0,
+        totalPrice: Double? = null,
         depositPaid: Double = 1_000.0,
         statusHistory: List<StatusChange> = emptyList(),
         createdAt: LocalDate = today,
         updatedAt: LocalDate = today
-    ): Order = Order(
-        id = id,
-        userId = "u",
-        customerId = customerId,
-        customerName = "Test Customer",
-        items = listOf(
-            OrderItem(id = "i-$id", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
-        ),
-        status = status,
-        priority = OrderPriority.NORMAL,
-        statusHistory = statusHistory,
-        totalPrice = totalPrice,
-        depositPaid = depositPaid,
-        balanceRemaining = balanceRemaining,
-        deadline = deadline?.let { millisAt(it) },
-        notes = null,
-        createdAt = millisAt(createdAt),
-        updatedAt = millisAt(updatedAt)
-    )
+    ): Order {
+        val resolvedTotalPrice = totalPrice ?: (depositPaid + balanceRemaining)
+        return Order(
+            id = id,
+            userId = "u",
+            customerId = customerId,
+            customerName = "Test Customer",
+            items = listOf(
+                OrderItem(id = "i-$id", garmentType = GarmentType.AGBADA, description = "", price = resolvedTotalPrice)
+            ),
+            status = status,
+            priority = OrderPriority.NORMAL,
+            statusHistory = statusHistory,
+            totalPrice = resolvedTotalPrice,
+            payments = if (depositPaid > 0.0) listOf(depositPayment(depositPaid)) else emptyList(),
+            deadline = deadline?.let { millisAt(it) },
+            notes = null,
+            createdAt = millisAt(createdAt),
+            updatedAt = millisAt(updatedAt),
+        )
+    }
 
     @Test
     fun emptyInputsReturnEmptyList() {

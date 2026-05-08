@@ -29,8 +29,6 @@ class TriageGroupingTest {
         priority = OrderPriority.NORMAL,
         statusHistory = emptyList(),
         totalPrice = 0.0,
-        depositPaid = 0.0,
-        balanceRemaining = 0.0,
         deadline = deadline,
         notes = null,
         createdAt = createdAt,

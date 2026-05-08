@@ -26,16 +26,18 @@ class FakeStyleRepository : StyleRepository {
         observeError?.let { flowOf(Result.Error(it)) }
             ?: flowOf(Result.Success(stylesList))
 
+    var lastCreatedStyleId: String = "fake-style-id"
+
     override suspend fun createStyle(
         userId: String,
         customerId: String,
         description: String,
         photoBytes: ByteArray,
-    ): EmptyResult<DataError.Network> {
+    ): Result<String, DataError.Network> {
         operationError?.let { return Result.Error(it) }
         lastCreatedDescription = description
         lastCreatedPhotoBytes = photoBytes
-        return Result.Success(Unit)
+        return Result.Success(lastCreatedStyleId)
     }
 
     override suspend fun updateStyle(

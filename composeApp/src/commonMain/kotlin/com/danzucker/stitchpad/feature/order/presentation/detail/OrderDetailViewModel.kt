@@ -5,18 +5,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
+import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -24,20 +32,33 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.receipt_share_error
+import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
+    private val customerRepository: CustomerRepository,
+    private val measurementRepository: MeasurementRepository,
+    private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
-    private val receiptSharer: OrderReceiptSharer
+    private val receiptSharer: OrderReceiptSharer,
 ) : ViewModel() {
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
 
     private var hasStartedObserving = false
+    private var customerJob: Job? = null
+    private var loadedCustomerId: String? = null
+    private var measurementsJob: Job? = null
+    private var loadedMeasurementsCustomerId: String? = null
+    private var styleJob: Job? = null
+    private var loadedStylesCustomerId: String? = null
     private val _state = MutableStateFlow(OrderDetailState())
 
-    private val _events = Channel<OrderDetailEvent>()
+    private val _events = Channel<OrderDetailEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     val state = _state
@@ -51,39 +72,73 @@ class OrderDetailViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = OrderDetailState()
+            initialValue = OrderDetailState(),
         )
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun onAction(action: OrderDetailAction) {
         when (action) {
-            OrderDetailAction.OnEditClick -> {
-                viewModelScope.launch {
-                    _events.send(OrderDetailEvent.NavigateToOrderForm(orderId))
-                }
+            // Navigation
+            OrderDetailAction.OnBackClick ->
+                viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
+            OrderDetailAction.OnEditClick ->
+                viewModelScope.launch { _events.send(OrderDetailEvent.NavigateToOrderForm(orderId)) }
+            OrderDetailAction.OnCustomerClick -> {
+                val customerId = _state.value.order?.customerId ?: return
+                viewModelScope.launch { _events.send(OrderDetailEvent.NavigateToCustomerDetail(customerId)) }
             }
-            OrderDetailAction.OnDeleteClick -> {
-                _state.update { it.copy(showDeleteDialog = true) }
+
+            // Top-bar overflow
+            OrderDetailAction.OnOverflowMenuToggle ->
+                _state.update { it.copy(showOverflowMenu = !it.showOverflowMenu) }
+            OrderDetailAction.OnDuplicateClick -> {
+                _state.update { it.copy(showOverflowMenu = false) }
+                viewModelScope.launch { _events.send(OrderDetailEvent.NavigateToCreateOrder(orderId)) }
             }
+
+            // Delete
+            OrderDetailAction.OnDeleteClick ->
+                _state.update { it.copy(showOverflowMenu = false, showDeleteDialog = true) }
             OrderDetailAction.OnConfirmDelete -> deleteOrder()
-            OrderDetailAction.OnDismissDeleteDialog -> {
+            OrderDetailAction.OnDismissDeleteDialog ->
                 _state.update { it.copy(showDeleteDialog = false) }
-            }
-            OrderDetailAction.OnUpdateStatusClick -> {
-                _state.update { it.copy(showStatusUpdateDialog = true) }
-            }
-            is OrderDetailAction.OnSelectNewStatus -> {
-                _state.update { it.copy(selectedNewStatus = action.status) }
-            }
-            OrderDetailAction.OnConfirmStatusUpdate -> updateStatus()
-            OrderDetailAction.OnDismissStatusUpdate -> {
-                _state.update { it.copy(showStatusUpdateDialog = false, selectedNewStatus = null) }
-            }
+
+            // Archive
+            OrderDetailAction.OnArchiveClick ->
+                _state.update { it.copy(showOverflowMenu = false, showArchiveDialog = true) }
+            OrderDetailAction.OnConfirmArchive -> archiveOrder()
+            OrderDetailAction.OnDismissArchiveDialog ->
+                _state.update { it.copy(showArchiveDialog = false) }
+
+            // Status sheet
+            OrderDetailAction.OnUpdateStatusClick ->
+                _state.update { it.copy(showStatusSheet = true) }
+            is OrderDetailAction.OnSelectStatusTransition ->
+                handleStatusTransition(action.transition)
+            OrderDetailAction.OnDismissStatusSheet ->
+                _state.update {
+                    // iOS fires onDismissRequest as a side effect of programmatic
+                    // showStatusSheet = false too (per feedback_ios_modal_bottom_sheet_timing).
+                    // When handleStatusTransition has already raised the balance warning,
+                    // those pending fields MUST stay populated so OnBalanceWarningProceed
+                    // can replay the transition. Only clear when no warning is in flight.
+                    if (it.showBalanceWarningDialog) {
+                        it.copy(showStatusSheet = false)
+                    } else {
+                        it.copy(
+                            showStatusSheet = false,
+                            selectedNewStatus = null,
+                            selectedNewSubStatus = null,
+                        )
+                    }
+                }
+
             OrderDetailAction.OnBalanceWarningRecordPayment -> {
                 _state.update {
                     it.copy(
                         showBalanceWarningDialog = false,
                         selectedNewStatus = null,
+                        selectedNewSubStatus = null,
                         showRecordPaymentDialog = true,
                         paymentAmountInput = "",
                         wasPaymentCapped = false,
@@ -92,53 +147,62 @@ class OrderDetailViewModel(
             }
             OrderDetailAction.OnBalanceWarningProceed -> {
                 val pending = _state.value.selectedNewStatus
+                val pendingSub = _state.value.selectedNewSubStatus
                 _state.update {
-                    it.copy(showBalanceWarningDialog = false, selectedNewStatus = null)
+                    it.copy(
+                        showBalanceWarningDialog = false,
+                        selectedNewStatus = null,
+                        selectedNewSubStatus = null,
+                    )
                 }
-                if (pending != null) performStatusUpdate(pending)
+                if (pending != null) performStatusUpdate(pending, pendingSub)
             }
-            OrderDetailAction.OnBalanceWarningDismiss -> {
+            OrderDetailAction.OnBalanceWarningDismiss ->
                 _state.update {
-                    it.copy(showBalanceWarningDialog = false, selectedNewStatus = null)
+                    it.copy(
+                        showBalanceWarningDialog = false,
+                        selectedNewStatus = null,
+                        selectedNewSubStatus = null,
+                    )
                 }
-            }
-            OrderDetailAction.OnCustomerClick -> {
-                val customerId = _state.value.order?.customerId ?: return
-                viewModelScope.launch {
-                    _events.send(OrderDetailEvent.NavigateToCustomerDetail(customerId))
-                }
-            }
-            OrderDetailAction.OnShareClick -> {
+
+            // Sharing
+            OrderDetailAction.OnShareClick ->
                 _state.update { it.copy(showShareSheet = true) }
-            }
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt { receiptData -> receiptSharer.shareReceiptAsImage(receiptData) }
+                shareReceipt { receiptSharer.shareReceiptAsImage(it) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt { receiptData -> receiptSharer.shareReceiptAsPdf(receiptData) }
+                shareReceipt { receiptSharer.shareReceiptAsPdf(it) }
             }
-            OrderDetailAction.OnDismissShareSheet -> {
+            OrderDetailAction.OnDismissShareSheet ->
                 _state.update { it.copy(showShareSheet = false) }
-            }
+
+            // Record payment
             OrderDetailAction.OnRecordPaymentClick -> {
+                val isFirst = _state.value.order?.payments?.isEmpty() == true
                 _state.update {
                     it.copy(
                         showRecordPaymentDialog = true,
                         paymentAmountInput = "",
                         wasPaymentCapped = false,
+                        paymentTypeSelection = if (isFirst) PaymentType.DEPOSIT else PaymentType.PROGRESS,
+                        paymentMethodSelection = PaymentMethod.TRANSFER,
                     )
                 }
             }
             is OrderDetailAction.OnPaymentAmountChange -> {
-                val rawDigits = action.digits.filter { ch -> ch.isDigit() }.trimStart('0')
+                val rawDigits = action.digits.filter { it.isDigit() }.trimStart('0')
                 val capped = capPaymentAmountDigits(action.digits)
-                // Track capping explicitly so the UI can distinguish "user typed exactly
-                // the balance" (no helper text) from "input was clamped" (show helper).
                 val didCap = rawDigits.isNotEmpty() && rawDigits != capped
                 _state.update { it.copy(paymentAmountInput = capped, wasPaymentCapped = didCap) }
             }
+            is OrderDetailAction.OnPaymentMethodSelect ->
+                _state.update { it.copy(paymentMethodSelection = action.method) }
+            is OrderDetailAction.OnPaymentTypeSelect ->
+                _state.update { it.copy(paymentTypeSelection = action.type) }
             OrderDetailAction.OnMarkPaidInFull -> markPaidInFull()
             OrderDetailAction.OnConfirmRecordPayment -> recordPayment()
             OrderDetailAction.OnDismissRecordPayment -> {
@@ -150,11 +214,126 @@ class OrderDetailViewModel(
                     )
                 }
             }
-            OrderDetailAction.OnBackClick -> {
-                viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
+            OrderDetailAction.OnPaymentHistoryToggle ->
+                _state.update { it.copy(isPaymentHistoryExpanded = !it.isPaymentHistoryExpanded) }
+
+            // Notes
+            OrderDetailAction.OnNotesEditClick ->
+                _state.update {
+                    it.copy(isEditingNotes = true, notesDraft = it.order?.notes.orEmpty())
+                }
+            is OrderDetailAction.OnNotesDraftChange ->
+                _state.update { it.copy(notesDraft = action.text) }
+            OrderDetailAction.OnNotesSaveClick -> saveNotes()
+            OrderDetailAction.OnNotesCancelClick ->
+                _state.update { it.copy(isEditingNotes = false, notesDraft = "") }
+
+            // Customer reach-out
+            OrderDetailAction.OnWhatsAppClick -> launchWhatsApp()
+            OrderDetailAction.OnCallClick -> launchDialer()
+            OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
+            OrderDetailAction.OnAddStyleClick ->
+                _state.update { it.copy(showStylePickerSheet = true) }
+            OrderDetailAction.OnAddFabricClick -> {
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToOrderForm(orderId))
+                }
             }
-            OrderDetailAction.OnErrorDismiss -> {
+            OrderDetailAction.OnAddFabricNameClick -> {
+                val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
+                _state.update {
+                    it.copy(showFabricNameDialog = true, fabricNameDraft = currentName)
+                }
+            }
+            is OrderDetailAction.OnFabricNameDraftChange ->
+                _state.update { it.copy(fabricNameDraft = action.text) }
+            OrderDetailAction.OnSaveFabricName -> saveFabricName()
+            OrderDetailAction.OnDismissFabricNameDialog ->
+                _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
+            OrderDetailAction.OnAddPhoneClick -> {
+                val customerId = _state.value.order?.customerId ?: return
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToCustomerForm(customerId))
+                }
+            }
+
+            // Styles
+            is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId)
+
+            OrderDetailAction.OnCreateNewStyleClick -> {
+                _state.update { it.copy(showStylePickerSheet = false) }
+                val customerId = _state.value.order?.customerId ?: return
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToStyleForm(customerId, orderId))
+                }
+            }
+
+            OrderDetailAction.OnDismissStylePickerSheet ->
+                _state.update { it.copy(showStylePickerSheet = false) }
+
+            // Measurements
+            OrderDetailAction.OnLinkMeasurementsClick ->
+                _state.update { it.copy(showMeasurementPickerSheet = true) }
+
+            is OrderDetailAction.OnSelectMeasurement -> linkExistingMeasurement(action.measurementId)
+
+            OrderDetailAction.OnCreateNewMeasurementClick -> {
+                _state.update { it.copy(showMeasurementPickerSheet = false) }
+                val customerId = _state.value.order?.customerId ?: return
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToMeasurementForm(customerId, orderId))
+                }
+            }
+
+            OrderDetailAction.OnDismissMeasurementPickerSheet ->
+                _state.update { it.copy(showMeasurementPickerSheet = false) }
+
+            // Deadline
+            OrderDetailAction.OnSetDeadlineClick ->
+                _state.update { it.copy(showDatePickerDialog = true) }
+
+            is OrderDetailAction.OnDeadlineSelected -> setDeadline(action.epochMillis)
+
+            OrderDetailAction.OnDismissDatePickerDialog ->
+                _state.update { it.copy(showDatePickerDialog = false) }
+
+            // Misc
+            OrderDetailAction.OnErrorDismiss ->
                 _state.update { it.copy(errorMessage = null) }
+        }
+    }
+
+    private fun saveFabricName() {
+        val snapshot = _state.value
+        val order = snapshot.order
+        val firstItem = order?.items?.firstOrNull()
+        val newName = snapshot.fabricNameDraft.trim().ifBlank { null }
+        _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
+        if (order == null || firstItem == null || firstItem.fabricName == newName) return
+        val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                is Result.Success -> Unit
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = res.error.toOrderUiText())
+                }
+            }
+        }
+    }
+
+    private fun setDeadline(epochMillis: Long) {
+        _state.update { it.copy(showDatePickerDialog = false) }
+        val order = _state.value.order ?: return
+        if (order.deadline == epochMillis) return
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val updated = order.copy(deadline = epochMillis)
+            when (val res = orderRepository.updateOrder(userId, updated)) {
+                is Result.Success -> Unit
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = res.error.toOrderUiText())
+                }
             }
         }
     }
@@ -172,9 +351,7 @@ class OrderDetailViewModel(
                 share(receiptData)
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
-                    it.copy(
-                        errorMessage = UiText.StringResourceText(Res.string.receipt_share_error)
-                    )
+                    it.copy(errorMessage = UiText.StringResourceText(Res.string.receipt_share_error))
                 }
             }
         }
@@ -196,12 +373,132 @@ class OrderDetailViewModel(
             orderRepository.observeOrder(userId, orderId).collect { result ->
                 when (result) {
                     is Result.Success -> {
-                        _state.update { it.copy(order = result.data, isLoading = false) }
+                        // Re-derive linked style + measurement from already-loaded
+                        // collection lists when the order's items[0].styleId or
+                        // .measurementId changes (e.g., from a picker auto-link).
+                        // Without this, only the *collection* flows update those
+                        // fields, so picking an existing style/measurement leaves
+                        // state.style or state.measurement stale.
+                        _state.update { current ->
+                            val newOrder = result.data
+                            val firstItem = newOrder.items.firstOrNull()
+                            val linkedStyle = firstItem?.styleId?.let { id ->
+                                current.availableStyles.firstOrNull { it.id == id }
+                                    ?: current.style?.takeIf { it.id == id }
+                            }
+                            val linkedMeasurement = firstItem?.measurementId?.let { id ->
+                                current.availableMeasurements.firstOrNull { it.id == id }
+                                    ?: current.measurement?.takeIf { it.id == id }
+                            }
+                            current.copy(
+                                order = newOrder,
+                                isLoading = false,
+                                style = linkedStyle,
+                                measurement = linkedMeasurement,
+                            )
+                        }
+                        loadCustomerIfNeeded(result.data.customerId, userId)
+                        loadMeasurementsIfNeeded(result.data.customerId, userId)
+                        loadStylesIfNeeded(result.data.customerId, userId)
                     }
                     is Result.Error -> {
                         _state.update {
                             it.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadCustomerIfNeeded(customerId: String, userId: String) {
+        if (loadedCustomerId == customerId) return
+        loadedCustomerId = customerId
+        customerJob?.cancel()
+        customerJob = viewModelScope.launch {
+            // Observe (not getCustomer) so phone/name edits made via the
+            // CustomerForm flight propagate back to the order detail without
+            // requiring a screen recreation. The empty-phone CTA depends on
+            // this — without observe, the new phone is invisible until the
+            // VM is destroyed and rebuilt.
+            customerRepository.observeCustomer(userId, customerId).collect { res ->
+                if (res is Result.Success) {
+                    _state.update { it.copy(customer = res.data) }
+                }
+            }
+        }
+    }
+
+    private fun loadMeasurementsIfNeeded(customerId: String, userId: String) {
+        if (loadedMeasurementsCustomerId == customerId) return
+        loadedMeasurementsCustomerId = customerId
+        measurementsJob?.cancel()
+        measurementsJob = viewModelScope.launch {
+            measurementRepository.observeMeasurements(userId, customerId).collect { res ->
+                if (res is Result.Success) {
+                    _state.update { current ->
+                        val linkedId = current.order?.items?.firstOrNull()?.measurementId
+                        val linked = linkedId?.let { id -> res.data.firstOrNull { it.id == id } }
+                        current.copy(
+                            availableMeasurements = res.data,
+                            measurement = linked,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun linkExistingMeasurement(measurementId: String) {
+        _state.update { it.copy(showMeasurementPickerSheet = false) }
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (firstItem.measurementId != measurementId) {
+            val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) + order.items.drop(1)
+            viewModelScope.launch {
+                val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                    is Result.Success -> Unit // observeOrder Flow re-emits with the new measurementId
+                    is Result.Error -> _state.update {
+                        it.copy(errorMessage = res.error.toOrderUiText())
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadStylesIfNeeded(customerId: String, userId: String) {
+        if (loadedStylesCustomerId == customerId) return
+        loadedStylesCustomerId = customerId
+        styleJob?.cancel()
+        styleJob = viewModelScope.launch {
+            styleRepository.observeStyles(userId, customerId).collect { res ->
+                if (res is Result.Success) {
+                    _state.update { current ->
+                        val linkedId = current.order?.items?.firstOrNull()?.styleId
+                        val linked = linkedId?.let { id -> res.data.firstOrNull { it.id == id } }
+                        current.copy(
+                            availableStyles = res.data,
+                            style = linked,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun linkExistingStyle(styleId: String) {
+        _state.update { it.copy(showStylePickerSheet = false) }
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (firstItem.styleId != styleId) {
+            val updatedItems = listOf(firstItem.copy(styleId = styleId)) + order.items.drop(1)
+            viewModelScope.launch {
+                val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                    is Result.Success -> Unit
+                    is Result.Error -> _state.update {
+                        it.copy(errorMessage = res.error.toOrderUiText())
                     }
                 }
             }
@@ -221,39 +518,87 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun updateStatus() {
-        val newStatus = _state.value.selectedNewStatus ?: return
-        val order = _state.value.order
-        // Gate Ready/Delivered transitions when there's still a balance owed —
-        // the dealer almost certainly wants to record the payment first, and a
-        // silent transition to Delivered would understate weekly revenue.
-        val needsBalanceWarning = order != null &&
-            order.balanceRemaining > 0.0 &&
-            (newStatus == OrderStatus.READY || newStatus == OrderStatus.DELIVERED)
-        if (needsBalanceWarning) {
-            _state.update {
-                it.copy(showStatusUpdateDialog = false, showBalanceWarningDialog = true)
-            }
-            return
-        }
-        _state.update { it.copy(showStatusUpdateDialog = false, selectedNewStatus = null) }
-        performStatusUpdate(newStatus)
-    }
-
-    private fun performStatusUpdate(newStatus: OrderStatus) {
+    private fun archiveOrder() {
+        _state.update { it.copy(showArchiveDialog = false) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            when (val result = orderRepository.updateOrderStatus(userId, orderId, newStatus)) {
-                is Result.Success -> { /* Snapshot observer will auto-update the state */ }
+            when (val res = orderRepository.archiveOrder(userId, orderId)) {
+                is Result.Success -> _events.send(OrderDetailEvent.OrderArchived)
                 is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toOrderUiText())
+                    it.copy(errorMessage = res.error.toOrderUiText())
                 }
             }
         }
     }
 
-    // Pre-caps input at the remaining balance so the dialog's helper text can explain the clamp
-    // without waiting for submission.
+    private fun handleStatusTransition(transition: StatusTransition) {
+        val order = _state.value.order ?: return
+        val needsBalanceWarning = order.balanceRemaining > 0.0 &&
+            (transition.toStatus == OrderStatus.READY || transition.toStatus == OrderStatus.DELIVERED)
+        if (needsBalanceWarning) {
+            _state.update {
+                it.copy(
+                    showStatusSheet = false,
+                    selectedNewStatus = transition.toStatus,
+                    selectedNewSubStatus = transition.toSubStatus,
+                    showBalanceWarningDialog = true,
+                )
+            }
+            return
+        }
+        _state.update { it.copy(showStatusSheet = false) }
+        performStatusUpdate(transition.toStatus, transition.toSubStatus)
+    }
+
+    private fun performStatusUpdate(newStatus: OrderStatus, newSubStatus: OrderSubStatus?) {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val statusResult = orderRepository.updateOrderStatus(userId, orderId, newStatus)
+            if (statusResult is Result.Error) {
+                _state.update { it.copy(errorMessage = statusResult.error.toOrderUiText()) }
+                return@launch
+            }
+            // Always normalise subStatus: only IN_PROGRESS keeps it; other states clear.
+            val effectiveSub = if (newStatus == OrderStatus.IN_PROGRESS) newSubStatus else null
+            val subResult = orderRepository.updateSubStatus(userId, orderId, effectiveSub)
+            if (subResult is Result.Error) {
+                _state.update { it.copy(errorMessage = subResult.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    private fun saveNotes() {
+        val draft = _state.value.notesDraft
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val toSave = draft.takeIf { it.isNotBlank() }
+            when (val res = orderRepository.updateNotes(userId, orderId, toSave)) {
+                is Result.Success -> {
+                    _state.update { it.copy(isEditingNotes = false, notesDraft = "") }
+                    _events.send(OrderDetailEvent.NotesSaved)
+                }
+                is Result.Error ->
+                    _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    private fun launchWhatsApp() {
+        val snapshot = _state.value
+        val customer = snapshot.customer?.takeIf { it.phone.isNotBlank() } ?: return
+        val order = snapshot.order ?: return
+        viewModelScope.launch {
+            val message = WhatsAppMessageBuilder.buildForOrder(order, customer)
+            _events.send(OrderDetailEvent.LaunchWhatsApp(customer.phone, message))
+        }
+    }
+
+    private fun launchDialer() {
+        val phone = _state.value.customer?.phone ?: return
+        if (phone.isBlank()) return
+        viewModelScope.launch { _events.send(OrderDetailEvent.LaunchDialer(phone)) }
+    }
+
     private fun capPaymentAmountDigits(digits: String): String {
         val remaining = _state.value.order?.balanceRemaining ?: return digits
         return capPaymentDigits(digits, remaining)
@@ -269,17 +614,23 @@ class OrderDetailViewModel(
         submitPayment(amount)
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun submitPayment(amountJustPaid: Double) {
-        val order = _state.value.order ?: return
-        if (amountJustPaid <= 0.0) return
-        val (newDeposit, newBalance) = computeRecordedPayment(
-            currentDeposit = order.depositPaid,
-            totalPrice = order.totalPrice,
-            amountJustPaid = amountJustPaid,
-        )
-        val updatedOrder = order.copy(
-            depositPaid = newDeposit,
-            balanceRemaining = newBalance,
+        val state = _state.value
+        val order = state.order ?: return
+        // capPaymentDigits intentionally echoes user input when balance is 0.0
+        // (so the field stays editable visually), so we must guard AFTER
+        // coercing — otherwise a 0-balance order accepts a phantom payment.
+        val safeAmount = amountJustPaid.coerceAtMost(order.balanceRemaining)
+        if (safeAmount <= 0.0) return
+        val now = Clock.System.now().toEpochMilliseconds()
+        val payment = Payment(
+            id = Uuid.random().toString(),
+            amount = safeAmount,
+            method = state.paymentMethodSelection,
+            type = state.paymentTypeSelection,
+            recordedAt = now,
+            note = null,
         )
         _state.update {
             it.copy(
@@ -290,11 +641,10 @@ class OrderDetailViewModel(
         }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            when (val result = orderRepository.updateOrder(userId, updatedOrder)) {
+            when (val res = orderRepository.recordPayment(userId, orderId, payment)) {
                 is Result.Success -> _events.send(OrderDetailEvent.PaymentRecorded)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toOrderUiText())
-                }
+                is Result.Error ->
+                    _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
             }
         }
     }

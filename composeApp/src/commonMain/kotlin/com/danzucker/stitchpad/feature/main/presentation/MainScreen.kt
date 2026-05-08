@@ -233,7 +233,23 @@ private fun MainNavGraph(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateToCustomerForm = { customerId ->
+                    navController.navigate(CustomerFormRoute(customerId = customerId))
+                },
+                onNavigateToMeasurementForm = { customerId, linkToOrderId ->
+                    navController.navigate(
+                        MeasurementFormRoute(customerId = customerId, linkToOrderId = linkToOrderId),
+                    )
+                },
+                onNavigateToDuplicateOrder = { sourceOrderId ->
+                    navController.navigate(OrderFormRoute(seedFromOrderId = sourceOrderId))
+                },
+                onNavigateToStyleForm = { customerId, linkToOrderId ->
+                    navController.navigate(
+                        StyleFormRoute(customerId = customerId, linkToOrderId = linkToOrderId),
+                    )
+                },
+                onNavigateBack = { navController.navigateUp() },
             )
         }
         composable<DashboardRoute> {

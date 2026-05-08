@@ -5,8 +5,11 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface OrderRepository {
     fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>>
     fun observeOrder(userId: String, orderId: String): Flow<Result<Order, DataError.Network>>
@@ -19,6 +22,29 @@ interface OrderRepository {
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network>
     suspend fun deleteOrder(userId: String, orderId: String): EmptyResult<DataError.Network>
+
+    suspend fun recordPayment(
+        userId: String,
+        orderId: String,
+        payment: Payment,
+    ): EmptyResult<DataError.Network>
+
+    suspend fun updateSubStatus(
+        userId: String,
+        orderId: String,
+        subStatus: OrderSubStatus?,
+    ): EmptyResult<DataError.Network>
+
+    suspend fun updateNotes(
+        userId: String,
+        orderId: String,
+        notes: String?,
+    ): EmptyResult<DataError.Network>
+
+    suspend fun archiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network>
 
     fun newOrderId(userId: String): String
 

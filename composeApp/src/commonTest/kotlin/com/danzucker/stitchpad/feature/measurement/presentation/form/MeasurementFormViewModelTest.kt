@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
+import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
@@ -34,6 +35,7 @@ class MeasurementFormViewModelTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var preferencesStore: FakeMeasurementPreferencesStore
+    private lateinit var orderRepository: FakeOrderRepository
 
     @BeforeTest
     fun setUp() {
@@ -41,6 +43,7 @@ class MeasurementFormViewModelTest {
         measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository()
         preferencesStore = FakeMeasurementPreferencesStore()
+        orderRepository = FakeOrderRepository()
     }
 
     @AfterTest
@@ -61,6 +64,7 @@ class MeasurementFormViewModelTest {
             measurementRepository = measurementRepository,
             authRepository = authRepository,
             measurementPreferencesStore = preferencesStore,
+            orderRepository = orderRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

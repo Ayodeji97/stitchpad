@@ -2,34 +2,78 @@ package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderItemDto
+import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import kotlin.time.Clock
 
-fun OrderDto.toOrder(userId: String): Order = Order(
-    id = id,
-    userId = userId,
-    customerId = customerId,
-    customerName = customerName,
-    items = items.map { it.toOrderItem() },
-    status = runCatching { OrderStatus.valueOf(status) }
-        .getOrDefault(OrderStatus.PENDING),
-    priority = runCatching { OrderPriority.valueOf(priority) }
-        .getOrDefault(OrderPriority.NORMAL),
-    statusHistory = statusHistory.map { it.toStatusChange() },
-    totalPrice = totalPrice,
-    depositPaid = depositPaid,
-    balanceRemaining = balanceRemaining,
-    deadline = deadline,
-    notes = notes,
-    createdAt = createdAt,
-    updatedAt = updatedAt
-)
+/** Returns a `payments` list that already absorbs any legacy `depositPaid`.
+ *
+ *  Mirrors the read-side migration so write paths (e.g. recordPayment) don't
+ *  silently drop the legacy deposit when they zero out `depositPaid`.
+ */
+fun migrateLegacyDeposit(
+    payments: List<PaymentDto>,
+    depositPaid: Double,
+    createdAt: Long,
+): List<PaymentDto> = if (payments.isNotEmpty() || depositPaid <= 0.0) {
+    payments
+} else {
+    listOf(
+        PaymentDto(
+            id = "legacy-deposit",
+            amount = depositPaid,
+            method = PaymentMethod.OTHER.name,
+            type = PaymentType.DEPOSIT.name,
+            recordedAt = createdAt,
+            note = null,
+        )
+    )
+}
+
+fun OrderDto.toOrder(userId: String): Order {
+    val parsedStatus = runCatching { OrderStatus.valueOf(status) }
+        .getOrDefault(OrderStatus.PENDING)
+    val parsedSubStatus = if (parsedStatus == OrderStatus.IN_PROGRESS) {
+        subStatus?.let { runCatching { OrderSubStatus.valueOf(it) }.getOrNull() }
+    } else {
+        // Force null when not IN_PROGRESS so an inconsistent document can't
+        // surface a misleading sub-stage in the UI.
+        null
+    }
+    // Migrate legacy docs: if payments list is empty but the old depositPaid field has a value,
+    // synthesise a single payment so the computed Order.depositPaid is non-zero.
+    val resolvedPayments = migrateLegacyDeposit(payments, depositPaid, createdAt)
+        .map { it.toPayment() }
+    return Order(
+        id = id,
+        userId = userId,
+        customerId = customerId,
+        customerName = customerName,
+        items = items.map { it.toOrderItem() },
+        status = parsedStatus,
+        subStatus = parsedSubStatus,
+        priority = runCatching { OrderPriority.valueOf(priority) }
+            .getOrDefault(OrderPriority.NORMAL),
+        statusHistory = statusHistory.map { it.toStatusChange() },
+        totalPrice = totalPrice,
+        payments = resolvedPayments,
+        deadline = deadline,
+        notes = notes,
+        archivedAt = archivedAt,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
+}
 
 fun Order.toOrderDto(): OrderDto {
     val now = Clock.System.now().toEpochMilliseconds()
@@ -38,18 +82,37 @@ fun Order.toOrderDto(): OrderDto {
         customerId = customerId,
         customerName = customerName,
         status = status.name,
+        subStatus = subStatus?.name,
         priority = priority.name,
         totalPrice = totalPrice,
-        depositPaid = depositPaid,
-        balanceRemaining = balanceRemaining,
+        payments = payments.map { it.toPaymentDto() },
         deadline = deadline,
         notes = notes,
+        archivedAt = archivedAt,
         items = items.map { it.toOrderItemDto() },
         statusHistory = statusHistory.map { it.toStatusChangeDto() },
         createdAt = if (createdAt == 0L) now else createdAt,
-        updatedAt = now
+        updatedAt = now,
     )
 }
+
+fun PaymentDto.toPayment(): Payment = Payment(
+    id = id,
+    amount = amount,
+    method = runCatching { PaymentMethod.valueOf(method) }.getOrDefault(PaymentMethod.OTHER),
+    type = runCatching { PaymentType.valueOf(type) }.getOrDefault(PaymentType.DEPOSIT),
+    recordedAt = recordedAt,
+    note = note,
+)
+
+fun Payment.toPaymentDto(): PaymentDto = PaymentDto(
+    id = id,
+    amount = amount,
+    method = method.name,
+    type = type.name,
+    recordedAt = recordedAt,
+    note = note,
+)
 
 fun OrderItemDto.toOrderItem(): OrderItem = OrderItem(
     id = id,
@@ -59,7 +122,8 @@ fun OrderItemDto.toOrderItem(): OrderItem = OrderItem(
     styleId = styleId,
     measurementId = measurementId,
     fabricPhotoUrl = fabricPhotoUrl,
-    fabricPhotoStoragePath = fabricPhotoStoragePath
+    fabricPhotoStoragePath = fabricPhotoStoragePath,
+    fabricName = fabricName,
 )
 
 private fun parseGarmentType(value: String): GarmentType = when (value) {
@@ -76,7 +140,8 @@ fun OrderItem.toOrderItemDto(): OrderItemDto = OrderItemDto(
     styleId = styleId,
     measurementId = measurementId,
     fabricPhotoUrl = fabricPhotoUrl,
-    fabricPhotoStoragePath = fabricPhotoStoragePath
+    fabricPhotoStoragePath = fabricPhotoStoragePath,
+    fabricName = fabricName,
 )
 
 fun StatusChangeDto.toStatusChange(): StatusChange = StatusChange(

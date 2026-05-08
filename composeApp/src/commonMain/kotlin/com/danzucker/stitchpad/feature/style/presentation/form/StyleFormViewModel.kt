@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleError
@@ -24,11 +25,13 @@ private const val MAX_PHOTO_SIZE_BYTES: Int = 5 * 1024 * 1024
 class StyleFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val styleRepository: StyleRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val orderRepository: OrderRepository,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
     private val styleId: String? = savedStateHandle["styleId"]
+    private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(StyleFormState(isEditMode = styleId != null))
@@ -112,6 +115,7 @@ class StyleFormViewModel(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
         val s = _state.value
         val trimmedDescription = s.description.trim()
@@ -125,28 +129,57 @@ class StyleFormViewModel(
                 _state.update { it.copy(isSaving = false) }
                 return@launch
             }
-            val result = if (s.isEditMode && s.existingStyle != null) {
-                styleRepository.updateStyle(
+            if (s.isEditMode && s.existingStyle != null) {
+                val updateResult = styleRepository.updateStyle(
                     userId = userId,
                     customerId = customerId,
                     style = s.existingStyle.copy(description = trimmedDescription),
-                    newPhotoBytes = s.selectedPhotoBytes
+                    newPhotoBytes = s.selectedPhotoBytes,
                 )
-            } else {
-                styleRepository.createStyle(
-                    userId = userId,
-                    customerId = customerId,
-                    description = trimmedDescription,
-                    photoBytes = s.selectedPhotoBytes ?: ByteArray(0)
-                )
+                _state.update { it.copy(isSaving = false) }
+                when (updateResult) {
+                    is Result.Success -> _events.send(StyleFormEvent.NavigateBack)
+                    is Result.Error -> _state.update {
+                        it.copy(errorMessage = updateResult.error.toStyleUiText())
+                    }
+                }
+                return@launch
             }
-            _state.update { it.copy(isSaving = false) }
-            when (result) {
-                is Result.Success -> _events.send(StyleFormEvent.NavigateBack)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toStyleUiText())
+            val createResult = styleRepository.createStyle(
+                userId = userId,
+                customerId = customerId,
+                description = trimmedDescription,
+                photoBytes = s.selectedPhotoBytes ?: ByteArray(0),
+            )
+            if (createResult is Result.Error) {
+                _state.update {
+                    it.copy(isSaving = false, errorMessage = createResult.error.toStyleUiText())
+                }
+                return@launch
+            }
+            val newStyleId = (createResult as Result.Success).data
+
+            // If opened from an order's "link" path, attach this style to items[0].
+            // Mirror the measurement-link flow: failure here is silent — style is
+            // already persisted; user can retry from the order detail picker.
+            val linkOrderId = linkToOrderId
+            if (linkOrderId != null) {
+                when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
+                    is Result.Success -> {
+                        val order = orderResult.data
+                        val firstItem = order.items.firstOrNull()
+                        if (firstItem != null) {
+                            val updatedItems = listOf(firstItem.copy(styleId = newStyleId)) +
+                                order.items.drop(1)
+                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                        }
+                    }
+                    is Result.Error -> Unit
                 }
             }
+
+            _state.update { it.copy(isSaving = false) }
+            _events.send(StyleFormEvent.NavigateBack)
         }
     }
 }

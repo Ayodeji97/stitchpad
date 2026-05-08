@@ -26,6 +26,17 @@ class FakeCustomerRepository : CustomerRepository {
             Result.Success(list)
         }
 
+    override fun observeCustomer(
+        userId: String,
+        customerId: String,
+    ): Flow<Result<Customer, DataError.Network>> =
+        customersFlow.map { list ->
+            shouldReturnError?.let { return@map Result.Error(it) }
+            list.firstOrNull { it.id == customerId }
+                ?.let { Result.Success(it) as Result<Customer, DataError.Network> }
+                ?: Result.Error(DataError.Network.NOT_FOUND)
+        }
+
     override suspend fun getCustomer(
         userId: String,
         customerId: String,

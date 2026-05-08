@@ -5,6 +5,9 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -22,6 +25,14 @@ import kotlin.test.assertNull
  */
 class WeeklyGoalCalculatorTest {
 
+    private fun depositPayment(amount: Double, recordedAt: Long = 0L): Payment = Payment(
+        id = "test-deposit",
+        amount = amount,
+        method = PaymentMethod.OTHER,
+        type = PaymentType.DEPOSIT,
+        recordedAt = recordedAt,
+    )
+
     private val tz = TimeZone.UTC
 
     /** Goal was set on Saturday 2026-05-02 (mirrors the bug report context). */
@@ -38,25 +49,27 @@ class WeeklyGoalCalculatorTest {
         updatedAt: LocalDate,
         totalPrice: Double = 0.0,
         balanceRemaining: Double = 0.0
-    ): Order = Order(
-        id = "o-${updatedAt.toEpochDays()}",
-        userId = "u",
-        customerId = "c1",
-        customerName = "Test",
-        items = listOf(
-            OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
-        ),
-        status = OrderStatus.PENDING,
-        priority = OrderPriority.NORMAL,
-        statusHistory = emptyList(),
-        totalPrice = totalPrice,
-        depositPaid = totalPrice - balanceRemaining,
-        balanceRemaining = balanceRemaining,
-        deadline = null,
-        notes = null,
-        createdAt = millisAt(updatedAt),
-        updatedAt = millisAt(updatedAt)
-    )
+    ): Order {
+        val depositAmount = (totalPrice - balanceRemaining).coerceAtLeast(0.0)
+        return Order(
+            id = "o-${updatedAt.toEpochDays()}",
+            userId = "u",
+            customerId = "c1",
+            customerName = "Test",
+            items = listOf(
+                OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = totalPrice)
+            ),
+            status = OrderStatus.PENDING,
+            priority = OrderPriority.NORMAL,
+            statusHistory = emptyList(),
+            totalPrice = totalPrice,
+            payments = if (depositAmount > 0.0) listOf(depositPayment(depositAmount)) else emptyList(),
+            deadline = null,
+            notes = null,
+            createdAt = millisAt(updatedAt),
+            updatedAt = millisAt(updatedAt),
+        )
+    }
 
     @Test
     fun nullGoalReturnsNull() {

@@ -6,50 +6,6 @@ import kotlin.test.assertEquals
 class PaymentMathTest {
 
     @Test
-    fun partialPaymentIncrementsDeposit() {
-        val result = computeRecordedPayment(
-            currentDeposit = 30_000.0,
-            totalPrice = 100_000.0,
-            amountJustPaid = 20_000.0,
-        )
-        assertEquals(50_000.0, result.newDeposit)
-        assertEquals(50_000.0, result.newBalance)
-    }
-
-    @Test
-    fun paymentEqualToBalanceFullyPaysOrder() {
-        val result = computeRecordedPayment(
-            currentDeposit = 30_000.0,
-            totalPrice = 100_000.0,
-            amountJustPaid = 70_000.0,
-        )
-        assertEquals(100_000.0, result.newDeposit)
-        assertEquals(0.0, result.newBalance)
-    }
-
-    @Test
-    fun paymentExceedingTotalClampsToTotal() {
-        val result = computeRecordedPayment(
-            currentDeposit = 30_000.0,
-            totalPrice = 100_000.0,
-            amountJustPaid = 999_999.0,
-        )
-        assertEquals(100_000.0, result.newDeposit)
-        assertEquals(0.0, result.newBalance)
-    }
-
-    @Test
-    fun zeroPaymentLeavesValuesUntouched() {
-        val result = computeRecordedPayment(
-            currentDeposit = 30_000.0,
-            totalPrice = 100_000.0,
-            amountJustPaid = 0.0,
-        )
-        assertEquals(30_000.0, result.newDeposit)
-        assertEquals(70_000.0, result.newBalance)
-    }
-
-    @Test
     fun capDigitsUnderBalancePassesThrough() {
         assertEquals("5000", capPaymentDigits("5000", 10_000.0))
     }

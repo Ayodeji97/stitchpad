@@ -20,8 +20,6 @@ class ProductionCountsCalculatorTest {
         priority = OrderPriority.NORMAL,
         statusHistory = emptyList(),
         totalPrice = 0.0,
-        depositPaid = 0.0,
-        balanceRemaining = 0.0,
         deadline = null,
         notes = null,
         createdAt = 0L,

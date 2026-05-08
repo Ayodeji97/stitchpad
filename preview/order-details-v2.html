@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Order Details V2 — All states</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       TOKENS — copied from dashboard-v2-direction-options.html for parity
+       ============================================================ */
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p200:#FBDF8A; --p300:#F9CC50;
+      --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00; --p700:#9E7200;
+      --p800:#7A5800; --p900:#4F3800;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --err:#D93B3B; --err50:#FCEAEA;
+      --suc:#2D9E6B; --suc50:#E8F7F1;
+      --warn:#E07B20; --warn50:#FEF3E8;
+      --info:#2B7FD4; --info50:#E7F2FC;
+      --wa:#25D366;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s8:32px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-full:999px;
+
+      --font-body:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+
+      --bg:var(--n50); --surf:var(--n0); --on-surf:var(--n800);
+      --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200); --primary:var(--p500); --on-pri:#fff;
+    }
+    .phone-screen.dark{
+      --bg:#121110; --surf:#1E1C1A; --on-surf:#E5E3DF;
+      --on-surf2:#A8A49D; --on-surf3:#7D7970;
+      --bdr:#3A3731;
+      --err50:#3D1515; --suc50:#0E3D2A; --warn50:#3D2510; --info50:#0C2A4A;
+      --err:#E89090; --suc:#5EDBA0; --warn:#F0AA60; --info:#7BB8F0;
+      --p100:#4F3800; --p50:#3D2900;
+    }
+    .phone-screen.dark .av-saffron{background:#4F3800;color:#F9CC50}
+    .phone-screen.dark .av-blue{background:#0C2A4A;color:#7BB8F0}
+    .phone-screen.dark .av-green{background:#0E3D2A;color:#5EDBA0}
+    .phone-screen.dark .av-orange{background:#3D2510;color:#F0AA60}
+    .phone-screen.dark .av-purple{background:#2D1F3D;color:#C4A0E8}
+    .phone-screen.dark .av-pink{background:#3D152A;color:#E890B0}
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:var(--font-body);background:#0f0e0d;color:#E5E3DF;min-height:100vh}
+    body{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:36px}
+
+    /* ============================================================
+       PAGE CHROME
+       ============================================================ */
+    .page-head{max-width:980px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+    .brand{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .brand .logo{font-size:28px;color:var(--p500);letter-spacing:-.02em}
+    .meta{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--p400)}
+    .page-head h1{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:#fff}
+    .page-head .lede{font-size:15px;line-height:1.6;color:rgba(255,255,255,.7);max-width:760px}
+    .toolbar{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:6px}
+    .theme-toggle{
+      font-size:12px;font-weight:700;padding:7px 14px;border:none;cursor:pointer;
+      border-radius:var(--r-full);background:var(--p500);color:#fff;
+      font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    }
+    .theme-toggle .material-icons-round{font-size:14px}
+
+    .changes{
+      max-width:980px;width:100%;
+      background:rgba(232,168,0,.06);border:1px solid rgba(232,168,0,.25);
+      border-radius:14px;padding:18px 22px;
+      display:grid;grid-template-columns:1fr 1fr;gap:8px 32px;
+      font-size:13px;line-height:1.5;color:rgba(255,255,255,.8);
+    }
+    .changes h3{grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--p400);margin-bottom:4px}
+    .changes .change{display:flex;gap:8px;align-items:flex-start}
+    .changes .change .tick{flex-shrink:0;font-size:13px;font-weight:800;width:14px}
+    .changes .change .tick.add{color:var(--suc)}
+    .changes .change .tick.move{color:var(--p400)}
+    .changes .change .tick.drop{color:var(--err)}
+    .changes .change strong{color:#fff;font-weight:700}
+
+    /* ============================================================
+       PHONES ROW — five states side by side
+       ============================================================ */
+    .phones-row{
+      display:grid;grid-template-columns:repeat(5, 320px);gap:20px;
+      align-items:flex-start;justify-content:center;width:100%;
+    }
+    .phone-col{display:flex;flex-direction:column;gap:14px;align-items:center}
+    .phone-head{display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;max-width:300px}
+    .phone-head .id{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--p400);text-transform:uppercase}
+    .phone-head h3{font-size:17px;font-weight:700;color:#fff;letter-spacing:-.01em}
+    .phone-head .thesis-line{font-size:11.5px;color:rgba(255,255,255,.6);line-height:1.5}
+
+    .phone-shell{
+      width:300px;height:760px;border-radius:38px;padding:9px;
+      background:var(--n800);position:relative;overflow:hidden;
+      box-shadow:0 0 0 1px rgba(255,255,255,.07),0 28px 70px rgba(0,0,0,.6);
+    }
+    .phone-shell::before{
+      content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);
+      width:90px;height:26px;background:#080807;border-radius:var(--r-full);z-index:10;
+    }
+    .phone-screen{
+      width:100%;height:100%;border-radius:30px;background:var(--bg);
+      overflow:hidden;position:relative;display:flex;flex-direction:column;
+    }
+    .status-bar{
+      height:42px;padding:11px var(--s4) 0;
+      display:flex;align-items:flex-end;justify-content:space-between;
+      flex-shrink:0;background:var(--bg);
+    }
+    .status-time{font-size:13px;font-weight:700;color:var(--on-surf)}
+    .status-icons{display:flex;gap:5px;align-items:center}
+    .status-icons .material-icons-round{font-size:13px;color:var(--on-surf2)}
+    .screen-content{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;background:var(--bg);position:relative;padding:0 var(--s3) var(--s6)}
+    .screen-content::-webkit-scrollbar{display:none}
+
+    /* ============================================================
+       APP BAR
+       ============================================================ */
+    .app-bar{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:var(--s3) var(--s1);
+      background:var(--bg);
+    }
+    .app-bar .ab-left{display:flex;align-items:center;gap:var(--s3)}
+    .app-bar h1{font-size:17px;font-weight:700;color:var(--on-surf);letter-spacing:-.01em}
+    .app-bar .ab-right{display:flex;gap:2px;align-items:center}
+    .icon-btn{
+      width:32px;height:32px;border-radius:var(--r-full);
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;background:transparent;
+    }
+    .icon-btn .material-icons-round{font-size:18px;color:var(--on-surf)}
+    .icon-btn:hover{background:var(--n100)}
+    .phone-screen.dark .icon-btn:hover{background:#2A2825}
+
+    /* ============================================================
+       HERO CARD
+       ============================================================ */
+    .hero-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3);margin-bottom:var(--s3);
+      display:flex;flex-direction:column;gap:var(--s3);
+    }
+    .hero-row{display:flex;gap:var(--s3);align-items:flex-start}
+    .hero-thumb{
+      width:84px;height:84px;border-radius:var(--r-md);
+      flex-shrink:0;overflow:hidden;position:relative;
+      background:linear-gradient(135deg,#5C4A3D,#3A2A1F);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .hero-thumb svg{width:100%;height:100%;display:block}
+    .hero-thumb .fab-cap{
+      position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
+      font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+      color:#fff;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:var(--r-full);
+    }
+    .hero-text{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+    .hero-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s2)}
+    .hero-title{font-size:16px;font-weight:700;color:var(--on-surf);letter-spacing:-.01em;line-height:1.2;flex:1;min-width:0}
+    .hero-cust{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--on-surf2)}
+    .hero-cust .material-icons-round{font-size:13px}
+    .hero-pills{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:1px}
+    .pill{
+      display:inline-flex;align-items:center;gap:3px;
+      font-size:9.5px;font-weight:700;letter-spacing:.02em;
+      padding:2px 8px;border-radius:var(--r-full);
+      text-transform:capitalize;
+    }
+    .pill .material-icons-round{font-size:11px}
+    .pill.in-progress{background:rgba(232,168,0,.15);color:var(--p700)}
+    .pill.ready{background:var(--suc50);color:var(--suc)}
+    .pill.delivered{background:var(--suc50);color:var(--suc)}
+    .pill.fitting{background:rgba(232,168,0,.15);color:var(--p700)}
+    .pill.overdue{background:var(--err50);color:var(--err)}
+    .pill.priority-high{background:var(--err50);color:var(--err)}
+    .pill.priority-urgent{background:var(--warn50);color:var(--warn)}
+    .phone-screen.dark .pill.in-progress{background:#3D2900;color:var(--p300)}
+    .phone-screen.dark .pill.fitting{background:#3D2900;color:var(--p300)}
+    .hero-due{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s2);margin-top:2px}
+    .hero-due .due-row{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--on-surf2)}
+    .hero-due .due-row .material-icons-round{font-size:13px;color:var(--on-surf3)}
+    .hero-due .due-row.overdue-text{color:var(--err);font-weight:600}
+    .hero-due .due-row.overdue-text .material-icons-round{color:var(--err)}
+    .hero-due .balance{display:flex;flex-direction:column;align-items:flex-end;gap:0}
+    .hero-due .balance-label{font-size:9.5px;font-weight:600;color:var(--on-surf3);letter-spacing:.04em;text-transform:uppercase}
+    .hero-due .balance-value{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--on-surf)}
+    .hero-due .balance-value.overdue{color:var(--err)}
+    .hero-due .balance-value.zero{color:var(--suc)}
+
+    .hero-banner{
+      display:flex;align-items:center;gap:var(--s2);
+      background:var(--err50);border-radius:var(--r-md);
+      padding:var(--s2) var(--s3);
+      font-size:11px;color:var(--err);font-weight:600;
+    }
+    .hero-banner .material-icons-round{font-size:14px}
+    .hero-banner strong{font-weight:700}
+    .hero-banner .sep{opacity:.5}
+
+    .hero-cta-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+    .cta-primary,.cta-secondary{
+      font-size:12px;font-weight:700;text-align:center;
+      padding:10px 8px;border-radius:var(--r-md);
+      border:none;cursor:pointer;font-family:inherit;
+      display:inline-flex;align-items:center;justify-content:center;gap:4px;
+    }
+    .cta-primary .material-icons-round,.cta-secondary .material-icons-round{font-size:14px}
+    .cta-primary{background:var(--primary);color:var(--on-pri)}
+    .cta-primary.danger{background:var(--err);color:#fff}
+    .cta-secondary{background:transparent;color:var(--p700)}
+    .cta-secondary.danger{color:var(--err)}
+    .phone-screen.dark .cta-secondary{color:var(--p300)}
+    .phone-screen.dark .cta-secondary.danger{color:var(--err)}
+
+    /* ============================================================
+       SECTION CARD (shared shell)
+       ============================================================ */
+    .sect-card{
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-lg);padding:var(--s3);margin-bottom:var(--s3);
+    }
+    .sect-head{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)}
+    .sect-head .icon-tile{
+      width:28px;height:28px;border-radius:var(--r-md);
+      background:var(--p50);color:var(--p700);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .phone-screen.dark .sect-head .icon-tile{background:#3D2900;color:var(--p300)}
+    .sect-head .icon-tile .material-icons-round{font-size:16px}
+    .sect-head .label{font-size:13px;font-weight:700;color:var(--on-surf);letter-spacing:-.005em;flex:1}
+    .sect-head .right{font-size:11px;font-weight:700;color:var(--p700);display:inline-flex;align-items:center;gap:2px}
+    .sect-head .right .material-icons-round{font-size:14px}
+
+    /* ============================================================
+       CUSTOMER CARD
+       ============================================================ */
+    .cust-card .sect-head{margin-bottom:var(--s1)}
+    .cust-card .cust-name{font-size:13px;font-weight:600;color:var(--on-surf);margin:0 0 var(--s2) 36px}
+    .cust-chips{display:flex;gap:6px;justify-content:flex-start;margin-left:36px}
+    .chip{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:6px 10px;border-radius:var(--r-full);
+      font-size:10.5px;font-weight:700;
+      border:1px solid var(--bdr);background:transparent;color:var(--on-surf2);
+      cursor:pointer;
+    }
+    .chip .material-icons-round{font-size:13px}
+    .chip.wa{background:rgba(37,211,102,.1);color:var(--wa);border-color:rgba(37,211,102,.3)}
+    .chip.wa .material-icons-round{color:var(--wa)}
+
+    /* ============================================================
+       GARMENT DETAILS CARD
+       ============================================================ */
+    .garment-card{display:flex;flex-direction:column}
+    .garment-row{display:flex;gap:var(--s3);align-items:flex-start;margin-top:var(--s2)}
+    .garment-info{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+    .garment-info .gn-name{font-size:14px;font-weight:700;color:var(--on-surf)}
+    .garment-info .gn-meta{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--on-surf2)}
+    .garment-info .gn-meta .material-icons-round{font-size:13px;color:var(--on-surf3)}
+    .garment-info .gn-meta .dot{color:var(--on-surf3);margin:0 1px}
+    .garment-info .gn-priority{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--on-surf2);margin-top:2px}
+    .garment-info .gn-priority .label{color:var(--on-surf2)}
+    .garment-thumb{
+      width:72px;height:72px;border-radius:var(--r-md);
+      flex-shrink:0;overflow:hidden;
+      background:linear-gradient(135deg,#5C4A3D,#3A2A1F);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .garment-thumb svg{width:100%;height:100%;display:block}
+
+    /* ============================================================
+       PAYMENT CARD
+       ============================================================ */
+    .pay-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s2);margin-bottom:var(--s2);margin-left:36px}
+    .pay-cell{display:flex;flex-direction:column;gap:1px}
+    .pay-cell .pc-label{font-size:9.5px;font-weight:600;color:var(--on-surf3);letter-spacing:.04em;text-transform:uppercase}
+    .pay-cell .pc-value{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--on-surf)}
+    .pay-cell .pc-value.balance-pos{color:var(--err);font-weight:700}
+    .pay-cell .pc-value.balance-zero{color:var(--suc);font-weight:700}
+    .pay-divider{height:1px;background:var(--bdr);margin:var(--s2) 0}
+    .pay-history{display:flex;align-items:center;gap:var(--s2);font-size:11px;color:var(--on-surf2);cursor:pointer;justify-content:space-between}
+    .pay-history .ph-left{display:flex;align-items:center;gap:6px}
+    .pay-history .ph-left .material-icons-round{font-size:14px;color:var(--on-surf3)}
+    .pay-history .ph-right{font-size:10.5px;color:var(--on-surf3);display:inline-flex;align-items:center;gap:1px}
+    .pay-history .ph-right .material-icons-round{font-size:14px}
+    .pay-history.empty{color:var(--on-surf3)}
+    .pay-list{margin-top:var(--s2);display:flex;flex-direction:column;gap:6px;padding-left:20px}
+    .pay-item{
+      display:grid;grid-template-columns:14px 1fr auto auto;gap:6px;
+      align-items:center;font-size:10.5px;color:var(--on-surf);
+    }
+    .pay-item .check{color:var(--suc);font-size:13px}
+    .pay-item .ptype{color:var(--on-surf);font-weight:600}
+    .pay-item .pamt{font-family:var(--font-mono);font-weight:700;color:var(--on-surf)}
+    .pay-item .pmeta{font-size:10px;color:var(--on-surf2)}
+
+    /* ============================================================
+       PRODUCTION TIMELINE
+       ============================================================ */
+    .timeline-card .timeline{display:flex;align-items:flex-start;justify-content:space-between;margin-top:var(--s2);position:relative;padding:0 4px}
+    .timeline::before{
+      content:'';position:absolute;top:14px;left:14px;right:14px;
+      height:2px;background:var(--bdr);z-index:0;
+    }
+    .timeline .step{display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;z-index:1;flex:1;min-width:0}
+    .timeline .node{
+      width:28px;height:28px;border-radius:var(--r-full);
+      background:var(--surf);border:2px solid var(--bdr);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .timeline .node .material-icons-round{font-size:14px;color:var(--on-surf3)}
+    .timeline .step.done .node{background:var(--n200);border-color:var(--n200)}
+    .timeline .step.done .node .material-icons-round{color:var(--on-surf2);font-size:14px}
+    .phone-screen.dark .timeline .step.done .node{background:var(--n700);border-color:var(--n700)}
+    .timeline .step.current .node{background:var(--primary);border-color:var(--primary);width:32px;height:32px}
+    .timeline .step.current .node .material-icons-round{color:#fff;font-size:16px}
+    .timeline .step.current.danger .node{background:var(--err);border-color:var(--err)}
+    .timeline .step.current.success .node{background:var(--suc);border-color:var(--suc)}
+    .timeline .step .label{font-size:9px;font-weight:600;color:var(--on-surf2);text-align:center;line-height:1.1;margin-top:1px}
+    .timeline .step.current .label{color:var(--p700);font-weight:800}
+    .timeline .step.current.danger .label{color:var(--err)}
+    .timeline .step.current.success .label{color:var(--suc)}
+
+    /* ============================================================
+       MEASUREMENTS PREVIEW
+       ============================================================ */
+    .meas-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s2);margin-top:var(--s2);margin-left:36px}
+    .meas-tile{
+      background:var(--n50);border:1px solid var(--bdr);
+      border-radius:var(--r-md);padding:8px 10px;
+      display:flex;flex-direction:column;gap:1px;text-align:center;
+    }
+    .phone-screen.dark .meas-tile{background:#2A2825}
+    .meas-tile .ml{font-size:9.5px;font-weight:600;color:var(--on-surf3);letter-spacing:.04em;text-transform:uppercase}
+    .meas-tile .mv{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--on-surf)}
+
+    /* ============================================================
+       NOTES CARD
+       ============================================================ */
+    .notes-card{cursor:pointer}
+    .notes-empty{font-size:11.5px;color:var(--on-surf3);font-style:italic;margin-left:36px;display:flex;align-items:center;gap:4px}
+    .notes-empty .material-icons-round{font-size:13px}
+    .notes-text{font-size:11.5px;color:var(--on-surf);line-height:1.45;margin-left:36px}
+
+    /* ============================================================
+       FOOTER CAPTION + ARCHIVE
+       ============================================================ */
+    .footer-caption{
+      text-align:center;font-size:10px;color:var(--on-surf3);
+      margin-top:var(--s4);font-weight:500;letter-spacing:.02em;
+    }
+    .archive-btn{
+      display:flex;align-items:center;justify-content:center;gap:6px;
+      width:100%;padding:11px;border:none;border-radius:var(--r-md);
+      background:var(--n100);color:var(--on-surf);
+      font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
+      margin-bottom:var(--s2);
+    }
+    .archive-btn .material-icons-round{font-size:16px;color:var(--on-surf2)}
+    .phone-screen.dark .archive-btn{background:#2A2825;color:var(--on-surf)}
+
+    /* ============================================================
+       OVERFLOW MENU (popover, only shown on first phone for demo)
+       ============================================================ */
+    .overflow-menu{
+      position:absolute;top:48px;right:14px;
+      background:var(--surf);border:1px solid var(--bdr);
+      border-radius:var(--r-md);padding:4px;
+      box-shadow:0 12px 32px rgba(0,0,0,.15);
+      z-index:50;min-width:160px;
+      display:flex;flex-direction:column;gap:2px;
+    }
+    .overflow-menu .om-item{
+      display:flex;align-items:center;gap:8px;
+      padding:8px 10px;border-radius:var(--r-sm);
+      font-size:12px;font-weight:600;color:var(--on-surf);
+      cursor:pointer;
+    }
+    .overflow-menu .om-item:hover{background:var(--n100)}
+    .phone-screen.dark .overflow-menu .om-item:hover{background:#2A2825}
+    .overflow-menu .om-item .material-icons-round{font-size:16px;color:var(--on-surf2)}
+    .overflow-menu .om-divider{height:1px;background:var(--bdr);margin:3px 0}
+    .overflow-menu .om-item.danger{color:var(--err)}
+    .overflow-menu .om-item.danger .material-icons-round{color:var(--err)}
+
+    /* ============================================================
+       FOOTER NOTE
+       ============================================================ */
+    .phone-foot-note{
+      font-size:11px;color:rgba(255,255,255,.55);font-style:italic;
+      text-align:center;max-width:300px;line-height:1.5;margin-top:6px;
+    }
+
+    /* ============================================================
+       DEEP DIVE PANELS (status sheet, payment dialog) — appended below
+       ============================================================ */
+    .dive-row{
+      display:grid;grid-template-columns:repeat(3, 320px);gap:24px;
+      align-items:flex-start;justify-content:center;width:100%;margin-top:24px;
+    }
+    .dive-col{display:flex;flex-direction:column;gap:14px;align-items:center}
+    .dive-col .phone-head h3{font-size:15px}
+
+    /* Bottom sheet mock */
+    .sheet-overlay{
+      position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:30;
+      display:flex;align-items:flex-end;
+    }
+    .sheet{
+      width:100%;background:var(--surf);
+      border-top-left-radius:var(--r-xl);border-top-right-radius:var(--r-xl);
+      padding:var(--s4) var(--s4) var(--s6);
+      display:flex;flex-direction:column;gap:var(--s3);
+    }
+    .sheet .grabber{
+      width:40px;height:4px;background:var(--bdr);border-radius:var(--r-full);
+      align-self:center;margin-bottom:var(--s2);
+    }
+    .sheet h2{font-size:15px;font-weight:700;color:var(--on-surf);text-align:left;margin-bottom:var(--s1)}
+    .sheet .sheet-list{display:flex;flex-direction:column;gap:6px}
+    .sheet-row{
+      display:flex;align-items:center;gap:var(--s3);
+      padding:11px var(--s3);border:1px solid var(--bdr);
+      border-radius:var(--r-md);cursor:pointer;
+      background:var(--bg);
+    }
+    .sheet-row.selected{border-color:var(--primary);background:rgba(232,168,0,.06)}
+    .sheet-row .icon-tile{
+      width:30px;height:30px;border-radius:var(--r-md);
+      background:var(--p50);color:var(--p700);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .sheet-row .icon-tile .material-icons-round{font-size:16px}
+    .phone-screen.dark .sheet-row .icon-tile{background:#3D2900;color:var(--p300)}
+    .sheet-row .sr-text{flex:1;font-size:13px;font-weight:600;color:var(--on-surf)}
+    .sheet-row .sr-sub{font-size:11px;color:var(--on-surf2);font-weight:500}
+    .sheet-row.back .icon-tile{background:var(--n100);color:var(--on-surf2)}
+    .phone-screen.dark .sheet-row.back .icon-tile{background:#2A2825}
+
+    .dialog-overlay{
+      position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:30;
+      display:flex;align-items:center;justify-content:center;padding:var(--s4);
+    }
+    .dialog{
+      width:100%;background:var(--surf);
+      border-radius:var(--r-lg);
+      padding:var(--s4);
+      display:flex;flex-direction:column;gap:var(--s3);
+    }
+    .dialog h2{font-size:15px;font-weight:700;color:var(--on-surf)}
+    .dialog .field{display:flex;flex-direction:column;gap:5px}
+    .dialog .field-label{font-size:10.5px;font-weight:700;color:var(--on-surf2);letter-spacing:.04em;text-transform:uppercase}
+    .dialog .input-row{
+      display:flex;align-items:center;gap:5px;
+      border:1px solid var(--bdr);border-radius:var(--r-md);
+      padding:8px 10px;background:var(--bg);
+    }
+    .dialog .input-row .currency{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--on-surf2)}
+    .dialog .input-row input{flex:1;border:none;outline:none;background:transparent;font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--on-surf)}
+    .dialog .seg-row{display:grid;grid-template-columns:repeat(4, 1fr);gap:4px;border:1px solid var(--bdr);border-radius:var(--r-md);padding:3px;background:var(--bg)}
+    .dialog .seg{font-size:10.5px;font-weight:700;padding:6px 4px;border-radius:var(--r-sm);background:transparent;border:none;cursor:pointer;color:var(--on-surf2);font-family:inherit}
+    .dialog .seg.selected{background:var(--primary);color:#fff}
+    .dialog .seg-row-3{grid-template-columns:repeat(3, 1fr)}
+    .dialog .dialog-actions{display:flex;justify-content:flex-end;gap:var(--s2);margin-top:var(--s2)}
+    .dialog .dialog-actions button{font-family:inherit;font-size:12px;font-weight:700;padding:9px 16px;border-radius:var(--r-md);border:none;cursor:pointer}
+    .dialog .dialog-actions .cancel{background:transparent;color:var(--on-surf2)}
+    .dialog .dialog-actions .save{background:var(--primary);color:#fff}
+
+    /* Notes editing state */
+    .notes-edit{margin-left:36px;display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s2)}
+    .notes-input{
+      width:100%;min-height:64px;
+      border:1px solid var(--primary);border-radius:var(--r-md);
+      padding:8px 10px;font-family:inherit;font-size:11.5px;
+      color:var(--on-surf);background:var(--bg);outline:none;resize:none;
+    }
+    .notes-actions{display:flex;justify-content:flex-end;gap:var(--s2)}
+    .notes-actions button{font-family:inherit;font-size:11px;font-weight:700;padding:6px 12px;border-radius:var(--r-md);border:none;cursor:pointer}
+    .notes-actions .cancel{background:transparent;color:var(--on-surf2)}
+    .notes-actions .save{background:var(--primary);color:#fff}
+
+    @media (max-width: 1740px){
+      .phones-row{grid-template-columns:repeat(3, 320px)}
+    }
+    @media (max-width: 1080px){
+      .phones-row,.dive-row{grid-template-columns:1fr;gap:48px}
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div class="brand"><span class="logo material-icons-round">straighten</span><span>StitchPad</span></div>
+    <span class="meta">Order details V2 · Five reference states</span>
+    <h1>Order details — V2 redesign</h1>
+    <p class="lede">
+      Five states of the same screen, redesigned to match the dashboard V2 illustrated-stack language. Hero card answers <em>"what is this and what do I do next?"</em> in one glance. Delete moves out of the bottom CTA (where it didn't belong) into the <strong>⋮</strong> overflow. The Notes card takes its place — high-value, missing today, and finally editable inline. The 6-stage production timeline shows how tailors actually narrate work.
+    </p>
+    <div class="toolbar">
+      <button class="theme-toggle" id="theme-toggle"><span class="material-icons-round" id="theme-icon">dark_mode</span><span id="theme-label">Dark</span></button>
+    </div>
+  </header>
+
+  <section class="changes">
+    <h3>What changes vs. today's screen</h3>
+    <div class="change"><span class="tick move">↳</span><span><strong>Delete</strong> — moved from bottom CTA to <strong>⋮ overflow</strong> (with confirmation)</span></div>
+    <div class="change"><span class="tick add">+</span><span><strong>Notes card</strong> — takes Delete's old spot; tap to edit inline</span></div>
+    <div class="change"><span class="tick add">+</span><span><strong>Hero card</strong> — fabric thumb, status, balance, due, dual CTA in one block</span></div>
+    <div class="change"><span class="tick add">+</span><span><strong>Customer chips</strong> — WhatsApp · Call · Measurements one tap away</span></div>
+    <div class="change"><span class="tick add">+</span><span><strong>6-stage timeline</strong> — Pending · Cutting · Sewing · Fitting · Ready · Delivered</span></div>
+    <div class="change"><span class="tick add">+</span><span><strong>Payment history</strong> — line items with method + date</span></div>
+    <div class="change"><span class="tick move">↳</span><span><strong>Priority</strong> — moved into garment card as a pill (was its own section)</span></div>
+    <div class="change"><span class="tick drop">−</span><span><strong>Generic SectionHeader</strong> labels — replaced by per-card icon tile + title</span></div>
+  </section>
+
+  <!-- ============================================================
+       FIVE REFERENCE STATES
+       ============================================================ -->
+  <section class="phones-row">
+
+    <!-- ============================================================
+         STATE 1 — IN PROGRESS (Vintage Buba, Adewale Paul)
+         Includes overflow menu open as a callout.
+         ============================================================ -->
+    <div class="phone-col">
+      <div class="phone-head">
+        <span class="id">State 1</span>
+        <h3>In progress</h3>
+        <div class="thesis-line">Active order, balance owed, dual CTA. Overflow menu open showing where Delete now lives.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <!-- App bar with overflow OPEN as demo -->
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <!-- Overflow menu (popover) -->
+        <div class="overflow-menu">
+          <div class="om-item"><span class="material-icons-round">content_copy</span>Duplicate order</div>
+          <div class="om-item"><span class="material-icons-round">archive</span>Archive order</div>
+          <div class="om-divider"></div>
+          <div class="om-item danger"><span class="material-icons-round">delete</span>Delete order</div>
+        </div>
+
+        <div class="screen-content">
+          <!-- Hero card -->
+          <div class="hero-card">
+            <div class="hero-row">
+              <div class="hero-thumb">
+                <!-- Ankara fabric pattern -->
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#3A2A1F"/>
+                  <g fill="#E8A800" opacity="0.9">
+                    <circle cx="20" cy="20" r="6"/><circle cx="50" cy="20" r="6"/><circle cx="80" cy="20" r="6"/>
+                    <circle cx="20" cy="50" r="6"/><circle cx="50" cy="50" r="6"/><circle cx="80" cy="50" r="6"/>
+                    <circle cx="20" cy="80" r="6"/><circle cx="50" cy="80" r="6"/><circle cx="80" cy="80" r="6"/>
+                  </g>
+                  <g fill="#D44C5C" opacity="0.6">
+                    <rect x="32" y="32" width="6" height="6" transform="rotate(45 35 35)"/>
+                    <rect x="62" y="32" width="6" height="6" transform="rotate(45 65 35)"/>
+                    <rect x="32" y="62" width="6" height="6" transform="rotate(45 35 65)"/>
+                    <rect x="62" y="62" width="6" height="6" transform="rotate(45 65 65)"/>
+                  </g>
+                </svg>
+                <span class="fab-cap">Fabric</span>
+              </div>
+              <div class="hero-text">
+                <div class="hero-title-row">
+                  <div class="hero-title">Vintage Buba</div>
+                </div>
+                <div class="hero-cust"><span class="material-icons-round">person</span>Adewale Paul</div>
+                <div class="hero-pills">
+                  <span class="pill in-progress"><span class="material-icons-round">build</span>In progress</span>
+                </div>
+                <div class="hero-due">
+                  <div class="due-row"><span class="material-icons-round">event</span>Due 30 Apr</div>
+                  <div class="balance">
+                    <span class="balance-label">Balance due</span>
+                    <span class="balance-value">₦60,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-cta-row">
+              <button class="cta-primary">Update status</button>
+              <button class="cta-secondary">Record payment</button>
+            </div>
+          </div>
+
+          <!-- Customer card -->
+          <div class="sect-card cust-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">person_outline</span></div>
+              <div class="label">Customer</div>
+            </div>
+            <div class="cust-name">Adewale Paul</div>
+            <div class="cust-chips">
+              <button class="chip wa"><span class="material-icons-round">chat</span>WhatsApp</button>
+              <button class="chip"><span class="material-icons-round">call</span>Call</button>
+              <button class="chip"><span class="material-icons-round">straighten</span>Sizes</button>
+            </div>
+          </div>
+
+          <!-- Garment details -->
+          <div class="sect-card garment-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">checkroom</span></div>
+              <div class="label">Garment details</div>
+            </div>
+            <div class="garment-row">
+              <div class="garment-info">
+                <div class="gn-name">Vintage Buba</div>
+                <div class="gn-meta"><span class="material-icons-round">texture</span>Ankara<span class="dot">·</span>Qty 1</div>
+                <div class="gn-priority"><span class="label">Priority</span><span class="pill" style="background:var(--n100);color:var(--on-surf2)">Normal</span></div>
+              </div>
+              <div class="garment-thumb">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#3A2A1F"/>
+                  <g fill="#E8A800" opacity="0.9"><circle cx="25" cy="25" r="5"/><circle cx="50" cy="25" r="5"/><circle cx="75" cy="25" r="5"/><circle cx="25" cy="55" r="5"/><circle cx="50" cy="55" r="5"/><circle cx="75" cy="55" r="5"/><circle cx="25" cy="85" r="5"/><circle cx="50" cy="85" r="5"/><circle cx="75" cy="85" r="5"/></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment -->
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">account_balance_wallet</span></div>
+              <div class="label">Payment</div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-cell"><span class="pc-label">Total</span><span class="pc-value">₦60,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Paid</span><span class="pc-value">₦0</span></div>
+              <div class="pay-cell"><span class="pc-label">Balance</span><span class="pc-value balance-pos">₦60,000</span></div>
+            </div>
+            <div class="pay-divider"></div>
+            <div class="pay-history empty">
+              <div class="ph-left"><span class="material-icons-round">history</span>Payment history</div>
+              <div class="ph-right">No payments recorded<span class="material-icons-round">chevron_right</span></div>
+            </div>
+          </div>
+
+          <!-- Production timeline -->
+          <div class="sect-card timeline-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">precision_manufacturing</span></div>
+              <div class="label">Production timeline</div>
+              <div class="right">Update<span class="material-icons-round">chevron_right</span></div>
+            </div>
+            <div class="timeline">
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Pending</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Cutting</div></div>
+              <div class="step current"><div class="node"><span class="material-icons-round">precision_manufacturing</span></div><div class="label">Sewing</div></div>
+              <div class="step"><div class="node"></div><div class="label">Fitting</div></div>
+              <div class="step"><div class="node"></div><div class="label">Ready</div></div>
+              <div class="step"><div class="node"></div><div class="label">Delivered</div></div>
+            </div>
+          </div>
+
+          <!-- Measurements preview -->
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">straighten</span></div>
+              <div class="label">Measurements (preview)</div>
+            </div>
+            <div class="meas-row">
+              <div class="meas-tile"><span class="ml">Chest</span><span class="mv">42 in</span></div>
+              <div class="meas-tile"><span class="ml">Waist</span><span class="mv">34 in</span></div>
+              <div class="meas-tile"><span class="ml">Length</span><span class="mv">38 in</span></div>
+            </div>
+          </div>
+
+          <!-- Notes (replaces delete!) -->
+          <div class="sect-card notes-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">sticky_note_2</span></div>
+              <div class="label">Notes</div>
+            </div>
+            <div class="notes-empty"><span class="material-icons-round">add</span>Tap to add a note about this order</div>
+          </div>
+
+          <!-- Footer caption -->
+          <div class="footer-caption">Order #ST-2451 · Created 12 Apr 2026</div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Overflow menu shown open. In real use it appears on tap.</div>
+    </div>
+
+    <!-- ============================================================
+         STATE 2 — READY FOR PICKUP (Senator Wear, Kunle Adeyemi)
+         ============================================================ -->
+    <div class="phone-col">
+      <div class="phone-head">
+        <span class="id">State 2</span>
+        <h3>Ready for pickup</h3>
+        <div class="thesis-line">Garment ready, customer hasn't collected yet. Primary CTA shifts to "Mark delivered".</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <div class="hero-card">
+            <div class="hero-row">
+              <div class="hero-thumb" style="background:linear-gradient(135deg,#7A5800,#3A2A1F)">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#3A2A1F"/>
+                  <g fill="#E8A800" opacity="0.85"><path d="M0 0 L100 100 M100 0 L0 100" stroke="#E8A800" stroke-width="0.5" fill="none"/></g>
+                  <g fill="#9E7200"><circle cx="30" cy="30" r="3"/><circle cx="70" cy="30" r="3"/><circle cx="30" cy="70" r="3"/><circle cx="70" cy="70" r="3"/><circle cx="50" cy="50" r="4"/></g>
+                  <g fill="#E8A800" opacity="0.5"><circle cx="20" cy="50" r="2"/><circle cx="80" cy="50" r="2"/><circle cx="50" cy="20" r="2"/><circle cx="50" cy="80" r="2"/></g>
+                </svg>
+                <span class="fab-cap">Fabric</span>
+              </div>
+              <div class="hero-text">
+                <div class="hero-title-row"><div class="hero-title">Senator Wear</div></div>
+                <div class="hero-cust"><span class="material-icons-round">person</span>Kunle Adeyemi</div>
+                <div class="hero-pills">
+                  <span class="pill ready"><span class="material-icons-round">inventory_2</span>Ready for pickup</span>
+                  <span class="pill priority-urgent">High</span>
+                </div>
+                <div class="hero-due">
+                  <div class="due-row"><span class="material-icons-round">event</span>Pickup today</div>
+                  <div class="balance">
+                    <span class="balance-label">Balance due</span>
+                    <span class="balance-value">₦80,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-cta-row">
+              <button class="cta-primary">Mark delivered</button>
+              <button class="cta-secondary">Message customer</button>
+            </div>
+          </div>
+
+          <div class="sect-card cust-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">person_outline</span></div>
+              <div class="label">Customer</div>
+            </div>
+            <div class="cust-name">Kunle Adeyemi</div>
+            <div class="cust-chips">
+              <button class="chip wa"><span class="material-icons-round">chat</span>WhatsApp</button>
+              <button class="chip"><span class="material-icons-round">call</span>Call</button>
+              <button class="chip"><span class="material-icons-round">straighten</span>Sizes</button>
+            </div>
+          </div>
+
+          <div class="sect-card garment-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">checkroom</span></div>
+              <div class="label">Garment details</div>
+            </div>
+            <div class="garment-row">
+              <div class="garment-info">
+                <div class="gn-name">Senator Wear</div>
+                <div class="gn-meta"><span class="material-icons-round">texture</span>Guinea brocade<span class="dot">·</span>Qty 1</div>
+                <div class="gn-priority"><span class="label">Priority</span><span class="pill priority-high">High</span></div>
+              </div>
+              <div class="garment-thumb">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#3A2A1F"/>
+                  <g fill="#9E7200"><circle cx="30" cy="30" r="3"/><circle cx="70" cy="30" r="3"/><circle cx="30" cy="70" r="3"/><circle cx="70" cy="70" r="3"/><circle cx="50" cy="50" r="4"/></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">account_balance_wallet</span></div>
+              <div class="label">Payment</div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-cell"><span class="pc-label">Total</span><span class="pc-value">₦120,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Paid</span><span class="pc-value">₦40,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Balance</span><span class="pc-value balance-pos">₦80,000</span></div>
+            </div>
+            <div class="pay-divider"></div>
+            <div class="pay-history">
+              <div class="ph-left"><span class="material-icons-round">history</span>Payment history</div>
+              <div class="ph-right">1 payment recorded<span class="material-icons-round">expand_more</span></div>
+            </div>
+            <div class="pay-list">
+              <div class="pay-item"><span class="check material-icons-round">check_circle</span><span class="ptype">Deposit</span><span class="pamt">₦40,000</span><span class="pmeta">Transfer · 15 Apr</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card timeline-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">precision_manufacturing</span></div>
+              <div class="label">Production timeline</div>
+            </div>
+            <div class="timeline">
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Pending</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Cutting</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Sewing</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Fitting</div></div>
+              <div class="step current success"><div class="node"><span class="material-icons-round">inventory_2</span></div><div class="label">Ready</div></div>
+              <div class="step"><div class="node"></div><div class="label">Delivered</div></div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">straighten</span></div>
+              <div class="label">Measurements (preview)</div>
+            </div>
+            <div class="meas-row">
+              <div class="meas-tile"><span class="ml">Chest</span><span class="mv">44 in</span></div>
+              <div class="meas-tile"><span class="ml">Waist</span><span class="mv">36 in</span></div>
+              <div class="meas-tile"><span class="ml">Length</span><span class="mv">40 in</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card notes-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">sticky_note_2</span></div>
+              <div class="label">Notes</div>
+              <span class="material-icons-round" style="font-size:14px;color:var(--on-surf3)">edit</span>
+            </div>
+            <div class="notes-text">Customer prefers slim fit. Said he'll send a friend in for fitting if he can't make it.</div>
+          </div>
+
+          <div class="footer-caption">Order #ST-2389 · Created 8 Apr 2026</div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Single payment shown expanded. WhatsApp chip is high-affinity green for visual hierarchy.</div>
+    </div>
+
+    <!-- ============================================================
+         STATE 3 — FITTING TODAY (Bridesmaid Gown, Ifeoma Balogun)
+         ============================================================ -->
+    <div class="phone-col">
+      <div class="phone-head">
+        <span class="id">State 3</span>
+        <h3>Fitting today</h3>
+        <div class="thesis-line">In-progress with subStatus = FITTING. Primary CTA becomes "Confirm fitting".</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <div class="hero-card">
+            <div class="hero-row">
+              <div class="hero-thumb" style="background:linear-gradient(135deg,#F4E4D4,#D9C5B0)">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#F4E4D4"/>
+                  <g fill="#D9C5B0" opacity="0.7"><circle cx="20" cy="30" r="3"/><circle cx="50" cy="20" r="2"/><circle cx="80" cy="35" r="3"/><circle cx="30" cy="60" r="2"/><circle cx="70" cy="55" r="3"/><circle cx="50" cy="80" r="2"/></g>
+                  <g fill="#C9B095" opacity="0.5"><path d="M30 40 Q50 20 70 40 T70 60 Q50 80 30 60 Z" fill="#E8A800" opacity="0.3"/></g>
+                </svg>
+                <span class="fab-cap">Fabric</span>
+              </div>
+              <div class="hero-text">
+                <div class="hero-title-row"><div class="hero-title">Bridesmaid Gown</div></div>
+                <div class="hero-cust"><span class="material-icons-round">person</span>Ifeoma Balogun</div>
+                <div class="hero-pills">
+                  <span class="pill fitting"><span class="material-icons-round">accessibility</span>Fitting today</span>
+                </div>
+                <div class="hero-due">
+                  <div class="due-row"><span class="material-icons-round">event</span>Fitting 2 PM</div>
+                  <div class="balance">
+                    <span class="balance-label">Balance due</span>
+                    <span class="balance-value">₦20,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-cta-row">
+              <button class="cta-primary">Confirm fitting</button>
+              <button class="cta-secondary">Record payment</button>
+            </div>
+          </div>
+
+          <div class="sect-card cust-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">person_outline</span></div>
+              <div class="label">Customer</div>
+            </div>
+            <div class="cust-name">Ifeoma Balogun</div>
+            <div class="cust-chips">
+              <button class="chip wa"><span class="material-icons-round">chat</span>WhatsApp</button>
+              <button class="chip"><span class="material-icons-round">call</span>Call</button>
+              <button class="chip"><span class="material-icons-round">straighten</span>Sizes</button>
+            </div>
+          </div>
+
+          <div class="sect-card garment-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">checkroom</span></div>
+              <div class="label">Garment details</div>
+            </div>
+            <div class="garment-row">
+              <div class="garment-info">
+                <div class="gn-name">Bridesmaid Gown</div>
+                <div class="gn-meta"><span class="material-icons-round">texture</span>Lace<span class="dot">·</span>Qty 1</div>
+                <div class="gn-priority"><span class="label">Priority</span><span class="pill" style="background:var(--n100);color:var(--on-surf2)">Normal</span></div>
+              </div>
+              <div class="garment-thumb">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#F4E4D4"/>
+                  <g fill="#D9C5B0" opacity="0.7"><circle cx="25" cy="30" r="2.5"/><circle cx="55" cy="22" r="2"/><circle cx="78" cy="40" r="3"/><circle cx="35" cy="65" r="2"/><circle cx="68" cy="60" r="2.5"/></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">account_balance_wallet</span></div>
+              <div class="label">Payment</div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-cell"><span class="pc-label">Total</span><span class="pc-value">₦95,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Paid</span><span class="pc-value">₦75,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Balance</span><span class="pc-value balance-pos">₦20,000</span></div>
+            </div>
+            <div class="pay-divider"></div>
+            <div class="pay-history">
+              <div class="ph-left"><span class="material-icons-round">history</span>Payment history</div>
+              <div class="ph-right">2 payments<span class="material-icons-round">expand_less</span></div>
+            </div>
+            <div class="pay-list">
+              <div class="pay-item"><span class="check material-icons-round">check_circle</span><span class="ptype">Deposit</span><span class="pamt">₦50,000</span><span class="pmeta">Transfer · 12 Apr</span></div>
+              <div class="pay-item"><span class="check material-icons-round">check_circle</span><span class="ptype">Progress</span><span class="pamt">₦25,000</span><span class="pmeta">Cash · 22 Apr</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card timeline-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">precision_manufacturing</span></div>
+              <div class="label">Production timeline</div>
+            </div>
+            <div class="timeline">
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Pending</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Cutting</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Sewing</div></div>
+              <div class="step current"><div class="node"><span class="material-icons-round">accessibility</span></div><div class="label">Fitting</div></div>
+              <div class="step"><div class="node"></div><div class="label">Ready</div></div>
+              <div class="step"><div class="node"></div><div class="label">Delivered</div></div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">straighten</span></div>
+              <div class="label">Measurements (preview)</div>
+            </div>
+            <div class="meas-row">
+              <div class="meas-tile"><span class="ml">Bust</span><span class="mv">36 in</span></div>
+              <div class="meas-tile"><span class="ml">Waist</span><span class="mv">30 in</span></div>
+              <div class="meas-tile"><span class="ml">Length</span><span class="mv">62 in</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card notes-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">sticky_note_2</span></div>
+              <div class="label">Notes</div>
+              <span class="material-icons-round" style="font-size:14px;color:var(--on-surf3)">edit</span>
+            </div>
+            <div class="notes-text">Final adjustments needed at fitting. She wants the strap raised by 1cm and the hem checked against her shoes.</div>
+          </div>
+
+          <div class="footer-caption">Order #ST-2402 · Created 5 Apr 2026</div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">subStatus = FITTING surfaces "Confirm fitting" as primary CTA; backend status stays IN_PROGRESS.</div>
+    </div>
+
+    <!-- ============================================================
+         STATE 4 — OVERDUE (Ankara Dress, Adaeze Okoro)
+         ============================================================ -->
+    <div class="phone-col">
+      <div class="phone-head">
+        <span class="id">State 4</span>
+        <h3>Overdue</h3>
+        <div class="thesis-line">Past deadline. Banner inside hero card. CTAs invert: "Send reminder" wins.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <div class="hero-card" style="border-color:rgba(217,59,59,.4)">
+            <div class="hero-row">
+              <div class="hero-thumb">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#3A2A1F"/>
+                  <g fill="#E8A800" opacity="0.85"><circle cx="20" cy="20" r="5"/><circle cx="50" cy="20" r="5"/><circle cx="80" cy="20" r="5"/><circle cx="20" cy="50" r="5"/><circle cx="50" cy="50" r="5"/><circle cx="80" cy="50" r="5"/><circle cx="20" cy="80" r="5"/><circle cx="50" cy="80" r="5"/><circle cx="80" cy="80" r="5"/></g>
+                  <g fill="#D44C5C" opacity="0.5"><path d="M30 30 L40 30 L35 40 Z"/><path d="M60 30 L70 30 L65 40 Z"/><path d="M30 60 L40 60 L35 70 Z"/><path d="M60 60 L70 60 L65 70 Z"/></g>
+                </svg>
+                <span class="fab-cap">Fabric</span>
+              </div>
+              <div class="hero-text">
+                <div class="hero-title-row"><div class="hero-title">Ankara Dress</div></div>
+                <div class="hero-cust"><span class="material-icons-round">person</span>Adaeze Okoro</div>
+                <div class="hero-pills">
+                  <span class="pill overdue"><span class="material-icons-round">schedule</span>Overdue</span>
+                  <span class="pill priority-high">High</span>
+                </div>
+                <div class="hero-due">
+                  <div class="due-row overdue-text"><span class="material-icons-round">event_busy</span>Was due 28 Apr</div>
+                  <div class="balance">
+                    <span class="balance-label">Balance due</span>
+                    <span class="balance-value overdue">₦45,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-banner">
+              <span class="material-icons-round">schedule</span>
+              <span><strong>Customer is waiting</strong><span class="sep"> · </span>2 days overdue</span>
+            </div>
+            <div class="hero-cta-row">
+              <button class="cta-primary danger">Send reminder</button>
+              <button class="cta-secondary danger">Update status</button>
+            </div>
+          </div>
+
+          <div class="sect-card cust-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">person_outline</span></div>
+              <div class="label">Customer</div>
+            </div>
+            <div class="cust-name">Adaeze Okoro</div>
+            <div class="cust-chips">
+              <button class="chip wa"><span class="material-icons-round">chat</span>WhatsApp</button>
+              <button class="chip"><span class="material-icons-round">call</span>Call</button>
+              <button class="chip"><span class="material-icons-round">straighten</span>Sizes</button>
+            </div>
+          </div>
+
+          <div class="sect-card garment-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">checkroom</span></div>
+              <div class="label">Garment details</div>
+            </div>
+            <div class="garment-row">
+              <div class="garment-info">
+                <div class="gn-name">Ankara Dress</div>
+                <div class="gn-meta"><span class="material-icons-round">texture</span>Ankara<span class="dot">·</span>Qty 1</div>
+                <div class="gn-priority"><span class="label">Priority</span><span class="pill priority-high">High</span></div>
+              </div>
+              <div class="garment-thumb">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#3A2A1F"/>
+                  <g fill="#E8A800" opacity="0.85"><circle cx="25" cy="30" r="4"/><circle cx="60" cy="30" r="4"/><circle cx="25" cy="65" r="4"/><circle cx="60" cy="65" r="4"/></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">account_balance_wallet</span></div>
+              <div class="label">Payment</div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-cell"><span class="pc-label">Total</span><span class="pc-value">₦85,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Paid</span><span class="pc-value">₦40,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Balance</span><span class="pc-value balance-pos">₦45,000</span></div>
+            </div>
+            <div class="pay-divider"></div>
+            <div class="pay-history">
+              <div class="ph-left"><span class="material-icons-round">history</span>Payment history</div>
+              <div class="ph-right">1 payment recorded<span class="material-icons-round">expand_more</span></div>
+            </div>
+            <div class="pay-list">
+              <div class="pay-item"><span class="check material-icons-round">check_circle</span><span class="ptype">Deposit</span><span class="pamt">₦40,000</span><span class="pmeta">Transfer · 14 Apr</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card timeline-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">precision_manufacturing</span></div>
+              <div class="label">Production timeline</div>
+            </div>
+            <div class="timeline">
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Pending</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Cutting</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Sewing</div></div>
+              <div class="step current danger"><div class="node"><span class="material-icons-round">accessibility</span></div><div class="label">Fitting</div></div>
+              <div class="step"><div class="node"></div><div class="label">Ready</div></div>
+              <div class="step"><div class="node"></div><div class="label">Delivered</div></div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">straighten</span></div>
+              <div class="label">Measurements (preview)</div>
+            </div>
+            <div class="meas-row">
+              <div class="meas-tile"><span class="ml">Bust</span><span class="mv">38 in</span></div>
+              <div class="meas-tile"><span class="ml">Waist</span><span class="mv">32 in</span></div>
+              <div class="meas-tile"><span class="ml">Length</span><span class="mv">58 in</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card notes-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">sticky_note_2</span></div>
+              <div class="label">Notes</div>
+              <span class="material-icons-round" style="font-size:14px;color:var(--on-surf3)">edit</span>
+            </div>
+            <div class="notes-text">Customer travelling. Tried calling 26 Apr — no answer. Sent WhatsApp follow-up 27 Apr.</div>
+          </div>
+
+          <div class="footer-caption">Order #ST-2310 · Created 28 Mar 2026</div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Notes are doing real work here — they record the reach-out attempts. This is exactly what was missing.</div>
+    </div>
+
+    <!-- ============================================================
+         STATE 5 — DELIVERED (Agbada Set, Tolu Adebayo)
+         ============================================================ -->
+    <div class="phone-col">
+      <div class="phone-head">
+        <span class="id">State 5</span>
+        <h3>Delivered</h3>
+        <div class="thesis-line">Order completed. Bottom anchor becomes "Archive order" (non-destructive). Delete still in overflow.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <div class="hero-card">
+            <div class="hero-row">
+              <div class="hero-thumb" style="background:linear-gradient(135deg,#F4E4D4,#D9C5B0)">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#F4E4D4"/>
+                  <g fill="#9E7200" opacity="0.4"><path d="M0 50 L100 50 M50 0 L50 100" stroke="#9E7200" stroke-width="0.4" fill="none"/></g>
+                  <g fill="#5C4A3D" opacity="0.5"><circle cx="30" cy="30" r="2"/><circle cx="70" cy="30" r="2"/><circle cx="30" cy="70" r="2"/><circle cx="70" cy="70" r="2"/></g>
+                </svg>
+                <span class="fab-cap">Fabric</span>
+              </div>
+              <div class="hero-text">
+                <div class="hero-title-row"><div class="hero-title">Agbada Set</div></div>
+                <div class="hero-cust"><span class="material-icons-round">person</span>Tolu Adebayo</div>
+                <div class="hero-pills">
+                  <span class="pill delivered"><span class="material-icons-round">check_circle</span>Delivered</span>
+                </div>
+                <div class="hero-due">
+                  <div class="due-row"><span class="material-icons-round">event_available</span>Delivered 2 May</div>
+                  <div class="balance">
+                    <span class="balance-label">Balance due</span>
+                    <span class="balance-value zero">₦0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-cta-row">
+              <button class="cta-primary"><span class="material-icons-round">share</span>Share receipt</button>
+              <button class="cta-secondary">Duplicate order</button>
+            </div>
+          </div>
+
+          <div class="sect-card cust-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">person_outline</span></div>
+              <div class="label">Customer</div>
+            </div>
+            <div class="cust-name">Tolu Adebayo</div>
+            <div class="cust-chips">
+              <button class="chip wa"><span class="material-icons-round">chat</span>WhatsApp</button>
+              <button class="chip"><span class="material-icons-round">call</span>Call</button>
+              <button class="chip"><span class="material-icons-round">straighten</span>Sizes</button>
+            </div>
+          </div>
+
+          <div class="sect-card garment-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">checkroom</span></div>
+              <div class="label">Garment details</div>
+            </div>
+            <div class="garment-row">
+              <div class="garment-info">
+                <div class="gn-name">Agbada Set</div>
+                <div class="gn-meta"><span class="material-icons-round">texture</span>Aso-oke<span class="dot">·</span>Qty 1</div>
+                <div class="gn-priority"><span class="label">Priority</span><span class="pill" style="background:var(--n100);color:var(--on-surf2)">Normal</span></div>
+              </div>
+              <div class="garment-thumb">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100" height="100" fill="#F4E4D4"/>
+                  <g fill="#5C4A3D" opacity="0.5"><circle cx="30" cy="30" r="2.5"/><circle cx="70" cy="30" r="2.5"/><circle cx="30" cy="70" r="2.5"/><circle cx="70" cy="70" r="2.5"/></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">account_balance_wallet</span></div>
+              <div class="label">Payment</div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-cell"><span class="pc-label">Total</span><span class="pc-value">₦150,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Paid</span><span class="pc-value">₦150,000</span></div>
+              <div class="pay-cell"><span class="pc-label">Balance</span><span class="pc-value balance-zero">₦0</span></div>
+            </div>
+            <div class="pay-divider"></div>
+            <div class="pay-history">
+              <div class="ph-left"><span class="material-icons-round">history</span>Payment history</div>
+              <div class="ph-right">2 payments<span class="material-icons-round">expand_less</span></div>
+            </div>
+            <div class="pay-list">
+              <div class="pay-item"><span class="check material-icons-round">check_circle</span><span class="ptype">Deposit</span><span class="pamt">₦50,000</span><span class="pmeta">Transfer · 15 Apr</span></div>
+              <div class="pay-item"><span class="check material-icons-round">check_circle</span><span class="ptype">Final</span><span class="pamt">₦100,000</span><span class="pmeta">Transfer · 2 May</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card timeline-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">precision_manufacturing</span></div>
+              <div class="label">Production timeline</div>
+            </div>
+            <div class="timeline">
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Pending</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Cutting</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Sewing</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Fitting</div></div>
+              <div class="step done"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Ready</div></div>
+              <div class="step current success"><div class="node"><span class="material-icons-round">check</span></div><div class="label">Delivered</div></div>
+            </div>
+          </div>
+
+          <div class="sect-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">straighten</span></div>
+              <div class="label">Measurements (preview)</div>
+            </div>
+            <div class="meas-row">
+              <div class="meas-tile"><span class="ml">Chest</span><span class="mv">46 in</span></div>
+              <div class="meas-tile"><span class="ml">Waist</span><span class="mv">38 in</span></div>
+              <div class="meas-tile"><span class="ml">Length</span><span class="mv">62 in</span></div>
+            </div>
+          </div>
+
+          <div class="sect-card notes-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">sticky_note_2</span></div>
+              <div class="label">Notes</div>
+              <span class="material-icons-round" style="font-size:14px;color:var(--on-surf3)">edit</span>
+            </div>
+            <div class="notes-text">Picked up by his nephew at noon. Receipt sent via WhatsApp.</div>
+          </div>
+
+          <button class="archive-btn"><span class="material-icons-round">archive</span>Archive order</button>
+          <div class="footer-caption">Order #ST-2150 · Delivered 2 May 2026</div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Archive button stays at the bottom only on Delivered. Non-destructive — fine to surface.</div>
+    </div>
+
+  </section>
+
+  <!-- ============================================================
+       DEEP DIVES — status sheet + payment dialog + notes editing
+       ============================================================ -->
+  <header class="page-head" style="margin-top:48px">
+    <span class="meta">Three deep dives</span>
+    <h1 style="font-size:24px">Sheets, dialogs, and inline editing</h1>
+    <p class="lede" style="font-size:13px;max-width:680px">
+      Three flows that don't show up in the static states above: the production-stage picker (replaces the existing status dialog with a bottom sheet of next legal moves), the record-payment dialog (now with method + type selectors), and the inline notes editor.
+    </p>
+  </header>
+
+  <section class="dive-row">
+
+    <!-- DIVE 1 — Status sheet -->
+    <div class="dive-col">
+      <div class="phone-head">
+        <span class="id">Dive 1</span>
+        <h3>Status sheet</h3>
+        <div class="thesis-line">Tap "Update status" → bottom sheet of next legal moves from current state.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content" style="filter:blur(1px);opacity:.4">
+          <div class="hero-card"><div class="hero-row"><div class="hero-thumb" style="background:#3A2A1F"></div><div class="hero-text"><div class="hero-title-row"><div class="hero-title">Vintage Buba</div></div><div class="hero-cust">Adewale Paul</div><div class="hero-pills"><span class="pill in-progress">In progress</span></div></div></div></div>
+          <div class="sect-card" style="height:60px"></div>
+          <div class="sect-card" style="height:80px"></div>
+        </div>
+
+        <!-- Bottom sheet -->
+        <div class="sheet-overlay">
+          <div class="sheet">
+            <div class="grabber"></div>
+            <h2>Move from "Sewing" to…</h2>
+            <div class="sheet-list">
+              <div class="sheet-row">
+                <div class="icon-tile"><span class="material-icons-round">accessibility</span></div>
+                <div class="sr-text">Fitting<div class="sr-sub">Customer comes in to try on</div></div>
+              </div>
+              <div class="sheet-row selected">
+                <div class="icon-tile"><span class="material-icons-round">inventory_2</span></div>
+                <div class="sr-text">Ready for pickup<div class="sr-sub">Garment finished — message customer</div></div>
+              </div>
+              <div class="sheet-row">
+                <div class="icon-tile"><span class="material-icons-round">check_circle</span></div>
+                <div class="sr-text">Delivered<div class="sr-sub">Customer has collected</div></div>
+              </div>
+              <div class="sheet-row back">
+                <div class="icon-tile"><span class="material-icons-round">undo</span></div>
+                <div class="sr-text">Back to Cutting<div class="sr-sub">Move backward in the timeline</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Sheet shows next legal transitions plus a "back to previous" option. One picker handles status + sub-status.</div>
+    </div>
+
+    <!-- DIVE 2 — Record payment dialog -->
+    <div class="dive-col">
+      <div class="phone-head">
+        <span class="id">Dive 2</span>
+        <h3>Record payment</h3>
+        <div class="thesis-line">Extends today's dialog with Type and Method selectors. Powers the payment-history line items.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content" style="filter:blur(1px);opacity:.4">
+          <div class="hero-card" style="height:160px"></div>
+          <div class="sect-card" style="height:80px"></div>
+        </div>
+
+        <div class="dialog-overlay">
+          <div class="dialog">
+            <h2>Record payment</h2>
+            <div class="field">
+              <span class="field-label">Amount</span>
+              <div class="input-row">
+                <span class="currency">₦</span>
+                <input type="text" value="40,000" />
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">Type</span>
+              <div class="seg-row seg-row-3">
+                <button class="seg">Deposit</button>
+                <button class="seg selected">Progress</button>
+                <button class="seg">Final</button>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">Method</span>
+              <div class="seg-row">
+                <button class="seg">Cash</button>
+                <button class="seg selected">Transfer</button>
+                <button class="seg">POS</button>
+                <button class="seg">Other</button>
+              </div>
+            </div>
+            <div class="dialog-actions">
+              <button class="cancel">Cancel</button>
+              <button class="save">Record</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Type defaults based on context (first payment → Deposit; balance going to 0 → Final). Method defaults to Transfer.</div>
+    </div>
+
+    <!-- DIVE 3 — Notes inline editor -->
+    <div class="dive-col">
+      <div class="phone-head">
+        <span class="id">Dive 3</span>
+        <h3>Notes (editing)</h3>
+        <div class="thesis-line">Tap notes card → expands to inline OutlinedTextField. Save persists via partial updateNotes write.</div>
+      </div>
+      <div class="phone-shell"><div class="phone-screen">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><span class="material-icons-round">signal_cellular_4_bar</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></span></div>
+
+        <div class="app-bar">
+          <div class="ab-left">
+            <div class="icon-btn"><span class="material-icons-round">arrow_back</span></div>
+            <h1>Order details</h1>
+          </div>
+          <div class="ab-right">
+            <div class="icon-btn"><span class="material-icons-round">share</span></div>
+            <div class="icon-btn"><span class="material-icons-round">edit</span></div>
+            <div class="icon-btn"><span class="material-icons-round">more_vert</span></div>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <div class="hero-card">
+            <div class="hero-row">
+              <div class="hero-thumb"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#3A2A1F"/><g fill="#E8A800" opacity="0.85"><circle cx="30" cy="30" r="5"/><circle cx="60" cy="30" r="5"/><circle cx="30" cy="60" r="5"/><circle cx="60" cy="60" r="5"/></g></svg><span class="fab-cap">Fabric</span></div>
+              <div class="hero-text">
+                <div class="hero-title-row"><div class="hero-title">Vintage Buba</div></div>
+                <div class="hero-cust"><span class="material-icons-round">person</span>Adewale Paul</div>
+                <div class="hero-pills"><span class="pill in-progress">In progress</span></div>
+                <div class="hero-due">
+                  <div class="due-row"><span class="material-icons-round">event</span>Due 30 Apr</div>
+                  <div class="balance"><span class="balance-label">Balance due</span><span class="balance-value">₦60,000</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-cta-row">
+              <button class="cta-primary">Update status</button>
+              <button class="cta-secondary">Record payment</button>
+            </div>
+          </div>
+
+          <div class="sect-card cust-card">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">person_outline</span></div>
+              <div class="label">Customer</div>
+            </div>
+            <div class="cust-name">Adewale Paul</div>
+            <div class="cust-chips">
+              <button class="chip wa"><span class="material-icons-round">chat</span>WhatsApp</button>
+              <button class="chip"><span class="material-icons-round">call</span>Call</button>
+              <button class="chip"><span class="material-icons-round">straighten</span>Sizes</button>
+            </div>
+          </div>
+
+          <!-- NOTES — editing state -->
+          <div class="sect-card notes-card" style="border-color:var(--primary)">
+            <div class="sect-head">
+              <div class="icon-tile"><span class="material-icons-round">sticky_note_2</span></div>
+              <div class="label">Notes</div>
+            </div>
+            <div class="notes-edit">
+              <textarea class="notes-input" placeholder="Add a note about this order…">Customer wants longer sleeves; fabric arrives 5 May. Charge mama's account.</textarea>
+              <div class="notes-actions">
+                <button class="cancel">Cancel</button>
+                <button class="save">Save</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer-caption">Order #ST-2451 · Created 12 Apr 2026</div>
+        </div>
+      </div></div>
+      <div class="phone-foot-note">Save calls updateNotes(...) — partial write, no full updateOrder. Snackbar confirms.</div>
+    </div>
+
+  </section>
+
+  <script>
+    // Theme toggle — flips .dark on every .phone-screen at once
+    const tt = document.getElementById('theme-toggle');
+    const ti = document.getElementById('theme-icon');
+    const tl = document.getElementById('theme-label');
+    let isDark = false;
+    tt.addEventListener('click', () => {
+      isDark = !isDark;
+      document.querySelectorAll('.phone-screen').forEach(p => p.classList.toggle('dark', isDark));
+      ti.textContent = isDark ? 'light_mode' : 'dark_mode';
+      tl.textContent = isDark ? 'Light' : 'Dark';
+    });
+  </script>
+
+</body>
+</html>

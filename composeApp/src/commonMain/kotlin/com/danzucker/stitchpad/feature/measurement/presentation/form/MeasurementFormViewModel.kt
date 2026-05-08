@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
@@ -20,16 +21,20 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class MeasurementFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val measurementRepository: MeasurementRepository,
     private val authRepository: AuthRepository,
-    private val measurementPreferencesStore: MeasurementPreferencesStore
+    private val measurementPreferencesStore: MeasurementPreferencesStore,
+    private val orderRepository: OrderRepository,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
     private val measurementId: String? = savedStateHandle["measurementId"]
+    private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(MeasurementFormState(isEditMode = measurementId != null))
@@ -159,6 +164,7 @@ class MeasurementFormViewModel(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun save() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
@@ -175,8 +181,13 @@ class MeasurementFormViewModel(
                 .mapValues { it.value.toDoubleOrNull() ?: 0.0 }
                 .filter { it.value > 0.0 }
 
+            // Pre-generate the id for create flow so we can link it to the order
+            // before observeOrder re-emits. For edit flow we keep the existing id.
+            val isCreate = measurementId == null
+            val effectiveId = measurementId ?: Uuid.random().toString()
+
             val measurement = Measurement(
-                id = measurementId ?: "",
+                id = effectiveId,
                 customerId = customerId,
                 gender = gender,
                 fields = parsedFields,
@@ -185,18 +196,45 @@ class MeasurementFormViewModel(
                 dateTaken = s.originalDateTaken,
                 createdAt = s.originalCreatedAt
             )
-            val result = if (measurementId != null) {
-                measurementRepository.updateMeasurement(userId, customerId, measurement)
-            } else {
+            val saveResult = if (isCreate) {
                 measurementRepository.createMeasurement(userId, customerId, measurement)
+            } else {
+                measurementRepository.updateMeasurement(userId, customerId, measurement)
             }
-            _state.update { it.copy(isLoading = false) }
-            when (result) {
-                is Result.Success -> _events.send(MeasurementFormEvent.NavigateBack)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toMeasurementUiText())
+            if (saveResult is Result.Error) {
+                _state.update {
+                    it.copy(isLoading = false, errorMessage = saveResult.error.toMeasurementUiText())
+                }
+                return@launch
+            }
+
+            // If the form was opened from an order's "link measurement" picker,
+            // attach this measurement id to the order's first item. Failure to link
+            // is logged via the order error path but does NOT block the save —
+            // the measurement is already persisted; the user can retry the link
+            // from the order details screen.
+            val linkOrderId = linkToOrderId
+            if (isCreate && linkOrderId != null) {
+                when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
+                    is Result.Success -> {
+                        val order = orderResult.data
+                        val firstItem = order.items.firstOrNull()
+                        if (firstItem != null) {
+                            val updatedItems = listOf(firstItem.copy(measurementId = effectiveId)) +
+                                order.items.drop(1)
+                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                            // Ignore failure — order's observeOrder Flow re-emits when network
+                            // recovers; user sees the unlinked state and can retry. We deliberately
+                            // do not surface a separate error toast here, since the measurement save
+                            // itself succeeded and that's the primary user intent.
+                        }
+                    }
+                    is Result.Error -> Unit // same rationale as above
                 }
             }
+
+            _state.update { it.copy(isLoading = false) }
+            _events.send(MeasurementFormEvent.NavigateBack)
         }
     }
 }

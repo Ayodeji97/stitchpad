@@ -7,6 +7,9 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.PaymentMethod
+import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -31,6 +34,7 @@ import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @Suppress("LongParameterList")
 class OrderFormViewModel(
@@ -43,12 +47,14 @@ class OrderFormViewModel(
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
+    private val seedFromOrderId: String? = savedStateHandle["seedFromOrderId"]
     private var userId: String? = null
 
     // Preserved across edit: carry original metadata so save() doesn't overwrite them.
     private var loadedCreatedAt: Long = 0L
     private var loadedStatus: OrderStatus = OrderStatus.PENDING
     private var loadedStatusHistory: List<StatusChange> = emptyList()
+    private var loadedPayments: List<Payment> = emptyList()
 
     // On edit, loadOrder may finish before observeCustomers emits. Record the target
     // customer id and resolve it reactively whenever either event wins the race.
@@ -131,6 +137,9 @@ class OrderFormViewModel(
             is OrderFormAction.OnItemFabricPhotoRemoved -> updateItem(action.itemId) {
                 it.copy(fabricPhotoBytes = null, fabricPhotoUrl = null, fabricPhotoStoragePath = null)
             }
+            is OrderFormAction.OnItemFabricNameChange -> updateItem(action.itemId) {
+                it.copy(fabricName = action.fabricName)
+            }
             is OrderFormAction.OnDeadlineChange -> {
                 _state.update { it.copy(deadline = action.deadline) }
             }
@@ -162,7 +171,11 @@ class OrderFormViewModel(
         viewModelScope.launch {
             userId = authRepository.getCurrentUser()?.id ?: return@launch
             observeCustomers()
-            if (orderId != null) loadOrder(orderId)
+            if (orderId != null) {
+                loadOrder(orderId)
+            } else if (seedFromOrderId != null) {
+                loadOrderForSeed(seedFromOrderId)
+            }
         }
     }
 
@@ -220,6 +233,7 @@ class OrderFormViewModel(
                     loadedCreatedAt = order.createdAt
                     loadedStatus = order.status
                     loadedStatusHistory = order.statusHistory
+                    loadedPayments = order.payments
                     pendingCustomerId = order.customerId
                     _state.update {
                         it.copy(
@@ -242,6 +256,40 @@ class OrderFormViewModel(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
+    private fun loadOrderForSeed(sourceOrderId: String) {
+        val uid = userId ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            when (val result = orderRepository.getOrder(uid, sourceOrderId)) {
+                is Result.Success -> {
+                    val source = result.data
+                    pendingCustomerId = source.customerId
+                    _state.update {
+                        it.copy(
+                            // Seeded order is brand new — no preserved metadata, no payments,
+                            // and each item gets a fresh id so storage paths don't collide.
+                            items = source.items.map { item ->
+                                item.copy(id = Uuid.random().toString()).toFormState()
+                            },
+                            deadline = source.deadline,
+                            priority = source.priority,
+                            depositPaid = "",
+                            notes = source.notes ?: "",
+                            isLoading = false,
+                        )
+                    }
+                    resolvePendingCustomer()
+                }
+                is Result.Error -> {
+                    _state.update {
+                        it.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                    }
+                }
+            }
+        }
+    }
+
     private fun OrderItem.toFormState() = OrderItemFormState(
         id = id,
         garmentType = garmentType,
@@ -250,7 +298,8 @@ class OrderFormViewModel(
         styleId = styleId,
         measurementId = measurementId,
         fabricPhotoUrl = fabricPhotoUrl,
-        fabricPhotoStoragePath = fabricPhotoStoragePath
+        fabricPhotoStoragePath = fabricPhotoStoragePath,
+        fabricName = fabricName.orEmpty(),
     )
 
     @OptIn(ExperimentalUuidApi::class)
@@ -299,7 +348,8 @@ class OrderFormViewModel(
                     styleId = item.styleId,
                     measurementId = item.measurementId,
                     fabricPhotoUrl = fabricUrl,
-                    fabricPhotoStoragePath = fabricPath
+                    fabricPhotoStoragePath = fabricPath,
+                    fabricName = item.fabricName.trim().ifBlank { null },
                 )
             }
 
@@ -322,10 +372,22 @@ class OrderFormViewModel(
                     listOf(StatusChange(OrderStatus.PENDING, now))
                 },
                 totalPrice = totalPrice,
-                depositPaid = deposit,
-                // Overpayment shouldn't surface as negative balance in Order Detail. Clamp
-                // at zero; if we later want to surface credits, model that explicitly.
-                balanceRemaining = (totalPrice - deposit).coerceAtLeast(0.0),
+                payments = if (!isEdit && deposit > 0.0) {
+                    listOf(
+                        Payment(
+                            id = Uuid.random().toString(),
+                            amount = deposit,
+                            method = PaymentMethod.OTHER,
+                            type = PaymentType.DEPOSIT,
+                            recordedAt = now,
+                            note = null,
+                        ),
+                    )
+                } else if (isEdit) {
+                    loadedPayments
+                } else {
+                    emptyList()
+                },
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
                 createdAt = if (isEdit) loadedCreatedAt else 0L,

@@ -60,7 +60,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -259,10 +260,18 @@ private fun PhotoSection(
             .clickable(onClick = onPickClick)
     ) {
         if (model != null) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = model,
                 contentDescription = state.description.ifBlank { null },
                 contentScale = ContentScale.Crop,
+                loading = {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        LoadingDots()
+                    }
+                },
                 modifier = Modifier.fillMaxSize()
             )
             Box(

@@ -51,12 +51,10 @@ class FocusResolverTest {
         priority = OrderPriority.NORMAL,
         statusHistory = emptyList(),
         totalPrice = 0.0,
-        depositPaid = 0.0,
-        balanceRemaining = 0.0,
         deadline = deadline,
         notes = null,
         createdAt = 0L,
-        updatedAt = 0L
+        updatedAt = 0L,
     )
 
     private fun nba(type: NextBestActionType, customer: String = "Topcat"): NextBestAction =

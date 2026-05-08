@@ -39,12 +39,10 @@ class ReconnectCalculatorTest {
             priority = OrderPriority.NORMAL,
             statusHistory = emptyList(),
             totalPrice = 0.0,
-            depositPaid = 0.0,
-            balanceRemaining = 0.0,
             deadline = null,
             notes = null,
             createdAt = millisAt(updatedAt),
-            updatedAt = millisAt(updatedAt)
+            updatedAt = millisAt(updatedAt),
         )
 
     private fun activeOrder(customerId: String, updatedAt: LocalDate): Order =
