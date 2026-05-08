@@ -10,18 +10,41 @@ private const val NIGERIAN_SUBSCRIBER_LENGTH = 10
  *  - "0803 123 4567"   → "2348031234567"
  *  - "+234 803 1234567" → "2348031234567"
  *  - "234-803-123-4567" → "2348031234567"
- *  - "8031234567"       → "2348031234567" (bare 10-digit subscriber, e.g. when UI shows a +234 chip)
  *
  * Non-Nigerian numbers (already including a non-234 country code) are returned digits-only;
  * the caller should ensure customer phones are stored with country context.
+ *
+ * For UIs that *imply* a Nigerian country code via a +234 chip (e.g. workshop WhatsApp field),
+ * prefix the user's bare subscriber input with the country code at the call site before
+ * calling this — see [applyImpliedNigerianCountryCode].
  */
 fun normaliseNigerianPhone(raw: String): String {
     val digits = raw.filter { it.isDigit() }
     return when {
         digits.startsWith(NIGERIAN_COUNTRY_CODE) -> digits
         digits.startsWith(NIGERIAN_TRUNK_PREFIX) -> NIGERIAN_COUNTRY_CODE + digits.drop(1)
-        digits.length == NIGERIAN_SUBSCRIBER_LENGTH -> NIGERIAN_COUNTRY_CODE + digits
         else -> digits
+    }
+}
+
+/**
+ * Use only at call sites where the UI explicitly displays a Nigerian (+234) country-code chip
+ * outside the input, so a bare 10-digit input is unambiguously the local subscriber portion.
+ *  - "8031234567" → "2348031234567"
+ *  - "0803 1234567" / "+234 803 1234567" → unchanged here, normaliseNigerianPhone handles them.
+ *
+ * Do NOT use on shared phone fields (e.g. customer contact) where the country is unknown —
+ * a bare 10-digit US number would be silently rewritten as Nigerian.
+ */
+fun applyImpliedNigerianCountryCode(raw: String): String {
+    val digits = raw.filter { it.isDigit() }
+    return if (digits.length == NIGERIAN_SUBSCRIBER_LENGTH &&
+        !digits.startsWith(NIGERIAN_COUNTRY_CODE) &&
+        !digits.startsWith(NIGERIAN_TRUNK_PREFIX)
+    ) {
+        NIGERIAN_COUNTRY_CODE + raw
+    } else {
+        raw
     }
 }
 

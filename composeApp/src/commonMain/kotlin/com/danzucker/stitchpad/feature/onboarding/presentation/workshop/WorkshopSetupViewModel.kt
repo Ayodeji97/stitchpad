@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
 import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
 import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -71,8 +72,8 @@ class WorkshopSetupViewModel(
     }
 
     private fun validateWhatsAppNumber(): Boolean {
-        val raw = _state.value.whatsappNumber
-        return if (validateNigerianMobileE164(raw)) {
+        val withCountry = applyImpliedNigerianCountryCode(_state.value.whatsappNumber)
+        return if (validateNigerianMobileE164(withCountry)) {
             true
         } else {
             _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
@@ -100,7 +101,7 @@ class WorkshopSetupViewModel(
                     return@launch
                 }
                 val whatsappE164 = state.whatsappNumber.trim().takeIf { it.isNotBlank() }
-                    ?.let { "+" + normaliseNigerianPhone(it) }
+                    ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
                 val result = userRepository.createUserProfile(
                     userId = user.id,
                     businessName = state.businessName.trim().ifBlank { null },

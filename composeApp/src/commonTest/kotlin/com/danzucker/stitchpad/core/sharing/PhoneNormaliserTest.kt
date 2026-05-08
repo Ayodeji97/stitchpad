@@ -26,11 +26,30 @@ class PhoneNormaliserTest {
     }
 
     @Test
-    fun `normaliseNigerianPhone treats bare 10-digit subscriber as Nigerian`() {
-        // Workshop WhatsApp field shows a +234 chip, so a bare 10-digit input
-        // (no leading 0 / +234) is unambiguously the local subscriber portion.
-        assertEquals("2348064816695", normaliseNigerianPhone("8064816695"))
-        assertTrue(validateNigerianMobileE164("8064816695"))
+    fun `normaliseNigerianPhone leaves bare 10-digit input alone`() {
+        // Customer flows reuse normaliseNigerianPhone via buildWhatsAppUrl, where a
+        // bare 10-digit input might be a non-Nigerian customer (e.g. US 2125550123).
+        // The country-code prefix must NOT be auto-applied here.
+        assertEquals("2125550123", normaliseNigerianPhone("2125550123"))
+        assertFalse(validateNigerianMobileE164("2125550123"))
+    }
+
+    @Test
+    fun `applyImpliedNigerianCountryCode prefixes bare 10-digit subscriber`() {
+        // Used at workshop call site where the UI shows a +234 chip outside the input.
+        assertEquals("2348064816695", normaliseNigerianPhone(applyImpliedNigerianCountryCode("8064816695")))
+        assertTrue(validateNigerianMobileE164(applyImpliedNigerianCountryCode("8064816695")))
+    }
+
+    @Test
+    fun `applyImpliedNigerianCountryCode leaves trunk-prefixed input alone`() {
+        assertEquals("08031234567", applyImpliedNigerianCountryCode("08031234567"))
+    }
+
+    @Test
+    fun `applyImpliedNigerianCountryCode leaves already-prefixed input alone`() {
+        assertEquals("+2348031234567", applyImpliedNigerianCountryCode("+2348031234567"))
+        assertEquals("2348031234567", applyImpliedNigerianCountryCode("2348031234567"))
     }
 
     // --- buildWhatsAppUrl ---
