@@ -115,15 +115,20 @@ class OrderDetailViewModel(
                 handleStatusTransition(action.transition)
             OrderDetailAction.OnDismissStatusSheet ->
                 _state.update {
-                    it.copy(
-                        showStatusSheet = false,
-                        // Defensive clear: if the sheet's onDismissRequest fires after
-                        // handleStatusTransition has already populated these (rare iOS sheet
-                        // timing edge case per feedback_ios_modal_bottom_sheet_timing memory),
-                        // leaving them set would silently suppress the next balance-warning.
-                        selectedNewStatus = null,
-                        selectedNewSubStatus = null,
-                    )
+                    // iOS fires onDismissRequest as a side effect of programmatic
+                    // showStatusSheet = false too (per feedback_ios_modal_bottom_sheet_timing).
+                    // When handleStatusTransition has already raised the balance warning,
+                    // those pending fields MUST stay populated so OnBalanceWarningProceed
+                    // can replay the transition. Only clear when no warning is in flight.
+                    if (it.showBalanceWarningDialog) {
+                        it.copy(showStatusSheet = false)
+                    } else {
+                        it.copy(
+                            showStatusSheet = false,
+                            selectedNewStatus = null,
+                            selectedNewSubStatus = null,
+                        )
+                    }
                 }
 
             OrderDetailAction.OnBalanceWarningRecordPayment -> {

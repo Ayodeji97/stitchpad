@@ -158,7 +158,6 @@ fun OrderMeasurementsPreviewCard(
 // "neck_circumference", "trouser_waist"). Resolve via BodyProfileTemplate by
 // matching the display label to a MeasurementField, then look up by its key.
 private fun resolveFieldValue(measurement: Measurement, label: String): Double? {
-    measurement.fields[label]?.let { return it }
     val key = BodyProfileTemplate
         .sectionsFor(measurement.gender)
         .flatMap { it.fields }

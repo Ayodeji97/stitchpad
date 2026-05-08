@@ -710,12 +710,13 @@ private fun OrderDetailContent(
     modifier: Modifier = Modifier,
 ) {
     val now = Clock.System.now().toEpochMilliseconds()
-    val isOverdue = order.deadline != null &&
-        order.deadline < now &&
+    val deadline = order.deadline
+    val isOverdue = deadline != null &&
+        deadline < now &&
         order.status != OrderStatus.READY &&
         order.status != OrderStatus.DELIVERED
-    val overdueDaysAgo = if (isOverdue && order.deadline != null) {
-        ((now - order.deadline) / MILLIS_PER_DAY).toInt().coerceAtLeast(1)
+    val overdueDaysAgo = if (isOverdue) {
+        ((now - deadline!!) / MILLIS_PER_DAY).toInt().coerceAtLeast(1)
     } else {
         0
     }
