@@ -41,6 +41,7 @@ import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.SettingsComingSoonScreen
+import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
@@ -332,9 +333,8 @@ private fun MainNavGraph(
             )
         }
         composable<EditProfileRoute> {
-            SettingsComingSoonScreen(
-                title = Res.string.edit_profile_title,
-                onBack = { navController.navigateUp() },
+            EditProfileRoot(
+                onNavigateBack = { navController.navigateUp() },
             )
         }
         composable<ChangeEmailRoute> {
