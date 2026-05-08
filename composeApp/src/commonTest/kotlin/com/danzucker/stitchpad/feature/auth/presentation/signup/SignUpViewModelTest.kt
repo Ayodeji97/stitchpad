@@ -252,6 +252,13 @@ class SignUpViewModelTest {
         assertEquals(SignUpEvent.ShowComingSoon, event)
     }
 
+    @Test
+    fun `OnAppleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(SignUpAction.OnAppleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(SignUpEvent.ShowComingSoon, event)
+    }
+
     // --- Helper ---
 
     private fun fillValidForm() {

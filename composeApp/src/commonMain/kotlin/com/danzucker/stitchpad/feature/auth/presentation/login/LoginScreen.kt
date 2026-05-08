@@ -57,9 +57,11 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_coming_soon
 import stitchpad.composeapp.generated.resources.login_button
+import stitchpad.composeapp.generated.resources.login_email_label
 import stitchpad.composeapp.generated.resources.login_forgot_password
 import stitchpad.composeapp.generated.resources.login_no_account
 import stitchpad.composeapp.generated.resources.login_password_hint
+import stitchpad.composeapp.generated.resources.login_password_label
 import stitchpad.composeapp.generated.resources.login_remember_me
 import stitchpad.composeapp.generated.resources.login_secure_microcopy
 import stitchpad.composeapp.generated.resources.login_sign_up
@@ -147,7 +149,7 @@ fun LoginScreen(
 
                 // 3. Email field
                 AuthTextField(
-                    label = "Email",
+                    label = stringResource(Res.string.login_email_label),
                     value = state.email,
                     onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
@@ -158,7 +160,7 @@ fun LoginScreen(
 
                 // 4. Password field
                 AuthTextField(
-                    label = "Password",
+                    label = stringResource(Res.string.login_password_label),
                     value = state.password,
                     onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,

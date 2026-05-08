@@ -59,7 +59,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_coming_soon
 import stitchpad.composeapp.generated.resources.signup_confirm_password_label
+import stitchpad.composeapp.generated.resources.signup_confirm_password_placeholder
+import stitchpad.composeapp.generated.resources.signup_create_account
 import stitchpad.composeapp.generated.resources.signup_email_label
+import stitchpad.composeapp.generated.resources.signup_email_placeholder
 import stitchpad.composeapp.generated.resources.signup_have_account
 import stitchpad.composeapp.generated.resources.signup_log_in
 import stitchpad.composeapp.generated.resources.signup_microcopy
@@ -67,6 +70,7 @@ import stitchpad.composeapp.generated.resources.signup_name_label
 import stitchpad.composeapp.generated.resources.signup_name_placeholder
 import stitchpad.composeapp.generated.resources.signup_password_helper
 import stitchpad.composeapp.generated.resources.signup_password_label
+import stitchpad.composeapp.generated.resources.signup_password_placeholder
 import stitchpad.composeapp.generated.resources.signup_privacy_link
 import stitchpad.composeapp.generated.resources.signup_subtitle
 import stitchpad.composeapp.generated.resources.signup_terms_and
@@ -168,7 +172,7 @@ fun SignUpScreen(
                     onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
                     keyboardType = KeyboardType.Email,
-                    placeholder = "Enter your email address",
+                    placeholder = stringResource(Res.string.signup_email_placeholder),
                     errorText = state.emailError?.asString(),
                 )
 
@@ -187,7 +191,7 @@ fun SignUpScreen(
                     } else {
                         Icons.Outlined.Visibility
                     },
-                    placeholder = "Create a password",
+                    placeholder = stringResource(Res.string.signup_password_placeholder),
                     helperText = when {
                         state.passwordError != null -> null
                         state.password.length >= 6 -> passwordHelper
@@ -216,7 +220,7 @@ fun SignUpScreen(
                     } else {
                         Icons.Outlined.Visibility
                     },
-                    placeholder = "Re-enter your password",
+                    placeholder = stringResource(Res.string.signup_confirm_password_placeholder),
                     errorText = state.confirmPasswordError?.asString(),
                 )
 
@@ -296,7 +300,7 @@ fun SignUpScreen(
                     ),
                 ) {
                     Text(
-                        text = "Create account",
+                        text = stringResource(Res.string.signup_create_account),
                         style = TextStyle(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,

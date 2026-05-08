@@ -43,9 +43,13 @@
     <string name="signup_name_label">Full name</string>
     <string name="signup_name_placeholder">Ade Fashions</string>
     <string name="signup_email_label">Email</string>
+    <string name="signup_email_placeholder">Enter your email address</string>
     <string name="signup_password_label">Password</string>
+    <string name="signup_password_placeholder">Create a password</string>
     <string name="signup_password_hint">At least 6 characters</string>
     <string name="signup_confirm_password_label">Confirm password</string>
+    <string name="signup_confirm_password_placeholder">Re-enter your password</string>
+    <string name="signup_create_account">Create account</string>
     <string name="signup_button">Register</string>
     <string name="signup_have_account">Already have an account?</string>
     <string name="signup_log_in">Log in</string>
@@ -918,7 +922,6 @@
     <string name="auth_coming_soon">Coming soon</string>
 
     <!-- Workshop redesign additions -->
-    <string name="workshop_quick_setup">Quick setup</string>
     <string name="workshop_logo_label">Business logo</string>
     <string name="workshop_logo_optional">(optional)</string>
     <string name="workshop_logo_upload_title">Upload logo</string>

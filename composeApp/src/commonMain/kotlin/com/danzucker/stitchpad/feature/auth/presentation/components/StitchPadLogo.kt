@@ -35,7 +35,7 @@ fun StitchPadLogo(
     diameter: Dp = 80.dp,
 ) {
     val density = LocalDensity.current
-    val markSize = with(density) { (diameter * MARK_SIZE_RATIO).toPx().toSp() / fontScale }
+    val markSize = with(density) { (diameter * MARK_SIZE_RATIO).toSp() }
     val dotDiameter = diameter * DOT_SIZE_RATIO
 
     Box(
