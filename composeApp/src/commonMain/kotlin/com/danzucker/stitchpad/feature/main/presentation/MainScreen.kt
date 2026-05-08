@@ -43,6 +43,7 @@ import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.SettingsComingSoonScreen
 import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeEmailRoot
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
+import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -346,12 +347,15 @@ private fun MainNavGraph(
             ChangePasswordRoot(onNavigateBack = { navController.navigateUp() })
         }
         composable<DeleteAccountRoute> {
-            SettingsComingSoonScreen(
-                title = Res.string.settings_row_delete_account,
-                onBack = { navController.navigateUp() },
+            DeleteAccountRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onSignedOut = onSignedOut,
             )
         }
         composable<DeleteAccountGoodbyeRoute> {
+            // The Goodbye view is rendered inline within DeleteAccountScreen as a
+            // phase, so this route is a placeholder reserved for a future split if
+            // the flow ever needs a hard navigation between processing and goodbye.
             SettingsComingSoonScreen(
                 title = Res.string.delete_account_goodbye_title,
                 onBack = { navController.navigateUp() },

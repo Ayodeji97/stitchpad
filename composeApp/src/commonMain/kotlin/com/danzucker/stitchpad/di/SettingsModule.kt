@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.feature.settings.data.FirestoreDeletionFeedbackRe
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedbackRepository
 import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeEmailViewModel
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordViewModel
+import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountViewModel
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileViewModel
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
 import org.koin.core.module.dsl.singleOf
@@ -20,6 +21,5 @@ val settingsPresentationModule = module {
     viewModelOf(::EditProfileViewModel)
     viewModelOf(::ChangeEmailViewModel)
     viewModelOf(::ChangePasswordViewModel)
-    // Delete account ViewModel lands in the next commit:
-    // viewModelOf(::DeleteAccountViewModel)
+    viewModelOf(::DeleteAccountViewModel)
 }
