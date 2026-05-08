@@ -8,12 +8,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -21,30 +18,17 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.danzucker.stitchpad.feature.auth.presentation.deleteaccount.DeleteAccountAction
-import com.danzucker.stitchpad.feature.auth.presentation.deleteaccount.DeleteAccountDialog
-import com.danzucker.stitchpad.feature.auth.presentation.deleteaccount.DeleteAccountEvent
-import com.danzucker.stitchpad.feature.auth.presentation.deleteaccount.DeleteAccountViewModel
 import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
@@ -56,34 +40,38 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
+import com.danzucker.stitchpad.feature.settings.presentation.SettingsComingSoonScreen
+import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
+import com.danzucker.stitchpad.navigation.ChangeEmailRoute
+import com.danzucker.stitchpad.navigation.ChangePasswordRoute
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
+import com.danzucker.stitchpad.navigation.DeleteAccountGoodbyeRoute
+import com.danzucker.stitchpad.navigation.DeleteAccountRoute
+import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
-import com.danzucker.stitchpad.navigation.SettingsPlaceholderRoute
+import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.ui.theme.DesignTokens
-import com.danzucker.stitchpad.util.ObserveAsEvents
-import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.error_unknown
-import stitchpad.composeapp.generated.resources.home_sign_out
-import stitchpad.composeapp.generated.resources.nav_settings
-import stitchpad.composeapp.generated.resources.settings_delete_account
-import stitchpad.composeapp.generated.resources.settings_delete_account_reauth
+import stitchpad.composeapp.generated.resources.change_email_title
+import stitchpad.composeapp.generated.resources.change_password_title
+import stitchpad.composeapp.generated.resources.delete_account_goodbye_title
+import stitchpad.composeapp.generated.resources.edit_profile_title
+import stitchpad.composeapp.generated.resources.settings_row_delete_account
 
 @Composable
 fun MainRoot(onSignedOut: () -> Unit) {
@@ -298,7 +286,7 @@ private fun MainNavGraph(
                     navController.navigate(GoalSetupRoute)
                 },
                 onNavigateToSettings = {
-                    navController.navigate(SettingsPlaceholderRoute) {
+                    navController.navigate(SettingsRoute) {
                         launchSingleTop = true
                     }
                 },
@@ -334,90 +322,44 @@ private fun MainNavGraph(
                 onNavigateBack = { navController.navigateUp() }
             )
         }
-        composable<SettingsPlaceholderRoute> {
-            TabPlaceholder(title = Res.string.nav_settings, onSignedOut = onSignedOut)
+        composable<SettingsRoute> {
+            SettingsRoot(
+                onNavigateToEditProfile = { navController.navigate(EditProfileRoute) },
+                onNavigateToChangeEmail = { navController.navigate(ChangeEmailRoute) },
+                onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
+                onNavigateToDeleteAccount = { navController.navigate(DeleteAccountRoute) },
+                onSignedOut = onSignedOut,
+            )
         }
-    }
-}
-
-@Composable
-private fun TabPlaceholder(title: StringResource, onSignedOut: (() -> Unit)? = null) {
-    val snackbarHostState = remember { SnackbarHostState() }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = stringResource(title), style = MaterialTheme.typography.headlineMedium)
-            if (onSignedOut != null) {
-                Button(
-                    onClick = onSignedOut,
-                    modifier = Modifier.padding(top = DesignTokens.space4)
-                ) {
-                    Text(stringResource(Res.string.home_sign_out))
-                }
-                // TODO: move to real Settings screen once feature/settings-redesign is merged
-                DeleteAccountEntry(
-                    onAccountDeleted = onSignedOut,
-                    snackbarHostState = snackbarHostState,
-                )
-            }
+        composable<EditProfileRoute> {
+            SettingsComingSoonScreen(
+                title = Res.string.edit_profile_title,
+                onBack = { navController.navigateUp() },
+            )
         }
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
-        )
-    }
-}
-
-@Composable
-private fun DeleteAccountEntry(
-    onAccountDeleted: () -> Unit,
-    snackbarHostState: SnackbarHostState,
-    viewModel: DeleteAccountViewModel = koinViewModel(),
-) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    var showDialog by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val reauthMessage = stringResource(Res.string.settings_delete_account_reauth)
-    val genericErrorMessage = stringResource(Res.string.error_unknown)
-
-    ObserveAsEvents(viewModel.events) { event ->
-        when (event) {
-            // No success snackbar: onAccountDeleted() signs out and navigates
-            // away from MainScreen, which cancels rememberCoroutineScope before
-            // the snackbar can show. The nav-to-Login transition is itself the
-            // success signal — surfacing a confirmation toast on the Login
-            // screen is a separate enhancement.
-            DeleteAccountEvent.AccountDeleted -> onAccountDeleted()
-            DeleteAccountEvent.ReauthRequired -> {
-                scope.launch { snackbarHostState.showSnackbar(reauthMessage) }
-                showDialog = false
-            }
-            DeleteAccountEvent.ShowGenericError -> {
-                scope.launch { snackbarHostState.showSnackbar(genericErrorMessage) }
-                showDialog = false
-            }
+        composable<ChangeEmailRoute> {
+            SettingsComingSoonScreen(
+                title = Res.string.change_email_title,
+                onBack = { navController.navigateUp() },
+            )
         }
-    }
-
-    TextButton(
-        onClick = { showDialog = true },
-        modifier = Modifier.padding(top = DesignTokens.space2),
-    ) {
-        Text(
-            text = stringResource(Res.string.settings_delete_account),
-            color = DesignTokens.error500,
-        )
-    }
-
-    if (showDialog) {
-        DeleteAccountDialog(
-            isLoading = state.isLoading,
-            onConfirm = { viewModel.onAction(DeleteAccountAction.OnConfirm) },
-            onDismiss = { if (!state.isLoading) showDialog = false },
-        )
+        composable<ChangePasswordRoute> {
+            SettingsComingSoonScreen(
+                title = Res.string.change_password_title,
+                onBack = { navController.navigateUp() },
+            )
+        }
+        composable<DeleteAccountRoute> {
+            SettingsComingSoonScreen(
+                title = Res.string.settings_row_delete_account,
+                onBack = { navController.navigateUp() },
+            )
+        }
+        composable<DeleteAccountGoodbyeRoute> {
+            SettingsComingSoonScreen(
+                title = Res.string.delete_account_goodbye_title,
+                onBack = { navController.navigateUp() },
+            )
+        }
     }
 }

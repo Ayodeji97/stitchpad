@@ -80,8 +80,8 @@ class FirebaseUserRepository(
             )
             businessName?.let { data["businessName"] = it }
             displayName?.let { data["displayName"] = it }
-            phoneNumber?.let { data["phoneNumber"] = it }
-            whatsappNumber?.let { data["whatsappNumber"] = it }
+            phoneNumber?.let { data["phone"] = it }
+            whatsappNumber?.let { data["whatsapp"] = it }
             avatarColorIndex?.let { data["avatarColorIndex"] = it }
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)

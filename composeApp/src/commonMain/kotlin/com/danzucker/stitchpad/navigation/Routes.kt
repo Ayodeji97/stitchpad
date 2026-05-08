@@ -77,9 +77,6 @@ data object AddCustomerFirstRoute
 data object GoalSetupRoute
 
 @Serializable
-data object SettingsPlaceholderRoute
-
-@Serializable
 data object SettingsRoute
 
 @Serializable
