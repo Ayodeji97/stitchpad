@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -98,25 +99,27 @@ class WorkshopSetupViewModelTest {
     }
 
     @Test
-    fun continueWithEmptyFieldsBehavesLikeSkip() = runTest {
+    fun continueWithEmptyFieldsSetsValidationErrorsAndDoesNotWrite() = runTest {
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        runCurrent()
 
-        val event = viewModel.events.first()
-        assertIs<WorkshopSetupEvent.NavigateToHome>(event)
+        val state = viewModel.state.value
+        assertEquals(Res.string.error_business_name_too_short, state.businessNameError)
+        assertEquals(Res.string.error_whatsapp_invalid, state.whatsappError)
         assertNull(fakeUserRepository.lastUserId)
     }
 
     @Test
-    fun continueWithOnlyBusinessNameWritesToRepository() = runTest {
+    fun continueWithOnlyBusinessNameSetsWhatsAppErrorAndDoesNotWrite() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
         viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        runCurrent()
 
-        val event = viewModel.events.first()
-        assertIs<WorkshopSetupEvent.NavigateToHome>(event)
-        assertEquals("Ade Fashions", fakeUserRepository.lastBusinessName)
+        assertEquals(Res.string.error_whatsapp_invalid, viewModel.state.value.whatsappError)
+        assertNull(fakeUserRepository.lastBusinessName)
     }
 
     @Test
@@ -125,7 +128,8 @@ class WorkshopSetupViewModelTest {
         fakeUserRepository.shouldReturnError = DataError.Network.UNKNOWN
         viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
 
-        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade"))
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
 
         val event = viewModel.events.first()

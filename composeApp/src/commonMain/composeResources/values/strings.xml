@@ -928,7 +928,7 @@
     <!-- WhatsApp / Workshop Phase 2 -->
     <string name="error_whatsapp_invalid">Enter a valid Nigerian WhatsApp number (10 digits)</string>
     <string name="workshop_whatsapp_label">WhatsApp number</string>
-    <string name="workshop_whatsapp_optional">Optional</string>
+    <string name="workshop_whatsapp_required">Required</string>
     <string name="workshop_whatsapp_placeholder">801 234 5678</string>
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>

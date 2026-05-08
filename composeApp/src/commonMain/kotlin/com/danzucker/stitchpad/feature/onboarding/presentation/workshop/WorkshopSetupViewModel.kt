@@ -62,8 +62,8 @@ class WorkshopSetupViewModel(
     }
 
     private fun validateBusinessName(): Boolean {
-        val name = _state.value.businessName
-        if (name.isNotBlank() && name.trim().length < 2) {
+        val name = _state.value.businessName.trim()
+        if (name.length < 2) {
             _state.update { it.copy(businessNameError = Res.string.error_business_name_too_short) }
             return false
         }
@@ -72,7 +72,6 @@ class WorkshopSetupViewModel(
 
     private fun validateWhatsAppNumber(): Boolean {
         val raw = _state.value.whatsappNumber
-        if (raw.isBlank()) return true
         return if (validateNigerianMobileE164(raw)) {
             true
         } else {
@@ -87,16 +86,6 @@ class WorkshopSetupViewModel(
         if (!nameValid || !waValid) return
 
         val state = _state.value
-        val hasData = state.businessName.isNotBlank() || state.whatsappNumber.isNotBlank()
-
-        if (!hasData) {
-            viewModelScope.launch {
-                onboardingPreferences.setWorkshopSetupCompleted()
-                _events.send(WorkshopSetupEvent.NavigateToHome)
-            }
-            return
-        }
-
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
