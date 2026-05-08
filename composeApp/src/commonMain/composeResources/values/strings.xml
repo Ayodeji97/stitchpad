@@ -937,16 +937,133 @@
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 
-    <!-- Settings — Delete account -->
-    <string name="settings_delete_account">Delete account</string>
-    <string name="settings_delete_account_dialog_title">Delete your account?</string>
-    <string name="settings_delete_account_dialog_body">You&apos;ll be signed out.</string>
-    <string name="settings_delete_account_dialog_data_link">What happens to my shop data?</string>
-    <string name="settings_delete_account_confirm">Delete account</string>
-    <string name="settings_delete_account_cancel">Cancel</string>
-    <string name="settings_delete_account_data_sheet_title">Your shop data</string>
-    <string name="settings_delete_account_data_sheet_body">Deleting your account signs you out and removes your StitchPad sign-in. Your shop&apos;s data — customers, orders, measurements, and payment history — is retained on our servers per our retention policy and is not removed by this action.\n\nIf you also want your shop data removed, contact support after deleting your account.</string>
-    <string name="settings_delete_account_data_sheet_dismiss">Got it</string>
-    <string name="settings_delete_account_success">Account deleted</string>
-    <string name="settings_delete_account_reauth">Please sign in again, then retry.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_plan">Plan</string>
+    <string name="settings_section_preferences">Preferences</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_legal">Legal</string>
+    <string name="settings_help_cd">Help</string>
+
+    <string name="settings_row_measurement_units">Measurement units</string>
+    <string name="settings_row_measurement_units_inches">Inches</string>
+    <string name="settings_row_measurement_units_centimeters">Centimeters</string>
+    <string name="settings_row_reminders">Reminders</string>
+    <string name="settings_row_reminders_subtitle">Order due dates &amp; pickups</string>
+    <string name="settings_row_signin_method">Sign-in method</string>
+    <string name="settings_row_email">Email</string>
+    <string name="settings_row_change_password">Change password</string>
+    <string name="settings_row_sign_out">Sign out</string>
+    <string name="settings_row_privacy">Privacy Policy</string>
+    <string name="settings_row_terms">Terms of Service</string>
+    <string name="settings_row_delete_account">Delete account</string>
+    <string name="settings_footer">StitchPad v%1$s · Made in Lagos</string>
+
+    <!-- Sign-out confirmation -->
+    <string name="sign_out_dialog_title">Sign out?</string>
+    <string name="sign_out_dialog_body">You can sign back in anytime with your email and password.</string>
+    <string name="sign_out_dialog_confirm">Sign out</string>
+    <string name="sign_out_dialog_cancel">Cancel</string>
+
+    <!-- Sign-in providers -->
+    <string name="signin_provider_email">Email</string>
+    <string name="signin_provider_apple">Apple</string>
+    <string name="signin_provider_google">Google</string>
+    <string name="signin_provider_unknown">Unknown</string>
+
+    <!-- Plan card -->
+    <string name="plan_card_pill_free">Free</string>
+    <string name="plan_card_pill_basic">Basic</string>
+    <string name="plan_card_pill_pro">Pro</string>
+    <string name="plan_card_pill_almost_full">Free plan · Almost full</string>
+    <string name="plan_card_pill_limit_reached">Free plan · Limit reached</string>
+    <string name="plan_card_count">%1$d of %2$d customers</string>
+    <string name="plan_card_subtitle_inline">Upgrade for unlimited customers + reports</string>
+    <string name="plan_card_title_warn">%1$d customers left before your free limit</string>
+    <string name="plan_card_subtitle_warn">Upgrade to keep adding customers, unlock reports, and back up your work.</string>
+    <string name="plan_card_title_locked">You can\'t add new customers</string>
+    <string name="plan_card_subtitle_locked">Upgrade to keep growing — your existing customers are safe and unchanged.</string>
+    <string name="plan_card_cta_upgrade">Upgrade</string>
+    <string name="plan_card_cta_upgrade_priced">Upgrade — ₦%1$s/mo</string>
+    <string name="plan_card_cta_upgrade_now">Upgrade now</string>
+    <string name="plan_card_cta_compare">Compare plans →</string>
+
+    <!-- Edit Profile -->
+    <string name="edit_profile_title">Edit profile</string>
+    <string name="edit_profile_avatar_hint">Initial uses your business name</string>
+    <string name="edit_profile_label_business_name">Business name</string>
+    <string name="edit_profile_helper_business_name">%1$d / %2$d characters</string>
+    <string name="edit_profile_label_your_name">Your name (optional)</string>
+    <string name="edit_profile_helper_your_name">Used in receipts and reminders to customers</string>
+    <string name="edit_profile_label_phone">Phone number</string>
+    <string name="edit_profile_label_whatsapp">WhatsApp number (optional)</string>
+    <string name="edit_profile_helper_whatsapp">If your WhatsApp uses a different number from your phone</string>
+    <string name="edit_profile_phone_prefix">🇳🇬 +234</string>
+    <string name="edit_profile_label_email">Email</string>
+    <string name="edit_profile_helper_email_readonly">Email changes require security verification — manage from Settings → Account → Email.</string>
+    <string name="edit_profile_save">Save changes</string>
+    <string name="edit_profile_saved">Profile updated</string>
+    <string name="edit_profile_save_failed">Could not save changes. Try again.</string>
+    <string name="edit_profile_back_cd">Back</string>
+    <string name="edit_profile_color_cd">Choose avatar color</string>
+
+    <!-- Validation errors specific to Settings forms -->
+    <string name="error_business_name_required">Business name is required</string>
+    <string name="error_phone_required">Phone number is required</string>
+    <string name="error_phone_format">Phone number must be 10 digits after +234</string>
+    <string name="error_whatsapp_format">WhatsApp number must be 10 digits after +234</string>
+
+    <!-- Change Email / Change Password -->
+    <string name="change_email_title">Change email</string>
+    <string name="change_email_label_new">New email</string>
+    <string name="change_email_helper">We\'ll send a verification link to your new email. The change takes effect once you click it.</string>
+    <string name="change_email_cta">Send verification</string>
+    <string name="change_email_sent">Check %1$s to confirm the change</string>
+
+    <string name="change_password_title">Change password</string>
+    <string name="change_password_label_new">New password</string>
+    <string name="change_password_label_confirm">Confirm new password</string>
+    <string name="change_password_helper">At least 8 characters.</string>
+    <string name="change_password_cta">Update password</string>
+    <string name="change_password_updated">Password updated</string>
+
+    <!-- Re-auth bottom sheet -->
+    <string name="reauth_title">Confirm it\'s you</string>
+    <string name="reauth_subtitle">For your security, please sign in again before continuing.</string>
+    <string name="reauth_label_email">Email</string>
+    <string name="reauth_label_password">Password</string>
+    <string name="reauth_cta_password">Confirm</string>
+    <string name="reauth_cta_apple">Continue with Apple</string>
+    <string name="reauth_cta_google">Continue with Google</string>
+    <string name="reauth_cancel">Cancel</string>
+    <string name="reauth_forgot_password">Forgot password?</string>
+
+    <!-- Delete account -->
+    <string name="delete_account_dialog_title">Delete your account?</string>
+    <string name="delete_account_dialog_body">This permanently removes your business profile, customers, measurements, and orders. This cannot be undone.</string>
+    <string name="delete_account_dialog_continue">Continue</string>
+
+    <string name="delete_account_reason_title">Help us improve — why are you leaving?</string>
+    <string name="delete_account_reason_subtitle">Your feedback is anonymous and helps us build a better tool for tailors.</string>
+    <string name="delete_account_reason_duplicate">I made a duplicate or wrong account</string>
+    <string name="delete_account_reason_complex">The app is too complex to use</string>
+    <string name="delete_account_reason_missing_features">I\'m missing features I need</string>
+    <string name="delete_account_reason_switching">I\'m switching to another app</string>
+    <string name="delete_account_reason_privacy">Privacy or data concerns</string>
+    <string name="delete_account_reason_just_trying">I was just trying it out</string>
+    <string name="delete_account_reason_other">Other</string>
+    <string name="delete_account_reason_notes_placeholder">Tell us more (optional)</string>
+    <string name="delete_account_reason_continue">Continue</string>
+    <string name="delete_account_reason_cancel">Cancel</string>
+
+    <string name="delete_account_reauth_cta">Confirm &amp; delete</string>
+    <string name="delete_account_progress_title">Closing your account…</string>
+    <string name="delete_account_progress_body">Saving your feedback, removing your data, and signing you out. This usually takes a few seconds.</string>
+
+    <string name="delete_account_goodbye_title">Your account is closed</string>
+    <string name="delete_account_goodbye_body">All your data has been removed. Thank you for trying StitchPad — if you ever come back, you\'ll start fresh.</string>
+    <string name="delete_account_goodbye_cta">Back to sign in</string>
+
+    <string name="delete_account_failed">Could not delete your account. Please try again.</string>
 </resources>
