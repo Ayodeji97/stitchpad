@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.settings.presentation.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,67 +60,74 @@ fun ProfileHeroCard(
     modifier: Modifier = Modifier,
 ) {
     val initial = businessName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-    val gradientBrush = avatarBrush(avatarColorIndex)
-    val cardGradient = Brush.linearGradient(
-        listOf(
-            DesignTokens.primary50,
-            MaterialTheme.colorScheme.surface,
-        ),
-    )
+    val avatarBrushBg = avatarBrush(avatarColorIndex)
+    // Flat warm tint instead of a linear gradient — the gradient's diagonal seam
+    // was visually distracting on real device sizes. surfaceContainerHighest gives
+    // a clean theme-aware lift over the screen background in dark mode; primary50
+    // (cream) keeps the light-mode hero feeling warm and brand-tied.
+    val cardColor = if (isSystemInDarkTheme()) {
+        MaterialTheme.colorScheme.surfaceContainerHighest
+    } else {
+        DesignTokens.primary50
+    }
+    val borderColor = if (isSystemInDarkTheme()) {
+        MaterialTheme.colorScheme.outlineVariant
+    } else {
+        DesignTokens.primary100
+    }
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusXl),
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = cardColor,
+        border = BorderStroke(1.dp, borderColor),
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
     ) {
-        Box(modifier = Modifier.background(cardGradient)) {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(DesignTokens.space4),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(DesignTokens.space4),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(avatarBrushBg),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(gradientBrush),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = initial,
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = businessName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.size(24.dp),
+                Text(
+                    text = initial,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
                 )
             }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = businessName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(24.dp),
+            )
         }
     }
 }
+
 
 @Suppress("UnusedPrivateMember")
 @Preview
