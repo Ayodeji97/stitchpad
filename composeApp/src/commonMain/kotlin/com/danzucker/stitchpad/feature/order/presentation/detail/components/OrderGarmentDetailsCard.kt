@@ -66,27 +66,9 @@ fun OrderGarmentDetailsCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(DesignTokens.space4)) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-            ) {
-                SectionIconTile(
-                    imageVector = Icons.Default.Checkroom,
-                    contentDescription = null,
-                )
-                Text(
-                    text = stringResource(Res.string.order_detail_garment_section),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Spacer(Modifier.height(DesignTokens.space3))
-
-            // Per-item rows. Multi-item rows are stacked with space3 between them.
-            // The priority pill anchors to the bottom of the FIRST row's left column,
-            // filling the dead space next to the 128dp fabric thumbnail.
+            // Per-item rows. The first row hosts the section header inside its
+            // left column so the fabric thumbnail spans from the top of the card
+            // body and total card height collapses by ~40dp.
             items.forEachIndexed { index, item ->
                 if (index > 0) {
                     Spacer(Modifier.height(DesignTokens.space3))
@@ -98,6 +80,7 @@ fun OrderGarmentDetailsCard(
                     onAddFabricPhotoClick = if (showCta) onAddFabricPhotoClick else null,
                     onAddFabricNameClick = if (showCta) onAddFabricNameClick else null,
                     priority = if (index == 0) priority else OrderPriority.NORMAL,
+                    showHeader = index == 0,
                 )
             }
         }
@@ -110,6 +93,7 @@ private fun GarmentItemRow(
     onAddFabricPhotoClick: (() -> Unit)?,
     onAddFabricNameClick: (() -> Unit)?,
     priority: OrderPriority,
+    showHeader: Boolean,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -117,6 +101,23 @@ private fun GarmentItemRow(
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            if (showHeader) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                ) {
+                    SectionIconTile(
+                        imageVector = Icons.Default.Checkroom,
+                        contentDescription = null,
+                    )
+                    Text(
+                        text = stringResource(Res.string.order_detail_garment_section),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(DesignTokens.space3))
+            }
             Text(
                 text = garmentDisplayName(item.garmentType),
                 style = MaterialTheme.typography.bodyLarge,
