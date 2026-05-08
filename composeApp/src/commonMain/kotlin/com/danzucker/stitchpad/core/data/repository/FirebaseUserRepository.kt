@@ -80,12 +80,10 @@ class FirebaseUserRepository(
             )
             businessName?.let { data["businessName"] = it }
             displayName?.let { data["displayName"] = it }
-            // phoneNumber writes to Firestore "phoneNumber" (the future
-            // non-WhatsApp contact slot). The legacy "phone" field — written by
-            // Workshop onboarding — is left alone; it is NOT a backward-compat
-            // duplicate of whatsappNumber. The active V1 primary-contact slot
-            // is `whatsapp`.
-            phoneNumber?.let { data["phoneNumber"] = it }
+            // phoneNumber → Firestore `phone` (optional voice line).
+            // whatsappNumber → Firestore `whatsapp` (required primary contact).
+            // Distinct slots; not aliases of each other.
+            phoneNumber?.let { data["phone"] = it }
             whatsappNumber?.let { data["whatsapp"] = it }
             avatarColorIndex?.let { data["avatarColorIndex"] = it }
             firestore.collection(USERS).document(userId).set(data, merge = true)

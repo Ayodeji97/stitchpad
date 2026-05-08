@@ -996,6 +996,8 @@
     <string name="edit_profile_helper_business_name">%1$d / %2$d characters</string>
     <string name="edit_profile_label_your_name">Your name (optional)</string>
     <string name="edit_profile_helper_your_name">Used in receipts and reminders to customers</string>
+    <string name="edit_profile_label_phone">Phone number (optional)</string>
+    <string name="edit_profile_helper_phone">Voice line — only set this if it\'s different from your WhatsApp</string>
     <string name="edit_profile_label_whatsapp">WhatsApp number</string>
     <string name="edit_profile_helper_whatsapp">Used for customer reminders and receipts</string>
     <string name="edit_profile_phone_prefix">🇳🇬 +234</string>

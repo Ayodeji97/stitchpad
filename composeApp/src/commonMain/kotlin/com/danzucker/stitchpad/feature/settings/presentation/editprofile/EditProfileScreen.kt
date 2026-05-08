@@ -63,10 +63,12 @@ import stitchpad.composeapp.generated.resources.edit_profile_back_cd
 import stitchpad.composeapp.generated.resources.edit_profile_color_cd
 import stitchpad.composeapp.generated.resources.edit_profile_helper_business_name
 import stitchpad.composeapp.generated.resources.edit_profile_helper_email_readonly
+import stitchpad.composeapp.generated.resources.edit_profile_helper_phone
 import stitchpad.composeapp.generated.resources.edit_profile_helper_whatsapp
 import stitchpad.composeapp.generated.resources.edit_profile_helper_your_name
 import stitchpad.composeapp.generated.resources.edit_profile_label_business_name
 import stitchpad.composeapp.generated.resources.edit_profile_label_email
+import stitchpad.composeapp.generated.resources.edit_profile_label_phone
 import stitchpad.composeapp.generated.resources.edit_profile_label_whatsapp
 import stitchpad.composeapp.generated.resources.edit_profile_label_your_name
 import stitchpad.composeapp.generated.resources.edit_profile_phone_prefix
@@ -191,6 +193,18 @@ fun EditProfileScreen(
                 label = stringResource(Res.string.edit_profile_label_your_name),
                 helper = stringResource(Res.string.edit_profile_helper_your_name),
                 error = null,
+                imeAction = ImeAction.Next,
+            )
+            Spacer(Modifier.height(DesignTokens.space3))
+
+            ProfileTextField(
+                value = state.phoneNumber,
+                onValueChange = { onAction(EditProfileAction.OnPhoneChange(it)) },
+                onBlur = { onAction(EditProfileAction.OnPhoneBlur) },
+                label = stringResource(Res.string.edit_profile_label_phone),
+                helper = stringResource(Res.string.edit_profile_helper_phone),
+                error = state.phoneError?.let { stringResource(it) },
+                keyboardType = KeyboardType.Phone,
                 imeAction = ImeAction.Next,
             )
             Spacer(Modifier.height(DesignTokens.space3))
@@ -358,8 +372,10 @@ private fun EditProfileScreenPreview() {
                 originalBusinessName = "Folake's Atelier",
                 displayName = "Folake Adeyemi",
                 originalDisplayName = "Folake Adeyemi",
-                whatsappNumber = "+2348035550142",
-                originalWhatsappNumber = "+2348035550142",
+                phoneNumber = "+2348035550142",
+                originalPhoneNumber = "+2348035550142",
+                whatsappNumber = "+2348139994477",
+                originalWhatsappNumber = "+2348139994477",
                 avatarColorIndex = 0,
                 originalAvatarColorIndex = 0,
             ),
@@ -379,6 +395,7 @@ private fun EditProfileScreenDarkPreview() {
                 email = "folake@stitchpad.app",
                 businessName = "Folake's Atelier & Co",
                 originalBusinessName = "Folake's Atelier",
+                phoneNumber = "",
                 whatsappNumber = "+234803",
                 avatarColorIndex = 3,
             ),
