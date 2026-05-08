@@ -198,24 +198,24 @@ fun EditProfileScreen(
             Spacer(Modifier.height(DesignTokens.space3))
 
             ProfileTextField(
-                value = state.phoneNumber,
-                onValueChange = { onAction(EditProfileAction.OnPhoneChange(it)) },
-                onBlur = { onAction(EditProfileAction.OnPhoneBlur) },
-                label = stringResource(Res.string.edit_profile_label_phone),
-                helper = stringResource(Res.string.edit_profile_helper_phone),
-                error = state.phoneError?.let { stringResource(it) },
-                keyboardType = KeyboardType.Phone,
-                imeAction = ImeAction.Next,
-            )
-            Spacer(Modifier.height(DesignTokens.space3))
-
-            ProfileTextField(
                 value = state.whatsappNumber,
                 onValueChange = { onAction(EditProfileAction.OnWhatsappChange(it)) },
                 onBlur = { onAction(EditProfileAction.OnWhatsappBlur) },
                 label = stringResource(Res.string.edit_profile_label_whatsapp),
                 helper = stringResource(Res.string.edit_profile_helper_whatsapp),
                 error = state.whatsappError?.let { stringResource(it) },
+                keyboardType = KeyboardType.Phone,
+                imeAction = ImeAction.Next,
+            )
+            Spacer(Modifier.height(DesignTokens.space3))
+
+            ProfileTextField(
+                value = state.phoneNumber,
+                onValueChange = { onAction(EditProfileAction.OnPhoneChange(it)) },
+                onBlur = { onAction(EditProfileAction.OnPhoneBlur) },
+                label = stringResource(Res.string.edit_profile_label_phone),
+                helper = stringResource(Res.string.edit_profile_helper_phone),
+                error = state.phoneError?.let { stringResource(it) },
                 keyboardType = KeyboardType.Phone,
                 imeAction = ImeAction.Done,
             )
