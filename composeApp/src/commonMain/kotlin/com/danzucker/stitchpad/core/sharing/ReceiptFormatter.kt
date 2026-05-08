@@ -60,7 +60,11 @@ object ReceiptFormatter {
 
         return ReceiptData(
             businessName = "\u2702\uFE0F ${user.businessName ?: FALLBACK_BUSINESS_NAME}",
-            businessPhone = user.whatsappNumber?.let { "\uD83D\uDCDE $it" },
+            // Prefer WhatsApp (V1 primary contact). Fall back to the legacy `phone`
+            // slot for users onboarded before the WhatsApp field existed, so their
+            // receipts keep showing the contact number they expect until they
+            // re-save profile in Settings.
+            businessPhone = (user.whatsappNumber ?: user.phoneNumber)?.let { "\uD83D\uDCDE $it" },
             documentTypeLabel = documentTypeLabel,
             customerName = order.customerName,
             dateFormatted = dateFormatted,

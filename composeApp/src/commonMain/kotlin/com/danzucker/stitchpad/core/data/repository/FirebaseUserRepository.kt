@@ -78,14 +78,20 @@ class FirebaseUserRepository(
             val data = mutableMapOf<String, Any>(
                 "updatedAt" to FieldValue.serverTimestamp
             )
+            // Required fields: a null here would be a programming error (the UI
+            // never allows clearing them), so we skip the write defensively.
             businessName?.let { data["businessName"] = it }
-            displayName?.let { data["displayName"] = it }
+            whatsappNumber?.let { data["whatsapp"] = it }
+            avatarColorIndex?.let { data["avatarColorIndex"] = it }
+            // Optional fields: null is the explicit "clear this field" signal —
+            // the user blanked the input in Edit Profile. Use FieldValue.delete
+            // so the Firestore document drops the key instead of retaining the
+            // old value (which would silently survive a "save with cleared field").
+            data["displayName"] = displayName ?: FieldValue.delete
             // phoneNumber → Firestore `phone` (optional voice line).
             // whatsappNumber → Firestore `whatsapp` (required primary contact).
             // Distinct slots; not aliases of each other.
-            phoneNumber?.let { data["phone"] = it }
-            whatsappNumber?.let { data["whatsapp"] = it }
-            avatarColorIndex?.let { data["avatarColorIndex"] = it }
+            data["phone"] = phoneNumber ?: FieldValue.delete
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
