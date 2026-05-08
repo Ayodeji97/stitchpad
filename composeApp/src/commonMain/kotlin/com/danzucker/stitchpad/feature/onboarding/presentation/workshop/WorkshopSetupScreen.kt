@@ -120,7 +120,7 @@ fun WorkshopSetupScreen(
             .background(DesignTokens.neutral900),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AuthHero(height = 220.dp, logoDiameter = 68.dp, showTagline = true)
+            AuthHero()
 
             AuthCard {
                 // 1. Title
@@ -362,7 +362,9 @@ fun WorkshopSetupScreen(
                 // 6. Continue button
                 Button(
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading &&
+                        state.businessName.isNotBlank() &&
+                        state.whatsappNumber.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
@@ -370,8 +372,8 @@ fun WorkshopSetupScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
                         contentColor = DesignTokens.neutral900,
-                        disabledContainerColor = DesignTokens.primary500.copy(alpha = 0.5f),
-                        disabledContentColor = DesignTokens.neutral900.copy(alpha = 0.5f),
+                        disabledContainerColor = DesignTokens.neutral700,
+                        disabledContentColor = DesignTokens.neutral500,
                     ),
                 ) {
                     Text(
