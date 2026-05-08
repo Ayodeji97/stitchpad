@@ -23,7 +23,6 @@ import stitchpad.composeapp.generated.resources.edit_profile_saved
 import stitchpad.composeapp.generated.resources.error_business_name_required
 import stitchpad.composeapp.generated.resources.error_phone_format
 import stitchpad.composeapp.generated.resources.error_phone_required
-import stitchpad.composeapp.generated.resources.error_whatsapp_format
 
 private const val TAG = "EditProfileVM"
 private const val MIN_PHONE_DIGITS = 7
@@ -55,7 +54,6 @@ class EditProfileViewModel(
             initialValue = EditProfileState(),
         )
 
-    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: EditProfileAction) {
         when (action) {
             is EditProfileAction.OnBusinessNameChange -> _state.update {
@@ -67,21 +65,15 @@ class EditProfileViewModel(
             is EditProfileAction.OnDisplayNameChange -> _state.update {
                 it.copy(displayName = action.value.take(it.maxDisplayNameLength))
             }
-            is EditProfileAction.OnPhoneChange -> _state.update {
-                val filtered = action.value.filter { c -> c.isDigit() || c in "+- ()" }
-                    .take(MAX_PHONE_DIGITS + 5) // +5 covers prefix punctuation users might type
-                it.copy(phoneNumber = filtered, phoneError = null)
-            }
             is EditProfileAction.OnWhatsappChange -> _state.update {
                 val filtered = action.value.filter { c -> c.isDigit() || c in "+- ()" }
-                    .take(MAX_PHONE_DIGITS + 5)
+                    .take(MAX_PHONE_DIGITS + 5) // +5 covers prefix punctuation users might type
                 it.copy(whatsappNumber = filtered, whatsappError = null)
             }
             is EditProfileAction.OnAvatarColorSelect -> _state.update {
                 it.copy(avatarColorIndex = action.index.coerceIn(0, 5))
             }
             EditProfileAction.OnBusinessNameBlur -> validateBusinessName()
-            EditProfileAction.OnPhoneBlur -> validatePhone()
             EditProfileAction.OnWhatsappBlur -> validateWhatsapp()
             EditProfileAction.OnSaveClick -> save()
             EditProfileAction.OnBackClick -> emit(EditProfileEvent.NavigateBack)
@@ -95,14 +87,17 @@ class EditProfileViewModel(
                 emit(EditProfileEvent.NavigateBack)
                 return@launch
             }
-            // Pull the latest Firestore-backed user once; observeUser would make the
-            // form jump if it emits while the user is editing.
+            // observeUser().first() snapshot — using the live flow would shift draft
+            // values out from under the user mid-edit.
             val firestoreUser = runCatching {
                 userRepository.observeUser(authUser.id).first()
             }.getOrNull()
 
             val business = firestoreUser?.businessName.orEmpty()
-            val phone = firestoreUser?.phoneNumber ?: authUser.phoneNumber.orEmpty()
+            // Per memory `feedback_user_phone_vs_whatsapp`: the V1 primary contact
+            // lives in `whatsappNumber`. Existing onboarded users with their
+            // number in Firestore `phone` will see a blank field here until they
+            // re-enter — `phone` is reserved for a future non-WhatsApp slot.
             val whatsapp = firestoreUser?.whatsappNumber.orEmpty()
             val color = firestoreUser?.avatarColorIndex ?: authUser.avatarColorIndex
 
@@ -112,12 +107,10 @@ class EditProfileViewModel(
                     email = authUser.email,
                     businessName = business,
                     displayName = authUser.displayName,
-                    phoneNumber = phone,
                     whatsappNumber = whatsapp,
                     avatarColorIndex = color,
                     originalBusinessName = business,
                     originalDisplayName = authUser.displayName,
-                    originalPhoneNumber = phone,
                     originalWhatsappNumber = whatsapp,
                     originalAvatarColorIndex = color,
                 )
@@ -143,34 +136,15 @@ class EditProfileViewModel(
         }
     }
 
-    private fun validatePhone(): Boolean {
-        val digits = _state.value.phoneNumber.filter { it.isDigit() }
+    private fun validateWhatsapp(): Boolean {
+        val digits = _state.value.whatsappNumber.filter { it.isDigit() }
         return when {
             digits.isEmpty() -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_required) }
+                _state.update { it.copy(whatsappError = Res.string.error_phone_required) }
                 false
             }
             digits.length !in MIN_PHONE_DIGITS..MAX_PHONE_DIGITS -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_format) }
-                false
-            }
-            else -> {
-                _state.update { it.copy(phoneError = null) }
-                true
-            }
-        }
-    }
-
-    private fun validateWhatsapp(): Boolean {
-        val raw = _state.value.whatsappNumber
-        if (raw.isBlank()) {
-            _state.update { it.copy(whatsappError = null) }
-            return true
-        }
-        val digits = raw.filter { it.isDigit() }
-        return when {
-            digits.length !in MIN_PHONE_DIGITS..MAX_PHONE_DIGITS -> {
-                _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
+                _state.update { it.copy(whatsappError = Res.string.error_phone_format) }
                 false
             }
             else -> {
@@ -182,9 +156,8 @@ class EditProfileViewModel(
 
     private fun save() {
         val nameOk = validateBusinessName()
-        val phoneOk = validatePhone()
         val whatsappOk = validateWhatsapp()
-        if (!nameOk || !phoneOk || !whatsappOk) return
+        if (!nameOk || !whatsappOk) return
 
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser()
@@ -198,8 +171,8 @@ class EditProfileViewModel(
                 userId = authUser.id,
                 businessName = current.businessName.trim(),
                 displayName = current.displayName.trim().ifBlank { null },
-                phoneNumber = current.phoneNumber.trim(),
-                whatsappNumber = current.whatsappNumber.trim().ifBlank { null },
+                phoneNumber = null, // V1 does not surface the non-WhatsApp slot
+                whatsappNumber = current.whatsappNumber.trim(),
                 avatarColorIndex = current.avatarColorIndex,
             )
             _state.update { it.copy(isSaving = false) }

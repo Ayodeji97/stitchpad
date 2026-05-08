@@ -60,7 +60,7 @@ object ReceiptFormatter {
 
         return ReceiptData(
             businessName = "\u2702\uFE0F ${user.businessName ?: FALLBACK_BUSINESS_NAME}",
-            businessPhone = user.phoneNumber?.let { "\uD83D\uDCDE $it" },
+            businessPhone = user.whatsappNumber?.let { "\uD83D\uDCDE $it" },
             documentTypeLabel = documentTypeLabel,
             customerName = order.customerName,
             dateFormatted = dateFormatted,

@@ -9,7 +9,7 @@ data class SettingsState(
     val isLoading: Boolean = true,
     val businessName: String = "",
     val email: String = "",
-    val phoneNumber: String? = null,
+    val whatsappNumber: String? = null,
     val avatarColorIndex: Int = 0,
     val signInProvider: SignInProvider = SignInProvider.UNKNOWN,
     val maskedSignInIdentifier: String = "",
@@ -22,11 +22,13 @@ data class SettingsState(
 ) {
     /**
      * Combined display string for the profile hero subtitle:
-     * "+234 803 555 0142 · folake@stitchpad.app", or just email if phone is blank.
+     * "+234 803 555 0142 · folake@stitchpad.app", or just email if WhatsApp is
+     * blank. The primary contact is the WhatsApp number, not Firestore's
+     * reserved `phone` slot.
      */
     val heroSubtitle: String
         get() = listOfNotNull(
-            phoneNumber?.takeIf { it.isNotBlank() },
+            whatsappNumber?.takeIf { it.isNotBlank() },
             email.takeIf { it.isNotBlank() },
         ).joinToString(separator = " · ")
 

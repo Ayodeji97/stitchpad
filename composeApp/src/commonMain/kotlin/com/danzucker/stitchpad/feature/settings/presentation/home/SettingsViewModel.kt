@@ -81,7 +81,6 @@ class SettingsViewModel(
                 it.copy(
                     isLoading = authUser == null,
                     email = authUser?.email.orEmpty(),
-                    phoneNumber = authUser?.phoneNumber,
                     avatarColorIndex = authUser?.avatarColorIndex ?: 0,
                     signInProvider = provider,
                     maskedSignInIdentifier = authUser?.email.orEmpty(),
@@ -112,7 +111,7 @@ class SettingsViewModel(
                         businessName = firestoreUser?.businessName.orEmpty().ifBlank {
                             authUser.displayName.ifBlank { authUser.email.substringBefore('@') }
                         },
-                        phoneNumber = firestoreUser?.phoneNumber ?: authUser.phoneNumber,
+                        whatsappNumber = firestoreUser?.whatsappNumber,
                         avatarColorIndex = firestoreUser?.avatarColorIndex
                             ?: authUser.avatarColorIndex,
                         isPremium = isPremium,
