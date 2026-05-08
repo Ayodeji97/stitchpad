@@ -10,17 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -30,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -64,7 +60,6 @@ import stitchpad.composeapp.generated.resources.login_forgot_password
 import stitchpad.composeapp.generated.resources.login_no_account
 import stitchpad.composeapp.generated.resources.login_password_hint
 import stitchpad.composeapp.generated.resources.login_password_label
-import stitchpad.composeapp.generated.resources.login_remember_me
 import stitchpad.composeapp.generated.resources.login_secure_microcopy
 import stitchpad.composeapp.generated.resources.login_sign_up
 import stitchpad.composeapp.generated.resources.login_subtitle
@@ -214,39 +209,7 @@ fun LoginScreen(
                     }
                 }
 
-                // 5. Remember me — its own row
-                val rememberMeColor = if (state.rememberMe) DesignTokens.primary500 else Color(0xFF3A3731)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.clickable { onAction(LoginAction.OnRememberMeToggle) },
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(rememberMeColor),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (state.rememberMe) {
-                            Icon(
-                                imageVector = Icons.Outlined.Check,
-                                contentDescription = null,
-                                tint = DesignTokens.neutral900,
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
-                    }
-                    Text(
-                        text = stringResource(Res.string.login_remember_me),
-                        style = TextStyle(
-                            fontSize = 13.sp,
-                            color = Color(0xFFA8A49D),
-                        ),
-                    )
-                }
-
-                // 6. Sign-in button
+                // 5. Sign-in button
                 Button(
                     onClick = { onAction(LoginAction.OnLoginClick) },
                     enabled = !state.isLoading &&
@@ -272,7 +235,7 @@ fun LoginScreen(
                     )
                 }
 
-                // 7. Sign-up footer
+                // 6. Sign-up footer
                 val noAccount = stringResource(Res.string.login_no_account)
                 val signUp = stringResource(Res.string.login_sign_up)
                 Text(
@@ -296,14 +259,14 @@ fun LoginScreen(
                     textAlign = TextAlign.Center,
                 )
 
-                // 8. SSO button row
+                // 7. SSO button row
                 SsoButtonRow(
                     onGoogleClick = { onAction(LoginAction.OnGoogleSignInClick) },
                     onAppleClick = { onAction(LoginAction.OnAppleSignInClick) },
                     enabled = !state.isSsoLoading,
                 )
 
-                // 9. Secure microcopy
+                // 8. Secure microcopy
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,

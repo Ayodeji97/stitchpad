@@ -8,7 +8,6 @@ data class LoginState(
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val isSsoLoading: Boolean = false,
-    val rememberMe: Boolean = true,
     val emailError: UiText? = null,
     val passwordError: UiText? = null,
 )

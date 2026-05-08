@@ -898,7 +898,6 @@
 
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>
-    <string name="login_remember_me">Remember me</string>
     <string name="login_secure_microcopy">Secure sign-in for your tailoring business.</string>
 
     <!-- Signup redesign additions -->
