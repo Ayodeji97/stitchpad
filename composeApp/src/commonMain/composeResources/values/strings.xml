@@ -59,10 +59,6 @@
     <string name="workshop_subtitle">Personalise StitchPad for your brand</string>
     <string name="workshop_business_name_label">Business name</string>
     <string name="workshop_business_name_placeholder">e.g. Ade Fashions</string>
-    <string name="workshop_business_name_hint">Shown on your dashboard. You can change this later.</string>
-    <string name="workshop_phone_label">Phone number</string>
-    <string name="workshop_phone_placeholder">+234 801 234 5678</string>
-    <string name="workshop_phone_hint">For your profile, not shared with customers.</string>
     <string name="workshop_continue_button">Continue</string>
     <string name="workshop_skip">Skip for now</string>
 

@@ -154,6 +154,13 @@ class WorkshopSetupViewModelTest {
     }
 
     @Test
+    fun `OnWhatsAppNumberBlur with empty field sets no error`() = runTest {
+        // whatsappNumber is "" by default — blur should short-circuit, no error set
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberBlur)
+        assertNull(viewModel.state.first().whatsappError)
+    }
+
+    @Test
     fun `OnContinueClick submits whatsappNumber as plus-prefixed E164`() = runTest {
         fakeAuth.currentUser = User(id = "u1", email = "x@y.z", displayName = "Tester", businessName = null, phoneNumber = null, avatarColorIndex = 0)
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
