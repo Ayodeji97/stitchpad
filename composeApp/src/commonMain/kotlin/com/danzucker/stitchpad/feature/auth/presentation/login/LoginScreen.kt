@@ -67,6 +67,8 @@ import stitchpad.composeapp.generated.resources.login_secure_microcopy
 import stitchpad.composeapp.generated.resources.login_sign_up
 import stitchpad.composeapp.generated.resources.login_subtitle
 import stitchpad.composeapp.generated.resources.login_title
+import stitchpad.composeapp.generated.resources.placeholder_email
+import stitchpad.composeapp.generated.resources.placeholder_password
 
 @Composable
 fun LoginRoot(
@@ -119,7 +121,7 @@ fun LoginScreen(
             .background(DesignTokens.neutral900),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AuthHero(height = 280.dp, logoDiameter = 80.dp, showTagline = true)
+            AuthHero()
 
             AuthCard {
                 // 1. Title
@@ -154,80 +156,91 @@ fun LoginScreen(
                     onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
                     keyboardType = KeyboardType.Email,
-                    placeholder = "you@email.com",
+                    placeholder = stringResource(Res.string.placeholder_email),
                     errorText = state.emailError?.asString(),
                 )
 
-                // 4. Password field
-                AuthTextField(
-                    label = stringResource(Res.string.login_password_label),
-                    value = state.password,
-                    onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
-                    leadingIcon = Icons.Outlined.Lock,
-                    isPassword = true,
-                    isPasswordVisible = state.isPasswordVisible,
-                    onTogglePassword = { onAction(LoginAction.OnTogglePasswordVisibility) },
-                    trailingPasswordVisibilityIcon = if (state.isPasswordVisible) {
-                        Icons.Outlined.VisibilityOff
-                    } else {
-                        Icons.Outlined.Visibility
-                    },
-                    helperText = stringResource(Res.string.login_password_hint),
-                    errorText = state.passwordError?.asString(),
-                )
-
-                // 5. Remember-me + Forgot-password row
-                val rememberMeColor = if (state.rememberMe) DesignTokens.primary500 else Color(0xFF3A3731)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                // 4. Password field + helper / Forgot password row, tightly grouped
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AuthTextField(
+                        label = stringResource(Res.string.login_password_label),
+                        value = state.password,
+                        onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
+                        leadingIcon = Icons.Outlined.Lock,
+                        isPassword = true,
+                        isPasswordVisible = state.isPasswordVisible,
+                        onTogglePassword = { onAction(LoginAction.OnTogglePasswordVisibility) },
+                        trailingPasswordVisibilityIcon = if (state.isPasswordVisible) {
+                            Icons.Outlined.VisibilityOff
+                        } else {
+                            Icons.Outlined.Visibility
+                        },
+                        placeholder = stringResource(Res.string.placeholder_password),
+                        errorText = state.passwordError?.asString(),
+                    )
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.clickable { onAction(LoginAction.OnRememberMeToggle) },
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(RoundedCornerShape(5.dp))
-                                .background(rememberMeColor),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (state.rememberMe) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Check,
-                                    contentDescription = null,
-                                    tint = DesignTokens.neutral900,
-                                    modifier = Modifier.size(14.dp),
-                                )
-                            }
-                        }
                         Text(
-                            text = stringResource(Res.string.login_remember_me),
+                            text = if (state.passwordError == null) {
+                                stringResource(Res.string.login_password_hint)
+                            } else {
+                                ""
+                            },
+                            style = TextStyle(fontSize = 12.5.sp, color = Color(0xFFA8A49D)),
+                        )
+                        Text(
+                            text = stringResource(Res.string.login_forgot_password),
                             style = TextStyle(
                                 fontSize = 13.sp,
-                                color = Color(0xFFA8A49D),
+                                fontWeight = FontWeight.SemiBold,
+                                color = DesignTokens.primary400,
                             ),
+                            modifier = Modifier.clickable { onAction(LoginAction.OnForgotPasswordClick) },
                         )
                     }
+                }
 
+                // 5. Remember me — its own row
+                val rememberMeColor = if (state.rememberMe) DesignTokens.primary500 else Color(0xFF3A3731)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.clickable { onAction(LoginAction.OnRememberMeToggle) },
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(rememberMeColor),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (state.rememberMe) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = null,
+                                tint = DesignTokens.neutral900,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    }
                     Text(
-                        text = stringResource(Res.string.login_forgot_password),
+                        text = stringResource(Res.string.login_remember_me),
                         style = TextStyle(
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = DesignTokens.primary400,
+                            color = Color(0xFFA8A49D),
                         ),
-                        modifier = Modifier.clickable { onAction(LoginAction.OnForgotPasswordClick) },
                     )
                 }
 
                 // 6. Sign-in button
                 Button(
                     onClick = { onAction(LoginAction.OnLoginClick) },
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading &&
+                        state.email.isNotBlank() &&
+                        state.password.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
@@ -235,8 +248,8 @@ fun LoginScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
                         contentColor = DesignTokens.neutral900,
-                        disabledContainerColor = DesignTokens.primary500.copy(alpha = 0.5f),
-                        disabledContentColor = DesignTokens.neutral900.copy(alpha = 0.5f),
+                        disabledContainerColor = DesignTokens.neutral700,
+                        disabledContentColor = DesignTokens.neutral500,
                     ),
                 ) {
                     Text(
@@ -254,7 +267,7 @@ fun LoginScreen(
                 Text(
                     text = buildAnnotatedString {
                         withStyle(SpanStyle(color = Color(0xFFA8A49D), fontSize = 14.sp)) {
-                            append(noAccount)
+                            append("$noAccount ")
                         }
                         withStyle(
                             SpanStyle(

@@ -112,7 +112,7 @@ fun AuthTextField(
                 },
             )
             if (isPassword && onTogglePassword != null && trailingPasswordVisibilityIcon != null) {
-                IconButton(onClick = onTogglePassword, modifier = Modifier.size(28.dp)) {
+                IconButton(onClick = onTogglePassword, modifier = Modifier.size(20.dp)) {
                     Icon(
                         imageVector = trailingPasswordVisibilityIcon,
                         contentDescription = null,

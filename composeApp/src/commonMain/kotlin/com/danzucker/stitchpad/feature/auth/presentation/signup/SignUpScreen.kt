@@ -58,11 +58,11 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_coming_soon
+import stitchpad.composeapp.generated.resources.placeholder_email
 import stitchpad.composeapp.generated.resources.signup_confirm_password_label
 import stitchpad.composeapp.generated.resources.signup_confirm_password_placeholder
 import stitchpad.composeapp.generated.resources.signup_create_account
 import stitchpad.composeapp.generated.resources.signup_email_label
-import stitchpad.composeapp.generated.resources.signup_email_placeholder
 import stitchpad.composeapp.generated.resources.signup_have_account
 import stitchpad.composeapp.generated.resources.signup_log_in
 import stitchpad.composeapp.generated.resources.signup_microcopy
@@ -127,7 +127,7 @@ fun SignUpScreen(
             .background(DesignTokens.neutral900),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AuthHero(height = 240.dp, logoDiameter = 64.dp, showTagline = false)
+            AuthHero()
 
             AuthCard {
                 // 1. Title
@@ -172,7 +172,7 @@ fun SignUpScreen(
                     onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
                     keyboardType = KeyboardType.Email,
-                    placeholder = stringResource(Res.string.signup_email_placeholder),
+                    placeholder = stringResource(Res.string.placeholder_email),
                     errorText = state.emailError?.asString(),
                 )
 
@@ -295,8 +295,8 @@ fun SignUpScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
                         contentColor = DesignTokens.neutral900,
-                        disabledContainerColor = DesignTokens.primary500.copy(alpha = 0.5f),
-                        disabledContentColor = DesignTokens.neutral900.copy(alpha = 0.5f),
+                        disabledContainerColor = DesignTokens.neutral700,
+                        disabledContentColor = DesignTokens.neutral500,
                     ),
                 ) {
                     Text(

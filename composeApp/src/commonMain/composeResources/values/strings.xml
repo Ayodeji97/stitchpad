@@ -27,7 +27,7 @@
     <string name="cd_password_show">Show password</string>
     <string name="cd_password_hide">Hide password</string>
     <string name="placeholder_email">tailor@gmail.com</string>
-    <string name="placeholder_password">••••••••</string>
+    <string name="placeholder_password">Enter your password</string>
 
     <!-- Login screen -->
     <string name="login_title">Welcome back!</string>
@@ -43,7 +43,6 @@
     <string name="signup_name_label">Full name</string>
     <string name="signup_name_placeholder">Ade Fashions</string>
     <string name="signup_email_label">Email</string>
-    <string name="signup_email_placeholder">Enter your email address</string>
     <string name="signup_password_label">Password</string>
     <string name="signup_password_placeholder">Create a password</string>
     <string name="signup_password_hint">At least 6 characters</string>
