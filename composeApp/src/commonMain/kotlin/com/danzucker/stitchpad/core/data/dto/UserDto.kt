@@ -9,5 +9,6 @@ data class UserDto(
     val displayName: String = "",
     val businessName: String? = null,
     val phoneNumber: String? = null,
+    val whatsappNumber: String? = null,
     val avatarColorIndex: Int = 0
 )

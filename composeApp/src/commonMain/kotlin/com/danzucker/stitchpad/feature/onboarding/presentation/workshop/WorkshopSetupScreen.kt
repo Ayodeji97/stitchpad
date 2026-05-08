@@ -69,7 +69,8 @@ import stitchpad.composeapp.generated.resources.workshop_subtitle
 import stitchpad.composeapp.generated.resources.workshop_title
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
-import stitchpad.composeapp.generated.resources.workshop_whatsapp_required
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
 
 @Composable
 fun WorkshopSetupRoot(
@@ -157,6 +158,7 @@ fun WorkshopSetupScreen(
                     placeholder = stringResource(Res.string.workshop_business_name_placeholder),
                     helperText = stringResource(Res.string.workshop_business_name_helper),
                     errorText = state.businessNameError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBusinessNameBlur) },
                 )
 
                 // 4. WhatsApp number — bespoke composition
@@ -198,7 +200,7 @@ fun WorkshopSetupScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             Text(
-                                text = stringResource(Res.string.workshop_whatsapp_required),
+                                text = stringResource(Res.string.workshop_whatsapp_optional),
                                 style = TextStyle(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
@@ -249,8 +251,9 @@ fun WorkshopSetupScreen(
                             onValueChange = { onAction(WorkshopSetupAction.OnWhatsAppNumberChange(it)) },
                             leadingIcon = Icons.Outlined.Phone,
                             keyboardType = KeyboardType.Phone,
-                            placeholder = "801 234 5678",
+                            placeholder = stringResource(Res.string.workshop_whatsapp_placeholder),
                             errorText = state.whatsappError?.let { stringResource(it) },
+                            onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -362,9 +365,7 @@ fun WorkshopSetupScreen(
                 // 6. Continue button
                 Button(
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading &&
-                        state.businessName.isNotBlank() &&
-                        state.whatsappNumber.isNotBlank(),
+                    enabled = !state.isLoading && state.businessName.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),

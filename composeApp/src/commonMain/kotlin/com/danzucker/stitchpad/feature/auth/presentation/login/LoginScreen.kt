@@ -158,6 +158,7 @@ fun LoginScreen(
                     keyboardType = KeyboardType.Email,
                     placeholder = stringResource(Res.string.placeholder_email),
                     errorText = state.emailError?.asString(),
+                    onFocusLost = { onAction(LoginAction.OnEmailBlur) },
                 )
 
                 // 4. Password field + helper / Forgot password row, tightly grouped
@@ -177,6 +178,7 @@ fun LoginScreen(
                         },
                         placeholder = stringResource(Res.string.placeholder_password),
                         errorText = state.passwordError?.asString(),
+                        onFocusLost = { onAction(LoginAction.OnPasswordBlur) },
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

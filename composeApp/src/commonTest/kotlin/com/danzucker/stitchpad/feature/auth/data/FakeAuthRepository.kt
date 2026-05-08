@@ -31,6 +31,7 @@ class FakeAuthRepository : AuthRepository {
             displayName = displayName,
             businessName = null,
             phoneNumber = null,
+            whatsappNumber = null,
             avatarColorIndex = 0
         )
         currentUser = user

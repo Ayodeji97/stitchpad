@@ -18,6 +18,7 @@ class UserMapperTest {
             displayName = "Ade Fashions",
             businessName = "Ade Tailoring",
             phoneNumber = "+2348012345678",
+            whatsappNumber = "+2348064816695",
             avatarColorIndex = 3
         )
 
@@ -28,6 +29,7 @@ class UserMapperTest {
         assertEquals("Ade Fashions", user.displayName)
         assertEquals("Ade Tailoring", user.businessName)
         assertEquals("+2348012345678", user.phoneNumber)
+        assertEquals("+2348064816695", user.whatsappNumber)
         assertEquals(3, user.avatarColorIndex)
     }
 
@@ -39,6 +41,7 @@ class UserMapperTest {
             displayName = "Ade",
             businessName = null,
             phoneNumber = null,
+            whatsappNumber = null,
             avatarColorIndex = 0
         )
 
@@ -46,6 +49,7 @@ class UserMapperTest {
 
         assertNull(user.businessName)
         assertNull(user.phoneNumber)
+        assertNull(user.whatsappNumber)
     }
 
     // --- User to UserDto ---
@@ -58,6 +62,7 @@ class UserMapperTest {
             displayName = "Tailor Shop",
             businessName = "Best Tailors",
             phoneNumber = "+2349087654321",
+            whatsappNumber = "+2348012345678",
             avatarColorIndex = 5
         )
 
@@ -68,6 +73,7 @@ class UserMapperTest {
         assertEquals("Tailor Shop", dto.displayName)
         assertEquals("Best Tailors", dto.businessName)
         assertEquals("+2349087654321", dto.phoneNumber)
+        assertEquals("+2348012345678", dto.whatsappNumber)
         assertEquals(5, dto.avatarColorIndex)
     }
 
@@ -79,6 +85,7 @@ class UserMapperTest {
             displayName = "Tailor",
             businessName = null,
             phoneNumber = null,
+            whatsappNumber = null,
             avatarColorIndex = 0
         )
 
@@ -86,6 +93,7 @@ class UserMapperTest {
 
         assertNull(dto.businessName)
         assertNull(dto.phoneNumber)
+        assertNull(dto.whatsappNumber)
     }
 
     // --- Round-trip ---
@@ -98,6 +106,7 @@ class UserMapperTest {
             displayName = "Test User",
             businessName = "Test Biz",
             phoneNumber = "+1234567890",
+            whatsappNumber = "+2348012345678",
             avatarColorIndex = 2
         )
 
@@ -114,6 +123,7 @@ class UserMapperTest {
             displayName = "Round Trip",
             businessName = null,
             phoneNumber = null,
+            whatsappNumber = null,
             avatarColorIndex = 7
         )
 

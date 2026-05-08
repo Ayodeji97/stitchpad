@@ -162,7 +162,7 @@ class WorkshopSetupViewModelTest {
 
     @Test
     fun `OnContinueClick submits whatsappNumber as plus-prefixed E164`() = runTest {
-        fakeAuth.currentUser = User(id = "u1", email = "x@y.z", displayName = "Tester", businessName = null, phoneNumber = null, avatarColorIndex = 0)
+        fakeAuth.currentUser = User(id = "u1", email = "x@y.z", displayName = "Tester", businessName = null, phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0)
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)

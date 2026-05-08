@@ -163,6 +163,7 @@ fun SignUpScreen(
                     leadingIcon = Icons.Outlined.Person,
                     placeholder = stringResource(Res.string.signup_name_placeholder),
                     errorText = state.displayNameError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnDisplayNameBlur) },
                 )
 
                 // 4. Email field
@@ -174,6 +175,7 @@ fun SignUpScreen(
                     keyboardType = KeyboardType.Email,
                     placeholder = stringResource(Res.string.placeholder_email),
                     errorText = state.emailError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnEmailBlur) },
                 )
 
                 // 5. Password field
@@ -204,6 +206,7 @@ fun SignUpScreen(
                     },
                     isHelperSuccess = state.passwordError == null && state.password.length >= 6,
                     errorText = state.passwordError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnPasswordBlur) },
                 )
 
                 // 6. Confirm password field
@@ -222,6 +225,7 @@ fun SignUpScreen(
                     },
                     placeholder = stringResource(Res.string.signup_confirm_password_placeholder),
                     errorText = state.confirmPasswordError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnConfirmPasswordBlur) },
                 )
 
                 // 7. Terms checkbox row
