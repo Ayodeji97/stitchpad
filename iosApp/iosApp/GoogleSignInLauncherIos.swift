@@ -32,11 +32,17 @@ import ComposeApp
                         continuation.resume(returning: ResultError(error: mappedError))
                         return
                     }
-                    guard let token = signInResult?.user.idToken?.tokenString else {
+                    guard let user = signInResult?.user,
+                          let idToken = user.idToken?.tokenString else {
                         continuation.resume(returning: ResultError(error: SsoError.unknown))
                         return
                     }
-                    continuation.resume(returning: ResultSuccess(data: token as NSString))
+                    // gitlive's Firebase iOS wrapper requires accessToken non-null
+                    // (FIRGoogleAuthProvider credentialWithIDToken:accessToken: is
+                    // nonnull on Obj-C). GoogleSignIn always provides one post-auth.
+                    let accessToken = user.accessToken.tokenString
+                    let cred = GoogleCredential(idToken: idToken, accessToken: accessToken)
+                    continuation.resume(returning: ResultSuccess(data: cred))
                 }
             }
         }

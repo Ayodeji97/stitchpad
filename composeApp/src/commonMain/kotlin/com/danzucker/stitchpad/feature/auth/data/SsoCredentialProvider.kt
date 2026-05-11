@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.auth.data
 
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
+import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
 
 /**
@@ -15,6 +16,6 @@ import com.danzucker.stitchpad.feature.auth.domain.SsoError
  * that FirebaseAuthRepository exchanges for a User.
  */
 interface SsoCredentialProvider {
-    suspend fun getGoogleIdToken(): Result<String, SsoError>
+    suspend fun getGoogleCredential(): Result<GoogleCredential, SsoError>
     suspend fun getAppleCredential(): Result<AppleCredential, SsoError>
 }

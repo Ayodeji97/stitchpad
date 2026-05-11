@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -60,15 +61,17 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun signInWithGoogle(): Result<User, AuthError> {
-        return when (val tokenResult = ssoCredentialProvider.getGoogleIdToken()) {
-            is Result.Error -> Result.Error(tokenResult.error.toAuthError())
-            is Result.Success -> exchangeGoogleToken(tokenResult.data)
+        return when (val credResult = ssoCredentialProvider.getGoogleCredential()) {
+            is Result.Error -> Result.Error(credResult.error.toAuthError())
+            is Result.Success -> exchangeGoogleCredential(credResult.data)
         }
     }
 
-    private suspend fun exchangeGoogleToken(idToken: String): Result<User, AuthError> {
+    private suspend fun exchangeGoogleCredential(cred: GoogleCredential): Result<User, AuthError> {
         return try {
-            val credential = GoogleAuthProvider.credential(idToken, null)
+            // gitlive's iOS wrapper requires both tokens non-null (Obj-C nonnull
+            // contract on FIRGoogleAuthProvider). Android tolerates null accessToken.
+            val credential = GoogleAuthProvider.credential(cred.idToken, cred.accessToken)
             val authResult = firebaseAuth.signInWithCredential(credential)
             val firebaseUser = authResult.user
                 ?: return Result.Error(AuthError.UNKNOWN)

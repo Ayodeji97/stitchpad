@@ -8,6 +8,7 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
+import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -20,7 +21,7 @@ class AndroidSsoCredentialProvider(
     private val webClientId: String,
 ) : SsoCredentialProvider {
 
-    override suspend fun getGoogleIdToken(): Result<String, SsoError> {
+    override suspend fun getGoogleCredential(): Result<GoogleCredential, SsoError> {
         val activity = activityHolder.activity
             ?: return Result.Error(SsoError.UNKNOWN)
         val request = GetCredentialRequest.Builder()
@@ -34,7 +35,9 @@ class AndroidSsoCredentialProvider(
         return try {
             val response = CredentialManager.create(context).getCredential(activity, request)
             val credential = GoogleIdTokenCredential.createFrom(response.credential.data)
-            Result.Success(credential.idToken)
+            // Credential Manager only exposes the ID token; gitlive Android tolerates a
+            // null accessToken because Firebase Android resolves it server-side.
+            Result.Success(GoogleCredential(idToken = credential.idToken, accessToken = null))
         } catch (@Suppress("SwallowedException") e: GetCredentialCancellationException) {
             Result.Error(SsoError.CANCELLED)
         } catch (@Suppress("SwallowedException") e: NoCredentialException) {
