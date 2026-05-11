@@ -86,6 +86,7 @@ private fun FirebaseUser.toDomainUser(): User = User(
     displayName = displayName ?: "",
     businessName = null,
     phoneNumber = phoneNumber,
+    whatsappNumber = null,
     avatarColorIndex = abs((displayName ?: email ?: uid).hashCode() % 6)
 )
 

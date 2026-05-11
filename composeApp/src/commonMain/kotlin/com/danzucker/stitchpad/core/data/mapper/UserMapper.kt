@@ -9,6 +9,7 @@ fun UserDto.toUser(): User = User(
     displayName = displayName,
     businessName = businessName,
     phoneNumber = phoneNumber,
+    whatsappNumber = whatsappNumber,
     avatarColorIndex = avatarColorIndex
 )
 
@@ -18,5 +19,6 @@ fun User.toUserDto(): UserDto = UserDto(
     displayName = displayName,
     businessName = businessName,
     phoneNumber = phoneNumber,
+    whatsappNumber = whatsappNumber,
     avatarColorIndex = avatarColorIndex
 )

@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Login Redesign v1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens (mirror DesignTokens.kt) ────────────────────── */
+    :root {
+      --p50:#FFF8E7; --p100:#FDEFC4; --p200:#FBDF8A; --p300:#F9CC50;
+      --p400:#F7BB2A; --p500:#E8A800; --p600:#C48E00; --p700:#9E7200;
+      --p800:#7A5800; --p900:#4F3800;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF;
+      --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C;
+      --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --dk-bg:#121110; --dk-surf:#1E1C1A; --dk-surf2:#2A2825; --dk-bdr:#3A3731;
+      --dk-txt:#E5E3DF; --dk-txt2:#A8A49D; --dk-txt3:#7D7970;
+      --suc:#2D9E6B; --suc50:#E8F7F1; --suc-dk:#5EDBA0; --suc-dk-bg:#0E3D2A;
+      --err:#D93B3B; --err50:#FCEAEA; --err-dk:#E89090; --err-dk-bg:#3D1515;
+      --wa-green:#25D366;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+      --s6:24px; --s7:28px; --s8:32px; --s10:40px; --s12:48px;
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-2xl:24px; --r-full:999px;
+
+      --font-body:'Plus Jakarta Sans', sans-serif;
+      --font-mono:'JetBrains Mono', monospace;
+      --dt:150ms; --dt2:300ms;
+
+      /* Semantic — light */
+      --bg:var(--n50);
+      --surf:var(--n0);
+      --on-surf:var(--n800);
+      --on-surf2:var(--n600);
+      --on-surf3:var(--n400);
+      --bdr:var(--n200);
+      --bdr2:var(--n100);
+      --primary:var(--p500);
+      --on-pri:var(--n800);
+      --field-bg:var(--n0);
+      --status-col:var(--n800);
+
+      /* Auth-specific (form card stays dark even in light mode for brand consistency) */
+      --auth-card:#1A1815;
+      --auth-card-on:#F5F2ED;
+      --auth-card-on2:#A8A49D;
+      --auth-card-on3:#7D7970;
+      --auth-input-bg:#2A2825;
+      --auth-input-bdr:#3A3731;
+      --auth-input-bdr-focus:var(--p400);
+    }
+
+    /* Semantic overrides — dark mode (only changes the page chrome around the auth card; auth card itself is always dark) */
+    .dark {
+      --bg:var(--dk-bg);
+      --surf:var(--dk-surf);
+      --on-surf:var(--dk-txt);
+      --on-surf2:var(--dk-txt2);
+      --on-surf3:var(--dk-txt3);
+      --bdr:var(--dk-bdr);
+      --bdr2:var(--dk-surf2);
+      --primary:var(--p500);
+      --on-pri:#fff;
+      --field-bg:var(--dk-surf);
+      --status-col:var(--dk-txt);
+    }
+
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    html, body { height:100%; font-family:var(--font-body); }
+    body {
+      background:#0f0e0d;
+      display:flex; flex-direction:column; align-items:center;
+      min-height:100vh; padding:32px 16px 80px; gap:24px;
+    }
+
+    /* ─── Page header ────────────────────────────────────────────── */
+    .page-header {
+      text-align:center; max-width:880px; margin:0 auto;
+    }
+    .page-header .crumb {
+      display:inline-flex; align-items:center; gap:10px;
+      color:rgba(255,255,255,.55); font-size:12px; font-weight:600;
+      letter-spacing:.14em; text-transform:uppercase;
+    }
+    .page-header .crumb .logo {
+      font-size:22px; font-weight:800; color:var(--p500); letter-spacing:-.01em;
+      text-transform:none;
+    }
+    .page-header h1 {
+      color:#fff; font-size:26px; font-weight:700; letter-spacing:-.01em;
+      margin-top:14px;
+    }
+    .page-header p {
+      color:rgba(255,255,255,.65); font-size:14px; line-height:1.6;
+      margin-top:10px; max-width:680px; margin-left:auto; margin-right:auto;
+    }
+    .page-header p strong { color:var(--p400); font-weight:600; }
+
+    /* ─── Screen + theme nav ─────────────────────────────────────── */
+    .nav-row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+    .screen-btn {
+      padding:9px 18px; border-radius:var(--r-full);
+      font-family:var(--font-body); font-size:12.5px; font-weight:600;
+      cursor:pointer; border:1.5px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05); color:rgba(255,255,255,.6);
+      transition:all var(--dt); letter-spacing:.04em;
+    }
+    .screen-btn:hover { background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.22); }
+    .screen-btn.active { background:var(--p500); color:var(--n800); border-color:var(--p600); }
+
+    /* ─── Phones row ────────────────────────────────────────────── */
+    .phones-row {
+      display:flex; gap:48px; flex-wrap:wrap; justify-content:center; align-items:flex-start;
+      margin-top:8px;
+    }
+    .phone { display:flex; flex-direction:column; align-items:center; gap:14px; }
+    .phone-mode-label {
+      font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+      color:rgba(255,255,255,.4);
+    }
+    .phone-mode-label.light-label { color:rgba(255,220,100,.5); }
+    .phone-mode-label.dark-label { color:rgba(160,150,255,.5); }
+
+    /* ─── Phone shell (iPhone 15-style) ─────────────────────────── */
+    .phone-shell {
+      width:375px; height:812px; border-radius:50px;
+      padding:11px;
+      position:relative; overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 28px 76px rgba(0,0,0,.6);
+    }
+    .phone-shell.light-shell { background:var(--n800); }
+    .phone-shell.dark-shell { background:#0a0908; }
+    /* dynamic island */
+    .phone-shell::before {
+      content:''; position:absolute; top:14px; left:50%; transform:translateX(-50%);
+      width:120px; height:34px; background:#080807; border-radius:var(--r-full); z-index:10;
+    }
+    .phone-screen {
+      width:100%; height:100%; border-radius:38px;
+      background:var(--bg); overflow:hidden; position:relative;
+      display:flex; flex-direction:column;
+    }
+
+    /* ─── Status bar ────────────────────────────────────────────── */
+    .status-bar {
+      height:48px; padding:14px 22px 0;
+      display:flex; align-items:flex-end; justify-content:space-between;
+      flex-shrink:0; z-index:6; position:relative;
+    }
+    .status-bar.on-saffron .status-time { color:var(--n800); }
+    .status-bar.on-saffron .status-icons .material-icons-round { color:var(--n800); }
+    .status-time { font-size:15px; font-weight:600; color:var(--status-col); }
+    .status-icons { display:flex; gap:5px; align-items:center; }
+    .status-icons .material-icons-round { font-size:15px; color:var(--on-surf2); }
+
+    /* ─── Auth hero (photo variant for login/signup, flat saffron for workshop) ── */
+    .auth-hero {
+      position:relative;
+      padding:0 24px;
+      flex-shrink:0;
+      overflow:hidden;
+    }
+    /* Default = photo treatment for login + signup */
+    .auth-hero.photo {
+      background: #2a1a08 url('img/auth_background.webp') center/cover no-repeat;
+    }
+    /* When using the photo, brand-mark + tag need a soft drop shadow for legibility on the cloth */
+    .auth-hero.photo .brand-mark {
+      color:var(--n900);
+      text-shadow: 0 1px 6px rgba(255,255,255,.35);
+    }
+    .auth-hero.photo .brand-tag {
+      color:rgba(0,0,0,.7);
+      text-shadow: 0 1px 4px rgba(255,255,255,.25);
+    }
+    /* Saffron solid treatment for workshop — matches mockup #13 */
+    .auth-hero.saffron {
+      background: linear-gradient(180deg, var(--p400) 0%, var(--p500) 60%, var(--p600) 100%);
+    }
+    .auth-hero.saffron::before {
+      content:''; position:absolute; inset:auto -20% -20% -20%; height:80%;
+      background:
+        radial-gradient(ellipse 60% 40% at 30% 100%, rgba(0,0,0,.15), transparent 60%),
+        radial-gradient(ellipse 60% 40% at 70% 100%, rgba(255,255,255,.08), transparent 60%);
+      pointer-events:none;
+    }
+    .auth-hero.compact { padding-bottom:8px; }
+    .auth-hero-inner {
+      position:relative; z-index:2;
+      display:flex; flex-direction:column; align-items:center;
+      padding:18px 0 36px;
+    }
+    .auth-hero.compact .auth-hero-inner { padding:14px 0 28px; }
+
+    /* logo badge — with halo glow on photo variant */
+    .logo-badge {
+      width:80px; height:80px; border-radius:50%;
+      background:#fff;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 8px 22px rgba(0,0,0,.18), inset 0 0 0 4px rgba(255,255,255,.6);
+      margin-bottom:14px;
+      position:relative;
+    }
+    .auth-hero.photo .logo-badge {
+      box-shadow:
+        0 0 60px 30px rgba(255,225,150,.42),
+        0 0 100px 40px rgba(232,168,0,.22),
+        0 8px 22px rgba(0,0,0,.3),
+        inset 0 0 0 4px rgba(255,255,255,.7);
+    }
+    .logo-badge .s-mark {
+      font-family:var(--font-body);
+      font-size:42px; font-weight:800;
+      color:var(--p500); letter-spacing:-.04em;
+      line-height:1;
+      position:relative;
+    }
+    /* tiny needle dot under the S */
+    .logo-badge .s-mark::after {
+      content:''; position:absolute;
+      right:-10px; bottom:2px;
+      width:10px; height:10px; border-radius:50%;
+      background:var(--n900);
+    }
+    .brand-mark {
+      font-family:var(--font-body);
+      font-size:18px; font-weight:800; color:var(--n900);
+      letter-spacing:.12em;
+    }
+    .brand-tag {
+      font-size:9.5px; font-weight:700; color:rgba(0,0,0,.55);
+      letter-spacing:.32em; margin-top:4px;
+    }
+
+    /* curved bottom on hero */
+    .auth-hero {
+      border-radius:0 0 28px 28px;
+    }
+
+    /* ─── Auth card (dark, overlapping the hero) ─────────────────── */
+    .auth-card {
+      background:var(--auth-card);
+      border-radius:28px 28px 0 0;
+      margin-top:-22px;
+      padding:28px 24px 32px;
+      flex:1;
+      overflow-y:auto;
+      scrollbar-width:none;
+      position:relative; z-index:5;
+      display:flex; flex-direction:column;
+      gap:20px;
+    }
+    .auth-card::-webkit-scrollbar { display:none; }
+
+    .auth-card h2 {
+      color:var(--auth-card-on);
+      font-size:28px; font-weight:800; letter-spacing:-.01em;
+      text-align:center;
+    }
+    .auth-card .auth-subtitle {
+      text-align:center;
+      color:var(--auth-card-on2);
+      font-size:14px; line-height:1.5;
+      margin-top:-12px;
+    }
+
+    /* Quick-setup pill (workshop screen) */
+    .quick-pill {
+      align-self:center;
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 12px; border-radius:var(--r-full);
+      background:rgba(232,168,0,.12);
+      color:var(--p400); font-size:11px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase;
+      border:1px solid rgba(232,168,0,.25);
+    }
+    .quick-pill .material-icons-round { font-size:14px; }
+
+    /* Step indicator */
+    .step-row {
+      display:flex; flex-direction:column; gap:6px;
+      margin-top:-8px;
+    }
+    .step-label {
+      display:flex; justify-content:space-between;
+      font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+      color:var(--auth-card-on2);
+    }
+    .step-label .step-num { color:var(--p400); }
+    .step-bar {
+      height:4px; border-radius:var(--r-full);
+      background:rgba(255,255,255,.08);
+      overflow:hidden;
+    }
+    .step-bar-fill {
+      height:100%; background:var(--p500); border-radius:var(--r-full);
+    }
+
+    /* ─── Auth field ─────────────────────────────────────────────── */
+    .auth-field-group { display:flex; flex-direction:column; gap:8px; }
+    .auth-label {
+      font-size:13px; font-weight:600; color:var(--auth-card-on);
+      display:flex; align-items:center; gap:8px;
+    }
+    .auth-label .req-chip {
+      display:inline-flex; align-items:center;
+      padding:2px 8px; border-radius:var(--r-full);
+      background:rgba(232,168,0,.18);
+      color:var(--p300);
+      font-size:10px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    .auth-input {
+      display:flex; align-items:center; gap:10px;
+      background:var(--auth-input-bg);
+      border:1.5px solid var(--auth-input-bdr);
+      border-radius:var(--r-md);
+      padding:13px 14px;
+      transition: border-color var(--dt), box-shadow var(--dt);
+    }
+    .auth-input:focus-within {
+      border-color:var(--auth-input-bdr-focus);
+      box-shadow:0 0 0 3px rgba(232,168,0,.15);
+    }
+    .auth-input.error-field {
+      border-color:var(--err-dk);
+      box-shadow:0 0 0 3px rgba(217,59,59,.12);
+    }
+    .auth-input .prefix-icon {
+      font-size:20px; color:var(--p400);
+    }
+    .auth-input .prefix-svg {
+      width:20px; height:20px; flex-shrink:0;
+    }
+    .auth-input input {
+      flex:1; border:none; outline:none; background:transparent;
+      font-family:var(--font-body); font-size:15px;
+      color:var(--auth-card-on);
+    }
+    .auth-input input::placeholder { color:var(--auth-card-on3); }
+    .auth-input .suffix-btn {
+      width:28px; height:28px; border:none; background:transparent;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; padding:0;
+    }
+    .auth-input .suffix-btn .material-icons-round {
+      font-size:20px; color:var(--auth-card-on3);
+    }
+    .auth-helper {
+      font-size:12.5px; color:var(--auth-card-on2);
+      display:flex; align-items:center; gap:6px;
+      line-height:1.4;
+    }
+    .auth-helper.success { color:var(--suc-dk); }
+    .auth-helper.success .material-icons-round { color:var(--suc-dk); }
+    .auth-helper .material-icons-round { font-size:15px; }
+    .auth-helper.wa-helper { color:var(--auth-card-on2); }
+    .auth-helper.wa-helper .wa-svg { width:14px; height:14px; flex-shrink:0; }
+
+    /* Phone field — country picker + input */
+    .phone-row {
+      display:flex; gap:10px;
+    }
+    .country-picker {
+      width:118px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:space-between; gap:6px;
+      background:var(--auth-input-bg);
+      border:1.5px solid var(--auth-input-bdr);
+      border-radius:var(--r-md);
+      padding:13px 12px;
+      cursor:pointer;
+      transition:border-color var(--dt);
+    }
+    .country-picker:hover { border-color:var(--p600); }
+    .country-picker .flag {
+      width:24px; height:18px; border-radius:3px; overflow:hidden; flex-shrink:0;
+      background:linear-gradient(90deg, #008751 0% 33%, #fff 33% 67%, #008751 67% 100%);
+    }
+    .country-picker .code { color:var(--auth-card-on); font-size:15px; font-weight:600; }
+    .country-picker .material-icons-round { font-size:18px; color:var(--auth-card-on3); }
+    .phone-row .auth-input { flex:1; }
+
+    /* Inline helpers row (Remember + Forgot) */
+    .row-between {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-top:-4px;
+    }
+    .checkbox-label {
+      display:inline-flex; align-items:center; gap:9px;
+      cursor:pointer;
+      font-size:14px; color:var(--auth-card-on);
+    }
+    .checkbox-label .check-box {
+      width:20px; height:20px; border-radius:5px;
+      border:1.5px solid var(--auth-input-bdr);
+      background:var(--auth-input-bg);
+      display:flex; align-items:center; justify-content:center;
+      transition:all var(--dt); flex-shrink:0;
+    }
+    .checkbox-label.checked .check-box {
+      background:var(--p500);
+      border-color:var(--p600);
+    }
+    .checkbox-label.checked .check-box .material-icons-round {
+      font-size:14px; color:var(--n900); font-weight:700; display:block;
+    }
+    .checkbox-label .check-box .material-icons-round { display:none; }
+    .link {
+      color:var(--p400); font-size:14px; font-weight:600;
+      text-decoration:none; cursor:pointer;
+    }
+    .link:hover { color:var(--p300); text-decoration:underline; }
+
+    /* ─── Buttons ─────────────────────────────────────────────────── */
+    .btn-primary {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      width:100%; height:54px; border-radius:var(--r-lg);
+      background:var(--p500);
+      border:none;
+      color:var(--n900);
+      font-family:var(--font-body); font-size:16px; font-weight:700;
+      cursor:pointer;
+      box-shadow:0 4px 14px rgba(232,168,0,.28);
+      transition:transform var(--dt), box-shadow var(--dt), filter var(--dt);
+    }
+    .btn-primary:hover { filter:brightness(1.04); transform:translateY(-1px); box-shadow:0 6px 18px rgba(232,168,0,.4); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-primary.disabled { background:rgba(232,168,0,.25); color:rgba(0,0,0,.45); box-shadow:none; cursor:not-allowed; }
+    .btn-primary .material-icons-round { font-size:20px; }
+
+    .btn-ghost {
+      width:100%; height:48px; border:none; background:transparent;
+      color:var(--p400); font-family:var(--font-body); font-size:14px; font-weight:600;
+      cursor:pointer;
+      transition:color var(--dt);
+    }
+    .btn-ghost:hover { color:var(--p300); }
+
+    .btn-sso {
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      width:100%; height:52px; border-radius:var(--r-lg);
+      background:var(--auth-input-bg);
+      border:1.5px solid var(--auth-input-bdr);
+      color:var(--auth-card-on);
+      font-family:var(--font-body); font-size:14.5px; font-weight:600;
+      cursor:pointer;
+      transition: background var(--dt), border-color var(--dt);
+    }
+    .btn-sso:hover { background:#332f2b; border-color:var(--p600); }
+    .btn-sso .sso-svg { width:20px; height:20px; }
+
+    /* SSO stack — two equal-weight buttons */
+    .sso-stack { display:flex; flex-direction:column; gap:10px; }
+
+    /* ─── Divider ─────────────────────────────────────────────────── */
+    .divider {
+      display:flex; align-items:center; gap:14px;
+      color:var(--auth-card-on3); font-size:12px; font-weight:500;
+      text-transform:lowercase; letter-spacing:.04em;
+    }
+    .divider::before, .divider::after {
+      content:''; flex:1; height:1px; background:var(--auth-input-bdr);
+    }
+
+    /* ─── Footer line ─────────────────────────────────────────────── */
+    .footer-line {
+      text-align:center; color:var(--auth-card-on2); font-size:14px;
+      margin-top:-4px;
+    }
+    .footer-line a { color:var(--p400); font-weight:600; text-decoration:none; }
+    .footer-line a:hover { text-decoration:underline; }
+
+    /* Microcopy footer */
+    .microcopy {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      color:var(--auth-card-on3); font-size:12.5px;
+      text-align:center; line-height:1.5;
+    }
+    .microcopy .material-icons-round { font-size:14px; color:var(--p400); }
+
+    /* ─── Logo upload tile (workshop) ─────────────────────────────── */
+    .logo-upload {
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+      height:108px;
+      border:1.5px dashed var(--auth-input-bdr);
+      border-radius:var(--r-md);
+      background:rgba(255,255,255,.02);
+      cursor:pointer;
+      transition:border-color var(--dt), background var(--dt);
+    }
+    .logo-upload:hover { border-color:var(--p400); background:rgba(232,168,0,.04); }
+    .logo-upload .logo-upload-icon {
+      width:42px; height:42px; border-radius:var(--r-full);
+      background:rgba(232,168,0,.15);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .logo-upload .logo-upload-icon .material-icons-round {
+      font-size:22px; color:var(--p400);
+    }
+    .logo-upload .logo-upload-title { font-size:14px; font-weight:600; color:var(--auth-card-on); }
+    .logo-upload .logo-upload-sub { font-size:12px; color:var(--auth-card-on3); }
+
+    /* ─── Screen show/hide ──────────────────────────────────────── */
+    .screen { display:none; flex-direction:column; height:100%; }
+    .screen.active { display:flex; }
+
+    /* Workshop screen card needs slightly less top padding (room for pill) */
+    .screen[data-key="workshop"] .auth-card { padding-top:22px; gap:18px; }
+
+    /* Reduce gap inside dense forms */
+    .screen[data-key="signup"] .auth-card { gap:16px; }
+    .screen[data-key="signup"] .auth-card h2 { margin-bottom:-4px; }
+
+    /* For dark mode on whole page chrome (the body around the card) — harmless because the card itself is independent */
+    .phone-screen.dark { color:var(--on-surf); }
+
+    /* WhatsApp icon prefix bg */
+    .wa-prefix-bubble {
+      width:26px; height:26px; border-radius:50%;
+      background:var(--wa-green);
+      display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .wa-prefix-bubble svg { width:14px; height:14px; }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="crumb">
+    <span class="logo">StitchPad</span>
+    <span>·</span>
+    <span>Login redesign · v1</span>
+  </div>
+  <h1>Welcome back · Create account · Set up your workshop</h1>
+  <p>
+    Three auth screens, redesigned. Saffron hero stays consistent across all three for instant brand recognition.
+    The workshop step now treats the phone field as a <strong>WhatsApp number (Required)</strong> — it's our canonical
+    contact channel for support and customer follow-up. Toggle through the screens; the form card is intentionally dark
+    in both light and dark modes (premium auth treatment, like Stripe / Linear).
+  </p>
+</header>
+
+<nav class="nav-row">
+  <button class="screen-btn active" data-screen="login">Welcome back</button>
+  <button class="screen-btn" data-screen="signup">Create account</button>
+  <button class="screen-btn" data-screen="workshop">Set up your workshop</button>
+</nav>
+
+<div class="phones-row">
+
+  <!-- ══════════════════ LIGHT PHONE ══════════════════ -->
+  <div class="phone">
+    <div class="phone-mode-label light-label">☀ Light Mode</div>
+    <div class="phone-shell light-shell">
+      <div class="phone-screen" id="screen-root-light">
+
+        <!-- ── SCREEN: LOGIN (Welcome back) ── -->
+        <div class="screen active" data-key="login">
+          <section class="auth-hero photo">
+            <div class="status-bar">
+              <span class="status-time" style="color:#fff;">9:41</span>
+              <div class="status-icons">
+                <span class="material-icons-round" style="color:#fff;">signal_cellular_alt</span>
+                <span class="material-icons-round" style="color:#fff;">wifi</span>
+                <span class="material-icons-round" style="color:#fff;">battery_full</span>
+              </div>
+            </div>
+            <div class="auth-hero-inner">
+              <div class="logo-badge"><span class="s-mark">S</span></div>
+              <div class="brand-mark">STITCHPAD</div>
+              <div class="brand-tag">TAILORED FOR YOU</div>
+            </div>
+          </section>
+
+          <div class="auth-card">
+            <h2>Welcome back</h2>
+            <p class="auth-subtitle">Sign in to manage your orders, customers, and payments.</p>
+
+            <div class="auth-field-group">
+              <label class="auth-label">Email</label>
+              <div class="auth-input">
+                <span class="prefix-icon material-icons-round">mail_outline</span>
+                <input type="email" placeholder="you@email.com" />
+              </div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">Password</label>
+              <div class="auth-input">
+                <span class="prefix-icon material-icons-round">lock_outline</span>
+                <input type="password" value="••••••••" />
+                <button class="suffix-btn"><span class="material-icons-round">visibility_off</span></button>
+              </div>
+              <div class="auth-helper">At least 6 characters</div>
+            </div>
+
+            <div class="row-between">
+              <span class="checkbox-label checked" onclick="toggleCheck(this)">
+                <span class="check-box"><span class="material-icons-round">check</span></span>
+                Remember me
+              </span>
+              <a class="link">Forgot password?</a>
+            </div>
+
+            <button class="btn-primary">Sign in</button>
+
+            <div class="footer-line">Don't have an account? <a onclick="showScreen('signup')">Sign up</a></div>
+
+            <div class="divider">or continue with</div>
+
+            <div class="sso-stack">
+              <button class="btn-sso">
+                <svg class="sso-svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+                Continue with Google
+              </button>
+              <button class="btn-sso">
+                <svg class="sso-svg" viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.04c-.03-2.66 2.18-3.95 2.28-4.01-1.24-1.81-3.18-2.06-3.86-2.09-1.64-.17-3.21.97-4.04.97-.85 0-2.13-.95-3.51-.92-1.79.03-3.46 1.04-4.38 2.65-1.89 3.27-.48 8.1 1.34 10.74.92 1.31 1.99 2.76 3.39 2.71 1.37-.05 1.89-.88 3.55-.88 1.65 0 2.13.88 3.55.85 1.46-.03 2.39-1.32 3.27-2.62 1.04-1.5 1.46-2.96 1.48-3.04-.04-.02-2.83-1.08-2.86-4.32zM14.41 4.27c.74-.91 1.25-2.16 1.11-3.42-1.07.04-2.39.71-3.16 1.6-.69.79-1.3 2.07-1.14 3.3 1.2.09 2.43-.61 3.19-1.48z"/></svg>
+                Continue with Apple
+              </button>
+            </div>
+
+            <div class="microcopy">
+              <span class="material-icons-round">verified_user</span>
+              Secure sign-in for your tailoring business
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SCREEN: SIGNUP (Create account) ── -->
+        <div class="screen" data-key="signup">
+          <section class="auth-hero photo compact">
+            <div class="status-bar">
+              <span class="status-time" style="color:#fff;">9:41</span>
+              <div class="status-icons">
+                <span class="material-icons-round" style="color:#fff;">signal_cellular_alt</span>
+                <span class="material-icons-round" style="color:#fff;">wifi</span>
+                <span class="material-icons-round" style="color:#fff;">battery_full</span>
+              </div>
+            </div>
+            <div class="auth-hero-inner">
+              <div class="logo-badge" style="width:64px; height:64px; margin-bottom:6px;">
+                <span class="s-mark" style="font-size:32px;">S</span>
+              </div>
+              <div class="brand-mark" style="font-size:14px;">STITCHPAD</div>
+              <div class="brand-tag" style="font-size:8.5px;">TAILORED FOR YOU</div>
+            </div>
+          </section>
+
+          <div class="auth-card">
+            <h2>Create account</h2>
+            <p class="auth-subtitle">Get started with StitchPad and manage your tailoring business in one place.</p>
+
+            <div class="auth-field-group">
+              <label class="auth-label">Full name</label>
+              <div class="auth-input">
+                <span class="prefix-icon material-icons-round">person_outline</span>
+                <input type="text" placeholder="Enter your full name" />
+              </div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">Email</label>
+              <div class="auth-input">
+                <span class="prefix-icon material-icons-round">mail_outline</span>
+                <input type="email" placeholder="Enter your email address" />
+              </div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">Password</label>
+              <div class="auth-input">
+                <span class="prefix-icon material-icons-round">lock_outline</span>
+                <input type="password" placeholder="Create a password" value="••••••••" />
+                <button class="suffix-btn"><span class="material-icons-round">visibility_off</span></button>
+              </div>
+              <div class="auth-helper success">
+                <span class="material-icons-round">check_circle</span>
+                Use at least 6 characters
+              </div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">Confirm password</label>
+              <div class="auth-input">
+                <span class="prefix-icon material-icons-round">lock_outline</span>
+                <input type="password" placeholder="Re-enter your password" />
+                <button class="suffix-btn"><span class="material-icons-round">visibility_off</span></button>
+              </div>
+            </div>
+
+            <span class="checkbox-label" onclick="toggleCheck(this)">
+              <span class="check-box"><span class="material-icons-round">check</span></span>
+              <span>I agree to the <a class="link" style="font-size:14px;">Terms of Service</a> and <a class="link" style="font-size:14px;">Privacy Policy</a></span>
+            </span>
+
+            <button class="btn-primary disabled">Create account</button>
+
+            <div class="footer-line">Already have an account? <a onclick="showScreen('login')">Log in</a></div>
+
+            <div class="divider">or continue with</div>
+
+            <div class="sso-stack">
+              <button class="btn-sso">
+                <svg class="sso-svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+                Continue with Google
+              </button>
+              <button class="btn-sso">
+                <svg class="sso-svg" viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.04c-.03-2.66 2.18-3.95 2.28-4.01-1.24-1.81-3.18-2.06-3.86-2.09-1.64-.17-3.21.97-4.04.97-.85 0-2.13-.95-3.51-.92-1.79.03-3.46 1.04-4.38 2.65-1.89 3.27-.48 8.1 1.34 10.74.92 1.31 1.99 2.76 3.39 2.71 1.37-.05 1.89-.88 3.55-.88 1.65 0 2.13.88 3.55.85 1.46-.03 2.39-1.32 3.27-2.62 1.04-1.5 1.46-2.96 1.48-3.04-.04-.02-2.83-1.08-2.86-4.32zM14.41 4.27c.74-.91 1.25-2.16 1.11-3.42-1.07.04-2.39.71-3.16 1.6-.69.79-1.3 2.07-1.14 3.3 1.2.09 2.43-.61 3.19-1.48z"/></svg>
+                Continue with Apple
+              </button>
+            </div>
+
+            <div class="microcopy">
+              You can add customers, orders, and payments after sign up.
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SCREEN: WORKSHOP (Set up your workshop) ── -->
+        <div class="screen" data-key="workshop">
+          <section class="auth-hero photo compact">
+            <div class="status-bar">
+              <span class="status-time" style="color:#fff;">9:41</span>
+              <div class="status-icons">
+                <span class="material-icons-round" style="color:#fff;">signal_cellular_alt</span>
+                <span class="material-icons-round" style="color:#fff;">wifi</span>
+                <span class="material-icons-round" style="color:#fff;">battery_full</span>
+              </div>
+            </div>
+            <div class="auth-hero-inner">
+              <div class="logo-badge" style="width:68px; height:68px; margin-bottom:8px;">
+                <span class="s-mark" style="font-size:34px;">S</span>
+              </div>
+              <div class="brand-mark" style="font-size:16px;">STITCHPAD</div>
+              <div class="brand-tag">TAILORED FOR YOU</div>
+            </div>
+          </section>
+
+          <div class="auth-card">
+            <div style="text-align:center;">
+              <h2 style="font-size:26px;">Set up your workshop</h2>
+              <p class="auth-subtitle" style="margin-top:6px;">Personalise StitchPad for your brand</p>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">
+                <span class="material-icons-round" style="font-size:18px; color:var(--p400);">storefront</span>
+                Business name
+              </label>
+              <div class="auth-input">
+                <input type="text" placeholder="e.g. Ade Fashions" />
+              </div>
+              <div class="auth-helper">Shown on your dashboard. You can change this later.</div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">
+                <span class="wa-prefix-bubble">
+                  <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                </span>
+                WhatsApp number
+                <span class="req-chip">Required</span>
+              </label>
+              <div class="phone-row">
+                <div class="country-picker">
+                  <span class="flag"></span>
+                  <span class="code">+234</span>
+                  <span class="material-icons-round">expand_more</span>
+                </div>
+                <div class="auth-input">
+                  <input type="tel" placeholder="801 234 5678" />
+                </div>
+              </div>
+              <div class="auth-helper wa-helper">
+                <svg class="wa-svg" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.
+              </div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="auth-label">
+                <span class="material-icons-round" style="font-size:18px; color:var(--p400);">image</span>
+                Business logo
+                <span style="font-size:11px; font-weight:500; color:var(--auth-card-on3); text-transform:none; letter-spacing:0;">(optional)</span>
+              </label>
+              <div class="logo-upload">
+                <div class="logo-upload-icon"><span class="material-icons-round">photo_camera</span></div>
+                <div class="logo-upload-title">Upload logo</div>
+                <div class="logo-upload-sub">PNG, JPG or SVG · Max 2MB</div>
+              </div>
+            </div>
+
+            <button class="btn-primary">
+              Continue
+              <span class="material-icons-round">arrow_forward</span>
+            </button>
+
+            <button class="btn-ghost">Skip for now</button>
+          </div>
+        </div>
+
+      </div><!-- /phone-screen light -->
+    </div><!-- /phone-shell light -->
+  </div><!-- /light phone -->
+
+  <!-- ══════════════════ DARK PHONE ══════════════════ -->
+  <div class="phone">
+    <div class="phone-mode-label dark-label">🌙 Dark Mode</div>
+    <div class="phone-shell dark-shell">
+      <div class="phone-screen dark" id="screen-root-dark">
+        <!-- Populated by JS clone -->
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phones-row -->
+
+<!-- ─── Why-this-direction note ─── -->
+<section style="max-width:880px; margin:32px auto 0; padding:28px; border:1px solid rgba(232,168,0,.22); border-radius:24px; background:linear-gradient(135deg, rgba(232,168,0,.08), rgba(232,168,0,.02));">
+  <h3 style="color:var(--p400); font-size:17px; margin-bottom:12px;">Why this direction</h3>
+  <ul style="color:rgba(255,255,255,.72); font-size:14px; line-height:1.75; list-style:none; display:flex; flex-direction:column; gap:8px;">
+    <li>· <strong style="color:#fff;">One hero treatment across all 3 screens</strong> — photo background (<code style="background:rgba(255,255,255,.08); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px;">auth_background.webp</code>) with logo badge + STITCHPAD + TAILORED FOR YOU lockup. Consistency = trust on auth flows.</li>
+    <li>· <strong style="color:#fff;">PNG → WebP conversion</strong> — 2.3 MB → 90 KB at 1024w q82 (≈26× smaller). For shipping to the iOS/Android bundle, generate a 384/512/768 webp set following the existing <code style="background:rgba(255,255,255,.08); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px;">stitchpad_assets_webp/</code> pattern.</li>
+    <li>· <strong style="color:#fff;">Glow-halo on the logo badge</strong> — recreates the lit-from-behind effect from mockups #11/#12 so the white circle pops against the warm cloth.</li>
+    <li>· <strong style="color:#fff;">Brand mark sits on the photo, not under it</strong> — STITCHPAD black + TAILORED FOR YOU dim with a soft white text-shadow for legibility on the brighter saffron-cloth zones.</li>
+    <li>· <strong style="color:#fff;">Dark form card in both light + dark mode</strong> — premium auth treatment. Login/signup forms are typically theme-agnostic in this category (Stripe, Linear, Notion auth flows).</li>
+    <li>· <strong style="color:#fff;">WhatsApp = Required</strong> — explicit chip + green WhatsApp icon. The mockup with an opt-in toggle (#7) contradicted the new product requirement that this is the canonical contact channel for support and customer follow-up.</li>
+    <li>· <strong style="color:#fff;">No "Step 1 of 2" indicator (single step)</strong> — fair pushback from you: the indicator was speculative, with no defined step 2. Removed for now. If you want a multi-step flow later, three credible candidates for step 2 are listed below.</li>
+    <li>· <strong style="color:#fff;">Validation = format + self-attestation (V1)</strong> — reuses existing <code style="background:rgba(255,255,255,.08); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px;">PhoneNormaliser.normaliseNigerianPhone()</code>. Backend WhatsApp Cloud API verification is a future ticket once you've onboarded paying tailors.</li>
+    <li>· <strong style="color:#fff;">Sign in with Apple ships with Google, not after</strong> — App Store Review Guideline 4.8 requires Apple Sign-In as a peer to any third-party SSO on iOS. Submissions without it get rejected. Apple Developer Program enrollment ($99/yr + DUNS verification) is a prerequisite, not a feature decision — if it's blocking, ship email/password only until the dev account is ready.</li>
+  </ul>
+
+  <h3 style="color:var(--p400); font-size:15px; margin-top:24px; margin-bottom:10px;">If we ever want a Step 2 — three real candidates</h3>
+  <ul style="color:rgba(255,255,255,.72); font-size:13.5px; line-height:1.7; list-style:none; display:flex; flex-direction:column; gap:6px;">
+    <li>· <strong style="color:#fff;">Measurement schema picker</strong> — tailor selects which body fields they collect (chest, waist, hip, sleeve, inseam, agbada length, etc.). Pre-configures the new-customer form they'll fill 50× a week. <em style="color:rgba(255,255,255,.55);">Highest product value; biggest design pass.</em></li>
+    <li>· <strong style="color:#fff;">Notification preferences</strong> — WhatsApp reminder cadence (daily/weekly), email opt-in. Sets up the WhatsApp pipeline the workshop step just declared canonical. <em style="color:rgba(255,255,255,.55);">Smallest scope, weakest hook for first-run.</em></li>
+    <li>· <strong style="color:#fff;">Subscription tier choice</strong> — Free (5 customers/mo) vs Premium ₦500 / ₦1000. Forces the conversion conversation upfront. <em style="color:rgba(255,255,255,.55);">Riskiest — too pushy on first run; better as a soft nudge later.</em></li>
+  </ul>
+</section>
+
+<script>
+  const SCREEN_KEYS = ['login','signup','workshop'];
+
+  function buildDarkPhone() {
+    const lightRoot = document.getElementById('screen-root-light');
+    const darkRoot  = document.getElementById('screen-root-dark');
+    const clone = lightRoot.cloneNode(true);
+    clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    clone.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
+    clone.querySelectorAll('input').forEach(el => el.setAttribute('tabindex', '-1'));
+    darkRoot.innerHTML = '';
+    Array.from(clone.childNodes).forEach(n => darkRoot.appendChild(n));
+  }
+
+  function applyScreen(rootEl, key) {
+    const screens = rootEl.querySelectorAll('.screen');
+    screens.forEach(s => s.classList.toggle('active', s.dataset.key === key));
+  }
+
+  function showScreen(key) {
+    applyScreen(document.getElementById('screen-root-light'), key);
+    applyScreen(document.getElementById('screen-root-dark'), key);
+    document.querySelectorAll('.screen-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.screen === key);
+    });
+  }
+
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+  }
+
+  document.querySelectorAll('.screen-btn').forEach(btn => {
+    btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+  });
+
+  buildDarkPhone();
+</script>
+</body>
+</html>

@@ -73,6 +73,15 @@ class SignUpViewModel(
                     _events.send(SignUpEvent.NavigateToLogin)
                 }
             }
+            SignUpAction.OnTermsToggle -> {
+                _state.update { it.copy(acceptedTerms = !it.acceptedTerms) }
+            }
+            SignUpAction.OnTermsLinkClick,
+            SignUpAction.OnPrivacyLinkClick,
+            SignUpAction.OnGoogleSignInClick,
+            SignUpAction.OnAppleSignInClick -> {
+                viewModelScope.launch { _events.send(SignUpEvent.ShowComingSoon) }
+            }
         }
     }
 
@@ -132,6 +141,7 @@ class SignUpViewModel(
     }
 
     private fun signUp() {
+        if (!_state.value.acceptedTerms) return
         val results = listOf(validateDisplayName(), validateEmail(), validatePassword(), validateConfirmPassword())
         if (results.any { !it }) return
 

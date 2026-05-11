@@ -139,6 +139,7 @@ class SignUpViewModelTest {
         // All fields invalid: blank name, bad email, short password, mismatched confirm
         viewModel.onAction(SignUpAction.OnPasswordChange("123"))
         viewModel.onAction(SignUpAction.OnConfirmPasswordChange("456"))
+        viewModel.onAction(SignUpAction.OnTermsToggle) // accept terms so validation runs
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
         assertNotNull(viewModel.state.value.displayNameError)
@@ -151,6 +152,7 @@ class SignUpViewModelTest {
 
     @Test
     fun displayNameChangeClearsError() {
+        viewModel.onAction(SignUpAction.OnTermsToggle) // accept terms so validation runs
         viewModel.onAction(SignUpAction.OnSignUpClick)
         assertNotNull(viewModel.state.value.displayNameError)
 
@@ -222,6 +224,41 @@ class SignUpViewModelTest {
         assertIs<SignUpEvent.NavigateToLogin>(event)
     }
 
+    // --- Terms + SSO ---
+
+    @Test
+    fun `OnTermsToggle flips acceptedTerms`() = runTest {
+        assertFalse(viewModel.state.first().acceptedTerms)
+        viewModel.onAction(SignUpAction.OnTermsToggle)
+        assertTrue(viewModel.state.first().acceptedTerms)
+    }
+
+    @Test
+    fun `OnSignUpClick is no-op when terms not accepted`() = runTest {
+        viewModel.onAction(SignUpAction.OnDisplayNameChange("Ade"))
+        viewModel.onAction(SignUpAction.OnEmailChange("ade@stitchpad.app"))
+        viewModel.onAction(SignUpAction.OnPasswordChange("longenoughpw"))
+        viewModel.onAction(SignUpAction.OnConfirmPasswordChange("longenoughpw"))
+        // acceptedTerms is still false
+        viewModel.onAction(SignUpAction.OnSignUpClick)
+        // Verify no signUp call hit the fake repo
+        assertEquals(0, authRepository.signUpInvocationCount)
+    }
+
+    @Test
+    fun `OnGoogleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(SignUpAction.OnGoogleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(SignUpEvent.ShowComingSoon, event)
+    }
+
+    @Test
+    fun `OnAppleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(SignUpAction.OnAppleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(SignUpEvent.ShowComingSoon, event)
+    }
+
     // --- Helper ---
 
     private fun fillValidForm() {
@@ -229,5 +266,6 @@ class SignUpViewModelTest {
         viewModel.onAction(SignUpAction.OnEmailChange("ade@gmail.com"))
         viewModel.onAction(SignUpAction.OnPasswordChange("pass123"))
         viewModel.onAction(SignUpAction.OnConfirmPasswordChange("pass123"))
+        viewModel.onAction(SignUpAction.OnTermsToggle)
     }
 }

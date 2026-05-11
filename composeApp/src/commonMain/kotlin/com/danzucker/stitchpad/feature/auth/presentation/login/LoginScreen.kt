@@ -1,61 +1,49 @@
 package com.danzucker.stitchpad.feature.auth.presentation.login
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.feature.onboarding.presentation.components.StitchPadLogo
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
+import com.danzucker.stitchpad.feature.auth.presentation.components.SsoButtonRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -63,6 +51,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.auth_coming_soon
 import stitchpad.composeapp.generated.resources.cd_password_hide
 import stitchpad.composeapp.generated.resources.cd_password_show
 import stitchpad.composeapp.generated.resources.login_button
@@ -71,7 +60,9 @@ import stitchpad.composeapp.generated.resources.login_forgot_password
 import stitchpad.composeapp.generated.resources.login_no_account
 import stitchpad.composeapp.generated.resources.login_password_hint
 import stitchpad.composeapp.generated.resources.login_password_label
+import stitchpad.composeapp.generated.resources.login_secure_microcopy
 import stitchpad.composeapp.generated.resources.login_sign_up
+import stitchpad.composeapp.generated.resources.login_subtitle
 import stitchpad.composeapp.generated.resources.login_title
 import stitchpad.composeapp.generated.resources.placeholder_email
 import stitchpad.composeapp.generated.resources.placeholder_password
@@ -81,11 +72,12 @@ fun LoginRoot(
     onNavigateToSignUp: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
     onNavigateToHome: () -> Unit,
-    viewModel: LoginViewModel = koinViewModel()
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val comingSoon = stringResource(Res.string.auth_coming_soon)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -101,274 +93,204 @@ fun LoginRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
+            LoginEvent.ShowComingSoon -> {
+                scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+            }
         }
     }
 
     LoginScreen(
         state = state,
         snackbarHostState = snackbarHostState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     state: LoginState,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onAction: (LoginAction) -> Unit
+    snackbarHostState: SnackbarHostState,
+    onAction: (LoginAction) -> Unit,
 ) {
-    val inputColors = OutlinedTextFieldDefaults.colors(
-        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-        focusedContainerColor = MaterialTheme.colorScheme.surface
-    )
-    var hasEmailFocused by remember { mutableStateOf(false) }
-    var hasPasswordFocused by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DesignTokens.neutral900),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            AuthHero()
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { focusManager.clearFocus() })
-                }
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Saffron header with logo
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(DesignTokens.primary500),
-                contentAlignment = Alignment.Center
-            ) {
-                StitchPadLogo(size = 64.dp)
-            }
-
-            // White card overlapping header
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .offset(y = (-24).dp)
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = DesignTokens.space4, vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            AuthCard {
+                // 1. Title
                 Text(
                     text = stringResource(Res.string.login_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = TextStyle(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFFF5F2ED),
+                        textAlign = TextAlign.Center,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
                 )
-                Spacer(modifier = Modifier.height(28.dp))
 
-                // Email field
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(Res.string.login_email_label),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    val emailInteractionSource = remember { MutableInteractionSource() }
-                    BasicTextField(
-                        value = state.email,
-                        onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        interactionSource = emailInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    hasEmailFocused = true
-                                } else if (hasEmailFocused) {
-                                    onAction(LoginAction.OnEmailBlur)
-                                }
-                            },
-                        decorationBox = { innerTextField ->
-                            OutlinedTextFieldDefaults.DecorationBox(
-                                value = state.email,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = VisualTransformation.None,
-                                interactionSource = emailInteractionSource,
-                                isError = state.emailError != null,
-                                placeholder = { Text(stringResource(Res.string.placeholder_email)) },
-                                supportingText = state.emailError?.let { error -> { Text(error.asString()) } },
-                                colors = inputColors,
-                                container = {
-                                    OutlinedTextFieldDefaults.ContainerBox(
-                                        enabled = true,
-                                        isError = state.emailError != null,
-                                        interactionSource = emailInteractionSource,
-                                        colors = inputColors,
-                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                                        focusedBorderThickness = 1.dp,
-                                        unfocusedBorderThickness = 1.dp
-                                    )
-                                }
-                            )
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space3))
+                // 2. Subtitle
+                Text(
+                    text = stringResource(Res.string.login_subtitle),
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color(0xFFA8A49D),
+                        textAlign = TextAlign.Center,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
 
-                // Password field
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(Res.string.login_password_label),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    val passwordVisualTransformation = if (state.isPasswordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    }
-                    val passwordInteractionSource = remember { MutableInteractionSource() }
-                    BasicTextField(
+                // 3. Email field
+                AuthTextField(
+                    label = stringResource(Res.string.login_email_label),
+                    value = state.email,
+                    onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
+                    leadingIcon = Icons.Outlined.Mail,
+                    keyboardType = KeyboardType.Email,
+                    placeholder = stringResource(Res.string.placeholder_email),
+                    errorText = state.emailError?.asString(),
+                    onFocusLost = { onAction(LoginAction.OnEmailBlur) },
+                )
+
+                // 4. Password field + helper / Forgot password row, tightly grouped
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AuthTextField(
+                        label = stringResource(Res.string.login_password_label),
                         value = state.password,
                         onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
+                        leadingIcon = Icons.Outlined.Lock,
+                        isPassword = true,
+                        isPasswordVisible = state.isPasswordVisible,
+                        onTogglePassword = { onAction(LoginAction.OnTogglePasswordVisibility) },
+                        trailingPasswordVisibilityIcon = if (state.isPasswordVisible) {
+                            Icons.Outlined.VisibilityOff
+                        } else {
+                            Icons.Outlined.Visibility
+                        },
+                        passwordVisibilityContentDescription = stringResource(
+                            if (state.isPasswordVisible) {
+                                Res.string.cd_password_hide
+                            } else {
+                                Res.string.cd_password_show
+                            }
                         ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus() }
-                        ),
-                        visualTransformation = passwordVisualTransformation,
-                        interactionSource = passwordInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    hasPasswordFocused = true
-                                } else if (hasPasswordFocused) {
-                                    onAction(LoginAction.OnPasswordBlur)
-                                }
+                        placeholder = stringResource(Res.string.placeholder_password),
+                        errorText = state.passwordError?.asString(),
+                        onFocusLost = { onAction(LoginAction.OnPasswordBlur) },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (state.passwordError == null) {
+                                stringResource(Res.string.login_password_hint)
+                            } else {
+                                ""
                             },
-                        decorationBox = { innerTextField ->
-                            OutlinedTextFieldDefaults.DecorationBox(
-                                value = state.password,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = passwordVisualTransformation,
-                                interactionSource = passwordInteractionSource,
-                                isError = state.passwordError != null,
-                                placeholder = { Text(stringResource(Res.string.placeholder_password)) },
-                                supportingText = state.passwordError?.let { error ->
-                                    {
-                                        Text(error.asString())
-                                    }
-                                } ?: {
-                                    Text(
-                                        text = stringResource(Res.string.login_password_hint),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { onAction(LoginAction.OnTogglePasswordVisibility) }
-                                    ) {
-                                        Icon(
-                                            imageVector = if (state.isPasswordVisible) {
-                                                Icons.Outlined.VisibilityOff
-                                            } else {
-                                                Icons.Outlined.Visibility
-                                            },
-                                            contentDescription = if (state.isPasswordVisible) {
-                                                stringResource(Res.string.cd_password_hide)
-                                            } else {
-                                                stringResource(Res.string.cd_password_show)
-                                            },
-                                            tint = DesignTokens.neutral400
-                                        )
-                                    }
-                                },
-                                colors = inputColors,
-                                container = {
-                                    OutlinedTextFieldDefaults.ContainerBox(
-                                        enabled = true,
-                                        isError = state.passwordError != null,
-                                        interactionSource = passwordInteractionSource,
-                                        colors = inputColors,
-                                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                                        focusedBorderThickness = 1.dp,
-                                        unfocusedBorderThickness = 1.dp
-                                    )
-                                }
-                            )
-                        }
-                    )
+                            style = TextStyle(fontSize = 12.5.sp, color = Color(0xFFA8A49D)),
+                        )
+                        Text(
+                            text = stringResource(Res.string.login_forgot_password),
+                            style = TextStyle(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = DesignTokens.primary400,
+                            ),
+                            modifier = Modifier.clickable { onAction(LoginAction.OnForgotPasswordClick) },
+                        )
+                    }
                 }
 
-                // Forgot password link
-                TextButton(
-                    onClick = { onAction(LoginAction.OnForgotPasswordClick) },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(
-                        text = stringResource(Res.string.login_forgot_password),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = DesignTokens.primary500
-                    )
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space3))
-
-                // Sign In button
+                // 5. Sign-in button
                 Button(
                     onClick = { onAction(LoginAction.OnLoginClick) },
-                    enabled = !state.isLoading,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    enabled = !state.isLoading &&
+                        state.email.isNotBlank() &&
+                        state.password.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DesignTokens.primary500,
+                        contentColor = DesignTokens.neutral900,
+                        disabledContainerColor = DesignTokens.neutral700,
+                        disabledContentColor = DesignTokens.neutral500,
+                    ),
                 ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(Res.string.login_button))
-                    }
-                }
-                Spacer(modifier = Modifier.height(DesignTokens.space4))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(Res.string.login_no_account),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = stringResource(Res.string.login_button),
+                        style = TextStyle(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
                     )
-                    TextButton(onClick = { onAction(LoginAction.OnSignUpClick) }) {
-                        Text(stringResource(Res.string.login_sign_up))
-                    }
+                }
+
+                // 6. Sign-up footer
+                val noAccount = stringResource(Res.string.login_no_account)
+                val signUp = stringResource(Res.string.login_sign_up)
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = Color(0xFFA8A49D), fontSize = 14.sp)) {
+                            append("$noAccount ")
+                        }
+                        withStyle(
+                            SpanStyle(
+                                color = DesignTokens.primary400,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                        ) {
+                            append(signUp)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAction(LoginAction.OnSignUpClick) },
+                    textAlign = TextAlign.Center,
+                )
+
+                // 7. SSO button row
+                SsoButtonRow(
+                    onGoogleClick = { onAction(LoginAction.OnGoogleSignInClick) },
+                    onAppleClick = { onAction(LoginAction.OnAppleSignInClick) },
+                    enabled = !state.isSsoLoading,
+                )
+
+                // 8. Secure microcopy
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.login_secure_microcopy),
+                        style = TextStyle(
+                            fontSize = 12.5.sp,
+                            color = Color(0xFF7D7970),
+                            textAlign = TextAlign.Center,
+                        ),
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp),
+        )
     }
 }
 
@@ -377,7 +299,11 @@ fun LoginScreen(
 @Preview
 private fun LoginScreenPreview() {
     StitchPadTheme {
-        LoginScreen(state = LoginState(), onAction = {})
+        LoginScreen(
+            state = LoginState(),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+        )
     }
 }
 
@@ -389,9 +315,10 @@ private fun LoginScreenFilledPreview() {
         LoginScreen(
             state = LoginState(
                 email = "tailor@stitchpad.app",
-                password = "password123"
+                password = "password123",
             ),
-            onAction = {}
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
         )
     }
 }

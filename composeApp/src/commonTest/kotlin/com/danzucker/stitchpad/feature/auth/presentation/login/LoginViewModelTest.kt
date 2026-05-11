@@ -119,4 +119,18 @@ class LoginViewModelTest {
         val event = viewModel.events.first()
         assertIs<LoginEvent.NavigateToSignUp>(event)
     }
+
+    @Test
+    fun `OnGoogleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(LoginAction.OnGoogleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(LoginEvent.ShowComingSoon, event)
+    }
+
+    @Test
+    fun `OnAppleSignInClick emits ShowComingSoon`() = runTest {
+        viewModel.onAction(LoginAction.OnAppleSignInClick)
+        val event = viewModel.events.first()
+        assertEquals(LoginEvent.ShowComingSoon, event)
+    }
 }

@@ -7,6 +7,6 @@ interface UserRepository {
     suspend fun createUserProfile(
         userId: String,
         businessName: String?,
-        phone: String?
+        whatsappNumber: String?,
     ): EmptyResult<DataError.Network>
 }

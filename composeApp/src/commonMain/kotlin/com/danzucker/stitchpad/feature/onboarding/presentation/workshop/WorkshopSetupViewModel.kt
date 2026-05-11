@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
+import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
+import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.channels.Channel
@@ -15,10 +18,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
-import stitchpad.composeapp.generated.resources.error_phone_too_long
-import stitchpad.composeapp.generated.resources.error_phone_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
+import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
 
 class WorkshopSetupViewModel(
     private val userRepository: UserRepository,
@@ -37,15 +39,15 @@ class WorkshopSetupViewModel(
             is WorkshopSetupAction.OnBusinessNameChange -> {
                 _state.update { it.copy(businessName = action.name, businessNameError = null) }
             }
-            is WorkshopSetupAction.OnPhoneChange -> {
-                val filtered = action.phone.filter { it.isDigit() || it in "+- ()" }.take(20)
-                _state.update { it.copy(phone = filtered, phoneError = null) }
+            is WorkshopSetupAction.OnWhatsAppNumberChange -> {
+                val capped = capWhatsAppDigits(action.raw)
+                _state.update { it.copy(whatsappNumber = capped, whatsappError = null) }
             }
             WorkshopSetupAction.OnBusinessNameBlur -> {
                 if (_state.value.businessName.isNotBlank()) validateBusinessName()
             }
-            WorkshopSetupAction.OnPhoneBlur -> {
-                if (_state.value.phone.isNotBlank()) validatePhone()
+            WorkshopSetupAction.OnWhatsAppNumberBlur -> {
+                if (_state.value.whatsappNumber.isNotBlank()) validateWhatsAppNumber()
             }
             WorkshopSetupAction.OnContinueClick -> onContinue()
             WorkshopSetupAction.OnSkipClick -> {
@@ -54,51 +56,39 @@ class WorkshopSetupViewModel(
                     _events.send(WorkshopSetupEvent.NavigateToHome)
                 }
             }
+            WorkshopSetupAction.OnLogoUploadClick -> {
+                viewModelScope.launch { _events.send(WorkshopSetupEvent.ShowComingSoon) }
+            }
         }
     }
 
     private fun validateBusinessName(): Boolean {
-        val name = _state.value.businessName
-        if (name.isNotBlank() && name.trim().length < 2) {
+        val name = _state.value.businessName.trim()
+        if (name.length < 2) {
             _state.update { it.copy(businessNameError = Res.string.error_business_name_too_short) }
             return false
         }
         return true
     }
 
-    private fun validatePhone(): Boolean {
-        val phone = _state.value.phone
-        if (phone.isBlank()) return true
-        val digitsOnly = phone.filter { it.isDigit() }
-        return when {
-            digitsOnly.length < 7 -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_too_short) }
-                false
-            }
-            digitsOnly.length > 15 -> {
-                _state.update { it.copy(phoneError = Res.string.error_phone_too_long) }
-                false
-            }
-            else -> true
+    private fun validateWhatsAppNumber(): Boolean {
+        val raw = _state.value.whatsappNumber.trim()
+        if (raw.isBlank()) return true
+        val withCountry = applyImpliedNigerianCountryCode(raw)
+        return if (validateNigerianMobileE164(withCountry)) {
+            true
+        } else {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
+            false
         }
     }
 
     private fun onContinue() {
         val nameValid = validateBusinessName()
-        val phoneValid = validatePhone()
-        if (!nameValid || !phoneValid) return
+        val waValid = validateWhatsAppNumber()
+        if (!nameValid || !waValid) return
 
-        val currentState = _state.value
-        val hasData = currentState.businessName.isNotBlank() || currentState.phone.isNotBlank()
-
-        if (!hasData) {
-            viewModelScope.launch {
-                onboardingPreferences.setWorkshopSetupCompleted()
-                _events.send(WorkshopSetupEvent.NavigateToHome)
-            }
-            return
-        }
-
+        val state = _state.value
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
@@ -112,11 +102,12 @@ class WorkshopSetupViewModel(
                     _events.send(WorkshopSetupEvent.NavigateToLogin)
                     return@launch
                 }
-
+                val whatsappE164 = state.whatsappNumber.trim().takeIf { it.isNotBlank() }
+                    ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
                 val result = userRepository.createUserProfile(
                     userId = user.id,
-                    businessName = currentState.businessName.trim().ifBlank { null },
-                    phone = currentState.phone.trim().ifBlank { null }
+                    businessName = state.businessName.trim().ifBlank { null },
+                    whatsappNumber = whatsappE164,
                 )
                 when (result) {
                     is Result.Success -> {
@@ -131,6 +122,27 @@ class WorkshopSetupViewModel(
                 }
             } finally {
                 _state.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private companion object {
+        // Nigerian E.164 has 13 digits (country code 234 + 10-digit subscriber).
+        // Cap on digit count, not raw length, so that formatted paste like
+        // "+234 803 123 4567" is preserved (17 chars, 13 digits).
+        const val MAX_WHATSAPP_DIGITS = 13
+
+        fun capWhatsAppDigits(raw: String): String = buildString {
+            var digits = 0
+            raw.forEach { c ->
+                val isDigit = c.isDigit()
+                val isAcceptedFormatting = c in "+- ()"
+                val keep = when {
+                    isDigit && digits < MAX_WHATSAPP_DIGITS -> true.also { digits++ }
+                    isAcceptedFormatting -> true
+                    else -> false
+                }
+                if (keep) append(c)
             }
         }
     }

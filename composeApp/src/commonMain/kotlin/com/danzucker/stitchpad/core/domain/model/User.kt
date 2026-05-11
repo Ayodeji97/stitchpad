@@ -6,5 +6,6 @@ data class User(
     val displayName: String,
     val businessName: String?,
     val phoneNumber: String?,
+    val whatsappNumber: String?,
     val avatarColorIndex: Int
 )
