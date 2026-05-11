@@ -69,8 +69,8 @@ import stitchpad.composeapp.generated.resources.workshop_subtitle
 import stitchpad.composeapp.generated.resources.workshop_title
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
-import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
 
 @Composable
 fun WorkshopSetupRoot(
