@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -28,6 +29,7 @@ class LoginViewModel(
     private val _events = Channel<LoginEvent>()
     val events = _events.receiveAsFlow()
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: LoginAction) {
         when (action) {
             is LoginAction.OnEmailChange -> {
@@ -56,8 +58,17 @@ class LoginViewModel(
                     _events.send(LoginEvent.NavigateToForgotPassword)
                 }
             }
-            LoginAction.OnGoogleSignInClick -> {
-                viewModelScope.launch { _events.send(LoginEvent.ShowComingSoon) }
+            LoginAction.OnGoogleSignInClick -> viewModelScope.launch {
+                _state.update { it.copy(isSsoLoading = true) }
+                when (val result = authRepository.signInWithGoogle()) {
+                    is Result.Success -> _events.send(LoginEvent.NavigateToHome)
+                    is Result.Error -> {
+                        if (result.error != AuthError.SSO_CANCELLED) {
+                            _events.send(LoginEvent.ShowError(result.error.toUiText()))
+                        }
+                    }
+                }
+                _state.update { it.copy(isSsoLoading = false) }
             }
             LoginAction.OnAppleSignInClick -> {
                 viewModelScope.launch { _events.send(LoginEvent.ShowComingSoon) }

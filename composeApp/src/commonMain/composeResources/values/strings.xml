@@ -8,6 +8,10 @@
     <string name="error_user_not_found">No account found with this email</string>
     <string name="error_too_many_requests">Too many attempts. Please try again later</string>
     <string name="error_no_internet">No internet connection</string>
+    <string name="error_requires_recent_login">Please sign in again, then retry.</string>
+    <string name="error_sso_cancelled">Sign-in cancelled.</string>
+    <string name="error_sso_email_collision">This email is already registered. Sign in with email &amp; password.</string>
+    <string name="error_sso_unavailable">This sign-in method is not available on this device.</string>
     <string name="error_unknown">Something went wrong. Please try again</string>
     <string name="error_session_expired">Your session has expired. Please sign in again</string>
 
