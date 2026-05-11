@@ -218,7 +218,16 @@ class DashboardViewModel(
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
-            val firstName = firstNameOf(user.displayName)
+            // Apple Sign-In only returns fullName on the very first auth per Apple ID
+            // per app (Apple's privacy model). Re-auths and failed-first-attempts come
+            // back with no name, so displayName ends up blank. Fall back to the email's
+            // local-part split on common separators so the greeting + avatar show
+            // something sensible instead of "?".
+            val nameSource = user.displayName.ifBlank {
+                user.email.substringBefore('@')
+                    .replace('.', ' ').replace('_', ' ').replace('-', ' ')
+            }
+            val firstName = firstNameOf(nameSource)
             val workshopName = user.businessName?.takeIf { it.isNotBlank() }
 
             combine(
