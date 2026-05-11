@@ -18,5 +18,9 @@ fun AuthError.toUiText(): UiText = when (this) {
     AuthError.USER_NOT_FOUND -> UiText.StringResourceText(Res.string.error_user_not_found)
     AuthError.TOO_MANY_REQUESTS -> UiText.StringResourceText(Res.string.error_too_many_requests)
     AuthError.NETWORK_ERROR -> UiText.StringResourceText(Res.string.error_no_internet)
+    AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER -> UiText.StringResourceText(Res.string.error_unknown)
+    AuthError.REQUIRES_RECENT_LOGIN -> UiText.StringResourceText(Res.string.error_unknown)
+    AuthError.SSO_CANCELLED -> UiText.StringResourceText(Res.string.error_unknown)
+    AuthError.SSO_UNAVAILABLE -> UiText.StringResourceText(Res.string.error_unknown)
     AuthError.UNKNOWN -> UiText.StringResourceText(Res.string.error_unknown)
 }
