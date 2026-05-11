@@ -6,17 +6,20 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SsoError
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
 import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
 import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
+import dev.gitlive.firebase.auth.GoogleAuthProvider
 import kotlin.math.abs
 
 private const val TAG = "AuthRepo"
 
 class FirebaseAuthRepository(
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val ssoCredentialProvider: SsoCredentialProvider,
 ) : AuthRepository {
 
     override suspend fun signUpWithEmail(
@@ -52,8 +55,26 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun signInWithGoogle(): Result<User, AuthError> {
-        // TODO(Task 13): real impl using SsoCredentialProvider + Firebase signInWithCredential
-        return Result.Error(AuthError.UNKNOWN)
+        return when (val tokenResult = ssoCredentialProvider.getGoogleIdToken()) {
+            is Result.Error -> Result.Error(tokenResult.error.toAuthError())
+            is Result.Success -> exchangeGoogleToken(tokenResult.data)
+        }
+    }
+
+    private suspend fun exchangeGoogleToken(idToken: String): Result<User, AuthError> {
+        return try {
+            val credential = GoogleAuthProvider.credential(idToken, null)
+            val authResult = firebaseAuth.signInWithCredential(credential)
+            val firebaseUser = authResult.user
+                ?: return Result.Error(AuthError.UNKNOWN)
+            Result.Success(firebaseUser.toDomainUser())
+        } catch (e: FirebaseAuthUserCollisionException) {
+            AppLogger.e(tag = TAG, throwable = e) { "Google sign-in collision" }
+            Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "Google credential exchange failed" }
+            Result.Error(e.toAuthError())
+        }
     }
 
     override suspend fun signInWithApple(): Result<User, AuthError> {
@@ -119,4 +140,11 @@ private fun Exception.toAuthError(): AuthError = when {
     message?.contains("TOO_MANY_ATTEMPTS", ignoreCase = true) == true -> AuthError.TOO_MANY_REQUESTS
     message?.contains("NETWORK", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
     else -> AuthError.UNKNOWN
+}
+
+private fun SsoError.toAuthError(): AuthError = when (this) {
+    SsoError.CANCELLED -> AuthError.SSO_CANCELLED
+    SsoError.NO_PROVIDER -> AuthError.SSO_UNAVAILABLE
+    SsoError.NETWORK -> AuthError.NETWORK_ERROR
+    SsoError.UNKNOWN -> AuthError.UNKNOWN
 }
