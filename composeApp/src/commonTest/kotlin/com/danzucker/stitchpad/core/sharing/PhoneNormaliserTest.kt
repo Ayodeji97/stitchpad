@@ -2,13 +2,21 @@ package com.danzucker.stitchpad.core.sharing
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PhoneNormaliserTest {
 
+    // --- normaliseNigerianPhone ---
+
     @Test
-    fun normaliseNigerianPhone_stripsTrunkZeroAndPrependsCountryCode() {
+    fun `normaliseNigerianPhone strips trunk prefix`() {
         assertEquals("2348031234567", normaliseNigerianPhone("0803 123 4567"))
+    }
+
+    @Test
+    fun `normaliseNigerianPhone keeps E164 form`() {
+        assertEquals("2348031234567", normaliseNigerianPhone("+234 803 123 4567"))
     }
 
     @Test
@@ -16,6 +24,35 @@ class PhoneNormaliserTest {
         assertEquals("2348031234567", normaliseNigerianPhone("+234 803 123 4567"))
         assertEquals("2348031234567", normaliseNigerianPhone("234-803-123-4567"))
     }
+
+    @Test
+    fun `normaliseNigerianPhone leaves bare 10-digit input alone`() {
+        // Customer flows reuse normaliseNigerianPhone via buildWhatsAppUrl, where a
+        // bare 10-digit input might be a non-Nigerian customer (e.g. US 2125550123).
+        // The country-code prefix must NOT be auto-applied here.
+        assertEquals("2125550123", normaliseNigerianPhone("2125550123"))
+        assertFalse(validateNigerianMobileE164("2125550123"))
+    }
+
+    @Test
+    fun `applyImpliedNigerianCountryCode prefixes bare 10-digit subscriber`() {
+        // Used at workshop call site where the UI shows a +234 chip outside the input.
+        assertEquals("2348064816695", normaliseNigerianPhone(applyImpliedNigerianCountryCode("8064816695")))
+        assertTrue(validateNigerianMobileE164(applyImpliedNigerianCountryCode("8064816695")))
+    }
+
+    @Test
+    fun `applyImpliedNigerianCountryCode leaves trunk-prefixed input alone`() {
+        assertEquals("08031234567", applyImpliedNigerianCountryCode("08031234567"))
+    }
+
+    @Test
+    fun `applyImpliedNigerianCountryCode leaves already-prefixed input alone`() {
+        assertEquals("+2348031234567", applyImpliedNigerianCountryCode("+2348031234567"))
+        assertEquals("2348031234567", applyImpliedNigerianCountryCode("2348031234567"))
+    }
+
+    // --- buildWhatsAppUrl ---
 
     @Test
     fun buildWhatsAppUrl_passesAsciiUnreservedThrough() {
@@ -56,5 +93,32 @@ class PhoneNormaliserTest {
         // whole-string UTF-8 byte array handles it correctly.
         val url = buildWhatsAppUrl(phone = "+2348031234567", message = "💍")
         assertTrue(url.endsWith("?text=%F0%9F%92%8D"), "got=$url")
+    }
+
+    // --- validateNigerianMobileE164 ---
+
+    @Test
+    fun `validateNigerianMobileE164 accepts 13 digits starting with 234`() {
+        assertTrue(validateNigerianMobileE164("2348031234567"))
+    }
+
+    @Test
+    fun `validateNigerianMobileE164 accepts trunk-prefixed input`() {
+        assertTrue(validateNigerianMobileE164("08031234567"))
+    }
+
+    @Test
+    fun `validateNigerianMobileE164 rejects too short`() {
+        assertFalse(validateNigerianMobileE164("0803123"))
+    }
+
+    @Test
+    fun `validateNigerianMobileE164 rejects too long`() {
+        assertFalse(validateNigerianMobileE164("234803123456789"))
+    }
+
+    @Test
+    fun `validateNigerianMobileE164 rejects empty`() {
+        assertFalse(validateNigerianMobileE164(""))
     }
 }

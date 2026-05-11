@@ -31,6 +31,7 @@ class ReceiptFormatterTest {
         displayName = "Ade",
         businessName = "Ade's Tailoring",
         phoneNumber = "08012345678",
+        whatsappNumber = null,
         avatarColorIndex = 0
     )
 

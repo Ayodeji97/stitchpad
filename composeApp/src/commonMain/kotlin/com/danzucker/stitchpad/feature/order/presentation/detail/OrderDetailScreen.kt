@@ -980,6 +980,7 @@ private fun OrderDetailScreenFilledPreview() {
                     displayName = "Ade",
                     businessName = "Ade's Fashions",
                     phoneNumber = "+2348012345678",
+                    whatsappNumber = "+2348012345678",
                     avatarColorIndex = 0
                 ),
                 order = Order(

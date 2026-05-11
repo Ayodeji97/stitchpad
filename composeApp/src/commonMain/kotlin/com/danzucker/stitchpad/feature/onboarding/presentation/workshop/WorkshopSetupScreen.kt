@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Storefront
@@ -32,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +55,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.workshop_business_name_hint
+import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
 import stitchpad.composeapp.generated.resources.workshop_continue_button
@@ -61,12 +64,13 @@ import stitchpad.composeapp.generated.resources.workshop_logo_label
 import stitchpad.composeapp.generated.resources.workshop_logo_optional
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_sub
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_title
-import stitchpad.composeapp.generated.resources.workshop_phone_hint
-import stitchpad.composeapp.generated.resources.workshop_phone_label
-import stitchpad.composeapp.generated.resources.workshop_phone_placeholder
 import stitchpad.composeapp.generated.resources.workshop_skip
 import stitchpad.composeapp.generated.resources.workshop_subtitle
 import stitchpad.composeapp.generated.resources.workshop_title
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional
 
 @Composable
 fun WorkshopSetupRoot(
@@ -117,7 +121,7 @@ fun WorkshopSetupScreen(
             .background(DesignTokens.neutral900),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AuthHero(height = 220.dp, logoDiameter = 68.dp, showTagline = true)
+            AuthHero()
 
             AuthCard {
                 // 1. Title
@@ -152,21 +156,137 @@ fun WorkshopSetupScreen(
                     onValueChange = { onAction(WorkshopSetupAction.OnBusinessNameChange(it)) },
                     leadingIcon = Icons.Outlined.Storefront,
                     placeholder = stringResource(Res.string.workshop_business_name_placeholder),
-                    helperText = stringResource(Res.string.workshop_business_name_hint),
+                    helperText = stringResource(Res.string.workshop_business_name_helper),
                     errorText = state.businessNameError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBusinessNameBlur) },
                 )
 
-                // 4. Phone field
-                AuthTextField(
-                    label = stringResource(Res.string.workshop_phone_label),
-                    value = state.phone,
-                    onValueChange = { onAction(WorkshopSetupAction.OnPhoneChange(it)) },
-                    leadingIcon = Icons.Outlined.Phone,
-                    placeholder = stringResource(Res.string.workshop_phone_placeholder),
-                    keyboardType = KeyboardType.Phone,
-                    helperText = stringResource(Res.string.workshop_phone_hint),
-                    errorText = state.phoneError?.let { stringResource(it) },
-                )
+                // 4. WhatsApp number — bespoke composition
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // 4a. Custom label row: green WhatsApp circle icon + label + Required chip
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF25D366)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Chat,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        }
+                        Text(
+                            text = stringResource(Res.string.workshop_whatsapp_label),
+                            style = TextStyle(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFF5F2ED),
+                            ),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color(0xFFE8A800).copy(alpha = 0.18f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.workshop_whatsapp_optional),
+                                style = TextStyle(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DesignTokens.primary300,
+                                    letterSpacing = 0.8.sp,
+                                ),
+                            )
+                        }
+                    }
+
+                    // 4b. Country picker (+234 fixed) + number input row
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // +234 country block — non-interactive in V1 (Nigeria-only)
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF2A2825))
+                                .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 12.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            // Nigerian flag — 3-band rectangle (green-white-green)
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 24.dp, height = 18.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                            ) {
+                                Row(modifier = Modifier.fillMaxSize()) {
+                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF008751)))
+                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color.White))
+                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF008751)))
+                                }
+                            }
+                            Text(
+                                text = "+234",
+                                style = TextStyle(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFF5F2ED),
+                                ),
+                            )
+                        }
+                        // Number input — AuthTextField with empty label (skips label render)
+                        AuthTextField(
+                            label = "",
+                            value = state.whatsappNumber,
+                            onValueChange = { onAction(WorkshopSetupAction.OnWhatsAppNumberChange(it)) },
+                            leadingIcon = Icons.Outlined.Phone,
+                            keyboardType = KeyboardType.Phone,
+                            placeholder = stringResource(Res.string.workshop_whatsapp_placeholder),
+                            errorText = state.whatsappError?.let { stringResource(it) },
+                            onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    // 4c. Helper microcopy — green WhatsApp icon + attestation text
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF25D366)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Chat,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(8.dp),
+                            )
+                        }
+                        Text(
+                            text = stringResource(Res.string.workshop_whatsapp_helper),
+                            style = TextStyle(
+                                fontSize = 12.5.sp,
+                                color = Color(0xFFA8A49D),
+                                lineHeight = 18.sp,
+                            ),
+                        )
+                    }
+                }
 
                 // 5. Logo upload tile
                 Column(
@@ -245,7 +365,7 @@ fun WorkshopSetupScreen(
                 // 6. Continue button
                 Button(
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading && state.businessName.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
@@ -253,8 +373,8 @@ fun WorkshopSetupScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
                         contentColor = DesignTokens.neutral900,
-                        disabledContainerColor = DesignTokens.primary500.copy(alpha = 0.5f),
-                        disabledContentColor = DesignTokens.neutral900.copy(alpha = 0.5f),
+                        disabledContainerColor = DesignTokens.neutral700,
+                        disabledContentColor = DesignTokens.neutral500,
                     ),
                 ) {
                     Text(
@@ -315,7 +435,7 @@ private fun WorkshopSetupScreenFilledPreview() {
         WorkshopSetupScreen(
             state = WorkshopSetupState(
                 businessName = "Ade Fashions",
-                phone = "+2348012345678",
+                whatsappNumber = "0803 123 4567",
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},

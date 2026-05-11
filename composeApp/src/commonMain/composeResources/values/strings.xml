@@ -27,7 +27,7 @@
     <string name="cd_password_show">Show password</string>
     <string name="cd_password_hide">Hide password</string>
     <string name="placeholder_email">tailor@gmail.com</string>
-    <string name="placeholder_password">••••••••</string>
+    <string name="placeholder_password">Enter your password</string>
 
     <!-- Login screen -->
     <string name="login_title">Welcome back!</string>
@@ -43,7 +43,6 @@
     <string name="signup_name_label">Full name</string>
     <string name="signup_name_placeholder">Ade Fashions</string>
     <string name="signup_email_label">Email</string>
-    <string name="signup_email_placeholder">Enter your email address</string>
     <string name="signup_password_label">Password</string>
     <string name="signup_password_placeholder">Create a password</string>
     <string name="signup_password_hint">At least 6 characters</string>
@@ -59,10 +58,6 @@
     <string name="workshop_subtitle">Personalise StitchPad for your brand</string>
     <string name="workshop_business_name_label">Business name</string>
     <string name="workshop_business_name_placeholder">e.g. Ade Fashions</string>
-    <string name="workshop_business_name_hint">Shown on your dashboard. You can change this later.</string>
-    <string name="workshop_phone_label">Phone number</string>
-    <string name="workshop_phone_placeholder">+234 801 234 5678</string>
-    <string name="workshop_phone_hint">For your profile, not shared with customers.</string>
     <string name="workshop_continue_button">Continue</string>
     <string name="workshop_skip">Skip for now</string>
 
@@ -903,7 +898,6 @@
 
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>
-    <string name="login_remember_me">Remember me</string>
     <string name="login_secure_microcopy">Secure sign-in for your tailoring business.</string>
 
     <!-- Signup redesign additions -->
@@ -929,4 +923,12 @@
     <string name="workshop_logo_coming_soon">Logo upload coming soon</string>
     <string name="workshop_brand_tagline">TAILORED FOR YOU</string>
     <string name="brand_name">STITCHPAD</string>
+
+    <!-- WhatsApp / Workshop Phase 2 -->
+    <string name="error_whatsapp_invalid">Enter a valid Nigerian WhatsApp number (10 digits)</string>
+    <string name="workshop_whatsapp_label">WhatsApp number</string>
+    <string name="workshop_whatsapp_optional">Optional</string>
+    <string name="workshop_whatsapp_placeholder">801 234 5678</string>
+    <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
+    <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 </resources>

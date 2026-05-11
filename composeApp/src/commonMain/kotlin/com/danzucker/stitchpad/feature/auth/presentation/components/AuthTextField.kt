@@ -16,9 +16,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,10 +52,12 @@ fun AuthTextField(
     isPasswordVisible: Boolean = false,
     onTogglePassword: (() -> Unit)? = null,
     trailingPasswordVisibilityIcon: ImageVector? = null,
+    passwordVisibilityContentDescription: String? = null,
     errorText: String? = null,
     helperText: String? = null,
     helperIcon: ImageVector? = null,
     isHelperSuccess: Boolean = false,
+    onFocusLost: (() -> Unit)? = null,
 ) {
     val borderColor = when {
         errorText != null -> DesignTokens.error500
@@ -86,17 +91,31 @@ fun AuthTextField(
                 tint = DesignTokens.primary400,
                 modifier = Modifier.size(20.dp),
             )
+            val wasFocused = remember { mutableStateOf(false) }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        if (wasFocused.value && !focusState.isFocused) {
+                            onFocusLost?.invoke()
+                        }
+                        wasFocused.value = focusState.isFocused
+                    },
                 singleLine = true,
                 cursorBrush = SolidColor(DesignTokens.primary500),
                 textStyle = LocalTextStyle.current.copy(
                     fontSize = 15.sp,
                     color = Color(0xFFF5F2ED),
                 ),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isPassword && keyboardType == KeyboardType.Text) {
+                        KeyboardType.Password
+                    } else {
+                        keyboardType
+                    },
+                ),
                 visualTransformation = when {
                     isPassword && !isPasswordVisible -> PasswordVisualTransformation()
                     else -> VisualTransformation.None
@@ -112,10 +131,10 @@ fun AuthTextField(
                 },
             )
             if (isPassword && onTogglePassword != null && trailingPasswordVisibilityIcon != null) {
-                IconButton(onClick = onTogglePassword, modifier = Modifier.size(28.dp)) {
+                IconButton(onClick = onTogglePassword, modifier = Modifier.size(20.dp)) {
                     Icon(
                         imageVector = trailingPasswordVisibilityIcon,
-                        contentDescription = null,
+                        contentDescription = passwordVisibilityContentDescription,
                         tint = Color(0xFF7D7970),
                         modifier = Modifier.size(20.dp),
                     )

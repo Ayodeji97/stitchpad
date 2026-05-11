@@ -58,11 +58,13 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_coming_soon
+import stitchpad.composeapp.generated.resources.cd_password_hide
+import stitchpad.composeapp.generated.resources.cd_password_show
+import stitchpad.composeapp.generated.resources.placeholder_email
 import stitchpad.composeapp.generated.resources.signup_confirm_password_label
 import stitchpad.composeapp.generated.resources.signup_confirm_password_placeholder
 import stitchpad.composeapp.generated.resources.signup_create_account
 import stitchpad.composeapp.generated.resources.signup_email_label
-import stitchpad.composeapp.generated.resources.signup_email_placeholder
 import stitchpad.composeapp.generated.resources.signup_have_account
 import stitchpad.composeapp.generated.resources.signup_log_in
 import stitchpad.composeapp.generated.resources.signup_microcopy
@@ -115,6 +117,7 @@ fun SignUpRoot(
     )
 }
 
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 fun SignUpScreen(
     state: SignUpState,
@@ -127,7 +130,7 @@ fun SignUpScreen(
             .background(DesignTokens.neutral900),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AuthHero(height = 240.dp, logoDiameter = 64.dp, showTagline = false)
+            AuthHero()
 
             AuthCard {
                 // 1. Title
@@ -163,6 +166,7 @@ fun SignUpScreen(
                     leadingIcon = Icons.Outlined.Person,
                     placeholder = stringResource(Res.string.signup_name_placeholder),
                     errorText = state.displayNameError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnDisplayNameBlur) },
                 )
 
                 // 4. Email field
@@ -172,8 +176,9 @@ fun SignUpScreen(
                     onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
                     keyboardType = KeyboardType.Email,
-                    placeholder = stringResource(Res.string.signup_email_placeholder),
+                    placeholder = stringResource(Res.string.placeholder_email),
                     errorText = state.emailError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnEmailBlur) },
                 )
 
                 // 5. Password field
@@ -191,6 +196,13 @@ fun SignUpScreen(
                     } else {
                         Icons.Outlined.Visibility
                     },
+                    passwordVisibilityContentDescription = stringResource(
+                        if (state.isPasswordVisible) {
+                            Res.string.cd_password_hide
+                        } else {
+                            Res.string.cd_password_show
+                        }
+                    ),
                     placeholder = stringResource(Res.string.signup_password_placeholder),
                     helperText = when {
                         state.passwordError != null -> null
@@ -204,6 +216,7 @@ fun SignUpScreen(
                     },
                     isHelperSuccess = state.passwordError == null && state.password.length >= 6,
                     errorText = state.passwordError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnPasswordBlur) },
                 )
 
                 // 6. Confirm password field
@@ -220,8 +233,16 @@ fun SignUpScreen(
                     } else {
                         Icons.Outlined.Visibility
                     },
+                    passwordVisibilityContentDescription = stringResource(
+                        if (state.isConfirmPasswordVisible) {
+                            Res.string.cd_password_hide
+                        } else {
+                            Res.string.cd_password_show
+                        }
+                    ),
                     placeholder = stringResource(Res.string.signup_confirm_password_placeholder),
                     errorText = state.confirmPasswordError?.asString(),
+                    onFocusLost = { onAction(SignUpAction.OnConfirmPasswordBlur) },
                 )
 
                 // 7. Terms checkbox row
@@ -295,8 +316,8 @@ fun SignUpScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
                         contentColor = DesignTokens.neutral900,
-                        disabledContainerColor = DesignTokens.primary500.copy(alpha = 0.5f),
-                        disabledContentColor = DesignTokens.neutral900.copy(alpha = 0.5f),
+                        disabledContainerColor = DesignTokens.neutral700,
+                        disabledContentColor = DesignTokens.neutral500,
                     ),
                 ) {
                     Text(
