@@ -934,4 +934,17 @@
     <string name="workshop_whatsapp_placeholder">801 234 5678</string>
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
+
+    <!-- Settings — Delete account -->
+    <string name="settings_delete_account">Delete account</string>
+    <string name="settings_delete_account_dialog_title">Delete your account?</string>
+    <string name="settings_delete_account_dialog_body">You\'ll be signed out.</string>
+    <string name="settings_delete_account_dialog_data_link">What happens to my shop data?</string>
+    <string name="settings_delete_account_confirm">Delete account</string>
+    <string name="settings_delete_account_cancel">Cancel</string>
+    <string name="settings_delete_account_data_sheet_title">Your shop data</string>
+    <string name="settings_delete_account_data_sheet_body">Deleting your account signs you out and removes your StitchPad sign-in. Your shop\'s data — customers, orders, measurements, and payment history — is retained on our servers per our retention policy and is not removed by this action.\n\nIf you also want your shop data removed, contact support after deleting your account.</string>
+    <string name="settings_delete_account_data_sheet_dismiss">Got it</string>
+    <string name="settings_delete_account_success">Account deleted</string>
+    <string name="settings_delete_account_reauth">Please sign in again, then retry.</string>
 </resources>
