@@ -166,7 +166,7 @@ class WorkshopSetupViewModelTest {
     }
 
     @Test
-    fun `OnWhatsAppNumberChange caps at 13 digits, drops the rest`() = runTest {
+    fun `OnWhatsAppNumberChange caps at 13 digits and drops the rest`() = runTest {
         // 20 digits typed straight — only the first 13 should land in state.
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("12345678901234567890"))
         assertEquals("1234567890123", viewModel.state.first().whatsappNumber)
