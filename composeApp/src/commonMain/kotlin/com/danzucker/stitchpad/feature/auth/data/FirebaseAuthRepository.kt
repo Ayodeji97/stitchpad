@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.auth.data
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
@@ -10,6 +11,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
+import dev.gitlive.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
 import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
@@ -22,6 +24,7 @@ private const val TAG = "AuthRepo"
 class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth,
     private val ssoCredentialProvider: SsoCredentialProvider,
+    private val userRepository: UserRepository,
 ) : AuthRepository {
 
     override suspend fun signUpWithEmail(
@@ -116,8 +119,34 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun deleteAccount(): EmptyResult<AuthError> {
-        // TODO(Task 21): Auth-first delete + best-effort Firestore cleanup
-        return Result.Error(AuthError.UNKNOWN)
+        val user = firebaseAuth.currentUser
+            ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        val uid = user.uid
+        return try {
+            // Order matters: delete the auth account FIRST. This is the App-Store-4.8
+            // requirement and the irreversible step. If it throws REQUIRES_RECENT_LOGIN,
+            // the Firestore doc is still intact and the user can re-auth + retry.
+            // Reverse order would leave an orphan auth account pointing at a deleted
+            // profile, which is the worst possible state on next sign-in.
+            user.delete()
+
+            // Best-effort Firestore cleanup. If this fails we have an orphan users/{uid}
+            // doc, which is acceptable per the spec's out-of-scope (a Cloud Function
+            // follow-up will reconcile). What matters is the auth account is gone.
+            runCatching { userRepository.deleteUserDoc(uid) }
+                .onFailure {
+                    AppLogger.e(tag = TAG, throwable = it) {
+                        "post-delete Firestore cleanup failed uid=$uid"
+                    }
+                }
+            Result.Success(Unit)
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            AppLogger.e(tag = TAG, throwable = e) { "deleteAccount requires recent login uid=$uid" }
+            Result.Error(AuthError.REQUIRES_RECENT_LOGIN)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "deleteAccount failed uid=$uid" }
+            Result.Error(e.toAuthError())
+        }
     }
 
     override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {
