@@ -151,9 +151,31 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `OnAppleSignInClick emits ShowComingSoon`() = runTest {
+    fun `OnAppleSignInClick on success emits NavigateToHome and clears isSsoLoading`() = runTest {
         viewModel.onAction(LoginAction.OnAppleSignInClick)
+        runCurrent()
+
         val event = viewModel.events.first()
-        assertEquals(LoginEvent.ShowComingSoon, event)
+        assertIs<LoginEvent.NavigateToHome>(event)
+        assertFalse(viewModel.state.value.isSsoLoading)
+    }
+
+    @Test
+    fun `OnAppleSignInClick on cancellation does not emit and clears isSsoLoading`() = runTest {
+        authRepository.shouldReturnError = AuthError.SSO_CANCELLED
+        viewModel.onAction(LoginAction.OnAppleSignInClick)
+        runCurrent()
+
+        assertFalse(viewModel.state.value.isSsoLoading)
+    }
+
+    @Test
+    fun `OnAppleSignInClick on collision emits ShowError`() = runTest {
+        authRepository.shouldReturnError = AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER
+        viewModel.onAction(LoginAction.OnAppleSignInClick)
+        runCurrent()
+
+        val event = viewModel.events.first()
+        assertIs<LoginEvent.ShowError>(event)
     }
 }

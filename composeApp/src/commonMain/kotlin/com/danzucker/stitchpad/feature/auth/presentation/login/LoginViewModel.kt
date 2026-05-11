@@ -70,8 +70,17 @@ class LoginViewModel(
                 }
                 _state.update { it.copy(isSsoLoading = false) }
             }
-            LoginAction.OnAppleSignInClick -> {
-                viewModelScope.launch { _events.send(LoginEvent.ShowComingSoon) }
+            LoginAction.OnAppleSignInClick -> viewModelScope.launch {
+                _state.update { it.copy(isSsoLoading = true) }
+                when (val result = authRepository.signInWithApple()) {
+                    is Result.Success -> _events.send(LoginEvent.NavigateToHome)
+                    is Result.Error -> {
+                        if (result.error != AuthError.SSO_CANCELLED) {
+                            _events.send(LoginEvent.ShowError(result.error.toUiText()))
+                        }
+                    }
+                }
+                _state.update { it.copy(isSsoLoading = false) }
             }
         }
     }
