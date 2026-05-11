@@ -51,6 +51,21 @@ class FirebaseAuthRepository(
         }
     }
 
+    override suspend fun signInWithGoogle(): Result<User, AuthError> {
+        // TODO(Task 13): real impl using SsoCredentialProvider + Firebase signInWithCredential
+        return Result.Error(AuthError.UNKNOWN)
+    }
+
+    override suspend fun signInWithApple(): Result<User, AuthError> {
+        // TODO(Task 18): real impl
+        return Result.Error(AuthError.UNKNOWN)
+    }
+
+    override suspend fun deleteAccount(): EmptyResult<AuthError> {
+        // TODO(Task 21): Auth-first delete + best-effort Firestore cleanup
+        return Result.Error(AuthError.UNKNOWN)
+    }
+
     override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {
         return try {
             firebaseAuth.sendPasswordResetEmail(email)

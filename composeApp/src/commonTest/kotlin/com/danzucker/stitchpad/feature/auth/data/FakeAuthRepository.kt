@@ -10,6 +10,7 @@ class FakeAuthRepository : AuthRepository {
     var shouldReturnError: AuthError? = null
     var resetEmailSentTo: String? = null
     var signUpInvocationCount = 0
+    var deleteAccountInvocationCount = 0
     var currentUser: User? = null
 
     var currentBusinessName: String?
@@ -45,6 +46,43 @@ class FakeAuthRepository : AuthRepository {
         shouldReturnError?.let { return Result.Error(it) }
         val user = currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
         return Result.Success(user)
+    }
+
+    override suspend fun signInWithGoogle(): Result<User, AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        val user = currentUser ?: User(
+            id = "test-google-uid",
+            email = "google@example.com",
+            displayName = "Google User",
+            businessName = null,
+            phoneNumber = null,
+            whatsappNumber = null,
+            avatarColorIndex = 0
+        )
+        currentUser = user
+        return Result.Success(user)
+    }
+
+    override suspend fun signInWithApple(): Result<User, AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        val user = currentUser ?: User(
+            id = "test-apple-uid",
+            email = "apple@privaterelay.appleid.com",
+            displayName = "Apple User",
+            businessName = null,
+            phoneNumber = null,
+            whatsappNumber = null,
+            avatarColorIndex = 0
+        )
+        currentUser = user
+        return Result.Success(user)
+    }
+
+    override suspend fun deleteAccount(): EmptyResult<AuthError> {
+        deleteAccountInvocationCount++
+        shouldReturnError?.let { return Result.Error(it) }
+        currentUser = null
+        return Result.Success(Unit)
     }
 
     override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {

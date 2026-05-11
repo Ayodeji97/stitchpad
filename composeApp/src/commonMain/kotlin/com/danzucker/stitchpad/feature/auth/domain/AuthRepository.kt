@@ -7,8 +7,11 @@ import com.danzucker.stitchpad.core.domain.model.User
 interface AuthRepository {
     suspend fun signUpWithEmail(email: String, password: String, displayName: String): Result<User, AuthError>
     suspend fun signInWithEmail(email: String, password: String): Result<User, AuthError>
+    suspend fun signInWithGoogle(): Result<User, AuthError>
+    suspend fun signInWithApple(): Result<User, AuthError>
     suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError>
     suspend fun signOut(): Result<Unit, AuthError>
+    suspend fun deleteAccount(): EmptyResult<AuthError>
     suspend fun getCurrentUser(): User?
     val isLoggedIn: Boolean
 }
