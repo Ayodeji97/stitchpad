@@ -8,5 +8,14 @@
 	<string>StitchPad needs access to your photos so you can attach style references to customers.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>StitchPad needs camera access so you can snap a photo of the fabric or style reference.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.683791063936-9s6315iaq9plqfq98k23ra4r9gninai8</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
