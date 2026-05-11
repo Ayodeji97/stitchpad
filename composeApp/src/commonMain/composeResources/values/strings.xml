@@ -77,7 +77,6 @@
     <string name="onboarding_status_sewing">Sewing</string>
 
     <!-- Forgot password screen -->
-    <string name="forgot_password_email_icon">📧</string>
     <string name="forgot_password_title">Forgot password?</string>
     <string name="forgot_password_subtitle">Enter your email and we'll send a reset link</string>
     <string name="forgot_password_button">Send reset link</string>
