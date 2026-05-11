@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
@@ -13,6 +14,7 @@ import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
 import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
+import dev.gitlive.firebase.auth.OAuthProvider
 import kotlin.math.abs
 
 private const val TAG = "AuthRepo"
@@ -78,8 +80,39 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun signInWithApple(): Result<User, AuthError> {
-        // TODO(Task 18): real impl
-        return Result.Error(AuthError.UNKNOWN)
+        return when (val credResult = ssoCredentialProvider.getAppleCredential()) {
+            is Result.Error -> Result.Error(credResult.error.toAuthError())
+            is Result.Success -> exchangeAppleCredential(credResult.data)
+        }
+    }
+
+    private suspend fun exchangeAppleCredential(cred: AppleCredential): Result<User, AuthError> {
+        return try {
+            val firebaseCredential = OAuthProvider.credential(
+                providerId = "apple.com",
+                idToken = cred.idToken,
+                rawNonce = cred.rawNonce,
+            )
+            val authResult = firebaseAuth.signInWithCredential(firebaseCredential)
+            val firebaseUser = authResult.user
+                ?: return Result.Error(AuthError.UNKNOWN)
+
+            // Apple returns fullName only on the very first Sign-In ever. If Firebase's
+            // user has no displayName yet AND Apple gave us one, seed it now so the
+            // dashboard / receipts / etc. have a name to show.
+            if (firebaseUser.displayName.isNullOrBlank() && !cred.fullName.isNullOrBlank()) {
+                runCatching { firebaseUser.updateProfile(displayName = cred.fullName) }
+                    .onFailure { AppLogger.e(tag = TAG, throwable = it) { "Apple displayName update failed" } }
+            }
+
+            Result.Success(firebaseUser.toDomainUser())
+        } catch (e: FirebaseAuthUserCollisionException) {
+            AppLogger.e(tag = TAG, throwable = e) { "Apple sign-in collision" }
+            Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "Apple credential exchange failed" }
+            Result.Error(e.toAuthError())
+        }
     }
 
     override suspend fun deleteAccount(): EmptyResult<AuthError> {
