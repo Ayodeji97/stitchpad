@@ -9,6 +9,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
+        // Must register the Swift Google launcher BEFORE doInitKoin so PlatformModule
+        // can wire it into SsoCredentialProvider.
+        PlatformModule_iosKt.iosNativeGoogleSignInLauncher = GoogleSignInLauncherIos()
         StitchPadAppKt.doInitKoin(platformConfig: { _ in })
         return true
     }
