@@ -99,22 +99,37 @@ class WorkshopSetupViewModelTest {
     }
 
     @Test
-    fun continueWithEmptyFieldsSetsValidationErrorsAndDoesNotWrite() = runTest {
+    fun continueWithEmptyFieldsSetsBusinessNameErrorAndDoesNotWrite() = runTest {
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
         runCurrent()
 
         val state = viewModel.state.value
         assertEquals(Res.string.error_business_name_too_short, state.businessNameError)
-        assertEquals(Res.string.error_whatsapp_invalid, state.whatsappError)
+        assertNull(state.whatsappError)
         assertNull(fakeUserRepository.lastUserId)
     }
 
     @Test
-    fun continueWithOnlyBusinessNameSetsWhatsAppErrorAndDoesNotWrite() = runTest {
+    fun continueWithOnlyBusinessNameWritesProfileWithNullWhatsApp() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
         viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        val event = viewModel.events.first()
+        assertIs<WorkshopSetupEvent.NavigateToHome>(event)
+        assertEquals("Ade Fashions", fakeUserRepository.lastBusinessName)
+        assertNull(fakeUserRepository.lastWhatsAppNumber)
+    }
+
+    @Test
+    fun continueWithBusinessNameAndInvalidWhatsAppSetsWhatsAppError() = runTest {
+        fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
+        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
         runCurrent()
 

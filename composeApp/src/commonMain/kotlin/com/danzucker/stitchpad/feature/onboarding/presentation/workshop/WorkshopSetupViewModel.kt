@@ -72,7 +72,9 @@ class WorkshopSetupViewModel(
     }
 
     private fun validateWhatsAppNumber(): Boolean {
-        val withCountry = applyImpliedNigerianCountryCode(_state.value.whatsappNumber)
+        val raw = _state.value.whatsappNumber.trim()
+        if (raw.isBlank()) return true
+        val withCountry = applyImpliedNigerianCountryCode(raw)
         return if (validateNigerianMobileE164(withCountry)) {
             true
         } else {

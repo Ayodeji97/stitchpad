@@ -109,7 +109,13 @@ fun AuthTextField(
                     fontSize = 15.sp,
                     color = Color(0xFFF5F2ED),
                 ),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isPassword && keyboardType == KeyboardType.Text) {
+                        KeyboardType.Password
+                    } else {
+                        keyboardType
+                    },
+                ),
                 visualTransformation = when {
                     isPassword && !isPasswordVisible -> PasswordVisualTransformation()
                     else -> VisualTransformation.None

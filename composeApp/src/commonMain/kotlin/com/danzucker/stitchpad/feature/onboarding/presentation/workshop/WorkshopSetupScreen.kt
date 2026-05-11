@@ -70,7 +70,7 @@ import stitchpad.composeapp.generated.resources.workshop_title
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
-import stitchpad.composeapp.generated.resources.workshop_whatsapp_required
+import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional
 
 @Composable
 fun WorkshopSetupRoot(
@@ -200,7 +200,7 @@ fun WorkshopSetupScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             Text(
-                                text = stringResource(Res.string.workshop_whatsapp_required),
+                                text = stringResource(Res.string.workshop_whatsapp_optional),
                                 style = TextStyle(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
@@ -365,9 +365,7 @@ fun WorkshopSetupScreen(
                 // 6. Continue button
                 Button(
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading &&
-                        state.businessName.isNotBlank() &&
-                        state.whatsappNumber.isNotBlank(),
+                    enabled = !state.isLoading && state.businessName.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
