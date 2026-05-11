@@ -14,6 +14,8 @@ sealed interface SignUpAction {
     data object OnSignUpClick : SignUpAction
     data object OnLoginClick : SignUpAction
     data object OnTermsToggle : SignUpAction
+    data object OnTermsLinkClick : SignUpAction
+    data object OnPrivacyLinkClick : SignUpAction
     data object OnGoogleSignInClick : SignUpAction
     data object OnAppleSignInClick : SignUpAction
 }

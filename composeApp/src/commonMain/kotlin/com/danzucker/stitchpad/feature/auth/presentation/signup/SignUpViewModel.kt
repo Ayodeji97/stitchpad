@@ -76,9 +76,9 @@ class SignUpViewModel(
             SignUpAction.OnTermsToggle -> {
                 _state.update { it.copy(acceptedTerms = !it.acceptedTerms) }
             }
-            SignUpAction.OnGoogleSignInClick -> {
-                viewModelScope.launch { _events.send(SignUpEvent.ShowComingSoon) }
-            }
+            SignUpAction.OnTermsLinkClick,
+            SignUpAction.OnPrivacyLinkClick,
+            SignUpAction.OnGoogleSignInClick,
             SignUpAction.OnAppleSignInClick -> {
                 viewModelScope.launch { _events.send(SignUpEvent.ShowComingSoon) }
             }

@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.auth.presentation.signup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,13 +29,17 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -251,6 +256,37 @@ fun SignUpScreen(
                 val termsAnd = stringResource(Res.string.signup_terms_and)
                 val privacyLink = stringResource(Res.string.signup_privacy_link)
                 val checkboxColor = if (state.acceptedTerms) DesignTokens.primary500 else Color(0xFF3A3731)
+                val termsAnnotated = buildAnnotatedString {
+                    withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
+                        append("$termsPrefix ")
+                    }
+                    pushStringAnnotation("link", "terms")
+                    withStyle(
+                        SpanStyle(
+                            color = DesignTokens.primary400,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                        )
+                    ) {
+                        append(termsLink)
+                    }
+                    pop()
+                    withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
+                        append(" $termsAnd ")
+                    }
+                    pushStringAnnotation("link", "privacy")
+                    withStyle(
+                        SpanStyle(
+                            color = DesignTokens.primary400,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                        )
+                    ) {
+                        append(privacyLink)
+                    }
+                    pop()
+                }
+                var termsLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
                 Row(
                     verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -275,33 +311,24 @@ fun SignUpScreen(
                         }
                     }
                     Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
-                                append("$termsPrefix ")
-                            }
-                            withStyle(
-                                SpanStyle(
-                                    color = DesignTokens.primary400,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 13.sp,
-                                )
-                            ) {
-                                append(termsLink)
-                            }
-                            withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
-                                append(" $termsAnd ")
-                            }
-                            withStyle(
-                                SpanStyle(
-                                    color = DesignTokens.primary400,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 13.sp,
-                                )
-                            ) {
-                                append(privacyLink)
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
+                        text = termsAnnotated,
+                        onTextLayout = { termsLayout = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .pointerInput(Unit) {
+                                detectTapGestures { offset ->
+                                    val layout = termsLayout ?: return@detectTapGestures
+                                    val pos = layout.getOffsetForPosition(offset)
+                                    val link = termsAnnotated
+                                        .getStringAnnotations("link", pos, pos)
+                                        .firstOrNull()
+                                    when (link?.item) {
+                                        "terms" -> onAction(SignUpAction.OnTermsLinkClick)
+                                        "privacy" -> onAction(SignUpAction.OnPrivacyLinkClick)
+                                        else -> onAction(SignUpAction.OnTermsToggle)
+                                    }
+                                }
+                            },
                     )
                 }
 
