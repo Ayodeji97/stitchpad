@@ -87,9 +87,8 @@ onAuthUserDeleted(user: UserRecord)
         │
         ├──> deleteUserFirestoreData(user.uid, db)
         │    ├── recursiveDelete(users/{uid}/customers)
+        │    │     └── cascades into customers/{cid}/styles + customers/{cid}/measurements
         │    ├── recursiveDelete(users/{uid}/orders)
-        │    ├── recursiveDelete(users/{uid}/measurements)
-        │    ├── recursiveDelete(users/{uid}/styles)
         │    ├── recursiveDelete(users/{uid}/goals)
         │    └── users/{uid}.delete()
         │
@@ -107,13 +106,13 @@ The function returns `Promise<void>` with no thrown errors. We **never** propaga
 
 Uses Admin SDK's `db.recursiveDelete(docRef)` which handles batching, pagination, and rate limiting automatically. Caller does not need to enumerate documents.
 
-Subcollections to delete (sourced from current codebase grep at 2026-05-12):
+**Direct** subcollections of `users/{uid}/` to delete (sourced from current codebase grep at 2026-05-12):
 
 - `customers`
 - `orders`
-- `measurements`
-- `styles`
 - `goals`
+
+The `styles` and `measurements` collections live one level deeper, under `users/{uid}/customers/{cid}/styles` and `.../measurements`. They are NOT direct subcollections of `users/{uid}/` and don't need to be in the allow-list — `recursiveDelete` on `customers` cascades through all nested subcollections of every customer doc, so styles and measurements are cleaned up transitively.
 
 We delete each subcollection explicitly by name (rather than discovering at runtime), so that future subcollections added by app features don't get silently cleaned up before this function is updated. This is intentional — a new subcollection should be explicitly added to the cleanup list, with a code review acknowledging the data-deletion consequence.
 

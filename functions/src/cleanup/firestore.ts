@@ -2,16 +2,22 @@ import * as functions from 'firebase-functions/v1';
 import type { Firestore } from 'firebase-admin/firestore';
 
 /**
- * Subcollections under users/<uid>/ that this function deletes.
+ * DIRECT subcollections of users/<uid>/ that this function deletes.
  * Explicit allow-list (not runtime discovery) so accidental data writes
- * under users/<uid>/<unexpected>/ don't silently get nuked. New subcollections
- * must be added here AND logged via the drift-warning code (added in Task 5).
+ * under users/<uid>/<unexpected>/ don't silently get nuked.
+ *
+ * Admin SDK's recursiveDelete cascades through ALL nested subcollections under
+ * the target collection. So deeper paths like:
+ *   users/<uid>/customers/<cid>/styles
+ *   users/<uid>/customers/<cid>/measurements
+ * are deleted transitively when 'customers' is recursively deleted. They are
+ * NOT listed here because they don't exist as direct children of users/<uid>/.
+ *
+ * If you add a new DIRECT subcollection of users/<uid>/, append it here.
  */
 export const ALLOWED_SUBCOLLECTIONS = [
   'customers',
   'orders',
-  'measurements',
-  'styles',
   'goals',
 ] as const;
 

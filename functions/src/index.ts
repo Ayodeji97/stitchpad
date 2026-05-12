@@ -13,9 +13,32 @@ export const onAuthUserDeleted = functions
   .onDelete(async (user) => {
     const uid = user.uid;
     functions.logger.info('cleanup starting', { uid });
-    await Promise.allSettled([
+
+    const [firestoreResult, storageResult] = await Promise.allSettled([
       deleteUserFirestoreData(uid, admin.firestore()),
       deleteUserStorageData(uid, admin.storage().bucket()),
     ]);
-    functions.logger.info('cleanup completed', { uid });
+
+    // Honest completion signal: the cleanup modules currently never throw
+    // (they wrap their own try/catch and log internally), so both branches
+    // SHOULD always be 'fulfilled'. But logging the per-branch status here
+    // means a future refactor that lets a branch reject won't silently lie
+    // in Cloud Logging — operators will see firestore: 'rejected' immediately.
+    functions.logger.info('cleanup completed', {
+      uid,
+      firestore: firestoreResult.status,
+      storage: storageResult.status,
+      ...(firestoreResult.status === 'rejected' && {
+        firestoreError: serialiseSettledError(firestoreResult.reason),
+      }),
+      ...(storageResult.status === 'rejected' && {
+        storageError: serialiseSettledError(storageResult.reason),
+      }),
+    });
   });
+
+function serialiseSettledError(error: unknown): unknown {
+  return error instanceof Error
+    ? { name: error.name, message: error.message, stack: error.stack }
+    : error;
+}

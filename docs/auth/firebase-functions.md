@@ -86,9 +86,17 @@ Then redeploy when fixed. Note that during the gap, Auth deletions will not trig
 
 ## Adding a new subcollection under `users/{uid}/`
 
-If you add a new feature that introduces a subcollection (e.g., `invoices`), **you must update `functions/src/cleanup/firestore.ts`** — add the new name to `ALLOWED_SUBCOLLECTIONS`. If you forget, the function logs a `WARN` (`unexpected subcollection found under users/{uid}; not cleaned up`) the first time a real user with that subcollection is deleted; the data is left orphaned until you fix the allow-list and redeploy.
+`ALLOWED_SUBCOLLECTIONS` in `functions/src/cleanup/firestore.ts` lists ONLY **direct** subcollections of `users/{uid}/`. As of 2026-05-12 those are:
 
-Workflow:
+- `customers` (cascades into `customers/{cid}/styles` and `customers/{cid}/measurements`)
+- `orders`
+- `goals`
+
+**If you add a new direct subcollection** of `users/{uid}/` (e.g., `invoices` at `users/{uid}/invoices/...`), you must update the allow-list. If you forget, the function logs a `WARN` (`unexpected subcollection found under users/{uid}; not cleaned up`) the first time a real user with that subcollection is deleted; the data is left orphaned until you fix the allow-list and redeploy.
+
+**If you add a deeper-nested subcollection** under an already-listed parent (e.g., `users/{uid}/orders/{oid}/notes/...`), you do NOT need to update the allow-list — `recursiveDelete` cascades through all nested subcollections of the target collection automatically.
+
+Workflow for a direct subcollection:
 1. Add the new name to `ALLOWED_SUBCOLLECTIONS` in `functions/src/cleanup/firestore.ts`
 2. Run `cd functions && npm test` — existing tests still pass (they iterate the constant)
 3. Commit, merge, deploy
