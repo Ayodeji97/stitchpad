@@ -1024,7 +1024,7 @@
     <string name="change_password_title">Change password</string>
     <string name="change_password_label_new">New password</string>
     <string name="change_password_label_confirm">Confirm new password</string>
-    <string name="change_password_helper">At least 8 characters.</string>
+    <string name="change_password_helper">At least 6 characters.</string>
     <string name="change_password_cta">Update password</string>
     <string name="change_password_updated">Password updated</string>
     <string name="password_reset_email_sent">Reset link sent — check your email</string>
@@ -1042,7 +1042,7 @@
 
     <!-- Delete account -->
     <string name="delete_account_dialog_title">Delete your account?</string>
-    <string name="delete_account_dialog_body">This permanently removes your business profile, customers, measurements, and orders. This cannot be undone.</string>
+    <string name="delete_account_dialog_body">You&apos;ll be signed out and your account closed. Your business data (customers, measurements, orders) is retained per our policy until our background cleanup runs.</string>
     <string name="delete_account_dialog_continue">Continue</string>
 
     <string name="delete_account_reason_title">Help us improve — why are you leaving?</string>

@@ -24,7 +24,7 @@ import stitchpad.composeapp.generated.resources.error_provider_not_supported
 import stitchpad.composeapp.generated.resources.password_reset_email_sent
 
 private const val TAG = "ChangePasswordVM"
-private const val MIN_PASSWORD_LENGTH = 8
+private const val MIN_PASSWORD_LENGTH = 6
 
 class ChangePasswordViewModel(
     private val authRepository: AuthRepository,

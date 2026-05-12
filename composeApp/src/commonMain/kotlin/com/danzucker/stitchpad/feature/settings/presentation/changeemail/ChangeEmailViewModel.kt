@@ -151,7 +151,10 @@ class ChangeEmailViewModel(
             when (result) {
                 is Result.Success -> emit(
                     ChangeEmailEvent.SaveSucceeded(
-                        UiText.StringResourceText(Res.string.change_email_sent)
+                        UiText.StringResourceText(
+                            Res.string.change_email_sent,
+                            arrayOf(newEmail),
+                        )
                     )
                 )
                 is Result.Error -> {

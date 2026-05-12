@@ -45,7 +45,7 @@ class FirebaseUserRepository(
                 )
             }
             businessName?.let { data["businessName"] = it }
-            whatsappNumber?.let { data["whatsappNumber"] = it }
+            whatsappNumber?.let { data["whatsapp"] = it }
             document.set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
