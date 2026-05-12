@@ -2,3 +2,7 @@ node_modules/
 lib/
 *.log
 .firebase/
+.env
+.env.*
+.runtimeconfig.json
+*.key.json
