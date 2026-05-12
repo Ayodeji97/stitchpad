@@ -84,7 +84,6 @@ import stitchpad.composeapp.generated.resources.home_sign_out
 import stitchpad.composeapp.generated.resources.nav_settings
 import stitchpad.composeapp.generated.resources.settings_delete_account
 import stitchpad.composeapp.generated.resources.settings_delete_account_reauth
-import stitchpad.composeapp.generated.resources.settings_delete_account_success
 
 @Composable
 fun MainRoot(onSignedOut: () -> Unit) {
@@ -382,16 +381,17 @@ private fun DeleteAccountEntry(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val successMessage = stringResource(Res.string.settings_delete_account_success)
     val reauthMessage = stringResource(Res.string.settings_delete_account_reauth)
     val genericErrorMessage = stringResource(Res.string.error_unknown)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            DeleteAccountEvent.AccountDeleted -> {
-                scope.launch { snackbarHostState.showSnackbar(successMessage) }
-                onAccountDeleted()
-            }
+            // No success snackbar: onAccountDeleted() signs out and navigates
+            // away from MainScreen, which cancels rememberCoroutineScope before
+            // the snackbar can show. The nav-to-Login transition is itself the
+            // success signal — surfacing a confirmation toast on the Login
+            // screen is a separate enhancement.
+            DeleteAccountEvent.AccountDeleted -> onAccountDeleted()
             DeleteAccountEvent.ReauthRequired -> {
                 scope.launch { snackbarHostState.showSnackbar(reauthMessage) }
                 showDialog = false

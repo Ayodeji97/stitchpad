@@ -31,18 +31,21 @@ class DeleteAccountViewModel(
     private fun deleteAccount() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            when (val result = authRepository.deleteAccount()) {
-                is Result.Success -> _events.send(DeleteAccountEvent.AccountDeleted)
-                is Result.Error -> {
-                    val event = if (result.error == AuthError.REQUIRES_RECENT_LOGIN) {
-                        DeleteAccountEvent.ReauthRequired
-                    } else {
-                        DeleteAccountEvent.ShowGenericError
+            try {
+                when (val result = authRepository.deleteAccount()) {
+                    is Result.Success -> _events.send(DeleteAccountEvent.AccountDeleted)
+                    is Result.Error -> {
+                        val event = if (result.error == AuthError.REQUIRES_RECENT_LOGIN) {
+                            DeleteAccountEvent.ReauthRequired
+                        } else {
+                            DeleteAccountEvent.ShowGenericError
+                        }
+                        _events.send(event)
                     }
-                    _events.send(event)
                 }
+            } finally {
+                _state.update { it.copy(isLoading = false) }
             }
-            _state.update { it.copy(isLoading = false) }
         }
     }
 }
