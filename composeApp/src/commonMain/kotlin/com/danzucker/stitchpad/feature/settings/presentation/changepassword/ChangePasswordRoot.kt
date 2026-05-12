@@ -43,7 +43,8 @@ fun ChangePasswordRoot(
     )
 }
 
+@Suppress("SpreadOperator")
 private suspend fun resolve(text: UiText): String = when (text) {
     is UiText.DynamicString -> text.value
-    is UiText.StringResourceText -> getString(text.id)
+    is UiText.StringResourceText -> getString(text.id, *text.args)
 }

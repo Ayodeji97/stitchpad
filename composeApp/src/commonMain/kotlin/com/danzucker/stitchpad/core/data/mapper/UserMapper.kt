@@ -9,7 +9,7 @@ fun UserDto.toUser(): User = User(
     displayName = displayName,
     businessName = businessName,
     phoneNumber = phoneNumber,
-    whatsappNumber = whatsappNumber,
+    whatsappNumber = whatsappNumber ?: legacyWhatsappNumber,
     avatarColorIndex = avatarColorIndex
 )
 

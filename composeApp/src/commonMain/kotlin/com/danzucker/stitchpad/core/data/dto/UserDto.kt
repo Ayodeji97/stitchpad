@@ -11,6 +11,11 @@ import kotlinx.serialization.Serializable
  * voice/SMS line; `whatsappNumber` (Firestore: `whatsapp`) is the required
  * primary customer-contact channel used by receipts, reminders, and the
  * Send-WhatsApp shortcut. Some tailors keep separate numbers for each.
+ *
+ * `legacyWhatsappNumber` is a read-only migration slot: users created before
+ * the rename stored the value under `whatsappNumber`. The mapper falls back
+ * to it when `whatsapp` is null so existing accounts keep their number until
+ * they next save their profile (which rewrites under `whatsapp`).
  */
 @Serializable
 data class UserDto(
@@ -22,5 +27,7 @@ data class UserDto(
     val phoneNumber: String? = null,
     @SerialName("whatsapp")
     val whatsappNumber: String? = null,
+    @SerialName("whatsappNumber")
+    val legacyWhatsappNumber: String? = null,
     val avatarColorIndex: Int = 0
 )

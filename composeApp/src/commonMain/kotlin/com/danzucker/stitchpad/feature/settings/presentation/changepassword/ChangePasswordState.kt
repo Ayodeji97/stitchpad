@@ -4,7 +4,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import org.jetbrains.compose.resources.StringResource
 
-private const val MIN_PASSWORD_LENGTH = 8
+private const val MIN_PASSWORD_LENGTH = 6
 
 data class ChangePasswordState(
     val isLoading: Boolean = true,
