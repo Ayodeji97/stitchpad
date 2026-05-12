@@ -57,7 +57,12 @@ class ChangeEmailViewModel(
                 it.copy(reauthPassword = action.value, reauthError = null)
             }
             ChangeEmailAction.OnReauthConfirm -> reauthenticate()
-            ChangeEmailAction.OnReauthDismiss -> emit(ChangeEmailEvent.NavigateBack)
+            ChangeEmailAction.OnReauthDismiss -> {
+                // Only treat dismiss as "user canceled" before reauth. If reauth
+                // already succeeded, the sheet is being dismissed programmatically
+                // (state.showReauthSheet flipped false), so don't navigate away.
+                if (!_state.value.isReauthenticated) emit(ChangeEmailEvent.NavigateBack)
+            }
             ChangeEmailAction.OnForgotPassword -> sendPasswordReset()
             is ChangeEmailAction.OnNewEmailChange -> _state.update {
                 it.copy(newEmail = action.value, emailError = null)

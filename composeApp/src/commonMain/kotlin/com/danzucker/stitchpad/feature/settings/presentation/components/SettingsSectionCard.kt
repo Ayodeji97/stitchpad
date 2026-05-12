@@ -25,7 +25,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
  */
 @Composable
 fun SettingsSectionCard(
-    label: String?,
+    label: String? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     content: @Composable () -> Unit,

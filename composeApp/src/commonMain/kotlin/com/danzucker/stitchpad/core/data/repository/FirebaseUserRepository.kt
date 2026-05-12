@@ -91,6 +91,11 @@ class FirebaseUserRepository(
             // Distinct slots; not aliases of each other.
             data["phone"] = phoneNumber ?: FieldValue.delete
             data["whatsapp"] = whatsappNumber ?: FieldValue.delete
+            // Always clear the legacy `whatsappNumber` field on save. Without
+            // this, a migrated user clearing the WhatsApp input would still
+            // see the old value because UserMapper falls back to the legacy
+            // slot when `whatsapp` is null.
+            data["whatsappNumber"] = FieldValue.delete
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {

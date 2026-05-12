@@ -63,7 +63,6 @@ import stitchpad.composeapp.generated.resources.settings_row_sign_out
 import stitchpad.composeapp.generated.resources.settings_row_signin_method
 import stitchpad.composeapp.generated.resources.settings_row_terms
 import stitchpad.composeapp.generated.resources.settings_section_account
-import stitchpad.composeapp.generated.resources.settings_section_danger_zone
 import stitchpad.composeapp.generated.resources.settings_section_legal
 import stitchpad.composeapp.generated.resources.settings_section_plan
 import stitchpad.composeapp.generated.resources.settings_section_preferences
@@ -228,7 +227,7 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSectionCard(label = stringResource(Res.string.settings_section_danger_zone)) {
+            SettingsSectionCard {
                 SettingsRow(
                     icon = Icons.Outlined.Delete,
                     label = stringResource(Res.string.settings_row_delete_account),

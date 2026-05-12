@@ -55,7 +55,12 @@ class ChangePasswordViewModel(
                 it.copy(reauthPassword = action.value, reauthError = null)
             }
             ChangePasswordAction.OnReauthConfirm -> reauthenticate()
-            ChangePasswordAction.OnReauthDismiss -> emit(ChangePasswordEvent.NavigateBack)
+            ChangePasswordAction.OnReauthDismiss -> {
+                // Only treat dismiss as "user canceled" before reauth. If reauth
+                // already succeeded, the sheet is being dismissed programmatically
+                // (state.showReauthSheet flipped false), so don't navigate away.
+                if (!_state.value.isReauthenticated) emit(ChangePasswordEvent.NavigateBack)
+            }
             ChangePasswordAction.OnForgotPassword -> sendPasswordReset()
             is ChangePasswordAction.OnNewPasswordChange -> _state.update {
                 it.copy(
