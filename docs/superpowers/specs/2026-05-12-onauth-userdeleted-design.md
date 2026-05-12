@@ -119,6 +119,18 @@ We delete each subcollection explicitly by name (rather than discovering at runt
 
 After subcollections are cleaned, delete the `users/{uid}` doc itself.
 
+**Drift-warning belt-and-suspenders:** Immediately before cleaning, the function lists all subcollections under `users/{uid}` via `userDocRef.listCollections()` and logs a structured warning for any subcollection name NOT in the allow-list:
+
+```typescript
+functions.logger.warn('unexpected subcollection found under users/{uid}; not cleaned up', {
+  uid,
+  unexpectedSubcollection: name,
+  hint: 'update onAuthUserDeleted allow-list',
+});
+```
+
+The function does NOT auto-delete the unknown subcollection — it leaves it as orphan data, intentionally, so that an accidental write under `users/{uid}/...` cannot silently nuke data. The warning surfaces the drift in Cloud Logging on the first real deletion that touches it, giving operators a same-day signal to update the allow-list.
+
 ### Cloud Storage — delete prefix `users/{uid}/`
 
 Uses `bucket.deleteFiles({ prefix: 'users/{uid}/' })` from `@google-cloud/storage` (available via `admin.storage().bucket()`).
@@ -263,7 +275,7 @@ No environment variables needed — admin SDK gets its credentials from the func
 
 ## Risks and mitigations
 
-- **Wrong subcollection names** — if the codebase adds a new subcollection (e.g., `invoices`) and we forget to update this function's allow-list, that data is orphaned on delete. Mitigation: documented in this spec, future subcollection-adding PRs should reference this function. Long-term: a docs/auth/firebase-functions.md runbook will mention it.
+- **Wrong subcollection names** — if the codebase adds a new subcollection (e.g., `invoices`) and we forget to update this function's allow-list, that data is orphaned on delete. Mitigation: the function calls `userDocRef.listCollections()` and emits a `WARN` log for any subcollection NOT in the allow-list (see Cleanup contract → Drift-warning). First real deletion touching the unknown subcollection alerts the operator within the day via Cloud Logging. Plus the runbook note.
 - **Storage delete is non-atomic** — if cleanup runs while the user is mid-upload, the upload may race the delete and orphan a single file. Mitigation: the in-app deletion flow signs the user out before the function fires; mid-upload race is essentially impossible. Acceptable.
 - **Function fails silently** — if the function itself fails to invoke (e.g., quota exhaustion), no cleanup runs and we don't notice. Mitigation: Cloud Logging has built-in alerting; can wire a basic "function errored" alert post-launch.
 - **Cost** — recursive deletes count as Firestore writes, billable. For V1 (~10 testers × ~100 docs each) this is negligible. For scale: each recursive delete batches up to 500 docs/sec; a power user with 10k docs costs ~$0.02 to clean up. Not a concern.
