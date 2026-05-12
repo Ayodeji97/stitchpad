@@ -274,6 +274,21 @@ class FirebaseAuthRepository(
             Result.Error(error)
         }
     }
+
+    override suspend fun updateAuthDisplayName(name: String?): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return try {
+            // gitlive's updateProfile takes a nullable String — null clears the
+            // displayName on Firebase Auth's side, which is what we want when the
+            // user empties the "Your name" field in Edit Profile.
+            user.updateProfile(displayName = name?.takeIf { it.isNotBlank() })
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "updateAuthDisplayName failed error=$error" }
+            Result.Error(error)
+        }
+    }
 }
 
 private fun FirebaseUser.toDomainUser(): User = User(

@@ -128,6 +128,12 @@ class FakeAuthRepository : AuthRepository {
         return Result.Success(Unit)
     }
 
+    override suspend fun updateAuthDisplayName(name: String?): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        currentUser = currentUser?.copy(displayName = name?.takeIf { it.isNotBlank() } ?: "")
+        return Result.Success(Unit)
+    }
+
     override suspend fun deleteAccount(): EmptyResult<AuthError> {
         deleteAccountInvocationCount++
         shouldReturnError?.let { return Result.Error(it) }

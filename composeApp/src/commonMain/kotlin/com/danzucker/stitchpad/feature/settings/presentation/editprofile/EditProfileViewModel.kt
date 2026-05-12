@@ -213,14 +213,24 @@ class EditProfileViewModel(
                 whatsappNumber = current.whatsappNumber.trim().ifBlank { null },
                 avatarColorIndex = current.avatarColorIndex,
             )
-            _state.update { it.copy(isSaving = false) }
             when (result) {
-                is Result.Success -> emit(
-                    EditProfileEvent.SaveSucceeded(
-                        UiText.StringResourceText(Res.string.edit_profile_saved)
+                is Result.Success -> {
+                    // Mirror displayName onto the Firebase Auth side so the cached
+                    // FirebaseUser.displayName matches Firestore. Without this, a
+                    // user who clears the field would see the old name reappear
+                    // next time Edit Profile loads (which falls back to authUser).
+                    val displayName = current.displayName.trim().ifBlank { null }
+                    runCatching { authRepository.updateAuthDisplayName(displayName) }
+                        .onFailure { AppLogger.e(tag = TAG, throwable = it) { "auth displayName sync failed" } }
+                    _state.update { it.copy(isSaving = false) }
+                    emit(
+                        EditProfileEvent.SaveSucceeded(
+                            UiText.StringResourceText(Res.string.edit_profile_saved)
+                        )
                     )
-                )
+                }
                 is Result.Error -> {
+                    _state.update { it.copy(isSaving = false) }
                     AppLogger.e(tag = TAG) { "updateProfile failed error=${result.error}" }
                     emit(EditProfileEvent.ShowSnackbar(UiText.StringResourceText(Res.string.edit_profile_save_failed)))
                 }
