@@ -53,6 +53,9 @@ describe('deleteUserFirestoreData', () => {
 
     await deleteUserFirestoreData(uid, db as never);
 
+    // Asserts both ORDER (doc last) and that subcollections were actually
+    // iterated — guards against a future refactor skipping the for-loop.
+    expect(callOrder).toHaveLength(ALLOWED_SUBCOLLECTIONS.length + 1);
     expect(callOrder[callOrder.length - 1]).toBe('doc:delete');
   });
 
