@@ -6,4 +6,5 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/__tests__/**/*'],
   clearMocks: true,
+  restoreMocks: true,
 };

@@ -10,6 +10,7 @@ describe('deleteUserStorageData', () => {
 
     await deleteUserStorageData(uid, bucket);
 
+    expect(deleteFiles).toHaveBeenCalledTimes(1);
     expect(deleteFiles).toHaveBeenCalledWith({ prefix: `users/${uid}/` });
   });
 
@@ -24,9 +25,13 @@ describe('deleteUserStorageData', () => {
     await expect(deleteUserStorageData(uid, bucket)).resolves.toBeUndefined();
     expect(loggerSpy).toHaveBeenCalledWith(
       'storage cleanup failed',
-      expect.objectContaining({ uid }),
+      expect.objectContaining({
+        uid,
+        error: expect.objectContaining({
+          name: error.name,
+          message: error.message,
+        }),
+      }),
     );
-
-    loggerSpy.mockRestore();
   });
 });
