@@ -21,6 +21,35 @@ export async function deleteUserFirestoreData(
 ): Promise<void> {
   const userDocRef = db.collection('users').doc(uid);
 
+  // Drift warning: surface subcollections not in the allow-list, but do NOT
+  // auto-delete them. An accidental write under users/<uid>/<unexpected>/
+  // should never silently nuke data; the operator must consciously update
+  // the allow-list (or clean up the bad write).
+  try {
+    const found = await userDocRef.listCollections();
+    for (const sub of found) {
+      if (
+        !ALLOWED_SUBCOLLECTIONS.includes(
+          sub.id as typeof ALLOWED_SUBCOLLECTIONS[number],
+        )
+      ) {
+        functions.logger.warn(
+          'unexpected subcollection found under users/{uid}; not cleaned up',
+          {
+            uid,
+            unexpectedSubcollection: sub.id,
+            hint: 'update onAuthUserDeleted allow-list',
+          },
+        );
+      }
+    }
+  } catch (error) {
+    functions.logger.error('subcollection drift check failed', {
+      uid,
+      error: serialiseError(error),
+    });
+  }
+
   for (const sub of ALLOWED_SUBCOLLECTIONS) {
     try {
       await db.recursiveDelete(userDocRef.collection(sub));

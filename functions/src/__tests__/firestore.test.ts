@@ -92,4 +92,51 @@ describe('deleteUserFirestoreData', () => {
       expect.objectContaining({ uid }),
     );
   });
+
+  it('warns on unexpected subcollection names but does NOT auto-delete them', async () => {
+    const recursiveDelete = jest.fn().mockResolvedValue(undefined);
+    const listCollections = jest
+      .fn()
+      .mockResolvedValue([{ id: 'customers' }, { id: 'invoices' }, { id: 'orders' }]);
+    const { db } = makeDbMock({ recursiveDelete, listCollections });
+    const warnSpy = jest
+      .spyOn(functions.logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    await deleteUserFirestoreData(uid, db as never);
+
+    // Allow-listed names not warned about
+    for (const sub of ['customers', 'orders']) {
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ unexpectedSubcollection: sub }),
+      );
+    }
+    // Unexpected name is warned about
+    expect(warnSpy).toHaveBeenCalledWith(
+      'unexpected subcollection found under users/{uid}; not cleaned up',
+      expect.objectContaining({ uid, unexpectedSubcollection: 'invoices' }),
+    );
+    // recursiveDelete is NOT called on the unexpected subcollection
+    expect(recursiveDelete).not.toHaveBeenCalledWith(
+      expect.objectContaining({ _name: 'invoices' }),
+    );
+  });
+
+  it('logs an error when listCollections itself fails, but still attempts cleanup', async () => {
+    const listCollections = jest.fn().mockRejectedValue(new Error('list-boom'));
+    const recursiveDelete = jest.fn().mockResolvedValue(undefined);
+    const { db } = makeDbMock({ listCollections, recursiveDelete });
+    const errorSpy = jest
+      .spyOn(functions.logger, 'error')
+      .mockImplementation(() => undefined);
+
+    await deleteUserFirestoreData(uid, db as never);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'subcollection drift check failed',
+      expect.objectContaining({ uid }),
+    );
+    expect(recursiveDelete).toHaveBeenCalledTimes(ALLOWED_SUBCOLLECTIONS.length);
+  });
 });
