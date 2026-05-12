@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sewing status color — current vs proposed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* StitchPad brand */
+    --brand-saffron:      #E8A800;
+    --brand-saffron-50:   #FFF8E7;
+    --brand-saffron-600:  #C48E00;
+    --brand-saffron-900:  #4F3800;
+
+    /* Order statuses (shared) */
+    --status-received:  #2B7FD4;
+    --status-received-bg: #E7F2FC;
+    --status-cutting:   #E07B20;
+    --status-cutting-bg:  #FEF3E8;
+    --status-ready:     #2D9E6B;
+    --status-ready-bg:    #E8F7F1;
+    --status-delivered: #7D7970;
+    --status-delivered-bg:#EEEDEA;
+    --status-overdue:   #D93B3B;
+    --status-overdue-bg:  #FDECEC;
+
+    /* Sewing — TWO versions */
+    --sewing-current:    #E8A800;      /* same as brand */
+    --sewing-current-bg: #FFF8E7;
+    --sewing-proposed:    #5B4D8E;     /* deep indigo */
+    --sewing-proposed-bg: #ECE9F4;
+
+    /* Surfaces */
+    --bg:        #F7F5F1;
+    --card:      #FFFFFF;
+    --ink-900:   #1A1714;
+    --ink-700:   #4A453E;
+    --ink-500:   #7D7970;
+    --ink-300:   #C7C2BA;
+    --border:    #E5E1D8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink-900);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.4;
+  }
+
+  .page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  header.intro h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  header.intro p {
+    color: var(--ink-500);
+    margin: 0 0 32px;
+    max-width: 680px;
+  }
+  header.intro .hex {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-700);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .column {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .column h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-500);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .column h3 {
+    font-size: 20px;
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+  .column .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-500);
+    margin-bottom: 24px;
+  }
+  .column.flagged h3 .flag {
+    display: inline-block;
+    background: var(--status-overdue-bg);
+    color: var(--status-overdue);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .section {
+    margin-top: 28px;
+  }
+  .section:first-of-type { margin-top: 0; }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-500);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  /* ---------- Status chip row ---------- */
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+  .chip-received  { background: var(--status-received-bg);  color: var(--status-received); }
+  .chip-cutting   { background: var(--status-cutting-bg);   color: var(--status-cutting); }
+  .chip-sewing-current  { background: var(--sewing-current-bg);  color: var(--sewing-current); }
+  .chip-sewing-proposed { background: var(--sewing-proposed-bg); color: var(--sewing-proposed); }
+  .chip-ready     { background: var(--status-ready-bg);     color: var(--status-ready); }
+  .chip-delivered { background: var(--status-delivered-bg); color: var(--status-delivered); }
+  .chip-overdue   { background: var(--status-overdue-bg);   color: var(--status-overdue); }
+
+  /* ---------- Pipeline row mockup ---------- */
+  .pipeline-row {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    background: var(--card);
+  }
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 14px;
+    background: var(--brand-saffron-50);
+    color: var(--brand-saffron);
+  }
+  .pipeline-info .name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 2px;
+  }
+  .pipeline-info .meta {
+    font-size: 12px;
+    color: var(--ink-500);
+  }
+  .pipeline-info .meta .sep { color: var(--ink-300); margin: 0 6px; }
+
+  .cta {
+    background: var(--brand-saffron);
+    color: var(--brand-saffron-900);
+    border: 1px solid var(--brand-saffron-600);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .cta-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* ---------- Timeline ---------- */
+  .timeline {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 16px 16px;
+  }
+  .timeline-track {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    align-items: center;
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .timeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+  .timeline-step .bubble {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 2px solid var(--ink-300);
+    display: grid;
+    place-items: center;
+    color: var(--ink-500);
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .timeline-step.done .bubble {
+    background: var(--status-cutting-bg);
+    border-color: var(--status-cutting);
+    color: var(--status-cutting);
+  }
+  .timeline-step.active.current  .bubble {
+    background: var(--sewing-current);
+    border-color: var(--sewing-current);
+    color: #fff;
+    box-shadow: 0 0 0 4px var(--sewing-current-bg);
+  }
+  .timeline-step.active.proposed .bubble {
+    background: var(--sewing-proposed);
+    border-color: var(--sewing-proposed);
+    color: #fff;
+    box-shadow: 0 0 0 4px var(--sewing-proposed-bg);
+  }
+  .timeline-step .label {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--ink-500);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .timeline-step.active.current  .label { color: var(--sewing-current); }
+  .timeline-step.active.proposed .label { color: var(--sewing-proposed); }
+  .timeline-step.done .label { color: var(--status-cutting); }
+
+  .timeline-track::before {
+    content: "";
+    position: absolute;
+    top: 18px;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: var(--border);
+    z-index: 1;
+  }
+
+  /* ---------- Collision diagnostic ---------- */
+  .diagnostic {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .diagnostic.bad {
+    background: var(--status-overdue-bg);
+    color: #7a1d1d;
+    border-left: 3px solid var(--status-overdue);
+  }
+  .diagnostic.good {
+    background: var(--status-ready-bg);
+    color: #155a3e;
+    border-left: 3px solid var(--status-ready);
+  }
+  .diagnostic strong { font-weight: 700; }
+  .swatch-inline {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin: 0 4px 2px 2px;
+  }
+
+  .legend {
+    margin-top: 40px;
+    padding: 18px 20px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--ink-700);
+    line-height: 1.6;
+  }
+  .legend code {
+    font-family: 'JetBrains Mono', monospace;
+    background: #fff;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="intro">
+    <h1>Sewing status colour — current vs. proposed</h1>
+    <p>
+      Today the <em>Sewing</em> order-status chip is painted with the exact same hex as the brand primary
+      (<span class="hex">#E8A800</span>). That means a saffron pixel on a Pipeline card can mean either
+      &ldquo;StitchPad brand&rdquo; or &ldquo;this order is being sewn.&rdquo; The proposed change moves Sewing to
+      a deep indigo (<span class="hex">#5B4D8E</span>) — the traditional Nigerian textile counterpart to saffron —
+      so brand identity and workflow semantics never share a colour.
+    </p>
+  </header>
+
+  <div class="grid">
+
+    <!-- ============ CURRENT ============ -->
+    <section class="column flagged">
+      <h2>Now</h2>
+      <h3>Current <span class="hex">#E8A800</span><span class="flag">collision</span></h3>
+      <div class="sub">statusSewing &nbsp;=&nbsp; brand primary500</div>
+
+      <div class="section">
+        <div class="section-label">Status chip set</div>
+        <div class="chip-row">
+          <span class="chip chip-received"><span class="dot"></span>Received</span>
+          <span class="chip chip-cutting"><span class="dot"></span>Cutting</span>
+          <span class="chip chip-sewing-current"><span class="dot"></span>Sewing</span>
+          <span class="chip chip-ready"><span class="dot"></span>Ready</span>
+          <span class="chip chip-delivered"><span class="dot"></span>Delivered</span>
+          <span class="chip chip-overdue"><span class="dot"></span>Overdue</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Pipeline row, in context</div>
+        <div class="pipeline-row">
+          <div class="avatar">AO</div>
+          <div class="pipeline-info">
+            <div class="name">Adaeze Okafor &middot; Agbada</div>
+            <div class="meta">
+              <span class="chip chip-sewing-current" style="padding: 2px 8px; font-size: 11px;">
+                <span class="dot"></span>Sewing
+              </span>
+              <span class="sep">·</span>
+              Due Fri
+            </div>
+          </div>
+          <div class="cta-row">
+            <button class="cta">Mark ready</button>
+          </div>
+        </div>
+        <div class="diagnostic bad">
+          <strong>Look at the row:</strong> the <em>Sewing</em> chip
+          (<span class="swatch-inline" style="background:#E8A800"></span><span class="hex">#E8A800</span>)
+          and the brand <em>Mark ready</em> button
+          (<span class="swatch-inline" style="background:#E8A800"></span><span class="hex">#E8A800</span>)
+          are literally the same pixel value. The eye reads one identity, not two distinct affordances.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Order production timeline</div>
+        <div class="timeline">
+          <div class="timeline-track">
+            <div class="timeline-step done">
+              <div class="bubble">1</div>
+              <div class="label">Cutting</div>
+            </div>
+            <div class="timeline-step active current">
+              <div class="bubble">2</div>
+              <div class="label">Sewing</div>
+            </div>
+            <div class="timeline-step">
+              <div class="bubble">3</div>
+              <div class="label">Fitting</div>
+            </div>
+            <div class="timeline-step">
+              <div class="bubble">4</div>
+              <div class="label">Ready</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============ PROPOSED ============ -->
+    <section class="column">
+      <h2>Proposed</h2>
+      <h3>Indigo <span class="hex">#5B4D8E</span></h3>
+      <div class="sub">statusSewing &nbsp;≠&nbsp; brand primary500</div>
+
+      <div class="section">
+        <div class="section-label">Status chip set</div>
+        <div class="chip-row">
+          <span class="chip chip-received"><span class="dot"></span>Received</span>
+          <span class="chip chip-cutting"><span class="dot"></span>Cutting</span>
+          <span class="chip chip-sewing-proposed"><span class="dot"></span>Sewing</span>
+          <span class="chip chip-ready"><span class="dot"></span>Ready</span>
+          <span class="chip chip-delivered"><span class="dot"></span>Delivered</span>
+          <span class="chip chip-overdue"><span class="dot"></span>Overdue</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Pipeline row, in context</div>
+        <div class="pipeline-row">
+          <div class="avatar">AO</div>
+          <div class="pipeline-info">
+            <div class="name">Adaeze Okafor &middot; Agbada</div>
+            <div class="meta">
+              <span class="chip chip-sewing-proposed" style="padding: 2px 8px; font-size: 11px;">
+                <span class="dot"></span>Sewing
+              </span>
+              <span class="sep">·</span>
+              Due Fri
+            </div>
+          </div>
+          <div class="cta-row">
+            <button class="cta">Mark ready</button>
+          </div>
+        </div>
+        <div class="diagnostic good">
+          <strong>Now the row separates cleanly:</strong> the indigo
+          (<span class="swatch-inline" style="background:#5B4D8E"></span><span class="hex">#5B4D8E</span>)
+          reads as a workflow stage, and the saffron CTA
+          (<span class="swatch-inline" style="background:#E8A800"></span><span class="hex">#E8A800</span>)
+          reads as &ldquo;the brand wants you to do this.&rdquo; Saffron + royal purple is also the
+          canonical pairing in Yoruba aso oke and adire palettes, so it reinforces the brand rather than
+          fighting it.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Order production timeline</div>
+        <div class="timeline">
+          <div class="timeline-track">
+            <div class="timeline-step done">
+              <div class="bubble">1</div>
+              <div class="label">Cutting</div>
+            </div>
+            <div class="timeline-step active proposed">
+              <div class="bubble">2</div>
+              <div class="label">Sewing</div>
+            </div>
+            <div class="timeline-step">
+              <div class="bubble">3</div>
+              <div class="label">Fitting</div>
+            </div>
+            <div class="timeline-step">
+              <div class="bubble">4</div>
+              <div class="label">Ready</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="legend">
+    Brand primary stays <code>#E8A800</code>. The only thing that changes is
+    <code>DesignTokens.statusSewing</code>, which moves from <code>#E8A800</code> to <code>#5B4D8E</code>
+    (with a matching <code>#ECE9F4</code> tint for chip backgrounds). No other token is affected; the
+    saffron avatar tile, primary button, primary container, and hero accents all keep their current hex.
+  </div>
+
+</div>
+</body>
+</html>

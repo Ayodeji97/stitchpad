@@ -69,7 +69,7 @@ object DesignTokens {
     // Order Status Colors
     val statusReceived = Color(0xFF2B7FD4) // Blue
     val statusCutting = Color(0xFFE07B20) // Orange
-    val statusSewing = Color(0xFFE8A800) // Saffron
+    val statusSewing = Color(0xFF5B4D8E) // Indigo — distinct from brand saffron to avoid status/brand collision
     val statusReady = Color(0xFF2D9E6B) // Green
     val statusDelivered = Color(0xFF7D7970) // Gray
     val statusOverdue = Color(0xFFD93B3B) // Red

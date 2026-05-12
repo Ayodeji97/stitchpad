@@ -10,6 +10,7 @@ class FakeUserRepository : UserRepository {
     var lastUserId: String? = null
     var lastBusinessName: String? = null
     var lastWhatsAppNumber: String? = null
+    var deletedUserId: String? = null
 
     override suspend fun createUserProfile(
         userId: String,
@@ -20,6 +21,12 @@ class FakeUserRepository : UserRepository {
         lastUserId = userId
         lastBusinessName = businessName
         lastWhatsAppNumber = whatsappNumber
+        return Result.Success(Unit)
+    }
+
+    override suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        deletedUserId = userId
         return Result.Success(Unit)
     }
 }

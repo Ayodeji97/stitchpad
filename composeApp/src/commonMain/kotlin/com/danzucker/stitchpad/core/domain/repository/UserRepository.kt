@@ -9,4 +9,5 @@ interface UserRepository {
         businessName: String?,
         whatsappNumber: String?,
     ): EmptyResult<DataError.Network>
+    suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network>
 }

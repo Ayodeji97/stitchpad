@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.feature.auth.presentation.components.icons.AppleLogo
 import com.danzucker.stitchpad.feature.auth.presentation.components.icons.GoogleLogo
+import com.danzucker.stitchpad.util.Platform
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_continue_with_apple
@@ -55,12 +56,14 @@ fun SsoButtonRow(
             onClick = onGoogleClick,
             enabled = enabled,
         )
-        SsoButton(
-            text = stringResource(Res.string.auth_continue_with_apple),
-            icon = { AppleLogo(modifier = Modifier.size(20.dp), tint = Color.White) },
-            onClick = onAppleClick,
-            enabled = enabled,
-        )
+        if (Platform.isIos) {
+            SsoButton(
+                text = stringResource(Res.string.auth_continue_with_apple),
+                icon = { AppleLogo(modifier = Modifier.size(20.dp), tint = Color.White) },
+                onClick = onAppleClick,
+                enabled = enabled,
+            )
+        }
     }
 }
 

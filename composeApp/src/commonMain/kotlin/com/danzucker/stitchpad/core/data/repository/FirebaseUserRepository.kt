@@ -46,4 +46,14 @@ class FirebaseUserRepository(
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
+
+    override suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network> {
+        return try {
+            firestore.collection("users").document(userId).delete()
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "deleteUserDoc failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
 }

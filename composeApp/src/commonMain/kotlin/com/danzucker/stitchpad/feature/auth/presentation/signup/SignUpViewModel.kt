@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -77,10 +78,46 @@ class SignUpViewModel(
                 _state.update { it.copy(acceptedTerms = !it.acceptedTerms) }
             }
             SignUpAction.OnTermsLinkClick,
-            SignUpAction.OnPrivacyLinkClick,
-            SignUpAction.OnGoogleSignInClick,
-            SignUpAction.OnAppleSignInClick -> {
+            SignUpAction.OnPrivacyLinkClick -> {
                 viewModelScope.launch { _events.send(SignUpEvent.ShowComingSoon) }
+            }
+            SignUpAction.OnAppleSignInClick -> appleSignIn()
+            SignUpAction.OnGoogleSignInClick -> googleSignIn()
+        }
+    }
+
+    private fun googleSignIn() {
+        viewModelScope.launch {
+            _state.update { it.copy(isSsoLoading = true) }
+            try {
+                when (val result = authRepository.signInWithGoogle()) {
+                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Error -> {
+                        if (result.error != AuthError.SSO_CANCELLED) {
+                            _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+                        }
+                    }
+                }
+            } finally {
+                _state.update { it.copy(isSsoLoading = false) }
+            }
+        }
+    }
+
+    private fun appleSignIn() {
+        viewModelScope.launch {
+            _state.update { it.copy(isSsoLoading = true) }
+            try {
+                when (val result = authRepository.signInWithApple()) {
+                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Error -> {
+                        if (result.error != AuthError.SSO_CANCELLED) {
+                            _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+                        }
+                    }
+                }
+            } finally {
+                _state.update { it.copy(isSsoLoading = false) }
             }
         }
     }

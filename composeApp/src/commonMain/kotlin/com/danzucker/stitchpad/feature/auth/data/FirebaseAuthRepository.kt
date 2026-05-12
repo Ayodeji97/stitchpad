@@ -3,20 +3,29 @@ package com.danzucker.stitchpad.feature.auth.data
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
+import com.danzucker.stitchpad.feature.auth.domain.SsoError
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
+import dev.gitlive.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
 import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
+import dev.gitlive.firebase.auth.GoogleAuthProvider
+import dev.gitlive.firebase.auth.OAuthProvider
 import kotlin.math.abs
 
 private const val TAG = "AuthRepo"
 
 class FirebaseAuthRepository(
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val ssoCredentialProvider: SsoCredentialProvider,
+    private val userRepository: UserRepository,
 ) : AuthRepository {
 
     override suspend fun signUpWithEmail(
@@ -48,6 +57,105 @@ class FirebaseAuthRepository(
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "signInWithEmail failed error=$error" }
             Result.Error(error)
+        }
+    }
+
+    override suspend fun signInWithGoogle(): Result<User, AuthError> {
+        return when (val credResult = ssoCredentialProvider.getGoogleCredential()) {
+            is Result.Error -> Result.Error(credResult.error.toAuthError())
+            is Result.Success -> exchangeGoogleCredential(credResult.data)
+        }
+    }
+
+    private suspend fun exchangeGoogleCredential(cred: GoogleCredential): Result<User, AuthError> {
+        return try {
+            // gitlive's iOS wrapper requires both tokens non-null (Obj-C nonnull
+            // contract on FIRGoogleAuthProvider). Android tolerates null accessToken.
+            val credential = GoogleAuthProvider.credential(cred.idToken, cred.accessToken)
+            val authResult = firebaseAuth.signInWithCredential(credential)
+            val firebaseUser = authResult.user
+                ?: return Result.Error(AuthError.UNKNOWN)
+            Result.Success(firebaseUser.toDomainUser())
+        } catch (e: FirebaseAuthUserCollisionException) {
+            AppLogger.e(tag = TAG, throwable = e) { "Google sign-in collision" }
+            Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "Google credential exchange failed" }
+            Result.Error(e.toAuthError())
+        }
+    }
+
+    override suspend fun signInWithApple(): Result<User, AuthError> {
+        return when (val credResult = ssoCredentialProvider.getAppleCredential()) {
+            is Result.Error -> Result.Error(credResult.error.toAuthError())
+            is Result.Success -> exchangeAppleCredential(credResult.data)
+        }
+    }
+
+    private suspend fun exchangeAppleCredential(cred: AppleCredential): Result<User, AuthError> {
+        return try {
+            val firebaseCredential = OAuthProvider.credential(
+                providerId = "apple.com",
+                idToken = cred.idToken,
+                rawNonce = cred.rawNonce,
+            )
+            val authResult = firebaseAuth.signInWithCredential(firebaseCredential)
+            val firebaseUser = authResult.user
+                ?: return Result.Error(AuthError.UNKNOWN)
+
+            // Apple returns fullName only on the very first Sign-In ever. If Firebase's
+            // user has no displayName yet AND Apple gave us one, seed it now so the
+            // dashboard / receipts / etc. have a name to show.
+            if (firebaseUser.displayName.isNullOrBlank() && !cred.fullName.isNullOrBlank()) {
+                runCatching { firebaseUser.updateProfile(displayName = cred.fullName) }
+                    .onFailure { AppLogger.e(tag = TAG, throwable = it) { "Apple displayName update failed" } }
+            }
+
+            Result.Success(firebaseUser.toDomainUser())
+        } catch (e: FirebaseAuthUserCollisionException) {
+            AppLogger.e(tag = TAG, throwable = e) { "Apple sign-in collision" }
+            Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "Apple credential exchange failed" }
+            Result.Error(e.toAuthError())
+        }
+    }
+
+    override suspend fun deleteAccount(): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser
+            ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        val uid = user.uid
+        return try {
+            // Order matters: delete the auth account FIRST. This is the App-Store-4.8
+            // requirement and the irreversible step. If it throws REQUIRES_RECENT_LOGIN,
+            // the Firestore doc is still intact and the user can re-auth + retry.
+            // Reverse order would leave an orphan auth account pointing at a deleted
+            // profile, which is the worst possible state on next sign-in.
+            user.delete()
+
+            // Force local state flush. gitlive's iOS auth-state listener can lag
+            // after server-side delete, leaving currentUser non-null until the next
+            // token refresh — which means MainScreen's onSignedOut might fire before
+            // FirebaseAuth knows the user is gone. Explicit signOut() clears the
+            // local session synchronously so navigation back to Login is consistent.
+            runCatching { firebaseAuth.signOut() }
+
+            // Best-effort Firestore cleanup. If this fails we have an orphan users/{uid}
+            // doc, which is acceptable per the spec's out-of-scope (a Cloud Function
+            // follow-up will reconcile). What matters is the auth account is gone.
+            runCatching { userRepository.deleteUserDoc(uid) }
+                .onFailure {
+                    AppLogger.e(tag = TAG, throwable = it) {
+                        "post-delete Firestore cleanup failed uid=$uid"
+                    }
+                }
+            Result.Success(Unit)
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            AppLogger.e(tag = TAG, throwable = e) { "deleteAccount requires recent login uid=$uid" }
+            Result.Error(AuthError.REQUIRES_RECENT_LOGIN)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "deleteAccount failed uid=$uid" }
+            Result.Error(e.toAuthError())
         }
     }
 
@@ -104,4 +212,11 @@ private fun Exception.toAuthError(): AuthError = when {
     message?.contains("TOO_MANY_ATTEMPTS", ignoreCase = true) == true -> AuthError.TOO_MANY_REQUESTS
     message?.contains("NETWORK", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
     else -> AuthError.UNKNOWN
+}
+
+private fun SsoError.toAuthError(): AuthError = when (this) {
+    SsoError.CANCELLED -> AuthError.SSO_CANCELLED
+    SsoError.NO_PROVIDER -> AuthError.SSO_UNAVAILABLE
+    SsoError.NETWORK -> AuthError.NETWORK_ERROR
+    SsoError.UNKNOWN -> AuthError.UNKNOWN
 }

@@ -32,6 +32,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.credentials)
+            implementation(libs.androidx.credentials.play.services.auth)
+            implementation(libs.googleid)
             implementation(libs.koin.android)
             implementation(libs.ktor.client.okhttp)
 
@@ -106,6 +109,11 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"683791063936-cbl4lksbu3cpbulak03vr70h4djtb5su.apps.googleusercontent.com\"")
+    }
+    buildFeatures {
+        buildConfig = true
     }
     packaging {
         resources {
