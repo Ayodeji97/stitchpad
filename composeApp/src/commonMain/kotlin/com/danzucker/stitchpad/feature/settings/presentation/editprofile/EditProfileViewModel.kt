@@ -109,18 +109,23 @@ class EditProfileViewModel(
             val phone = firestoreUser?.phoneNumber.orEmpty()
             val whatsapp = firestoreUser?.whatsappNumber.orEmpty()
             val color = firestoreUser?.avatarColorIndex ?: authUser.avatarColorIndex
+            // Prefer the Firestore value once the user has saved a display
+            // name through this screen; fall back to Firebase Auth's
+            // displayName for users who haven't edited it yet.
+            val displayName = firestoreUser?.displayName?.takeIf { it.isNotBlank() }
+                ?: authUser.displayName
 
             _state.update {
                 it.copy(
                     isLoading = false,
                     email = authUser.email,
                     businessName = business,
-                    displayName = authUser.displayName,
+                    displayName = displayName,
                     phoneNumber = phone,
                     whatsappNumber = whatsapp,
                     avatarColorIndex = color,
                     originalBusinessName = business,
-                    originalDisplayName = authUser.displayName,
+                    originalDisplayName = displayName,
                     originalPhoneNumber = phone,
                     originalWhatsappNumber = whatsapp,
                     originalAvatarColorIndex = color,
