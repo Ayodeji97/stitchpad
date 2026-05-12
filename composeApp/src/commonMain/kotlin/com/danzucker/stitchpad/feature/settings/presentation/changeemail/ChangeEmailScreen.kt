@@ -134,51 +134,54 @@ fun ChangeEmailScreen(
         ) {
             Spacer(Modifier.height(DesignTokens.space4))
 
-            Text(
-                text = stringResource(Res.string.change_email_helper),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Until reauth completes, the form is hidden behind the reauth
+            // bottom sheet — showing both at once made it unclear what to
+            // interact with first.
+            if (state.isReauthenticated) {
+                Text(
+                    text = stringResource(Res.string.change_email_helper),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            // Current email — read-only.
-            OutlinedTextField(
-                value = state.currentEmail,
-                onValueChange = {},
-                enabled = false,
-                label = { Text("Current email") },
-                singleLine = true,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                modifier = Modifier.fillMaxWidth(),
-            )
+                OutlinedTextField(
+                    value = state.currentEmail,
+                    onValueChange = {},
+                    enabled = false,
+                    label = { Text("Current email") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-            // New email — disabled until reauth completes.
-            OutlinedTextField(
-                value = state.newEmail,
-                onValueChange = { onAction(ChangeEmailAction.OnNewEmailChange(it)) },
-                enabled = state.isReauthenticated && !state.isSubmitting,
-                label = { Text(stringResource(Res.string.change_email_label_new)) },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Done,
-                ),
-                isError = state.emailError != null,
-                supportingText = {
-                    state.emailError?.let {
-                        Text(
-                            text = stringResource(it),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
+                OutlinedTextField(
+                    value = state.newEmail,
+                    onValueChange = { onAction(ChangeEmailAction.OnNewEmailChange(it)) },
+                    enabled = !state.isSubmitting,
+                    label = { Text(stringResource(Res.string.change_email_label_new)) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Done,
+                    ),
+                    isError = state.emailError != null,
+                    supportingText = {
+                        state.emailError?.let {
+                            Text(
+                                text = stringResource(it),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         if (state.showReauthSheet) {

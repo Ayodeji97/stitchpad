@@ -136,69 +136,73 @@ fun ChangePasswordScreen(
         ) {
             Spacer(Modifier.height(DesignTokens.space4))
 
-            Text(
-                text = stringResource(Res.string.change_password_helper),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Form is hidden until reauth completes — the bottom sheet is
+            // the only interactive surface during the verification step.
+            if (state.isReauthenticated) {
+                Text(
+                    text = stringResource(Res.string.change_password_helper),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            OutlinedTextField(
-                value = state.newPassword,
-                onValueChange = { onAction(ChangePasswordAction.OnNewPasswordChange(it)) },
-                enabled = state.isReauthenticated && !state.isSubmitting,
-                label = { Text(stringResource(Res.string.change_password_label_new)) },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Next,
-                ),
-                isError = state.newPasswordError != null,
-                supportingText = {
-                    state.newPasswordError?.let {
-                        Text(
-                            text = stringResource(it),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
+                OutlinedTextField(
+                    value = state.newPassword,
+                    onValueChange = { onAction(ChangePasswordAction.OnNewPasswordChange(it)) },
+                    enabled = !state.isSubmitting,
+                    label = { Text(stringResource(Res.string.change_password_label_new)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next,
+                    ),
+                    isError = state.newPasswordError != null,
+                    supportingText = {
+                        state.newPasswordError?.let {
+                            Text(
+                                text = stringResource(it),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-            OutlinedTextField(
-                value = state.confirmPassword,
-                onValueChange = { onAction(ChangePasswordAction.OnConfirmPasswordChange(it)) },
-                enabled = state.isReauthenticated && !state.isSubmitting,
-                label = { Text(stringResource(Res.string.change_password_label_confirm)) },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                ),
-                isError = state.confirmPasswordError != null,
-                supportingText = {
-                    state.confirmPasswordError?.let {
-                        Text(
-                            text = stringResource(it),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
+                OutlinedTextField(
+                    value = state.confirmPassword,
+                    onValueChange = { onAction(ChangePasswordAction.OnConfirmPasswordChange(it)) },
+                    enabled = !state.isSubmitting,
+                    label = { Text(stringResource(Res.string.change_password_label_confirm)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    ),
+                    isError = state.confirmPasswordError != null,
+                    supportingText = {
+                        state.confirmPasswordError?.let {
+                            Text(
+                                text = stringResource(it),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         if (state.showReauthSheet) {
