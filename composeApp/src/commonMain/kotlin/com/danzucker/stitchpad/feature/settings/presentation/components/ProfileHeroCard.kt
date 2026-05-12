@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.feature.settings.presentation.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 /**
@@ -71,12 +71,15 @@ fun ProfileHeroCard(
     // was visually distracting on real device sizes. surfaceContainerHighest gives
     // a clean theme-aware lift over the screen background in dark mode; primary50
     // (cream) keeps the light-mode hero feeling warm and brand-tied.
-    val cardColor = if (isSystemInDarkTheme()) {
+    // Use LocalIsDarkTheme so this also follows the user's Appearance choice in
+    // Settings, not just the OS-level dark-mode preference.
+    val isDark = LocalIsDarkTheme.current
+    val cardColor = if (isDark) {
         MaterialTheme.colorScheme.surfaceContainerHighest
     } else {
         DesignTokens.primary50
     }
-    val borderColor = if (isSystemInDarkTheme()) {
+    val borderColor = if (isDark) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
         DesignTokens.primary100
