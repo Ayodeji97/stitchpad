@@ -89,30 +89,36 @@ class SignUpViewModel(
     private fun googleSignIn() {
         viewModelScope.launch {
             _state.update { it.copy(isSsoLoading = true) }
-            when (val result = authRepository.signInWithGoogle()) {
-                is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
-                is Result.Error -> {
-                    if (result.error != AuthError.SSO_CANCELLED) {
-                        _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+            try {
+                when (val result = authRepository.signInWithGoogle()) {
+                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Error -> {
+                        if (result.error != AuthError.SSO_CANCELLED) {
+                            _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+                        }
                     }
                 }
+            } finally {
+                _state.update { it.copy(isSsoLoading = false) }
             }
-            _state.update { it.copy(isSsoLoading = false) }
         }
     }
 
     private fun appleSignIn() {
         viewModelScope.launch {
             _state.update { it.copy(isSsoLoading = true) }
-            when (val result = authRepository.signInWithApple()) {
-                is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
-                is Result.Error -> {
-                    if (result.error != AuthError.SSO_CANCELLED) {
-                        _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+            try {
+                when (val result = authRepository.signInWithApple()) {
+                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Error -> {
+                        if (result.error != AuthError.SSO_CANCELLED) {
+                            _events.send(SignUpEvent.ShowError(result.error.toUiText()))
+                        }
                     }
                 }
+            } finally {
+                _state.update { it.copy(isSsoLoading = false) }
             }
-            _state.update { it.copy(isSsoLoading = false) }
         }
     }
 

@@ -58,8 +58,15 @@ class LoginViewModel(
                     _events.send(LoginEvent.NavigateToForgotPassword)
                 }
             }
-            LoginAction.OnGoogleSignInClick -> viewModelScope.launch {
-                _state.update { it.copy(isSsoLoading = true) }
+            LoginAction.OnGoogleSignInClick -> googleSignIn()
+            LoginAction.OnAppleSignInClick -> appleSignIn()
+        }
+    }
+
+    private fun googleSignIn() {
+        viewModelScope.launch {
+            _state.update { it.copy(isSsoLoading = true) }
+            try {
                 when (val result = authRepository.signInWithGoogle()) {
                     is Result.Success -> _events.send(LoginEvent.NavigateToHome)
                     is Result.Error -> {
@@ -68,10 +75,16 @@ class LoginViewModel(
                         }
                     }
                 }
+            } finally {
                 _state.update { it.copy(isSsoLoading = false) }
             }
-            LoginAction.OnAppleSignInClick -> viewModelScope.launch {
-                _state.update { it.copy(isSsoLoading = true) }
+        }
+    }
+
+    private fun appleSignIn() {
+        viewModelScope.launch {
+            _state.update { it.copy(isSsoLoading = true) }
+            try {
                 when (val result = authRepository.signInWithApple()) {
                     is Result.Success -> _events.send(LoginEvent.NavigateToHome)
                     is Result.Error -> {
@@ -80,6 +93,7 @@ class LoginViewModel(
                         }
                     }
                 }
+            } finally {
                 _state.update { it.copy(isSsoLoading = false) }
             }
         }

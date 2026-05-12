@@ -70,10 +70,20 @@ private class AppleAuthDelegate: NSObject,
 
     let rawNonce: String
     let completion: (any ComposeApp.Result) -> Void
+    // withCheckedContinuation traps on double-resume in debug and is UB in
+    // release. ASAuthorizationController shouldn't call both callbacks, but if a
+    // framework edge case ever does we'd crash the app — guard explicitly.
+    private var resumed = false
 
     init(rawNonce: String, completion: @escaping (any ComposeApp.Result) -> Void) {
         self.rawNonce = rawNonce
         self.completion = completion
+    }
+
+    private func resumeOnce(_ result: any ComposeApp.Result) {
+        guard !resumed else { return }
+        resumed = true
+        completion(result)
     }
 
     func authorizationController(
@@ -83,7 +93,7 @@ private class AppleAuthDelegate: NSObject,
         guard let cred = authorization.credential as? ASAuthorizationAppleIDCredential,
               let tokenData = cred.identityToken,
               let token = String(data: tokenData, encoding: .utf8) else {
-            completion(ResultError(error: SsoError.unknown))
+            resumeOnce(ResultError(error: SsoError.unknown))
             return
         }
         let fullName: String? = {
@@ -97,7 +107,7 @@ private class AppleAuthDelegate: NSObject,
             rawNonce: rawNonce,
             fullName: fullName
         )
-        completion(ResultSuccess(data: appleCred))
+        resumeOnce(ResultSuccess(data: appleCred))
     }
 
     func authorizationController(
@@ -107,7 +117,7 @@ private class AppleAuthDelegate: NSObject,
         let nsError = error as! NSError
         let mapped: SsoError = (nsError.code == ASAuthorizationError.canceled.rawValue)
             ? .cancelled : .unknown
-        completion(ResultError(error: mapped))
+        resumeOnce(ResultError(error: mapped))
     }
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {

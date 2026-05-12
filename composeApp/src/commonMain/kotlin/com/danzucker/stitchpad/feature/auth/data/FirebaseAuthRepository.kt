@@ -133,6 +133,13 @@ class FirebaseAuthRepository(
             // profile, which is the worst possible state on next sign-in.
             user.delete()
 
+            // Force local state flush. gitlive's iOS auth-state listener can lag
+            // after server-side delete, leaving currentUser non-null until the next
+            // token refresh — which means MainScreen's onSignedOut might fire before
+            // FirebaseAuth knows the user is gone. Explicit signOut() clears the
+            // local session synchronously so navigation back to Login is consistent.
+            runCatching { firebaseAuth.signOut() }
+
             // Best-effort Firestore cleanup. If this fails we have an orphan users/{uid}
             // doc, which is acceptable per the spec's out-of-scope (a Cloud Function
             // follow-up will reconcile). What matters is the auth account is gone.
