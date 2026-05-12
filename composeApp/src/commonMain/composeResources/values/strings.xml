@@ -611,8 +611,8 @@
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
     <!-- Order detail launcher failure strings -->
-    <string name="order_detail_whatsapp_launch_failed">Couldn\'t open WhatsApp. Make sure it\'s installed and try again.</string>
-    <string name="order_detail_dialer_launch_failed">Couldn\'t open the dialer.</string>
+    <string name="order_detail_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
+    <string name="order_detail_dialer_launch_failed">Couldn&apos;t open the dialer.</string>
 
     <!-- TodayWorkCard -->
     <string name="dashboard_today_work_title">Today's Work</string>
@@ -894,7 +894,7 @@
     <string name="payment_capped_at_balance">Capped at balance %1$s</string>
 
     <!-- Order detail WhatsApp message templates (status-aware, %1$s = customer first name) -->
-    <string name="whatsapp_message_pending">Hi %1$s, just confirming your order details — I\'ll be starting work on it soon.</string>
+    <string name="whatsapp_message_pending">Hi %1$s, just confirming your order details — I&apos;ll be starting work on it soon.</string>
     <string name="whatsapp_message_in_progress">Hi %1$s, quick update on your outfit — work is in progress and on track.</string>
     <string name="whatsapp_message_ready">Hi %1$s, your outfit is ready for pickup — let me know what time works for you.</string>
     <string name="whatsapp_message_delivered">Hi %1$s, hope the outfit suits you well — would love a photo when you wear it!</string>
@@ -938,12 +938,12 @@
     <!-- Settings — Delete account -->
     <string name="settings_delete_account">Delete account</string>
     <string name="settings_delete_account_dialog_title">Delete your account?</string>
-    <string name="settings_delete_account_dialog_body">You\'ll be signed out.</string>
+    <string name="settings_delete_account_dialog_body">You&apos;ll be signed out.</string>
     <string name="settings_delete_account_dialog_data_link">What happens to my shop data?</string>
     <string name="settings_delete_account_confirm">Delete account</string>
     <string name="settings_delete_account_cancel">Cancel</string>
     <string name="settings_delete_account_data_sheet_title">Your shop data</string>
-    <string name="settings_delete_account_data_sheet_body">Deleting your account signs you out and removes your StitchPad sign-in. Your shop\'s data — customers, orders, measurements, and payment history — is retained on our servers per our retention policy and is not removed by this action.\n\nIf you also want your shop data removed, contact support after deleting your account.</string>
+    <string name="settings_delete_account_data_sheet_body">Deleting your account signs you out and removes your StitchPad sign-in. Your shop&apos;s data — customers, orders, measurements, and payment history — is retained on our servers per our retention policy and is not removed by this action.\n\nIf you also want your shop data removed, contact support after deleting your account.</string>
     <string name="settings_delete_account_data_sheet_dismiss">Got it</string>
     <string name="settings_delete_account_success">Account deleted</string>
     <string name="settings_delete_account_reauth">Please sign in again, then retry.</string>
