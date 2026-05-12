@@ -6,7 +6,6 @@ import com.danzucker.stitchpad.feature.auth.data.EmailPatternValidator
 import com.danzucker.stitchpad.feature.auth.data.FirebaseAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
-import com.danzucker.stitchpad.feature.auth.presentation.deleteaccount.DeleteAccountViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpViewModel
@@ -27,5 +26,4 @@ val authPresentationModule = module {
     viewModelOf(::SignUpViewModel)
     viewModelOf(::ForgotPasswordViewModel)
     viewModelOf(::WorkshopSetupViewModel)
-    viewModelOf(::DeleteAccountViewModel)
 }

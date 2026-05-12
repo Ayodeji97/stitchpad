@@ -22,5 +22,4 @@ interface AuthRepository {
     suspend fun reauthenticateWithGoogle(): EmptyResult<AuthError>
     suspend fun updateEmail(newEmail: String): EmptyResult<AuthError>
     suspend fun updatePassword(newPassword: String): EmptyResult<AuthError>
-    suspend fun deleteAccount(): EmptyResult<AuthError>
 }

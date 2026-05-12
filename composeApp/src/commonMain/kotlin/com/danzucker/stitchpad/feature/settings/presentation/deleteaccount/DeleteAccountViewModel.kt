@@ -3,9 +3,11 @@ package com.danzucker.stitchpad.feature.settings.presentation.deleteaccount
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.currentPlatformName
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -120,15 +122,29 @@ class DeleteAccountViewModel(
 
     private fun reauthAndDelete() {
         val current = _state.value
-        if (current.signInProvider != SignInProvider.EMAIL_PASSWORD) {
-            _state.update { it.copy(reauthError = providerNotSupported()) }
-            return
+        when (current.signInProvider) {
+            SignInProvider.EMAIL_PASSWORD -> {
+                if (current.reauthPassword.isBlank()) return
+                viewModelScope.launch {
+                    _state.update { it.copy(isReauthenticating = true, reauthError = null) }
+                    val reauth = authRepository.reauthenticateWithPassword(current.reauthPassword)
+                    _state.update { it.copy(isReauthenticating = false) }
+                    when (reauth) {
+                        is Result.Success -> runDeletePipeline()
+                        is Result.Error -> _state.update { it.copy(reauthError = reauth.error.toUiText()) }
+                    }
+                }
+            }
+            SignInProvider.APPLE -> reauthSso { authRepository.reauthenticateWithApple() }
+            SignInProvider.GOOGLE -> reauthSso { authRepository.reauthenticateWithGoogle() }
+            SignInProvider.UNKNOWN -> _state.update { it.copy(reauthError = providerNotSupported()) }
         }
-        if (current.reauthPassword.isBlank()) return
+    }
 
+    private fun reauthSso(block: suspend () -> EmptyResult<AuthError>) {
         viewModelScope.launch {
             _state.update { it.copy(isReauthenticating = true, reauthError = null) }
-            val reauth = authRepository.reauthenticateWithPassword(current.reauthPassword)
+            val reauth = block()
             _state.update { it.copy(isReauthenticating = false) }
             when (reauth) {
                 is Result.Success -> runDeletePipeline()

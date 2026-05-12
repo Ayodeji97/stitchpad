@@ -25,6 +25,7 @@ import kotlin.math.abs
 
 private const val TAG = "AuthRepo"
 
+@Suppress("TooManyFunctions")
 class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth,
     private val ssoCredentialProvider: SsoCredentialProvider,

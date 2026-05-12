@@ -14,8 +14,7 @@
     <string name="error_sso_unavailable">This sign-in method is not available on this device.</string>
     <string name="error_unknown">Something went wrong. Please try again</string>
     <string name="error_session_expired">Your session has expired. Please sign in again</string>
-    <string name="error_requires_recent_login">Please confirm again to continue</string>
-    <string name="error_provider_not_supported">This sign-in method isn\'t supported yet</string>
+    <string name="error_provider_not_supported">This sign-in method isn&apos;t supported yet</string>
 
     <!-- Validation errors -->
     <string name="error_invalid_email">Invalid email format</string>
@@ -982,7 +981,7 @@
     <string name="plan_card_subtitle_inline">Upgrade for unlimited customers + reports</string>
     <string name="plan_card_title_warn">%1$d customers left before your free limit</string>
     <string name="plan_card_subtitle_warn">Upgrade to keep adding customers, unlock reports, and back up your work.</string>
-    <string name="plan_card_title_locked">You can\'t add new customers</string>
+    <string name="plan_card_title_locked">You can&apos;t add new customers</string>
     <string name="plan_card_subtitle_locked">Upgrade to keep growing — your existing customers are safe and unchanged.</string>
     <string name="plan_card_cta_upgrade">Upgrade</string>
     <string name="plan_card_cta_upgrade_priced">Upgrade — ₦%1$s/mo</string>
@@ -997,7 +996,7 @@
     <string name="edit_profile_label_your_name">Your name (optional)</string>
     <string name="edit_profile_helper_your_name">Used in receipts and reminders to customers</string>
     <string name="edit_profile_label_phone">Phone number (optional)</string>
-    <string name="edit_profile_helper_phone">Voice line — only set this if it\'s different from your WhatsApp</string>
+    <string name="edit_profile_helper_phone">Voice line — only set this if it&apos;s different from your WhatsApp</string>
     <string name="edit_profile_label_whatsapp">WhatsApp number</string>
     <string name="edit_profile_helper_whatsapp">Used for customer reminders and receipts</string>
     <string name="edit_profile_phone_prefix">🇳🇬 +234</string>
@@ -1018,7 +1017,7 @@
     <!-- Change Email / Change Password -->
     <string name="change_email_title">Change email</string>
     <string name="change_email_label_new">New email</string>
-    <string name="change_email_helper">We\'ll send a verification link to your new email. The change takes effect once you click it.</string>
+    <string name="change_email_helper">We&apos;ll send a verification link to your new email. The change takes effect once you click it.</string>
     <string name="change_email_cta">Send verification</string>
     <string name="change_email_sent">Check %1$s to confirm the change</string>
 
@@ -1031,7 +1030,7 @@
     <string name="password_reset_email_sent">Reset link sent — check your email</string>
 
     <!-- Re-auth bottom sheet -->
-    <string name="reauth_title">Confirm it\'s you</string>
+    <string name="reauth_title">Confirm it&apos;s you</string>
     <string name="reauth_subtitle">For your security, please sign in again before continuing.</string>
     <string name="reauth_label_email">Email</string>
     <string name="reauth_label_password">Password</string>
@@ -1050,8 +1049,8 @@
     <string name="delete_account_reason_subtitle">Your feedback is anonymous and helps us build a better tool for tailors.</string>
     <string name="delete_account_reason_duplicate">I made a duplicate or wrong account</string>
     <string name="delete_account_reason_complex">The app is too complex to use</string>
-    <string name="delete_account_reason_missing_features">I\'m missing features I need</string>
-    <string name="delete_account_reason_switching">I\'m switching to another app</string>
+    <string name="delete_account_reason_missing_features">I&apos;m missing features I need</string>
+    <string name="delete_account_reason_switching">I&apos;m switching to another app</string>
     <string name="delete_account_reason_privacy">Privacy or data concerns</string>
     <string name="delete_account_reason_just_trying">I was just trying it out</string>
     <string name="delete_account_reason_other">Other</string>
@@ -1064,7 +1063,7 @@
     <string name="delete_account_progress_body">Saving your feedback, removing your data, and signing you out. This usually takes a few seconds.</string>
 
     <string name="delete_account_goodbye_title">Your account is closed</string>
-    <string name="delete_account_goodbye_body">You\'ve been signed out. Final data cleanup is finishing in the background. Thank you for trying StitchPad.</string>
+    <string name="delete_account_goodbye_body">You&apos;ve been signed out. Final data cleanup is finishing in the background. Thank you for trying StitchPad.</string>
     <string name="delete_account_goodbye_cta">Back to sign in</string>
 
     <string name="delete_account_failed">Could not delete your account. Please try again.</string>

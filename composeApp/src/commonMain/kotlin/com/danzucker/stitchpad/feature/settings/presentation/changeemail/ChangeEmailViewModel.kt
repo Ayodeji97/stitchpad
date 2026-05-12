@@ -2,9 +2,11 @@ package com.danzucker.stitchpad.feature.settings.presentation.changeemail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
@@ -85,19 +87,23 @@ class ChangeEmailViewModel(
 
     private fun reauthenticate() {
         val current = _state.value
-        if (current.signInProvider != SignInProvider.EMAIL_PASSWORD) {
-            // Apple/Google providers will need their own native bridge before
-            // this flow becomes reachable for them.
-            _state.update {
+        when (current.signInProvider) {
+            SignInProvider.EMAIL_PASSWORD -> {
+                if (current.reauthPassword.isBlank()) return
+                runReauth { authRepository.reauthenticateWithPassword(current.reauthPassword) }
+            }
+            SignInProvider.APPLE -> runReauth { authRepository.reauthenticateWithApple() }
+            SignInProvider.GOOGLE -> runReauth { authRepository.reauthenticateWithGoogle() }
+            SignInProvider.UNKNOWN -> _state.update {
                 it.copy(reauthError = current.signInProvider.toReauthErrorText())
             }
-            return
         }
-        if (current.reauthPassword.isBlank()) return
+    }
 
+    private fun runReauth(block: suspend () -> EmptyResult<AuthError>) {
         viewModelScope.launch {
             _state.update { it.copy(isReauthenticating = true, reauthError = null) }
-            val result = authRepository.reauthenticateWithPassword(current.reauthPassword)
+            val result = block()
             _state.update { it.copy(isReauthenticating = false) }
             when (result) {
                 is Result.Success -> _state.update {
