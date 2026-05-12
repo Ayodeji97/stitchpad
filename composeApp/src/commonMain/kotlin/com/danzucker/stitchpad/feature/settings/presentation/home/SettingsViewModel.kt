@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
+import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -37,6 +39,8 @@ private const val TAG = "SettingsVM"
  */
 private data class LocalUiState(
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
+    val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val showThemeSheet: Boolean = false,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 )
@@ -47,6 +51,7 @@ class SettingsViewModel(
     private val customerRepository: CustomerRepository,
     private val entitlementsRepository: EntitlementsRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
+    private val themePreferencesStore: ThemePreferencesStore,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -68,12 +73,16 @@ class SettingsViewModel(
         initialValue = SettingsState(),
     )
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: SettingsAction) {
         when (action) {
             SettingsAction.OnProfileClick -> emit(SettingsEvent.NavigateToEditProfile)
             SettingsAction.OnUpgradeClick,
             SettingsAction.OnComparePlansClick -> emit(SettingsEvent.OpenUrl(UPGRADE_URL))
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
+            SettingsAction.OnAppearanceClick -> uiState.update { it.copy(showThemeSheet = true) }
+            SettingsAction.OnThemeSheetDismiss -> uiState.update { it.copy(showThemeSheet = false) }
+            is SettingsAction.OnThemeSelect -> selectTheme(action.theme)
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
             SettingsAction.OnSignOutRowClick -> uiState.update { it.copy(showSignOutDialog = true) }
@@ -92,8 +101,13 @@ class SettingsViewModel(
             return@flow
         }
         val provider = authRepository.getSignInProvider()
-        // Seed the persisted measurement unit once; toggles update uiState below.
-        uiState.update { it.copy(measurementUnit = measurementPreferencesStore.getUnit()) }
+        // Seed the persisted measurement unit and theme once; toggles update uiState below.
+        uiState.update {
+            it.copy(
+                measurementUnit = measurementPreferencesStore.getUnit(),
+                themePreference = themePreferencesStore.getTheme(),
+            )
+        }
 
         val combined = combine(
             userRepository.observeUser(authUser.id),
@@ -133,6 +147,8 @@ class SettingsViewModel(
             customerCount = customerCount,
             customerLimit = FREE_CUSTOMER_LIMIT,
             measurementUnit = ui.measurementUnit,
+            themePreference = ui.themePreference,
+            showThemeSheet = ui.showThemeSheet,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
@@ -144,6 +160,13 @@ class SettingsViewModel(
             val next = if (current == MeasurementUnit.INCHES) MeasurementUnit.CM else MeasurementUnit.INCHES
             measurementPreferencesStore.setUnit(next)
             uiState.update { it.copy(measurementUnit = next) }
+        }
+    }
+
+    private fun selectTheme(theme: ThemePreference) {
+        viewModelScope.launch {
+            themePreferencesStore.setTheme(theme)
+            uiState.update { it.copy(themePreference = theme, showThemeSheet = false) }
         }
     }
 

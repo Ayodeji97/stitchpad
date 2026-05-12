@@ -950,6 +950,11 @@
     <string name="settings_row_measurement_units_centimeters">Centimeters</string>
     <string name="settings_row_reminders">Reminders</string>
     <string name="settings_row_reminders_subtitle">Order due dates &amp; pickups</string>
+    <string name="settings_row_appearance">Appearance</string>
+    <string name="settings_theme_sheet_title">Appearance</string>
+    <string name="settings_theme_system">System default</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
     <string name="settings_row_signin_method">Sign-in method</string>
     <string name="settings_row_email">Email</string>
     <string name="settings_row_change_password">Change password</string>

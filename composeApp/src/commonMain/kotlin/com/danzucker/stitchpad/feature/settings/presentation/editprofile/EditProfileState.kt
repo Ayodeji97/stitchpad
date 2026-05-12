@@ -5,7 +5,6 @@ import org.jetbrains.compose.resources.StringResource
 private const val MAX_BUSINESS_NAME = 50
 private const val MAX_DISPLAY_NAME = 50
 private const val MAX_PHONE_DIGITS = 15
-private const val MIN_PHONE_DIGITS = 7
 
 /**
  * Edit-profile draft. The form has two distinct phone-like inputs:
@@ -55,13 +54,13 @@ data class EditProfileState(
 
     /**
      * Save enables only with: dirty form, no validation errors, business name
-     * filled, and WhatsApp has the minimum digit count. Phone is optional and
-     * does NOT block save when blank — the validator runs only when filled.
+     * filled. Phone and WhatsApp are both optional — their validators run when
+     * the field has content but blank does not block save (existing users who
+     * never added either number can still update other fields).
      */
     val canSave: Boolean
         get() = isDirty &&
             !hasErrors &&
             !isSaving &&
-            businessName.trim().isNotEmpty() &&
-            whatsappNumber.filter { it.isDigit() }.length >= MIN_PHONE_DIGITS
+            businessName.trim().isNotEmpty()
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.ProfileHeroCard
@@ -43,11 +45,13 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.Settings
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowExternalIcon
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowValue
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsSectionCard
+import com.danzucker.stitchpad.feature.settings.presentation.components.ThemeBottomSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
@@ -62,6 +66,9 @@ import stitchpad.composeapp.generated.resources.settings_section_account
 import stitchpad.composeapp.generated.resources.settings_section_legal
 import stitchpad.composeapp.generated.resources.settings_section_plan
 import stitchpad.composeapp.generated.resources.settings_section_preferences
+import stitchpad.composeapp.generated.resources.settings_theme_dark
+import stitchpad.composeapp.generated.resources.settings_theme_light
+import stitchpad.composeapp.generated.resources.settings_theme_system
 import stitchpad.composeapp.generated.resources.settings_title
 import stitchpad.composeapp.generated.resources.sign_out_dialog_body
 import stitchpad.composeapp.generated.resources.sign_out_dialog_cancel
@@ -150,6 +157,26 @@ fun SettingsScreen(
                         }
                     },
                 )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Brightness6,
+                    label = stringResource(Res.string.settings_row_appearance),
+                    onClick = { onAction(SettingsAction.OnAppearanceClick) },
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SettingsRowValue(
+                                text = stringResource(
+                                    when (state.themePreference) {
+                                        ThemePreference.SYSTEM -> Res.string.settings_theme_system
+                                        ThemePreference.LIGHT -> Res.string.settings_theme_light
+                                        ThemePreference.DARK -> Res.string.settings_theme_dark
+                                    }
+                                ),
+                            )
+                            SettingsRowChevron()
+                        }
+                    },
+                )
             }
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_account)) {
@@ -217,6 +244,14 @@ fun SettingsScreen(
                 onDismiss = { onAction(SettingsAction.OnSignOutDismiss) },
             )
         }
+
+        if (state.showThemeSheet) {
+            ThemeBottomSheet(
+                selected = state.themePreference,
+                onSelect = { onAction(SettingsAction.OnThemeSelect(it)) },
+                onDismiss = { onAction(SettingsAction.OnThemeSheetDismiss) },
+            )
+        }
     }
 }
 
@@ -229,7 +264,7 @@ private fun providerSubtitle(provider: SignInProvider, identifier: String): Stri
         SignInProvider.UNKNOWN -> Res.string.signin_provider_unknown
     }
     val label = stringResource(providerLabelRes)
-    return if (identifier.isBlank()) label else "$label · $identifier"
+    return if (identifier.isBlank()) label else "$label • $identifier"
 }
 
 @Composable

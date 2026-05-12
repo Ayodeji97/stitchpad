@@ -22,7 +22,6 @@ import stitchpad.composeapp.generated.resources.edit_profile_save_failed
 import stitchpad.composeapp.generated.resources.edit_profile_saved
 import stitchpad.composeapp.generated.resources.error_business_name_required
 import stitchpad.composeapp.generated.resources.error_phone_format
-import stitchpad.composeapp.generated.resources.error_phone_required
 import stitchpad.composeapp.generated.resources.error_whatsapp_format
 
 private const val TAG = "EditProfileVM"
@@ -173,13 +172,13 @@ class EditProfileViewModel(
         }
     }
 
-    /** WhatsApp is required (primary contact). */
+    /** WhatsApp is optional — blank is allowed; validate only when filled. */
     private fun validateWhatsapp(): Boolean {
         val digits = _state.value.whatsappNumber.filter { it.isDigit() }
         return when {
             digits.isEmpty() -> {
-                _state.update { it.copy(whatsappError = Res.string.error_phone_required) }
-                false
+                _state.update { it.copy(whatsappError = null) }
+                true
             }
             digits.length !in MIN_PHONE_DIGITS..MAX_PHONE_DIGITS -> {
                 _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
@@ -211,7 +210,7 @@ class EditProfileViewModel(
                 businessName = current.businessName.trim(),
                 displayName = current.displayName.trim().ifBlank { null },
                 phoneNumber = current.phoneNumber.trim().ifBlank { null },
-                whatsappNumber = current.whatsappNumber.trim(),
+                whatsappNumber = current.whatsappNumber.trim().ifBlank { null },
                 avatarColorIndex = current.avatarColorIndex,
             )
             _state.update { it.copy(isSaving = false) }

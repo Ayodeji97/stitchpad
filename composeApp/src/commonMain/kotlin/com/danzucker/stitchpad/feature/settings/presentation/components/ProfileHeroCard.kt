@@ -33,8 +33,12 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 /**
- * Six pre-tinted avatar gradients, indexed by [User.avatarColorIndex] (0..5).
+ * Six flat avatar colors, indexed by [User.avatarColorIndex] (0..5).
  * Index falls back to saffron for any out-of-range value.
+ *
+ * Kept as a `Pair<Color, Color>` for backwards compatibility, but only the
+ * deeper (second) tone is used at render time so the avatars read as one
+ * solid colour instead of a linear gradient.
  */
 val AvatarGradients: List<Pair<Color, Color>> = listOf(
     Color(0xFFFFB733) to Color(0xFFB07F00), // 0 saffron
@@ -45,11 +49,13 @@ val AvatarGradients: List<Pair<Color, Color>> = listOf(
     Color(0xFF5A5550) to Color(0xFF181615), // 5 charcoal
 )
 
-internal fun avatarBrush(colorIndex: Int): Brush {
+internal fun avatarColor(colorIndex: Int): Color {
     val safeIndex = colorIndex.coerceIn(0, AvatarGradients.lastIndex)
-    val (start, end) = AvatarGradients[safeIndex]
-    return Brush.linearGradient(listOf(start, end))
+    return AvatarGradients[safeIndex].second
 }
+
+internal fun avatarBrush(colorIndex: Int): Brush =
+    androidx.compose.ui.graphics.SolidColor(avatarColor(colorIndex))
 
 @Composable
 fun ProfileHeroCard(

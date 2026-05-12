@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
@@ -26,6 +28,7 @@ var iosNativeAppleSignInLauncher: NativeAppleSignInLauncher? = null
 actual val platformModule: Module = module {
     single { OnboardingPreferences() } bind OnboardingPreferencesStore::class
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
+    single { ThemePreferences() } bind ThemePreferencesStore::class
     single { OrderReceiptSharer() }
     single { WhatsAppLauncher() }
     single { DialerLauncher() }

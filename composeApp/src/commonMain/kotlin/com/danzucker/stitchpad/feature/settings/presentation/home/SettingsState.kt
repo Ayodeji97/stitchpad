@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 
 private const val FREE_CUSTOMER_LIMIT = 15
@@ -17,20 +18,21 @@ data class SettingsState(
     val customerCount: Int = 0,
     val customerLimit: Int = FREE_CUSTOMER_LIMIT,
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
+    val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val showThemeSheet: Boolean = false,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 ) {
     /**
-     * Combined display string for the profile hero subtitle:
-     * "+234 803 555 0142 · folake@stitchpad.app", or just email if WhatsApp is
-     * blank. The primary contact is the WhatsApp number, not Firestore's
-     * reserved `phone` slot.
+     * Combined display string for the profile hero subtitle.
+     * The separator uses a Unicode escape (U+2022 BULLET) rather than a literal
+     * glyph so any downstream encoding mismatch can't mangle it to mojibake.
      */
     val heroSubtitle: String
         get() = listOfNotNull(
             whatsappNumber?.takeIf { it.isNotBlank() },
             email.takeIf { it.isNotBlank() },
-        ).joinToString(separator = " · ")
+        ).joinToString(separator = " • ")
 
     /** Plan card is hidden for premium users (their plan info lives elsewhere). */
     val showPlanCard: Boolean get() = !isPremium

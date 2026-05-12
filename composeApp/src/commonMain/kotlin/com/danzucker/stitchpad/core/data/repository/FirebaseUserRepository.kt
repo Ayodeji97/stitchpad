@@ -80,7 +80,6 @@ class FirebaseUserRepository(
             // Required fields: a null here would be a programming error (the UI
             // never allows clearing them), so we skip the write defensively.
             businessName?.let { data["businessName"] = it }
-            whatsappNumber?.let { data["whatsapp"] = it }
             avatarColorIndex?.let { data["avatarColorIndex"] = it }
             // Optional fields: null is the explicit "clear this field" signal —
             // the user blanked the input in Edit Profile. Use FieldValue.delete
@@ -88,9 +87,10 @@ class FirebaseUserRepository(
             // old value (which would silently survive a "save with cleared field").
             data["displayName"] = displayName ?: FieldValue.delete
             // phoneNumber → Firestore `phone` (optional voice line).
-            // whatsappNumber → Firestore `whatsapp` (required primary contact).
+            // whatsappNumber → Firestore `whatsapp` (optional primary contact).
             // Distinct slots; not aliases of each other.
             data["phone"] = phoneNumber ?: FieldValue.delete
+            data["whatsapp"] = whatsappNumber ?: FieldValue.delete
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
