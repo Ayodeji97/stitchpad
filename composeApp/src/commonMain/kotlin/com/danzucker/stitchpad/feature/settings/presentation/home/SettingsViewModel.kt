@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val PRIVACY_URL = "https://stitchpad.app/privacy"
-private const val TERMS_URL = "https://stitchpad.app/terms"
-private const val UPGRADE_URL = "https://stitchpad.app/upgrade"
+private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
+private const val TERMS_URL = "https://getstitchpad.com/terms"
+private const val UPGRADE_URL = "https://getstitchpad.com/upgrade"
 private const val FREE_CUSTOMER_LIMIT = 15
 private const val TAG = "SettingsVM"
 
