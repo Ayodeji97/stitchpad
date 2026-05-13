@@ -4,7 +4,8 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 
-private const val FREE_CUSTOMER_LIMIT = 15
+// QA-only: lowered from 15 → 3, see SettingsViewModel for context.
+private const val FREE_CUSTOMER_LIMIT = 3
 
 data class SettingsState(
     val isLoading: Boolean = true,

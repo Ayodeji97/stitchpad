@@ -28,7 +28,11 @@ import kotlinx.coroutines.launch
 private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
 private const val TERMS_URL = "https://getstitchpad.com/terms"
 private const val UPGRADE_URL = "https://getstitchpad.com/upgrade"
-private const val FREE_CUSTOMER_LIMIT = 15
+
+// QA-only: lowered from 15 → 3 so the three PlanCard variants are reachable
+// with a handful of seeded customers (inline at 1, warn at 2, locked at 3).
+// Revert before V1 ships, ideally once the freemium model is locked down.
+private const val FREE_CUSTOMER_LIMIT = 3
 private const val TAG = "SettingsVM"
 
 /**
