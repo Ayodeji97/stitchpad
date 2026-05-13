@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.Delete
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.AlertDialog
@@ -53,8 +55,12 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
+import stitchpad.composeapp.generated.resources.settings_row_contact
+import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
+import stitchpad.composeapp.generated.resources.settings_row_invite
+import stitchpad.composeapp.generated.resources.settings_row_invite_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_centimeters
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_inches
@@ -63,9 +69,11 @@ import stitchpad.composeapp.generated.resources.settings_row_sign_out
 import stitchpad.composeapp.generated.resources.settings_row_signin_method
 import stitchpad.composeapp.generated.resources.settings_row_terms
 import stitchpad.composeapp.generated.resources.settings_section_account
+import stitchpad.composeapp.generated.resources.settings_section_business
 import stitchpad.composeapp.generated.resources.settings_section_legal
 import stitchpad.composeapp.generated.resources.settings_section_plan
 import stitchpad.composeapp.generated.resources.settings_section_preferences
+import stitchpad.composeapp.generated.resources.settings_section_support
 import stitchpad.composeapp.generated.resources.settings_theme_dark
 import stitchpad.composeapp.generated.resources.settings_theme_light
 import stitchpad.composeapp.generated.resources.settings_theme_system
@@ -136,6 +144,16 @@ fun SettingsScreen(
                     customerLimit = state.customerLimit,
                     onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
                     onComparePlansClick = { onAction(SettingsAction.OnComparePlansClick) },
+                )
+            }
+
+            SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
+                SettingsRow(
+                    icon = Icons.Outlined.PersonAddAlt,
+                    label = stringResource(Res.string.settings_row_invite),
+                    subtitle = stringResource(Res.string.settings_row_invite_subtitle),
+                    onClick = { onAction(SettingsAction.OnInviteClick) },
+                    trailing = { SettingsRowChevron() },
                 )
             }
 
@@ -210,6 +228,16 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Logout,
                     label = stringResource(Res.string.settings_row_sign_out),
                     onClick = { onAction(SettingsAction.OnSignOutRowClick) },
+                )
+            }
+
+            SettingsSectionCard(label = stringResource(Res.string.settings_section_support)) {
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Outlined.Chat,
+                    label = stringResource(Res.string.settings_row_contact),
+                    subtitle = stringResource(Res.string.settings_row_contact_subtitle),
+                    onClick = { onAction(SettingsAction.OnContactClick) },
+                    trailing = { SettingsRowChevron() },
                 )
             }
 

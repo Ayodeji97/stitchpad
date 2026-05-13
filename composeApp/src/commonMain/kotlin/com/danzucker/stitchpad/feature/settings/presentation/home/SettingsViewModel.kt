@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -28,6 +29,12 @@ import kotlinx.coroutines.launch
 private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
 private const val TERMS_URL = "https://getstitchpad.com/terms"
 private const val UPGRADE_URL = "https://getstitchpad.com/upgrade"
+private const val SUPPORT_WHATSAPP_NUMBER = "+2348064816696"
+private const val INVITE_SHARE_MESSAGE =
+    "Hi! I've been using StitchPad to manage my tailoring orders and customers — " +
+        "it's been a game-changer. Try it: https://getstitchpad.com"
+private const val SUPPORT_INTRO_MESSAGE =
+    "Hi StitchPad team! I need help with "
 
 // QA-only: lowered from 15 → 3 so the three PlanCard variants are reachable
 // with a handful of seeded customers (inline at 1, warn at 2, locked at 3).
@@ -95,6 +102,14 @@ class SettingsViewModel(
             SettingsAction.OnPrivacyClick -> emit(SettingsEvent.OpenUrl(PRIVACY_URL))
             SettingsAction.OnTermsClick -> emit(SettingsEvent.OpenUrl(TERMS_URL))
             SettingsAction.OnDeleteAccountClick -> emit(SettingsEvent.NavigateToDeleteAccount)
+            SettingsAction.OnInviteClick -> {
+                // Empty phone → WhatsApp opens its universal share picker so the
+                // user can pick any chat, instead of a direct conversation.
+                emit(SettingsEvent.OpenUrl(buildWhatsAppUrl("", INVITE_SHARE_MESSAGE)))
+            }
+            SettingsAction.OnContactClick -> {
+                emit(SettingsEvent.OpenUrl(buildWhatsAppUrl(SUPPORT_WHATSAPP_NUMBER, SUPPORT_INTRO_MESSAGE)))
+            }
         }
     }
 

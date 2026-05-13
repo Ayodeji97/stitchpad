@@ -18,4 +18,6 @@ sealed interface SettingsAction {
     data object OnPrivacyClick : SettingsAction
     data object OnTermsClick : SettingsAction
     data object OnDeleteAccountClick : SettingsAction
+    data object OnInviteClick : SettingsAction
+    data object OnContactClick : SettingsAction
 }
