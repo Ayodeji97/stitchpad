@@ -227,6 +227,12 @@ fun SettingsScreen(
                 )
             }
 
+            // Visual gap so the headerless Delete account card reads as its own
+            // standalone section rather than a third row in Legal. Without this
+            // the two cards render flush because the section card only pads above
+            // when it has a label.
+            Spacer(Modifier.height(DesignTokens.space4))
+
             SettingsSectionCard {
                 SettingsRow(
                     icon = Icons.Outlined.Delete,
