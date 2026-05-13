@@ -123,7 +123,7 @@ fun SettingsRowChevron(
     Icon(
         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.outline,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.size(20.dp),
     )
 }
@@ -135,7 +135,7 @@ fun SettingsRowExternalIcon(
     Icon(
         imageVector = Icons.Filled.OpenInNew,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.outline,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.size(16.dp),
     )
 }
