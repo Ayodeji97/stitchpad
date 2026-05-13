@@ -111,17 +111,20 @@ fun ProfileHeroCard(
                 .fillMaxWidth()
                 .background(backgroundBrush),
         ) {
-            // Decorative mannequin/dress-form glyph parked on the right side.
-            // Placeholder uses Icons.Outlined.Checkroom (clothing icon) until a
-            // proper dashed dress-form SVG asset is added by design.
+            // Decorative dress-form glyph treated like a watermark — faded into
+            // the card background like the dashboard "Set your first revenue
+            // goal" hero. Lower alpha + larger size makes it read as
+            // atmospheric texture rather than a UI element competing with the
+            // chevron. Placeholder uses Icons.Outlined.Checkroom until a real
+            // dashed dress-form SVG asset is added.
             Icon(
                 imageVector = Icons.Outlined.Checkroom,
                 contentDescription = null,
-                tint = DesignTokens.primary500.copy(alpha = 0.22f),
+                tint = DesignTokens.primary500.copy(alpha = 0.10f),
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 40.dp)
-                    .size(88.dp),
+                    .padding(end = DesignTokens.space6)
+                    .size(100.dp),
             )
 
             Row(
@@ -167,8 +170,8 @@ fun ProfileHeroCard(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
                 )
             }
         }
