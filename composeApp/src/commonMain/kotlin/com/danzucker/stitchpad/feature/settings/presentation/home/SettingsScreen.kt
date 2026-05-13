@@ -53,6 +53,7 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.settings_hero_plan_pro
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
@@ -125,6 +126,11 @@ fun SettingsScreen(
                 subtitle = state.heroSubtitle.ifBlank { state.email },
                 avatarColorIndex = state.avatarColorIndex,
                 onClick = { onAction(SettingsAction.OnProfileClick) },
+                planBadgeLabel = if (state.isPremium) {
+                    stringResource(Res.string.settings_hero_plan_pro)
+                } else {
+                    null
+                },
             )
 
             if (state.showPlanCard) {

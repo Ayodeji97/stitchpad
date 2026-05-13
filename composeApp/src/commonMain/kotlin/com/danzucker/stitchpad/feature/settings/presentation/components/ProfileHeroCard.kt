@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -64,6 +65,7 @@ fun ProfileHeroCard(
     avatarColorIndex: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    planBadgeLabel: String? = null,
 ) {
     val initial = businessName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     val avatarBrushBg = avatarBrush(avatarColorIndex)
@@ -126,12 +128,58 @@ fun ProfileHeroCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (planBadgeLabel != null) {
+                    PlanBadge(
+                        label = planBadgeLabel,
+                        modifier = Modifier.padding(top = DesignTokens.space2),
+                    )
+                }
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Small saffron-outlined pill rendered under the subtitle when the user is on a
+ * paid plan. Acts as a visual reward for upgrading; the inline upgrade CTAs
+ * (Plan card) are hidden in this state so the badge is the only plan surface.
+ */
+@Composable
+private fun PlanBadge(
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, DesignTokens.primary500),
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = DesignTokens.space2,
+                vertical = 2.dp,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.WorkspacePremium,
+                contentDescription = null,
+                tint = DesignTokens.primary500,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = DesignTokens.primary500,
             )
         }
     }

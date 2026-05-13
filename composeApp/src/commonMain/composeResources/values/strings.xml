@@ -942,6 +942,7 @@
     <string name="settings_section_plan">Plan</string>
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_section_account">Account</string>
+    <string name="settings_hero_plan_pro">Tailor Pro</string>
     <string name="settings_section_business">Business</string>
     <string name="settings_section_support">Support</string>
     <string name="settings_row_invite">Invite a tailor</string>
