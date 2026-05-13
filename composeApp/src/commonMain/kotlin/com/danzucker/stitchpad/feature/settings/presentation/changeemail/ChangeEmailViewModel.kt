@@ -58,10 +58,17 @@ class ChangeEmailViewModel(
             }
             ChangeEmailAction.OnReauthConfirm -> reauthenticate()
             ChangeEmailAction.OnReauthDismiss -> {
-                // Only treat dismiss as "user canceled" before reauth. If reauth
-                // already succeeded, the sheet is being dismissed programmatically
-                // (state.showReauthSheet flipped false), so don't navigate away.
-                if (!_state.value.isReauthenticated) emit(ChangeEmailEvent.NavigateBack)
+                // Only treat dismiss as "user canceled" when reauth hasn't
+                // started (real cancel) AND hasn't succeeded (programmatic
+                // dismissal). Also guard against in-flight reauth: launching the
+                // native Google/Apple sign-in pulls focus away and the
+                // ModalBottomSheet fires onDismissRequest mid-flight; without
+                // the isReauthenticating guard we'd pop the screen before the
+                // SSO flow even returns.
+                val s = _state.value
+                if (!s.isReauthenticated && !s.isReauthenticating) {
+                    emit(ChangeEmailEvent.NavigateBack)
+                }
             }
             ChangeEmailAction.OnForgotPassword -> sendPasswordReset()
             is ChangeEmailAction.OnNewEmailChange -> _state.update {

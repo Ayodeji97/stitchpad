@@ -49,6 +49,7 @@ class ChangePasswordViewModel(
             initialValue = ChangePasswordState(),
         )
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: ChangePasswordAction) {
         when (action) {
             is ChangePasswordAction.OnReauthPasswordChange -> _state.update {
@@ -56,10 +57,13 @@ class ChangePasswordViewModel(
             }
             ChangePasswordAction.OnReauthConfirm -> reauthenticate()
             ChangePasswordAction.OnReauthDismiss -> {
-                // Only treat dismiss as "user canceled" before reauth. If reauth
-                // already succeeded, the sheet is being dismissed programmatically
-                // (state.showReauthSheet flipped false), so don't navigate away.
-                if (!_state.value.isReauthenticated) emit(ChangePasswordEvent.NavigateBack)
+                // See ChangeEmailViewModel for the same guard rationale: real
+                // cancels only happen when reauth is neither in-flight nor
+                // already succeeded.
+                val s = _state.value
+                if (!s.isReauthenticated && !s.isReauthenticating) {
+                    emit(ChangePasswordEvent.NavigateBack)
+                }
             }
             ChangePasswordAction.OnForgotPassword -> sendPasswordReset()
             is ChangePasswordAction.OnNewPasswordChange -> _state.update {

@@ -186,14 +186,16 @@ fun SettingsScreen(
                     onClick = null,
                     subtitle = providerSubtitle(state.signInProvider, state.maskedSignInIdentifier),
                 )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Email,
-                    label = stringResource(Res.string.settings_row_email),
-                    subtitle = state.email,
-                    onClick = { onAction(SettingsAction.OnEmailRowClick) },
-                    trailing = { SettingsRowChevron() },
-                )
+                if (state.showChangeEmailRow) {
+                    SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Email,
+                        label = stringResource(Res.string.settings_row_email),
+                        subtitle = state.email,
+                        onClick = { onAction(SettingsAction.OnEmailRowClick) },
+                        trailing = { SettingsRowChevron() },
+                    )
+                }
                 if (state.showChangePasswordRow) {
                     SettingsRowDivider()
                     SettingsRow(

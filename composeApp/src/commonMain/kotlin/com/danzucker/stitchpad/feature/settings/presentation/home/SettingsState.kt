@@ -39,4 +39,12 @@ data class SettingsState(
 
     /** Change password row only renders for email/password providers. */
     val showChangePasswordRow: Boolean get() = signInProvider == SignInProvider.EMAIL_PASSWORD
+
+    /**
+     * Change-email row is hidden for SSO users — their email is owned by the
+     * identity provider (Google/Apple), Firebase rejects
+     * `verifyBeforeUpdateEmail` for federated accounts, and the Sign-in method
+     * row already shows the same email above.
+     */
+    val showChangeEmailRow: Boolean get() = signInProvider == SignInProvider.EMAIL_PASSWORD
 }
