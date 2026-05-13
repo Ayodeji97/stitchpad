@@ -62,7 +62,6 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.auth_coming_soon
 import stitchpad.composeapp.generated.resources.cd_password_hide
 import stitchpad.composeapp.generated.resources.cd_password_show
 import stitchpad.composeapp.generated.resources.placeholder_email
@@ -94,7 +93,7 @@ fun SignUpRoot(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(Res.string.auth_coming_soon)
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -109,9 +108,7 @@ fun SignUpRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
-            SignUpEvent.ShowComingSoon -> {
-                scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-            }
+            is SignUpEvent.OpenUrl -> uriHandler.openUri(event.url)
         }
     }
 

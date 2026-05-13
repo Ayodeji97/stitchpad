@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -202,8 +202,8 @@ private fun ReconnectHeroCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
-    val watermarkAlpha = if (isSystemInDarkTheme()) WATERMARK_ALPHA_DARK else WATERMARK_ALPHA_LIGHT
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
+    val watermarkAlpha = if (isDark) WATERMARK_ALPHA_DARK else WATERMARK_ALPHA_LIGHT
     val whatsappGreen = if (isDark) WHATSAPP_GREEN_DARK else WHATSAPP_GREEN
 
     Surface(

@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -21,6 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -39,7 +39,7 @@ fun UserAvatar(
             DesignTokens.primary900,
         ),
     )
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
     val textColor = if (isDark) DesignTokens.primary200 else DesignTokens.primary100
     val openSettingsDesc = stringResource(Res.string.cd_open_settings)
 

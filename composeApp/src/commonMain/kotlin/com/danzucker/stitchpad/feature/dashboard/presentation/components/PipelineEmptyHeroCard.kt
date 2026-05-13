@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.painterResource
 import stitchpad.composeapp.generated.resources.Res
@@ -63,7 +63,7 @@ fun PipelineEmptyHeroCard(
 ) {
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
     val scheme = MaterialTheme.colorScheme
-    val backdropAlpha = if (isSystemInDarkTheme()) 0.08f else 0.12f
+    val backdropAlpha = if (LocalIsDarkTheme.current) 0.08f else 0.12f
     val backdropColor = scheme.primary.copy(alpha = backdropAlpha)
     val backdropShape = RoundedCornerShape(DesignTokens.radiusMd)
 

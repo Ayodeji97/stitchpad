@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 val OrderRowAvatarSize = 36.dp
@@ -35,7 +35,7 @@ fun OrderRowAvatar(
     val avatar = remember(customerId) {
         colors[customerId.hashCode().mod(colors.size)]
     }
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
     val (bg, fg) = if (initial == null) {
         MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
     } else if (isDark) {

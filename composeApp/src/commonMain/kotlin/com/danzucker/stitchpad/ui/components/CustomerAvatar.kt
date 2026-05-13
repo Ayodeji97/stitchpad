@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,13 +13,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 @Composable
 fun CustomerAvatar(
     name: String,
     modifier: Modifier = Modifier,
     size: Dp = DesignTokens.space10
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
     val colorIndex = name.hashCode().and(Int.MAX_VALUE) % DesignTokens.avatarColors.size
     val pair = DesignTokens.avatarColors[colorIndex]
     val bg = if (isDark) pair.darkBg else pair.lightBg
