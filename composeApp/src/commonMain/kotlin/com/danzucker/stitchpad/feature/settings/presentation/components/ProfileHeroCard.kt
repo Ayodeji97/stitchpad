@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -77,21 +76,27 @@ fun ProfileHeroCard(
     // Use LocalIsDarkTheme so this also follows the user's Appearance choice in
     // Settings, not just the OS-level dark-mode preference.
     val isDark = LocalIsDarkTheme.current
-    // Vertical wash: warm saffron tint at the top fades into the card base so the
-    // hero feels premium without the diagonal seam the earlier linear gradient had.
+    // Dark mode keeps the warm vertical wash for atmospheric premium feel.
+    // Light mode uses a flat primary50 — the cream-tinted wash was too
+    // saturated and made the card feel like a yellow callout instead of a
+    // soft background. The decorative dress-form watermark is removed
+    // pending a proper dashed-outline SVG asset; the Checkroom placeholder
+    // didn't carry the same intent.
     val cardBaseColor = if (isDark) {
         MaterialTheme.colorScheme.surfaceContainerHighest
     } else {
         DesignTokens.primary50
     }
-    val washTopColor = if (isDark) {
-        DesignTokens.primary900.copy(alpha = 0.45f)
+    val cardBackground: androidx.compose.ui.graphics.Brush = if (isDark) {
+        androidx.compose.ui.graphics.Brush.verticalGradient(
+            colors = listOf(
+                DesignTokens.primary900.copy(alpha = 0.45f),
+                cardBaseColor,
+            ),
+        )
     } else {
-        DesignTokens.primary100.copy(alpha = 0.7f)
+        androidx.compose.ui.graphics.SolidColor(cardBaseColor)
     }
-    val backgroundBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
-        colors = listOf(washTopColor, cardBaseColor),
-    )
     val borderColor = if (isDark) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
@@ -109,24 +114,8 @@ fun ProfileHeroCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(backgroundBrush),
+                .background(cardBackground),
         ) {
-            // Decorative dress-form glyph treated like a watermark — faded into
-            // the card background like the dashboard "Set your first revenue
-            // goal" hero. Lower alpha + larger size makes it read as
-            // atmospheric texture rather than a UI element competing with the
-            // chevron. Placeholder uses Icons.Outlined.Checkroom until a real
-            // dashed dress-form SVG asset is added.
-            Icon(
-                imageVector = Icons.Outlined.Checkroom,
-                contentDescription = null,
-                tint = DesignTokens.primary500.copy(alpha = 0.10f),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = DesignTokens.space6)
-                    .size(100.dp),
-            )
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
