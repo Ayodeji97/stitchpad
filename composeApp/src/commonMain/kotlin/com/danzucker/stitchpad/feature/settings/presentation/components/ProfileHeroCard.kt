@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -76,11 +77,21 @@ fun ProfileHeroCard(
     // Use LocalIsDarkTheme so this also follows the user's Appearance choice in
     // Settings, not just the OS-level dark-mode preference.
     val isDark = LocalIsDarkTheme.current
-    val cardColor = if (isDark) {
+    // Vertical wash: warm saffron tint at the top fades into the card base so the
+    // hero feels premium without the diagonal seam the earlier linear gradient had.
+    val cardBaseColor = if (isDark) {
         MaterialTheme.colorScheme.surfaceContainerHighest
     } else {
         DesignTokens.primary50
     }
+    val washTopColor = if (isDark) {
+        DesignTokens.primary900.copy(alpha = 0.45f)
+    } else {
+        DesignTokens.primary100.copy(alpha = 0.7f)
+    }
+    val backgroundBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
+        colors = listOf(washTopColor, cardBaseColor),
+    )
     val borderColor = if (isDark) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
@@ -89,58 +100,77 @@ fun ProfileHeroCard(
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusXl),
-        color = cardColor,
+        color = androidx.compose.ui.graphics.Color.Transparent,
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(DesignTokens.space4),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                .background(backgroundBrush),
         ) {
-            Box(
+            // Decorative mannequin/dress-form glyph parked on the right side.
+            // Placeholder uses Icons.Outlined.Checkroom (clothing icon) until a
+            // proper dashed dress-form SVG asset is added by design.
+            Icon(
+                imageVector = Icons.Outlined.Checkroom,
+                contentDescription = null,
+                tint = DesignTokens.primary500.copy(alpha = 0.22f),
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(avatarBrushBg),
-                contentAlignment = Alignment.Center,
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 40.dp)
+                    .size(88.dp),
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(DesignTokens.space4),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             ) {
-                Text(
-                    text = initial,
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = businessName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (planBadgeLabel != null) {
-                    PlanBadge(
-                        label = planBadgeLabel,
-                        modifier = Modifier.padding(top = DesignTokens.space2),
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(avatarBrushBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = initial,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = businessName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (planBadgeLabel != null) {
+                        PlanBadge(
+                            label = planBadgeLabel,
+                            modifier = Modifier.padding(top = DesignTokens.space2),
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(24.dp),
+                )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(24.dp),
-            )
         }
     }
 }
