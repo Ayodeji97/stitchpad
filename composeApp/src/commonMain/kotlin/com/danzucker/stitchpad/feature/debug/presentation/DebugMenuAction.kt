@@ -10,5 +10,5 @@ sealed interface DebugMenuAction {
     data object OnSignOutClick : DebugMenuAction
     data object OnSwitchToFolaClick : DebugMenuAction
     data object OnSwitchToGabbyClick : DebugMenuAction
-    data object OnDeleteAllDataClick : DebugMenuAction
+    data object OnWipeDataClick : DebugMenuAction
 }

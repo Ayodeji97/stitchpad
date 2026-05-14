@@ -67,12 +67,15 @@ class DebugMenuViewModel(
                     )
                 )
             }
-            DebugMenuAction.OnDeleteAllDataClick -> runJob {
-                val r = sessionActions.deleteCurrentAccount()
-                if (r is SessionActionResult.Success) {
-                    emit(DebugMenuEvent.NavigateToLogin)
-                } else {
-                    emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Delete failed")))
+            DebugMenuAction.OnWipeDataClick -> runJob {
+                val r = seeder.wipeAllData()
+                when (r) {
+                    SeedResult.Success -> {
+                        _state.update { it.copy(activeScenario = null) }
+                        emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Data wiped")))
+                    }
+                    is SeedResult.Failure ->
+                        emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Wipe failed: ${r.reason}")))
                 }
             }
         }

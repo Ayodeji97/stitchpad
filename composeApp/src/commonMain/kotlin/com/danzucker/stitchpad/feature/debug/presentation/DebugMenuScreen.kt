@@ -10,7 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.BugReport
-import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,9 +123,9 @@ fun DebugMenuScreen(
 
             SettingsSectionCard(label = "Danger zone") {
                 SettingsRow(
-                    icon = Icons.Outlined.DeleteForever,
-                    label = "Delete all my data",
-                    onClick = { onAction(DebugMenuAction.OnDeleteAllDataClick) },
+                    icon = Icons.Outlined.Delete,
+                    label = "Wipe my data",
+                    onClick = { onAction(DebugMenuAction.OnWipeDataClick) },
                     isDanger = true,
                 )
             }

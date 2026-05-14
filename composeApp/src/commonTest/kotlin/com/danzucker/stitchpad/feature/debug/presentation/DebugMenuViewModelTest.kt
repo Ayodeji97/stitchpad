@@ -155,17 +155,20 @@ class DebugMenuViewModelTest {
     }
 
     @Test
-    fun `OnDeleteAllDataClick on success emits NavigateToLogin event`() = runTest {
-        // FakeAuthRepository.deleteAccount returns Result.Success when there's a current user.
+    fun `OnWipeDataClick wipes data and clears activeScenario`() = runTest {
         val vm = createViewModel()
+        // Seed first so there's an active scenario to clear
+        seeder.seedActiveWorkshopResult = SeedResult.Success
+        vm.onAction(DebugMenuAction.OnSeedActiveWorkshopClick)
+        assertEquals(DebugScenario.ActiveWorkshop, vm.state.first().activeScenario)
 
         val events = mutableListOf<DebugMenuEvent>()
-        backgroundScope.launch(Dispatchers.Main) {
-            vm.events.collect { events.add(it) }
-        }
-        vm.onAction(DebugMenuAction.OnDeleteAllDataClick)
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
 
-        assertTrue(events.any { it is DebugMenuEvent.NavigateToLogin })
+        vm.onAction(DebugMenuAction.OnWipeDataClick)
+
+        assertEquals(null, vm.state.first().activeScenario)
+        assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
     }
 
     private class FakeDebugSeeder : DebugSeeder {
