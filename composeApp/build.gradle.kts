@@ -136,18 +136,33 @@ android {
 // time. The properties file is gitignored; this task tolerates its absence by
 // producing empty-string defaults (Switch-account buttons render but show a
 // "creds not configured" Snackbar at runtime). See debug-menu-design.md.
+//
+// SECURITY: real credentials are ONLY embedded when the opt-in Gradle property
+// is explicitly set. Add the following to your global ~/.gradle/gradle.properties
+// (NOT to the repo) for local debug testing:
+//   debugMenu.embedTestAccountCreds=true
+// Never set this property when building release — it would ship the real
+// credentials as inspectable string constants in the APK/IPA.
 val generateDebugTestAccounts by tasks.registering {
     val propsFile = layout.projectDirectory.file("debug-test-accounts.properties").asFile
     val outputDir = layout.buildDirectory.dir(
         "generated/debugTestAccounts/commonMain/kotlin/com/danzucker/stitchpad/core/debug"
     )
 
+    // Resolve the opt-in property at configuration time so the value is
+    // serializable by Gradle's configuration cache and available inside doLast.
+    val embedCreds: Boolean =
+        providers.gradleProperty("debugMenu.embedTestAccountCreds").orNull == "true"
+
     inputs.files(propsFile).optional(true)
+    // Make Gradle's up-to-date check aware that toggling the opt-in property
+    // must invalidate the task output.
+    inputs.property("embedCreds", embedCreds.toString())
     outputs.dir(outputDir)
 
     doLast {
         val props = Properties().apply {
-            if (propsFile.exists()) {
+            if (embedCreds && propsFile.exists()) {
                 propsFile.inputStream().use { load(it) }
             }
         }
@@ -179,6 +194,37 @@ val generateDebugTestAccounts by tasks.registering {
             |
             """.trimMargin()
         )
+    }
+}
+
+// Safety guard: abort any release build if the creds opt-in property is set.
+// This prevents accidentally shipping real test-account credentials in production
+// artifacts even if a developer forgets to unset the property.
+val embedCredsForReleaseCheck: Boolean =
+    providers.gradleProperty("debugMenu.embedTestAccountCreds").orNull == "true"
+gradle.taskGraph.whenReady {
+    if (embedCredsForReleaseCheck) {
+        val releaseTaskPatterns = listOf(
+            "assembleRelease",
+            "bundleRelease",
+            Regex("linkRelease.*Framework.*")
+        )
+        val hasReleaseTask = allTasks.any { task ->
+            releaseTaskPatterns.any { pattern ->
+                when (pattern) {
+                    is String -> task.name == pattern
+                    is Regex -> pattern.matches(task.name)
+                    else -> false
+                }
+            }
+        }
+        if (hasReleaseTask) {
+            error(
+                "Build aborted: debugMenu.embedTestAccountCreds=true is set but this " +
+                    "build graph contains a release task. Remove the property from " +
+                    "~/.gradle/gradle.properties before building release."
+            )
+        }
     }
 }
 

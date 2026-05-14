@@ -1,6 +1,12 @@
 # Local-only credentials for debug "Switch account" buttons.
 # Copy this file to debug-test-accounts.properties and fill in real values.
 # NEVER commit the .properties file (only this .example is tracked).
+#
+# BY DEFAULT THESE VALUES ARE NOT EMBEDDED in the generated DebugTestAccounts.kt.
+# To embed for local debug builds, add to your global ~/.gradle/gradle.properties:
+#   debugMenu.embedTestAccountCreds=true
+# NEVER set this property when building release — it would ship the real
+# credentials as inspectable string constants in the APK/IPA.
 fola.email=
 fola.password=
 gabby.email=
