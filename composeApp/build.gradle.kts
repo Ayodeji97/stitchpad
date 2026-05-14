@@ -151,10 +151,13 @@ val generateDebugTestAccounts by tasks.registering {
                 propsFile.inputStream().use { load(it) }
             }
         }
-        val folaEmail = props.getProperty("fola.email", "").trim()
-        val folaPassword = props.getProperty("fola.password", "").trim()
-        val gabbyEmail = props.getProperty("gabby.email", "").trim()
-        val gabbyPassword = props.getProperty("gabby.password", "").trim()
+        fun String.escapeForKotlinLiteral(): String =
+            this.replace("\\", "\\\\").replace("\"", "\\\"")
+
+        val folaEmail = props.getProperty("fola.email", "").trim().escapeForKotlinLiteral()
+        val folaPassword = props.getProperty("fola.password", "").trim().escapeForKotlinLiteral()
+        val gabbyEmail = props.getProperty("gabby.email", "").trim().escapeForKotlinLiteral()
+        val gabbyPassword = props.getProperty("gabby.password", "").trim().escapeForKotlinLiteral()
 
         val dir = outputDir.get().asFile
         dir.mkdirs()
