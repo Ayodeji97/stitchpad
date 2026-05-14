@@ -154,25 +154,38 @@ class SettingsViewModel(
 
     private fun toggleMeasurementUnit() {
         viewModelScope.launch {
-            val current = uiState.value.measurementUnit
-            val next = if (current == MeasurementUnit.INCHES) MeasurementUnit.CM else MeasurementUnit.INCHES
-            measurementPreferencesStore.setUnit(next)
-            uiState.update { it.copy(measurementUnit = next) }
+            // Compute `next` inside the atomic `update` so rapid double-taps
+            // advance two steps instead of landing on the same value (snapshot
+            // read + update is not atomic end-to-end).
+            var nextUnit: MeasurementUnit = MeasurementUnit.INCHES
+            uiState.update { current ->
+                nextUnit = if (current.measurementUnit == MeasurementUnit.INCHES) {
+                    MeasurementUnit.CM
+                } else {
+                    MeasurementUnit.INCHES
+                }
+                current.copy(measurementUnit = nextUnit)
+            }
+            measurementPreferencesStore.setUnit(nextUnit)
         }
     }
 
     private fun cycleTheme() {
         viewModelScope.launch {
             // Cycle System → Light → Dark → System, mirroring how
-            // toggleMeasurementUnit cycles Inches ↔ Cm. Keeps the row pattern
-            // identical: tap → cycles → trailing value updates.
-            val next = when (uiState.value.themePreference) {
-                ThemePreference.SYSTEM -> ThemePreference.LIGHT
-                ThemePreference.LIGHT -> ThemePreference.DARK
-                ThemePreference.DARK -> ThemePreference.SYSTEM
+            // toggleMeasurementUnit cycles Inches ↔ Cm. Compute `next` inside
+            // the atomic `update` so rapid taps advance through every state
+            // instead of collapsing onto a single transition.
+            var nextTheme: ThemePreference = ThemePreference.SYSTEM
+            uiState.update { current ->
+                nextTheme = when (current.themePreference) {
+                    ThemePreference.SYSTEM -> ThemePreference.LIGHT
+                    ThemePreference.LIGHT -> ThemePreference.DARK
+                    ThemePreference.DARK -> ThemePreference.SYSTEM
+                }
+                current.copy(themePreference = nextTheme)
             }
-            themePreferencesStore.setTheme(next)
-            uiState.update { it.copy(themePreference = next) }
+            themePreferencesStore.setTheme(nextTheme)
         }
     }
 
