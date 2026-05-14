@@ -1,21 +1,32 @@
 package com.danzucker.stitchpad.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-val LightColorScheme = lightColorScheme(
-    primary = DesignTokens.primary500,
-    onPrimary = DesignTokens.neutral800, // Dark text on saffron — NOT white
-    primaryContainer = DesignTokens.primary50,
-    onPrimaryContainer = DesignTokens.primary900,
-    secondary = DesignTokens.primary600,
+/**
+ * Light Adire Atelier color scheme. Indigo primary, sienna tertiary,
+ * warm paper background. Function-style (vs the old val-style) so future
+ * platform-specific tweaks (Android 12+ dynamic color) don't require
+ * restructuring the Theme.kt orchestrator.
+ */
+fun stitchPadLightColorScheme(): ColorScheme = lightColorScheme(
+    primary = DesignTokens.indigo500,
+    onPrimary = Color.White,
+    primaryContainer = DesignTokens.indigo50,
+    onPrimaryContainer = DesignTokens.indigo700,
+    secondary = DesignTokens.indigo700,
     onSecondary = Color.White,
-    secondaryContainer = DesignTokens.primary100,
-    onSecondaryContainer = DesignTokens.primary800,
-    background = DesignTokens.neutral50,
+    secondaryContainer = DesignTokens.indigo100,
+    onSecondaryContainer = DesignTokens.indigo900,
+    tertiary = DesignTokens.sienna500,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFCEFE5), // sienna50 inline — not worth a token
+    onTertiaryContainer = DesignTokens.sienna700,
+    background = DesignTokens.paperLight,
     onBackground = DesignTokens.neutral800,
-    surface = DesignTokens.neutral0,
+    surface = Color.White,
     onSurface = DesignTokens.neutral800,
     surfaceVariant = DesignTokens.neutral100,
     onSurfaceVariant = DesignTokens.neutral600,
@@ -27,16 +38,25 @@ val LightColorScheme = lightColorScheme(
     outlineVariant = DesignTokens.neutral100,
 )
 
-val DarkColorScheme = darkColorScheme(
-    primary = DesignTokens.primary500,
-    onPrimary = Color.White, // White text on saffron in dark mode
-    primaryContainer = DesignTokens.primary900,
-    onPrimaryContainer = DesignTokens.primary100,
-    secondary = DesignTokens.primary400,
-    onSecondary = DesignTokens.neutral900,
-    secondaryContainer = DesignTokens.primary800,
-    onSecondaryContainer = DesignTokens.primary200,
-    background = DesignTokens.darkBg,
+/**
+ * Dark Adire Atelier color scheme. Indigo tonally lifts (indigo500 → indigo300)
+ * so the brand color reads clearly on warm-ink backgrounds. Sienna also lifts
+ * (sienna500 → sienna300). Background is warm-ink, not pure black.
+ */
+fun stitchPadDarkColorScheme(): ColorScheme = darkColorScheme(
+    primary = DesignTokens.indigo300,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF2D3B6B), // avatar bg — brighter than surface
+    onPrimaryContainer = DesignTokens.indigo100,
+    secondary = DesignTokens.indigo400,
+    onSecondary = Color.White,
+    secondaryContainer = DesignTokens.indigo900,
+    onSecondaryContainer = DesignTokens.indigo200,
+    tertiary = DesignTokens.sienna300,
+    onTertiary = DesignTokens.neutral900,
+    tertiaryContainer = Color(0xFF3D2510), // warm dark sienna container
+    onTertiaryContainer = DesignTokens.sienna300,
+    background = DesignTokens.inkDark,
     onBackground = DesignTokens.darkText,
     surface = DesignTokens.darkSurface,
     onSurface = DesignTokens.darkText,
