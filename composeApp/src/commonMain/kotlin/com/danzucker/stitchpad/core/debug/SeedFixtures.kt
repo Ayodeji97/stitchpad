@@ -20,8 +20,12 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
  */
 internal object SeedFixtures {
 
+    private const val DAY_MS = 24L * 60 * 60 * 1000L
+
     /** Eight customers with Nigerian-style names + phones. */
     fun customers(userId: String, now: Long): List<Customer> = listOf(
+        // Positions 1–4 are all female so measurementsFor (which hardcodes FEMALE)
+        // can be called safely on customers.take(4).
         Customer(
             id = "seed-customer-1",
             userId = userId,
@@ -47,8 +51,31 @@ internal object SeedFixtures {
         Customer(
             id = "seed-customer-3",
             userId = userId,
-            name = "Chinedu Eze",
+            name = "Ngozi Iwu",
             phone = "+2348012345603",
+            email = null,
+            address = null,
+            deliveryPreference = DeliveryPreference.PICKUP,
+            notes = null,
+            createdAt = now,
+        ),
+        Customer(
+            id = "seed-customer-4",
+            userId = userId,
+            name = "Hauwa Bello",
+            phone = "+2348012345604",
+            email = null,
+            address = null,
+            deliveryPreference = DeliveryPreference.PICKUP,
+            notes = null,
+            createdAt = now,
+        ),
+        // Positions 5–8 are male.
+        Customer(
+            id = "seed-customer-5",
+            userId = userId,
+            name = "Chinedu Eze",
+            phone = "+2348012345605",
             email = null,
             address = "5 Marina, Lagos Island",
             deliveryPreference = DeliveryPreference.DELIVERY,
@@ -56,10 +83,10 @@ internal object SeedFixtures {
             createdAt = now,
         ),
         Customer(
-            id = "seed-customer-4",
+            id = "seed-customer-6",
             userId = userId,
             name = "Tunde Bakare",
-            phone = "+2348012345604",
+            phone = "+2348012345606",
             email = "tunde@example.ng",
             address = null,
             deliveryPreference = DeliveryPreference.PICKUP,
@@ -67,35 +94,13 @@ internal object SeedFixtures {
             createdAt = now,
         ),
         Customer(
-            id = "seed-customer-5",
-            userId = userId,
-            name = "Ngozi Iwu",
-            phone = "+2348012345605",
-            email = null,
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = null,
-            createdAt = now,
-        ),
-        Customer(
-            id = "seed-customer-6",
+            id = "seed-customer-7",
             userId = userId,
             name = "Oluwaseun Adesina",
-            phone = "+2348012345606",
+            phone = "+2348012345607",
             email = null,
             address = "27 Allen Avenue, Ikeja",
             deliveryPreference = DeliveryPreference.DELIVERY,
-            notes = null,
-            createdAt = now,
-        ),
-        Customer(
-            id = "seed-customer-7",
-            userId = userId,
-            name = "Hauwa Bello",
-            phone = "+2348012345607",
-            email = null,
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
             notes = null,
             createdAt = now,
         ),
@@ -112,7 +117,7 @@ internal object SeedFixtures {
         ),
     )
 
-    /** Measurement for the first four seeded customers. */
+    /** Measurement for the first four seeded customers (all female). */
     fun measurementsFor(customer: Customer, now: Long): Measurement = Measurement(
         id = "seed-measurement-${customer.id.substringAfterLast('-')}",
         customerId = customer.id,
@@ -137,7 +142,6 @@ internal object SeedFixtures {
      * distribution (one same-day, one 3-day-old, two 7-day-old).
      */
     fun activeOrders(customers: List<Customer>, now: Long): List<Order> {
-        val dayMs = 24L * 60 * 60 * 1000
         return listOf(
             // 7-day-old IN_PROGRESS
             Order(
@@ -156,13 +160,13 @@ internal object SeedFixtures {
                 status = OrderStatus.IN_PROGRESS,
                 subStatus = null,
                 priority = OrderPriority.NORMAL,
-                statusHistory = listOf(StatusChange(OrderStatus.IN_PROGRESS, now - 7 * dayMs)),
+                statusHistory = listOf(StatusChange(OrderStatus.IN_PROGRESS, now - 7 * DAY_MS)),
                 totalPrice = 25_000.0,
                 payments = emptyList(),
-                deadline = now + 5 * dayMs,
+                deadline = now + 5 * DAY_MS,
                 notes = null,
-                createdAt = now - 7 * dayMs,
-                updatedAt = now - 7 * dayMs,
+                createdAt = now - 7 * DAY_MS,
+                updatedAt = now - 7 * DAY_MS,
             ),
             // 7-day-old READY
             Order(
@@ -182,15 +186,15 @@ internal object SeedFixtures {
                 subStatus = null,
                 priority = OrderPriority.NORMAL,
                 statusHistory = listOf(
-                    StatusChange(OrderStatus.IN_PROGRESS, now - 7 * dayMs),
-                    StatusChange(OrderStatus.READY, now - 1 * dayMs),
+                    StatusChange(OrderStatus.IN_PROGRESS, now - 7 * DAY_MS),
+                    StatusChange(OrderStatus.READY, now - 1 * DAY_MS),
                 ),
                 totalPrice = 18_000.0,
                 payments = emptyList(),
-                deadline = now - 1 * dayMs,
+                deadline = now - 1 * DAY_MS,
                 notes = null,
-                createdAt = now - 7 * dayMs,
-                updatedAt = now - 1 * dayMs,
+                createdAt = now - 7 * DAY_MS,
+                updatedAt = now - 1 * DAY_MS,
             ),
             // 3-day-old DELIVERED
             Order(
@@ -210,16 +214,16 @@ internal object SeedFixtures {
                 subStatus = null,
                 priority = OrderPriority.NORMAL,
                 statusHistory = listOf(
-                    StatusChange(OrderStatus.IN_PROGRESS, now - 3 * dayMs),
-                    StatusChange(OrderStatus.READY, now - 2 * dayMs),
-                    StatusChange(OrderStatus.DELIVERED, now - 1 * dayMs),
+                    StatusChange(OrderStatus.IN_PROGRESS, now - 3 * DAY_MS),
+                    StatusChange(OrderStatus.READY, now - 2 * DAY_MS),
+                    StatusChange(OrderStatus.DELIVERED, now - 1 * DAY_MS),
                 ),
                 totalPrice = 8_500.0,
                 payments = emptyList(),
-                deadline = now - 1 * dayMs,
+                deadline = now - 1 * DAY_MS,
                 notes = null,
-                createdAt = now - 3 * dayMs,
-                updatedAt = now - 1 * dayMs,
+                createdAt = now - 3 * DAY_MS,
+                updatedAt = now - 1 * DAY_MS,
             ),
             // Same-day PENDING (deadline 14d out)
             Order(
@@ -241,7 +245,7 @@ internal object SeedFixtures {
                 statusHistory = listOf(StatusChange(OrderStatus.PENDING, now)),
                 totalPrice = 15_000.0,
                 payments = emptyList(),
-                deadline = now + 14 * dayMs,
+                deadline = now + 14 * DAY_MS,
                 notes = null,
                 createdAt = now,
                 updatedAt = now,
@@ -251,7 +255,6 @@ internal object SeedFixtures {
 
     /** Six all-reconnect customers (100+ days since last order). */
     fun allReconnectCustomers(userId: String, now: Long): List<Customer> {
-        val dayMs = 24L * 60 * 60 * 1000
         return List(6) { i ->
             Customer(
                 id = "seed-reconnect-${i + 1}",
@@ -262,14 +265,13 @@ internal object SeedFixtures {
                 address = null,
                 deliveryPreference = DeliveryPreference.PICKUP,
                 notes = null,
-                createdAt = now - (120 + i * 5) * dayMs,
+                createdAt = now - (120 + i * 5) * DAY_MS,
             )
         }
     }
 
     /** One Delivered order per all-reconnect customer, 100+ days ago. */
     fun allReconnectOrders(customers: List<Customer>, now: Long): List<Order> {
-        val dayMs = 24L * 60 * 60 * 1000
         return customers.mapIndexed { i, c ->
             val daysAgo = 100L + i * 10
             Order(
@@ -288,13 +290,13 @@ internal object SeedFixtures {
                 status = OrderStatus.DELIVERED,
                 subStatus = null,
                 priority = OrderPriority.NORMAL,
-                statusHistory = listOf(StatusChange(OrderStatus.DELIVERED, now - daysAgo * dayMs)),
+                statusHistory = listOf(StatusChange(OrderStatus.DELIVERED, now - daysAgo * DAY_MS)),
                 totalPrice = 12_000.0,
                 payments = emptyList(),
-                deadline = now - daysAgo * dayMs,
+                deadline = now - daysAgo * DAY_MS,
                 notes = null,
-                createdAt = now - daysAgo * dayMs,
-                updatedAt = now - daysAgo * dayMs,
+                createdAt = now - daysAgo * DAY_MS,
+                updatedAt = now - daysAgo * DAY_MS,
             )
         }
     }
