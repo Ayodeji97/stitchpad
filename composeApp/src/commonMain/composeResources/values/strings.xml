@@ -948,6 +948,8 @@
     <string name="settings_row_invite_subtitle">Grow your network</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
+    <string name="settings_invite_share_message">Hi! I&apos;ve been using StitchPad to manage my tailoring orders and customers — it&apos;s been a game-changer. Try it: https://getstitchpad.com</string>
+    <string name="settings_support_intro_message">Hi StitchPad team! I need help with </string>
     <string name="settings_section_legal">Legal</string>
     <string name="settings_help_cd">Help</string>
 

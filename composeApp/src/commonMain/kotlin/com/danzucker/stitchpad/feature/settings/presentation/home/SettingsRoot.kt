@@ -8,6 +8,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -35,6 +36,12 @@ fun SettingsRoot(
             SettingsEvent.NavigateToDeleteAccount -> onNavigateToDeleteAccount()
             SettingsEvent.NavigateToLoginAfterSignOut -> onSignedOut()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
+            is SettingsEvent.OpenWhatsApp -> {
+                scope.launch {
+                    val message = getString(event.messageRes)
+                    uriHandler.openUri(buildWhatsAppUrl(event.phoneNumber, message))
+                }
+            }
             is SettingsEvent.ShowSnackbar -> {
                 scope.launch {
                     val message = when (val text = event.message) {

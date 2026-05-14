@@ -9,7 +9,6 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
-import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -24,15 +23,13 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.settings_invite_share_message
+import stitchpad.composeapp.generated.resources.settings_support_intro_message
 
 private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
 private const val TERMS_URL = "https://getstitchpad.com/terms"
 private const val SUPPORT_WHATSAPP_NUMBER = "+2348064816696"
-private const val INVITE_SHARE_MESSAGE =
-    "Hi! I've been using StitchPad to manage my tailoring orders and customers — " +
-        "it's been a game-changer. Try it: https://getstitchpad.com"
-private const val SUPPORT_INTRO_MESSAGE =
-    "Hi StitchPad team! I need help with "
 
 private const val TAG = "SettingsVM"
 
@@ -93,10 +90,15 @@ class SettingsViewModel(
             SettingsAction.OnInviteClick -> {
                 // Empty phone → WhatsApp opens its universal share picker so the
                 // user can pick any chat, instead of a direct conversation.
-                emit(SettingsEvent.OpenUrl(buildWhatsAppUrl("", INVITE_SHARE_MESSAGE)))
+                emit(SettingsEvent.OpenWhatsApp("", Res.string.settings_invite_share_message))
             }
             SettingsAction.OnContactClick -> {
-                emit(SettingsEvent.OpenUrl(buildWhatsAppUrl(SUPPORT_WHATSAPP_NUMBER, SUPPORT_INTRO_MESSAGE)))
+                emit(
+                    SettingsEvent.OpenWhatsApp(
+                        SUPPORT_WHATSAPP_NUMBER,
+                        Res.string.settings_support_intro_message,
+                    )
+                )
             }
         }
     }

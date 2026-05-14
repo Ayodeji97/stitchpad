@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.settings.presentation.deleteaccount
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.currentAppVersion
 import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -30,7 +31,9 @@ import stitchpad.composeapp.generated.resources.password_reset_email_sent
 
 private const val TAG = "DeleteAccountVM"
 private const val GOODBYE_DELAY_MS = 2_500L
-private const val APP_VERSION = "1.0.0"
+
+// V1 product is English-only (per PRD). Locale here is a literal until the
+// app supports multiple locales; revisit alongside the i18n rollout.
 private const val LOCALE = "en"
 
 @Suppress("TooManyFunctions")
@@ -193,7 +196,7 @@ class DeleteAccountViewModel(
                 plan = current.plan,
                 daysActive = current.daysActive,
                 platform = currentPlatformName,
-                appVersion = APP_VERSION,
+                appVersion = currentAppVersion,
                 locale = LOCALE,
             )
             runCatching { deletionFeedbackRepository.submitFeedback(feedback) }

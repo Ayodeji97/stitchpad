@@ -31,10 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.feature.settings.domain.DeletionReason
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -66,80 +68,101 @@ fun DeleteAccountReasonSheet(
         onDismissRequest = onCancel,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = DesignTokens.space4,
-                    end = DesignTokens.space4,
-                    bottom = DesignTokens.space5,
-                ),
-        ) {
-            Text(
-                text = stringResource(Res.string.delete_account_reason_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = stringResource(Res.string.delete_account_reason_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(DesignTokens.space4))
+        ReasonSheetContent(
+            selectedReason = selectedReason,
+            additionalNotes = additionalNotes,
+            canContinue = canContinue,
+            onSelectReason = onSelectReason,
+            onNotesChange = onNotesChange,
+            onContinue = onContinue,
+            onCancel = onCancel,
+        )
+    }
+}
 
-            ReasonChips.forEach { (reason, labelRes) ->
-                ReasonRow(
-                    label = stringResource(labelRes),
-                    isSelected = selectedReason == reason,
-                    onClick = { onSelectReason(reason) },
-                )
-                Spacer(Modifier.height(DesignTokens.space2))
-            }
+@Composable
+private fun ReasonSheetContent(
+    selectedReason: DeletionReason?,
+    additionalNotes: String,
+    canContinue: Boolean,
+    onSelectReason: (DeletionReason) -> Unit,
+    onNotesChange: (String) -> Unit,
+    onContinue: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                bottom = DesignTokens.space5,
+            ),
+    ) {
+        Text(
+            text = stringResource(Res.string.delete_account_reason_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(Res.string.delete_account_reason_subtitle),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(DesignTokens.space4))
 
+        ReasonChips.forEach { (reason, labelRes) ->
+            ReasonRow(
+                label = stringResource(labelRes),
+                isSelected = selectedReason == reason,
+                onClick = { onSelectReason(reason) },
+            )
             Spacer(Modifier.height(DesignTokens.space2))
-            OutlinedTextField(
-                value = additionalNotes,
-                onValueChange = onNotesChange,
-                placeholder = {
-                    Text(stringResource(Res.string.delete_account_reason_notes_placeholder))
-                },
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                ),
-                minLines = 2,
-                maxLines = 4,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        }
 
-            Spacer(Modifier.height(DesignTokens.space4))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        Spacer(Modifier.height(DesignTokens.space2))
+        OutlinedTextField(
+            value = additionalNotes,
+            onValueChange = onNotesChange,
+            placeholder = {
+                Text(stringResource(Res.string.delete_account_reason_notes_placeholder))
+            },
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            ),
+            minLines = 2,
+            maxLines = 4,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(DesignTokens.space4))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        ) {
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f),
             ) {
-                TextButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(stringResource(Res.string.delete_account_reason_cancel))
-                }
-                Button(
-                    onClick = onContinue,
-                    enabled = canContinue,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                    ),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.delete_account_reason_continue),
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                Text(stringResource(Res.string.delete_account_reason_cancel))
+            }
+            Button(
+                onClick = onContinue,
+                enabled = canContinue,
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(Res.string.delete_account_reason_continue),
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
     }
@@ -214,3 +237,57 @@ private val ReasonChips: List<Pair<DeletionReason, StringResource>> = listOf(
     DeletionReason.JUST_TRYING to Res.string.delete_account_reason_just_trying,
     DeletionReason.OTHER to Res.string.delete_account_reason_other,
 )
+
+// Previews target the inner content composable: ModalBottomSheet itself
+// has no useful render in @Preview (the half-sheet UI doesn't lay out),
+// but the body Column does — and that's what reviewers actually need to see.
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReasonSheetContentEmptyPreview() {
+    StitchPadTheme {
+        ReasonSheetContent(
+            selectedReason = null,
+            additionalNotes = "",
+            canContinue = false,
+            onSelectReason = {},
+            onNotesChange = {},
+            onContinue = {},
+            onCancel = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReasonSheetContentSelectedPreview() {
+    StitchPadTheme {
+        ReasonSheetContent(
+            selectedReason = DeletionReason.MISSING_FEATURES,
+            additionalNotes = "I really need a colour picker for measurements.",
+            canContinue = true,
+            onSelectReason = {},
+            onNotesChange = {},
+            onContinue = {},
+            onCancel = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReasonSheetContentDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        ReasonSheetContent(
+            selectedReason = DeletionReason.PRIVACY_CONCERNS,
+            additionalNotes = "",
+            canContinue = true,
+            onSelectReason = {},
+            onNotesChange = {},
+            onContinue = {},
+            onCancel = {},
+        )
+    }
+}
