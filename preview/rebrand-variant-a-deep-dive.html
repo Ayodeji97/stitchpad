@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad Rebrand — Variant A (Adire Atelier) deep dive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Shared tokens — pinned to DesignTokens.kt ────────────────────── */
+    :root {
+      /* Spacing */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+      --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+      /* Radii */
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --r-xl: 20px;
+      --r-full: 999px;
+
+      /* Status colors — verbatim */
+      --status-received:  #2B7FD4;
+      --status-cutting:   #E07B20;
+      --status-sewing:    #5B4D8E;
+      --status-ready:     #2D9E6B;
+      --status-delivered: #7D7970;
+      --status-overdue:   #D93B3B;
+
+      /* Heritage saffron — RARE accent only */
+      --heritage-saffron:        #E8A800;
+      --heritage-saffron-ink:    #4F3800;
+      --heritage-saffron-soft:   rgba(232,168,0,.14);
+      --heritage-saffron-border: rgba(232,168,0,.55);
+
+      /* Fonts */
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body:    'Manrope', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', monospace;
+
+      /* Motion */
+      --dt: 150ms;
+      --dt2: 300ms;
+
+      /* Page-level frame (the Figma board) */
+      --page-bg:       #14110E;
+      --page-fg:       #F0EBE3;
+      --page-fg-muted: rgba(240,235,227,.62);
+      --page-divider:  rgba(255,255,255,.08);
+    }
+
+    /* ─── Variant A — Adire Atelier raw palette ────────────────────────── */
+    .var-a {
+      --primary-50:  #EAEEF8;
+      --primary-100: #D1D9EE;
+      --primary-300: #7388BF;
+      --primary-500: #2C3E7C;
+      --primary-700: #1E2B5C;
+      --primary-900: #121B3B;
+      --secondary:   #B85A30;  /* burnt sienna */
+      --secondary-soft: rgba(184,90,48,.12);
+      --bg-light:    #FAF6EC;
+      --bg-dark:     #14110E;
+      --surf-light:  #FFFFFF;
+      --surf-dark:   #1E1B17;
+      --text-light:  #1C1914;
+      --text-dark:   #F0EBE3;
+      --muted-light: #5C574E;
+      --muted-dark:  #B8AA98;
+      --border-light: rgba(28,25,20,.08);
+      --border-dark:  #3A3228;
+      --shadow-rgb: 28,25,20;
+      /* Avatar bg fix — distinct from --primary-900 so chips don't punch holes on dark */
+      --avatar-bg-light: var(--primary-50);
+      --avatar-fg-light: var(--primary-700);
+      --avatar-bg-dark:  #2D3B6B;
+      --avatar-fg-dark:  var(--primary-100);
+    }
+
+    /* ─── Semantic mapping — light by default ──────────────────────────── */
+    .surface {
+      --bg:        var(--bg-light);
+      --surf:      var(--surf-light);
+      --on-surf:   var(--text-light);
+      --on-surf-2: var(--muted-light);
+      --bdr:       var(--border-light);
+      --primary:   var(--primary-500);
+      --primary-strong: var(--primary-700);
+      --on-primary: #FFFFFF;
+      --pri-pill-bg: var(--primary-50);
+      --pri-pill-fg: var(--primary-700);
+      --sec-pill-bg: var(--secondary-soft);
+      --sec-pill-fg: var(--secondary);
+      --avatar-bg:   var(--avatar-bg-light);
+      --avatar-fg:   var(--avatar-fg-light);
+      --illust-stroke: var(--primary-500);
+      --illust-tint:   var(--primary-50);
+    }
+    body.dark .surface {
+      --bg:        var(--bg-dark);
+      --surf:      var(--surf-dark);
+      --on-surf:   var(--text-dark);
+      --on-surf-2: var(--muted-dark);
+      --bdr:       var(--border-dark);
+      /* Brand-rendering surfaces (wordmark, links, outline borders, pill text)
+         use the LIGHTER step on dark — the 500 step is too close to the
+         near-black bg and collapses to ~2:1 contrast. */
+      --primary:        var(--primary-300);
+      --primary-strong: #4F65A8;  /* indigo, mid-bright CTA fill */
+      --on-primary:     #FFFFFF;
+      --pri-pill-bg:    var(--primary-900);
+      --pri-pill-fg:    var(--primary-100);
+      --sec-pill-bg:    rgba(184,90,48,.18);
+      --sec-pill-fg:    #D9885F;
+      --avatar-bg:      var(--avatar-bg-dark);
+      --avatar-fg:      var(--avatar-fg-dark);
+      --illust-stroke:  var(--primary-300);
+      --illust-tint:    rgba(115,136,191,.12);
+    }
+
+    /* ─── Reset + base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: var(--font-body); }
+    body {
+      background: var(--page-bg);
+      color: var(--page-fg);
+      padding: var(--s8) var(--s5) var(--s12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--s8);
+      transition: background var(--dt2), color var(--dt2);
+    }
+    body.light {
+      --page-bg: #1A1612;
+      --page-fg: #F0EBE3;
+    }
+
+    /* ─── Top bar ──────────────────────────────────────────────────────── */
+    .top-bar {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s4);
+      flex-wrap: wrap;
+    }
+    .top-bar-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .top-bar-title h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 24px;
+      letter-spacing: -.01em;
+      color: var(--page-fg);
+    }
+    .top-bar-title p {
+      font-size: 13px;
+      color: var(--page-fg-muted);
+      letter-spacing: .02em;
+    }
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      padding: 10px var(--s4);
+      border-radius: var(--r-full);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--page-fg);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: background var(--dt), border-color var(--dt);
+    }
+    .theme-toggle:hover {
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.22);
+    }
+    .toggle-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: var(--r-full);
+      background: #F0EBE3;
+    }
+    body.light .toggle-dot { background: #FFD15C; }
+    body.dark  .toggle-dot { background: #B6C8FF; }
+
+    .top-bar-meta {
+      width: 100%;
+      max-width: 620px;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .top-bar-meta .pill {
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+    }
+
+    /* ─── Surface frame (one per surface) ──────────────────────────────── */
+    .surface-block {
+      width: 100%;
+      max-width: 540px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s3);
+    }
+    .surface-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s2);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      padding: 0 var(--s2);
+    }
+    .surface-label .id-dot {
+      width: 8px; height: 8px;
+      border-radius: var(--r-full);
+      background: #7388BF;
+    }
+    .surface {
+      background: var(--bg);
+      color: var(--on-surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-xl);
+      padding: var(--s6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5);
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.18),
+        0 24px 60px rgba(0,0,0,.35);
+      transition: background var(--dt2), color var(--dt2), border-color var(--dt2);
+    }
+
+    /* ─── Generic helpers ──────────────────────────────────────────────── */
+    .stack { display: flex; flex-direction: column; gap: var(--s3); }
+    .stack-tight { display: flex; flex-direction: column; gap: var(--s2); }
+    .row { display: flex; align-items: center; gap: var(--s3); }
+
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      align-self: flex-start;
+      padding: 5px var(--s3);
+      border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .section-pill.pri {
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+    }
+    .section-pill.sec {
+      background: var(--sec-pill-bg);
+      color: var(--sec-pill-fg);
+    }
+    .section-pill .pill-dot {
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: currentColor;
+      opacity: .85;
+    }
+
+    /* ─── Buttons (shared) ─────────────────────────────────────────────── */
+    .btn {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: .01em;
+      border: none;
+      cursor: pointer;
+      padding: 12px var(--s5);
+      border-radius: var(--r-md);
+      transition: background var(--dt), color var(--dt), border-color var(--dt), transform var(--dt), box-shadow var(--dt);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s2);
+    }
+    .btn-block { width: 100%; }
+    .btn-primary {
+      background: var(--primary-strong);
+      color: var(--on-primary);
+      box-shadow: 0 2px 8px rgba(var(--shadow-rgb), .30);
+    }
+    .btn-primary:hover {
+      background: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(var(--shadow-rgb), .40);
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-outline:hover {
+      background: var(--pri-pill-bg);
+    }
+    .btn-text {
+      background: transparent;
+      color: var(--primary);
+      padding: 10px var(--s3);
+    }
+    .btn-text-muted {
+      background: transparent;
+      color: var(--on-surf-2);
+      padding: 10px var(--s3);
+    }
+    .btn-text-muted:hover { color: var(--on-surf); }
+
+    /* ─── Avatar (with the dark-mode fix) ──────────────────────────────── */
+    .avatar {
+      width: 40px; height: 40px;
+      border-radius: var(--r-md);
+      background: var(--avatar-bg);
+      color: var(--avatar-fg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .02em;
+      flex-shrink: 0;
+    }
+    .avatar.sm {
+      width: 32px; height: 32px;
+      font-size: 11px;
+      border-radius: var(--r-sm);
+    }
+    .avatar.round { border-radius: var(--r-full); }
+
+    /* ─── Top bar inside surfaces ──────────────────────────────────────── */
+    .app-topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding-bottom: var(--s3);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .app-topbar .greeting {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .app-topbar .hello {
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+      font-weight: 700;
+    }
+    .app-topbar .name {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--on-surf);
+      letter-spacing: -.005em;
+    }
+    .icon-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--bdr);
+      background: var(--surf);
+      color: var(--on-surf-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: color var(--dt), border-color var(--dt), background var(--dt);
+    }
+    .icon-btn:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    /* ─── Surface 1 — Auth / Welcome ───────────────────────────────────── */
+    .auth {
+      padding: var(--s10) var(--s6) var(--s8);
+      gap: var(--s6);
+      align-items: stretch;
+      text-align: center;
+    }
+    .auth .wordmark {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 56px;
+      line-height: 1;
+      letter-spacing: -.025em;
+      color: var(--primary);
+    }
+    .auth .sub-tagline {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 20px;
+      line-height: 1.35;
+      color: var(--on-surf);
+      letter-spacing: -.005em;
+      margin-top: calc(-1 * var(--s3));
+    }
+    .auth .body-line {
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--on-surf-2);
+      max-width: 36ch;
+      margin: 0 auto;
+    }
+    .auth-cta {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      margin-top: var(--s3);
+    }
+    .auth-footer {
+      font-family: var(--font-body);
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+      padding-top: var(--s5);
+      border-top: 1px solid var(--bdr);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s2);
+    }
+    .auth-footer .dot {
+      width: 4px; height: 4px;
+      border-radius: var(--r-full);
+      background: var(--secondary);
+      opacity: .7;
+    }
+
+    /* ─── Surface 2 — Hero illustration (notebook + tape) ──────────────── */
+    .empty-hero {
+      width: 140px;
+      height: 140px;
+      align-self: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .empty-hero svg {
+      width: 140px;
+      height: 140px;
+      display: block;
+    }
+    .empty-headline {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: -.01em;
+      color: var(--on-surf);
+      text-align: center;
+    }
+    .empty-sub {
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--on-surf-2);
+      text-align: center;
+      max-width: 38ch;
+      margin: 0 auto;
+    }
+    .empty-cta {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      margin-top: var(--s2);
+    }
+
+    /* ─── Surface 3 — Today dashboard ──────────────────────────────────── */
+    .dash-headline {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 22px;
+      line-height: 1.25;
+      color: var(--on-surf);
+      letter-spacing: -.01em;
+    }
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .order-row {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3);
+      border-radius: var(--r-md);
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+    }
+    .order-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .order-name {
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--on-surf);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-due {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--on-surf-2);
+      letter-spacing: -.01em;
+    }
+    .status-pill {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      white-space: nowrap;
+    }
+    .status-received  { background: var(--status-received); }
+    .status-cutting   { background: var(--status-cutting); }
+    .status-sewing    { background: var(--status-sewing); }
+    .status-ready     { background: var(--status-ready); }
+    .status-delivered { background: var(--status-delivered); }
+    .status-overdue   { background: var(--status-overdue); }
+
+    .action-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .action-card {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s4);
+      border-radius: var(--r-md);
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-left: 3px solid var(--secondary);
+    }
+    .action-icon {
+      width: 36px; height: 36px;
+      border-radius: var(--r-md);
+      background: var(--sec-pill-bg);
+      color: var(--sec-pill-fg);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .action-icon svg { width: 18px; height: 18px; }
+    .action-body {
+      flex: 1;
+      min-width: 0;
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--on-surf);
+    }
+    .action-body strong {
+      font-weight: 700;
+    }
+    .view-pipeline {
+      align-self: flex-start;
+      padding: 6px 0;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: .01em;
+    }
+    .view-pipeline:hover { color: var(--primary-strong); }
+
+    /* ─── Surface 4 — Measurement entry ────────────────────────────────── */
+    .measure-header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: var(--s3);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .measure-eyebrow {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .measure-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 22px;
+      letter-spacing: -.01em;
+      color: var(--on-surf);
+    }
+    .measure-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s3);
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: var(--s3) var(--s4);
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-md);
+      transition: border-color var(--dt);
+    }
+    .field:hover {
+      border-color: var(--primary);
+    }
+    .field-label {
+      font-family: var(--font-body);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .field-value {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .field-number {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: -.02em;
+      color: var(--on-surf);
+      font-variant-numeric: tabular-nums;
+    }
+    .field-unit {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sec-pill-fg);
+      letter-spacing: .04em;
+    }
+    .custom-field-btn {
+      align-self: flex-start;
+      margin-top: var(--s1);
+      padding: 10px var(--s4);
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px dashed var(--primary);
+      border-radius: var(--r-md);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      transition: background var(--dt), border-color var(--dt);
+    }
+    .custom-field-btn:hover {
+      background: var(--pri-pill-bg);
+    }
+    .measure-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      padding-top: var(--s3);
+      border-top: 1px solid var(--bdr);
+    }
+
+    /* ─── Surface 5 — PRO upsell ───────────────────────────────────────── */
+    .pro-card {
+      align-items: center;
+      text-align: center;
+      gap: var(--s5);
+      padding: var(--s8) var(--s6);
+    }
+    .pro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px var(--s3);
+      border-radius: var(--r-full);
+      background: var(--heritage-saffron);
+      color: var(--heritage-saffron-ink);
+      font-family: var(--font-body);
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      box-shadow: 0 2px 10px rgba(232,168,0,.25);
+    }
+    .pro-headline {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: -.015em;
+      color: var(--on-surf);
+    }
+    .pro-benefits {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      text-align: left;
+      padding: var(--s4);
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-md);
+    }
+    .pro-benefit {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--on-surf);
+    }
+    .pro-check {
+      width: 22px; height: 22px;
+      border-radius: var(--r-full);
+      background: var(--heritage-saffron-soft);
+      color: var(--heritage-saffron);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .pro-check svg { width: 12px; height: 12px; }
+    .pro-price {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 18px;
+      letter-spacing: -.02em;
+      color: var(--on-surf);
+      font-variant-numeric: tabular-nums;
+    }
+    .pro-price-suffix {
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--on-surf-2);
+      letter-spacing: .02em;
+    }
+    .pro-cta {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+
+    /* ─── Footer note ──────────────────────────────────────────────────── */
+    .footer-note {
+      width: 100%;
+      max-width: 620px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--page-fg-muted);
+      text-align: center;
+      padding-top: var(--s6);
+      border-top: 1px solid var(--page-divider);
+    }
+    .footer-note code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(255,255,255,.06);
+      padding: 2px 6px;
+      border-radius: var(--r-sm);
+    }
+  </style>
+</head>
+<body class="dark">
+
+  <!-- ─── Top bar ────────────────────────────────────────────────────── -->
+  <header class="top-bar">
+    <div class="top-bar-title">
+      <h1>Variant A — Adire Atelier deep dive</h1>
+      <p>5 surfaces across the app. Does the indigo brand sustain beyond the dashboard card?</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light/dark">
+      <span class="toggle-dot"></span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </header>
+
+  <div class="top-bar-meta">
+    <span class="pill">Indigo primary</span>
+    <span class="pill">Sienna secondary</span>
+    <span class="pill">Saffron — rare accent only</span>
+    <span class="pill">Type: Fraunces + Manrope + JetBrains Mono</span>
+  </div>
+
+  <!-- ═══ Surface 1 — Auth / Welcome ════════════════════════════════ -->
+  <section class="surface-block">
+    <div class="surface-label">
+      <span>Surface 1 — Auth / Welcome</span>
+      <span class="id-dot" aria-hidden="true"></span>
+    </div>
+    <div class="surface var-a auth">
+      <div class="wordmark">StitchPad</div>
+      <div class="sub-tagline">The smart work pad for tailors.</div>
+      <p class="body-line">Save measurements, track orders, collect payments — all in one place.</p>
+      <div class="auth-cta">
+        <button class="btn btn-primary btn-block" type="button">Get started</button>
+        <button class="btn btn-text btn-block" type="button">I already have an account</button>
+      </div>
+      <div class="auth-footer">
+        <span>Built with tailors in Lagos</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>Est. 2026</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Surface 2 — Empty dashboard (first customer) ══════════════ -->
+  <section class="surface-block">
+    <div class="surface-label">
+      <span>Surface 2 — Empty dashboard (first customer)</span>
+      <span class="id-dot" aria-hidden="true"></span>
+    </div>
+    <div class="surface var-a">
+
+      <!-- App top bar -->
+      <div class="app-topbar">
+        <div class="avatar round">DZ</div>
+        <div class="greeting">
+          <span class="hello">Welcome</span>
+          <span class="name">Daniel</span>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Hero illustration: notebook + measuring tape corner -->
+      <div class="empty-hero" aria-hidden="true">
+        <svg viewBox="0 0 140 140" fill="none">
+          <!-- Tinted backdrop -->
+          <rect x="0" y="0" width="140" height="140" rx="20" fill="var(--illust-tint)"/>
+
+          <!-- Measuring tape — looping ribbon behind notebook -->
+          <path d="M 18 110 Q 30 124, 50 120 Q 72 116, 84 100"
+                stroke="var(--secondary)"
+                stroke-width="3"
+                stroke-linecap="round"
+                fill="none"
+                opacity="0.85"/>
+          <!-- Tape tick marks -->
+          <line x1="28" y1="118" x2="28" y2="114" stroke="var(--secondary)" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="40" y1="121" x2="40" y2="117" stroke="var(--secondary)" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="52" y1="121" x2="52" y2="117" stroke="var(--secondary)" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="64" y1="118" x2="64" y2="114" stroke="var(--secondary)" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="76" y1="112" x2="76" y2="108" stroke="var(--secondary)" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+          <!-- Tape end cap -->
+          <rect x="14" y="106" width="8" height="8" rx="2" fill="var(--secondary)" opacity="0.95"/>
+
+          <!-- Notebook back cover (offset shadow) -->
+          <rect x="38" y="26" width="74" height="92" rx="6"
+                fill="var(--illust-stroke)"
+                opacity="0.10"/>
+
+          <!-- Notebook front -->
+          <rect x="34" y="22" width="74" height="92" rx="6"
+                fill="var(--surf)"
+                stroke="var(--illust-stroke)"
+                stroke-width="2.5"/>
+
+          <!-- Notebook spine (left binding) -->
+          <line x1="46" y1="22" x2="46" y2="114"
+                stroke="var(--illust-stroke)"
+                stroke-width="2"
+                opacity="0.55"/>
+          <!-- Spine rings -->
+          <circle cx="46" cy="36" r="2" fill="var(--illust-stroke)" opacity="0.55"/>
+          <circle cx="46" cy="52" r="2" fill="var(--illust-stroke)" opacity="0.55"/>
+          <circle cx="46" cy="68" r="2" fill="var(--illust-stroke)" opacity="0.55"/>
+          <circle cx="46" cy="84" r="2" fill="var(--illust-stroke)" opacity="0.55"/>
+          <circle cx="46" cy="100" r="2" fill="var(--illust-stroke)" opacity="0.55"/>
+
+          <!-- Ruled lines on the page -->
+          <line x1="56" y1="42" x2="100" y2="42" stroke="var(--illust-stroke)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="56" y1="56" x2="96" y2="56" stroke="var(--illust-stroke)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="56" y1="70" x2="100" y2="70" stroke="var(--illust-stroke)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="56" y1="84" x2="88" y2="84" stroke="var(--illust-stroke)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="56" y1="98" x2="98" y2="98" stroke="var(--illust-stroke)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+
+          <!-- Saffron-free corner mark: small folded corner top-right (atelier feel) -->
+          <path d="M 100 22 L 108 22 L 108 30 Z"
+                fill="var(--illust-stroke)"
+                opacity="0.20"/>
+          <path d="M 100 22 L 108 30"
+                stroke="var(--illust-stroke)"
+                stroke-width="1.5"
+                opacity="0.55"/>
+        </svg>
+      </div>
+
+      <h2 class="empty-headline">Add your first customer</h2>
+      <p class="empty-sub">Once you save a customer's measurements, their orders and payments live here.</p>
+
+      <div class="empty-cta">
+        <button class="btn btn-primary btn-block" type="button">Add customer</button>
+        <button class="btn btn-outline btn-block" type="button">Import from contacts</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Surface 3 — Today dashboard (populated) ═══════════════════ -->
+  <section class="surface-block">
+    <div class="surface-label">
+      <span>Surface 3 — Today dashboard</span>
+      <span class="id-dot" aria-hidden="true"></span>
+    </div>
+    <div class="surface var-a">
+
+      <!-- App top bar -->
+      <div class="app-topbar">
+        <div class="avatar round">DZ</div>
+        <div class="greeting">
+          <span class="hello">Welcome</span>
+          <span class="name">Daniel</span>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- TODAY section -->
+      <div class="stack">
+        <span class="section-pill pri">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+
+          <div class="order-row">
+            <div class="avatar">JE</div>
+            <div class="order-info">
+              <div class="order-name">Mrs. Eze</div>
+              <div class="order-due">due Wed</div>
+            </div>
+            <span class="status-pill status-cutting">Cutting</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- NEXT BEST ACTIONS section (sienna) -->
+      <div class="stack">
+        <span class="section-pill sec">
+          <span class="pill-dot"></span>
+          Next best actions
+        </span>
+        <div class="action-list">
+
+          <div class="action-card">
+            <span class="action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+            </span>
+            <div class="action-body"><strong>Call Adunni</strong> — order is 1 day late</div>
+          </div>
+
+          <div class="action-card">
+            <span class="action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+            </span>
+            <div class="action-body">Send WhatsApp reminder to <strong>Miss Temilade</strong> for pickup</div>
+          </div>
+
+        </div>
+      </div>
+
+      <button class="view-pipeline" type="button">View pipeline →</button>
+    </div>
+  </section>
+
+  <!-- ═══ Surface 4 — Measurement entry ═════════════════════════════ -->
+  <section class="surface-block">
+    <div class="surface-label">
+      <span>Surface 4 — Measurement entry</span>
+      <span class="id-dot" aria-hidden="true"></span>
+    </div>
+    <div class="surface var-a">
+
+      <div class="measure-header">
+        <span class="measure-eyebrow">New measurement</span>
+        <span class="measure-title">Adunni Okafor</span>
+      </div>
+
+      <div class="measure-grid">
+
+        <div class="field">
+          <span class="field-label">Bust</span>
+          <div class="field-value">
+            <span class="field-number">38</span>
+            <span class="field-unit">in</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Waist</span>
+          <div class="field-value">
+            <span class="field-number">30</span>
+            <span class="field-unit">in</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Hips</span>
+          <div class="field-value">
+            <span class="field-number">40</span>
+            <span class="field-unit">in</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Shoulder</span>
+          <div class="field-value">
+            <span class="field-number">16</span>
+            <span class="field-unit">in</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Sleeve</span>
+          <div class="field-value">
+            <span class="field-number">24</span>
+            <span class="field-unit">in</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Length</span>
+          <div class="field-value">
+            <span class="field-number">42</span>
+            <span class="field-unit">in</span>
+          </div>
+        </div>
+
+      </div>
+
+      <button class="custom-field-btn" type="button">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Custom field
+      </button>
+
+      <div class="measure-actions">
+        <button class="btn btn-primary btn-block" type="button">Save measurement</button>
+        <button class="btn btn-text-muted btn-block" type="button">Cancel</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ Surface 5 — PRO upsell ════════════════════════════════════ -->
+  <section class="surface-block">
+    <div class="surface-label">
+      <span>Surface 5 — PRO upsell (heritage saffron earns its keep)</span>
+      <span class="id-dot" aria-hidden="true"></span>
+    </div>
+    <div class="surface var-a pro-card">
+
+      <div class="pro-badge">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+          <path d="M12 2 14.39 8.26 21 9.27l-4.78 4.66L17.46 21 12 17.77 6.54 21l1.24-7.07L3 9.27l6.61-1.01L12 2z"/>
+        </svg>
+        StitchPad PRO
+      </div>
+
+      <h2 class="pro-headline">Unlock the full workshop</h2>
+
+      <div class="pro-benefits">
+        <div class="pro-benefit">
+          <span class="pro-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+          Unlimited customers
+        </div>
+        <div class="pro-benefit">
+          <span class="pro-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+          Smart daily action engine
+        </div>
+        <div class="pro-benefit">
+          <span class="pro-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+          WhatsApp reminders
+        </div>
+      </div>
+
+      <div>
+        <span class="pro-price">&#8358;1,000</span>
+        <span class="pro-price-suffix"> / month</span>
+      </div>
+
+      <div class="pro-cta">
+        <button class="btn btn-primary btn-block" type="button">Start 14-day trial</button>
+        <button class="btn btn-text-muted btn-block" type="button">Maybe later</button>
+      </div>
+
+    </div>
+  </section>
+
+  <p class="footer-note">
+    Brainstorming artifact — not production code.
+    Status colors, spacing, and radii pinned to <code>DesignTokens.kt</code>.
+    Saffron appears only in Surface 5 (PRO badge + check marks) — primary brand stays indigo throughout.
+  </p>
+
+  <script>
+    (function () {
+      const body = document.body;
+      const btn = document.getElementById('themeToggle');
+      const label = document.getElementById('themeLabel');
+
+      function setMode(mode) {
+        body.classList.toggle('dark', mode === 'dark');
+        body.classList.toggle('light', mode === 'light');
+        label.textContent = mode === 'dark' ? 'Dark mode' : 'Light mode';
+        btn.setAttribute('aria-pressed', mode === 'dark' ? 'true' : 'false');
+      }
+
+      btn.addEventListener('click', function () {
+        const next = body.classList.contains('dark') ? 'light' : 'dark';
+        setMode(next);
+      });
+
+      // Start in dark mode (matches existing preview convention).
+      setMode('dark');
+    })();
+  </script>
+</body>
+</html>
