@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.flow.first
@@ -26,7 +27,10 @@ class DefaultDebugSeeder(
     private val customerRepository: CustomerRepository,
     private val orderRepository: OrderRepository,
     private val measurementRepository: MeasurementRepository,
+    private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
+    // Injected for symmetry with the upcoming Koin wiring; the seeder itself
+    // doesn't currently call resetForDebug — that's DebugSessionActions' job (Task 7).
     @Suppress("unused") private val onboardingPreferences: OnboardingPreferencesStore,
     private val now: () -> Long,
 ) : DebugSeeder {
@@ -78,7 +82,17 @@ class DefaultDebugSeeder(
         val orders = currentOrders(userId)
         val customers = currentCustomers(userId)
         orders.forEach { orderRepository.deleteOrder(userId, it.id) }
-        customers.forEach { customerRepository.deleteCustomer(userId, it.id) }
+        customers.forEach { c ->
+            // Delete measurements for this customer
+            measurementsFor(userId, c.id).forEach { m ->
+                measurementRepository.deleteMeasurement(userId, c.id, m.id)
+            }
+            // Delete styles for this customer
+            stylesFor(userId, c.id).forEach { s ->
+                styleRepository.deleteStyle(userId, c.id, s)
+            }
+            customerRepository.deleteCustomer(userId, c.id)
+        }
     }
 
     private suspend fun currentCustomers(userId: String): List<Customer> {
@@ -94,4 +108,16 @@ class DefaultDebugSeeder(
             is Result.Error -> emptyList()
         }
     }
+
+    private suspend fun measurementsFor(userId: String, customerId: String): List<com.danzucker.stitchpad.core.domain.model.Measurement> =
+        when (val r = measurementRepository.observeMeasurements(userId, customerId).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> emptyList()
+        }
+
+    private suspend fun stylesFor(userId: String, customerId: String): List<com.danzucker.stitchpad.core.domain.model.Style> =
+        when (val r = styleRepository.observeStyles(userId, customerId).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> emptyList()
+        }
 }

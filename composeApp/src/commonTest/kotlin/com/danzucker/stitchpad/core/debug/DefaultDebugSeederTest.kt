@@ -3,7 +3,11 @@ package com.danzucker.stitchpad.core.debug
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.Measurement
+import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -19,6 +23,7 @@ class DefaultDebugSeederTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
+    private lateinit var styleRepository: FakeStyleRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var onboardingPreferences: FakeOnboardingPreferences
 
@@ -29,6 +34,7 @@ class DefaultDebugSeederTest {
         customerRepository = FakeCustomerRepository()
         orderRepository = FakeOrderRepository()
         measurementRepository = FakeMeasurementRepository()
+        styleRepository = FakeStyleRepository()
         authRepository = FakeAuthRepository().apply {
             currentUser = User(
                 id = "test-uid",
@@ -47,6 +53,7 @@ class DefaultDebugSeederTest {
         customerRepository = customerRepository,
         orderRepository = orderRepository,
         measurementRepository = measurementRepository,
+        styleRepository = styleRepository,
         authRepository = authRepository,
         onboardingPreferences = onboardingPreferences,
         now = { fixedNow },
@@ -63,11 +70,43 @@ class DefaultDebugSeederTest {
                 createdAt = 0,
             )
         )
+        // Seed a pre-existing measurement that the wipe should delete.
+        measurementRepository.measurementsList = listOf(
+            Measurement(
+                id = "m-pre-existing",
+                customerId = "pre-existing",
+                gender = CustomerGender.MALE,
+                fields = emptyMap(),
+                unit = MeasurementUnit.CM,
+                notes = null,
+                dateTaken = 0,
+                createdAt = 0,
+            )
+        )
+        // Seed a pre-existing style that the wipe should delete.
+        // Note: FakeStyleRepository does not mutate stylesList on deleteStyle —
+        // it only captures lastDeletedStyleId. We assert via that captured value
+        // rather than a post-wipe observeStyles check.
+        styleRepository.stylesList = listOf(
+            com.danzucker.stitchpad.core.domain.model.Style(
+                id = "s-pre-existing",
+                customerId = "pre-existing",
+                description = "Agbada",
+                photoUrl = "",
+                photoStoragePath = "",
+                createdAt = 0,
+                updatedAt = 0,
+            )
+        )
 
         val result = createSeeder().seedBrandNew()
 
         assertTrue(result is SeedResult.Success, "expected Success, got $result")
         assertEquals(0, customerRepository.customersList.size)
+        // FakeMeasurementRepository.lastDeletedMeasurementId confirms deleteMeasurement was called.
+        assertEquals("m-pre-existing", measurementRepository.lastDeletedMeasurementId)
+        // FakeStyleRepository.lastDeletedStyleId confirms deleteStyle was called.
+        assertEquals("s-pre-existing", styleRepository.lastDeletedStyleId)
     }
 
     @Test
