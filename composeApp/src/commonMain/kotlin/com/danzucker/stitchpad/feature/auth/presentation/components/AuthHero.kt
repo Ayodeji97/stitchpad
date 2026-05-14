@@ -24,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -67,7 +66,7 @@ fun AuthHero(
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = DesignTokens.neutral900,
+                    color = Color.White,
                     letterSpacing = 2.2.sp,
                 ),
             )
@@ -78,7 +77,7 @@ fun AuthHero(
                     style = TextStyle(
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xCC000000),
+                        color = Color.White.copy(alpha = 0.85f),
                         letterSpacing = 3.2.sp,
                     ),
                 )
