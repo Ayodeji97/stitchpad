@@ -38,7 +38,7 @@ import stitchpad.composeapp.generated.resources.workshop_brand_tagline
 @Composable
 fun AuthHero(
     modifier: Modifier = Modifier,
-    variant: AuthHeroVariant = AuthHeroVariant.Welcome,
+    variant: AuthHeroVariant = AuthHeroVariant.Utility,
     height: Dp = 280.dp,
     logoDiameter: Dp = 80.dp,
     showTagline: Boolean = true,

@@ -45,7 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
-import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHeroVariant
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -106,7 +105,7 @@ fun ForgotPasswordScreen(
             .background(DesignTokens.neutral900),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AuthHero(variant = AuthHeroVariant.Utility)
+            AuthHero()
 
             AuthCard {
                 if (state.isSuccess) {
