@@ -51,7 +51,6 @@ private const val TAG = "SettingsVM"
 private data class LocalUiState(
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
-    val showThemeSheet: Boolean = false,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 )
@@ -91,8 +90,6 @@ class SettingsViewModel(
             SettingsAction.OnUpgradeClick,
             SettingsAction.OnComparePlansClick -> emit(SettingsEvent.OpenUrl(UPGRADE_URL))
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
-            SettingsAction.OnAppearanceClick -> uiState.update { it.copy(showThemeSheet = true) }
-            SettingsAction.OnThemeSheetDismiss -> uiState.update { it.copy(showThemeSheet = false) }
             is SettingsAction.OnThemeSelect -> selectTheme(action.theme)
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
@@ -167,7 +164,6 @@ class SettingsViewModel(
             customerLimit = FREE_CUSTOMER_LIMIT,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
-            showThemeSheet = ui.showThemeSheet,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
@@ -185,7 +181,7 @@ class SettingsViewModel(
     private fun selectTheme(theme: ThemePreference) {
         viewModelScope.launch {
             themePreferencesStore.setTheme(theme)
-            uiState.update { it.copy(themePreference = theme, showThemeSheet = false) }
+            uiState.update { it.copy(themePreference = theme) }
         }
     }
 

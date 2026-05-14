@@ -1,12 +1,18 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
@@ -22,8 +28,12 @@ import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -34,8 +44,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
@@ -47,7 +59,6 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.Settings
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowExternalIcon
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowValue
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsSectionCard
-import com.danzucker.stitchpad.feature.settings.presentation.components.ThemeBottomSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
@@ -182,24 +193,9 @@ fun SettingsScreen(
                     },
                 )
                 SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Brightness6,
-                    label = stringResource(Res.string.settings_row_appearance),
-                    onClick = { onAction(SettingsAction.OnAppearanceClick) },
-                    trailing = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SettingsRowValue(
-                                text = stringResource(
-                                    when (state.themePreference) {
-                                        ThemePreference.SYSTEM -> Res.string.settings_theme_system
-                                        ThemePreference.LIGHT -> Res.string.settings_theme_light
-                                        ThemePreference.DARK -> Res.string.settings_theme_dark
-                                    }
-                                ),
-                            )
-                            SettingsRowChevron()
-                        }
-                    },
+                AppearanceSegmentedRow(
+                    selected = state.themePreference,
+                    onSelect = { onAction(SettingsAction.OnThemeSelect(it)) },
                 )
             }
 
@@ -288,13 +284,80 @@ fun SettingsScreen(
                 onDismiss = { onAction(SettingsAction.OnSignOutDismiss) },
             )
         }
+    }
+}
 
-        if (state.showThemeSheet) {
-            ThemeBottomSheet(
-                selected = state.themePreference,
-                onSelect = { onAction(SettingsAction.OnThemeSelect(it)) },
-                onDismiss = { onAction(SettingsAction.OnThemeSheetDismiss) },
+/**
+ * Appearance picker rendered inline as a segmented control instead of a
+ * bottom-sheet pop-up — picking one of three options doesn't deserve a modal.
+ * Top half is the standard SettingsRow layout (icon + label); the segmented
+ * control sits directly under the label so the choice is visible and one-tap.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppearanceSegmentedRow(
+    selected: ThemePreference,
+    onSelect: (ThemePreference) -> Unit,
+) {
+    val options = remember {
+        listOf(
+            ThemePreference.SYSTEM,
+            ThemePreference.LIGHT,
+            ThemePreference.DARK,
+        )
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space4,
+                top = DesignTokens.space3,
+                bottom = DesignTokens.space3,
+            ),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                    .background(DesignTokens.primary50),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Brightness6,
+                    contentDescription = null,
+                    tint = DesignTokens.primary500,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(DesignTokens.space3))
+            Text(
+                text = stringResource(Res.string.settings_row_appearance),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+        }
+        Spacer(Modifier.height(DesignTokens.space3))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, theme ->
+                SegmentedButton(
+                    selected = selected == theme,
+                    onClick = { onSelect(theme) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                ) {
+                    Text(
+                        text = stringResource(
+                            when (theme) {
+                                ThemePreference.SYSTEM -> Res.string.settings_theme_system
+                                ThemePreference.LIGHT -> Res.string.settings_theme_light
+                                ThemePreference.DARK -> Res.string.settings_theme_dark
+                            }
+                        ),
+                    )
+                }
+            }
         }
     }
 }

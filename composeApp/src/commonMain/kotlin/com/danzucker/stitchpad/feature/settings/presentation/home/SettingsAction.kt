@@ -7,9 +7,7 @@ sealed interface SettingsAction {
     data object OnUpgradeClick : SettingsAction
     data object OnComparePlansClick : SettingsAction
     data object OnMeasurementUnitClick : SettingsAction
-    data object OnAppearanceClick : SettingsAction
     data class OnThemeSelect(val theme: ThemePreference) : SettingsAction
-    data object OnThemeSheetDismiss : SettingsAction
     data object OnEmailRowClick : SettingsAction
     data object OnChangePasswordClick : SettingsAction
     data object OnSignOutRowClick : SettingsAction

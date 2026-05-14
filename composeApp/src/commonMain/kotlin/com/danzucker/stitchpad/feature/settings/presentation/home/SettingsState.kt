@@ -20,7 +20,6 @@ data class SettingsState(
     val customerLimit: Int = FREE_CUSTOMER_LIMIT,
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
-    val showThemeSheet: Boolean = false,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 ) {
