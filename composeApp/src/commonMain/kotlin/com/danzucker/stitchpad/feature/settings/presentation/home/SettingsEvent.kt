@@ -9,6 +9,7 @@ sealed interface SettingsEvent {
     data object NavigateToChangePassword : SettingsEvent
     data object NavigateToDeleteAccount : SettingsEvent
     data object NavigateToLoginAfterSignOut : SettingsEvent
+    data object NavigateToDebugMenu : SettingsEvent
     data class OpenUrl(val url: String) : SettingsEvent
 
     /**

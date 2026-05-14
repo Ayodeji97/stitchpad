@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Brightness6
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
@@ -56,6 +58,7 @@ import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
 import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_debug_menu
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
 import stitchpad.composeapp.generated.resources.settings_row_invite
@@ -251,6 +254,18 @@ fun SettingsScreen(
                     isDanger = true,
                     trailing = { SettingsRowChevron() },
                 )
+            }
+
+            if (isDebugBuild) {
+                Spacer(Modifier.height(DesignTokens.space4))
+                SettingsSectionCard {
+                    SettingsRow(
+                        icon = Icons.Outlined.BugReport,
+                        label = stringResource(Res.string.settings_row_debug_menu),
+                        onClick = { onAction(SettingsAction.OnDebugMenuClick) },
+                        trailing = { SettingsRowChevron() },
+                    )
+                }
             }
 
             Spacer(Modifier.height(DesignTokens.space5))

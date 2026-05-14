@@ -44,6 +44,9 @@ node_modules/
 .claude/*
 !.claude/commands/
 
+# Debug menu test creds — local only, never committed
+composeApp/debug-test-accounts.properties
+
 # Misc
 *.log
 *.tmp

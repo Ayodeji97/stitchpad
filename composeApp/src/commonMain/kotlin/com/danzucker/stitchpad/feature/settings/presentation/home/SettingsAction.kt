@@ -14,4 +14,5 @@ sealed interface SettingsAction {
     data object OnDeleteAccountClick : SettingsAction
     data object OnInviteClick : SettingsAction
     data object OnContactClick : SettingsAction
+    data object OnDebugMenuClick : SettingsAction
 }

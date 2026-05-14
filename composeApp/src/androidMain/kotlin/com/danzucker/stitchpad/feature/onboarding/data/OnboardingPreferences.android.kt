@@ -25,6 +25,13 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         prefs.edit().putBoolean(KEY_HAS_COMPLETED_WORKSHOP, true).apply()
     }
 
+    override suspend fun resetForDebug() {
+        prefs.edit()
+            .putBoolean(KEY_HAS_SEEN_ONBOARDING, false)
+            .putBoolean(KEY_HAS_COMPLETED_WORKSHOP, false)
+            .commit()
+    }
+
     companion object {
         private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
         private const val KEY_HAS_COMPLETED_WORKSHOP = "has_completed_workshop_setup"

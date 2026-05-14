@@ -969,6 +969,7 @@
     <string name="settings_row_privacy">Privacy Policy</string>
     <string name="settings_row_terms">Terms of Service</string>
     <string name="settings_row_delete_account">Delete account</string>
+    <string name="settings_row_debug_menu">Debug Menu</string>
     <string name="settings_footer">StitchPad v%1$s · Made in Lagos</string>
 
     <!-- Sign-out confirmation -->

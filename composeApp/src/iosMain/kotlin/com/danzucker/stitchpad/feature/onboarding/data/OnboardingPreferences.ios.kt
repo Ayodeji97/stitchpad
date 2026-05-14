@@ -21,6 +21,11 @@ actual class OnboardingPreferences : OnboardingPreferencesStore {
         defaults.setBool(true, forKey = KEY_HAS_COMPLETED_WORKSHOP)
     }
 
+    override suspend fun resetForDebug() {
+        defaults.setBool(false, forKey = KEY_HAS_SEEN_ONBOARDING)
+        defaults.setBool(false, forKey = KEY_HAS_COMPLETED_WORKSHOP)
+    }
+
     companion object {
         private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
         private const val KEY_HAS_COMPLETED_WORKSHOP = "has_completed_workshop_setup"

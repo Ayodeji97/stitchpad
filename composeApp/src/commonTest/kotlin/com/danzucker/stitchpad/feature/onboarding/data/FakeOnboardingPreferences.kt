@@ -8,4 +8,8 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
     override suspend fun setOnboardingSeen() { onboardingSeen = true }
     override suspend fun hasCompletedWorkshopSetup() = workshopSetupCompleted
     override suspend fun setWorkshopSetupCompleted() { workshopSetupCompleted = true }
+    override suspend fun resetForDebug() {
+        onboardingSeen = false
+        workshopSetupCompleted = false
+    }
 }
