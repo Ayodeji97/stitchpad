@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -129,6 +130,59 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+// Generates DebugTestAccounts.kt from debug-test-accounts.properties at build
+// time. The properties file is gitignored; this task tolerates its absence by
+// producing empty-string defaults (Switch-account buttons render but show a
+// "creds not configured" Snackbar at runtime). See debug-menu-design.md.
+val generateDebugTestAccounts by tasks.registering {
+    val propsFile = layout.projectDirectory.file("debug-test-accounts.properties").asFile
+    val outputDir = layout.buildDirectory.dir(
+        "generated/debugTestAccounts/commonMain/kotlin/com/danzucker/stitchpad/core/debug"
+    )
+
+    inputs.files(propsFile).optional(true)
+    outputs.dir(outputDir)
+
+    doLast {
+        val props = Properties().apply {
+            if (propsFile.exists()) {
+                propsFile.inputStream().use { load(it) }
+            }
+        }
+        val folaEmail = props.getProperty("fola.email", "").trim()
+        val folaPassword = props.getProperty("fola.password", "").trim()
+        val gabbyEmail = props.getProperty("gabby.email", "").trim()
+        val gabbyPassword = props.getProperty("gabby.password", "").trim()
+
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        dir.resolve("DebugTestAccounts.kt").writeText(
+            """
+            |// GENERATED — do not edit. Source: composeApp/debug-test-accounts.properties
+            |package com.danzucker.stitchpad.core.debug
+            |
+            |internal object DebugTestAccounts {
+            |    const val FOLA_EMAIL: String = ${'"'}$folaEmail${'"'}
+            |    const val FOLA_PASSWORD: String = ${'"'}$folaPassword${'"'}
+            |    const val GABBY_EMAIL: String = ${'"'}$gabbyEmail${'"'}
+            |    const val GABBY_PASSWORD: String = ${'"'}$gabbyPassword${'"'}
+            |
+            |    val isConfigured: Boolean
+            |        get() = FOLA_EMAIL.isNotBlank() && FOLA_PASSWORD.isNotBlank() &&
+            |                GABBY_EMAIL.isNotBlank() && GABBY_PASSWORD.isNotBlank()
+            |}
+            |
+            """.trimMargin()
+        )
+    }
+}
+
+// Wire the generated source into commonMain so DebugTestAccounts is visible
+// from commonMain code as if it were authored there.
+kotlin.sourceSets.named("commonMain") {
+    kotlin.srcDir(generateDebugTestAccounts)
 }
 
 dependencies {
