@@ -33,7 +33,9 @@ class DebugMenuViewModel(
         when (action) {
             DebugMenuAction.OnBackClick -> emit(DebugMenuEvent.NavigateBack)
             DebugMenuAction.OnSeedBrandNewClick -> runSeed(DebugScenario.BrandNew) { seeder.seedBrandNew() }
-            DebugMenuAction.OnSeedActiveWorkshopClick -> runSeed(DebugScenario.ActiveWorkshop) { seeder.seedActiveWorkshop() }
+            DebugMenuAction.OnSeedActiveWorkshopClick -> runSeed(
+                DebugScenario.ActiveWorkshop
+            ) { seeder.seedActiveWorkshop() }
             DebugMenuAction.OnSeedAllReconnectClick -> runSeed(DebugScenario.AllReconnect) { seeder.seedAllReconnect() }
             DebugMenuAction.OnClearActiveScenarioClick -> {
                 _state.update { it.copy(activeScenario = null) }

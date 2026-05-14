@@ -61,7 +61,9 @@ fun DebugMenuScreen(
                     onClick = { onAction(DebugMenuAction.OnSeedBrandNewClick) },
                     trailing = if (state.activeScenario == DebugScenario.BrandNew) {
                         { ActiveScenarioPill() }
-                    } else null,
+                    } else {
+                        null
+                    },
                 )
                 SettingsRowDivider()
                 SettingsRow(
@@ -70,7 +72,9 @@ fun DebugMenuScreen(
                     onClick = { onAction(DebugMenuAction.OnSeedActiveWorkshopClick) },
                     trailing = if (state.activeScenario == DebugScenario.ActiveWorkshop) {
                         { ActiveScenarioPill() }
-                    } else null,
+                    } else {
+                        null
+                    },
                 )
                 SettingsRowDivider()
                 SettingsRow(
@@ -79,7 +83,9 @@ fun DebugMenuScreen(
                     onClick = { onAction(DebugMenuAction.OnSeedAllReconnectClick) },
                     trailing = if (state.activeScenario == DebugScenario.AllReconnect) {
                         { ActiveScenarioPill() }
-                    } else null,
+                    } else {
+                        null
+                    },
                 )
                 if (state.activeScenario != null) {
                     SettingsRowDivider()
@@ -108,15 +114,21 @@ fun DebugMenuScreen(
             SettingsSectionCard(label = "Switch account") {
                 SettingsRow(
                     icon = Icons.Outlined.SwapHoriz,
-                    label = if (state.testAccountsConfigured) "Switch to Fola"
-                            else "Switch to Fola (not configured)",
+                    label = if (state.testAccountsConfigured) {
+                        "Switch to Fola"
+                    } else {
+                        "Switch to Fola (not configured)"
+                    },
                     onClick = { onAction(DebugMenuAction.OnSwitchToFolaClick) },
                 )
                 SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.Outlined.SwapHoriz,
-                    label = if (state.testAccountsConfigured) "Switch to Gabby"
-                            else "Switch to Gabby (not configured)",
+                    label = if (state.testAccountsConfigured) {
+                        "Switch to Gabby"
+                    } else {
+                        "Switch to Gabby (not configured)"
+                    },
                     onClick = { onAction(DebugMenuAction.OnSwitchToGabbyClick) },
                 )
             }

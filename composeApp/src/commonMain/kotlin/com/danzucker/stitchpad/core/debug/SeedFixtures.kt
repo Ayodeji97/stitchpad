@@ -22,100 +22,105 @@ internal object SeedFixtures {
 
     private const val DAY_MS = 24L * 60 * 60 * 1000L
 
-    /** Eight customers with Nigerian-style names + phones. */
-    fun customers(userId: String, now: Long): List<Customer> = listOf(
-        // Positions 1–4 are all female so measurementsFor (which hardcodes FEMALE)
-        // can be called safely on customers.take(4).
-        Customer(
-            id = "seed-customer-1",
-            userId = userId,
-            name = "Adaeze Okafor",
-            phone = "+2348012345601",
-            email = "adaeze@example.ng",
-            address = "12 Awolowo Way, Ikeja",
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = null,
-            createdAt = now,
+    // ── Customer fixtures ────────────────────────────────────────────────────
+
+    private data class CustomerFixture(
+        val name: String,
+        val phone: String,
+        val email: String?,
+        val address: String?,
+        val deliveryPreference: DeliveryPreference,
+        val notes: String?,
+    )
+
+    /**
+     * Positions 1–4 are all female so measurementsFor (which hardcodes FEMALE)
+     * can be called safely on customers.take(4). Positions 5–8 are male.
+     */
+    private val CUSTOMER_FIXTURES = listOf(
+        CustomerFixture(
+            "Adaeze Okafor",
+            "+2348012345601",
+            "adaeze@example.ng",
+            "12 Awolowo Way, Ikeja",
+            DeliveryPreference.PICKUP,
+            null
         ),
-        Customer(
-            id = "seed-customer-2",
-            userId = userId,
-            name = "Folake Adebayo",
-            phone = "+2348012345602",
-            email = null,
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = "Prefers WhatsApp",
-            createdAt = now,
+        CustomerFixture(
+            "Folake Adebayo",
+            "+2348012345602",
+            null,
+            null,
+            DeliveryPreference.PICKUP,
+            "Prefers WhatsApp"
         ),
-        Customer(
-            id = "seed-customer-3",
-            userId = userId,
-            name = "Ngozi Iwu",
-            phone = "+2348012345603",
-            email = null,
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = null,
-            createdAt = now,
+        CustomerFixture(
+            "Ngozi Iwu",
+            "+2348012345603",
+            null,
+            null,
+            DeliveryPreference.PICKUP,
+            null
         ),
-        Customer(
-            id = "seed-customer-4",
-            userId = userId,
-            name = "Hauwa Bello",
-            phone = "+2348012345604",
-            email = null,
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = null,
-            createdAt = now,
+        CustomerFixture(
+            "Hauwa Bello",
+            "+2348012345604",
+            null,
+            null,
+            DeliveryPreference.PICKUP,
+            null
         ),
-        // Positions 5–8 are male.
-        Customer(
-            id = "seed-customer-5",
-            userId = userId,
-            name = "Chinedu Eze",
-            phone = "+2348012345605",
-            email = null,
-            address = "5 Marina, Lagos Island",
-            deliveryPreference = DeliveryPreference.DELIVERY,
-            notes = null,
-            createdAt = now,
+        CustomerFixture(
+            "Chinedu Eze",
+            "+2348012345605",
+            null,
+            "5 Marina, Lagos Island",
+            DeliveryPreference.DELIVERY,
+            null
         ),
-        Customer(
-            id = "seed-customer-6",
-            userId = userId,
-            name = "Tunde Bakare",
-            phone = "+2348012345606",
-            email = "tunde@example.ng",
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = null,
-            createdAt = now,
+        CustomerFixture(
+            "Tunde Bakare",
+            "+2348012345606",
+            "tunde@example.ng",
+            null,
+            DeliveryPreference.PICKUP,
+            null
         ),
-        Customer(
-            id = "seed-customer-7",
-            userId = userId,
-            name = "Oluwaseun Adesina",
-            phone = "+2348012345607",
-            email = null,
-            address = "27 Allen Avenue, Ikeja",
-            deliveryPreference = DeliveryPreference.DELIVERY,
-            notes = null,
-            createdAt = now,
+        CustomerFixture(
+            "Oluwaseun Adesina",
+            "+2348012345607",
+            null,
+            "27 Allen Avenue, Ikeja",
+            DeliveryPreference.DELIVERY,
+            null
         ),
-        Customer(
-            id = "seed-customer-8",
-            userId = userId,
-            name = "Femi Akinola",
-            phone = "+2348012345608",
-            email = "femi@example.ng",
-            address = null,
-            deliveryPreference = DeliveryPreference.PICKUP,
-            notes = null,
-            createdAt = now,
+        CustomerFixture(
+            "Femi Akinola",
+            "+2348012345608",
+            "femi@example.ng",
+            null,
+            DeliveryPreference.PICKUP,
+            null
         ),
     )
+
+    /** Eight customers with Nigerian-style names + phones. */
+    fun customers(userId: String, now: Long): List<Customer> =
+        CUSTOMER_FIXTURES.mapIndexed { i, f ->
+            Customer(
+                id = "seed-customer-${i + 1}",
+                userId = userId,
+                name = f.name,
+                phone = f.phone,
+                email = f.email,
+                address = f.address,
+                deliveryPreference = f.deliveryPreference,
+                notes = f.notes,
+                createdAt = now,
+            )
+        }
+
+    // ── Measurement fixture ──────────────────────────────────────────────────
 
     /** Measurement for the first four seeded customers (all female). */
     fun measurementsFor(customer: Customer, now: Long): Measurement = Measurement(
@@ -135,123 +140,129 @@ internal object SeedFixtures {
         createdAt = now,
     )
 
+    // ── Order fixtures ───────────────────────────────────────────────────────
+
     /**
      * Order fixtures for the active-workshop seed. Each fixture is built
      * against a customer the seeder has already inserted. The caller supplies
      * `now`; per-order `createdAt` is offset to produce a realistic age
      * distribution (one same-day, one 3-day-old, two 7-day-old).
      */
-    fun activeOrders(customers: List<Customer>, now: Long): List<Order> {
-        return listOf(
-            // 7-day-old IN_PROGRESS
-            Order(
-                id = "seed-order-1",
-                userId = customers[0].userId,
-                customerId = customers[0].id,
-                customerName = customers[0].name,
-                items = listOf(
-                    OrderItem(
-                        id = "seed-item-1",
-                        garmentType = GarmentType.AGBADA,
-                        description = "Cream agbada with embroidery",
-                        price = 25_000.0,
-                    ),
-                ),
-                status = OrderStatus.IN_PROGRESS,
-                subStatus = null,
-                priority = OrderPriority.NORMAL,
-                statusHistory = listOf(StatusChange(OrderStatus.IN_PROGRESS, now - 7 * DAY_MS)),
-                totalPrice = 25_000.0,
-                payments = emptyList(),
-                deadline = now + 5 * DAY_MS,
-                notes = null,
-                createdAt = now - 7 * DAY_MS,
-                updatedAt = now - 7 * DAY_MS,
+    fun activeOrders(customers: List<Customer>, now: Long): List<Order> = listOf(
+        inProgressOrder(customers[0], now),
+        readyOrder(customers[1], now),
+        deliveredOrder(customers[2], now),
+        pendingOrder(customers[3], now),
+    )
+
+    private fun inProgressOrder(customer: Customer, now: Long): Order = Order(
+        id = "seed-order-1",
+        userId = customer.userId,
+        customerId = customer.id,
+        customerName = customer.name,
+        items = listOf(
+            OrderItem(
+                id = "seed-item-1",
+                garmentType = GarmentType.AGBADA,
+                description = "Cream agbada with embroidery",
+                price = 25_000.0,
             ),
-            // 7-day-old READY
-            Order(
-                id = "seed-order-2",
-                userId = customers[1].userId,
-                customerId = customers[1].id,
-                customerName = customers[1].name,
-                items = listOf(
-                    OrderItem(
-                        id = "seed-item-2",
-                        garmentType = GarmentType.ASOEBI,
-                        description = "Navy ankara asoebi",
-                        price = 18_000.0,
-                    ),
-                ),
-                status = OrderStatus.READY,
-                subStatus = null,
-                priority = OrderPriority.NORMAL,
-                statusHistory = listOf(
-                    StatusChange(OrderStatus.IN_PROGRESS, now - 7 * DAY_MS),
-                    StatusChange(OrderStatus.READY, now - 1 * DAY_MS),
-                ),
-                totalPrice = 18_000.0,
-                payments = emptyList(),
-                deadline = now - 1 * DAY_MS,
-                notes = null,
-                createdAt = now - 7 * DAY_MS,
-                updatedAt = now - 1 * DAY_MS,
+        ),
+        status = OrderStatus.IN_PROGRESS,
+        subStatus = null,
+        priority = OrderPriority.NORMAL,
+        statusHistory = listOf(StatusChange(OrderStatus.IN_PROGRESS, now - 7 * DAY_MS)),
+        totalPrice = 25_000.0,
+        payments = emptyList(),
+        deadline = now + 5 * DAY_MS,
+        notes = null,
+        createdAt = now - 7 * DAY_MS,
+        updatedAt = now - 7 * DAY_MS,
+    )
+
+    private fun readyOrder(customer: Customer, now: Long): Order = Order(
+        id = "seed-order-2",
+        userId = customer.userId,
+        customerId = customer.id,
+        customerName = customer.name,
+        items = listOf(
+            OrderItem(
+                id = "seed-item-2",
+                garmentType = GarmentType.ASOEBI,
+                description = "Navy ankara asoebi",
+                price = 18_000.0,
             ),
-            // 3-day-old DELIVERED
-            Order(
-                id = "seed-order-3",
-                userId = customers[2].userId,
-                customerId = customers[2].id,
-                customerName = customers[2].name,
-                items = listOf(
-                    OrderItem(
-                        id = "seed-item-3",
-                        garmentType = GarmentType.SHIRT,
-                        description = "White cotton dress shirt",
-                        price = 8_500.0,
-                    ),
-                ),
-                status = OrderStatus.DELIVERED,
-                subStatus = null,
-                priority = OrderPriority.NORMAL,
-                statusHistory = listOf(
-                    StatusChange(OrderStatus.IN_PROGRESS, now - 3 * DAY_MS),
-                    StatusChange(OrderStatus.READY, now - 2 * DAY_MS),
-                    StatusChange(OrderStatus.DELIVERED, now - 1 * DAY_MS),
-                ),
-                totalPrice = 8_500.0,
-                payments = emptyList(),
-                deadline = now - 1 * DAY_MS,
-                notes = null,
-                createdAt = now - 3 * DAY_MS,
-                updatedAt = now - 1 * DAY_MS,
+        ),
+        status = OrderStatus.READY,
+        subStatus = null,
+        priority = OrderPriority.NORMAL,
+        statusHistory = listOf(
+            StatusChange(OrderStatus.IN_PROGRESS, now - 7 * DAY_MS),
+            StatusChange(OrderStatus.READY, now - 1 * DAY_MS),
+        ),
+        totalPrice = 18_000.0,
+        payments = emptyList(),
+        deadline = now - 1 * DAY_MS,
+        notes = null,
+        createdAt = now - 7 * DAY_MS,
+        updatedAt = now - 1 * DAY_MS,
+    )
+
+    private fun deliveredOrder(customer: Customer, now: Long): Order = Order(
+        id = "seed-order-3",
+        userId = customer.userId,
+        customerId = customer.id,
+        customerName = customer.name,
+        items = listOf(
+            OrderItem(
+                id = "seed-item-3",
+                garmentType = GarmentType.SHIRT,
+                description = "White cotton dress shirt",
+                price = 8_500.0,
             ),
-            // Same-day PENDING (deadline 14d out)
-            Order(
-                id = "seed-order-4",
-                userId = customers[3].userId,
-                customerId = customers[3].id,
-                customerName = customers[3].name,
-                items = listOf(
-                    OrderItem(
-                        id = "seed-item-4",
-                        garmentType = GarmentType.KAFTAN,
-                        description = "Sky-blue brocade kaftan",
-                        price = 15_000.0,
-                    ),
-                ),
-                status = OrderStatus.PENDING,
-                subStatus = null,
-                priority = OrderPriority.NORMAL,
-                statusHistory = listOf(StatusChange(OrderStatus.PENDING, now)),
-                totalPrice = 15_000.0,
-                payments = emptyList(),
-                deadline = now + 14 * DAY_MS,
-                notes = null,
-                createdAt = now,
-                updatedAt = now,
+        ),
+        status = OrderStatus.DELIVERED,
+        subStatus = null,
+        priority = OrderPriority.NORMAL,
+        statusHistory = listOf(
+            StatusChange(OrderStatus.IN_PROGRESS, now - 3 * DAY_MS),
+            StatusChange(OrderStatus.READY, now - 2 * DAY_MS),
+            StatusChange(OrderStatus.DELIVERED, now - 1 * DAY_MS),
+        ),
+        totalPrice = 8_500.0,
+        payments = emptyList(),
+        deadline = now - 1 * DAY_MS,
+        notes = null,
+        createdAt = now - 3 * DAY_MS,
+        updatedAt = now - 1 * DAY_MS,
+    )
+
+    private fun pendingOrder(customer: Customer, now: Long): Order = Order(
+        id = "seed-order-4",
+        userId = customer.userId,
+        customerId = customer.id,
+        customerName = customer.name,
+        items = listOf(
+            OrderItem(
+                id = "seed-item-4",
+                garmentType = GarmentType.KAFTAN,
+                description = "Sky-blue brocade kaftan",
+                price = 15_000.0,
             ),
-        )
-    }
+        ),
+        status = OrderStatus.PENDING,
+        subStatus = null,
+        priority = OrderPriority.NORMAL,
+        statusHistory = listOf(StatusChange(OrderStatus.PENDING, now)),
+        totalPrice = 15_000.0,
+        payments = emptyList(),
+        deadline = now + 14 * DAY_MS,
+        notes = null,
+        createdAt = now,
+        updatedAt = now,
+    )
+
+    // ── All-reconnect fixtures ───────────────────────────────────────────────
 
     /** Six all-reconnect customers (100+ days since last order). */
     fun allReconnectCustomers(userId: String, now: Long): List<Customer> {

@@ -4,10 +4,10 @@ import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DefaultDebugSeeder
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuViewModel
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
 private fun nowEpochMs(): Long = Clock.System.now().toEpochMilliseconds()

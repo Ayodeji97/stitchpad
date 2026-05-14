@@ -1,6 +1,9 @@
 package com.danzucker.stitchpad.core.debug
 
+import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -35,6 +38,7 @@ class DefaultDebugSeeder(
         return wipeForUser(userId)
     }
 
+    @Suppress("ReturnCount")
     override suspend fun seedActiveWorkshop(): SeedResult {
         val userId = authRepository.getCurrentUser()?.id
             ?: return SeedResult.Failure("Not signed in")
@@ -42,21 +46,23 @@ class DefaultDebugSeeder(
         if (wipeResult is SeedResult.Failure) return wipeResult
         val t = now()
         val customers = SeedFixtures.customers(userId, t)
-        for (c in customers) {
-            val r = customerRepository.createCustomer(userId, c)
-            if (r is Result.Error) return SeedResult.Failure("createCustomer failed: ${r.error}")
+
+        val customersResult = customers.createEachOrFail("createCustomer") {
+            customerRepository.createCustomer(userId, it)
         }
-        for (c in customers.take(4)) {
-            val r = measurementRepository.createMeasurement(userId, c.id, SeedFixtures.measurementsFor(c, t))
-            if (r is Result.Error) return SeedResult.Failure("createMeasurement failed: ${r.error}")
+        if (customersResult is SeedResult.Failure) return customersResult
+
+        val measurementsResult = customers.take(4).createEachOrFail("createMeasurement") {
+            measurementRepository.createMeasurement(userId, it.id, SeedFixtures.measurementsFor(it, t))
         }
-        for (o in SeedFixtures.activeOrders(customers, t)) {
-            val r = orderRepository.createOrder(userId, o)
-            if (r is Result.Error) return SeedResult.Failure("createOrder failed: ${r.error}")
+        if (measurementsResult is SeedResult.Failure) return measurementsResult
+
+        return SeedFixtures.activeOrders(customers, t).createEachOrFail("createOrder") {
+            orderRepository.createOrder(userId, it)
         }
-        return SeedResult.Success
     }
 
+    @Suppress("ReturnCount")
     override suspend fun seedAllReconnect(): SeedResult {
         val userId = authRepository.getCurrentUser()?.id
             ?: return SeedResult.Failure("Not signed in")
@@ -64,15 +70,15 @@ class DefaultDebugSeeder(
         if (wipeResult is SeedResult.Failure) return wipeResult
         val t = now()
         val customers = SeedFixtures.allReconnectCustomers(userId, t)
-        for (c in customers) {
-            val r = customerRepository.createCustomer(userId, c)
-            if (r is Result.Error) return SeedResult.Failure("createCustomer failed: ${r.error}")
+
+        val customersResult = customers.createEachOrFail("createCustomer") {
+            customerRepository.createCustomer(userId, it)
         }
-        for (o in SeedFixtures.allReconnectOrders(customers, t)) {
-            val r = orderRepository.createOrder(userId, o)
-            if (r is Result.Error) return SeedResult.Failure("createOrder failed: ${r.error}")
+        if (customersResult is SeedResult.Failure) return customersResult
+
+        return SeedFixtures.allReconnectOrders(customers, t).createEachOrFail("createOrder") {
+            orderRepository.createOrder(userId, it)
         }
-        return SeedResult.Success
     }
 
     override suspend fun wipeAllData(): SeedResult {
@@ -81,6 +87,7 @@ class DefaultDebugSeeder(
         return wipeForUser(userId)
     }
 
+    @Suppress("ReturnCount")
     private suspend fun wipeForUser(userId: String): SeedResult {
         val orders = when (val r = orderRepository.observeOrders(userId).first()) {
             is Result.Success -> r.data
@@ -90,29 +97,53 @@ class DefaultDebugSeeder(
             is Result.Success -> r.data
             is Result.Error -> return SeedResult.Failure("Failed to read customers: ${r.error}")
         }
-        for (o in orders) {
-            val r = orderRepository.deleteOrder(userId, o.id)
-            if (r is Result.Error) return SeedResult.Failure("deleteOrder failed: ${r.error}")
+        val orderResult = orders.createEachOrFail("deleteOrder") {
+            orderRepository.deleteOrder(userId, it.id)
         }
+        if (orderResult is SeedResult.Failure) return orderResult
+
         for (c in customers) {
-            val measurements = when (val mr = measurementRepository.observeMeasurements(userId, c.id).first()) {
-                is Result.Success -> mr.data
-                is Result.Error -> return SeedResult.Failure("Failed to read measurements: ${mr.error}")
-            }
-            for (m in measurements) {
-                val r = measurementRepository.deleteMeasurement(userId, c.id, m.id)
-                if (r is Result.Error) return SeedResult.Failure("deleteMeasurement failed: ${r.error}")
-            }
-            val styles = when (val sr = styleRepository.observeStyles(userId, c.id).first()) {
-                is Result.Success -> sr.data
-                is Result.Error -> return SeedResult.Failure("Failed to read styles: ${sr.error}")
-            }
-            for (s in styles) {
-                val r = styleRepository.deleteStyle(userId, c.id, s)
-                if (r is Result.Error) return SeedResult.Failure("deleteStyle failed: ${r.error}")
-            }
-            val cr = customerRepository.deleteCustomer(userId, c.id)
-            if (cr is Result.Error) return SeedResult.Failure("deleteCustomer failed: ${cr.error}")
+            val customerResult = wipeCustomerData(userId, c)
+            if (customerResult is SeedResult.Failure) return customerResult
+        }
+        return SeedResult.Success
+    }
+
+    @Suppress("ReturnCount")
+    private suspend fun wipeCustomerData(userId: String, customer: Customer): SeedResult {
+        val measurements = when (val r = measurementRepository.observeMeasurements(userId, customer.id).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> return SeedResult.Failure("Failed to read measurements: ${r.error}")
+        }
+        val measurementsResult = measurements.createEachOrFail("deleteMeasurement") {
+            measurementRepository.deleteMeasurement(userId, customer.id, it.id)
+        }
+        if (measurementsResult is SeedResult.Failure) return measurementsResult
+
+        val styles = when (val r = styleRepository.observeStyles(userId, customer.id).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> return SeedResult.Failure("Failed to read styles: ${r.error}")
+        }
+        val stylesResult = styles.createEachOrFail("deleteStyle") {
+            styleRepository.deleteStyle(userId, customer.id, it)
+        }
+        if (stylesResult is SeedResult.Failure) return stylesResult
+
+        val deleteResult = customerRepository.deleteCustomer(userId, customer.id)
+        return if (deleteResult is Result.Error) {
+            SeedResult.Failure("deleteCustomer failed: ${deleteResult.error}")
+        } else {
+            SeedResult.Success
+        }
+    }
+
+    private suspend inline fun <T> Iterable<T>.createEachOrFail(
+        label: String,
+        crossinline create: suspend (T) -> EmptyResult<DataError.Network>,
+    ): SeedResult {
+        for (item in this) {
+            val r = create(item)
+            if (r is Result.Error) return SeedResult.Failure("$label failed: ${r.error}")
         }
         return SeedResult.Success
     }
