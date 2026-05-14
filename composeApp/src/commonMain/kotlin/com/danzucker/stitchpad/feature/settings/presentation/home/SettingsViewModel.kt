@@ -90,7 +90,7 @@ class SettingsViewModel(
             SettingsAction.OnUpgradeClick,
             SettingsAction.OnComparePlansClick -> emit(SettingsEvent.OpenUrl(UPGRADE_URL))
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
-            is SettingsAction.OnThemeSelect -> selectTheme(action.theme)
+            SettingsAction.OnAppearanceClick -> cycleTheme()
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
             SettingsAction.OnSignOutRowClick -> uiState.update { it.copy(showSignOutDialog = true) }
@@ -178,10 +178,18 @@ class SettingsViewModel(
         }
     }
 
-    private fun selectTheme(theme: ThemePreference) {
+    private fun cycleTheme() {
         viewModelScope.launch {
-            themePreferencesStore.setTheme(theme)
-            uiState.update { it.copy(themePreference = theme) }
+            // Cycle System → Light → Dark → System, mirroring how
+            // toggleMeasurementUnit cycles Inches ↔ Cm. Keeps the row pattern
+            // identical: tap → cycles → trailing value updates.
+            val next = when (uiState.value.themePreference) {
+                ThemePreference.SYSTEM -> ThemePreference.LIGHT
+                ThemePreference.LIGHT -> ThemePreference.DARK
+                ThemePreference.DARK -> ThemePreference.SYSTEM
+            }
+            themePreferencesStore.setTheme(next)
+            uiState.update { it.copy(themePreference = next) }
         }
     }
 
