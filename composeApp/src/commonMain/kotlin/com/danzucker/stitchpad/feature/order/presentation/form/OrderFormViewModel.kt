@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -43,7 +44,8 @@ class OrderFormViewModel(
     private val customerRepository: CustomerRepository,
     private val styleRepository: StyleRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val applicationScope: ApplicationScope,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -330,82 +332,86 @@ class OrderFormViewModel(
 
         // Resolve order id BEFORE any upload so storage paths match the actual doc id.
         val actualOrderId = orderId ?: orderRepository.newOrderId(uid)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val isEdit = orderId != null
+        val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
 
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
 
-            val orderItems = formItems.map { item ->
-                val garmentType = item.garmentType!!
-                val price = item.price.toDoubleOrNull() ?: 0.0
+            // Fire-and-forget the photo upload + Firestore write in applicationScope so the
+            // user can navigate away while the work proceeds. GitLive's set() suspends until
+            // server ACK; awaiting would hang offline. Photo upload (Firebase Storage) has
+            // no offline queue — if offline, uploadFabricPhotoIfNeeded() falls back to the
+            // existing fabricPhotoUrl, so a brand-new offline fabric photo is silently dropped
+            // until the V1 upload queue lands. The order doc itself still queues via Firestore.
+            applicationScope.launch {
+                val orderItems = formItems.map { item ->
+                    val garmentType = item.garmentType!!
+                    val price = item.price.toDoubleOrNull() ?: 0.0
 
-                val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
+                    val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
 
-                OrderItem(
-                    id = item.id,
-                    garmentType = garmentType,
-                    description = item.description.trim(),
-                    price = price,
-                    styleId = item.styleId,
-                    measurementId = item.measurementId,
-                    fabricPhotoUrl = fabricUrl,
-                    fabricPhotoStoragePath = fabricPath,
-                    fabricName = item.fabricName.trim().ifBlank { null },
-                )
-            }
-
-            val totalPrice = orderItems.sumOf { it.price }
-            val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
-            val now = Clock.System.now().toEpochMilliseconds()
-            val isEdit = orderId != null
-
-            val order = Order(
-                id = actualOrderId,
-                userId = uid,
-                customerId = customer.id,
-                customerName = customer.name,
-                items = orderItems,
-                status = if (isEdit) loadedStatus else OrderStatus.PENDING,
-                priority = s.priority,
-                statusHistory = if (isEdit) {
-                    loadedStatusHistory
-                } else {
-                    listOf(StatusChange(OrderStatus.PENDING, now))
-                },
-                totalPrice = totalPrice,
-                payments = if (!isEdit && deposit > 0.0) {
-                    listOf(
-                        Payment(
-                            id = Uuid.random().toString(),
-                            amount = deposit,
-                            method = PaymentMethod.OTHER,
-                            type = PaymentType.DEPOSIT,
-                            recordedAt = now,
-                            note = null,
-                        ),
+                    OrderItem(
+                        id = item.id,
+                        garmentType = garmentType,
+                        description = item.description.trim(),
+                        price = price,
+                        styleId = item.styleId,
+                        measurementId = item.measurementId,
+                        fabricPhotoUrl = fabricUrl,
+                        fabricPhotoStoragePath = fabricPath,
+                        fabricName = item.fabricName.trim().ifBlank { null },
                     )
-                } else if (isEdit) {
-                    loadedPayments
-                } else {
-                    emptyList()
-                },
-                deadline = s.deadline,
-                notes = s.notes.trim().ifBlank { null },
-                createdAt = if (isEdit) loadedCreatedAt else 0L,
-                updatedAt = 0L
-            )
+                }
 
-            val result = if (isEdit) {
-                orderRepository.updateOrder(uid, order)
-            } else {
-                orderRepository.createOrder(uid, order)
-            }
-            _state.update { it.copy(isSaving = false) }
-            when (result) {
-                is Result.Success -> _events.send(OrderFormEvent.OrderSaved)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toOrderUiText())
+                val totalPrice = orderItems.sumOf { it.price }
+
+                val order = Order(
+                    id = actualOrderId,
+                    userId = uid,
+                    customerId = customer.id,
+                    customerName = customer.name,
+                    items = orderItems,
+                    status = if (isEdit) loadedStatus else OrderStatus.PENDING,
+                    priority = s.priority,
+                    statusHistory = if (isEdit) {
+                        loadedStatusHistory
+                    } else {
+                        listOf(StatusChange(OrderStatus.PENDING, now))
+                    },
+                    totalPrice = totalPrice,
+                    payments = if (!isEdit && deposit > 0.0) {
+                        listOf(
+                            Payment(
+                                id = Uuid.random().toString(),
+                                amount = deposit,
+                                method = PaymentMethod.OTHER,
+                                type = PaymentType.DEPOSIT,
+                                recordedAt = now,
+                                note = null,
+                            ),
+                        )
+                    } else if (isEdit) {
+                        loadedPayments
+                    } else {
+                        emptyList()
+                    },
+                    deadline = s.deadline,
+                    notes = s.notes.trim().ifBlank { null },
+                    createdAt = if (isEdit) loadedCreatedAt else 0L,
+                    updatedAt = 0L
+                )
+
+                if (isEdit) {
+                    orderRepository.updateOrder(uid, order)
+                } else {
+                    orderRepository.createOrder(uid, order)
                 }
             }
+
+            _state.update { it.copy(isSaving = false) }
+            _events.send(OrderFormEvent.OrderSaved)
         }
     }
 
