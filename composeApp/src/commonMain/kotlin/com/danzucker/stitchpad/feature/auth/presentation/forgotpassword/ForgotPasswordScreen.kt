@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.MarkEmailRead
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -179,7 +180,7 @@ private fun FormContent(
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = DesignTokens.primary500,
-            contentColor = DesignTokens.neutral900,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
             disabledContainerColor = DesignTokens.neutral700,
             disabledContentColor = DesignTokens.neutral500,
         ),
@@ -273,7 +274,7 @@ private fun SuccessContent(
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = DesignTokens.primary500,
-            contentColor = DesignTokens.neutral900,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
         ),
     ) {
         Text(

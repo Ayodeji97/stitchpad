@@ -128,12 +128,12 @@ fun EditProfileScreen(
                         .height(52.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
-                        contentColor = Color(0xFF181615),
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     if (state.isSaving) {
                         CircularProgressIndicator(
-                            color = Color(0xFF181615),
+                            color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(20.dp),
                         )

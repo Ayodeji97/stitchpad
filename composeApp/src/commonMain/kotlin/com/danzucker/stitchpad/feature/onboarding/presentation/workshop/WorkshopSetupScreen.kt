@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -372,7 +373,7 @@ fun WorkshopSetupScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DesignTokens.primary500,
-                        contentColor = DesignTokens.neutral900,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                         disabledContainerColor = DesignTokens.neutral700,
                         disabledContentColor = DesignTokens.neutral500,
                     ),

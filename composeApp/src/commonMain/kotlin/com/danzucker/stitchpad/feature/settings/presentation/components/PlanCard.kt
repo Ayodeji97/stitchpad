@@ -285,7 +285,7 @@ private fun PlanHeroFrame(
                         shape = RoundedCornerShape(DesignTokens.radiusMd),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = DesignTokens.primary500,
-                            contentColor = Color(0xFF181615),
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                     ) {
                         Text(

@@ -218,7 +218,7 @@ private fun GoodbyeContent(onContinue: () -> Unit) {
             shape = RoundedCornerShape(DesignTokens.radiusLg),
             colors = ButtonDefaults.buttonColors(
                 containerColor = DesignTokens.primary500,
-                contentColor = Color(0xFF181615),
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
             modifier = Modifier
                 .fillMaxWidth()

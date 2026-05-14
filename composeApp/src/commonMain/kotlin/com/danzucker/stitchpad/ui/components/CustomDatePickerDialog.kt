@@ -145,7 +145,7 @@ private fun PickerHeader(selected: LocalDate?) {
             text = headline,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = DesignTokens.neutral900,
+            color = MaterialTheme.colorScheme.onPrimary,
             lineHeight = 30.sp
         )
         Spacer(Modifier.height(10.dp))
@@ -362,7 +362,7 @@ private fun dayTextColor(
     isDisabled: Boolean
 ): Color = when {
     isDisabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f)
-    isSelected -> DesignTokens.neutral900
+    isSelected -> MaterialTheme.colorScheme.onPrimary
     isToday -> DesignTokens.primary600
     else -> MaterialTheme.colorScheme.onSurface
 }

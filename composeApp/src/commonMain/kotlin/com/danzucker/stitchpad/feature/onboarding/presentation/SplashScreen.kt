@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,13 +68,13 @@ fun SplashScreen(alpha: Float) {
             text = stringResource(Res.string.app_name),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = DesignTokens.neutral800
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Spacer(modifier = Modifier.height(DesignTokens.space2))
         Text(
             text = stringResource(Res.string.splash_tagline),
             fontSize = 14.sp,
-            color = DesignTokens.neutral800.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
         )
     }
 }
