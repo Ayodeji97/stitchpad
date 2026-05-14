@@ -29,7 +29,7 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         prefs.edit()
             .putBoolean(KEY_HAS_SEEN_ONBOARDING, false)
             .putBoolean(KEY_HAS_COMPLETED_WORKSHOP, false)
-            .apply()
+            .commit()
     }
 
     companion object {
