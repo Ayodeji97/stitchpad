@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
+import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuRoot
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginRoot
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpRoot
 import com.danzucker.stitchpad.feature.main.presentation.MainRoot
@@ -119,7 +120,18 @@ fun StitchPadNavHost(
                             popUpTo(HomeRoute) { inclusive = true }
                         }
                     }
-                }
+                },
+                onNavigateToDebugMenu = { navController.navigate(DebugMenuRoute) },
+            )
+        }
+        composable<DebugMenuRoute> {
+            DebugMenuRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToLogin = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo(HomeRoute) { inclusive = true }
+                    }
+                },
             )
         }
     }

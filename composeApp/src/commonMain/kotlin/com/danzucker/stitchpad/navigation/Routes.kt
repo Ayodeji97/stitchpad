@@ -93,3 +93,6 @@ data object DeleteAccountRoute
 
 @Serializable
 data object ReportsRoute
+
+@Serializable
+data object DebugMenuRoute

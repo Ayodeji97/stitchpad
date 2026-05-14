@@ -100,6 +100,7 @@ class SettingsViewModel(
                     )
                 )
             }
+            SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
         }
     }
 

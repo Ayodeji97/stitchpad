@@ -69,7 +69,10 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun MainRoot(onSignedOut: () -> Unit) {
+fun MainRoot(
+    onSignedOut: () -> Unit,
+    onNavigateToDebugMenu: () -> Unit,
+) {
     val innerNavController = rememberNavController()
     val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -136,6 +139,7 @@ fun MainRoot(onSignedOut: () -> Unit) {
         MainNavGraph(
             navController = innerNavController,
             onSignedOut = onSignedOut,
+            onNavigateToDebugMenu = onNavigateToDebugMenu,
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
@@ -147,7 +151,8 @@ fun MainRoot(onSignedOut: () -> Unit) {
 private fun MainNavGraph(
     navController: NavHostController,
     onSignedOut: () -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToDebugMenu: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     NavHost(
         navController = navController,
@@ -324,6 +329,7 @@ private fun MainNavGraph(
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
                 onNavigateToDeleteAccount = { navController.navigate(DeleteAccountRoute) },
                 onSignedOut = onSignedOut,
+                onNavigateToDebugMenu = onNavigateToDebugMenu,
             )
         }
         composable<EditProfileRoute> {
