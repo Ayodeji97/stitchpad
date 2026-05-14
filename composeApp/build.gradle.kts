@@ -152,7 +152,7 @@ val generateDebugTestAccounts by tasks.registering {
             }
         }
         fun String.escapeForKotlinLiteral(): String =
-            this.replace("\\", "\\\\").replace("\"", "\\\"")
+            this.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
 
         val folaEmail = props.getProperty("fola.email", "").trim().escapeForKotlinLiteral()
         val folaPassword = props.getProperty("fola.password", "").trim().escapeForKotlinLiteral()

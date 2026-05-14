@@ -106,7 +106,7 @@ class DebugMenuViewModel(
 
     private fun handleSwitch(r: SessionActionResult) {
         when (r) {
-            SessionActionResult.Success -> emit(DebugMenuEvent.NavigateToLogin)
+            SessionActionResult.Success -> emit(DebugMenuEvent.NavigateToSplash)
             SessionActionResult.ConfigurationMissing ->
                 emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Test creds not configured")))
             is SessionActionResult.Failure ->
