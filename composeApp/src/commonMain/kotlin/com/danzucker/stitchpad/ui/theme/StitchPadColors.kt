@@ -28,12 +28,12 @@ data class StitchPadColors(
 
 val LightStitchPadColors = StitchPadColors(
     heritageAccent = DesignTokens.saffron500,
-    brandAccent    = DesignTokens.indigo400,
+    brandAccent = DesignTokens.indigo400,
 )
 
 val DarkStitchPadColors = StitchPadColors(
     heritageAccent = DesignTokens.saffron500, // saffron doesn't tonally shift
-    brandAccent    = DesignTokens.indigo200,
+    brandAccent = DesignTokens.indigo200,
 )
 
 val LocalStitchPadColors = staticCompositionLocalOf<StitchPadColors> {

@@ -14,12 +14,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 
 /**
  * Theme verification preview — renders a color swatch grid + type
@@ -31,7 +31,8 @@ import androidx.compose.ui.tooling.preview.Preview
  */
 @Preview
 @Composable
-private fun StitchPadThemePreview_Light() {
+@Suppress("UnusedPrivateMember")
+private fun StitchPadThemePreviewLight() {
     StitchPadTheme(darkTheme = false) {
         ThemeSpecimenContent()
     }
@@ -39,7 +40,8 @@ private fun StitchPadThemePreview_Light() {
 
 @Preview
 @Composable
-private fun StitchPadThemePreview_Dark() {
+@Suppress("UnusedPrivateMember")
+private fun StitchPadThemePreviewDark() {
     StitchPadTheme(darkTheme = true) {
         ThemeSpecimenContent()
     }
@@ -107,7 +109,7 @@ private fun ThemeSpecimenContent() {
 
 @Composable
 private fun Swatch(label: String, color: Color) {
-    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(56.dp)

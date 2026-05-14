@@ -36,10 +36,10 @@ fun FrauncesFamily(): FontFamily = FontFamily(
  */
 @Composable
 fun ManropeFamily(): FontFamily = FontFamily(
-    Font(Res.font.manrope_regular,  FontWeight.Normal),
-    Font(Res.font.manrope_medium,   FontWeight.Medium),
+    Font(Res.font.manrope_regular, FontWeight.Normal),
+    Font(Res.font.manrope_medium, FontWeight.Medium),
     Font(Res.font.manrope_semibold, FontWeight.SemiBold),
-    Font(Res.font.manrope_bold,     FontWeight.Bold),
+    Font(Res.font.manrope_bold, FontWeight.Bold),
 )
 
 /**
@@ -50,13 +50,13 @@ fun ManropeFamily(): FontFamily = FontFamily(
 @Composable
 fun JetBrainsMonoFamily(): FontFamily = FontFamily(
     Font(Res.font.jetbrains_mono_regular, FontWeight.Normal),
-    Font(Res.font.jetbrains_mono_medium,  FontWeight.Medium),
+    Font(Res.font.jetbrains_mono_medium, FontWeight.Medium),
 )
 
 @Composable
 fun StitchPadTypography(): Typography {
     val fraunces = FrauncesFamily()
-    val manrope  = ManropeFamily()
+    val manrope = ManropeFamily()
 
     return Typography(
         // Display + Headline — Fraunces (was PlusJakartaSans).
