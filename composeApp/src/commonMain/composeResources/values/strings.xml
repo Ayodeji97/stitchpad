@@ -971,8 +971,8 @@
     <string name="settings_footer">StitchPad v%1$s · Made in Lagos</string>
 
     <!-- Sign-out confirmation -->
-    <string name="sign_out_dialog_title">Sign out?</string>
-    <string name="sign_out_dialog_body">You can sign back in anytime with your email and password.</string>
+    <string name="sign_out_dialog_title">Sign out of StitchPad?</string>
+    <string name="sign_out_dialog_body">Your customers, measurements, and orders stay safe. Sign back in anytime to pick up where you left off.</string>
     <string name="sign_out_dialog_confirm">Sign out</string>
     <string name="sign_out_dialog_cancel">Cancel</string>
 
