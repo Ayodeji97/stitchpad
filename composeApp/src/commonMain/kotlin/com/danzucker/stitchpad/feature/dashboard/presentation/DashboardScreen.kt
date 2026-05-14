@@ -3,7 +3,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,6 +79,7 @@ import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.components.WeeklyGoalsCard
 import com.danzucker.stitchpad.ui.components.WeeklyGoalsCardState
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.CoroutineScope
@@ -910,7 +910,7 @@ private data class NbaPresentation(
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
     val amount = formatNaira(action.balanceAmount)
     return when (action.type) {
         NextBestActionType.CollectOverdue -> NbaPresentation(

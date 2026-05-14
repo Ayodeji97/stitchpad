@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 
 class FakeAuthRepository : AuthRepository {
     var shouldReturnError: AuthError? = null
@@ -12,6 +13,11 @@ class FakeAuthRepository : AuthRepository {
     var signUpInvocationCount = 0
     var deleteAccountInvocationCount = 0
     var currentUser: User? = null
+    var signInProvider: SignInProvider = SignInProvider.EMAIL_PASSWORD
+    var lastReauthPassword: String? = null
+    var lastUpdatedEmail: String? = null
+    var lastUpdatedPassword: String? = null
+    var deleteAccountCalled: Boolean = false
 
     var currentBusinessName: String?
         get() = currentUser?.businessName
@@ -78,13 +84,6 @@ class FakeAuthRepository : AuthRepository {
         return Result.Success(user)
     }
 
-    override suspend fun deleteAccount(): EmptyResult<AuthError> {
-        deleteAccountInvocationCount++
-        shouldReturnError?.let { return Result.Error(it) }
-        currentUser = null
-        return Result.Success(Unit)
-    }
-
     override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {
         shouldReturnError?.let { return Result.Error(it) }
         resetEmailSentTo = email
@@ -98,4 +97,48 @@ class FakeAuthRepository : AuthRepository {
 
     override suspend fun getCurrentUser(): User? = currentUser
     override val isLoggedIn: Boolean get() = currentUser != null
+
+    override suspend fun getSignInProvider(): SignInProvider = signInProvider
+
+    override suspend fun reauthenticateWithPassword(password: String): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastReauthPassword = password
+        return Result.Success(Unit)
+    }
+
+    override suspend fun reauthenticateWithApple(): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Error(AuthError.PROVIDER_NOT_SUPPORTED)
+    }
+
+    override suspend fun reauthenticateWithGoogle(): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Error(AuthError.PROVIDER_NOT_SUPPORTED)
+    }
+
+    override suspend fun updateEmail(newEmail: String): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastUpdatedEmail = newEmail
+        return Result.Success(Unit)
+    }
+
+    override suspend fun updatePassword(newPassword: String): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastUpdatedPassword = newPassword
+        return Result.Success(Unit)
+    }
+
+    override suspend fun updateAuthDisplayName(name: String?): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        currentUser = currentUser?.copy(displayName = name?.takeIf { it.isNotBlank() } ?: "")
+        return Result.Success(Unit)
+    }
+
+    override suspend fun deleteAccount(): EmptyResult<AuthError> {
+        deleteAccountInvocationCount++
+        shouldReturnError?.let { return Result.Error(it) }
+        deleteAccountCalled = true
+        currentUser = null
+        return Result.Success(Unit)
+    }
 }

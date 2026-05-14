@@ -77,7 +77,19 @@ data object AddCustomerFirstRoute
 data object GoalSetupRoute
 
 @Serializable
-data object SettingsPlaceholderRoute
+data object SettingsRoute
+
+@Serializable
+data object EditProfileRoute
+
+@Serializable
+data object ChangeEmailRoute
+
+@Serializable
+data object ChangePasswordRoute
+
+@Serializable
+data object DeleteAccountRoute
 
 @Serializable
 data object ReportsRoute

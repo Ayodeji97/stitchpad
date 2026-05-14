@@ -30,8 +30,8 @@ class ReceiptFormatterTest {
         email = "ade@test.com",
         displayName = "Ade",
         businessName = "Ade's Tailoring",
-        phoneNumber = "08012345678",
-        whatsappNumber = null,
+        phoneNumber = null,
+        whatsappNumber = "08012345678",
         avatarColorIndex = 0
     )
 
@@ -93,7 +93,7 @@ class ReceiptFormatterTest {
 
     @Test
     fun nullPhoneReturnsNull() {
-        val userNoPhone = testUser.copy(phoneNumber = null)
+        val userNoPhone = testUser.copy(whatsappNumber = null)
         val result = ReceiptFormatter.format(testOrder, userNoPhone, garmentNames)
         assertNull(result.businessPhone)
     }

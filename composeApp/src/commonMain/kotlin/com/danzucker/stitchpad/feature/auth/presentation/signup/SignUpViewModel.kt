@@ -22,6 +22,9 @@ import stitchpad.composeapp.generated.resources.error_name_too_short
 import stitchpad.composeapp.generated.resources.error_password_too_short
 import stitchpad.composeapp.generated.resources.error_passwords_mismatch
 
+private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
+private const val TERMS_URL = "https://getstitchpad.com/terms"
+
 class SignUpViewModel(
     private val authRepository: AuthRepository,
     private val emailValidator: PatternValidator
@@ -77,9 +80,11 @@ class SignUpViewModel(
             SignUpAction.OnTermsToggle -> {
                 _state.update { it.copy(acceptedTerms = !it.acceptedTerms) }
             }
-            SignUpAction.OnTermsLinkClick,
+            SignUpAction.OnTermsLinkClick -> {
+                viewModelScope.launch { _events.send(SignUpEvent.OpenUrl(TERMS_URL)) }
+            }
             SignUpAction.OnPrivacyLinkClick -> {
-                viewModelScope.launch { _events.send(SignUpEvent.ShowComingSoon) }
+                viewModelScope.launch { _events.send(SignUpEvent.OpenUrl(PRIVACY_URL)) }
             }
             SignUpAction.OnAppleSignInClick -> appleSignIn()
             SignUpAction.OnGoogleSignInClick -> googleSignIn()
