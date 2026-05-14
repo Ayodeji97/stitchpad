@@ -1,0 +1,7 @@
+# Local-only credentials for debug "Switch account" buttons.
+# Copy this file to debug-test-accounts.properties and fill in real values.
+# NEVER commit the .properties file (only this .example is tracked).
+fola.email=
+fola.password=
+gabby.email=
+gabby.password=
