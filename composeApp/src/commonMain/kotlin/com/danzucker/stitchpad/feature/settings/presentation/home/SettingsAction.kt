@@ -2,8 +2,6 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 sealed interface SettingsAction {
     data object OnProfileClick : SettingsAction
-    data object OnUpgradeClick : SettingsAction
-    data object OnComparePlansClick : SettingsAction
     data object OnMeasurementUnitClick : SettingsAction
     data object OnAppearanceClick : SettingsAction
     data object OnEmailRowClick : SettingsAction

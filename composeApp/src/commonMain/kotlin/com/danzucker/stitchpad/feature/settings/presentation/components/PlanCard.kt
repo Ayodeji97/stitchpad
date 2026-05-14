@@ -50,10 +50,9 @@ import stitchpad.composeapp.generated.resources.plan_card_subtitle_warn
 import stitchpad.composeapp.generated.resources.plan_card_title_locked
 import stitchpad.composeapp.generated.resources.plan_card_title_warn
 
-// QA-only: lowered from 0.80f → 0.50f to pair with the temporary 3-customer
-// limit so 2/3 (≈ 67%) cleanly triggers the warn hero. Revert to 0.80f when
-// the production cap (15) is restored.
-private const val WARN_THRESHOLD_RATIO = 0.50f
+// Hero-warn variant kicks in at 80% of the cap (e.g. 12/15). Tuned with the
+// freemium decision when PlanCard is re-wired into Settings.
+private const val WARN_THRESHOLD_RATIO = 0.80f
 
 /**
  * Three visual states picked from [customerCount] / [customerLimit]:

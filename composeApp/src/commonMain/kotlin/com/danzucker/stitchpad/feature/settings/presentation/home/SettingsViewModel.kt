@@ -7,7 +7,6 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
-import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
@@ -28,7 +27,6 @@ import kotlinx.coroutines.launch
 
 private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
 private const val TERMS_URL = "https://getstitchpad.com/terms"
-private const val UPGRADE_URL = "https://getstitchpad.com/upgrade"
 private const val SUPPORT_WHATSAPP_NUMBER = "+2348064816696"
 private const val INVITE_SHARE_MESSAGE =
     "Hi! I've been using StitchPad to manage my tailoring orders and customers — " +
@@ -36,10 +34,6 @@ private const val INVITE_SHARE_MESSAGE =
 private const val SUPPORT_INTRO_MESSAGE =
     "Hi StitchPad team! I need help with "
 
-// QA-only: lowered from 15 → 3 so the three PlanCard variants are reachable
-// with a handful of seeded customers (inline at 1, warn at 2, locked at 3).
-// Revert before V1 ships, ideally once the freemium model is locked down.
-private const val FREE_CUSTOMER_LIMIT = 3
 private const val TAG = "SettingsVM"
 
 /**
@@ -58,7 +52,6 @@ private data class LocalUiState(
 class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
-    private val customerRepository: CustomerRepository,
     private val entitlementsRepository: EntitlementsRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val themePreferencesStore: ThemePreferencesStore,
@@ -87,8 +80,6 @@ class SettingsViewModel(
     fun onAction(action: SettingsAction) {
         when (action) {
             SettingsAction.OnProfileClick -> emit(SettingsEvent.NavigateToEditProfile)
-            SettingsAction.OnUpgradeClick,
-            SettingsAction.OnComparePlansClick -> emit(SettingsEvent.OpenUrl(UPGRADE_URL))
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
             SettingsAction.OnAppearanceClick -> cycleTheme()
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
@@ -127,11 +118,10 @@ class SettingsViewModel(
 
         val combined = combine(
             userRepository.observeUser(authUser.id),
-            customerRepository.observeCustomers(authUser.id),
             entitlementsRepository.observeIsPremium(),
             uiState,
-        ) { firestoreUser, customersResult, isPremium, ui ->
-            buildState(authUser, provider, firestoreUser, customersResult, isPremium, ui)
+        ) { firestoreUser, isPremium, ui ->
+            buildState(authUser, provider, firestoreUser, isPremium, ui)
         }
         combined.collect { emit(it) }
     }
@@ -140,14 +130,9 @@ class SettingsViewModel(
         authUser: com.danzucker.stitchpad.core.domain.model.User,
         provider: SignInProvider,
         firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
-        customersResult: Result<List<com.danzucker.stitchpad.core.domain.model.Customer>, *>,
         isPremium: Boolean,
         ui: LocalUiState,
     ): SettingsState {
-        val customerCount = when (customersResult) {
-            is Result.Success -> customersResult.data.size
-            is Result.Error -> 0
-        }
         val business = firestoreUser?.businessName.orEmpty().ifBlank {
             authUser.displayName.ifBlank { authUser.email.substringBefore('@') }
         }
@@ -160,8 +145,6 @@ class SettingsViewModel(
             signInProvider = provider,
             maskedSignInIdentifier = authUser.email,
             isPremium = isPremium,
-            customerCount = customerCount,
-            customerLimit = FREE_CUSTOMER_LIMIT,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
             showSignOutDialog = ui.showSignOutDialog,

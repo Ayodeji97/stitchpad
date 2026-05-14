@@ -39,7 +39,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
-import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.ProfileHeroCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowChevron
@@ -71,7 +70,6 @@ import stitchpad.composeapp.generated.resources.settings_row_terms
 import stitchpad.composeapp.generated.resources.settings_section_account
 import stitchpad.composeapp.generated.resources.settings_section_business
 import stitchpad.composeapp.generated.resources.settings_section_legal
-import stitchpad.composeapp.generated.resources.settings_section_plan
 import stitchpad.composeapp.generated.resources.settings_section_preferences
 import stitchpad.composeapp.generated.resources.settings_section_support
 import stitchpad.composeapp.generated.resources.settings_theme_dark
@@ -131,26 +129,6 @@ fun SettingsScreen(
                     null
                 },
             )
-
-            if (state.showPlanCard) {
-                Spacer(Modifier.height(DesignTokens.space4))
-                Text(
-                    text = stringResource(Res.string.settings_section_plan).uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(
-                        start = DesignTokens.space2,
-                        bottom = DesignTokens.space2,
-                    ),
-                )
-                PlanCard(
-                    customerCount = state.customerCount,
-                    customerLimit = state.customerLimit,
-                    onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
-                    onComparePlansClick = { onAction(SettingsAction.OnComparePlansClick) },
-                )
-            }
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
                 SettingsRow(
@@ -345,8 +323,6 @@ private fun SettingsScreenPreview() {
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 isPremium = false,
-                customerCount = 8,
-                customerLimit = 15,
                 measurementUnit = MeasurementUnit.INCHES,
             ),
             onAction = {},
@@ -357,7 +333,7 @@ private fun SettingsScreenPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun SettingsScreenWarnPreview() {
+private fun SettingsScreenAppleProviderPreview() {
     StitchPadTheme {
         SettingsScreen(
             state = SettingsState(
@@ -368,9 +344,7 @@ private fun SettingsScreenWarnPreview() {
                 avatarColorIndex = 3,
                 signInProvider = SignInProvider.APPLE,
                 maskedSignInIdentifier = "folake@privaterelay.appleid.com",
-                isPremium = false,
-                customerCount = 13,
-                customerLimit = 15,
+                isPremium = true,
                 measurementUnit = MeasurementUnit.CM,
             ),
             onAction = {},
@@ -393,8 +367,6 @@ private fun SettingsScreenDarkPreview() {
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 isPremium = false,
-                customerCount = 8,
-                customerLimit = 15,
             ),
             onAction = {},
         )

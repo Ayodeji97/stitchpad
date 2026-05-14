@@ -9,9 +9,7 @@ val billingModule = module {
     // Lambda factory (not singleOf) because InMemoryEntitlementsRepository has a
     // default-value constructor parameter (initialIsPremium); singleOf can't skip
     // those defaults — same pitfall as the dashboard's viewModelOf usage.
-    // QA toggle: flip between false (see Plan card variants) and true (see
-    // Pro badge in hero, no Plan card). Currently set to true so the Tailor
-    // Pro badge is visible during the hero-card review. Restore to a real
-    // EntitlementsRepository before V1 ships.
-    single { InMemoryEntitlementsRepository(initialIsPremium = true) } bind EntitlementsRepository::class
+    // Default initialIsPremium=false ships the free experience; swap for a real
+    // EntitlementsRepository when the freemium model lands.
+    single { InMemoryEntitlementsRepository() } bind EntitlementsRepository::class
 }
