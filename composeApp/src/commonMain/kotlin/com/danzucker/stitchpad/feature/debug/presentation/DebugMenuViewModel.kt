@@ -37,7 +37,7 @@ class DebugMenuViewModel(
             DebugMenuAction.OnSeedAllReconnectClick -> runSeed { seeder.seedAllReconnect() }
             DebugMenuAction.OnResetOnboardingClick -> runJob {
                 sessionActions.resetOnboardingFlags()
-                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Onboarding flags reset")))
+                emit(DebugMenuEvent.NavigateToSplash)
             }
             DebugMenuAction.OnSignOutClick -> runJob {
                 val r = sessionActions.signOut()

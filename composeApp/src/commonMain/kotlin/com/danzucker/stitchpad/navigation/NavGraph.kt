@@ -132,6 +132,11 @@ fun StitchPadNavHost(
                         popUpTo(HomeRoute) { inclusive = true }
                     }
                 },
+                onNavigateToSplash = {
+                    navController.navigate(SplashRoute) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
             )
         }
     }

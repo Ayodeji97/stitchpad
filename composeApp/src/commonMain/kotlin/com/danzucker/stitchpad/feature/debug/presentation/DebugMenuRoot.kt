@@ -16,6 +16,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun DebugMenuRoot(
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onNavigateToSplash: () -> Unit,
     viewModel: DebugMenuViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -26,6 +27,7 @@ fun DebugMenuRoot(
         when (event) {
             DebugMenuEvent.NavigateBack -> onNavigateBack()
             DebugMenuEvent.NavigateToLogin -> onNavigateToLogin()
+            DebugMenuEvent.NavigateToSplash -> onNavigateToSplash()
             is DebugMenuEvent.ShowSnackbar -> {
                 scope.launch {
                     val msg = when (val t = event.message) {

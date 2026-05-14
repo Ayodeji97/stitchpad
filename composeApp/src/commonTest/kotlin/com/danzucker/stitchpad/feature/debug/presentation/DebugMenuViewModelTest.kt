@@ -97,15 +97,20 @@ class DebugMenuViewModelTest {
     }
 
     @Test
-    fun `OnResetOnboardingClick clears onboarding flags`() = runTest {
+    fun `OnResetOnboardingClick clears flags and emits NavigateToSplash`() = runTest {
         fakeOnboarding.onboardingSeen = true
         fakeOnboarding.workshopSetupCompleted = true
         val vm = createViewModel()
 
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
         vm.onAction(DebugMenuAction.OnResetOnboardingClick)
 
         assertFalse(fakeOnboarding.onboardingSeen)
         assertFalse(fakeOnboarding.workshopSetupCompleted)
+        assertTrue(events.any { it is DebugMenuEvent.NavigateToSplash })
     }
 
     @Test
