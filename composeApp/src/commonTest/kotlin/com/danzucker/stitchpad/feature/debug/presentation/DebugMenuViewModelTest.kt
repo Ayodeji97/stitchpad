@@ -118,13 +118,12 @@ class DebugMenuViewModelTest {
         var seedBrandNewResult: SeedResult = SeedResult.Success
         var seedActiveWorkshopResult: SeedResult = SeedResult.Success
         var seedAllReconnectResult: SeedResult = SeedResult.Success
-        var wipeResult: SeedResult = SeedResult.Success
         var seedBrandNewCalls = 0
         var seedActiveWorkshopCalls = 0
 
         override suspend fun seedBrandNew(): SeedResult { seedBrandNewCalls++; return seedBrandNewResult }
         override suspend fun seedActiveWorkshop(): SeedResult { seedActiveWorkshopCalls++; return seedActiveWorkshopResult }
         override suspend fun seedAllReconnect(): SeedResult = seedAllReconnectResult
-        override suspend fun wipeAllData(): SeedResult = wipeResult
+        override suspend fun wipeAllData(): SeedResult = SeedResult.Success
     }
 }

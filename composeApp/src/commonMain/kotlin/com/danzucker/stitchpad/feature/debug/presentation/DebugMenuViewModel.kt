@@ -99,10 +99,7 @@ class DebugMenuViewModel(
 
     private fun handleSwitch(r: SessionActionResult) {
         when (r) {
-            SessionActionResult.Success -> {
-                _state.update { it.copy(lastResult = UiText.DynamicString("Switched accounts")) }
-                emit(DebugMenuEvent.NavigateToLogin)
-            }
+            SessionActionResult.Success -> emit(DebugMenuEvent.NavigateToLogin)
             SessionActionResult.ConfigurationMissing -> _state.update {
                 it.copy(lastResult = UiText.DynamicString("Test creds not configured"))
             }
