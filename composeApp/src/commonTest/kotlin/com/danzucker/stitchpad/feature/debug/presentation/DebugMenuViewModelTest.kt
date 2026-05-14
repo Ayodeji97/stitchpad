@@ -68,7 +68,7 @@ class DebugMenuViewModelTest {
     }
 
     @Test
-    fun `OnSeedActiveWorkshopClick delegates to seeder and emits Snackbar on success`() = runTest {
+    fun `OnSeedActiveWorkshopClick sets activeScenario to ActiveWorkshop on success`() = runTest {
         val vm = createViewModel()
         seeder.seedActiveWorkshopResult = SeedResult.Success
 
@@ -80,6 +80,34 @@ class DebugMenuViewModelTest {
 
         assertEquals(1, seeder.seedActiveWorkshopCalls)
         assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
+        assertEquals(DebugScenario.ActiveWorkshop, vm.state.first().activeScenario)
+    }
+
+    @Test
+    fun `seed failure leaves activeScenario unchanged`() = runTest {
+        val vm = createViewModel()
+        // First a successful seed to set activeScenario
+        seeder.seedActiveWorkshopResult = SeedResult.Success
+        vm.onAction(DebugMenuAction.OnSeedActiveWorkshopClick)
+
+        // Then a failed seed
+        seeder.seedBrandNewResult = SeedResult.Failure("network down")
+        vm.onAction(DebugMenuAction.OnSeedBrandNewClick)
+
+        assertEquals(DebugScenario.ActiveWorkshop, vm.state.first().activeScenario)
+    }
+
+    @Test
+    fun `OnClearActiveScenarioClick clears activeScenario`() = runTest {
+        val vm = createViewModel()
+        seeder.seedActiveWorkshopResult = SeedResult.Success
+        vm.onAction(DebugMenuAction.OnSeedActiveWorkshopClick)
+        // Sanity: activeScenario set
+        assertEquals(DebugScenario.ActiveWorkshop, vm.state.first().activeScenario)
+
+        vm.onAction(DebugMenuAction.OnClearActiveScenarioClick)
+
+        assertEquals(null, vm.state.first().activeScenario)
     }
 
     @Test

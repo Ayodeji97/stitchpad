@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -58,19 +59,36 @@ fun DebugMenuScreen(
                     icon = Icons.Outlined.BugReport,
                     label = "Brand-new tailor",
                     onClick = { onAction(DebugMenuAction.OnSeedBrandNewClick) },
+                    trailing = if (state.activeScenario == DebugScenario.BrandNew) {
+                        { ActiveScenarioPill() }
+                    } else null,
                 )
                 SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.Outlined.BugReport,
                     label = "Active workshop",
                     onClick = { onAction(DebugMenuAction.OnSeedActiveWorkshopClick) },
+                    trailing = if (state.activeScenario == DebugScenario.ActiveWorkshop) {
+                        { ActiveScenarioPill() }
+                    } else null,
                 )
                 SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.Outlined.BugReport,
                     label = "All-reconnect",
                     onClick = { onAction(DebugMenuAction.OnSeedAllReconnectClick) },
+                    trailing = if (state.activeScenario == DebugScenario.AllReconnect) {
+                        { ActiveScenarioPill() }
+                    } else null,
                 )
+                if (state.activeScenario != null) {
+                    SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Refresh,
+                        label = "Clear active state",
+                        onClick = { onAction(DebugMenuAction.OnClearActiveScenarioClick) },
+                    )
+                }
             }
 
             SettingsSectionCard(label = "Session") {
@@ -115,6 +133,15 @@ fun DebugMenuScreen(
     }
 }
 
+@Composable
+private fun ActiveScenarioPill() {
+    Text(
+        text = "Active",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
@@ -135,6 +162,22 @@ private fun DebugMenuScreenNotConfiguredPreview() {
     StitchPadTheme {
         DebugMenuScreen(
             state = DebugMenuState(testAccountsConfigured = false),
+            snackbarHostState = SnackbarHostState(),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun DebugMenuScreenActiveScenarioPreview() {
+    StitchPadTheme {
+        DebugMenuScreen(
+            state = DebugMenuState(
+                testAccountsConfigured = true,
+                activeScenario = DebugScenario.ActiveWorkshop,
+            ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},
         )

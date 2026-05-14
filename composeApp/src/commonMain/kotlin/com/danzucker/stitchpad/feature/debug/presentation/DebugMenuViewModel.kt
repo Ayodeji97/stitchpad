@@ -32,9 +32,13 @@ class DebugMenuViewModel(
     fun onAction(action: DebugMenuAction) {
         when (action) {
             DebugMenuAction.OnBackClick -> emit(DebugMenuEvent.NavigateBack)
-            DebugMenuAction.OnSeedBrandNewClick -> runSeed { seeder.seedBrandNew() }
-            DebugMenuAction.OnSeedActiveWorkshopClick -> runSeed { seeder.seedActiveWorkshop() }
-            DebugMenuAction.OnSeedAllReconnectClick -> runSeed { seeder.seedAllReconnect() }
+            DebugMenuAction.OnSeedBrandNewClick -> runSeed(DebugScenario.BrandNew) { seeder.seedBrandNew() }
+            DebugMenuAction.OnSeedActiveWorkshopClick -> runSeed(DebugScenario.ActiveWorkshop) { seeder.seedActiveWorkshop() }
+            DebugMenuAction.OnSeedAllReconnectClick -> runSeed(DebugScenario.AllReconnect) { seeder.seedAllReconnect() }
+            DebugMenuAction.OnClearActiveScenarioClick -> {
+                _state.update { it.copy(activeScenario = null) }
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Active state cleared")))
+            }
             DebugMenuAction.OnResetOnboardingClick -> runJob {
                 sessionActions.resetOnboardingFlags()
                 emit(DebugMenuEvent.NavigateToSplash)
@@ -74,10 +78,13 @@ class DebugMenuViewModel(
         }
     }
 
-    private fun runSeed(block: suspend () -> SeedResult) = runJob {
+    private fun runSeed(scenario: DebugScenario, block: suspend () -> SeedResult) = runJob {
         val r = block()
         val message = when (r) {
-            SeedResult.Success -> UiText.DynamicString("Seed complete")
+            SeedResult.Success -> {
+                _state.update { it.copy(activeScenario = scenario) }
+                UiText.DynamicString("Seed complete")
+            }
             is SeedResult.Failure -> UiText.DynamicString("Seed failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
