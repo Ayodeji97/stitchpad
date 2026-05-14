@@ -20,7 +20,6 @@ val debugModule = module {
             measurementRepository = get(),
             styleRepository = get(),
             authRepository = get(),
-            onboardingPreferences = get(),
             now = ::nowEpochMs,
         )
     }

@@ -10,7 +10,6 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
-import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -25,7 +24,6 @@ class DefaultDebugSeederTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var styleRepository: FakeStyleRepository
     private lateinit var authRepository: FakeAuthRepository
-    private lateinit var onboardingPreferences: FakeOnboardingPreferences
 
     private val fixedNow = 1_715_700_000_000L
 
@@ -46,7 +44,6 @@ class DefaultDebugSeederTest {
                 avatarColorIndex = 0,
             )
         }
-        onboardingPreferences = FakeOnboardingPreferences()
     }
 
     private fun createSeeder(): DefaultDebugSeeder = DefaultDebugSeeder(
@@ -55,7 +52,6 @@ class DefaultDebugSeederTest {
         measurementRepository = measurementRepository,
         styleRepository = styleRepository,
         authRepository = authRepository,
-        onboardingPreferences = onboardingPreferences,
         now = { fixedNow },
     )
 
