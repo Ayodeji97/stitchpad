@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.customer.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -27,7 +28,8 @@ class CustomerFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
-    private val emailValidator: PatternValidator
+    private val emailValidator: PatternValidator,
+    private val applicationScope: ApplicationScope,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -138,18 +140,21 @@ class CustomerFormViewModel(
                 notes = s.notes.trim().ifBlank { null },
                 createdAt = s.createdAt
             )
-            val result = if (customerId != null) {
-                customerRepository.updateCustomer(userId, customer)
-            } else {
-                customerRepository.createCustomer(userId, customer)
-            }
-            _state.update { it.copy(isLoading = false) }
-            when (result) {
-                is Result.Success -> _events.send(CustomerFormEvent.NavigateBack)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toCustomerUiText())
+
+            // Fire-and-forget so the user can navigate away while Firestore's local
+            // mutation queue persists the write. Awaiting would hang offline because
+            // GitLive's set() suspends until server ACK, not local cache acceptance.
+            // The customer list's snapshot listener picks up the new record from cache.
+            applicationScope.launch {
+                if (customerId != null) {
+                    customerRepository.updateCustomer(userId, customer)
+                } else {
+                    customerRepository.createCustomer(userId, customer)
                 }
             }
+
+            _state.update { it.copy(isLoading = false) }
+            _events.send(CustomerFormEvent.NavigateBack)
         }
     }
 

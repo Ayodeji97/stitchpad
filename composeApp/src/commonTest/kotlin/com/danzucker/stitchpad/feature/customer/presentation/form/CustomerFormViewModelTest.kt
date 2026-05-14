@@ -1,20 +1,26 @@
 package com.danzucker.stitchpad.feature.customer.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+// advanceUntilIdle no longer needed — appScope uses Dispatchers.Main (UnconfinedTestDispatcher)
+// which runs launches eagerly.
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -33,6 +39,7 @@ class CustomerFormViewModelTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var emailValidator: FakePatternValidator
+    private lateinit var appScope: CoroutineScope
 
     @BeforeTest
     fun setUp() {
@@ -40,10 +47,16 @@ class CustomerFormViewModelTest {
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
         emailValidator = FakePatternValidator(shouldMatch = true)
+        // ApplicationScope must dispatch on Dispatchers.Main (= UnconfinedTestDispatcher here)
+        // so fire-and-forget writes from the VM run eagerly; tests can assert against the
+        // fake repository without advanceUntilIdle. Using backgroundScope (StandardTestDispatcher)
+        // queues the launch on a separate scheduler that advanceUntilIdle doesn't reach.
+        appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     }
 
     @AfterTest
     fun tearDown() {
+        appScope.cancel()
         Dispatchers.resetMain()
     }
 
@@ -54,6 +67,7 @@ class CustomerFormViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             emailValidator = emailValidator,
+            applicationScope = ApplicationScope(appScope),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -69,6 +83,7 @@ class CustomerFormViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             emailValidator = validator,
+            applicationScope = ApplicationScope(appScope),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -347,10 +362,13 @@ class CustomerFormViewModelTest {
         assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
     }
 
-    // --- Save: error paths ---
+    // --- Save: V0 contract — fire-and-forget, errors are silent ---
 
     @Test
-    fun save_withRepositoryError_setsErrorMessage() = runTest {
+    fun save_withRepositoryError_stillNavigatesBack_andDoesNotSurfaceError() = runTest {
+        // V0 fire-and-forget contract: save always navigates back; downstream Firestore
+        // errors (offline, server-side rejection) are swallowed at the repo level and will
+        // be surfaced via a global pending-writes snackbar in V1. The user is NOT blocked.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.UNKNOWN
         val viewModel = createViewModel()
@@ -358,7 +376,8 @@ class CustomerFormViewModelTest {
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         viewModel.onAction(CustomerFormAction.OnSaveClick)
 
-        assertNotNull(viewModel.state.value.errorMessage)
+        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
+        assertNull(viewModel.state.value.errorMessage)
         assertFalse(viewModel.state.value.isLoading)
     }
 
@@ -434,12 +453,11 @@ class CustomerFormViewModelTest {
 
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
+        // Save no longer surfaces errors (fire-and-forget). The only path that sets
+        // errorMessage now is loadCustomer in edit mode, so use that to set state.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.UNKNOWN
-        val viewModel = createViewModel()
-        viewModel.onAction(CustomerFormAction.OnNameChange("Ade"))
-        viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
-        viewModel.onAction(CustomerFormAction.OnSaveClick)
+        val viewModel = createViewModel(customerId = "customer-123")
         assertNotNull(viewModel.state.value.errorMessage)
 
         viewModel.onAction(CustomerFormAction.OnErrorDismiss)

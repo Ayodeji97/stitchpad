@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
@@ -24,12 +25,14 @@ import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+@Suppress("LongParameterList")
 class MeasurementFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val measurementRepository: MeasurementRepository,
     private val authRepository: AuthRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val orderRepository: OrderRepository,
+    private val applicationScope: ApplicationScope,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
@@ -196,40 +199,33 @@ class MeasurementFormViewModel(
                 dateTaken = s.originalDateTaken,
                 createdAt = s.originalCreatedAt
             )
-            val saveResult = if (isCreate) {
-                measurementRepository.createMeasurement(userId, customerId, measurement)
-            } else {
-                measurementRepository.updateMeasurement(userId, customerId, measurement)
-            }
-            if (saveResult is Result.Error) {
-                _state.update {
-                    it.copy(isLoading = false, errorMessage = saveResult.error.toMeasurementUiText())
-                }
-                return@launch
-            }
 
-            // If the form was opened from an order's "link measurement" picker,
-            // attach this measurement id to the order's first item. Failure to link
-            // is logged via the order error path but does NOT block the save —
-            // the measurement is already persisted; the user can retry the link
-            // from the order details screen.
+            // Fire-and-forget the write + optional order link in applicationScope so
+            // the user can navigate away while Firestore's local queue persists the
+            // mutation. The measurement list's snapshot listener reads from cache.
+            // Awaiting would hang offline since GitLive's set() suspends on server ACK.
             val linkOrderId = linkToOrderId
-            if (isCreate && linkOrderId != null) {
-                when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
-                    is Result.Success -> {
-                        val order = orderResult.data
-                        val firstItem = order.items.firstOrNull()
-                        if (firstItem != null) {
-                            val updatedItems = listOf(firstItem.copy(measurementId = effectiveId)) +
-                                order.items.drop(1)
-                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
-                            // Ignore failure — order's observeOrder Flow re-emits when network
-                            // recovers; user sees the unlinked state and can retry. We deliberately
-                            // do not surface a separate error toast here, since the measurement save
-                            // itself succeeded and that's the primary user intent.
+            applicationScope.launch {
+                val saveResult = if (isCreate) {
+                    measurementRepository.createMeasurement(userId, customerId, measurement)
+                } else {
+                    measurementRepository.updateMeasurement(userId, customerId, measurement)
+                }
+                if (saveResult is Result.Success && isCreate && linkOrderId != null) {
+                    // Attach to the order's first item. Failure is silent — same rationale
+                    // as before: measurement is already persisted; user retries from order detail.
+                    when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
+                        is Result.Success -> {
+                            val order = orderResult.data
+                            val firstItem = order.items.firstOrNull()
+                            if (firstItem != null) {
+                                val updatedItems = listOf(firstItem.copy(measurementId = effectiveId)) +
+                                    order.items.drop(1)
+                                orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                            }
                         }
+                        is Result.Error -> Unit
                     }
-                    is Result.Error -> Unit // same rationale as above
                 }
             }
 
