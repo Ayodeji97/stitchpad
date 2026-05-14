@@ -37,14 +37,14 @@ class DebugMenuViewModel(
             DebugMenuAction.OnSeedAllReconnectClick -> runSeed { seeder.seedAllReconnect() }
             DebugMenuAction.OnResetOnboardingClick -> runJob {
                 sessionActions.resetOnboardingFlags()
-                _state.update { it.copy(lastResult = UiText.DynamicString("Onboarding flags reset")) }
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Onboarding flags reset")))
             }
             DebugMenuAction.OnSignOutClick -> runJob {
                 val r = sessionActions.signOut()
                 if (r is SessionActionResult.Success) {
                     emit(DebugMenuEvent.NavigateToLogin)
                 } else {
-                    _state.update { it.copy(lastResult = UiText.DynamicString("Sign-out failed")) }
+                    emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Sign-out failed")))
                 }
             }
             DebugMenuAction.OnSwitchToFolaClick -> runJob {
@@ -68,7 +68,7 @@ class DebugMenuViewModel(
                 if (r is SessionActionResult.Success) {
                     emit(DebugMenuEvent.NavigateToLogin)
                 } else {
-                    _state.update { it.copy(lastResult = UiText.DynamicString("Delete failed")) }
+                    emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Delete failed")))
                 }
             }
         }
@@ -76,14 +76,11 @@ class DebugMenuViewModel(
 
     private fun runSeed(block: suspend () -> SeedResult) = runJob {
         val r = block()
-        _state.update {
-            it.copy(
-                lastResult = when (r) {
-                    SeedResult.Success -> UiText.DynamicString("Seed complete")
-                    is SeedResult.Failure -> UiText.DynamicString("Seed failed: ${r.reason}")
-                }
-            )
+        val message = when (r) {
+            SeedResult.Success -> UiText.DynamicString("Seed complete")
+            is SeedResult.Failure -> UiText.DynamicString("Seed failed: ${r.reason}")
         }
+        emit(DebugMenuEvent.ShowSnackbar(message))
     }
 
     private fun runJob(block: suspend () -> Unit) {
@@ -100,12 +97,10 @@ class DebugMenuViewModel(
     private fun handleSwitch(r: SessionActionResult) {
         when (r) {
             SessionActionResult.Success -> emit(DebugMenuEvent.NavigateToLogin)
-            SessionActionResult.ConfigurationMissing -> _state.update {
-                it.copy(lastResult = UiText.DynamicString("Test creds not configured"))
-            }
-            is SessionActionResult.Failure -> _state.update {
-                it.copy(lastResult = UiText.DynamicString("Switch failed: ${r.reason}"))
-            }
+            SessionActionResult.ConfigurationMissing ->
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Test creds not configured")))
+            is SessionActionResult.Failure ->
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Switch failed: ${r.reason}")))
         }
     }
 

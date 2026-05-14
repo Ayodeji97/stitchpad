@@ -20,7 +20,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,10 +72,14 @@ class DebugMenuViewModelTest {
         val vm = createViewModel()
         seeder.seedActiveWorkshopResult = SeedResult.Success
 
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
         vm.onAction(DebugMenuAction.OnSeedActiveWorkshopClick)
 
         assertEquals(1, seeder.seedActiveWorkshopCalls)
-        assertNotNull(vm.state.first().lastResult)
+        assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
     }
 
     @Test
@@ -84,9 +87,13 @@ class DebugMenuViewModelTest {
         val vm = createViewModel()
         seeder.seedBrandNewResult = SeedResult.Failure("boom")
 
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
         vm.onAction(DebugMenuAction.OnSeedBrandNewClick)
 
-        assertNotNull(vm.state.first().lastResult)
+        assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
     }
 
     @Test
@@ -110,6 +117,20 @@ class DebugMenuViewModelTest {
             vm.events.collect { events.add(it) }
         }
         vm.onAction(DebugMenuAction.OnSignOutClick)
+
+        assertTrue(events.any { it is DebugMenuEvent.NavigateToLogin })
+    }
+
+    @Test
+    fun `OnDeleteAllDataClick on success emits NavigateToLogin event`() = runTest {
+        // FakeAuthRepository.deleteAccount returns Result.Success when there's a current user.
+        val vm = createViewModel()
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnDeleteAllDataClick)
 
         assertTrue(events.any { it is DebugMenuEvent.NavigateToLogin })
     }
