@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 
 /**
  * Letter avatar — first character of [name] over a deterministic background tint
@@ -29,9 +30,9 @@ fun CustomerAvatar(
     name: String,
     seedId: String,
     modifier: Modifier = Modifier,
-    size: Dp = 40.dp,
-    isDark: Boolean = false
+    size: Dp = 40.dp
 ) {
+    val isDark = LocalIsDarkTheme.current
     val palette = DesignTokens.avatarColors
     val index = ((seedId.hashCode() % palette.size) + palette.size) % palette.size
     val tone = palette[index]
