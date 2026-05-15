@@ -84,8 +84,8 @@ actual class OrderReceiptSharer {
             darkColor("#121110").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, estimatedHeight))
 
-            // Header band
-            darkColor("#E8A800").setFill()
+            // Header band — indigo brand (was saffron pre-rebrand)
+            darkColor("#2C3E7C").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, headerHeight))
 
             drawCentered(
@@ -93,7 +93,7 @@ actual class OrderReceiptSharer {
                 y = headerHeight / 2.0 - 14.0,
                 width = width,
                 font = boldFont(22.0),
-                color = darkColor("#121110")
+                color = darkColor("#FFFFFF")
             )
             if (data.businessPhone != null) {
                 drawCentered(
@@ -101,7 +101,7 @@ actual class OrderReceiptSharer {
                     y = headerHeight / 2.0 + 8.0,
                     width = width,
                     font = regularFont(13.0),
-                    color = darkColor("#121110")
+                    color = darkColor("#FFFFFF")
                 )
             }
 
@@ -267,8 +267,8 @@ actual class OrderReceiptSharer {
                 y += 16.0
             }
             y += 4.0
-            // Saffron border
-            val borderPaint = darkColor("#E8A800")
+            // Indigo brand border (was saffron pre-rebrand)
+            val borderPaint = darkColor("#2C3E7C")
             borderPaint.setFill()
             platform.UIKit.UIRectFill(CGRectMake(padding, y, pageWidth - 2 * padding, 3.0))
             y += 16.0

@@ -41,8 +41,8 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         // Colors
         val bgColor = Color.parseColor("#121110")
-        val headerBg = Color.parseColor("#E8A800")
-        val headerText = Color.parseColor("#121110")
+        val headerBg = Color.parseColor("#2C3E7C") // indigo brand band (was saffron pre-rebrand)
+        val headerText = Color.WHITE
         val bodyText = Color.parseColor("#E5E3DF")
         val labelColor = Color.parseColor("#7D7970")
         val dividerColor = Color.parseColor("#3A3731")
@@ -133,8 +133,8 @@ actual class OrderReceiptSharer(private val context: Context) {
         }
         y = headerHeight + 26f
 
-        // Document type label (RECEIPT / INVOICE)
-        val docTypePaint = makePaint(headerBg, 15f, bold = true).apply {
+        // Document type label (RECEIPT / INVOICE) — saffron heritage emphasis
+        val docTypePaint = makePaint(saffron, 15f, bold = true).apply {
             textAlign = Paint.Align.CENTER
             letterSpacing = 0.15f
         }
@@ -273,7 +273,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         val saffron = Color.parseColor("#C48E00")
         val green = Color.parseColor("#2D9E6B")
         val rushRed = Color.parseColor("#D93B3B")
-        val headerBorderColor = Color.parseColor("#E8A800")
+        val headerBorderColor = Color.parseColor("#2C3E7C") // indigo brand (was saffron pre-rebrand)
 
         // Paints
         val headerTitlePaint = makePaint(bodyText, 22f, bold = true)
@@ -303,7 +303,7 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         var y = padding
 
-        // Header (centered, with saffron bottom border)
+        // Header (centered, with indigo brand bottom border)
         val headerBottomY = if (data.businessPhone != null) y + 50f else y + 40f
         canvas.drawText(
             data.businessName,
@@ -327,8 +327,8 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, pageWidth - padding, y, borderPaint)
         y += 18f
 
-        // Document type label (RECEIPT / INVOICE)
-        val docTypePdf = makePaint(headerBorderColor, 11f, bold = true).apply {
+        // Document type label (RECEIPT / INVOICE) — saffron heritage emphasis
+        val docTypePdf = makePaint(saffron, 11f, bold = true).apply {
             textAlign = Paint.Align.CENTER
             letterSpacing = 0.15f
         }

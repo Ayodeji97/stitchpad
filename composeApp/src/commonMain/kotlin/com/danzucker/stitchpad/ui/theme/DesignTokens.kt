@@ -55,8 +55,8 @@ object DesignTokens {
     val info500 = Color(0xFF2B7FD4)
     val info50 = Color(0xFFE7F2FC)
 
-    // Dark Mode Surfaces
-    val darkBg = Color(0xFF121110)
+    // Dark Mode Surfaces (the canonical dark bg lives at inkDark above; darkBg
+    // was a legacy duplicate and is removed.)
     val darkSurface = Color(0xFF1E1C1A)
     val darkSurface2 = Color(0xFF2A2825)
     val darkBorder = Color(0xFF3A3731)
@@ -81,7 +81,12 @@ object DesignTokens {
     // Order Status Colors
     val statusReceived = Color(0xFF2B7FD4) // Blue
     val statusCutting = Color(0xFFE07B20) // Orange
-    val statusSewing = Color(0xFF5B4D8E) // Indigo — distinct from brand saffron to avoid status/brand collision
+
+    // Sewing status uses a violet-leaning indigo (#5B4D8E) — sits next to the
+    // brand indigo on the wheel without colliding visually. Originally chosen
+    // to be distinct from the saffron-era brand; still distinct from the new
+    // indigo brand because it leans violet.
+    val statusSewing = Color(0xFF5B4D8E)
     val statusReady = Color(0xFF2D9E6B) // Green
     val statusDelivered = Color(0xFF7D7970) // Gray
     val statusOverdue = Color(0xFFD93B3B) // Red
