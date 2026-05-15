@@ -58,12 +58,12 @@ fun SettingsRow(
     val iconTint = if (isDanger) {
         MaterialTheme.colorScheme.error
     } else {
-        DesignTokens.primary700
+        MaterialTheme.colorScheme.onPrimaryContainer
     }
     val iconBg = if (isDanger) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
     } else {
-        DesignTokens.primary50
+        MaterialTheme.colorScheme.primaryContainer
     }
 
     val baseModifier = modifier

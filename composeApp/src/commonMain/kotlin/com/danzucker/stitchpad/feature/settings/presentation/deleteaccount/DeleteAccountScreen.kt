@@ -169,7 +169,7 @@ private fun ProcessingDialog() {
             CircularProgressIndicator(
                 strokeWidth = 2.dp,
                 modifier = Modifier.size(20.dp),
-                color = DesignTokens.primary500,
+                color = MaterialTheme.colorScheme.primary,
             )
         },
     )
@@ -188,7 +188,7 @@ private fun GoodbyeContent(onContinue: () -> Unit) {
             modifier = Modifier
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(DesignTokens.primary500),
+                .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -217,7 +217,7 @@ private fun GoodbyeContent(onContinue: () -> Unit) {
             onClick = onContinue,
             shape = RoundedCornerShape(DesignTokens.radiusLg),
             colors = ButtonDefaults.buttonColors(
-                containerColor = DesignTokens.primary500,
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
             modifier = Modifier
