@@ -253,7 +253,11 @@ fun SignUpScreen(
                 val termsLink = stringResource(Res.string.signup_terms_link)
                 val termsAnd = stringResource(Res.string.signup_terms_and)
                 val privacyLink = stringResource(Res.string.signup_privacy_link)
-                val checkboxColor = if (state.acceptedTerms) DesignTokens.primary500 else Color(0xFF3A3731)
+                val checkboxColor = if (state.acceptedTerms) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                }
                 val termsAnnotated = buildAnnotatedString {
                     withStyle(SpanStyle(color = Color(0xFFF5F2ED), fontSize = 13.sp)) {
                         append("$termsPrefix ")
@@ -261,7 +265,7 @@ fun SignUpScreen(
                     pushStringAnnotation("link", "terms")
                     withStyle(
                         SpanStyle(
-                            color = DesignTokens.primary400,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                         )
@@ -275,7 +279,7 @@ fun SignUpScreen(
                     pushStringAnnotation("link", "privacy")
                     withStyle(
                         SpanStyle(
-                            color = DesignTokens.primary400,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                         )
@@ -339,7 +343,7 @@ fun SignUpScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DesignTokens.primary500,
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         disabledContainerColor = DesignTokens.neutral700,
                         disabledContentColor = DesignTokens.neutral500,
@@ -364,7 +368,7 @@ fun SignUpScreen(
                         }
                         withStyle(
                             SpanStyle(
-                                color = DesignTokens.primary400,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
                             )

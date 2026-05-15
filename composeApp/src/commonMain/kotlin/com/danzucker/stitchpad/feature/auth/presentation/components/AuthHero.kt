@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,12 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.FrauncesFamily
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -67,8 +68,8 @@ fun AuthHero(
             Spacer(Modifier.height(12.dp))
             Text(
                 text = stringResource(Res.string.brand_name),
-                style = TextStyle(
-                    fontSize = 18.sp,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = FrauncesFamily(),
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
                     letterSpacing = 2.2.sp,
@@ -78,8 +79,7 @@ fun AuthHero(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(Res.string.workshop_brand_tagline),
-                    style = TextStyle(
-                        fontSize = 9.5.sp,
+                    style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = Color.White.copy(alpha = 0.85f),
                         letterSpacing = 3.2.sp,

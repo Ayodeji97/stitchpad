@@ -179,7 +179,7 @@ private fun FormContent(
             .height(54.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = DesignTokens.primary500,
+            containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
             disabledContainerColor = DesignTokens.neutral700,
             disabledContentColor = DesignTokens.neutral500,
@@ -199,7 +199,7 @@ private fun FormContent(
         text = buildAnnotatedString {
             withStyle(
                 SpanStyle(
-                    color = DesignTokens.primary400,
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
@@ -228,13 +228,13 @@ private fun SuccessContent(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(DesignTokens.primary500.copy(alpha = 0.18f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.MarkEmailRead,
                 contentDescription = null,
-                tint = DesignTokens.primary500,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(36.dp),
             )
         }
@@ -273,7 +273,7 @@ private fun SuccessContent(
             .height(54.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = DesignTokens.primary500,
+            containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ),
     ) {

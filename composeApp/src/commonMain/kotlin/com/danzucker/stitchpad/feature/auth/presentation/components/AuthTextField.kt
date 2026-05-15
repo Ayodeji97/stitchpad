@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -88,7 +89,7 @@ fun AuthTextField(
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
-                tint = DesignTokens.primary400,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
             val wasFocused = remember { mutableStateOf(false) }
@@ -104,7 +105,7 @@ fun AuthTextField(
                         wasFocused.value = focusState.isFocused
                     },
                 singleLine = true,
-                cursorBrush = SolidColor(DesignTokens.primary500),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 textStyle = LocalTextStyle.current.copy(
                     fontSize = 15.sp,
                     color = Color(0xFFF5F2ED),

@@ -203,7 +203,7 @@ fun LoginScreen(
                             style = TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = DesignTokens.primary400,
+                                color = MaterialTheme.colorScheme.primary,
                             ),
                             modifier = Modifier.clickable { onAction(LoginAction.OnForgotPasswordClick) },
                         )
@@ -221,7 +221,7 @@ fun LoginScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DesignTokens.primary500,
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         disabledContainerColor = DesignTokens.neutral700,
                         disabledContentColor = DesignTokens.neutral500,
@@ -246,7 +246,7 @@ fun LoginScreen(
                         }
                         withStyle(
                             SpanStyle(
-                                color = DesignTokens.primary400,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
                             )
