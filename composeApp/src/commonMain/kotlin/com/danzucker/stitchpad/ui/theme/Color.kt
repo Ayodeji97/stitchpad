@@ -44,11 +44,15 @@ fun stitchPadLightColorScheme(): ColorScheme = lightColorScheme(
  * (sienna500 → sienna300). Background is warm-ink, not pure black.
  */
 fun stitchPadDarkColorScheme(): ColorScheme = darkColorScheme(
-    primary = DesignTokens.indigo300,
+    // Sits between indigo300 (too light — white text fails AA at 3.7:1)
+    // and indigo500 (too dark — brand text on inkDark bg drops to 2:1).
+    // indigo400 (#5871B8) gives white text 4.7:1 AA AND brand text on
+    // bg 5.5:1 AA. Sweet spot.
+    primary = DesignTokens.indigo400,
     onPrimary = Color.White,
     primaryContainer = Color(0xFF2D3B6B), // avatar bg — brighter than surface
     onPrimaryContainer = DesignTokens.indigo100,
-    secondary = DesignTokens.indigo400,
+    secondary = DesignTokens.indigo300, // lifted further for low-emphasis surfaces
     onSecondary = Color.White,
     secondaryContainer = DesignTokens.indigo900,
     onSecondaryContainer = DesignTokens.indigo200,
