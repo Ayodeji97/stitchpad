@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +33,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 
 /**
  * Themed text field for auth screens — icon prefix + optional eye-toggle suffix.
@@ -89,7 +89,7 @@ fun AuthTextField(
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = LocalStitchPadColors.current.brandAccent,
                 modifier = Modifier.size(20.dp),
             )
             val wasFocused = remember { mutableStateOf(false) }
@@ -105,7 +105,7 @@ fun AuthTextField(
                         wasFocused.value = focusState.isFocused
                     },
                 singleLine = true,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(LocalStitchPadColors.current.brandAccent),
                 textStyle = LocalTextStyle.current.copy(
                     fontSize = 15.sp,
                     color = Color(0xFFF5F2ED),

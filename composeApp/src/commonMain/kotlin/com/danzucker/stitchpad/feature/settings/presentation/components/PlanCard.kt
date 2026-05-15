@@ -33,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -172,8 +173,8 @@ private fun PlanCardWarn(
             radius = 320f,
         ),
         pillText = stringResource(Res.string.plan_card_pill_almost_full),
-        pillBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.40f),
-        pillContentColor = MaterialTheme.colorScheme.primary,
+        pillBorderColor = LocalStitchPadColors.current.brandAccent.copy(alpha = 0.40f),
+        pillContentColor = LocalStitchPadColors.current.brandAccent,
         title = stringResource(Res.string.plan_card_title_warn, customersLeft),
         subtitle = stringResource(Res.string.plan_card_subtitle_warn),
         primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePriceNgn),
