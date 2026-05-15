@@ -57,6 +57,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.auth.presentation.components.SsoButtonRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -254,7 +255,7 @@ fun SignUpScreen(
                 val termsAnd = stringResource(Res.string.signup_terms_and)
                 val privacyLink = stringResource(Res.string.signup_privacy_link)
                 val checkboxColor = if (state.acceptedTerms) {
-                    MaterialTheme.colorScheme.primary
+                    LocalStitchPadColors.current.brandAccent
                 } else {
                     MaterialTheme.colorScheme.outline
                 }
@@ -265,7 +266,7 @@ fun SignUpScreen(
                     pushStringAnnotation("link", "terms")
                     withStyle(
                         SpanStyle(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = LocalStitchPadColors.current.brandAccent,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                         )
@@ -279,7 +280,7 @@ fun SignUpScreen(
                     pushStringAnnotation("link", "privacy")
                     withStyle(
                         SpanStyle(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = LocalStitchPadColors.current.brandAccent,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                         )
@@ -368,7 +369,7 @@ fun SignUpScreen(
                         }
                         withStyle(
                             SpanStyle(
-                                color = MaterialTheme.colorScheme.primary,
+                                color = LocalStitchPadColors.current.brandAccent,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
                             )

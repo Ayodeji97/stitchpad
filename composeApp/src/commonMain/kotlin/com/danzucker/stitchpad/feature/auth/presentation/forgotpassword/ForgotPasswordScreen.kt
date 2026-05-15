@@ -47,6 +47,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -199,7 +200,7 @@ private fun FormContent(
         text = buildAnnotatedString {
             withStyle(
                 SpanStyle(
-                    color = MaterialTheme.colorScheme.primary,
+                    color = LocalStitchPadColors.current.brandAccent,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
@@ -228,13 +229,13 @@ private fun SuccessContent(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                .background(LocalStitchPadColors.current.brandAccent.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.MarkEmailRead,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = LocalStitchPadColors.current.brandAccent,
                 modifier = Modifier.size(36.dp),
             )
         }

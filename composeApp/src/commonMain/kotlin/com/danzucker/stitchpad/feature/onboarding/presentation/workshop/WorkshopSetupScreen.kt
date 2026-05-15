@@ -50,6 +50,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -332,7 +333,7 @@ fun WorkshopSetupScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        LocalStitchPadColors.current.brandAccent.copy(alpha = 0.15f),
                                         CircleShape,
                                     ),
                                 contentAlignment = Alignment.Center,
@@ -340,7 +341,7 @@ fun WorkshopSetupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.PhotoCamera,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = LocalStitchPadColors.current.brandAccent,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -397,7 +398,7 @@ fun WorkshopSetupScreen(
                         style = TextStyle(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = LocalStitchPadColors.current.brandAccent,
                         ),
                     )
                 }
