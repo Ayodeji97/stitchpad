@@ -165,7 +165,7 @@ private fun BadgeChip(badge: CustomerBadge) {
         CustomerBadge.VIP -> BadgeStyle(
             text = stringResource(Res.string.reports_badge_vip),
             icon = Icons.Default.WorkspacePremium,
-            fg = MaterialTheme.colorScheme.primary,
+            fg = MaterialTheme.colorScheme.onPrimaryContainer,
             bg = MaterialTheme.colorScheme.primaryContainer
         )
         CustomerBadge.REPEAT -> BadgeStyle(

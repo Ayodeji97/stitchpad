@@ -446,7 +446,11 @@ private fun FooterButtons(
         )
         Spacer(Modifier.width(8.dp))
         val applyBg = if (canConfirm) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
-        val applyFg = if (canConfirm) DesignTokens.neutral900 else DesignTokens.neutral400
+        val applyFg = if (canConfirm) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.38f)
+        }
         Text(
             modifier = Modifier
                 .clip(RoundedCornerShape(DesignTokens.radiusFull))
