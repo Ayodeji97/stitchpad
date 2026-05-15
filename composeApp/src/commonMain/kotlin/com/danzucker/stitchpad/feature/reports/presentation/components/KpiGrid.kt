@@ -42,7 +42,7 @@ fun KpiGrid(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.reports_kpi_revenue),
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
-                iconTint = MaterialTheme.colorScheme.primary,
+                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                 iconBackground = MaterialTheme.colorScheme.primaryContainer,
                 kpi = summary.revenue,
                 valueFormatter = ::formatNaira,
