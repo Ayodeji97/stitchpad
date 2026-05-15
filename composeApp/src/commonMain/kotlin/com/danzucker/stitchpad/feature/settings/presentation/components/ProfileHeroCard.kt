@@ -100,7 +100,7 @@ fun ProfileHeroCard(
     val borderColor = if (isDark) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.outlineVariant
     }
 
     Surface(
