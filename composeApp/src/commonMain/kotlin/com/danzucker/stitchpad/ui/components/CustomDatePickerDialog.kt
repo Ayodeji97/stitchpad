@@ -130,14 +130,14 @@ private fun PickerHeader(selected: LocalDate?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DesignTokens.primary500)
+            .background(MaterialTheme.colorScheme.primary)
             .padding(horizontal = 24.dp, vertical = 22.dp)
     ) {
         Text(
             text = eyebrow.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            color = DesignTokens.primary900,
+            color = MaterialTheme.colorScheme.onPrimary,
             letterSpacing = 1.5.sp
         )
         Spacer(Modifier.height(6.dp))
@@ -337,8 +337,8 @@ private fun DayBadge(
 ) {
     val base = Modifier.size(40.dp).clip(CircleShape)
     val ring = when {
-        isSelected -> base.background(DesignTokens.primary500)
-        isToday -> base.border(1.5.dp, DesignTokens.primary500, CircleShape)
+        isSelected -> base.background(MaterialTheme.colorScheme.primary)
+        isToday -> base.border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
         else -> base
     }
     val tappable = if (isDisabled) ring else ring.clickable { onClick(day) }
@@ -363,7 +363,7 @@ private fun dayTextColor(
 ): Color = when {
     isDisabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f)
     isSelected -> MaterialTheme.colorScheme.onPrimary
-    isToday -> DesignTokens.primary600
+    isToday -> MaterialTheme.colorScheme.primary
     else -> MaterialTheme.colorScheme.onSurface
 }
 
@@ -394,8 +394,12 @@ private fun FooterButtons(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        val applyBg = if (canConfirm) DesignTokens.primary500 else DesignTokens.primary100
-        val applyFg = if (canConfirm) DesignTokens.neutral900 else DesignTokens.neutral400
+        val applyBg = if (canConfirm) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
+        val applyFg = if (canConfirm) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.38f)
+        }
         Text(
             modifier = Modifier
                 .clip(RoundedCornerShape(DesignTokens.radiusFull))

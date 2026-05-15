@@ -11,8 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.ui.theme.DesignTokens
-
 private val FAB_SHADOW_ELEVATION = 12.dp
 private val FAB_CORNER_RADIUS = 16.dp
 
@@ -32,7 +30,7 @@ fun StitchPadFab(
         modifier = modifier.shadow(
             elevation = FAB_SHADOW_ELEVATION,
             shape = shape,
-            spotColor = DesignTokens.primary500
+            spotColor = MaterialTheme.colorScheme.primary
         )
     ) {
         Icon(
