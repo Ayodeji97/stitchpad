@@ -67,7 +67,7 @@ private fun TabPill(
     modifier: Modifier = Modifier
 ) {
     val background = if (isActive) {
-        DesignTokens.primary500
+        MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }

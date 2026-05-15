@@ -190,7 +190,7 @@ private data class UrgencyStyle(
 
 @Composable
 private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
-    val saffron = DesignTokens.primary500
+    val dueSoon = MaterialTheme.colorScheme.tertiary
     val red = DesignTokens.error500
     val orange = DesignTokens.warning500
     val green = DesignTokens.success500
@@ -223,7 +223,7 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             agingWeight = FontWeight.SemiBold
         )
         daysUntil <= DAYS_THIS_WEEK -> UrgencyStyle(
-            amountColor = saffron,
+            amountColor = dueSoon,
             agingText = if (daysUntil == 1) {
                 stringResource(Res.string.reports_aging_due_tomorrow)
             } else {

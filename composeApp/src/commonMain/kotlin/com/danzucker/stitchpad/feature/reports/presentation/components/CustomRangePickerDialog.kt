@@ -143,14 +143,14 @@ private fun PickerHeader(start: LocalDate?, end: LocalDate?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DesignTokens.primary500)
+            .background(MaterialTheme.colorScheme.primary)
             .padding(horizontal = 24.dp, vertical = 22.dp)
     ) {
         Text(
             text = eyebrow.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            color = DesignTokens.primary900,
+            color = MaterialTheme.colorScheme.onPrimary,
             letterSpacing = 1.5.sp
         )
         Spacer(Modifier.height(6.dp))
@@ -337,13 +337,13 @@ private fun RangeBackdrop(state: DayState) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .background(if (state.showLeftBar) DesignTokens.primary100 else Color.Transparent)
+                .background(if (state.showLeftBar) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
         )
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .background(if (state.showRightBar) DesignTokens.primary100 else Color.Transparent)
+                .background(if (state.showRightBar) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
         )
     }
 }
@@ -356,8 +356,8 @@ private fun DayBadge(
 ) {
     val base = Modifier.size(40.dp).clip(CircleShape)
     val ring = when {
-        state.isSelected -> base.background(DesignTokens.primary500)
-        state.isToday -> base.border(1.5.dp, DesignTokens.primary500, CircleShape)
+        state.isSelected -> base.background(MaterialTheme.colorScheme.primary)
+        state.isToday -> base.border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
         else -> base
     }
     val tappable = if (state.isFuture) ring else ring.clickable { onClick(day) }
@@ -378,8 +378,8 @@ private fun DayBadge(
 private fun dayTextColor(state: DayState): Color = when {
     state.isFuture -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f)
     state.isSelected -> MaterialTheme.colorScheme.onPrimary
-    state.isInRange -> DesignTokens.primary800
-    state.isToday -> DesignTokens.primary600
+    state.isInRange -> MaterialTheme.colorScheme.onPrimaryContainer
+    state.isToday -> MaterialTheme.colorScheme.primary
     else -> MaterialTheme.colorScheme.onSurface
 }
 
@@ -445,7 +445,7 @@ private fun FooterButtons(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.width(8.dp))
-        val applyBg = if (canConfirm) DesignTokens.primary500 else DesignTokens.primary100
+        val applyBg = if (canConfirm) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
         val applyFg = if (canConfirm) DesignTokens.neutral900 else DesignTokens.neutral400
         Text(
             modifier = Modifier

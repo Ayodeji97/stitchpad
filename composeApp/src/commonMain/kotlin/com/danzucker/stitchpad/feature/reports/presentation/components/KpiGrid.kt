@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,8 +42,8 @@ fun KpiGrid(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.reports_kpi_revenue),
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
-                iconTint = DesignTokens.primary500,
-                iconBackground = DesignTokens.primary50,
+                iconTint = MaterialTheme.colorScheme.primary,
+                iconBackground = MaterialTheme.colorScheme.primaryContainer,
                 kpi = summary.revenue,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,

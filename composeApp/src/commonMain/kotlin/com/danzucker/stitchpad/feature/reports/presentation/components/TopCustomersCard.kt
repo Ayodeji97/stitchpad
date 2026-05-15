@@ -165,8 +165,8 @@ private fun BadgeChip(badge: CustomerBadge) {
         CustomerBadge.VIP -> BadgeStyle(
             text = stringResource(Res.string.reports_badge_vip),
             icon = Icons.Default.WorkspacePremium,
-            fg = DesignTokens.primary700,
-            bg = DesignTokens.primary100
+            fg = MaterialTheme.colorScheme.primary,
+            bg = MaterialTheme.colorScheme.primaryContainer
         )
         CustomerBadge.REPEAT -> BadgeStyle(
             text = stringResource(Res.string.reports_badge_repeat),
@@ -239,12 +239,12 @@ internal fun CardHeader(
                     text = label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = DesignTokens.primary500
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = DesignTokens.primary500,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
             }

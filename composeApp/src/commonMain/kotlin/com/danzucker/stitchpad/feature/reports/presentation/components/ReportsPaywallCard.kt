@@ -55,13 +55,13 @@ fun ReportsPaywallCard(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(DesignTokens.primary50),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.WorkspacePremium,
                 contentDescription = null,
-                tint = DesignTokens.primary500,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -85,7 +85,7 @@ fun ReportsPaywallCard(
             onClick = onUpgradeClick,
             shape = RoundedCornerShape(DesignTokens.radiusFull),
             colors = ButtonDefaults.buttonColors(
-                containerColor = DesignTokens.primary500
+                containerColor = MaterialTheme.colorScheme.primary
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
