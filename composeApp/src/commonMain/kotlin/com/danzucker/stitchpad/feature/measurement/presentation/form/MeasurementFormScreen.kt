@@ -349,12 +349,12 @@ private fun GenderSelector(
                     },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color.Transparent,
-                        selectedLabelColor = DesignTokens.primary600,
+                        selectedLabelColor = MaterialTheme.colorScheme.primary,
                         containerColor = Color.Transparent,
                         labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     border = if (isSelected) {
-                        BorderStroke(1.dp, DesignTokens.primary500)
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                     } else {
                         BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     }
@@ -378,7 +378,7 @@ private fun SectionProgressRow(
             sections.forEachIndexed { index, section ->
                 val color = when {
                     index == currentIndex -> MaterialTheme.colorScheme.primary
-                    section.fields.any { f -> fields[f.key]?.isNotBlank() == true } -> DesignTokens.primary400
+                    section.fields.any { f -> fields[f.key]?.isNotBlank() == true } -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.outlineVariant
                 }
                 Box(

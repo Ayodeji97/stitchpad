@@ -169,7 +169,7 @@ fun OrderListScreen(
                 modifier = Modifier.shadow(
                     elevation = 12.dp,
                     shape = RoundedCornerShape(16.dp),
-                    spotColor = DesignTokens.primary500
+                    spotColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Icon(
@@ -333,12 +333,12 @@ private fun OrderStatusFilterChips(
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color.Transparent,
-                    selectedLabelColor = DesignTokens.primary600,
+                    selectedLabelColor = MaterialTheme.colorScheme.primary,
                     containerColor = Color.Transparent,
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 border = if (isSelected) {
-                    BorderStroke(1.dp, DesignTokens.primary500)
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 } else {
                     BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 }
