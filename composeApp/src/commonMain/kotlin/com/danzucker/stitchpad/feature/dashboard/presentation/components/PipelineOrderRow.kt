@@ -63,7 +63,7 @@ private val MONTH_ABBREV = listOf(
 
 /**
  * V2 pipeline order row. Replaces the AccentedOrderRow used previously in
- * the Work Pipeline section. Visually saffron-aligned: dashed-saffron
+ * the Work Pipeline section. Visually brand-aligned: dashed-brand-primary
  * avatar, garment label with hanger icon, due-date pill on the right,
  * and a metadata footer ("Custom size · Bespoke · Created 2 May").
  *

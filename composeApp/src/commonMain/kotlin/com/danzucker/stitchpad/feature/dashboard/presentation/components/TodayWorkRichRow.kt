@@ -55,7 +55,7 @@ private val META_ICON_SIZE = 14.dp
  * V2 Today's Work row. Replaces the simpler [com.danzucker.stitchpad.ui.components.AccentedOrderRow]
  * used previously in [TodayWorkCard]. Mirrors the visual language of
  * [PipelineOrderRow] (left accent bar, divider + footer) but with:
- *   - Solid saffron rounded-square avatar (vs. dashed circle).
+ *   - Solid brand-primary rounded-square avatar (vs. dashed circle).
  *   - Status pill on the right that carries an icon matching the bucket
  *     (clock for overdue, calendar for due today, check for ready).
  *   - Bucket-driven footer status hint + circular chevron button.

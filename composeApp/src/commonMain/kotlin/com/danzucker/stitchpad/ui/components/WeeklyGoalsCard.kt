@@ -439,7 +439,7 @@ private fun MotivationPill(label: String) {
 
 /**
  * Achieved-state hero layout. Trophy badge + AHEAD OF TARGET label and a
- * saffron days-left pill in the header, then "Revenue goal" beside the
+ * brand-primary days-left pill in the header, then "Revenue goal" beside the
  * green hero amount with the original target struck through, then the bar,
  * then "Raise your goal →" — preserving momentum at the moment the user
  * has earned more.

@@ -395,7 +395,7 @@ private data class DayState(
 
     // Range bars only render when both endpoints are picked — drawing a half-bar
     // off a lone start endpoint produced a visible rectangle artifact next to
-    // the saffron circle.
+    // the brand primary circle.
     val showLeftBar: Boolean get() = hasFullRange && (isInRange || isEnd)
     val showRightBar: Boolean get() = hasFullRange && (isInRange || isStart)
 }

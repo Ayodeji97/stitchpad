@@ -33,7 +33,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
-import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -57,7 +56,7 @@ private const val WARN_THRESHOLD_RATIO = 0.80f
 
 /**
  * Three visual states picked from [customerCount] / [customerLimit]:
- * - inline: ≤80% — saffron pill + count + Upgrade text + chevron
+ * - inline: ≤80% — brand pill + count + Upgrade text + chevron
  * - hero (warn): >80% AND <100% — dark hero, "N customers left" headline
  * - hero (locked): =100% — red-tinted hero, "Limit reached"
  *
@@ -173,8 +172,8 @@ private fun PlanCardWarn(
             radius = 320f,
         ),
         pillText = stringResource(Res.string.plan_card_pill_almost_full),
-        pillBorderColor = LocalStitchPadColors.current.brandAccent.copy(alpha = 0.40f),
-        pillContentColor = LocalStitchPadColors.current.brandAccent,
+        pillBorderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.40f),
+        pillContentColor = MaterialTheme.colorScheme.tertiary,
         title = stringResource(Res.string.plan_card_title_warn, customersLeft),
         subtitle = stringResource(Res.string.plan_card_subtitle_warn),
         primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePriceNgn),

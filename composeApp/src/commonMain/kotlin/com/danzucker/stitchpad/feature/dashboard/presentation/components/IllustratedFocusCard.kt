@@ -49,14 +49,14 @@ private data class FocusCardPalette(
      * Tint of the optional uppercase pill ("● CALM DAY") rendered above
      * the title in prominent variants. Defaults to the CTA tint when
      * unspecified — Steady overrides it to green so the pill mood
-     * differs from the saffron action button.
+     * differs from the brand primary action button.
      */
     val sectionPillTint: Color? = null,
 )
 
 /**
  * Builds a prominent palette where the gradient and section-pill follow a
- * single accent. Each variant below picks its accent (saffron for onboarding,
+ * single accent. Each variant below picks its accent (brand primary for onboarding,
  * green for calm/celebratory, red for urgent) and an optional split between
  * the pill mood and the CTA action.
  */
@@ -82,12 +82,12 @@ private fun paletteFor(
     primary: Color,
     surface: Color,
 ): FocusCardPalette = when (variant) {
-    // BrandNew + FirstOrder: saffron prominent treatment so the two
+    // BrandNew + FirstOrder: brand primary prominent treatment so the two
     // onboarding milestones feel like a pair.
     FocusVariant.BrandNew,
     FocusVariant.FirstOrder -> prominentPalette(accent = primary, surface = surface)
-    // Quiet + Steady: green mood pill, saffron CTA — green is the mood,
-    // saffron is the action, matching the rest of the dashboard's button language.
+    // Quiet + Steady: green mood pill, brand primary CTA — green is the mood,
+    // brand primary is the action, matching the rest of the dashboard's button language.
     FocusVariant.Quiet,
     FocusVariant.Steady -> prominentPalette(
         accent = DesignTokens.success500,
@@ -98,7 +98,7 @@ private fun paletteFor(
         gradientAlpha = 0.10f,
     )
     // Earn (NbaActive): mood and action are both revenue work — pill + CTA
-    // share saffron, no mood split.
+    // share brand primary, no mood split.
     FocusVariant.Earn -> prominentPalette(
         accent = primary,
         surface = surface,

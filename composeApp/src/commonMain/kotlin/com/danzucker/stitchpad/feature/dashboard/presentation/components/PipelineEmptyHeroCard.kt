@@ -44,7 +44,7 @@ private val ILLUSTRATION_BACKDROP_WIDTH = 110.dp
 private val ILLUSTRATION_INNER_SIZE = 92.dp
 
 /**
- * Hero-style empty state for the work pipeline. Featured saffron border,
+ * Hero-style empty state for the work pipeline. Featured brand-primary border,
  * tinted illustration tile on the left, and a primary CTA below the copy.
  *
  * Used in place of the generic [EmptyIllustrationCard] when the pipeline is

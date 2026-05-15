@@ -370,7 +370,7 @@ private fun dayTextColor(
 // ----- Footer -----
 
 // OK on the right (primary action), Cancel on the left — opposite of the
-// range picker's end-aligned row, so the saffron CTA lands under the thumb.
+// range picker's end-aligned row, so the brand primary CTA lands under the thumb.
 @Composable
 private fun FooterButtons(
     canConfirm: Boolean,

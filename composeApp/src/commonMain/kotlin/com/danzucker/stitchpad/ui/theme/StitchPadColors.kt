@@ -19,6 +19,21 @@ import androidx.compose.ui.graphics.Color
  *
  * Two slots only — anything else (elevated surfaces, muted text) is
  * already covered by Material3's surface / onSurfaceVariant slots.
+ *
+ * ## Token usage guide
+ *
+ * | Token                                          | Use for                                                           |
+ * |------------------------------------------------|-------------------------------------------------------------------|
+ * | `MaterialTheme.colorScheme.primary`            | Filled CTAs, brand fills (button bg, FAB, primary chip fill)      |
+ * | `MaterialTheme.colorScheme.primaryContainer`   | Subtle brand tint surfaces (chip bg, hero card tint, icon circles)|
+ * | `MaterialTheme.colorScheme.onPrimaryContainer` | Text/icons rendered on `primaryContainer` surfaces                |
+ * | `MaterialTheme.colorScheme.onPrimary`          | Text/icons rendered on `primary` fills                            |
+ * | `MaterialTheme.colorScheme.tertiary`           | Sienna accent — supplementary emphasis, "workshop warmth", warning tier between brand and red |
+ * | `LocalStitchPadColors.current.heritageAccent`  | RARE — PRO badges, Verified Tailor chips, achievement bursts. Saffron #E8A800 in both modes. |
+ * | `LocalStitchPadColors.current.brandAccent`     | Lifted indigo for content on hardcoded dark surfaces (AuthCard, workshop hero, dark-gradient cards). Auto-tracks light/dark. |
+ *
+ * For the OutstandingBalancesCard "due this week" tier, use `colorScheme.tertiary`
+ * (soft warning between orange "due today" and muted "later").
  */
 @Immutable
 data class StitchPadColors(

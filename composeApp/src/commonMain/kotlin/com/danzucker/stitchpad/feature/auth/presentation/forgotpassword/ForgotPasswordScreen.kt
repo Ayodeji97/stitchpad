@@ -220,7 +220,7 @@ private fun SuccessContent(
     email: String,
     onBackToLogin: () -> Unit,
 ) {
-    // 1. Success icon — saffron circle with MarkEmailRead
+    // 1. Success icon — brand accent circle with MarkEmailRead
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,

@@ -51,7 +51,7 @@ private val SPARKLE_BADGE_SIZE = 44.dp
 /**
  * Stateless gate screen rendered when a BrandNew user taps an action that
  * requires an existing customer (hero "Create first order", "Create order"
- * tile, "Measurement" tile). The single saffron CTA routes onward to
+ * tile, "Measurement" tile). The single brand-primary CTA routes onward to
  * the customer form. Top-bar back exits to the dashboard.
  */
 @OptIn(ExperimentalMaterial3Api::class)

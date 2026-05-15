@@ -36,6 +36,7 @@ import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_badge_repeat
@@ -165,8 +166,8 @@ private fun BadgeChip(badge: CustomerBadge) {
         CustomerBadge.VIP -> BadgeStyle(
             text = stringResource(Res.string.reports_badge_vip),
             icon = Icons.Default.WorkspacePremium,
-            fg = MaterialTheme.colorScheme.onPrimaryContainer,
-            bg = MaterialTheme.colorScheme.primaryContainer
+            fg = LocalStitchPadColors.current.heritageAccent,
+            bg = LocalStitchPadColors.current.heritageAccent.copy(alpha = 0.15f)
         )
         CustomerBadge.REPEAT -> BadgeStyle(
             text = stringResource(Res.string.reports_badge_repeat),
