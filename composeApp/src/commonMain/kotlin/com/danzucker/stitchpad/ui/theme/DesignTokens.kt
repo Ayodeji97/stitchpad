@@ -9,13 +9,14 @@ import androidx.compose.ui.unit.sp
 object DesignTokens {
 
     // Indigo ramp — adire textile reference. The brand primary on light
-    // surfaces is indigo500; dark mode lifts to indigo300.
+    // surfaces is indigo500; dark mode lifts to indigo400 (sweet spot
+    // for both white-on-fill and brand-text-on-bg WCAG contrast).
     val indigo50 = Color(0xFFEAEEF8)
     val indigo100 = Color(0xFFD1D9EE)
     val indigo200 = Color(0xFF9CB0DD) // brandAccent on dark
-    val indigo300 = Color(0xFF7388BF) // brand on dark
-    val indigo400 = Color(0xFF5871B8) // brandAccent on light
-    val indigo500 = Color(0xFF2C3E7C) // brand on light
+    val indigo300 = Color(0xFF7388BF) // secondary on dark (lifted above primary)
+    val indigo400 = Color(0xFF5871B8) // primary on dark; brandAccent on light
+    val indigo500 = Color(0xFF2C3E7C) // primary on light
     val indigo700 = Color(0xFF1E2B5C) // CTA fill on light
     val indigo900 = Color(0xFF121B3B)
 

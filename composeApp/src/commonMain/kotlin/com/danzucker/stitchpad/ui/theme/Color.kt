@@ -46,8 +46,9 @@ fun stitchPadLightColorScheme(): ColorScheme = lightColorScheme(
 fun stitchPadDarkColorScheme(): ColorScheme = darkColorScheme(
     // Sits between indigo300 (too light — white text fails AA at 3.7:1)
     // and indigo500 (too dark — brand text on inkDark bg drops to 2:1).
-    // indigo400 (#5871B8) gives white text 4.7:1 AA AND brand text on
-    // bg 5.5:1 AA. Sweet spot.
+    // indigo400 (#5871B8) gives white-on-fill 4.7:1 (AA normal text)
+    // AND brand text on inkDark ~4.0:1 (AA large-text / UI components,
+    // borderline for body — keep brand uses to headlines and chrome).
     primary = DesignTokens.indigo400,
     onPrimary = Color.White,
     primaryContainer = Color(0xFF2D3B6B), // avatar bg — brighter than surface
