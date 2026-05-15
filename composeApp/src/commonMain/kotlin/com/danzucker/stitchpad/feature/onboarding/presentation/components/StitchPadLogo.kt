@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.onboarding.presentation.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -24,7 +25,7 @@ fun StitchPadLogo(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
-    val saffron = DesignTokens.primary500
+    val brandColor = MaterialTheme.colorScheme.primary
     val darkText = DesignTokens.neutral700
 
     Canvas(modifier = modifier.size(size)) {
@@ -42,7 +43,7 @@ fun StitchPadLogo(
         // "S" letter
         val fontSize = (canvasSize.width * 0.48f)
         val textStyle = TextStyle(
-            color = saffron,
+            color = brandColor,
             fontSize = fontSize.toSp(),
             fontWeight = FontWeight.Bold
         )

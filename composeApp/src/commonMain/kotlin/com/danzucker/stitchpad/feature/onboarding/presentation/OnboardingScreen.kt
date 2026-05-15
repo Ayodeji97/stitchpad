@@ -16,6 +16,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -130,7 +131,7 @@ fun OnboardingScreen(
                             .clip(RoundedCornerShape(DesignTokens.space1))
                             .background(
                                 if (isActive) {
-                                    DesignTokens.primary500
+                                    MaterialTheme.colorScheme.primary
                                 } else {
                                     Color.White.copy(alpha = 0.35f)
                                 },
