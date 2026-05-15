@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad Rebrand — Adire Tone Variants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Shared tokens (do not vary between tones) ──────────────────────
+       Mirrors the convention used in rebrand-palette-comparison.html so
+       this file reads as a sibling artifact. Light-mode only — tonal-shift
+       on dark would add noise to a base-tone decision.
+       ─────────────────────────────────────────────────────────────────── */
+    :root {
+      /* Spacing — from DesignTokens.kt */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+      --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+      /* Radii — from DesignTokens.kt */
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --r-xl: 20px;
+      --r-full: 999px;
+
+      /* Status colors — verbatim from DesignTokens.kt */
+      --status-received:  #2B7FD4;
+      --status-cutting:   #E07B20;
+      --status-sewing:    #5B4D8E;
+      --status-ready:     #2D9E6B;
+      --status-delivered: #7D7970;
+      --status-overdue:   #D93B3B;
+
+      /* Fonts (locked across tones) */
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body:    'Manrope', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', monospace;
+
+      /* Motion */
+      --dt: 150ms;
+      --dt2: 300ms;
+
+      /* Page-level frame (sits around the four columns) */
+      --page-bg:        #1A1612;
+      --page-fg:        #F0EBE3;
+      --page-fg-muted:  rgba(240,235,227,.62);
+      --page-divider:   rgba(255,255,255,.08);
+
+      /* Subtle paper-grain noise — applied to the page background.
+         Low opacity (~0.04) so it reads as texture, not pattern. */
+      --paper-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.92  0 0 0 0 0.85  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.5'/></svg>");
+    }
+
+    /* ─── Tone A — Adire Baseline (the current pick) ─────────────────────
+       Ramp method: 500 + 700 are the locked values; 50/100/300/900 derived
+       by visually-consistent HSL lightness steps off the 500 (≈ +60, +45,
+       +20, -15 L%). Hand-tuned for paper-on-warm-white legibility.
+       ─────────────────────────────────────────────────────────────────── */
+    .tone-a {
+      --primary-50:  #EAEEF8;
+      --primary-100: #D1D9EE;
+      --primary-300: #7388BF;
+      --primary-500: #2C3E7C;
+      --primary-700: #1E2B5C;
+      --primary-900: #121B3B;
+      --secondary:   #B85A30;
+      --bg:          #FAF6EC;
+      --surf:        #FFFFFF;
+      --text:        #1C1914;
+      --muted:       #5C574E;
+      --bdr:         rgba(28,25,20,.08);
+      --shadow-rgb:  28,25,20;
+    }
+
+    /* ─── Tone B — Adire Royal (deeper, more violet) ─────────────────────
+       Same lightness method as Tone A, but hue shifted ~6° toward violet.
+       Reads as royal cloth instead of navy uniform.
+       ─────────────────────────────────────────────────────────────────── */
+    .tone-b {
+      --primary-50:  #ECEAF8;
+      --primary-100: #D5D1EE;
+      --primary-300: #7C75BF;
+      --primary-500: #34307C;
+      --primary-700: #251F5C;
+      --primary-900: #16113B;
+      --secondary:   #B85A30;
+      --bg:          #FAF6EC;
+      --surf:        #FFFFFF;
+      --text:        #1C1914;
+      --muted:       #5C574E;
+      --bdr:         rgba(28,25,20,.08);
+      --shadow-rgb:  37,31,92;
+    }
+
+    /* ─── Tone C — Adire Bright (more accessible periwinkle) ─────────────
+       Brighter 500 lifts the WCAG-AA threshold on sienna pairings; secondary
+       warmed by ~+8 R to keep balance against the more saturated primary.
+       ─────────────────────────────────────────────────────────────────── */
+    .tone-c {
+      --primary-50:  #ECEFFA;
+      --primary-100: #CCD5F2;
+      --primary-300: #8499D6;
+      --primary-500: #3D54B2;
+      --primary-700: #2A3D8A;
+      --primary-900: #182656;
+      --secondary:   #C16236;
+      --bg:          #FAF6EC;
+      --surf:        #FFFFFF;
+      --text:        #1C1914;
+      --muted:       #5C574E;
+      --bdr:         rgba(28,25,20,.08);
+      --shadow-rgb:  42,61,138;
+    }
+
+    /* ─── Tone D — Adire Linen (baseline indigo, cooler paper) ───────────
+       Same primary ramp as Tone A. The bg/surf shift removes ~6° of yellow
+       from the page, giving a "raw linen" feel instead of "warm muslin."
+       ─────────────────────────────────────────────────────────────────── */
+    .tone-d {
+      --primary-50:  #EAEEF8;
+      --primary-100: #D1D9EE;
+      --primary-300: #7388BF;
+      --primary-500: #2C3E7C;
+      --primary-700: #1E2B5C;
+      --primary-900: #121B3B;
+      --secondary:   #B85A30;
+      --bg:          #F1EFE7;
+      --surf:        #FBFAF6;
+      --text:        #1C1914;
+      --muted:       #5C574E;
+      --bdr:         rgba(28,25,20,.08);
+      --shadow-rgb:  28,25,20;
+    }
+
+    /* ─── Semantic mapping ─────────────────────────────────────────────── */
+    .tone {
+      --on-surf:    var(--text);
+      --on-surf-2:  var(--muted);
+      --primary:        var(--primary-500);
+      --primary-strong: var(--primary-700);
+      --on-primary: #FFFFFF;
+      --pri-pill-bg: var(--primary-50);
+      --pri-pill-fg: var(--primary-700);
+    }
+
+    /* ─── Reset + base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: var(--font-body); }
+    body {
+      background-color: var(--page-bg);
+      background-image: var(--paper-noise);
+      background-repeat: repeat;
+      color: var(--page-fg);
+      padding: var(--s8) var(--s5) var(--s12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--s8);
+    }
+
+    /* ─── Top bar ───────────────────────────────────────────────────── */
+    .top-bar {
+      width: 100%;
+      max-width: 1600px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .top-bar h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 26px;
+      letter-spacing: -.01em;
+      color: var(--page-fg);
+    }
+    .top-bar p {
+      font-size: 13px;
+      color: var(--page-fg-muted);
+      letter-spacing: .02em;
+      max-width: 70ch;
+    }
+    .top-bar-meta {
+      margin-top: var(--s2);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .top-bar-meta .pill {
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+    }
+
+    /* ─── Columns layout ────────────────────────────────────────────── */
+    .columns {
+      width: 100%;
+      max-width: 1600px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--s5);
+    }
+    @media (max-width: 1199px) {
+      .columns { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Tone column (moodboard phone-frame card) ──────────────────── */
+    .tone {
+      background-color: var(--bg);
+      background-image: var(--paper-noise);
+      background-repeat: repeat;
+      color: var(--on-surf);
+      border-radius: var(--r-xl);
+      padding: var(--s5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5);
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.20),
+        0 24px 60px rgba(0,0,0,.42);
+    }
+
+    /* ─── Brand header ──────────────────────────────────────────────── */
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s1);
+      padding-bottom: var(--s4);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .wordmark {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 36px;
+      line-height: 1;
+      letter-spacing: -.02em;
+      color: var(--primary);
+    }
+    .tone-name {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+      margin-top: var(--s2);
+    }
+
+    /* ─── CTA buttons ───────────────────────────────────────────────── */
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .btn {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: .01em;
+      border: none;
+      cursor: pointer;
+      padding: 10px var(--s4);
+      border-radius: var(--r-md);
+      transition: background var(--dt), color var(--dt), border-color var(--dt), transform var(--dt), box-shadow var(--dt);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+    }
+    .btn-primary {
+      background: var(--primary-strong);
+      color: var(--on-primary);
+      box-shadow: 0 2px 8px rgba(var(--shadow-rgb), .30);
+    }
+    .btn-primary:hover {
+      background: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(var(--shadow-rgb), .40);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-secondary:hover { background: var(--pri-pill-bg); }
+    .btn-tertiary {
+      background: transparent;
+      color: var(--on-surf-2);
+      padding: 10px var(--s3);
+    }
+    .btn-tertiary:hover { color: var(--on-surf); }
+
+    /* ─── Dashboard card ────────────────────────────────────────────── */
+    .dash-card {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-lg);
+      padding: var(--s5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      align-self: flex-start;
+      padding: 5px var(--s3);
+      border-radius: var(--r-full);
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .section-pill .pill-dot {
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+    }
+    .dash-headline {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 22px;
+      line-height: 1.25;
+      color: var(--on-surf);
+      letter-spacing: -.01em;
+    }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .order-row {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3);
+      border-radius: var(--r-md);
+      background: var(--bg);
+      border: 1px solid var(--bdr);
+    }
+    .avatar {
+      width: 40px; height: 40px;
+      border-radius: var(--r-md);
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .02em;
+      flex-shrink: 0;
+    }
+    .order-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .order-name {
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--on-surf);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-due {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--on-surf-2);
+    }
+
+    .status-pill {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      white-space: nowrap;
+    }
+    .status-sewing { background: var(--status-sewing); }
+    .status-ready  { background: var(--status-ready); }
+
+    .view-pipeline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      padding: 6px 0;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: .01em;
+    }
+    .view-pipeline:hover { color: var(--primary-strong); }
+
+    /* ─── Swatch strip ──────────────────────────────────────────────── */
+    .swatch-block {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .swatch-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .swatch-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-md);
+      overflow: hidden;
+    }
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: var(--s2) 6px;
+      min-height: 60px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .02em;
+    }
+    .swatch .step {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: .08em;
+    }
+    .swatch .hex { opacity: .85; }
+
+    /* ─── Tradeoff caption ──────────────────────────────────────────── */
+    .caption {
+      padding: var(--s3) var(--s4);
+      border-radius: var(--r-md);
+      background: var(--bg);
+      border: 1px dashed var(--bdr);
+      font-family: var(--font-body);
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--on-surf-2);
+    }
+    .caption strong {
+      color: var(--on-surf);
+      font-weight: 700;
+    }
+
+    /* ─── Wordmark A/B/C/D row ──────────────────────────────────────── */
+    .wordmark-row-wrap {
+      width: 100%;
+      max-width: 1600px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+      padding-top: var(--s8);
+      border-top: 1px solid var(--page-divider);
+    }
+    .wordmark-row-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      text-align: center;
+    }
+    .wordmark-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--s3);
+    }
+    @media (max-width: 1199px) {
+      .wordmark-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .wordmark-row { grid-template-columns: 1fr; }
+    }
+    .wordmark-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s3);
+      padding: var(--s8) var(--s4);
+      border-radius: var(--r-xl);
+      border: 1px solid rgba(0,0,0,.08);
+      box-shadow: 0 12px 36px rgba(0,0,0,.30);
+      background-color: var(--bg);
+      background-image: var(--paper-noise);
+      min-height: 160px;
+    }
+    .wordmark-tile .mark {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 56px;
+      line-height: 1;
+      letter-spacing: -.025em;
+      color: var(--primary-500);
+    }
+    .wordmark-tile .mark-label {
+      font-family: var(--font-body);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ─── Footer ────────────────────────────────────────────────────── */
+    .footer-note {
+      width: 100%;
+      max-width: 1600px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--page-fg-muted);
+      text-align: center;
+      padding-top: var(--s6);
+      border-top: 1px solid var(--page-divider);
+    }
+    .footer-note code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(255,255,255,.06);
+      padding: 2px 6px;
+      border-radius: var(--r-sm);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Top bar ──────────────────────────────────────────────────── -->
+  <header class="top-bar">
+    <h1>StitchPad Rebrand — Adire Tone Variants</h1>
+    <p>Same direction (Adire Atelier: indigo primary, warm paper, sienna accent). Four tonal recipes side-by-side so the indigo/paper base can be locked before we commit. Light mode only.</p>
+    <div class="top-bar-meta">
+      <span class="pill">Light mode only</span>
+      <span class="pill">Type locked</span>
+      <span class="pill">Status colors locked</span>
+      <span class="pill">Only primary + paper varies</span>
+    </div>
+  </header>
+
+  <!-- ─── Four tone columns ───────────────────────────────────────── -->
+  <main class="columns">
+
+    <!-- ════ Tone A — Adire Baseline ════ -->
+    <section class="tone tone-a">
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="tone-name">Tone A · Adire Baseline</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill"><span class="pill-dot"></span>Today</span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp · #2C3E7C</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#EAEEF8;color:#1C1914"><span class="step">50</span><span class="hex">#EAEEF8</span></div>
+          <div class="swatch" style="background:#D1D9EE;color:#1C1914"><span class="step">100</span><span class="hex">#D1D9EE</span></div>
+          <div class="swatch" style="background:#7388BF;color:#FFFFFF"><span class="step">300</span><span class="hex">#7388BF</span></div>
+          <div class="swatch" style="background:#2C3E7C;color:#FFFFFF"><span class="step">500</span><span class="hex">#2C3E7C</span></div>
+          <div class="swatch" style="background:#1E2B5C;color:#FFFFFF"><span class="step">700</span><span class="hex">#1E2B5C</span></div>
+          <div class="swatch" style="background:#121B3B;color:#FFFFFF"><span class="step">900</span><span class="hex">#121B3B</span></div>
+        </div>
+      </div>
+
+      <p class="caption"><strong>The reference.</strong> Classic adire navy on warm muslin — safe, dignified, but slightly "civil-service" if photography doesn't carry it.</p>
+    </section>
+
+    <!-- ════ Tone B — Adire Royal ════ -->
+    <section class="tone tone-b">
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="tone-name">Tone B · Adire Royal</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill"><span class="pill-dot"></span>Today</span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp · #34307C</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#ECEAF8;color:#1C1914"><span class="step">50</span><span class="hex">#ECEAF8</span></div>
+          <div class="swatch" style="background:#D5D1EE;color:#1C1914"><span class="step">100</span><span class="hex">#D5D1EE</span></div>
+          <div class="swatch" style="background:#7C75BF;color:#FFFFFF"><span class="step">300</span><span class="hex">#7C75BF</span></div>
+          <div class="swatch" style="background:#34307C;color:#FFFFFF"><span class="step">500</span><span class="hex">#34307C</span></div>
+          <div class="swatch" style="background:#251F5C;color:#FFFFFF"><span class="step">700</span><span class="hex">#251F5C</span></div>
+          <div class="swatch" style="background:#16113B;color:#FFFFFF"><span class="step">900</span><span class="hex">#16113B</span></div>
+        </div>
+      </div>
+
+      <p class="caption"><strong>Royal cloth, not uniform.</strong> Hue pushed toward violet so it reads as ceremonial agbada rather than navy workwear — but the sewing-status purple now sits closer in hue.</p>
+    </section>
+
+    <!-- ════ Tone C — Adire Bright ════ -->
+    <section class="tone tone-c">
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="tone-name">Tone C · Adire Bright</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill"><span class="pill-dot"></span>Today</span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp · #3D54B2</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#ECEFFA;color:#1C1914"><span class="step">50</span><span class="hex">#ECEFFA</span></div>
+          <div class="swatch" style="background:#CCD5F2;color:#1C1914"><span class="step">100</span><span class="hex">#CCD5F2</span></div>
+          <div class="swatch" style="background:#8499D6;color:#1C1914"><span class="step">300</span><span class="hex">#8499D6</span></div>
+          <div class="swatch" style="background:#3D54B2;color:#FFFFFF"><span class="step">500</span><span class="hex">#3D54B2</span></div>
+          <div class="swatch" style="background:#2A3D8A;color:#FFFFFF"><span class="step">700</span><span class="hex">#2A3D8A</span></div>
+          <div class="swatch" style="background:#182656;color:#FFFFFF"><span class="step">900</span><span class="hex">#182656</span></div>
+        </div>
+      </div>
+
+      <p class="caption"><strong>Friendlier, more accessible.</strong> Brighter periwinkle reads as approachable consumer SaaS — at the cost of some heritage gravitas; drifts toward the Stripe/Linear neighbourhood.</p>
+    </section>
+
+    <!-- ════ Tone D — Adire Linen ════ -->
+    <section class="tone tone-d">
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="tone-name">Tone D · Adire Linen</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill"><span class="pill-dot"></span>Today</span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp · #2C3E7C (same as A)</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#EAEEF8;color:#1C1914"><span class="step">50</span><span class="hex">#EAEEF8</span></div>
+          <div class="swatch" style="background:#D1D9EE;color:#1C1914"><span class="step">100</span><span class="hex">#D1D9EE</span></div>
+          <div class="swatch" style="background:#7388BF;color:#FFFFFF"><span class="step">300</span><span class="hex">#7388BF</span></div>
+          <div class="swatch" style="background:#2C3E7C;color:#FFFFFF"><span class="step">500</span><span class="hex">#2C3E7C</span></div>
+          <div class="swatch" style="background:#1E2B5C;color:#FFFFFF"><span class="step">700</span><span class="hex">#1E2B5C</span></div>
+          <div class="swatch" style="background:#121B3B;color:#FFFFFF"><span class="step">900</span><span class="hex">#121B3B</span></div>
+        </div>
+      </div>
+
+      <p class="caption"><strong>Baseline indigo on raw linen.</strong> Cooler paper drops the yellow undertone — reads more "London atelier" than "Lagos market"; the question is whether that's an asset or a loss of place.</p>
+    </section>
+
+  </main>
+
+  <!-- ─── Wordmark A/B/C/D row ─────────────────────────────────────── -->
+  <section class="wordmark-row-wrap">
+    <div class="wordmark-row-label">Wordmark A / B / C / D · side-by-side</div>
+    <div class="wordmark-row">
+      <div class="wordmark-tile tone-a">
+        <span class="mark">StitchPad</span>
+        <span class="mark-label">A · Baseline · #2C3E7C</span>
+      </div>
+      <div class="wordmark-tile tone-b">
+        <span class="mark">StitchPad</span>
+        <span class="mark-label">B · Royal · #34307C</span>
+      </div>
+      <div class="wordmark-tile tone-c">
+        <span class="mark">StitchPad</span>
+        <span class="mark-label">C · Bright · #3D54B2</span>
+      </div>
+      <div class="wordmark-tile tone-d">
+        <span class="mark">StitchPad</span>
+        <span class="mark-label">D · Linen · #2C3E7C</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="footer-note">
+    Status palette, spacing, radii, and type are pinned to <code>DesignTokens.kt</code>.
+    Only <code>--primary-*</code>, <code>--secondary</code>, and surface tones vary between columns.
+  </p>
+
+</body>
+</html>

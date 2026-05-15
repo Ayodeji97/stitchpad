@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad Rebrand — Type Variants (Adire Atelier)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!--
+    Display fonts (4):
+      • Fraunces                — variable (opsz, wght, SOFT, WONK), italic
+      • Instrument Serif        — 400 + italic (single weight by design)
+      • DM Serif Display        — 400 + italic
+      • Lora                    — variable 400..700 + italic
+    Body: Manrope. Mono: JetBrains Mono.
+    All requested with display=swap to avoid invisible-text-flash.
+  -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..700,0..100;1,9..144,400..700,0..100&family=Instrument+Serif:ital,wght@0,400;1,400&family=DM+Serif+Display:ital,wght@0,400;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* ─── Shared tokens (locked across all four columns) ──────────────── */
+    :root {
+      /* Spacing — DesignTokens.kt */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+      --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+      /* Radii — DesignTokens.kt */
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --r-xl: 20px;
+      --r-full: 999px;
+
+      /* Status colors — verbatim from DesignTokens.kt */
+      --status-received:  #2B7FD4;
+      --status-cutting:   #E07B20;
+      --status-sewing:    #5B4D8E;
+      --status-ready:     #2D9E6B;
+      --status-delivered: #7D7970;
+      --status-overdue:   #D93B3B;
+
+      /* Adire Atelier palette (Variant A — locked for type comparison) */
+      --primary-50:  #EAEEF8;
+      --primary-100: #D1D9EE;
+      --primary-300: #7388BF;
+      --primary-500: #2C3E7C;
+      --primary-700: #1E2B5C;
+      --primary-900: #121B3B;
+      --secondary:   #B85A30;
+
+      /* Surfaces */
+      --bg:        #FAF6EC;
+      --surf:      #FFFFFF;
+      --on-surf:   #1C1914;
+      --on-surf-2: #5C574E;
+      --bdr:       rgba(28,25,20,.08);
+      --primary:        var(--primary-500);
+      --primary-strong: var(--primary-700);
+      --on-primary:     #FFFFFF;
+      --pri-pill-bg:    var(--primary-50);
+      --pri-pill-fg:    var(--primary-700);
+
+      /* Type families (only the display var is per-column) */
+      --font-body: 'Manrope', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Defaults — overridden per column */
+      --font-display: 'Fraunces', Georgia, serif;
+      --display-wm-vs: 'opsz' 144, 'SOFT' 30, 'wght' 600;
+      --display-h-vs:  'opsz' 36, 'SOFT' 20, 'wght' 600;
+      --display-tag-vs: 'opsz' 36, 'SOFT' 60, 'wght' 500;
+      --display-glyph-vs: 'opsz' 72, 'SOFT' 30, 'wght' 500;
+
+      /* Page chrome */
+      --page-bg:        #14110E;
+      --page-fg:        #F0EBE3;
+      --page-fg-muted:  rgba(240,235,227,.62);
+      --page-divider:   rgba(255,255,255,.08);
+
+      /* Motion */
+      --dt: 150ms;
+      --dt2: 300ms;
+    }
+
+    /* ─── Reset + base ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: var(--font-body); }
+    body {
+      background: var(--page-bg);
+      color: var(--page-fg);
+      padding: var(--s8) var(--s5) var(--s12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--s8);
+      font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+
+    /* ─── Top bar ────────────────────────────────────────────────────── */
+    .top-bar {
+      width: 100%;
+      max-width: 1600px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--s4);
+      flex-wrap: wrap;
+    }
+    .top-bar-title { display: flex; flex-direction: column; gap: 6px; max-width: 70ch; }
+    .top-bar-title h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-variation-settings: 'opsz' 144, 'SOFT' 30, 'wght' 600;
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: -.01em;
+      color: var(--page-fg);
+    }
+    .top-bar-title p {
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--page-fg-muted);
+      letter-spacing: .015em;
+    }
+    .top-bar-meta {
+      width: 100%;
+      max-width: 1600px;
+      font-family: var(--font-body);
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s3);
+      align-items: center;
+      font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+    .top-bar-meta .pill {
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      font-weight: 700;
+    }
+
+    /* ─── Columns layout ─────────────────────────────────────────────── */
+    .columns {
+      width: 100%;
+      max-width: 1600px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--s5);
+    }
+    @media (max-width: 1200px) {
+      .columns { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .columns { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Variant column ─────────────────────────────────────────────── */
+    .variant {
+      background: var(--bg);
+      color: var(--on-surf);
+      border-radius: var(--r-xl);
+      padding: var(--s6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5);
+      border: 1px solid var(--bdr);
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.18),
+        0 24px 60px rgba(0,0,0,.35);
+      font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+
+    /* Per-column display font overrides */
+    .var-fraunces {
+      --font-display: 'Fraunces', Georgia, serif;
+      --display-wm-vs:    'opsz' 144, 'SOFT' 30, 'wght' 600;
+      --display-h-vs:     'opsz' 36,  'SOFT' 20, 'wght' 600;
+      --display-tag-vs:   'opsz' 36,  'SOFT' 60, 'wght' 500;
+      --display-glyph-vs: 'opsz' 72,  'SOFT' 30, 'wght' 500;
+    }
+    .var-fraunces .display { font-feature-settings: 'liga' 1, 'kern' 1, 'ss01' 1; }
+
+    .var-instrument {
+      --font-display: 'Instrument Serif', 'Times New Roman', serif;
+    }
+    .var-dmserif {
+      --font-display: 'DM Serif Display', 'Times New Roman', serif;
+    }
+    .var-lora {
+      --font-display: 'Lora', Georgia, serif;
+    }
+
+    /* ─── Variant label (small caps banner) ──────────────────────────── */
+    .variant-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s2);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .variant-label .id-dot {
+      width: 10px; height: 10px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+      box-shadow: 0 0 0 3px var(--pri-pill-bg);
+    }
+
+    /* ─── Brand block ────────────────────────────────────────────────── */
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      padding-bottom: var(--s5);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .wordmark {
+      font-family: var(--font-display);
+      font-variation-settings: var(--display-wm-vs);
+      font-weight: 600;
+      font-size: 48px;
+      line-height: 1;
+      letter-spacing: -.02em;
+      color: var(--primary);
+      font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+    .var-fraunces .wordmark { font-feature-settings: 'liga' 1, 'kern' 1, 'ss01' 1; }
+
+    .font-name {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .font-name .meta-dot {
+      display: inline-block;
+      width: 4px; height: 4px;
+      vertical-align: middle;
+      border-radius: var(--r-full);
+      background: var(--on-surf-2);
+      margin: 0 8px 2px;
+    }
+    .tagline {
+      font-family: var(--font-display);
+      font-variation-settings: var(--display-tag-vs);
+      font-weight: 500;
+      font-style: italic;
+      font-size: 22px;
+      line-height: 1.3;
+      color: var(--on-surf);
+      margin-top: var(--s2);
+      max-width: 24ch;
+      letter-spacing: -.005em;
+    }
+
+    /* ─── Dashboard card ─────────────────────────────────────────────── */
+    .dash-card {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-lg);
+      padding: var(--s5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      align-self: flex-start;
+      padding: 5px var(--s3);
+      border-radius: var(--r-full);
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .section-pill .pill-dot {
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+    }
+
+    .dash-headline {
+      font-family: var(--font-display);
+      font-variation-settings: var(--display-h-vs);
+      font-weight: 600;
+      font-size: 22px;
+      line-height: 1.25;
+      color: var(--on-surf);
+      letter-spacing: -.01em;
+    }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .order-row {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3);
+      border-radius: var(--r-md);
+      background: var(--bg);
+      border: 1px solid var(--bdr);
+    }
+    .avatar {
+      width: 40px; height: 40px;
+      border-radius: var(--r-md);
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .02em;
+      flex-shrink: 0;
+    }
+    .order-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .order-name {
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--on-surf);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-due {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--on-surf-2);
+    }
+
+    .status-pill {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      white-space: nowrap;
+    }
+    .status-sewing { background: var(--status-sewing); }
+    .status-ready  { background: var(--status-ready); }
+
+    .view-pipeline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      padding: 6px 0;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: .01em;
+    }
+    .view-pipeline:hover { color: var(--primary-strong); }
+
+    /* ─── Character study ────────────────────────────────────────────── */
+    .character-study {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s3);
+      padding: var(--s4);
+      border-radius: var(--r-md);
+      background: var(--surf);
+      border: 1px dashed var(--bdr);
+    }
+    .character-label {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .glyph-showcase {
+      font-family: var(--font-display);
+      font-variation-settings: var(--display-glyph-vs);
+      font-size: 32px;
+      line-height: 1.15;
+      color: var(--on-surf);
+      letter-spacing: -.005em;
+      font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+    .var-fraunces .glyph-showcase { font-feature-settings: 'liga' 1, 'kern' 1, 'ss01' 1; }
+    .glyph-showcase .small-num {
+      font-family: var(--font-display);
+      font-size: 28px;
+    }
+    .character-caption {
+      font-family: var(--font-body);
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--on-surf-2);
+      font-style: italic;
+    }
+    .character-caption strong {
+      color: var(--on-surf);
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    /* ─── Wordmark row (bottom comparison) ───────────────────────────── */
+    .wordmark-row-section {
+      width: 100%;
+      max-width: 1600px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+      padding: var(--s8);
+      border-radius: var(--r-xl);
+      background: var(--bg);
+      border: 1px solid var(--bdr);
+      box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    }
+    .wordmark-row-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .wordmark-row-title {
+      font-family: 'Fraunces', Georgia, serif;
+      font-variation-settings: 'opsz' 72, 'SOFT' 20, 'wght' 600;
+      font-size: 22px;
+      color: var(--on-surf);
+      letter-spacing: -.005em;
+    }
+    .wordmark-row-sub {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--on-surf-2);
+    }
+    .wordmark-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--s4);
+      padding-top: var(--s4);
+      border-top: 1px solid var(--bdr);
+    }
+    @media (max-width: 1200px) {
+      .wordmark-row { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .wordmark-row { grid-template-columns: 1fr; }
+    }
+    .wordmark-cell {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      padding: var(--s4);
+      border-radius: var(--r-lg);
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+    }
+    .wordmark-cell .wm-big {
+      font-size: 56px;
+      line-height: 1;
+      color: var(--primary);
+      letter-spacing: -.02em;
+      font-weight: 600;
+      font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+    .wordmark-cell.var-fraunces .wm-big {
+      font-family: 'Fraunces', Georgia, serif;
+      font-variation-settings: 'opsz' 144, 'SOFT' 30, 'wght' 600;
+      font-feature-settings: 'liga' 1, 'kern' 1, 'ss01' 1;
+    }
+    .wordmark-cell.var-instrument .wm-big {
+      font-family: 'Instrument Serif', 'Times New Roman', serif;
+      font-weight: 400;
+    }
+    .wordmark-cell.var-dmserif .wm-big {
+      font-family: 'DM Serif Display', 'Times New Roman', serif;
+      font-weight: 400;
+    }
+    .wordmark-cell.var-lora .wm-big {
+      font-family: 'Lora', Georgia, serif;
+      font-weight: 600;
+    }
+    .wordmark-cell .wm-name {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+
+    /* ─── Footer note ────────────────────────────────────────────────── */
+    .footer-note {
+      width: 100%;
+      max-width: 1600px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--page-fg-muted);
+      text-align: center;
+      padding-top: var(--s6);
+      border-top: 1px solid var(--page-divider);
+    }
+    .footer-note code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(255,255,255,.06);
+      padding: 2px 6px;
+      border-radius: var(--r-sm);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Top bar ──────────────────────────────────────────────────── -->
+  <header class="top-bar">
+    <div class="top-bar-title">
+      <h1>StitchPad Rebrand — Display Type Variants</h1>
+      <p>Same Adire Atelier indigo palette, same dashboard surface, same body type (Manrope) and mono (JetBrains Mono). Only the display serif varies. Pick the one that gives the brand the right personality.</p>
+    </div>
+  </header>
+
+  <div class="top-bar-meta">
+    <span class="pill">Palette locked: Adire Atelier (indigo-led)</span>
+    <span class="pill">Body locked: Manrope</span>
+    <span class="pill">Mono locked: JetBrains Mono</span>
+    <span class="pill">Status colors locked</span>
+    <span>Only the display serif changes.</span>
+  </div>
+
+  <!-- ─── Columns ──────────────────────────────────────────────────── -->
+  <main class="columns">
+
+    <!-- ════ Column 1 — Fraunces (current candidate) ════ -->
+    <section class="variant var-fraunces">
+
+      <div class="variant-label">
+        <span>Column 1 · Current</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark display">StitchPad</div>
+        <div class="font-name">
+          Fraunces
+          <span class="meta-dot"></span> variable · SOFT axis
+          <span class="meta-dot"></span> 2018
+        </div>
+        <div class="tagline display">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline display">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="character-study">
+        <div class="character-label">Character study</div>
+        <div class="glyph-showcase display">Aa Bb Cc · 0123 · &amp; — Ng</div>
+        <p class="character-caption">
+          <strong>Warm, modulated, controllable.</strong> The SOFT axis lets the brand dial between "newsroom serious" and "atelier soft" — useful when the same wordmark has to sit on a packing slip and a magazine-style hero. Personality without committing to a single mood.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ════ Column 2 — Instrument Serif ════ -->
+    <section class="variant var-instrument">
+
+      <div class="variant-label">
+        <span>Column 2</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="font-name">
+          Instrument Serif
+          <span class="meta-dot"></span> single weight (400)
+          <span class="meta-dot"></span> true italic
+        </div>
+        <div class="tagline" style="font-style: italic;">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline" style="font-weight: 400;">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="character-study">
+        <div class="character-label">Character study</div>
+        <div class="glyph-showcase" style="font-weight: 400;">Aa Bb Cc · 0123 · &amp; — Ng</div>
+        <p class="character-caption">
+          <strong>Editorial. Couture-magazine. Almost theatrical.</strong> The high contrast and elongated strokes make StitchPad feel like a Lagos lifestyle title, not software. Best case: it elevates everything the tailor produces. Risk: a single weight is a creative cage — there's no "bold" lever for emphasis, only italic. The brand would have to commit to restraint.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ════ Column 3 — DM Serif Display ════ -->
+    <section class="variant var-dmserif">
+
+      <div class="variant-label">
+        <span>Column 3</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="font-name">
+          DM Serif Display
+          <span class="meta-dot"></span> 400 + italic
+          <span class="meta-dot"></span> bold geometric
+        </div>
+        <div class="tagline" style="font-style: italic;">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline" style="font-weight: 400;">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="character-study">
+        <div class="character-label">Character study</div>
+        <div class="glyph-showcase" style="font-weight: 400;">Aa Bb Cc · 0123 · &amp; — Ng</div>
+        <p class="character-caption">
+          <strong>Confident. Chunky. Announces itself.</strong> A Bodoni-influenced display face that takes up space without apology — the wordmark looks like a perfume bottle label, not a SaaS logo. Best for a tailor who wants the brand to feel premium and slightly intimidating. Risk: at small sizes it loses subtlety, and the high contrast can clash with dense order rows.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ════ Column 4 — Lora ════ -->
+    <section class="variant var-lora">
+
+      <div class="variant-label">
+        <span>Column 4</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="font-name">
+          Lora
+          <span class="meta-dot"></span> variable 400–700
+          <span class="meta-dot"></span> screen-first
+        </div>
+        <div class="tagline" style="font-style: italic; font-weight: 500;">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline" style="font-weight: 600;">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="character-study">
+        <div class="character-label">Character study</div>
+        <div class="glyph-showcase" style="font-weight: 500;">Aa Bb Cc · 0123 · &amp; — Ng</div>
+        <p class="character-caption">
+          <strong>Approachable. Humanist. Long-read.</strong> Lora was drawn for screens, so it stays readable at small sizes where the others get fussy. The brand feels like a thoughtful pen-pal rather than a luxury house. Best for an app that wants to say "we're on your team," not "we're above you." Risk: it can read as ordinary next to the more distinctive options — competent, but quieter.
+        </p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ─── Wordmark row (bottom comparison) ─────────────────────────── -->
+  <section class="wordmark-row-section">
+    <div class="wordmark-row-header">
+      <div class="wordmark-row-title">Wordmark comparison — same size, same colour, four serifs</div>
+      <div class="wordmark-row-sub">Strip away the dashboard chrome. Which mark do you want printed on the packing slip, the splash screen, the App Store icon caption?</div>
+    </div>
+    <div class="wordmark-row">
+      <div class="wordmark-cell var-fraunces">
+        <span class="wm-big">StitchPad</span>
+        <span class="wm-name">Fraunces · variable · SOFT 30 · wght 600</span>
+      </div>
+      <div class="wordmark-cell var-instrument">
+        <span class="wm-big">StitchPad</span>
+        <span class="wm-name">Instrument Serif · 400</span>
+      </div>
+      <div class="wordmark-cell var-dmserif">
+        <span class="wm-big">StitchPad</span>
+        <span class="wm-name">DM Serif Display · 400</span>
+      </div>
+      <div class="wordmark-cell var-lora">
+        <span class="wm-big">StitchPad</span>
+        <span class="wm-name">Lora · 600</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="footer-note">
+    Palette, status colors, spacing, and radii are pinned to <code>DesignTokens.kt</code> + the Adire Atelier (Variant A) direction.
+    Only <code>--font-display</code> varies between columns. Body remains <code>Manrope</code>, mono remains <code>JetBrains Mono</code>.
+  </p>
+
+</body>
+</html>

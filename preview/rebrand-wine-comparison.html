@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad Rebrand — Brand color review (3 options)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,0..100&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Shared tokens (locked to DesignTokens.kt) ──────────────────── */
+    :root {
+      /* Spacing */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+      --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+      /* Radii */
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --r-xl: 20px;
+      --r-full: 999px;
+
+      /* Status colors — VERBATIM from DesignTokens.kt, never shift per column */
+      --status-received:  #2B7FD4;
+      --status-cutting:   #E07B20;
+      --status-sewing:    #5B4D8E;
+      --status-ready:     #2D9E6B;
+      --status-delivered: #7D7970;
+      --status-overdue:   #D93B3B;
+
+      /* Heritage saffron — also locked, used as rare accent only */
+      --heritage-saffron: #E8A800;
+
+      /* Fonts */
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body:    'Manrope', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', monospace;
+
+      /* Motion */
+      --dt: 180ms;
+      --dt2: 320ms;
+      --ease: cubic-bezier(.2,.6,.2,1);
+
+      /* Page-level frame (light, paper-like outer chrome) — LIGHT default */
+      --page-bg:        #EFE9DC;
+      --page-fg:        #1C1914;
+      --page-fg-muted:  #5C574E;
+      --page-divider:   rgba(28,25,20,.10);
+
+      /* Shared paper grain texture (data URI, very subtle) */
+      --paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.36  0 0 0 0 0.27  0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>");
+    }
+
+    /* Page chrome flips to warm ink in dark mode. The outer page-bg is a
+       touch lighter than the column-surface dark (#14110E) so columns float. */
+    body.dark {
+      --page-bg:        #1A1612;
+      --page-fg:        #F0EBE3;
+      --page-fg-muted:  #B8AA98;
+      --page-divider:   rgba(240,235,227,.10);
+    }
+
+    /* ─── Column 1 — Adire Atelier (current pick) ─────────────────────── */
+    .col-adire {
+      /* light */
+      --l-primary-50:  #EAEEF8;
+      --l-primary-500: #2C3E7C;   /* indigo */
+      --l-primary-700: #1E2B5C;   /* CTA */
+      --l-secondary:   #B85A30;   /* burnt sienna */
+      --l-bg:          #FAF6EC;   /* warm paper */
+      --l-surf:        #FFFFFF;
+      --l-surf-elev:   #FBF8F0;
+      --l-on-surf:     #1C1914;
+      --l-on-surf-2:   #5C574E;
+      --l-bdr:         rgba(28,25,20,.08);
+      --l-shadow-rgb:  28,25,20;
+      --l-avatar-bg:   #EAEEF8;
+      --l-avatar-fg:   #1E2B5C;
+      --l-row-hover:   #EAEEF8;
+      --l-pri-pill-bg: #EAEEF8;
+      --l-pri-pill-fg: #1E2B5C;
+
+      /* dark — Adire polished baseline */
+      --d-primary-500: #7388BF;   /* indigo, lighter step */
+      --d-primary-700: #4F65A8;   /* CTA fill */
+      --d-secondary:   #D9885F;   /* sienna, lighter step */
+      --d-bg:          #14110E;
+      --d-surf:        #1E1B17;
+      --d-surf-elev:   #26221D;
+      --d-on-surf:     #F0EBE3;
+      --d-on-surf-2:   #B8AA98;
+      --d-bdr:         #3A3228;
+      --d-shadow-rgb:  0,0,0;
+      --d-avatar-bg:   #2D3B6B;
+      --d-avatar-fg:   #EAEEF8;
+      --d-row-hover:   #2D3B6B;
+      --d-pri-pill-bg: #2D3B6B;
+      --d-pri-pill-fg: #EAEEF8;
+    }
+
+    /* ─── Column 2 — Wine Atelier (PM suggestion) ─────────────────────── */
+    .col-wine {
+      /* light */
+      --l-primary-50:  #F5E8E9;
+      --l-primary-500: #722F37;   /* classic burgundy */
+      --l-primary-700: #4A1A1F;   /* deep wine CTA */
+      --l-secondary:   #B85A30;   /* same sienna */
+      --l-bg:          #FAF6EC;   /* same warm paper */
+      --l-surf:        #FFFFFF;
+      --l-surf-elev:   #FBF8F0;
+      --l-on-surf:     #1C1914;
+      --l-on-surf-2:   #5C574E;
+      --l-bdr:         rgba(28,25,20,.08);
+      --l-shadow-rgb:  28,25,20;
+      --l-avatar-bg:   #F5E8E9;
+      --l-avatar-fg:   #4A1A1F;
+      --l-row-hover:   #F5E8E9;
+      --l-pri-pill-bg: #F5E8E9;
+      --l-pri-pill-fg: #4A1A1F;
+
+      /* dark — burgundy brightens to a rose step; the truth is this lands
+         closer to the bright Overdue red. We show that honestly. */
+      --d-primary-500: #C97987;   /* burgundy, lighter rose step */
+      --d-primary-700: #8E3D45;   /* CTA fill */
+      --d-secondary:   #D9885F;   /* sienna, same lighter step */
+      --d-bg:          #14110E;
+      --d-surf:        #1E1B17;
+      --d-surf-elev:   #26221D;
+      --d-on-surf:     #F0EBE3;
+      --d-on-surf-2:   #B8AA98;
+      --d-bdr:         #3A3228;
+      --d-shadow-rgb:  0,0,0;
+      --d-avatar-bg:   #4A2126;
+      --d-avatar-fg:   #F5E8E9;
+      --d-row-hover:   #4A2126;
+      --d-pri-pill-bg: #4A2126;
+      --d-pri-pill-fg: #F5E8E9;
+    }
+
+    /* ─── Column 3 — Adire + Wine (hybrid) ────────────────────────────── */
+    .col-hybrid {
+      /* light */
+      --l-primary-50:  #EAEEF8;
+      --l-primary-500: #2C3E7C;   /* indigo — kept */
+      --l-primary-700: #1E2B5C;
+      --l-secondary:   #722F37;   /* burgundy replaces sienna */
+      --l-bg:          #FAF6EC;
+      --l-surf:        #FFFFFF;
+      --l-surf-elev:   #FBF8F0;
+      --l-on-surf:     #1C1914;
+      --l-on-surf-2:   #5C574E;
+      --l-bdr:         rgba(28,25,20,.08);
+      --l-shadow-rgb:  28,25,20;
+      --l-avatar-bg:   #EAEEF8;
+      --l-avatar-fg:   #1E2B5C;
+      --l-row-hover:   #EAEEF8;
+      --l-pri-pill-bg: #EAEEF8;
+      --l-pri-pill-fg: #1E2B5C;
+
+      /* dark — indigo brightens; burgundy as lighter rose step for secondary.
+         Section pill "Next best actions" will now be rose-pink next to red
+         Overdue. We show that honestly. */
+      --d-primary-500: #7388BF;   /* indigo */
+      --d-primary-700: #4F65A8;
+      --d-secondary:   #C97987;   /* burgundy, lighter rose step */
+      --d-bg:          #14110E;
+      --d-surf:        #1E1B17;
+      --d-surf-elev:   #26221D;
+      --d-on-surf:     #F0EBE3;
+      --d-on-surf-2:   #B8AA98;
+      --d-bdr:         #3A3228;
+      --d-shadow-rgb:  0,0,0;
+      --d-avatar-bg:   #2D3B6B;
+      --d-avatar-fg:   #EAEEF8;
+      --d-row-hover:   #2D3B6B;
+      --d-pri-pill-bg: #2D3B6B;
+      --d-pri-pill-fg: #EAEEF8;
+    }
+
+    /* ─── Semantic mapping — pick light tokens by default, flip in dark ── */
+    .column {
+      --primary-50:  var(--l-primary-50);
+      --primary-500: var(--l-primary-500);
+      --primary-700: var(--l-primary-700);
+      --secondary:   var(--l-secondary);
+      --bg:          var(--l-bg);
+      --surf:        var(--l-surf);
+      --surf-elev:   var(--l-surf-elev);
+      --on-surf:     var(--l-on-surf);
+      --on-surf-2:   var(--l-on-surf-2);
+      --bdr:         var(--l-bdr);
+      --shadow-rgb:  var(--l-shadow-rgb);
+      --avatar-bg:   var(--l-avatar-bg);
+      --avatar-fg:   var(--l-avatar-fg);
+      --row-hover:   var(--l-row-hover);
+      --pri-pill-bg: var(--l-pri-pill-bg);
+      --pri-pill-fg: var(--l-pri-pill-fg);
+    }
+    body.dark .column {
+      --primary-500: var(--d-primary-500);
+      --primary-700: var(--d-primary-700);
+      --secondary:   var(--d-secondary);
+      --bg:          var(--d-bg);
+      --surf:        var(--d-surf);
+      --surf-elev:   var(--d-surf-elev);
+      --on-surf:     var(--d-on-surf);
+      --on-surf-2:   var(--d-on-surf-2);
+      --bdr:         var(--d-bdr);
+      --shadow-rgb:  var(--d-shadow-rgb);
+      --avatar-bg:   var(--d-avatar-bg);
+      --avatar-fg:   var(--d-avatar-fg);
+      --row-hover:   var(--d-row-hover);
+      --pri-pill-bg: var(--d-pri-pill-bg);
+      --pri-pill-fg: var(--d-pri-pill-fg);
+    }
+
+    /* Semantic mapping shared by all columns */
+    .column {
+      --primary:        var(--primary-500);
+      --primary-strong: var(--primary-700);
+      --on-primary:     #FFFFFF;
+      --shadow-card:
+        0 1px 2px rgba(var(--shadow-rgb), .06),
+        0 12px 32px rgba(var(--shadow-rgb), .08);
+      --shadow-tile:
+        0 1px 2px rgba(var(--shadow-rgb), .06),
+        0 24px 60px rgba(var(--shadow-rgb), .10);
+      --shadow-cta:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 2px 8px rgba(var(--shadow-rgb), .22);
+      --jewel-inner: inset 0 1px 0 rgba(255,255,255,.42);
+      --jewel-outer: 0 1px 2px rgba(232,168,0,.30), 0 0 0 1px rgba(232,168,0,.08);
+    }
+    /* Dark mode: shadows deepen, tile gets a subtle inset highlight. */
+    body.dark .column {
+      --shadow-card:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 1px 2px rgba(0,0,0,.40),
+        0 18px 44px rgba(0,0,0,.55);
+      --shadow-tile:
+        inset 0 1px 0 rgba(255,255,255,.05),
+        0 1px 2px rgba(0,0,0,.40),
+        0 28px 70px rgba(0,0,0,.55);
+      --shadow-cta:
+        inset 0 1px 0 rgba(255,255,255,.22),
+        0 2px 10px rgba(0,0,0,.45);
+    }
+    /* Paper grain is a light-mode-only texture; suppress on dark. */
+    body.dark .column::before { display: none; }
+    body.dark::before { display: none; }
+
+    /* ─── Reset + base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: var(--font-body); }
+    body {
+      background: var(--page-bg);
+      color: var(--page-fg);
+      padding: var(--s10) var(--s5) var(--s12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--s10);
+      position: relative;
+      transition: background var(--dt2) var(--ease), color var(--dt2) var(--ease);
+    }
+    /* Page-level paper grain */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: var(--paper-grain);
+      background-size: 160px 160px;
+      mix-blend-mode: multiply;
+      opacity: .45;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body > * { position: relative; z-index: 1; }
+
+    /* ─── Top bar (title block + theme toggle) ───────────────────────── */
+    .top-bar {
+      width: 100%;
+      max-width: 1320px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--s5);
+      padding: 0 var(--s2);
+      flex-wrap: wrap;
+    }
+    .page-head {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s3);
+      flex: 1;
+      min-width: 0;
+    }
+    .page-head h1 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 32px;
+      letter-spacing: -.015em;
+      line-height: 1.15;
+      font-variation-settings: 'opsz' 120, 'SOFT' 40, 'wght' 700;
+      color: var(--page-fg);
+    }
+    .page-head p {
+      font-family: var(--font-body);
+      font-weight: 400;
+      font-size: 16px;
+      color: var(--page-fg-muted);
+      max-width: 72ch;
+      line-height: 1.55;
+    }
+    .page-head .doc-meta {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      margin-bottom: var(--s2);
+    }
+
+    /* Theme toggle — pill with dot indicator, matches palette-comparison */
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      padding: 10px var(--s4);
+      border-radius: var(--r-full);
+      background: rgba(28,25,20,.06);
+      border: 1px solid rgba(28,25,20,.14);
+      color: var(--page-fg);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: background var(--dt) var(--ease),
+                  border-color var(--dt) var(--ease),
+                  color var(--dt) var(--ease);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .theme-toggle:hover {
+      background: rgba(28,25,20,.10);
+      border-color: rgba(28,25,20,.24);
+    }
+    body.dark .theme-toggle {
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.14);
+    }
+    body.dark .theme-toggle:hover {
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.24);
+    }
+    .toggle-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: var(--r-full);
+      background: #FFD15C;
+      transition: background var(--dt) var(--ease);
+    }
+    body.dark .toggle-dot { background: #B6C8FF; }
+
+    /* ─── Bottom test-caption (calls attention to overlap test) ──────── */
+    .test-caption {
+      width: 100%;
+      max-width: 78ch;
+      padding: 0 var(--s2);
+      font-family: var(--font-body);
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--page-fg-muted);
+      align-self: center;
+    }
+
+    /* ─── Grid of 3 columns ──────────────────────────────────────────── */
+    .grid {
+      width: 100%;
+      max-width: 1320px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--s6);
+    }
+    @media (max-width: 1199px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Column tile ────────────────────────────────────────────────── */
+    .column {
+      position: relative;
+      background: var(--bg);
+      color: var(--on-surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-xl);
+      padding: var(--s6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5);
+      box-shadow: var(--shadow-tile);
+      overflow: hidden;
+      transition: transform var(--dt2) var(--ease),
+                  box-shadow var(--dt2) var(--ease),
+                  background var(--dt2) var(--ease),
+                  color var(--dt2) var(--ease),
+                  border-color var(--dt2) var(--ease);
+    }
+    .column::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: var(--paper-grain);
+      background-size: 160px 160px;
+      mix-blend-mode: multiply;
+      opacity: .55;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .column > * { position: relative; z-index: 1; }
+
+    /* ─── Column header ──────────────────────────────────────────────── */
+    .col-header {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-bottom: var(--s4);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .col-wordmark {
+      font-family: var(--font-display);
+      font-size: 40px;
+      line-height: 1;
+      letter-spacing: -.015em;
+      color: var(--primary);
+      font-variation-settings: 'opsz' 120, 'SOFT' 40, 'wght' 600;
+    }
+    .col-label {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+
+    /* ─── CTA row ────────────────────────────────────────────────────── */
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .btn {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13.5px;
+      letter-spacing: .01em;
+      border: none;
+      cursor: pointer;
+      padding: 10px var(--s4);
+      border-radius: var(--r-md);
+      transition:
+        background var(--dt) var(--ease),
+        color var(--dt) var(--ease),
+        border-color var(--dt) var(--ease),
+        transform var(--dt) var(--ease),
+        box-shadow var(--dt) var(--ease);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+    }
+    .btn-primary {
+      background: var(--primary-strong);
+      color: var(--on-primary);
+      box-shadow: var(--shadow-cta);
+    }
+    .btn-primary:hover {
+      background: var(--primary);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-secondary:hover {
+      background: var(--pri-pill-bg);
+      transform: translateY(-1px);
+    }
+    .btn-tertiary {
+      background: transparent;
+      color: var(--on-surf-2);
+      padding: 10px var(--s2);
+    }
+    .btn-tertiary:hover { color: var(--on-surf); }
+
+    /* ─── Dashboard card ─────────────────────────────────────────────── */
+    .dash-card {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-lg);
+      padding: var(--s4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s3);
+      box-shadow: var(--shadow-card);
+    }
+
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      align-self: flex-start;
+      padding: 5px var(--s3);
+      border-radius: var(--r-full);
+      background: var(--primary-strong);
+      color: #FFFFFF;
+      font-family: var(--font-body);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 1px 2px rgba(var(--shadow-rgb), .25);
+    }
+    .section-pill.secondary {
+      background: var(--secondary);
+    }
+    .section-pill .pill-dot {
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: rgba(255,255,255,.85);
+      animation: pulse 1.5s var(--ease) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .9; transform: scale(1); }
+      50%      { opacity: .55; transform: scale(1.15); }
+    }
+
+    .dash-headline {
+      font-family: var(--font-display);
+      font-size: 22px;
+      line-height: 1.25;
+      color: var(--on-surf);
+      letter-spacing: -.01em;
+      font-variation-settings: 'opsz' 72, 'SOFT' 40, 'wght' 600;
+    }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .order-row {
+      display: flex;
+      align-items: center;
+      gap: var(--s2);
+      padding: var(--s2) var(--s3);
+      border-radius: var(--r-md);
+      background: var(--surf-elev);
+      border: 1px solid var(--bdr);
+    }
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: var(--r-md);
+      background: var(--avatar-bg);
+      color: var(--avatar-fg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: .02em;
+      flex-shrink: 0;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.12),
+        0 1px 1px rgba(0,0,0,.05);
+    }
+    .order-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .order-name {
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--on-surf);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: -.005em;
+    }
+    .order-meas {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--on-surf-2);
+      letter-spacing: -.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-due {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--on-surf-2);
+      flex-shrink: 0;
+    }
+
+    /* ─── Status pill ────────────────────────────────────────────────── */
+    .status-pill {
+      flex-shrink: 0;
+      padding: 3px 9px;
+      border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 10.5px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      white-space: nowrap;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 1px 1px rgba(0,0,0,.10);
+    }
+    .status-received  { background: var(--status-received); }
+    .status-cutting   { background: var(--status-cutting); }
+    .status-sewing    { background: var(--status-sewing); }
+    .status-ready     { background: var(--status-ready); }
+    .status-delivered { background: var(--status-delivered); }
+    .status-overdue   { background: var(--status-overdue); }
+
+    /* ─── Next-best-action card ──────────────────────────────────────── */
+    .nba-card {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3);
+      border-radius: var(--r-md);
+      background: var(--surf-elev);
+      border: 1px solid var(--bdr);
+    }
+    .nba-icon {
+      width: 32px; height: 32px;
+      flex-shrink: 0;
+      border-radius: var(--r-md);
+      background: color-mix(in srgb, var(--secondary) 14%, transparent);
+      color: var(--secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nba-icon svg { width: 16px; height: 16px; }
+    .nba-text {
+      flex: 1;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--on-surf);
+      line-height: 1.35;
+    }
+    .nba-text .nba-sub {
+      display: block;
+      font-weight: 500;
+      font-size: 11.5px;
+      color: var(--on-surf-2);
+      margin-top: 1px;
+    }
+
+    .view-pipeline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      padding: 4px 0;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 12.5px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: .01em;
+      transition: color var(--dt), transform var(--dt) var(--ease);
+    }
+    .view-pipeline:hover { color: var(--primary-strong); transform: translateX(2px); }
+
+    /* ─── All-statuses row ───────────────────────────────────────────── */
+    .all-status {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .micro-label {
+      font-family: var(--font-body);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    /* ─── Heritage saffron row ───────────────────────────────────────── */
+    .heritage {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .heritage-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .badge-saffron {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--r-full);
+      background:
+        linear-gradient(180deg, #F0B61A 0%, #E8A800 55%, #D69A00 100%);
+      color: var(--primary-strong);
+      font-family: var(--font-body);
+      font-weight: 800;
+      font-size: 10.5px;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      box-shadow: var(--jewel-inner), var(--jewel-outer);
+    }
+    .badge-saffron-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: var(--r-full);
+      background: rgba(232,168,0,.10);
+      color: var(--primary-strong);
+      border: 1.25px solid var(--primary-strong);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10.5px;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Caption block ──────────────────────────────────────────────── */
+    .caption {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      padding-top: var(--s4);
+      border-top: 1px solid var(--bdr);
+    }
+    .caption-title {
+      font-family: var(--font-body);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .caption ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .caption li {
+      position: relative;
+      padding-left: var(--s4);
+      font-family: var(--font-body);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--on-surf);
+    }
+    .caption li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 9px;
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+    }
+
+    /* ─── Wordmark stack (below the 3 columns) ───────────────────────── */
+    .wordmark-stack {
+      width: 100%;
+      max-width: 1320px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5);
+      padding: var(--s8) var(--s6);
+      background: #FAF6EC;
+      border: 1px solid var(--page-divider);
+      border-radius: var(--r-xl);
+      box-shadow: 0 1px 2px rgba(28,25,20,.04), 0 12px 28px rgba(28,25,20,.06);
+      transition: background var(--dt2) var(--ease), border-color var(--dt2) var(--ease);
+    }
+    body.dark .wordmark-stack {
+      background: #14110E;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 1px 2px rgba(0,0,0,.40),
+        0 18px 44px rgba(0,0,0,.55);
+    }
+    .stack-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      color: #1C1914;
+      letter-spacing: -.01em;
+      transition: color var(--dt2) var(--ease);
+    }
+    body.dark .stack-title { color: #F0EBE3; }
+    .stack-sub {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: #5C574E;
+      margin-top: -10px;
+      line-height: 1.5;
+      transition: color var(--dt2) var(--ease);
+    }
+    body.dark .stack-sub { color: #B8AA98; }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--s4);
+      margin-top: var(--s2);
+    }
+    @media (max-width: 1199px) {
+      .stack-grid { grid-template-columns: 1fr; }
+    }
+    .stack-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--s2);
+      padding: var(--s5) var(--s4);
+      border: 1px solid var(--page-divider);
+      border-radius: var(--r-lg);
+      background: #FFFFFF;
+      transition: background var(--dt2) var(--ease), border-color var(--dt2) var(--ease);
+    }
+    body.dark .stack-item {
+      background: #1E1B17;
+      border-color: #3A3228;
+    }
+    .stack-wordmark {
+      font-family: var(--font-display);
+      font-size: 64px;
+      line-height: 1;
+      letter-spacing: -.02em;
+      font-variation-settings: 'opsz' 144, 'SOFT' 40, 'wght' 600;
+      transition: color var(--dt2) var(--ease);
+    }
+    /* Light-mode wordmark colors = primary-500 of each column */
+    .stack-wordmark.indigo  { color: #2C3E7C; }
+    .stack-wordmark.wine    { color: #722F37; }
+    .stack-wordmark.hybrid  { color: #2C3E7C; }
+    /* Hybrid: add a small burgundy mark to differentiate from pure Adire */
+    .stack-wordmark.hybrid .dot {
+      color: #722F37;
+      transition: color var(--dt2) var(--ease);
+    }
+    /* Dark-mode wordmarks use the dark --primary step for each column */
+    body.dark .stack-wordmark.indigo { color: #7388BF; }
+    body.dark .stack-wordmark.wine   { color: #C97987; }
+    body.dark .stack-wordmark.hybrid { color: #7388BF; }
+    body.dark .stack-wordmark.hybrid .dot { color: #C97987; }
+    .stack-caption {
+      font-family: var(--font-body);
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      color: #5C574E;
+      transition: color var(--dt2) var(--ease);
+    }
+    body.dark .stack-caption { color: #B8AA98; }
+
+    /* ─── Hex reference (very bottom) ─────────────────────────────────── */
+    .hex-ref {
+      width: 100%;
+      max-width: 1320px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+      padding: var(--s6);
+      border-top: 1px solid var(--page-divider);
+    }
+    .hex-title {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+    }
+    .hex-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--s4);
+    }
+    @media (max-width: 1199px) {
+      .hex-row { grid-template-columns: 1fr; }
+    }
+    .hex-item {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3);
+      border: 1px solid var(--page-divider);
+      border-radius: var(--r-md);
+      background: #FFFFFF;
+    }
+    .hex-swatch {
+      width: 44px; height: 44px;
+      flex-shrink: 0;
+      border-radius: var(--r-sm);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 1px 2px rgba(0,0,0,.10);
+    }
+    .hex-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .hex-name {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 700;
+      color: #1C1914;
+      letter-spacing: .02em;
+    }
+    .hex-code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #5C574E;
+      letter-spacing: -.01em;
+    }
+
+    /* ─── Mobile tightening ──────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      body { padding: var(--s6) var(--s3) var(--s10); gap: var(--s6); }
+      .page-head h1 { font-size: 26px; }
+      .page-head p { font-size: 14.5px; }
+      .column { padding: var(--s5); }
+      .col-wordmark { font-size: 34px; }
+      .dash-headline { font-size: 20px; }
+      .stack-wordmark { font-size: 48px; }
+      .wordmark-stack { padding: var(--s6) var(--s4); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Top bar: title block + light/dark toggle ─────────────────── -->
+  <header class="top-bar">
+    <div class="page-head">
+      <div class="doc-meta">StitchPad · Internal review · Brand</div>
+      <h1>Brand color review — three options</h1>
+      <p>Same dashboard, three palette directions. Each has been tested for legibility, contrast, and how it relates to our existing order-status colors. Scroll the wordmarks at the bottom for a side-by-side feel of the brand mark on its own. Toggle light / dark above to see both modes.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light / dark mode" aria-pressed="false">
+      <span class="toggle-dot" aria-hidden="true"></span>
+      <span id="themeLabel">Light mode</span>
+    </button>
+  </header>
+
+  <!-- ─── 3-column grid ─────────────────────────────────────────────── -->
+  <main class="grid">
+
+    <!-- ═══ Column 1 — Adire Atelier ════════════════════════════════ -->
+    <section class="column col-adire">
+
+      <div class="col-header">
+        <div class="col-wordmark">StitchPad</div>
+        <div class="col-label">Adire Atelier · Locked pick</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip for now</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot" aria-hidden="true"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-meas">Bust 38 · Waist 30 · Hips 40</div>
+            </div>
+            <span class="order-due">due Fri</span>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-meas">Bust 36 · Waist 28 · Hips 38</div>
+            </div>
+            <span class="order-due">due Mon</span>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+
+        <span class="section-pill secondary" style="margin-top:4px;">Next best actions</span>
+        <div class="nba-card">
+          <div class="nba-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7a2 2 0 0 1 1.73 2.03z"/>
+            </svg>
+          </div>
+          <div class="nba-text">
+            Call Adunni
+            <span class="nba-sub">Order is 1 day late</span>
+          </div>
+        </div>
+
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="all-status">
+        <div class="micro-label">Order statuses (locked across brand)</div>
+        <div class="status-row">
+          <span class="status-pill status-received">Received</span>
+          <span class="status-pill status-cutting">Cutting</span>
+          <span class="status-pill status-sewing">Sewing</span>
+          <span class="status-pill status-ready">Ready</span>
+          <span class="status-pill status-delivered">Delivered</span>
+          <span class="status-pill status-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <div class="heritage">
+        <div class="micro-label">Heritage saffron · rare accent</div>
+        <div class="heritage-badges">
+          <span class="badge-saffron">★ Verified tailor</span>
+          <span class="badge-saffron-outline">PRO</span>
+        </div>
+      </div>
+
+      <div class="caption">
+        <div class="caption-title">Why this works</div>
+        <ul>
+          <li>Indigo references adire — the Yoruba indigo-dye textile. No competitor owns this.</li>
+          <li>Warm paper feels like a tailor&apos;s notebook, not a luxury OS.</li>
+          <li>Tested to read clearly in light and dark, and against every order-status color.</li>
+        </ul>
+      </div>
+
+    </section>
+
+    <!-- ═══ Column 2 — Wine Atelier ════════════════════════════════ -->
+    <section class="column col-wine">
+
+      <div class="col-header">
+        <div class="col-wordmark">StitchPad</div>
+        <div class="col-label">Wine Atelier · PM suggestion</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip for now</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot" aria-hidden="true"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-meas">Bust 38 · Waist 30 · Hips 40</div>
+            </div>
+            <span class="order-due">due Fri</span>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-meas">Bust 36 · Waist 28 · Hips 38</div>
+            </div>
+            <span class="order-due">due Mon</span>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+
+        <span class="section-pill secondary" style="margin-top:4px;">Next best actions</span>
+        <div class="nba-card">
+          <div class="nba-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7a2 2 0 0 1 1.73 2.03z"/>
+            </svg>
+          </div>
+          <div class="nba-text">
+            Call Adunni
+            <span class="nba-sub">Order is 1 day late</span>
+          </div>
+        </div>
+
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="all-status">
+        <div class="micro-label">Order statuses (locked across brand)</div>
+        <div class="status-row">
+          <span class="status-pill status-received">Received</span>
+          <span class="status-pill status-cutting">Cutting</span>
+          <span class="status-pill status-sewing">Sewing</span>
+          <span class="status-pill status-ready">Ready</span>
+          <span class="status-pill status-delivered">Delivered</span>
+          <span class="status-pill status-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <div class="heritage">
+        <div class="micro-label">Heritage saffron · rare accent</div>
+        <div class="heritage-badges">
+          <span class="badge-saffron">★ Verified tailor</span>
+          <span class="badge-saffron-outline">PRO</span>
+        </div>
+      </div>
+
+      <div class="caption">
+        <div class="caption-title">What to weigh</div>
+        <ul>
+          <li>Burgundy is a perennial fashion color — feels premium and refined.</li>
+          <li>Risk: lives in the same red family as the Overdue status pill. On a dashboard with an overdue order, the brand color and the warning color can read as &ldquo;two reds shouting.&rdquo;</li>
+          <li>Less culturally specific than indigo — wine says &ldquo;premium fashion house&rdquo; (anywhere), not &ldquo;Nigerian tailor heritage.&rdquo;</li>
+        </ul>
+      </div>
+
+    </section>
+
+    <!-- ═══ Column 3 — Adire + Wine (hybrid) ═══════════════════════ -->
+    <section class="column col-hybrid">
+
+      <div class="col-header">
+        <div class="col-wordmark">StitchPad</div>
+        <div class="col-label">Adire + Wine · Hybrid</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip for now</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot" aria-hidden="true"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-meas">Bust 38 · Waist 30 · Hips 40</div>
+            </div>
+            <span class="order-due">due Fri</span>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-meas">Bust 36 · Waist 28 · Hips 38</div>
+            </div>
+            <span class="order-due">due Mon</span>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+
+        <span class="section-pill secondary" style="margin-top:4px;">Next best actions</span>
+        <div class="nba-card">
+          <div class="nba-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7a2 2 0 0 1 1.73 2.03z"/>
+            </svg>
+          </div>
+          <div class="nba-text">
+            Call Adunni
+            <span class="nba-sub">Order is 1 day late</span>
+          </div>
+        </div>
+
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="all-status">
+        <div class="micro-label">Order statuses (locked across brand)</div>
+        <div class="status-row">
+          <span class="status-pill status-received">Received</span>
+          <span class="status-pill status-cutting">Cutting</span>
+          <span class="status-pill status-sewing">Sewing</span>
+          <span class="status-pill status-ready">Ready</span>
+          <span class="status-pill status-delivered">Delivered</span>
+          <span class="status-pill status-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <div class="heritage">
+        <div class="micro-label">Heritage saffron · rare accent</div>
+        <div class="heritage-badges">
+          <span class="badge-saffron">★ Verified tailor</span>
+          <span class="badge-saffron-outline">PRO</span>
+        </div>
+      </div>
+
+      <div class="caption">
+        <div class="caption-title">What this trades</div>
+        <ul>
+          <li>Keeps the adire indigo anchor (Nigerian heritage, no competitor moat issue).</li>
+          <li>Swaps the workshop-bench sienna for evening-wear burgundy. Brand reads as &ldquo;tailor + couturier&rdquo; rather than &ldquo;tailor + craftsman.&rdquo;</li>
+          <li>No status-color collision (burgundy is used sparingly on section pills, not on status indicators).</li>
+        </ul>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ─── Bottom test caption (calls out the burgundy/Overdue overlap) ─ -->
+  <p class="test-caption">Try toggling light / dark above. Pay attention to how each option&apos;s primary color sits next to the Overdue status pill at the bottom of each card — that&apos;s where the red-family overlap shows up.</p>
+
+  <!-- ─── Wordmark stack (A/B/C the brand mark in isolation) ────────── -->
+  <section class="wordmark-stack">
+    <div class="stack-title">Wordmark, on its own</div>
+    <p class="stack-sub">No dashboard, no buttons — just the brand mark in each color. This is how it would read on a sign-in screen or a business card.</p>
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div class="stack-wordmark indigo">StitchPad</div>
+        <div class="stack-caption">Adire indigo · #2C3E7C</div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-wordmark wine">StitchPad</div>
+        <div class="stack-caption">Wine burgundy · #722F37</div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-wordmark hybrid">Stitch<span class="dot">Pad</span></div>
+        <div class="stack-caption">Adire + Wine · #2C3E7C + #722F37</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Hex reference (documentation) ──────────────────────────────── -->
+  <section class="hex-ref">
+    <div class="hex-title">Hex reference · primary-500 step</div>
+    <div class="hex-row">
+      <div class="hex-item">
+        <div class="hex-swatch" style="background:#2C3E7C;"></div>
+        <div class="hex-meta">
+          <div class="hex-name">Adire indigo</div>
+          <div class="hex-code">#2C3E7C</div>
+        </div>
+      </div>
+      <div class="hex-item">
+        <div class="hex-swatch" style="background:#722F37;"></div>
+        <div class="hex-meta">
+          <div class="hex-name">Wine burgundy</div>
+          <div class="hex-code">#722F37</div>
+        </div>
+      </div>
+      <div class="hex-item">
+        <div class="hex-swatch" style="background:linear-gradient(90deg,#2C3E7C 0 50%, #722F37 50% 100%);"></div>
+        <div class="hex-meta">
+          <div class="hex-name">Adire + Wine (hybrid)</div>
+          <div class="hex-code">#2C3E7C · #722F37</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (function () {
+      const body = document.body;
+      const btn = document.getElementById('themeToggle');
+      const label = document.getElementById('themeLabel');
+
+      function setMode(mode) {
+        body.classList.toggle('dark', mode === 'dark');
+        // Toggle label reads as the CURRENT mode the page is in.
+        label.textContent = mode === 'dark' ? 'Dark mode' : 'Light mode';
+        btn.setAttribute('aria-pressed', mode === 'dark' ? 'true' : 'false');
+      }
+
+      btn.addEventListener('click', function () {
+        const next = body.classList.contains('dark') ? 'light' : 'dark';
+        setMode(next);
+      });
+
+      // Default state: LIGHT.
+      setMode('light');
+    })();
+  </script>
+</body>
+</html>

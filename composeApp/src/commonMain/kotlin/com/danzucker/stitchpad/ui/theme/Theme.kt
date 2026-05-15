@@ -19,9 +19,13 @@ fun StitchPadTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = if (darkTheme) stitchPadDarkColorScheme() else stitchPadLightColorScheme()
+    val stitchPadColors = if (darkTheme) DarkStitchPadColors else LightStitchPadColors
 
-    CompositionLocalProvider(LocalIsDarkTheme provides darkTheme) {
+    CompositionLocalProvider(
+        LocalIsDarkTheme provides darkTheme,
+        LocalStitchPadColors provides stitchPadColors,
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = StitchPadTypography(),

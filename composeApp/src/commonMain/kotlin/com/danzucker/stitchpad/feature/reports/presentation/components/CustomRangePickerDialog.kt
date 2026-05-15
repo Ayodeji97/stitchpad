@@ -158,7 +158,7 @@ private fun PickerHeader(start: LocalDate?, end: LocalDate?) {
             text = placeholder,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = DesignTokens.neutral900,
+            color = MaterialTheme.colorScheme.onPrimary,
             lineHeight = 30.sp
         )
         Spacer(Modifier.height(10.dp))
@@ -377,7 +377,7 @@ private fun DayBadge(
 @Composable
 private fun dayTextColor(state: DayState): Color = when {
     state.isFuture -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f)
-    state.isSelected -> DesignTokens.neutral900
+    state.isSelected -> MaterialTheme.colorScheme.onPrimary
     state.isInRange -> DesignTokens.primary800
     state.isToday -> DesignTokens.primary600
     else -> MaterialTheme.colorScheme.onSurface

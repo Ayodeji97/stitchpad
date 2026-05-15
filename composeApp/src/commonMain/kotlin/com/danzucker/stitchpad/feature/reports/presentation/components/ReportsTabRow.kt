@@ -72,7 +72,7 @@ private fun TabPill(
         MaterialTheme.colorScheme.surfaceVariant
     }
     val textColor = if (isActive) {
-        DesignTokens.neutral900
+        MaterialTheme.colorScheme.onPrimary
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }

@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad Rebrand — Palette Comparison</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Shared tokens (do not vary between variants) ───────────────── */
+    :root {
+      /* Spacing — from DesignTokens.kt */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+      --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+      /* Radii — from DesignTokens.kt */
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --r-xl: 20px;
+      --r-full: 999px;
+
+      /* Status colors — verbatim from DesignTokens.kt (do not vary) */
+      --status-received:  #2B7FD4;
+      --status-cutting:   #E07B20;
+      --status-sewing:    #5B4D8E;
+      --status-ready:     #2D9E6B;
+      --status-delivered: #7D7970;
+      --status-overdue:   #D93B3B;
+
+      /* Saffron for "heritage accent" use (Variants A & B) */
+      --heritage-saffron: #E8A800;
+
+      /* Fonts (locked across variants) */
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body:    'Manrope', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', monospace;
+
+      /* Motion */
+      --dt: 150ms;
+      --dt2: 300ms;
+
+      /* Page-level (the workshop frame around all three columns) */
+      --page-bg:        #14110E;
+      --page-fg:        #F0EBE3;
+      --page-fg-muted:  rgba(240,235,227,.62);
+      --page-divider:   rgba(255,255,255,.08);
+    }
+
+    /* ─── Variant A — Adire Atelier (indigo-led) ─────────────────────── */
+    .var-a {
+      --primary-50:  #EAEEF8;
+      --primary-100: #D1D9EE;
+      --primary-300: #7388BF;
+      --primary-500: #2C3E7C;
+      --primary-700: #1E2B5C;
+      --primary-900: #121B3B;
+      --secondary:   #B85A30;
+      --bg-light:    #FAF6EC;
+      --bg-dark:     #14110E;
+      --surf-light:  #FFFFFF;
+      --surf-dark:   #1E1B17;
+      --text-light:  #1C1914;
+      --text-dark:   #F0EBE3;
+      --muted-light: #5C574E;
+      --muted-dark:  #B8AA98;
+      --border-light: rgba(28,25,20,.08);
+      --border-dark:  #3A3228;
+      --shadow-rgb: 28,25,20;
+    }
+
+    /* ─── Variant B — Sienna-led (Adire Swapped) ─────────────────────── */
+    .var-b {
+      --primary-50:  #FCEFE5;
+      --primary-100: #F6D9C2;
+      --primary-300: #DA9568;
+      --primary-500: #B85A30;
+      --primary-700: #8E4524;
+      --primary-900: #5C2D17;
+      --secondary:   #2C3E7C;
+      --bg-light:    #FAF6EC;
+      --bg-dark:     #14110E;
+      --surf-light:  #FFFFFF;
+      --surf-dark:   #1E1B17;
+      --text-light:  #1C1914;
+      --text-dark:   #F0EBE3;
+      --muted-light: #5C574E;
+      --muted-dark:  #B8AA98;
+      --border-light: rgba(28,25,20,.08);
+      --border-dark:  #3A3228;
+      --shadow-rgb: 92,45,23;
+    }
+
+    /* ─── Variant C — Thread Saffron Reduced ─────────────────────────── */
+    .var-c {
+      --primary-50:  #FDF4DC;
+      --primary-100: #FAE5A8;
+      --primary-300: #ECC04D;
+      --primary-500: #D99400;
+      --primary-700: #A86F00;
+      --primary-900: #6B4500;
+      --secondary:   #3B5BA9;
+      --bg-light:    #FAF6EC;
+      --bg-dark:     #12100D;
+      --surf-light:  #FFFFFF;
+      --surf-dark:   #1D1914;
+      --text-light:  #1C1914;
+      --text-dark:   #F7F0E4;
+      --muted-light: #5C574E;
+      --muted-dark:  #B8AA98;
+      --border-light: rgba(28,25,20,.08);
+      --border-dark:  #3A3228;
+      --shadow-rgb: 107,69,0;
+    }
+
+    /* ─── Semantic mapping (light by default) ────────────────────────── */
+    .variant {
+      --bg:        var(--bg-light);
+      --surf:      var(--surf-light);
+      --on-surf:   var(--text-light);
+      --on-surf-2: var(--muted-light);
+      --bdr:       var(--border-light);
+      --primary:   var(--primary-500);
+      --primary-strong: var(--primary-700);
+      --on-primary: #FFFFFF;
+      --pri-pill-bg: var(--primary-50);
+      --pri-pill-fg: var(--primary-700);
+    }
+    body.dark .variant {
+      --bg:        var(--bg-dark);
+      --surf:      var(--surf-dark);
+      --on-surf:   var(--text-dark);
+      --on-surf-2: var(--muted-dark);
+      --bdr:       var(--border-dark);
+      /* Brand-rendering surfaces (wordmark, links, outline borders, pill text)
+         use the LIGHTER step on dark. The 500 step is too close to the
+         near-black background and collapses to ~2:1 contrast. */
+      --primary:        var(--primary-300);
+      /* CTA fill needs its own bright tone so the button "pops" off the dark
+         surface — overridden per-variant below. */
+      --primary-strong: var(--primary-500);
+      --on-primary: #FFFFFF;
+      --pri-pill-bg: var(--primary-900);
+      --pri-pill-fg: var(--primary-100);
+    }
+
+    /* Per-variant dark-mode CTA fill — pick a mid-bright step so the button
+       carries visual weight on the near-black background without losing the
+       variant's brand identity. */
+    body.dark .var-a { --primary-strong: #4F65A8; }  /* indigo, mid-bright */
+    body.dark .var-b { --primary-strong: #C6743E; }  /* sienna, mid-bright */
+    body.dark .var-c { --primary-strong: #E5A82D; }  /* saffron, mid-bright */
+
+    /* Saffron-Reduced has a touch more contrast on dark for the body text */
+    body.dark .var-c {
+      --pri-pill-bg: #3D2A00;
+      --pri-pill-fg: #FAE5A8;
+    }
+
+    /* ─── Reset + base ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: var(--font-body); }
+    body {
+      background: var(--page-bg);
+      color: var(--page-fg);
+      padding: var(--s8) var(--s5) var(--s12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--s8);
+      transition: background var(--dt2), color var(--dt2);
+    }
+    body.light {
+      --page-bg: #1A1612;
+      --page-fg: #F0EBE3;
+    }
+
+    /* ─── Top bar ────────────────────────────────────────────────────── */
+    .top-bar {
+      width: 100%;
+      max-width: 1500px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s4);
+      flex-wrap: wrap;
+    }
+    .top-bar-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .top-bar-title h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 26px;
+      letter-spacing: -.01em;
+      color: var(--page-fg);
+    }
+    .top-bar-title p {
+      font-size: 13px;
+      color: var(--page-fg-muted);
+      letter-spacing: .02em;
+    }
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      padding: 10px var(--s4);
+      border-radius: var(--r-full);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--page-fg);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: background var(--dt), border-color var(--dt);
+    }
+    .theme-toggle:hover {
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.22);
+    }
+    .toggle-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: var(--r-full);
+      background: #F0EBE3;
+    }
+    body.light .toggle-dot { background: #FFD15C; }
+    body.dark  .toggle-dot { background: #B6C8FF; }
+
+    .top-bar-meta {
+      width: 100%;
+      max-width: 1500px;
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--page-fg-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s3);
+      align-items: center;
+    }
+    .top-bar-meta .pill {
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+    }
+
+    /* ─── Columns layout ─────────────────────────────────────────────── */
+    .columns {
+      width: 100%;
+      max-width: 1500px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--s6);
+    }
+    @media (max-width: 1100px) {
+      .columns { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Variant column ─────────────────────────────────────────────── */
+    .variant {
+      background: var(--bg);
+      color: var(--on-surf);
+      border-radius: var(--r-xl);
+      padding: var(--s6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5);
+      border: 1px solid var(--bdr);
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.18),
+        0 24px 60px rgba(0,0,0,.35);
+      transition: background var(--dt2), color var(--dt2), border-color var(--dt2);
+    }
+
+    /* ─── Variant label (small caps banner) ──────────────────────────── */
+    .variant-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s2);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .variant-label .id-dot {
+      width: 10px; height: 10px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+      box-shadow: 0 0 0 3px var(--pri-pill-bg);
+    }
+
+    /* ─── Brand header ───────────────────────────────────────────────── */
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      padding-bottom: var(--s5);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .wordmark {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 38px;
+      line-height: 1;
+      letter-spacing: -.02em;
+      color: var(--primary);
+    }
+    .variant-name {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .tagline {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 17px;
+      line-height: 1.35;
+      color: var(--on-surf);
+      margin-top: var(--s2);
+      max-width: 28ch;
+    }
+
+    /* ─── CTA buttons ────────────────────────────────────────────────── */
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .btn {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: .01em;
+      border: none;
+      cursor: pointer;
+      padding: 10px var(--s4);
+      border-radius: var(--r-md);
+      transition: background var(--dt), color var(--dt), border-color var(--dt), transform var(--dt), box-shadow var(--dt);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+    }
+    .btn-primary {
+      background: var(--primary-strong);
+      color: var(--on-primary);
+      box-shadow: 0 2px 8px rgba(var(--shadow-rgb), .30);
+    }
+    .btn-primary:hover {
+      background: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(var(--shadow-rgb), .40);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-secondary:hover {
+      background: var(--pri-pill-bg);
+    }
+    .btn-tertiary {
+      background: transparent;
+      color: var(--on-surf-2);
+      padding: 10px var(--s3);
+    }
+    .btn-tertiary:hover {
+      color: var(--on-surf);
+    }
+
+    /* ─── Dashboard card ─────────────────────────────────────────────── */
+    .dash-card {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-lg);
+      padding: var(--s5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      align-self: flex-start;
+      padding: 5px var(--s3);
+      border-radius: var(--r-full);
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .section-pill .pill-dot {
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+    }
+
+    .dash-headline {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 22px;
+      line-height: 1.25;
+      color: var(--on-surf);
+      letter-spacing: -.01em;
+    }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .order-row {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3);
+      border-radius: var(--r-md);
+      background: var(--bg);
+      border: 1px solid var(--bdr);
+    }
+    .avatar {
+      width: 40px; height: 40px;
+      border-radius: var(--r-md);
+      background: var(--pri-pill-bg);
+      color: var(--pri-pill-fg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .02em;
+      flex-shrink: 0;
+    }
+    .order-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .order-name {
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--on-surf);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-due {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--on-surf-2);
+    }
+
+    /* ─── Status pill ────────────────────────────────────────────────── */
+    .status-pill {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      white-space: nowrap;
+    }
+    .status-received  { background: var(--status-received); }
+    .status-cutting   { background: var(--status-cutting); }
+    .status-sewing    { background: var(--status-sewing); }
+    .status-ready     { background: var(--status-ready); }
+    .status-delivered { background: var(--status-delivered); }
+    .status-overdue   { background: var(--status-overdue); }
+
+    .view-pipeline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      padding: 6px 0;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: .01em;
+    }
+    .view-pipeline:hover { color: var(--primary-strong); }
+
+    /* ─── Status pill row (all 6) ────────────────────────────────────── */
+    .all-status {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .all-status-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* ─── Heritage callout ──────────────────────────────────────────── */
+    .heritage {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .heritage-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .heritage-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+    .badge-saffron {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--r-full);
+      background: var(--heritage-saffron);
+      color: #4F3800;
+      font-family: var(--font-body);
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .badge-saffron-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--r-full);
+      background: rgba(232,168,0,.12);
+      color: var(--heritage-saffron);
+      border: 1px solid rgba(232,168,0,.6);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .heritage-note {
+      font-family: var(--font-body);
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--on-surf-2);
+      font-style: italic;
+    }
+
+    /* ─── Swatch strip ───────────────────────────────────────────────── */
+    .swatch-block {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .swatch-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--on-surf-2);
+    }
+    .swatch-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-md);
+      overflow: hidden;
+    }
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: var(--s2) 6px;
+      min-height: 64px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .02em;
+    }
+    .swatch .step {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: .08em;
+    }
+    .swatch .hex { opacity: .85; }
+
+    /* ─── Caption / signals + risks ──────────────────────────────────── */
+    .caption {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+      padding: var(--s4);
+      border-radius: var(--r-md);
+      background: var(--bg);
+      border: 1px dashed var(--bdr);
+    }
+    .caption-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--on-surf);
+      letter-spacing: -.005em;
+    }
+    .caption ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .caption li {
+      font-family: var(--font-body);
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--on-surf-2);
+      padding-left: var(--s3);
+      position: relative;
+    }
+    .caption li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 4px;
+      height: 4px;
+      border-radius: var(--r-full);
+      background: var(--primary);
+    }
+    .caption li strong {
+      color: var(--on-surf);
+      font-weight: 700;
+    }
+    .caption li.risk::before { background: var(--status-overdue); }
+
+    /* ─── Footer note ────────────────────────────────────────────────── */
+    .footer-note {
+      width: 100%;
+      max-width: 1500px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--page-fg-muted);
+      text-align: center;
+      padding-top: var(--s6);
+      border-top: 1px solid var(--page-divider);
+    }
+    .footer-note code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(255,255,255,.06);
+      padding: 2px 6px;
+      border-radius: var(--r-sm);
+    }
+  </style>
+</head>
+<body class="dark">
+
+  <!-- ─── Top bar ──────────────────────────────────────────────────── -->
+  <header class="top-bar">
+    <div class="top-bar-title">
+      <h1>StitchPad Rebrand — Palette Comparison</h1>
+      <p>Three candidate directions, locked typography. Toggle to flip all three columns at once.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light/dark">
+      <span class="toggle-dot"></span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </header>
+
+  <div class="top-bar-meta">
+    <span class="pill">Status colors locked</span>
+    <span class="pill">Spacing locked</span>
+    <span class="pill">Radii locked</span>
+    <span class="pill">Type locked: Fraunces + Manrope + JetBrains Mono</span>
+    <span>Only palette + heritage accent treatment varies.</span>
+  </div>
+
+  <!-- ─── Columns ──────────────────────────────────────────────────── -->
+  <main class="columns">
+
+    <!-- ════ Variant A — Adire Atelier ════ -->
+    <section class="variant var-a">
+
+      <div class="variant-label">
+        <span>Variant A</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="variant-name">Adire Atelier · Indigo-led</div>
+        <div class="tagline">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip for now</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="all-status">
+        <div class="all-status-label">Order statuses (shared across all variants)</div>
+        <div class="status-row">
+          <span class="status-pill status-received">Received</span>
+          <span class="status-pill status-cutting">Cutting</span>
+          <span class="status-pill status-sewing">Sewing</span>
+          <span class="status-pill status-ready">Ready</span>
+          <span class="status-pill status-delivered">Delivered</span>
+          <span class="status-pill status-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <div class="heritage">
+        <div class="heritage-label">Heritage accent (saffron as rare accent)</div>
+        <div class="heritage-badges">
+          <span class="badge-saffron">★ Verified tailor</span>
+          <span class="badge-saffron-outline">PRO</span>
+        </div>
+        <p class="heritage-note">Saffron is reserved for high-signal moments — tier badges, achievements, premium upsells.</p>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#EAEEF8;color:#1C1914">
+            <span class="step">50</span><span class="hex">#EAEEF8</span>
+          </div>
+          <div class="swatch" style="background:#D1D9EE;color:#1C1914">
+            <span class="step">100</span><span class="hex">#D1D9EE</span>
+          </div>
+          <div class="swatch" style="background:#7388BF;color:#FFFFFF">
+            <span class="step">300</span><span class="hex">#7388BF</span>
+          </div>
+          <div class="swatch" style="background:#2C3E7C;color:#FFFFFF">
+            <span class="step">500</span><span class="hex">#2C3E7C</span>
+          </div>
+          <div class="swatch" style="background:#1E2B5C;color:#FFFFFF">
+            <span class="step">700</span><span class="hex">#1E2B5C</span>
+          </div>
+          <div class="swatch" style="background:#121B3B;color:#FFFFFF">
+            <span class="step">900</span><span class="hex">#121B3B</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="caption">
+        <div class="caption-title">What it signals · risks</div>
+        <ul>
+          <li><strong>Signals:</strong> craft, heritage, atelier-grade. Reads as the indigo-dye world of Nigerian adire.</li>
+          <li><strong>Differentiates:</strong> cleanly from StyleOS yellow + every other tailor SaaS (most go red/orange).</li>
+          <li class="risk"><strong>Risk:</strong> indigo can read as fintech / generic SaaS if photography and badge moments don't carry the heritage cue.</li>
+        </ul>
+      </div>
+
+    </section>
+
+    <!-- ════ Variant B — Sienna-led ════ -->
+    <section class="variant var-b">
+
+      <div class="variant-label">
+        <span>Variant B</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="variant-name">Sienna-led · Adire swapped</div>
+        <div class="tagline">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip for now</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="all-status">
+        <div class="all-status-label">Order statuses (shared across all variants)</div>
+        <div class="status-row">
+          <span class="status-pill status-received">Received</span>
+          <span class="status-pill status-cutting">Cutting</span>
+          <span class="status-pill status-sewing">Sewing</span>
+          <span class="status-pill status-ready">Ready</span>
+          <span class="status-pill status-delivered">Delivered</span>
+          <span class="status-pill status-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <div class="heritage">
+        <div class="heritage-label">Heritage accent (saffron as rare accent)</div>
+        <div class="heritage-badges">
+          <span class="badge-saffron">★ Verified tailor</span>
+          <span class="badge-saffron-outline">PRO</span>
+        </div>
+        <p class="heritage-note">Sienna primary + saffron PRO badge — warm-on-warm. Watch contrast at small sizes.</p>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#FCEFE5;color:#1C1914">
+            <span class="step">50</span><span class="hex">#FCEFE5</span>
+          </div>
+          <div class="swatch" style="background:#F6D9C2;color:#1C1914">
+            <span class="step">100</span><span class="hex">#F6D9C2</span>
+          </div>
+          <div class="swatch" style="background:#DA9568;color:#1C1914">
+            <span class="step">300</span><span class="hex">#DA9568</span>
+          </div>
+          <div class="swatch" style="background:#B85A30;color:#FFFFFF">
+            <span class="step">500</span><span class="hex">#B85A30</span>
+          </div>
+          <div class="swatch" style="background:#8E4524;color:#FFFFFF">
+            <span class="step">700</span><span class="hex">#8E4524</span>
+          </div>
+          <div class="swatch" style="background:#5C2D17;color:#FFFFFF">
+            <span class="step">900</span><span class="hex">#5C2D17</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="caption">
+        <div class="caption-title">What it signals · risks</div>
+        <ul>
+          <li><strong>Signals:</strong> warmth, earth, terracotta — leans into Nigerian sun + handcraft. Feels uniquely "Lagos studio."</li>
+          <li><strong>Differentiates:</strong> hard from StyleOS yellow AND from blue fintech. Owns a colour lane almost nobody is in.</li>
+          <li class="risk"><strong>Risk:</strong> burnt-sienna primary can muddle against fabric photography (which is often warm itself). Status orange (Cutting) sits closest in hue — needs visual separation testing.</li>
+        </ul>
+      </div>
+
+    </section>
+
+    <!-- ════ Variant C — Thread Saffron Reduced ════ -->
+    <section class="variant var-c">
+
+      <div class="variant-label">
+        <span>Variant C</span>
+        <span class="id-dot" aria-hidden="true"></span>
+      </div>
+
+      <div class="brand-block">
+        <div class="wordmark">StitchPad</div>
+        <div class="variant-name">Thread Saffron · Reduced surface</div>
+        <div class="tagline">The smart work pad for tailors.</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button">Save measurement</button>
+        <button class="btn btn-secondary" type="button">Skip for now</button>
+        <button class="btn btn-tertiary" type="button">Cancel</button>
+      </div>
+
+      <div class="dash-card">
+        <span class="section-pill">
+          <span class="pill-dot"></span>
+          Today
+        </span>
+        <div class="dash-headline">3 orders due this week</div>
+        <div class="order-list">
+          <div class="order-row">
+            <div class="avatar">AO</div>
+            <div class="order-info">
+              <div class="order-name">Adunni Okafor</div>
+              <div class="order-due">due Fri</div>
+            </div>
+            <span class="status-pill status-sewing">Sewing</span>
+          </div>
+          <div class="order-row">
+            <div class="avatar">MT</div>
+            <div class="order-info">
+              <div class="order-name">Miss Temilade</div>
+              <div class="order-due">due Mon</div>
+            </div>
+            <span class="status-pill status-ready">Ready</span>
+          </div>
+        </div>
+        <button class="view-pipeline" type="button">View pipeline →</button>
+      </div>
+
+      <div class="all-status">
+        <div class="all-status-label">Order statuses (shared across all variants)</div>
+        <div class="status-row">
+          <span class="status-pill status-received">Received</span>
+          <span class="status-pill status-cutting">Cutting</span>
+          <span class="status-pill status-sewing">Sewing</span>
+          <span class="status-pill status-ready">Ready</span>
+          <span class="status-pill status-delivered">Delivered</span>
+          <span class="status-pill status-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <div class="heritage">
+        <div class="heritage-label">Heritage accent</div>
+        <p class="heritage-note">Saffron IS the primary here — a heritage-accent badge would be redundant. Premium-tier signalling has to come from typography weight, an icon, or a secondary indigo accent instead.</p>
+      </div>
+
+      <div class="swatch-block">
+        <div class="swatch-label">Primary ramp</div>
+        <div class="swatch-strip">
+          <div class="swatch" style="background:#FDF4DC;color:#1C1914">
+            <span class="step">50</span><span class="hex">#FDF4DC</span>
+          </div>
+          <div class="swatch" style="background:#FAE5A8;color:#1C1914">
+            <span class="step">100</span><span class="hex">#FAE5A8</span>
+          </div>
+          <div class="swatch" style="background:#ECC04D;color:#1C1914">
+            <span class="step">300</span><span class="hex">#ECC04D</span>
+          </div>
+          <div class="swatch" style="background:#D99400;color:#FFFFFF">
+            <span class="step">500</span><span class="hex">#D99400</span>
+          </div>
+          <div class="swatch" style="background:#A86F00;color:#FFFFFF">
+            <span class="step">700</span><span class="hex">#A86F00</span>
+          </div>
+          <div class="swatch" style="background:#6B4500;color:#FFFFFF">
+            <span class="step">900</span><span class="hex">#6B4500</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="caption">
+        <div class="caption-title">What it signals · risks</div>
+        <ul>
+          <li><strong>Signals:</strong> "we know we're saffron — we just did it better." Same family as today, but darker (#D99400 vs #E8A800) so it reads on white surfaces.</li>
+          <li><strong>Differentiates:</strong> Indigo Ink secondary + the typography shift to Fraunces does the lifting against StyleOS — palette alone won't.</li>
+          <li class="risk"><strong>Risk:</strong> still in StyleOS's neighbourhood. If they iterate on type/voice, the visual gap closes fast. Lowest-cost migration, highest-cost long-term differentiation.</li>
+        </ul>
+      </div>
+
+    </section>
+
+  </main>
+
+  <p class="footer-note">
+    Status palette, spacing, and radii are pinned to <code>DesignTokens.kt</code>.
+    Only <code>--primary-*</code>, <code>--secondary</code>, surface tones, and the heritage-accent treatment vary between columns.
+  </p>
+
+  <script>
+    (function () {
+      const body = document.body;
+      const btn = document.getElementById('themeToggle');
+      const label = document.getElementById('themeLabel');
+
+      function setMode(mode) {
+        body.classList.toggle('dark', mode === 'dark');
+        body.classList.toggle('light', mode === 'light');
+        label.textContent = mode === 'dark' ? 'Dark mode' : 'Light mode';
+        btn.setAttribute('aria-pressed', mode === 'dark' ? 'true' : 'false');
+      }
+
+      btn.addEventListener('click', function () {
+        const next = body.classList.contains('dark') ? 'light' : 'dark';
+        setMode(next);
+      });
+
+      // Start in dark mode (matches existing preview convention).
+      setMode('dark');
+    })();
+  </script>
+</body>
+</html>

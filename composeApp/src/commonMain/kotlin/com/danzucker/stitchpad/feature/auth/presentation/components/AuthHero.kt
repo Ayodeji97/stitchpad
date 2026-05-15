@@ -25,10 +25,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.auth_background
+import stitchpad.composeapp.generated.resources.auth_background_alt
 import stitchpad.composeapp.generated.resources.brand_name
 import stitchpad.composeapp.generated.resources.workshop_brand_tagline
 
@@ -36,6 +38,7 @@ import stitchpad.composeapp.generated.resources.workshop_brand_tagline
 @Composable
 fun AuthHero(
     modifier: Modifier = Modifier,
+    variant: AuthHeroVariant = AuthHeroVariant.Utility,
     height: Dp = 280.dp,
     logoDiameter: Dp = 80.dp,
     showTagline: Boolean = true,
@@ -45,10 +48,10 @@ fun AuthHero(
             .fillMaxWidth()
             .height(height)
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Color(0xFF2A1A08)),
+            .background(DesignTokens.indigo900),
     ) {
         Image(
-            painter = painterResource(Res.drawable.auth_background),
+            painter = painterResource(variant.drawable),
             contentDescription = null,
             modifier = Modifier.fillMaxWidth().height(height),
             contentScale = ContentScale.Crop,
@@ -67,7 +70,7 @@ fun AuthHero(
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = DesignTokens.neutral900,
+                    color = Color.White,
                     letterSpacing = 2.2.sp,
                 ),
             )
@@ -78,7 +81,7 @@ fun AuthHero(
                     style = TextStyle(
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xCC000000),
+                        color = Color.White.copy(alpha = 0.85f),
                         letterSpacing = 3.2.sp,
                     ),
                 )
@@ -86,3 +89,21 @@ fun AuthHero(
         }
     }
 }
+
+/**
+ * Picks which adire-themed hero photo is used. Welcome (default) shows the
+ * richer dress-form + measuring-tape + adire-pattern composition — used on
+ * Login, SignUp, and Workshop Setup. Utility shows a calmer measuring-tape-
+ * on-indigo composition — used on ForgotPassword where a softer, less
+ * distracting backdrop fits the task.
+ */
+enum class AuthHeroVariant {
+    Welcome,
+    Utility,
+}
+
+private val AuthHeroVariant.drawable: DrawableResource
+    get() = when (this) {
+        AuthHeroVariant.Welcome -> Res.drawable.auth_background
+        AuthHeroVariant.Utility -> Res.drawable.auth_background_alt
+    }

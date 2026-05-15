@@ -8,17 +8,101 @@ import androidx.compose.ui.unit.sp
 
 object DesignTokens {
 
-    // Primary Colors (Deep Saffron)
-    val primary50 = Color(0xFFFFF8E7)
-    val primary100 = Color(0xFFFDEFC4)
-    val primary200 = Color(0xFFFBDF8A)
-    val primary300 = Color(0xFFF9CC50)
-    val primary400 = Color(0xFFF7BB2A)
-    val primary500 = Color(0xFFE8A800) // Main brand color
-    val primary600 = Color(0xFFC48E00) // Pressed states, button border
-    val primary700 = Color(0xFF9E7200)
-    val primary800 = Color(0xFF7A5800)
-    val primary900 = Color(0xFF4F3800)
+    // Indigo ramp — adire textile reference. The brand primary on light
+    // surfaces is indigo500; dark mode lifts to indigo400 (sweet spot
+    // for both white-on-fill and brand-text-on-bg WCAG contrast).
+    val indigo50 = Color(0xFFEAEEF8)
+    val indigo100 = Color(0xFFD1D9EE)
+    val indigo200 = Color(0xFF9CB0DD) // brandAccent on dark
+    val indigo300 = Color(0xFF7388BF) // secondary on dark (lifted above primary)
+    val indigo400 = Color(0xFF5871B8) // primary on dark; brandAccent on light
+    val indigo500 = Color(0xFF2C3E7C) // primary on light
+    val indigo700 = Color(0xFF1E2B5C) // CTA fill on light
+    val indigo900 = Color(0xFF121B3B)
+
+    // Sienna ramp — workshop bench warmth. Three stops only.
+    val sienna300 = Color(0xFFD9885F)
+    val sienna500 = Color(0xFFB85A30)
+    val sienna700 = Color(0xFF8E4524)
+
+    // Saffron — heritage accent only (single value, no full ramp).
+    val saffron500 = Color(0xFFE8A800)
+
+    // Warm surfaces — replaces nothing structurally; new semantic names.
+    val paperLight = Color(0xFFFAF6EC) // bg on light — "warm paper"
+    val inkDark = Color(0xFF14110E) // bg on dark — "warm ink" (was darkBg)
+
+    // Deprecated saffron-era aliases. The 118 existing call sites in
+    // feature/** and ui/components/** still reference these names. PR-A
+    // keeps them compiling AND points them at the new indigo values so
+    // the app immediately renders the new palette. PR-B migrates the call
+    // sites to MaterialTheme.colorScheme.* and then deletes these aliases.
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primaryContainer",
+        ReplaceWith("MaterialTheme.colorScheme.primaryContainer")
+    )
+    val primary50 = indigo50
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primaryContainer",
+        ReplaceWith("MaterialTheme.colorScheme.primaryContainer")
+    )
+    val primary100 = indigo100
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary200 = indigo200
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary300 = indigo300
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary400 = indigo400
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary500 = indigo500
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary600 = indigo700 // closest mapping — old 600 was pressed state
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary700 = indigo700
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary800 = indigo900 // closest mapping
+
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primary900 = indigo900
+
+    // The old primaryButtonBorder constant — also aliased.
+    @Deprecated(
+        "Use MaterialTheme.colorScheme.primary or border tokens",
+        ReplaceWith("MaterialTheme.colorScheme.primary")
+    )
+    val primaryButtonBorder = indigo700
 
     // Neutral / Surface Colors
     val neutral0 = Color(0xFFFFFFFF)
@@ -73,9 +157,6 @@ object DesignTokens {
     val statusReady = Color(0xFF2D9E6B) // Green
     val statusDelivered = Color(0xFF7D7970) // Gray
     val statusOverdue = Color(0xFFD93B3B) // Red
-
-    // Primary Button Border
-    val primaryButtonBorder = Color(0xFFC48E00)
 
     // Avatar Colors (6 pairs by name hash)
     data class AvatarColor(
