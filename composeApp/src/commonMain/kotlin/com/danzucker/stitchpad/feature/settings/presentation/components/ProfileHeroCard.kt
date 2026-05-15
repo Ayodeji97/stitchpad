@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 /**
@@ -180,7 +181,7 @@ private fun PlanBadge(
     Surface(
         shape = RoundedCornerShape(50),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+        border = BorderStroke(1.dp, LocalStitchPadColors.current.heritageAccent),
         modifier = modifier,
     ) {
         Row(
@@ -194,14 +195,14 @@ private fun PlanBadge(
             Icon(
                 imageVector = Icons.Filled.WorkspacePremium,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = LocalStitchPadColors.current.heritageAccent,
                 modifier = Modifier.size(14.dp),
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
+                color = LocalStitchPadColors.current.heritageAccent,
             )
         }
     }

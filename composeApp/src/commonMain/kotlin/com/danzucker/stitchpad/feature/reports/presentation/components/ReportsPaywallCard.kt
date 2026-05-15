@@ -61,7 +61,7 @@ fun ReportsPaywallCard(
             Icon(
                 imageVector = Icons.Default.WorkspacePremium,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(28.dp)
             )
         }
