@@ -47,6 +47,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -179,7 +180,7 @@ private fun FormContent(
             .height(54.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = DesignTokens.primary500,
+            containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
             disabledContainerColor = DesignTokens.neutral700,
             disabledContentColor = DesignTokens.neutral500,
@@ -199,7 +200,7 @@ private fun FormContent(
         text = buildAnnotatedString {
             withStyle(
                 SpanStyle(
-                    color = DesignTokens.primary400,
+                    color = LocalStitchPadColors.current.brandAccent,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
@@ -219,7 +220,7 @@ private fun SuccessContent(
     email: String,
     onBackToLogin: () -> Unit,
 ) {
-    // 1. Success icon — saffron circle with MarkEmailRead
+    // 1. Success icon — brand accent circle with MarkEmailRead
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -228,13 +229,13 @@ private fun SuccessContent(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(DesignTokens.primary500.copy(alpha = 0.18f)),
+                .background(LocalStitchPadColors.current.brandAccent.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.MarkEmailRead,
                 contentDescription = null,
-                tint = DesignTokens.primary500,
+                tint = LocalStitchPadColors.current.brandAccent,
                 modifier = Modifier.size(36.dp),
             )
         }
@@ -273,7 +274,7 @@ private fun SuccessContent(
             .height(54.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = DesignTokens.primary500,
+            containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ),
     ) {

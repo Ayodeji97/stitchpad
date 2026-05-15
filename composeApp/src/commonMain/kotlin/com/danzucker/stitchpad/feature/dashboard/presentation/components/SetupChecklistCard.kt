@@ -84,8 +84,8 @@ data class SetupStep(
  * Visual rules (matches the mockup):
  *  - Done: green-tinted circle with check, supporting text reads "Completed",
  *    no chevron, row not tappable.
- *  - Active: saffron-tinted icon circle + saffron border + saffron-tinted
- *    background on the row, chevron in saffron, row tappable.
+ *  - Active: brand-tinted icon circle + brand border + brand-tinted
+ *    background on the row, chevron in brand primary, row tappable.
  *  - Pending: neutral tinted icon, no row border, muted chevron, not tappable.
  */
 @Composable

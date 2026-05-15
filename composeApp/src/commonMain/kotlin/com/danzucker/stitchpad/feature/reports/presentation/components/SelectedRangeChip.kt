@@ -42,10 +42,10 @@ fun SelectedRangeChip(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(DesignTokens.radiusFull))
-            .background(DesignTokens.primary50)
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .border(
                 width = 1.dp,
-                color = DesignTokens.primary200,
+                color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(DesignTokens.radiusFull)
             )
             .clickable(onClick = onClick)
@@ -56,14 +56,14 @@ fun SelectedRangeChip(
         Icon(
             imageVector = Icons.Outlined.DateRange,
             contentDescription = null,
-            tint = DesignTokens.primary700,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(16.dp)
         )
         Text(
             text = rangeText,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = DesignTokens.primary800
+            color = MaterialTheme.colorScheme.onPrimaryContainer
         )
         ClearButton(contentDescription = clearCd, onClick = onClear)
     }
@@ -78,7 +78,7 @@ private fun ClearButton(
         modifier = Modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(DesignTokens.primary200)
+            .background(MaterialTheme.colorScheme.primary)
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -86,7 +86,7 @@ private fun ClearButton(
         Icon(
             imageVector = Icons.Default.Close,
             contentDescription = contentDescription,
-            tint = DesignTokens.primary800,
+            tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(13.dp)
         )
     }

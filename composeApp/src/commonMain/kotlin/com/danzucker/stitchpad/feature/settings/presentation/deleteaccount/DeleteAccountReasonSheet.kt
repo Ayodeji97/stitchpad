@@ -175,12 +175,12 @@ private fun ReasonRow(
     onClick: () -> Unit,
 ) {
     val borderColor = if (isSelected) {
-        DesignTokens.primary500
+        MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
     val bgColor = if (isSelected) {
-        DesignTokens.primary50
+        MaterialTheme.colorScheme.primaryContainer
     } else {
         MaterialTheme.colorScheme.surface
     }
@@ -200,15 +200,19 @@ private fun ReasonRow(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) DesignTokens.primary900 else MaterialTheme.colorScheme.onSurface,
+            color = if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         )
     }
 }
 
 @Composable
 private fun ReasonRadio(isSelected: Boolean) {
-    val borderColor = if (isSelected) DesignTokens.primary700 else MaterialTheme.colorScheme.outline
-    val fillColor = if (isSelected) DesignTokens.primary500 else Color.Transparent
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    val fillColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     Box(
         modifier = Modifier
             .size(18.dp)

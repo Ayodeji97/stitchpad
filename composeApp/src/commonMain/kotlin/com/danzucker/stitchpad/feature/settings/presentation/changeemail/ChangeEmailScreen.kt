@@ -103,7 +103,7 @@ fun ChangeEmailScreen(
                             )
                             .height(52.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DesignTokens.primary500,
+                            containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                     ) {

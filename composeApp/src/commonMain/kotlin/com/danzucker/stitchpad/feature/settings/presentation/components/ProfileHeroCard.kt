@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
 /**
@@ -85,12 +86,12 @@ fun ProfileHeroCard(
     val cardBaseColor = if (isDark) {
         MaterialTheme.colorScheme.surfaceContainerHighest
     } else {
-        DesignTokens.primary50
+        MaterialTheme.colorScheme.primaryContainer
     }
     val cardBackground: androidx.compose.ui.graphics.Brush = if (isDark) {
         androidx.compose.ui.graphics.Brush.verticalGradient(
             colors = listOf(
-                DesignTokens.primary900.copy(alpha = 0.45f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                 cardBaseColor,
             ),
         )
@@ -100,7 +101,7 @@ fun ProfileHeroCard(
     val borderColor = if (isDark) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
-        DesignTokens.primary100
+        MaterialTheme.colorScheme.outlineVariant
     }
 
     Surface(
@@ -180,7 +181,7 @@ private fun PlanBadge(
     Surface(
         shape = RoundedCornerShape(50),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, DesignTokens.primary500),
+        border = BorderStroke(1.dp, LocalStitchPadColors.current.heritageAccent),
         modifier = modifier,
     ) {
         Row(
@@ -194,14 +195,14 @@ private fun PlanBadge(
             Icon(
                 imageVector = Icons.Filled.WorkspacePremium,
                 contentDescription = null,
-                tint = DesignTokens.primary500,
+                tint = LocalStitchPadColors.current.heritageAccent,
                 modifier = Modifier.size(14.dp),
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = DesignTokens.primary500,
+                color = LocalStitchPadColors.current.heritageAccent,
             )
         }
     }

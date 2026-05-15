@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.reports.presentation.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -11,7 +12,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.ui.theme.DesignTokens
 
 private val DEFAULT_HEIGHT = 36.dp
 private val STROKE_WIDTH = 2.dp
@@ -26,9 +26,10 @@ private val DOT_RADIUS = 3.dp
 fun Sparkline(
     values: List<Double>,
     modifier: Modifier = Modifier,
-    color: Color = DesignTokens.primary500,
+    color: Color? = null,
     height: Dp = DEFAULT_HEIGHT
 ) {
+    val resolvedColor = color ?: MaterialTheme.colorScheme.primary
     Canvas(modifier = modifier.height(height)) {
         if (values.isEmpty()) return@Canvas
         val maxValue = values.max().coerceAtLeast(1.0)
@@ -53,9 +54,9 @@ fun Sparkline(
         }
         drawPath(
             path = path,
-            color = color,
+            color = resolvedColor,
             style = Stroke(width = strokePx, cap = StrokeCap.Round)
         )
-        points.lastOrNull()?.let { drawCircle(color, radius = dotPx, center = it) }
+        points.lastOrNull()?.let { drawCircle(resolvedColor, radius = dotPx, center = it) }
     }
 }

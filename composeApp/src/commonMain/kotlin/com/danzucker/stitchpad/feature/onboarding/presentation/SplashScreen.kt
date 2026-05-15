@@ -57,7 +57,7 @@ fun SplashScreen(alpha: Float) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DesignTokens.primary500)
+            .background(MaterialTheme.colorScheme.primary)
             .alpha(alpha),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally

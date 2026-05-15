@@ -329,12 +329,12 @@ private fun DeliveryFilterChips(
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color.Transparent,
-                    selectedLabelColor = DesignTokens.primary600,
+                    selectedLabelColor = MaterialTheme.colorScheme.primary,
                     containerColor = Color.Transparent,
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 border = if (isSelected) {
-                    BorderStroke(1.dp, DesignTokens.primary500)
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 } else {
                     BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 }

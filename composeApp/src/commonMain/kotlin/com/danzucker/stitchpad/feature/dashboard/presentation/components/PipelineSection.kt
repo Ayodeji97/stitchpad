@@ -38,7 +38,7 @@ import stitchpad.composeapp.generated.resources.dashboard_section_pipeline
  * Renders a "Work pipeline" section header followed by either:
  *  - the stacked "In progress (n)" / "Not started yet (n)" subsections when
  *    there is work, or
- *  - an empty-state illustration card with a saffron-tinted backdrop when
+ *  - an empty-state illustration card with a brand-tinted backdrop when
  *    both totals are zero.
  *
  * The header sits above whatever inner state is rendered so the label
@@ -101,8 +101,8 @@ private fun PipelineHeader() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
     ) {
-        // Saffron vertical accent bar pegged to the section title's height —
-        // a small visual marker that ties Work Pipeline to the saffron design
+        // Brand primary vertical accent bar pegged to the section title's height —
+        // a small visual marker that ties Work Pipeline to the brand design
         // language without adding a full badge + subtitle header.
         Box(
             modifier = Modifier

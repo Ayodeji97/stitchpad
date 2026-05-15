@@ -39,13 +39,13 @@ fun ReportsEmptyState(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .size(DesignTokens.iconHero)
                     .clip(CircleShape)
-                    .background(DesignTokens.primary50),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                     contentDescription = null,
-                    tint = DesignTokens.primary700
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
             Spacer(Modifier.height(DesignTokens.space3))

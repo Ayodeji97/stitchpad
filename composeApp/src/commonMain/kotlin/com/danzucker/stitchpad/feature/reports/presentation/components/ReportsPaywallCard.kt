@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_paywall_body
@@ -55,13 +56,13 @@ fun ReportsPaywallCard(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(DesignTokens.primary50),
+                .background(LocalStitchPadColors.current.heritageAccent.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.WorkspacePremium,
                 contentDescription = null,
-                tint = DesignTokens.primary500,
+                tint = LocalStitchPadColors.current.heritageAccent,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -85,7 +86,7 @@ fun ReportsPaywallCard(
             onClick = onUpgradeClick,
             shape = RoundedCornerShape(DesignTokens.radiusFull),
             colors = ButtonDefaults.buttonColors(
-                containerColor = DesignTokens.primary500
+                containerColor = MaterialTheme.colorScheme.primary
             ),
             modifier = Modifier.fillMaxWidth()
         ) {

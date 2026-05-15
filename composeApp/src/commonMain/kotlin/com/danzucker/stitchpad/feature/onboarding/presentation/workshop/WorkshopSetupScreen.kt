@@ -50,6 +50,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -197,7 +198,7 @@ fun WorkshopSetupScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Color(0xFFE8A800).copy(alpha = 0.18f))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             Text(
@@ -205,7 +206,7 @@ fun WorkshopSetupScreen(
                                 style = TextStyle(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = DesignTokens.primary300,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     letterSpacing = 0.8.sp,
                                 ),
                             )
@@ -332,7 +333,7 @@ fun WorkshopSetupScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .background(
-                                        DesignTokens.primary500.copy(alpha = 0.15f),
+                                        LocalStitchPadColors.current.brandAccent.copy(alpha = 0.15f),
                                         CircleShape,
                                     ),
                                 contentAlignment = Alignment.Center,
@@ -340,7 +341,7 @@ fun WorkshopSetupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.PhotoCamera,
                                     contentDescription = null,
-                                    tint = DesignTokens.primary400,
+                                    tint = LocalStitchPadColors.current.brandAccent,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -372,7 +373,7 @@ fun WorkshopSetupScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DesignTokens.primary500,
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         disabledContainerColor = DesignTokens.neutral700,
                         disabledContentColor = DesignTokens.neutral500,
@@ -397,7 +398,7 @@ fun WorkshopSetupScreen(
                         style = TextStyle(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = DesignTokens.primary400,
+                            color = LocalStitchPadColors.current.brandAccent,
                         ),
                     )
                 }

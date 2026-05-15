@@ -46,6 +46,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.auth.presentation.components.SsoButtonRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -203,7 +204,7 @@ fun LoginScreen(
                             style = TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = DesignTokens.primary400,
+                                color = LocalStitchPadColors.current.brandAccent,
                             ),
                             modifier = Modifier.clickable { onAction(LoginAction.OnForgotPasswordClick) },
                         )
@@ -221,7 +222,7 @@ fun LoginScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DesignTokens.primary500,
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         disabledContainerColor = DesignTokens.neutral700,
                         disabledContentColor = DesignTokens.neutral500,
@@ -246,7 +247,7 @@ fun LoginScreen(
                         }
                         withStyle(
                             SpanStyle(
-                                color = DesignTokens.primary400,
+                                color = LocalStitchPadColors.current.brandAccent,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
                             )

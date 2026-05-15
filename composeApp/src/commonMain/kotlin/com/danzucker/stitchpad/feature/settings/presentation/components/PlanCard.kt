@@ -56,7 +56,7 @@ private const val WARN_THRESHOLD_RATIO = 0.80f
 
 /**
  * Three visual states picked from [customerCount] / [customerLimit]:
- * - inline: ≤80% — saffron pill + count + Upgrade text + chevron
+ * - inline: ≤80% — brand pill + count + Upgrade text + chevron
  * - hero (warn): >80% AND <100% — dark hero, "N customers left" headline
  * - hero (locked): =100% — red-tinted hero, "Limit reached"
  *
@@ -121,8 +121,8 @@ private fun PlanCardInline(
             Column(modifier = Modifier.weight(1f)) {
                 PlanPill(
                     text = stringResource(Res.string.plan_card_pill_free),
-                    backgroundColor = DesignTokens.primary50,
-                    contentColor = DesignTokens.primary700,
+                    backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Spacer(modifier = Modifier.height(DesignTokens.space2))
                 Text(
@@ -141,7 +141,7 @@ private fun PlanCardInline(
                 text = stringResource(Res.string.plan_card_cta_upgrade),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = DesignTokens.primary700,
+                color = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.size(DesignTokens.space2))
             Icon(
@@ -168,12 +168,12 @@ private fun PlanCardWarn(
             radius = 800f,
         ),
         accentBrush = Brush.radialGradient(
-            colors = listOf(DesignTokens.primary500.copy(alpha = 0.45f), Color.Transparent),
+            colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), Color.Transparent),
             radius = 320f,
         ),
         pillText = stringResource(Res.string.plan_card_pill_almost_full),
-        pillBorderColor = DesignTokens.primary300.copy(alpha = 0.40f),
-        pillContentColor = DesignTokens.primary300,
+        pillBorderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.40f),
+        pillContentColor = MaterialTheme.colorScheme.tertiary,
         title = stringResource(Res.string.plan_card_title_warn, customersLeft),
         subtitle = stringResource(Res.string.plan_card_subtitle_warn),
         primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePriceNgn),
@@ -284,7 +284,7 @@ private fun PlanHeroFrame(
                         onClick = onPrimaryCta,
                         shape = RoundedCornerShape(DesignTokens.radiusMd),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DesignTokens.primary500,
+                            containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                     ) {

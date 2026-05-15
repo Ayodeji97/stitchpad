@@ -940,8 +940,8 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             secondaryActionLabel = stringResource(Res.string.dashboard_nba_cta_open_order),
         )
         NextBestActionType.CollectOnReady -> NbaPresentation(
-            accent = if (isDark) DesignTokens.primary400 else DesignTokens.primary600,
-            accentBackground = if (isDark) DesignTokens.primary900 else DesignTokens.primary50,
+            accent = MaterialTheme.colorScheme.onPrimaryContainer,
+            accentBackground = MaterialTheme.colorScheme.primaryContainer,
             typeIcon = Icons.Default.Payments,
             ctaIcon = Icons.Default.Notifications,
             typeLabel = "Ready · Unpaid",
@@ -1003,11 +1003,13 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             ctaLabel = stringResource(Res.string.dashboard_nba_cta_view_order)
         )
         NextBestActionType.CollectDeposit -> NbaPresentation(
-            // Saffron-aligned: deposit asks aren't a "status" the way overdue
+            // Adire-aligned: deposit asks aren't a "status" the way overdue
             // (red) or ready (green) are — they're a primary brand action, so
-            // they take primary tones rather than the info/blue palette.
-            accent = if (isDark) DesignTokens.primary400 else DesignTokens.primary600,
-            accentBackground = if (isDark) DesignTokens.primary900 else DesignTokens.primary50,
+            // they take primary tones rather than the info/blue palette. Use
+            // onPrimaryContainer for accent text/icon to match the on-container
+            // pattern used by the error/warning/success branches.
+            accent = MaterialTheme.colorScheme.onPrimaryContainer,
+            accentBackground = MaterialTheme.colorScheme.primaryContainer,
             typeIcon = Icons.Default.Payments,
             ctaIcon = Icons.Default.Payments,
             typeLabel = "No deposit",

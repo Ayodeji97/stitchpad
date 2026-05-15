@@ -65,7 +65,6 @@ import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
-import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -123,9 +122,9 @@ fun MainRoot(
                                 },
                                 label = { Text(stringResource(item.labelRes)) },
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = DesignTokens.primary700,
-                                    selectedTextColor = DesignTokens.primary600,
-                                    indicatorColor = DesignTokens.primary50,
+                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
