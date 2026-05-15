@@ -90,6 +90,27 @@ fun StitchPadTypography(): Typography {
             fontSize = DesignTokens.headingSm,
             lineHeight = DesignTokens.headingSm * 1.44f,
         ),
+        // Title — Manrope. Used by Material3 as section-heading / card-title /
+        // list-item primary text. Sized between headlineSmall (18sp) and
+        // bodyLarge (16sp) per Material3 type scale convention.
+        titleLarge = TextStyle(
+            fontFamily = manrope,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = DesignTokens.headingSm,
+            lineHeight = DesignTokens.headingSm * 1.33f,
+        ),
+        titleMedium = TextStyle(
+            fontFamily = manrope,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = DesignTokens.bodyLg,
+            lineHeight = DesignTokens.bodyLg * 1.4f,
+        ),
+        titleSmall = TextStyle(
+            fontFamily = manrope,
+            fontWeight = FontWeight.Medium,
+            fontSize = DesignTokens.labelLg,
+            lineHeight = DesignTokens.labelLg * 1.43f,
+        ),
         // Body + Label — Manrope (was PlusJakartaSans).
         bodyLarge = TextStyle(
             fontFamily = manrope,
