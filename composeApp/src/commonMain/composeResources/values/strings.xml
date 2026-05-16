@@ -1081,41 +1081,7 @@
 
     <string name="delete_account_failed">Could not delete your account. Please try again.</string>
 
-    <!-- Smart errors (stubbed for VM compile; finalized in Task 14) -->
-    <string name="smart_error_network">No internet — try again later.</string>
-    <string name="smart_error_invalid_input">That order isn&apos;t available anymore.</string>
-    <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again.</string>
-    <string name="smart_error_unknown">Something went wrong.</string>
-    <string name="draft_message_no_whatsapp_helper">Add a WhatsApp number to send.</string>
-
-    <!-- Draft Message UI (stubbed; finalized in Task 14) -->
-    <string name="draft_message_screen_title">Draft Message</string>
-    <string name="draft_message_pick_customer">Pick a customer</string>
-    <string name="draft_message_pick_order">Pick an order</string>
-    <string name="draft_message_notes_label">Extra notes (optional)</string>
-    <string name="draft_message_notes_placeholder">e.g. mention the fabric delay</string>
-    <string name="draft_message_generate_cta">Generate draft</string>
-    <string name="draft_message_generating">Generating…</string>
-    <string name="draft_message_offline_helper">You&apos;re offline — connect to generate a draft.</string>
-    <string name="draft_message_send_whatsapp">Send via WhatsApp</string>
-    <string name="draft_message_copy_text">Copy text</string>
-    <string name="draft_message_no_open_orders">No open orders for this customer.</string>
-    <string name="draft_message_intent_balance">Balance reminder</string>
-    <string name="draft_message_intent_pickup">Pickup ready</string>
-    <string name="draft_message_intent_followup">Follow-up</string>
-    <string name="draft_message_intent_custom">Custom note</string>
-    <string name="draft_message_language_english">English</string>
-    <string name="draft_message_language_pidgin">Pidgin</string>
-    <string name="draft_message_intent_section_label">What&apos;s this message about?</string>
-    <string name="draft_message_no_customers">No customers yet</string>
-
-    <!-- Upgrade sheet (stubbed; finalized in Task 14) -->
-    <string name="smart_upgrade_sheet_title">You&apos;ve used your free drafts</string>
-    <string name="smart_upgrade_sheet_message">Upgrade to keep sending smart messages to your customers.</string>
-    <string name="smart_upgrade_sheet_upgrade_cta">Upgrade now</string>
-    <string name="smart_upgrade_sheet_dismiss">Maybe later</string>
-
-    <!-- Smart Suggestions section card (final copy in Task 14) -->
+    <!-- Smart Suggestions -->
     <string name="smart_section_title">Smart Suggestions</string>
     <string name="smart_section_subtitle">Help with messages, pricing, and more</string>
     <string name="smart_intent_draft_message_title">Draft a Message</string>
@@ -1124,4 +1090,38 @@
     <string name="smart_intent_reply_helper_title">Customer Reply Helper</string>
     <string name="smart_intent_coming_soon_label">Coming soon</string>
     <string name="smart_free_quota_remaining">%1$d of 5 free drafts left this month</string>
+
+    <!-- Draft Message screen -->
+    <string name="draft_message_screen_title">Draft a Message</string>
+    <string name="draft_message_pick_customer">Pick a customer</string>
+    <string name="draft_message_pick_order">Pick an open order</string>
+    <string name="draft_message_no_open_orders">No open orders for this customer.</string>
+    <string name="draft_message_no_customers">No customers yet</string>
+    <string name="draft_message_intent_section_label">What&apos;s this message about?</string>
+    <string name="draft_message_intent_balance">Balance reminder</string>
+    <string name="draft_message_intent_pickup">Ready for pickup</string>
+    <string name="draft_message_intent_followup">Follow up</string>
+    <string name="draft_message_intent_custom">Custom note</string>
+    <string name="draft_message_language_english">English</string>
+    <string name="draft_message_language_pidgin">Pidgin</string>
+    <string name="draft_message_notes_label">Anything specific to add?</string>
+    <string name="draft_message_notes_placeholder">Optional</string>
+    <string name="draft_message_generate_cta">Generate draft</string>
+    <string name="draft_message_generating">Drafting…</string>
+    <string name="draft_message_send_whatsapp">Send via WhatsApp</string>
+    <string name="draft_message_copy_text">Copy text</string>
+    <string name="draft_message_no_whatsapp_helper">Add a WhatsApp number to this customer to send directly.</string>
+    <string name="draft_message_offline_helper">Need internet to draft messages.</string>
+
+    <!-- Smart errors -->
+    <string name="smart_error_network">No internet. Try again when you&apos;re back online.</string>
+    <string name="smart_error_invalid_input">That order isn&apos;t available anymore.</string>
+    <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again in a moment.</string>
+    <string name="smart_error_unknown">Something went wrong. Please try again.</string>
+
+    <!-- Smart upgrade sheet -->
+    <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>
+    <string name="smart_upgrade_sheet_message">You&apos;ve used your 5 free drafts. Upgrade to draft as many as you need.</string>
+    <string name="smart_upgrade_sheet_upgrade_cta">Upgrade</string>
+    <string name="smart_upgrade_sheet_dismiss">Wait until next month</string>
 </resources>
