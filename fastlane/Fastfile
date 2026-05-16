@@ -118,11 +118,16 @@ platform :ios do
     UI.message "Marketing version: #{marketing}, target build number: #{current}"
 
     # No-new-commits guard — query TestFlight for the highest build number of this marketing version.
-    last = latest_testflight_build_number(
-      version: marketing,
-      app_identifier: bundle_identifier,
-      initial_build_number: 0
-    ) rescue 0
+    last = begin
+      latest_testflight_build_number(
+        version: marketing,
+        app_identifier: bundle_identifier,
+        initial_build_number: 0
+      )
+    rescue => e
+      UI.important "Could not query TestFlight build number (first upload? auth issue?): #{e.message}"
+      0
+    end
     UI.message "Last TestFlight build for #{marketing}: #{last}"
 
     if current <= last
