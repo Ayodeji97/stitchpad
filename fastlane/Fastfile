@@ -89,6 +89,91 @@ platform :android do
   end
 end
 
+# --- iOS ---
+
+platform :ios do
+  bundle_identifier = "com.danzucker.stitchpad"
+
+  def read_marketing_version
+    config = File.read(File.expand_path("../iosApp/Configuration/Config.xcconfig", __dir__))
+    m = config.match(/^MARKETING_VERSION=(.+)$/)
+    UI.user_error!("MARKETING_VERSION not found in Config.xcconfig") unless m
+    m[1].strip
+  end
+
+  desc "Build a signed IPA and upload to TestFlight external group"
+  lane :beta do
+    key_path = ENV.fetch("APP_STORE_CONNECT_API_KEY_PATH")
+    UI.user_error!("ASC API key not found at #{key_path}") unless File.exist?(key_path)
+
+    app_store_connect_api_key(
+      key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+      issuer_id: ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID"),
+      key_filepath: key_path,
+      in_house: false
+    )
+
+    marketing = read_marketing_version
+    current = current_build_number
+    UI.message "Marketing version: #{marketing}, target build number: #{current}"
+
+    # No-new-commits guard — query TestFlight for the highest build number of this marketing version.
+    last = latest_testflight_build_number(
+      version: marketing,
+      app_identifier: bundle_identifier,
+      initial_build_number: 0
+    ) rescue 0
+    UI.message "Last TestFlight build for #{marketing}: #{last}"
+
+    if current <= last
+      UI.user_error!(
+        "No new commits since last TestFlight upload of #{marketing} " \
+        "(last=#{last}, current=#{current}). Bump MARKETING_VERSION in " \
+        "Config.xcconfig and commit before re-running."
+      )
+    end
+
+    # Build the KMP framework using the same task Xcode's build phase invokes.
+    # Avoids divergence between IDE builds and lane builds.
+    # --no-configuration-cache as elsewhere: keeps versionCode and any other
+    # git-derived values fresh on every release build.
+    sh "cd .. && ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode " \
+       "-Pkotlin.native.cocoapods.platform=iphoneos " \
+       "-Pkotlin.native.cocoapods.archs=arm64 " \
+       "-Pkotlin.native.cocoapods.configuration=Release " \
+       "--console=plain --no-configuration-cache"
+
+    # Archive + export signed IPA. Build number passed via xcargs so no files
+    # are dirtied per lane run.
+    gym(
+      project: "../iosApp/iosApp.xcodeproj",
+      scheme: "iosApp",
+      configuration: "Release",
+      output_directory: "../build/ios-archives",
+      output_name: "StitchPad-#{marketing}-#{current}.ipa",
+      xcargs: "CURRENT_PROJECT_VERSION=#{current}",
+      clean: true,
+      include_bitcode: false,
+      include_symbols: true
+    )
+
+    # Upload to TestFlight external group.
+    pilot(
+      api_key_path: nil, # already authenticated via app_store_connect_api_key above
+      app_identifier: bundle_identifier,
+      ipa: "../build/ios-archives/StitchPad-#{marketing}-#{current}.ipa",
+      distribute_external: true,
+      groups: ["pilot-tailors-ios"],
+      changelog: release_notes,
+      skip_waiting_for_build_processing: false,
+      reject_build_waiting_for_review: false
+    )
+
+    UI.success "Uploaded build #{current} of #{marketing} to TestFlight " \
+               "external group pilot-tailors-ios."
+  end
+end
+
 # --- Smoke test — confirms Fastfile parses without running anything real. ---
 
 lane :smoke do
