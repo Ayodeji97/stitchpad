@@ -27,7 +27,6 @@ import stitchpad.composeapp.generated.resources.smart_error_unknown
 class DraftMessageViewModel(
     private val repository: SmartRepository,
     private val orderProvider: OpenOrdersProvider,
-    @Suppress("UnusedPrivateProperty")
     private val customerProvider: CustomerSearchProvider,
     private val connectivity: StateFlow<Boolean>,
 ) : ViewModel() {
@@ -48,6 +47,7 @@ class DraftMessageViewModel(
 
     fun onAction(action: DraftMessageAction) {
         when (action) {
+            DraftMessageAction.LoadCustomers -> loadCustomers()
             is DraftMessageAction.SelectCustomer -> selectCustomer(action.customer)
             is DraftMessageAction.SelectOrder -> _state.update { it.copy(order = action.order) }
             is DraftMessageAction.SelectIntent -> _state.update { it.copy(intent = action.intent) }
@@ -63,6 +63,13 @@ class DraftMessageViewModel(
             }
             DraftMessageAction.SendViaWhatsApp -> sendViaWhatsApp()
             DraftMessageAction.CopyDraft -> copyDraft()
+        }
+    }
+
+    private fun loadCustomers() {
+        viewModelScope.launch {
+            val customers = customerProvider.search("")
+            _state.update { it.copy(customerOptions = customers) }
         }
     }
 

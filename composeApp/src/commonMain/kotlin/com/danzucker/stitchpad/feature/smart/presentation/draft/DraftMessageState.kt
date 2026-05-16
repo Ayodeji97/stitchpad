@@ -33,6 +33,7 @@ sealed interface GenerationState {
 }
 
 sealed interface DraftMessageAction {
+    data object LoadCustomers : DraftMessageAction
     data class SelectCustomer(val customer: CustomerSummary) : DraftMessageAction
     data class SelectOrder(val order: OrderSummary) : DraftMessageAction
     data class SelectIntent(val intent: DraftIntent) : DraftMessageAction

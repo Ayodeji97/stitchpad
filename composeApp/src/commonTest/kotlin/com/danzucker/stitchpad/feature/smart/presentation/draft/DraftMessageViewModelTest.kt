@@ -227,6 +227,16 @@ class DraftMessageViewModelTest {
     }
 
     @Test
+    fun LoadCustomers_populates_customerOptions_via_provider() = runTest {
+        val customers = listOf(testCustomer, noWhatsappCustomer)
+        fakeCustomers.respondWith(customers)
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.LoadCustomers)
+        runCurrent()
+        assertEquals(customers, vm.state.value.customerOptions)
+    }
+
+    @Test
     fun CopyDraft_emits_CopyToClipboard_with_current_draft_text() = runTest {
         fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
         fakeRepo.respondWith(Result.Success(DraftMessageResult("Copy me", 4)))
@@ -267,6 +277,8 @@ class DraftMessageViewModelTest {
     }
 
     private class FakeCustomerProvider : CustomerSearchProvider {
-        override suspend fun search(query: String): List<CustomerSummary> = emptyList()
+        private var canned: List<CustomerSummary> = emptyList()
+        fun respondWith(customers: List<CustomerSummary>) { canned = customers }
+        override suspend fun search(query: String): List<CustomerSummary> = canned
     }
 }
