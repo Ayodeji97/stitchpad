@@ -29,7 +29,7 @@ keytool -genkey -v \
   -keyalg RSA -keysize 2048 -validity 25000
 ```
 
-Save the **store password**, **key alias** (`stitchpad-release`), and **key password** in `fastlane/.env` (see "Per-machine env" below) and `composeApp/release-signing.properties` (copy from `.example`).
+Save the **store password**, **key alias** (`stitchpad-release`), and **key password** in `composeApp/release-signing.properties` (copy from `.example`). These are read by Gradle directly; the Fastlane lane delegates Android signing to Gradle.
 
 **Back this keystore up.** If you lose it, you cannot push another update to the same Play Console listing — you'd have to publish a new app.
 
@@ -102,7 +102,7 @@ Optional: customize the release notes that testers see:
 RELEASE_NOTES="Quick orders flow + measurement editing fixes" fastlane android beta
 ```
 
-Each lane takes ~5–8 min on a warm cache.
+Android lane: ~5-8 min on a warm cache. iOS lane: ~5-8 min upload + 15-45 min Apple processing (lane exits after upload; Apple emails when the build finishes processing).
 
 ### After `android beta`
 
@@ -112,7 +112,8 @@ Each lane takes ~5–8 min on a warm cache.
 
 ### After `ios beta`
 
-- First build of a new `MARKETING_VERSION`: enters Beta App Review (24–48h typical). Pilot group can't install until Apple approves.
+- After the lane exits, Apple processes the upload for 15-45 min, then sends Daniel an email.
+- First build of a new `MARKETING_VERSION`: after processing, enters Beta App Review (24–48h typical). Pilot group can't install until Apple approves.
 - Subsequent build numbers of the same `MARKETING_VERSION`: skip review, go live to the group within ~15 min after TestFlight finishes processing.
 - You can install on your own iPhone immediately via the IPA at `build/ios-archives/StitchPad-<version>-<build>.ipa` (drag-and-drop in Xcode → Devices and Simulators).
 
