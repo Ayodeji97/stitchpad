@@ -40,6 +40,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_generate_cta
 import stitchpad.composeapp.generated.resources.draft_message_generating
 import stitchpad.composeapp.generated.resources.draft_message_intent_section_label
+import stitchpad.composeapp.generated.resources.draft_message_no_open_orders
 import stitchpad.composeapp.generated.resources.draft_message_notes_label
 import stitchpad.composeapp.generated.resources.draft_message_notes_placeholder
 import stitchpad.composeapp.generated.resources.draft_message_offline_helper
@@ -76,16 +77,29 @@ fun DraftMessageScreen(
 
         Spacer(Modifier.height(DesignTokens.space3))
 
-        // Order picker trigger (disabled until customer selected)
+        // Order picker trigger (disabled until customer selected, and
+        // disabled with explanatory helper when the selected customer has
+        // no open orders so the user isn't stranded at a dead-end button).
+        val customerHasNoOpenOrders =
+            state.customer != null && state.orderOptions.isEmpty()
         OutlinedButton(
             onClick = { showOrderSheet = true },
-            enabled = state.customer != null,
+            enabled = state.customer != null && state.orderOptions.isNotEmpty(),
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = state.order?.garmentLabel
                     ?: stringResource(Res.string.draft_message_pick_order),
+            )
+        }
+        if (customerHasNoOpenOrders) {
+            Spacer(Modifier.height(DesignTokens.space1))
+            Text(
+                text = stringResource(Res.string.draft_message_no_open_orders),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = DesignTokens.space2),
             )
         }
 

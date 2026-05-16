@@ -27,10 +27,26 @@ function vertex(): VertexClient {
  * Test seam — production wraps admin.firestore() docs into an io shim.
  * Tests inject a fake io directly.
  */
+export type FreeTierReservation =
+  | { exhausted: true }
+  | { exhausted: false; usage: FreeTierUsageDoc };
+
 export interface DraftMessageIO {
   profileGet(): Promise<{ exists: boolean; data(): UserProfileSummary | undefined }>;
-  usageGet(): Promise<{ exists: boolean; data(): FreeTierUsageDoc | undefined }>;
-  usageSet(doc: FreeTierUsageDoc): Promise<void>;
+  /**
+   * Atomically reads the current free-tier usage doc, checks whether the
+   * caller is exhausted for this month, and (if not exhausted) writes the
+   * incremented doc. Runs inside a Firestore transaction in production so
+   * two concurrent invocations cannot both pass the limit check and both
+   * succeed at writing count = limit. Returns `exhausted: true` when the
+   * caller has already used their monthly allowance and no write happened.
+   *
+   * Trade-off: the reservation is committed BEFORE the Vertex call. If
+   * Vertex then fails, the user "loses" one quota slot without getting a
+   * draft. Accepted for V1 (small tester cohort, low Vertex flake rate);
+   * a compensating decrement can be added in V1.5 if needed.
+   */
+  reserveFreeTierSlot(now: Date): Promise<FreeTierReservation>;
   customerGet(): Promise<{ exists: boolean; data(): { firstName: string } | undefined }>;
   orderGet(): Promise<{ exists: boolean; data(): {
     customerId: string;
@@ -84,9 +100,19 @@ function productionIO(uid: string, customerId: string, orderId: string, db: admi
         return { tier: raw.tier ?? 'free' };
       },
     })),
-    usageGet: () => db.doc(`users/${uid}/usage/smart_drafts`).get().then(
-      (snap) => toExistsShape<FreeTierUsageDoc>(snap)),
-    usageSet: (doc) => db.doc(`users/${uid}/usage/smart_drafts`).set(doc).then(() => undefined),
+    reserveFreeTierSlot: async (now: Date): Promise<FreeTierReservation> => {
+      const ref = db.doc(`users/${uid}/usage/smart_drafts`);
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const existing = snap.exists ? (snap.data() as FreeTierUsageDoc) : null;
+        const next = reconcileUsage({ existing, now });
+        if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
+          return { exhausted: true } as const;
+        }
+        tx.set(ref, next);
+        return { exhausted: false, usage: next } as const;
+      });
+    },
     customerGet: () => db.doc(`users/${uid}/customers/${customerId}`).get().then((snap) => ({
       exists: snap.exists,
       data: (): { firstName: string } | undefined => {
@@ -120,10 +146,6 @@ function productionIO(uid: string, customerId: string, orderId: string, db: admi
       },
     })),
   };
-}
-
-function toExistsShape<T>(snap: admin.firestore.DocumentSnapshot): { exists: boolean; data(): T | undefined } {
-  return { exists: snap.exists, data: () => snap.data() as T | undefined };
 }
 
 function formatNaira(amount: number): string {
@@ -167,12 +189,11 @@ export async function draftMessageHandler(
 
   let nextUsage: FreeTierUsageDoc | null = null;
   if (tier === 'free') {
-    const usageSnap = await io.usageGet();
-    const existing = usageSnap.exists ? (usageSnap.data() ?? null) : null;
-    nextUsage = reconcileUsage({ existing, now });
-    if (existing !== null && isExhausted(existing) && existing.monthYear === nextUsage.monthYear) {
+    const reservation = await io.reserveFreeTierSlot(now);
+    if (reservation.exhausted) {
       throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
     }
+    nextUsage = reservation.usage;
   }
 
   // 2. Fetch context (validates ownership)
@@ -219,10 +240,9 @@ export async function draftMessageHandler(
     throw new functions.https.HttpsError('unavailable', 'service_unavailable');
   }
 
-  // 5. Increment counter (free tier only) — happens AFTER Vertex success
-  if (tier === 'free' && nextUsage !== null) {
-    await io.usageSet(nextUsage);
-  }
+  // Counter is already incremented via reserveFreeTierSlot above — no
+  // additional write needed here. See the type doc on that method for the
+  // trade-off explanation.
 
   return {
     draftText,
