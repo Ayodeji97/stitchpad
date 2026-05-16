@@ -122,6 +122,8 @@ describe('draftMessageHandler', () => {
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'invalid-argument',
     });
+    // Invalid input must NOT consume one of the caller's five free drafts.
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
   });
 
   it('rejects with invalid-argument when order belongs to a different customer', async () => {
@@ -136,6 +138,7 @@ describe('draftMessageHandler', () => {
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'invalid-argument',
     });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
   });
 
   it('maps Vertex failures to unavailable and keeps the reservation', async () => {

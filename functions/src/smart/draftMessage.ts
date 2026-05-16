@@ -187,16 +187,9 @@ export async function draftMessageHandler(
   const profileSnap = await io.profileGet();
   const tier = profileSnap.exists ? profileSnap.data()?.tier ?? 'free' : 'free';
 
-  let nextUsage: FreeTierUsageDoc | null = null;
-  if (tier === 'free') {
-    const reservation = await io.reserveFreeTierSlot(now);
-    if (reservation.exhausted) {
-      throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
-    }
-    nextUsage = reservation.usage;
-  }
-
-  // 2. Fetch context (validates ownership)
+  // 2. Validate customer + order BEFORE reserving the free-tier slot — a
+  // stale selection or deleted order should fail loudly without burning
+  // one of the caller's five monthly drafts.
   const [customerSnap, orderSnap] = await Promise.all([io.customerGet(), io.orderGet()]);
   if (!customerSnap.exists) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: customer not found');
@@ -208,6 +201,16 @@ export async function draftMessageHandler(
   const order = orderSnap.data()!;
   if (order.customerId !== data.customerId) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: order does not belong to customer');
+  }
+
+  // 3. Reserve the free-tier slot now that inputs are known good.
+  let nextUsage: FreeTierUsageDoc | null = null;
+  if (tier === 'free') {
+    const reservation = await io.reserveFreeTierSlot(now);
+    if (reservation.exhausted) {
+      throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
+    }
+    nextUsage = reservation.usage;
   }
 
   // 3. Build prompts
