@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.danzucker.stitchpad.feature.onboarding.presentation.components.StitchPadLogo
+import com.danzucker.stitchpad.ui.components.StitchPadMark
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.coroutines.delay
@@ -62,7 +62,7 @@ fun SplashScreen(alpha: Float) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        StitchPadLogo(size = 100.dp)
+        StitchPadMark(size = 100.dp)
         Spacer(modifier = Modifier.height(DesignTokens.space5))
         Text(
             text = stringResource(Res.string.app_name),
