@@ -39,8 +39,9 @@ export interface DraftContext {
 }
 
 /**
- * User profile fields the Smart layer cares about. Read from
- * `users/{uid}/profile` doc.
+ * User profile fields the Smart layer cares about. Read from the user
+ * document itself at `users/{uid}` — there is no separate `profile` subdoc.
+ * Missing `tier` field defaults to 'free'.
  */
 export interface UserProfileSummary {
   tier: 'free' | 'premium';
