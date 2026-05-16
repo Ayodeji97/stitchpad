@@ -64,7 +64,11 @@ fun UpgradeBottomSheet(
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = heritageAccent,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    // White on saffron #E8A800 only hits ~2:1 contrast (fails
+                    // WCAG AA). Pair the heritage accent with inkDark for
+                    // ~10:1 — matches the saffron-on-paper treatment used
+                    // elsewhere in the rebrand.
+                    contentColor = DesignTokens.inkDark,
                 ),
                 modifier = Modifier.fillMaxWidth(),
             ) {
