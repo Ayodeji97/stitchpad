@@ -1,9 +1,9 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.smartinfra.data.ai.FunctionsCaller
+import com.danzucker.stitchpad.core.smartinfra.data.ai.GitLiveFunctionsCaller
 import com.danzucker.stitchpad.core.smartinfra.data.quota.InMemorySmartUsageStore
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
-import com.danzucker.stitchpad.feature.smart.data.FunctionsCaller
-import com.danzucker.stitchpad.feature.smart.data.GitLiveFunctionsCaller
 import com.danzucker.stitchpad.feature.smart.data.SmartCustomerSearchAdapter
 import com.danzucker.stitchpad.feature.smart.data.SmartFunctionsRepository
 import com.danzucker.stitchpad.feature.smart.data.SmartOpenOrdersAdapter
