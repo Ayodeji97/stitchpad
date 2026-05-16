@@ -17,6 +17,8 @@ const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
   'custom_note',
 ];
 const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'pcm'];
+// Mirrors NOTES_MAX_CHARS in DraftMessageScreen.kt; keep the two in sync.
+const CUSTOM_NOTES_MAX_LENGTH = 200;
 
 function isIntentType(value: unknown): value is IntentType {
   return typeof value === 'string' && (SUPPORTED_INTENT_TYPES as readonly string[]).includes(value);
@@ -234,6 +236,15 @@ export async function draftMessageHandler(
   }
   if (!isLanguage(data.language)) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: unsupported language');
+  }
+  // customNotes is optional per the type — undefined/null are fine. Anything
+  // else must be a string under the UI's 200-char cap. Otherwise a direct
+  // caller could send arbitrary data, burn a quota slot, and only then crash
+  // inside buildUserPrompt's .trim().
+  if (data.customNotes != null) {
+    if (typeof data.customNotes !== 'string' || data.customNotes.length > CUSTOM_NOTES_MAX_LENGTH) {
+      throw new functions.https.HttpsError('invalid-argument', 'invalid_input: customNotes too long or wrong type');
+    }
   }
 
   // 1. Tier check

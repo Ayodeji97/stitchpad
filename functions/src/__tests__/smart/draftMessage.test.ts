@@ -162,6 +162,23 @@ describe('draftMessageHandler', () => {
     expect(fakeVertex.generateText).not.toHaveBeenCalled();
   });
 
+  it('rejects with invalid-argument when customNotes exceed the 200-char cap', async () => {
+    const fs = fakeFirestore({});
+    const tooLong = 'a'.repeat(201);
+    await expect(
+      handler({ ...validRequest, customNotes: tooLong }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('rejects with invalid-argument when customNotes is not a string', async () => {
+    const fs = fakeFirestore({});
+    await expect(
+      handler({ ...validRequest, customNotes: 12345 as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
   it('rejects with invalid-argument when the order is closed (delivered or archived)', async () => {
     const fs = fakeFirestore({});
     fs.orderGet = jest.fn().mockResolvedValue({
