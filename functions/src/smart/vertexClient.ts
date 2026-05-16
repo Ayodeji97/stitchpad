@@ -2,7 +2,10 @@ import { VertexAI } from '@google-cloud/vertexai';
 
 const PROJECT_ID = 'stitchpad-30607';
 const LOCATION = 'europe-west1';
-const MODEL_ID = 'gemini-2.0-flash-001';
+// gemini-2.0-flash-001 is not yet available in europe-west1 — the project
+// hits a 404 when trying to invoke it there. gemini-1.5-flash-002 has full
+// europe-west1 GA coverage and produces equivalent-quality short drafts.
+const MODEL_ID = 'gemini-1.5-flash-002';
 
 /**
  * Thin interface over the Vertex AI SDK so the draftMessage handler can be
