@@ -1,13 +1,12 @@
 import { VertexAI } from '@google-cloud/vertexai';
 
 const PROJECT_ID = 'stitchpad-30607';
-// Vertex AI region for the LLM call only — does NOT need to match the
-// Cloud Function's region (which stays europe-west1 to keep low Firestore
-// latency). us-central1 has full GA coverage of every published Gemini
-// model; europe-west1 returned 404 for both 2.0-flash-001 and 1.5-flash-002
-// on this project as of 2026-05.
-const LOCATION = 'us-central1';
-const MODEL_ID = 'gemini-2.0-flash-001';
+// Agent Platform (the rebrand of Vertex AI Generative) routes requests via
+// a `global` multi-region endpoint as of 2026. Older `gemini-2.0-flash-001`
+// and `gemini-1.5-flash-002` returned 404 on this project; the current
+// supported flagship is the Gemini 3.1 family.
+const LOCATION = 'global';
+const MODEL_ID = 'gemini-3.1-flash-lite';
 
 /**
  * Thin interface over the Vertex AI SDK so the draftMessage handler can be
