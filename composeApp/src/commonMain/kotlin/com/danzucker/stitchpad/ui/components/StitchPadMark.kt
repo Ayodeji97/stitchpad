@@ -101,7 +101,12 @@ private fun buildStitchPadMarkVector(
 }
 
 private fun ImageVector.Builder.addRoundedRect(
-    x: Float, y: Float, w: Float, h: Float, r: Float, fill: Color,
+    x: Float,
+    y: Float,
+    w: Float,
+    h: Float,
+    r: Float,
+    fill: Color,
 ) {
     // Emit an SVG path string for the rounded rect, then convert via PathParser
     // (matches the project convention used in BrandLogos.kt).

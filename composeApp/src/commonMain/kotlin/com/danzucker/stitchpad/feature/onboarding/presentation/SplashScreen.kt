@@ -57,7 +57,7 @@ fun SplashScreen(alpha: Float) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primary)
+            .background(DesignTokens.paperLight)
             .alpha(alpha),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -68,13 +68,13 @@ fun SplashScreen(alpha: Float) {
             text = stringResource(Res.string.app_name),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(DesignTokens.space2))
         Text(
             text = stringResource(Res.string.splash_tagline),
             fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
         )
     }
 }
