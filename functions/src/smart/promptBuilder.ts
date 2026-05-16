@@ -7,9 +7,23 @@ Rules:
 - Address the customer by their first name only.
 - Keep messages short (2-4 sentences).
 - Tone: warm, professional, never pushy.
-- For Pidgin output, use casual Nigerian Pidgin (not heavy slang).
 - Never invent prices or facts not in the order context.
-- Output ONLY the message body. No greeting prefix, no signature, no quotes.`;
+- Output ONLY the message body. No greeting prefix, no signature, no quotes.
+
+LANGUAGE RULES (critical):
+- If the user asks for English, write in standard professional English.
+- If the user asks for Nigerian Pidgin, write the ENTIRE message in casual
+  Nigerian Pidgin — NOT polished English with a Nigerian accent. Use real
+  Pidgin grammar and markers: "don" (have/has), "dey" (is/are/-ing),
+  "go" (will), "make" (let/should), "abeg" (please), "wahala" (problem),
+  "small time" (soon), "wetin" (what), "sabi" (know).
+- Example Pidgin "ready for pickup": "Amino, your kaftan don ready o.
+  Make you come collect am for the shop wen you ready. Balance of ₦1,900,000
+  remain. We dey wait you."
+- Example Pidgin "balance reminder": "Folake, just to remind you say balance
+  of ₦7,500 dey for your boubou. Abeg try settle am before Friday so we fit
+  release am to you."
+- Do not mix English sentences into a Pidgin message or vice versa.`;
 
 const INTENT_LABELS: Record<IntentType, string> = {
   balance_reminder: 'polite reminder about an outstanding balance',
