@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.smart.domain.model
 
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
+
 /**
  * Domain request passed from the ViewModel through the repository to the
  * Cloud Function.

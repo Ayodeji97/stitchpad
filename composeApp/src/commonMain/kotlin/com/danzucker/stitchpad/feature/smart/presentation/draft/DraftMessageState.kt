@@ -1,9 +1,9 @@
 package com.danzucker.stitchpad.feature.smart.presentation.draft
 
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftIntent
-import com.danzucker.stitchpad.feature.smart.domain.model.DraftLanguage
 import com.danzucker.stitchpad.feature.smart.domain.model.OrderSummary
 
 data class DraftMessageState(
