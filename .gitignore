@@ -47,6 +47,17 @@ node_modules/
 # Debug menu test creds — local only, never committed
 composeApp/debug-test-accounts.properties
 
+# Release signing — keystore + passwords, never committed
+composeApp/release-signing.properties
+*.jks
+
+# Fastlane secrets and runtime artifacts
+fastlane/.env
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/README.md
+
 # Misc
 *.log
 *.tmp
