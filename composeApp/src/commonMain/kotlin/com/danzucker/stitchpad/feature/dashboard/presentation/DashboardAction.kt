@@ -55,6 +55,9 @@ sealed interface DashboardAction {
      */
     data class OnSetupOrderEditClick(val orderId: String) : DashboardAction
 
+    /** Smart Suggestions section card tapped → open Draft Message screen. */
+    data object OnDraftMessageClick : DashboardAction
+
     /** Tapped the body of the "Your customer" card → open detail. */
     data class OnCustomerReadyClick(val customerId: String) : DashboardAction
 

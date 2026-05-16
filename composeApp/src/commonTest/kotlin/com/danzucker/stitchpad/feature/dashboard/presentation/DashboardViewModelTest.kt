@@ -50,6 +50,7 @@ class DashboardViewModelTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
+    private lateinit var smartUsageStore: FakeSmartUsageStore
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -61,6 +62,7 @@ class DashboardViewModelTest {
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
         weeklyGoalRepository = FakeWeeklyGoalRepository()
+        smartUsageStore = FakeSmartUsageStore()
     }
 
     @AfterTest
@@ -79,11 +81,20 @@ class DashboardViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             weeklyGoalRepository = weeklyGoalRepository,
+            smartUsageStore = smartUsageStore,
             nowMillis = nowMillis,
             timeZone = testTimeZone
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    private class FakeSmartUsageStore : com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore {
+        private val flow = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+        override val remainingFreeQuota: kotlinx.coroutines.flow.StateFlow<Int?> = flow
+        override fun update(remaining: Int?) {
+            flow.value = remaining
+        }
     }
 
     private fun epochMillisAt(date: LocalDate): Long =

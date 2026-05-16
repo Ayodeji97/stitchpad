@@ -12,6 +12,7 @@
 		4D005A852F7DF5BD00ED4E20 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 4D005A842F7DF5BD00ED4E20 /* FirebaseCrashlytics */; };
 		4D005A872F7DF5BD00ED4E20 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 4D005A862F7DF5BD00ED4E20 /* FirebaseFirestore */; };
 		4D005A892F7DF5BD00ED4E20 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 4D005A882F7DF5BD00ED4E20 /* FirebaseStorage */; };
+		4D53F2532FB87BC700525F33 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 4D53F2522FB87BC700525F33 /* FirebaseFunctions */; };
 		4D7912242FB27C59000E85CF /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 4D7912232FB27C59000E85CF /* GoogleSignIn */; };
 		4D7912262FB27C59000E85CF /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 4D7912252FB27C59000E85CF /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 				4D005A852F7DF5BD00ED4E20 /* FirebaseCrashlytics in Frameworks */,
 				4D005A872F7DF5BD00ED4E20 /* FirebaseFirestore in Frameworks */,
 				4D7912262FB27C59000E85CF /* GoogleSignInSwift in Frameworks */,
+				4D53F2532FB87BC700525F33 /* FirebaseFunctions in Frameworks */,
 				4D005A812F7DF5BD00ED4E20 /* FirebaseAnalytics in Frameworks */,
 				4D005A892F7DF5BD00ED4E20 /* FirebaseStorage in Frameworks */,
 				4D005A832F7DF5BD00ED4E20 /* FirebaseAuth in Frameworks */,
@@ -72,11 +74,19 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		4D53F2512FB87BC700525F33 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		AD77A375CB47E1D9A65BFF16 = {
 			isa = PBXGroup;
 			children = (
 				63EC1790B39D69736714DC64 /* Configuration */,
 				A94AC028E0C23E399B862A6C /* iosApp */,
+				4D53F2512FB87BC700525F33 /* Frameworks */,
 				1BF7EE614E01D722C318C501 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -109,6 +119,7 @@
 				4D005A882F7DF5BD00ED4E20 /* FirebaseStorage */,
 				4D7912232FB27C59000E85CF /* GoogleSignIn */,
 				4D7912252FB27C59000E85CF /* GoogleSignInSwift */,
+				4D53F2522FB87BC700525F33 /* FirebaseFunctions */,
 			);
 			productName = iosApp;
 			productReference = 039BA6A1FDAB9FD44405E865 /* StitchPad.app */;
@@ -443,6 +454,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4D005A7F2F7DF5BD00ED4E20 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		4D53F2522FB87BC700525F33 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4D005A7F2F7DF5BD00ED4E20 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
 		};
 		4D7912232FB27C59000E85CF /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;

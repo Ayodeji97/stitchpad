@@ -8,9 +8,10 @@
     "build": "tsc",
     "lint": "eslint --ext .js,.ts src/",
     "test": "jest",
-    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted"
+    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted,functions:smartDraftMessage"
   },
   "dependencies": {
+    "@google/genai": "^2.3.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.0.1"
   },

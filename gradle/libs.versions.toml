@@ -69,6 +69,7 @@ firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebase-
 firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "firebase-gitlive" }
 firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "firebase-gitlive" }
 firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "firebase-gitlive" }
+firebase-functions = { module = "dev.gitlive:firebase-functions", version.ref = "firebase-gitlive" }
 
 # Firebase Android (native — used only in androidMain for Crashlytics)
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }

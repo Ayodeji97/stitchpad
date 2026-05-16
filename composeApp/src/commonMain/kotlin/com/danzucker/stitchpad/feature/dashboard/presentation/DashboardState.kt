@@ -52,5 +52,9 @@ data class DashboardState(
     val firstOrderSetup: FirstOrderSetupUi? = null,
     // Weekly goal — null when the user hasn't set one. Sourced from WeeklyGoalRepository.
     val weeklyGoal: WeeklyGoalUi? = null,
+    // Last-known remaining Smart Suggestions free-tier quota (null = unknown,
+    // i.e. the user hasn't drafted anything yet this session or is premium).
+    // Mirrored from the SmartUsageStore singleton.
+    val smartFreeQuotaRemaining: Int? = null,
     val errorMessage: UiText? = null
 )
