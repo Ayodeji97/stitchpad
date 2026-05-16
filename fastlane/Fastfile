@@ -9,7 +9,9 @@ Dotenv.load(File.join(__dir__, ".env")) if File.exist?(File.join(__dir__, ".env"
 # --- Shared helpers ---
 
 def current_build_number
-  `git rev-list --count HEAD`.strip.to_i
+  count = `git rev-list --count HEAD`.strip
+  UI.user_error!("git rev-list failed — are you in a git checkout?") unless $?.success?
+  count.to_i
 end
 
 def release_notes
@@ -41,11 +43,16 @@ platform :android do
     UI.message "Current git commit count: #{current}"
 
     # No-new-commits guard — query Play for the highest versionCode in the internal track.
-    track_codes = google_play_track_version_codes(
-      package_name: package_name,
-      track: "internal",
-      json_key: json_key
-    ) rescue []
+    track_codes = begin
+      google_play_track_version_codes(
+        package_name: package_name,
+        track: "internal",
+        json_key: json_key
+      )
+    rescue => e
+      UI.important "Could not query Play internal track (first upload? auth issue?): #{e.message}"
+      []
+    end
     last = (track_codes || []).max || 0
     UI.message "Last internal-track versionCode on Play: #{last}"
 
