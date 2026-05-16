@@ -173,7 +173,18 @@ class DraftMessageViewModel(
                     // Always publish — server is source of truth.
                     usageStore.update(result.data.remainingFreeQuota)
                 }
-                is Result.Error -> handleError(result.error)
+                is Result.Error -> {
+                    // Mirror the success-path stale-request guard: an error
+                    // (especially InvalidInput) for an obsolete request must
+                    // not clear the user's *current* valid selection nor
+                    // surface a snackbar tied to it.
+                    val current = _state.value
+                    if (current.matchesRequest(req)) {
+                        handleError(result.error)
+                    } else if (current.generationState is GenerationState.Generating) {
+                        _state.update { it.copy(generationState = GenerationState.Idle) }
+                    }
+                }
             }
         }
     }

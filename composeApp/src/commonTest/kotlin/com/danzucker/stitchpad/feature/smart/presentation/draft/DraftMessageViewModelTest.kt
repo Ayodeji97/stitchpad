@@ -362,6 +362,57 @@ class DraftMessageViewModelTest {
     }
 
     @Test
+    fun late_draft_error_does_not_clear_current_valid_order_after_input_change() = runTest {
+        // Symmetric to the success-path stale-request guard: an InvalidInput
+        // for an obsolete in-flight request must not wipe the user's now-
+        // current valid order pick or push a snackbar tied to it.
+        val otherCustomer = CustomerSummary(
+            id = "c-other",
+            firstName = "Ada",
+            whatsappNumber = "+2348099999999",
+        )
+        val otherOrder = testOrder.copy(id = "o-other", customerId = "c-other")
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeOrders.openOrdersFor("c-other") { listOf(otherOrder) }
+        val deferred = CompletableDeferred<Result<DraftMessageResult, SmartError>>()
+        val slowRepo = object : SmartRepository {
+            override suspend fun draftMessage(request: DraftMessageRequest):
+                Result<DraftMessageResult, SmartError> = deferred.await()
+        }
+        val vm = DraftMessageViewModel(
+            repository = slowRepo,
+            orderProvider = fakeOrders,
+            customerProvider = fakeCustomers,
+            connectivity = fakeConnectivity,
+            usageStore = fakeUsageStore,
+        )
+        val events = mutableListOf<DraftMessageEvent>()
+        val job = launch { vm.events.collect { events += it } }
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+
+        // User switches customer + picks the new customer's valid order
+        // while the previous draft request is still in flight.
+        vm.onAction(DraftMessageAction.SelectCustomer(otherCustomer))
+        runCurrent()
+        assertEquals(otherOrder, vm.state.value.order) // auto-selected
+
+        // The original in-flight request fails with InvalidInput (its order
+        // was deleted server-side, for example).
+        deferred.complete(Result.Error(SmartError.InvalidInput))
+        runCurrent()
+
+        // Current valid order pick must survive, and no stale snackbar.
+        assertEquals(otherOrder, vm.state.value.order)
+        assertEquals(GenerationState.Idle, vm.state.value.generationState)
+        assertTrue(events.none { it is DraftMessageEvent.ShowSnackbar })
+        job.cancel()
+    }
+
+    @Test
     fun late_draft_result_is_discarded_when_inputs_changed_mid_flight() = runTest {
         // Privacy guard for the still-Generating window: pickers stay
         // editable, so a draft for the previous customer must not land in
