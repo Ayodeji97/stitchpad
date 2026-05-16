@@ -134,6 +134,11 @@ class DraftMessageViewModel(
     @Suppress("ReturnCount")
     private fun generate() {
         val s = _state.value
+        // De-dupe rapid taps: a second GenerateDraft dispatched before the
+        // first call returns must not start a second request. Otherwise
+        // the user would burn two free-tier slots + pay for two Vertex
+        // calls for a single intent.
+        if (s.generationState is GenerationState.Generating) return
         val customer = s.customer ?: return
         val order = s.order ?: return
         val intent = s.intent ?: return

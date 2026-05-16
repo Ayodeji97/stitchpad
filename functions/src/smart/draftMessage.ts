@@ -201,11 +201,26 @@ function formatNaira(amount: number): string {
   return `₦${grouped}`;
 }
 
-function formatDeadline(epochMillis: number): string {
-  const d = new Date(epochMillis);
-  const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
-  const month = d.toLocaleDateString('en-GB', { month: 'long' });
-  return `${day}, ${month} ${d.getDate()}`;
+// The Android app stores order deadlines as local-zone start-of-day millis
+// (LocalDate.atStartOfDayIn(systemTimeZone)). Formatting with Node's default
+// UTC timezone shifts those instants back into the previous calendar day for
+// every Lagos-zone tailor — "your pickup is Thursday" when it should say
+// Friday. Until the client passes its own zone, hard-code Africa/Lagos
+// (V1 tester cohort is Nigerian).
+const TAILOR_TIME_ZONE = 'Africa/Lagos';
+
+export function formatDeadline(epochMillis: number): string {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    timeZone: TAILOR_TIME_ZONE,
+  });
+  const parts = fmt.formatToParts(new Date(epochMillis));
+  const weekday = parts.find((p) => p.type === 'weekday')?.value ?? '';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '';
+  const day = parts.find((p) => p.type === 'day')?.value ?? '';
+  return `${weekday}, ${month} ${day}`;
 }
 
 function humanizeGarmentType(raw: string): string {

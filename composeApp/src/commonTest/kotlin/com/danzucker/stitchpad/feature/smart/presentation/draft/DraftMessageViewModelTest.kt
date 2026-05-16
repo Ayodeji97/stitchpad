@@ -362,6 +362,41 @@ class DraftMessageViewModelTest {
     }
 
     @Test
+    fun a_second_GenerateDraft_while_one_is_in_flight_is_ignored() = runTest {
+        // Without the dedupe guard, a double-tap before the UI recomposes
+        // the disabled state would fire two callable requests for the same
+        // intent — burning two free-tier slots + paying for two Vertex calls.
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        val deferred = CompletableDeferred<Result<DraftMessageResult, SmartError>>()
+        var callCount = 0
+        val slowRepo = object : SmartRepository {
+            override suspend fun draftMessage(request: DraftMessageRequest):
+                Result<DraftMessageResult, SmartError> {
+                callCount++
+                return deferred.await()
+            }
+        }
+        val vm = DraftMessageViewModel(
+            repository = slowRepo,
+            orderProvider = fakeOrders,
+            customerProvider = fakeCustomers,
+            connectivity = fakeConnectivity,
+            usageStore = fakeUsageStore,
+        )
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        vm.onAction(DraftMessageAction.GenerateDraft) // double-tap
+        runCurrent()
+        deferred.complete(Result.Success(DraftMessageResult("Hi!", 4)))
+        runCurrent()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
     fun late_draft_error_does_not_clear_current_valid_order_after_input_change() = runTest {
         // Symmetric to the success-path stale-request guard: an InvalidInput
         // for an obsolete in-flight request must not wipe the user's now-

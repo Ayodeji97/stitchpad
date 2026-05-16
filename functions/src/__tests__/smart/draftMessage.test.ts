@@ -1,5 +1,6 @@
 import firebaseFunctionsTest from 'firebase-functions-test';
 import { reconcileUsage, isExhausted } from '../../smart/freeTierCounter';
+import { formatDeadline } from '../../smart/draftMessage';
 import { VertexClient } from '../../smart/vertexClient';
 
 const test = firebaseFunctionsTest();
@@ -231,5 +232,19 @@ describe('draftMessageHandler', () => {
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'permission-denied',
     });
+  });
+});
+
+describe('formatDeadline', () => {
+  it('renders deadlines in Africa/Lagos so a Lagos-local-midnight stays on the right day', () => {
+    // App stores May 1 2026 (Lagos) as the UTC instant 2026-04-30T23:00:00Z.
+    // Default Node UTC formatting would call this Thursday, April 30 — wrong.
+    const aprilThirty23UtcMillis = Date.UTC(2026, 3, 30, 23, 0, 0, 0);
+    expect(formatDeadline(aprilThirty23UtcMillis)).toBe('Friday, May 1');
+  });
+
+  it('renders a normal mid-day instant on its calendar day', () => {
+    const mayOneNoonUtcMillis = Date.UTC(2026, 4, 1, 12, 0, 0, 0);
+    expect(formatDeadline(mayOneNoonUtcMillis)).toBe('Friday, May 1');
   });
 });
