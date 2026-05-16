@@ -100,6 +100,11 @@ kotlin {
     }
 }
 
+val gitCommitCount: Int = providers.exec {
+    commandLine("git", "rev-list", "--count", "HEAD")
+    workingDir = rootDir
+}.standardOutput.asText.get().trim().toIntOrNull() ?: 1
+
 android {
     namespace = "com.danzucker.stitchpad"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -108,8 +113,8 @@ android {
         applicationId = "com.danzucker.stitchpad"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitCommitCount
+        versionName = "0.9.0"
 
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"683791063936-cbl4lksbu3cpbulak03vr70h4djtb5su.apps.googleusercontent.com\"")
     }
