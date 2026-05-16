@@ -100,6 +100,13 @@ kotlin {
     }
 }
 
+// Derives Android versionCode from git commit count so it monotonically
+// increases. NOTE: Gradle's configuration cache is enabled for this project,
+// so this value is captured at config time and baked into the cache. A new
+// `git commit` does NOT invalidate the cache, so locally-cached builds may
+// serve a stale versionCode. The release lanes in fastlane/Fastfile pass
+// `--no-configuration-cache` to gradle to guarantee a fresh value at upload
+// time. For local debug builds the slight staleness is harmless.
 val gitCommitCount: Int = providers.exec {
     commandLine("git", "rev-list", "--count", "HEAD")
     workingDir = rootDir
