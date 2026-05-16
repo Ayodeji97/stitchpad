@@ -91,6 +91,22 @@ class SmartFunctionsRepositoryTest {
         assertEquals(SmartError.Unknown, result.error)
     }
 
+    @Test
+    fun unknown_error_carrying_free_tier_exhausted_marker_maps_to_FreeTierExhausted() = runTest {
+        // Defensive path for iOS GitLive: the wrapper sometimes drops the
+        // canonical PERMISSION_DENIED code so a real free-tier rejection
+        // arrives as a generic Unknown with the server's message preserved.
+        // The repo must still recognise it so the upgrade sheet fires.
+        val fake = FakeFunctionsCaller(
+            response = Result.Error(FunctionsCallerError.Unknown("permission-denied: free_tier_exhausted")),
+        )
+        val repo = SmartFunctionsRepository(fake)
+
+        val result = repo.draftMessage(baseRequest)
+        assertIs<Result.Error<SmartError>>(result)
+        assertEquals(SmartError.FreeTierExhausted, result.error)
+    }
+
     private class FakeFunctionsCaller(
         private val response: Result<DraftMessageResponseDto, FunctionsCallerError>,
     ) : FunctionsCaller {

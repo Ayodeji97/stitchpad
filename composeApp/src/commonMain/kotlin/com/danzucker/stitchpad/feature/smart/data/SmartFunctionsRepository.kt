@@ -23,7 +23,7 @@ internal class SmartFunctionsRepository(
 
     private fun FunctionsCallerError.toSmartError(): SmartError = when (this) {
         is FunctionsCallerError.PermissionDenied ->
-            if (message.contains("free_tier_exhausted")) {
+            if (message.containsExhaustedMarker()) {
                 SmartError.FreeTierExhausted
             } else {
                 SmartError.Unknown
@@ -31,6 +31,19 @@ internal class SmartFunctionsRepository(
         is FunctionsCallerError.InvalidArgument -> SmartError.InvalidInput
         FunctionsCallerError.Unavailable -> SmartError.ServiceUnavailable
         FunctionsCallerError.Network -> SmartError.Network
-        is FunctionsCallerError.Unknown -> SmartError.Unknown
+        // GitLive on iOS sometimes surfaces canonical HttpsError codes as
+        // generic exceptions (the FunctionsExceptionCode mapping isn't always
+        // complete in the Apple wrapper). Defensively check the message
+        // substring so the upgrade sheet still fires when the server
+        // legitimately rejected with permission-denied: free_tier_exhausted.
+        is FunctionsCallerError.Unknown ->
+            if (message.containsExhaustedMarker()) {
+                SmartError.FreeTierExhausted
+            } else {
+                SmartError.Unknown
+            }
     }
+
+    private fun String.containsExhaustedMarker(): Boolean =
+        contains("free_tier_exhausted")
 }
