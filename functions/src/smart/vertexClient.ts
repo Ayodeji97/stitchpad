@@ -1,11 +1,13 @@
 import { VertexAI } from '@google-cloud/vertexai';
 
 const PROJECT_ID = 'stitchpad-30607';
-const LOCATION = 'europe-west1';
-// gemini-2.0-flash-001 is not yet available in europe-west1 — the project
-// hits a 404 when trying to invoke it there. gemini-1.5-flash-002 has full
-// europe-west1 GA coverage and produces equivalent-quality short drafts.
-const MODEL_ID = 'gemini-1.5-flash-002';
+// Vertex AI region for the LLM call only — does NOT need to match the
+// Cloud Function's region (which stays europe-west1 to keep low Firestore
+// latency). us-central1 has full GA coverage of every published Gemini
+// model; europe-west1 returned 404 for both 2.0-flash-001 and 1.5-flash-002
+// on this project as of 2026-05.
+const LOCATION = 'us-central1';
+const MODEL_ID = 'gemini-2.0-flash-001';
 
 /**
  * Thin interface over the Vertex AI SDK so the draftMessage handler can be
