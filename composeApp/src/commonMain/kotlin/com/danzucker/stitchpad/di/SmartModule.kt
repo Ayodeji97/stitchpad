@@ -14,6 +14,7 @@ import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.functions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -34,8 +35,7 @@ val smartDataModule = module {
 }
 
 val smartPresentationModule = module {
-    @Suppress("UNCHECKED_CAST")
-    factory {
+    viewModel {
         DraftMessageViewModel(
             repository = get(),
             orderProvider = get(),
