@@ -1,0 +1,89 @@
+# StitchPad release lanes. Phase 1: local execution only.
+# See docs/release-process.md for the prerequisite checklist.
+
+# Load fastlane/.env (gitignored) into ENV. Optional — vars can also come
+# from the shell environment (e.g. when invoked from CI in Phase 2).
+require "dotenv"
+Dotenv.load(File.join(__dir__, ".env")) if File.exist?(File.join(__dir__, ".env"))
+
+# --- Shared helpers ---
+
+def current_build_number
+  `git rev-list --count HEAD`.strip.to_i
+end
+
+def release_notes
+  notes = ENV["RELEASE_NOTES"]
+  return notes if notes && !notes.empty?
+  `git log -1 --pretty=%s`.strip
+end
+
+# --- Shared preflight ---
+
+before_all do |lane, options|
+  next if lane == :smoke # skip for the lane-parse smoke test below
+
+  UI.message "Running shared preflight (detekt + :composeApp:allTests)…"
+  sh "cd .. && ./gradlew detekt :composeApp:allTests --console=plain"
+end
+
+# --- Android ---
+
+platform :android do
+  package_name = "com.danzucker.stitchpad"
+
+  desc "Build a signed AAB and upload to Play internal testing track"
+  lane :beta do
+    json_key = ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON_PATH")
+    UI.user_error!("Service account JSON not found at #{json_key}") unless File.exist?(json_key)
+
+    current = current_build_number
+    UI.message "Current git commit count: #{current}"
+
+    # No-new-commits guard — query Play for the highest versionCode in the internal track.
+    track_codes = google_play_track_version_codes(
+      package_name: package_name,
+      track: "internal",
+      json_key: json_key
+    ) rescue []
+    last = (track_codes || []).max || 0
+    UI.message "Last internal-track versionCode on Play: #{last}"
+
+    if current <= last
+      UI.user_error!(
+        "No new commits since last upload (last versionCode on Play=#{last}, " \
+        "current rev-list=#{current}). Bump versionName and commit a release " \
+        "marker (e.g. `chore(release): cut 0.9.x`) before re-running."
+      )
+    end
+
+    # Build signed AAB.
+    # --no-configuration-cache forces gitCommitCount in build.gradle.kts to be
+    # freshly evaluated, so a warm config cache cannot serve a stale versionCode.
+    sh "cd .. && ./gradlew :composeApp:bundleRelease --console=plain --no-configuration-cache"
+
+    aab = "../composeApp/build/outputs/bundle/release/composeApp-release.aab"
+    UI.user_error!("AAB not found at #{aab}") unless File.exist?(File.join(__dir__, aab))
+
+    upload_to_play_store(
+      package_name: package_name,
+      track: "internal",
+      aab: aab,
+      json_key: json_key,
+      release_status: "draft", # promote manually in Play Console after sanity check
+      skip_upload_metadata: true,
+      skip_upload_changelogs: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+
+    UI.success "Uploaded AAB versionCode=#{current} to Play internal track. " \
+               "Open Play Console → Internal testing → review & roll out."
+  end
+end
+
+# --- Smoke test — confirms Fastfile parses without running anything real. ---
+
+lane :smoke do
+  UI.success "Fastfile parses; build number is #{current_build_number}; notes: #{release_notes}"
+end
