@@ -23,17 +23,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
+import com.danzucker.stitchpad.feature.smart.domain.model.DraftIntent
+import com.danzucker.stitchpad.feature.smart.domain.model.OrderSummary
 import com.danzucker.stitchpad.feature.smart.presentation.draft.components.CustomerPickerSheet
 import com.danzucker.stitchpad.feature.smart.presentation.draft.components.DraftPreview
 import com.danzucker.stitchpad.feature.smart.presentation.draft.components.IntentChips
 import com.danzucker.stitchpad.feature.smart.presentation.draft.components.LanguageToggle
 import com.danzucker.stitchpad.feature.smart.presentation.draft.components.OrderPickerSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_generate_cta
 import stitchpad.composeapp.generated.resources.draft_message_generating
+import stitchpad.composeapp.generated.resources.draft_message_intent_section_label
 import stitchpad.composeapp.generated.resources.draft_message_notes_label
 import stitchpad.composeapp.generated.resources.draft_message_notes_placeholder
 import stitchpad.composeapp.generated.resources.draft_message_offline_helper
@@ -87,7 +93,7 @@ fun DraftMessageScreen(
 
         // Intent chips
         Text(
-            text = "What’s this message about?",
+            text = stringResource(Res.string.draft_message_intent_section_label),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -185,6 +191,45 @@ fun DraftMessageScreen(
             orders = state.orderOptions,
             onSelect = { onAction(DraftMessageAction.SelectOrder(it)) },
             onDismissRequest = { showOrderSheet = false },
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun DraftMessageScreenIdlePreview() {
+    StitchPadTheme {
+        DraftMessageScreen(state = DraftMessageState(), onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun DraftMessageScreenSuccessPreview() {
+    StitchPadTheme {
+        DraftMessageScreen(
+            state = DraftMessageState(
+                customer = CustomerSummary(
+                    id = "c",
+                    firstName = "Folake",
+                    whatsappNumber = "+2348012345678",
+                ),
+                order = OrderSummary(
+                    id = "o",
+                    customerId = "c",
+                    garmentLabel = "Adire boubou",
+                    balanceFormatted = "₦7,500",
+                    deadlineFormatted = "Fri",
+                ),
+                intent = DraftIntent.BalanceReminder,
+                generationState = GenerationState.Success(
+                    "Hi Folake, just a friendly note about your balance.",
+                ),
+                remainingFreeQuota = 4,
+            ),
+            onAction = {},
         )
     }
 }

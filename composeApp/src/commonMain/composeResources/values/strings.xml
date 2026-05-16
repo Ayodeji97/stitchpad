@@ -1106,6 +1106,8 @@
     <string name="draft_message_intent_custom">Custom note</string>
     <string name="draft_message_language_english">English</string>
     <string name="draft_message_language_pidgin">Pidgin</string>
+    <string name="draft_message_intent_section_label">What&apos;s this message about?</string>
+    <string name="draft_message_no_customers">No customers yet</string>
 
     <!-- Upgrade sheet (stubbed; finalized in Task 14) -->
     <string name="smart_upgrade_sheet_title">You&apos;ve used your free drafts</string>

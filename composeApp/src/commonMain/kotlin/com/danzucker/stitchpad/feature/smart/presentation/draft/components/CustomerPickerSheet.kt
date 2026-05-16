@@ -19,6 +19,7 @@ import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.draft_message_no_customers
 import stitchpad.composeapp.generated.resources.draft_message_no_whatsapp_helper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,7 +41,7 @@ fun CustomerPickerSheet(
                     .padding(DesignTokens.space8),
             ) {
                 Text(
-                    text = "No customers yet",
+                    text = stringResource(Res.string.draft_message_no_customers),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
