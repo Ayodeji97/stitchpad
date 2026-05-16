@@ -6,7 +6,25 @@ import {
   DraftContext,
   UserProfileSummary,
   FreeTierUsageDoc,
+  IntentType,
+  Language,
 } from './types';
+
+const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
+  'balance_reminder',
+  'pickup_ready',
+  'follow_up',
+  'custom_note',
+];
+const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'pcm'];
+
+function isIntentType(value: unknown): value is IntentType {
+  return typeof value === 'string' && (SUPPORTED_INTENT_TYPES as readonly string[]).includes(value);
+}
+
+function isLanguage(value: unknown): value is Language {
+  return typeof value === 'string' && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
+}
 import { buildSystemPrompt, buildUserPrompt } from './promptBuilder';
 import { reconcileUsage, isExhausted } from './freeTierCounter';
 import { getVertexClient, VertexClient } from './vertexClient';
@@ -204,6 +222,18 @@ export async function draftMessageHandler(
 ): Promise<DraftMessageResponse> {
   if (!context.auth?.uid) {
     throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+  }
+
+  // 0. Validate enum fields up front. The TypeScript types only constrain
+  // trusted callers; an outdated or direct client can pass any string here.
+  // Without this guard, buildUserPrompt would index its enum maps with the
+  // unknown value, produce an `undefined` label, and we'd burn quota on a
+  // garbage Vertex call.
+  if (!isIntentType(data.intentType)) {
+    throw new functions.https.HttpsError('invalid-argument', 'invalid_input: unsupported intentType');
+  }
+  if (!isLanguage(data.language)) {
+    throw new functions.https.HttpsError('invalid-argument', 'invalid_input: unsupported language');
   }
 
   // 1. Tier check

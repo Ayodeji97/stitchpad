@@ -144,6 +144,24 @@ describe('draftMessageHandler', () => {
     expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
   });
 
+  it('rejects with invalid-argument when intentType is unsupported (no quota burned)', async () => {
+    const fs = fakeFirestore({});
+    await expect(
+      handler({ ...validRequest, intentType: 'bogus' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+    expect(fakeVertex.generateText).not.toHaveBeenCalled();
+  });
+
+  it('rejects with invalid-argument when language is unsupported (no quota burned)', async () => {
+    const fs = fakeFirestore({});
+    await expect(
+      handler({ ...validRequest, language: 'fr' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+    expect(fakeVertex.generateText).not.toHaveBeenCalled();
+  });
+
   it('rejects with invalid-argument when the order is closed (delivered or archived)', async () => {
     const fs = fakeFirestore({});
     fs.orderGet = jest.fn().mockResolvedValue({
