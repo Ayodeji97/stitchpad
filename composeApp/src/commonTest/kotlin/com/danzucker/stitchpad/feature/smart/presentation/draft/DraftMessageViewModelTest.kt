@@ -345,10 +345,11 @@ class DraftMessageViewModelTest {
     }
 
     @Test
-    fun canGenerate_is_false_when_remaining_free_quota_is_zero() = runTest {
-        // UX gate so the form isn't submittable when the cached counter says
-        // 0 — saves the round-trip to the upgrade sheet on tap. Server still
-        // enforces the limit independently.
+    fun zero_cached_quota_flags_isOutOfFreeDrafts_without_hard_blocking_Generate() = runTest {
+        // The cache is process-local and doesn't track month rollover, so a
+        // hard client gate would trap a user whose server counter has reset
+        // into the next month. The inline helper tells them what's likely
+        // about to happen; the server is the source of truth on the tap.
         fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
         fakeUsageStore.update(0)
         val vm = newVm()
@@ -356,8 +357,48 @@ class DraftMessageViewModelTest {
         vm.onAction(DraftMessageAction.SelectOrder(testOrder))
         vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
         runCurrent()
-        assertFalse(vm.state.value.canGenerate)
+        assertTrue(vm.state.value.canGenerate)
         assertTrue(vm.state.value.isOutOfFreeDrafts)
+    }
+
+    @Test
+    fun late_draft_result_is_discarded_when_inputs_changed_mid_flight() = runTest {
+        // Privacy guard for the still-Generating window: pickers stay
+        // editable, so a draft for the previous customer must not land in
+        // state after the user has already moved on.
+        val otherCustomer = CustomerSummary(id = "c-other", firstName = "Ada", whatsappNumber = "+2348099999999")
+        val otherOrder = testOrder.copy(id = "o-other", customerId = "c-other")
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeOrders.openOrdersFor("c-other") { listOf(otherOrder) }
+        val deferred = CompletableDeferred<Result<DraftMessageResult, SmartError>>()
+        val slowRepo = object : SmartRepository {
+            override suspend fun draftMessage(request: DraftMessageRequest):
+                Result<DraftMessageResult, SmartError> = deferred.await()
+        }
+        val vm = DraftMessageViewModel(
+            repository = slowRepo,
+            orderProvider = fakeOrders,
+            customerProvider = fakeCustomers,
+            connectivity = fakeConnectivity,
+            usageStore = fakeUsageStore,
+        )
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        assertIs<GenerationState.Generating>(vm.state.value.generationState)
+
+        // User switches customer while the draft is still in flight.
+        vm.onAction(DraftMessageAction.SelectCustomer(otherCustomer))
+        runCurrent()
+
+        // The original draft (for the original customer) returns now.
+        deferred.complete(Result.Success(DraftMessageResult("Hi Folake!", 4)))
+        runCurrent()
+
+        // Must NOT land — Generate state cleared, no stale draft installed.
+        assertEquals(GenerationState.Idle, vm.state.value.generationState)
     }
 
     @Test

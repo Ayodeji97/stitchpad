@@ -23,17 +23,15 @@ data class DraftMessageState(
             order != null &&
             intent != null &&
             isOnline &&
-            generationState !is GenerationState.Generating &&
-            // Pre-disable on the client when the cached counter says 0 so the
-            // user doesn't fill in the form, tap Generate, and only then hit
-            // the Upgrade sheet. Server still enforces the limit (this is a
-            // UX hint, not the source of truth).
-            remainingFreeQuota != 0
+            generationState !is GenerationState.Generating
 
     /**
-     * Out of free drafts according to the cached counter. Surface this
-     * inline near the Generate button so it's clear *why* the CTA is
-     * disabled — otherwise it just looks broken.
+     * Out of free drafts according to the *process-local* counter. Drives an
+     * inline hint near the Generate CTA so the user knows the next tap will
+     * hit the Upgrade sheet, but it is NOT a hard gate — the cache doesn't
+     * track month rollover, so blocking on it would trap a user whose
+     * server-side counter has actually reset into the next month. The server
+     * is the source of truth.
      */
     val isOutOfFreeDrafts: Boolean
         get() = remainingFreeQuota == 0

@@ -150,20 +150,46 @@ class DraftMessageViewModel(
             )
             when (val result = repository.draftMessage(req)) {
                 is Result.Success -> {
-                    _state.update {
-                        it.copy(
+                    _state.update { current ->
+                        // The form stays editable during Generating. If the
+                        // user changed any request input mid-flight, the
+                        // draft is for a stale combination — never install
+                        // it (would let SendViaWhatsApp dispatch the wrong
+                        // text to the wrong customer's number).
+                        if (!current.matchesRequest(req)) {
+                            return@update if (current.generationState is GenerationState.Generating) {
+                                current.copy(generationState = GenerationState.Idle)
+                            } else {
+                                current
+                            }
+                        }
+                        current.copy(
                             generationState = GenerationState.Success(result.data.draftText),
                             remainingFreeQuota = result.data.remainingFreeQuota,
                         )
                     }
                     // Publish to the cross-feature cache so the dashboard
                     // chip stays in sync without an extra server call.
+                    // Always publish — server is source of truth.
                     usageStore.update(result.data.remainingFreeQuota)
                 }
                 is Result.Error -> handleError(result.error)
             }
         }
     }
+
+    /**
+     * True when the current form selections still describe the request that
+     * just resolved. Lets a late-returning draft be discarded if the user
+     * already moved on to a different customer / order / intent / language /
+     * notes during the in-flight window.
+     */
+    private fun DraftMessageState.matchesRequest(req: DraftMessageRequest): Boolean =
+        customer?.id == req.customerId &&
+            order?.id == req.orderId &&
+            intent == req.intent &&
+            language == req.language &&
+            customNotes.takeIf { it.isNotBlank() } == req.customNotes
 
     private suspend fun handleError(error: SmartError) {
         _state.update { it.copy(generationState = GenerationState.Idle) }
