@@ -42,3 +42,5 @@ function serialiseSettledError(error: unknown): unknown {
     ? { name: error.name, message: error.message, stack: error.stack }
     : error;
 }
+
+export { smartDraftMessage } from './smart/draftMessage';

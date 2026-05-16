@@ -8,7 +8,7 @@
     "build": "tsc",
     "lint": "eslint --ext .js,.ts src/",
     "test": "jest",
-    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted"
+    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted,functions:smartDraftMessage"
   },
   "dependencies": {
     "@google-cloud/vertexai": "^1.9.0",
