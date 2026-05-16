@@ -1106,6 +1106,7 @@
     <string name="draft_message_language_pidgin">Pidgin</string>
     <string name="draft_message_notes_label">Anything specific to add?</string>
     <string name="draft_message_notes_placeholder">Optional</string>
+    <string name="draft_message_notes_char_counter">%1$d / %2$d</string>
     <string name="draft_message_generate_cta">Generate draft</string>
     <string name="draft_message_generating">Drafting…</string>
     <string name="draft_message_send_whatsapp">Send via WhatsApp</string>

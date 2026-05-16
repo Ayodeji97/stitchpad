@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.smart.presentation.components.FreeTierCounterChip
 import com.danzucker.stitchpad.feature.smart.presentation.components.IntentTile
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -74,7 +73,10 @@ fun SmartSectionCard(
             Spacer(Modifier.height(DesignTokens.space3))
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-                contentPadding = PaddingValues(horizontal = 0.dp),
+                // Right padding so the third tile peeks ~24dp at the edge
+                // and the row reads as horizontally scrollable instead of
+                // looking like a 2-tile layout with one tile hidden.
+                contentPadding = PaddingValues(end = DesignTokens.space6),
             ) {
                 item {
                     IntentTile(

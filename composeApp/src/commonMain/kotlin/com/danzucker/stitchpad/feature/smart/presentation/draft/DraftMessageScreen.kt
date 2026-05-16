@@ -46,11 +46,15 @@ import stitchpad.composeapp.generated.resources.draft_message_generate_cta
 import stitchpad.composeapp.generated.resources.draft_message_generating
 import stitchpad.composeapp.generated.resources.draft_message_intent_section_label
 import stitchpad.composeapp.generated.resources.draft_message_no_open_orders
+import stitchpad.composeapp.generated.resources.draft_message_notes_char_counter
 import stitchpad.composeapp.generated.resources.draft_message_notes_label
 import stitchpad.composeapp.generated.resources.draft_message_notes_placeholder
 import stitchpad.composeapp.generated.resources.draft_message_offline_helper
 import stitchpad.composeapp.generated.resources.draft_message_pick_customer
 import stitchpad.composeapp.generated.resources.draft_message_pick_order
+
+/** Soft cap on the optional notes field — keeps the prompt tight + cost predictable. */
+private const val NOTES_MAX_CHARS = 200
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,12 +129,29 @@ fun DraftMessageScreen(
 
         Spacer(Modifier.height(DesignTokens.space4))
 
-        // Notes field
+        // Notes field — soft-capped at NOTES_MAX_CHARS to keep the prompt
+        // tight. Long custom notes derail the model and inflate token cost
+        // for free-tier drafts. Counter sits in the supportingText slot
+        // and turns error-colored when over.
         OutlinedTextField(
             value = state.customNotes,
-            onValueChange = { onAction(DraftMessageAction.UpdateCustomNotes(it)) },
+            onValueChange = { new ->
+                if (new.length <= NOTES_MAX_CHARS) {
+                    onAction(DraftMessageAction.UpdateCustomNotes(new))
+                }
+            },
             label = { Text(stringResource(Res.string.draft_message_notes_label)) },
             placeholder = { Text(stringResource(Res.string.draft_message_notes_placeholder)) },
+            supportingText = {
+                Text(
+                    text = stringResource(
+                        Res.string.draft_message_notes_char_counter,
+                        state.customNotes.length,
+                        NOTES_MAX_CHARS,
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            },
             minLines = 3,
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth(),

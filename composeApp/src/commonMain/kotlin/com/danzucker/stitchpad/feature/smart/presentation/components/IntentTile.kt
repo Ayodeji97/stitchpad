@@ -43,6 +43,11 @@ fun IntentTile(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    // Disabled tiles use onSurfaceVariant for the subtitle (already a
+    // contrast-tuned secondary). Enabled tiles drop alpha on the primary
+    // pair to read as a quieter supporting line.
+    val subtitleColor = if (enabled) onContainer.copy(alpha = 0.7f) else onContainer
+
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = container,
@@ -58,7 +63,7 @@ fun IntentTile(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = onContainer.copy(alpha = 0.7f),
+                color = subtitleColor,
             )
         }
     }
