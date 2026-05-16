@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
@@ -29,9 +30,17 @@ class DraftMessageViewModel(
     private val orderProvider: OpenOrdersProvider,
     private val customerProvider: CustomerSearchProvider,
     private val connectivity: StateFlow<Boolean>,
+    private val usageStore: SmartUsageStore,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(DraftMessageState(isOnline = connectivity.value))
+    private val _state = MutableStateFlow(
+        DraftMessageState(
+            isOnline = connectivity.value,
+            // Seed from the cross-feature cache so the chip is filled
+            // immediately if the user has already drafted this session.
+            remainingFreeQuota = usageStore.remainingFreeQuota.value,
+        )
+    )
     val state: StateFlow<DraftMessageState> = _state.asStateFlow()
 
     private val _events = Channel<DraftMessageEvent>(Channel.BUFFERED)
@@ -77,7 +86,14 @@ class DraftMessageViewModel(
         _state.update { it.copy(customer = customer, order = null, orderOptions = emptyList()) }
         viewModelScope.launch {
             val orders = orderProvider.openOrdersFor(customer.id)
-            _state.update { it.copy(orderOptions = orders) }
+            _state.update {
+                it.copy(
+                    orderOptions = orders,
+                    // Auto-select when the customer has exactly one open order
+                    // (common case — saves a tap into the picker sheet).
+                    order = orders.singleOrNull(),
+                )
+            }
         }
     }
 
@@ -99,11 +115,16 @@ class DraftMessageViewModel(
                 customNotes = s.customNotes.takeIf { it.isNotBlank() },
             )
             when (val result = repository.draftMessage(req)) {
-                is Result.Success -> _state.update {
-                    it.copy(
-                        generationState = GenerationState.Success(result.data.draftText),
-                        remainingFreeQuota = result.data.remainingFreeQuota,
-                    )
+                is Result.Success -> {
+                    _state.update {
+                        it.copy(
+                            generationState = GenerationState.Success(result.data.draftText),
+                            remainingFreeQuota = result.data.remainingFreeQuota,
+                        )
+                    }
+                    // Publish to the cross-feature cache so the dashboard
+                    // chip stays in sync without an extra server call.
+                    usageStore.update(result.data.remainingFreeQuota)
                 }
                 is Result.Error -> handleError(result.error)
             }

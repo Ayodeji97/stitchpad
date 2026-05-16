@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.smart.presentation.draft
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,9 +11,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -22,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -64,16 +69,12 @@ fun DraftMessageScreen(
             .padding(DesignTokens.space4),
     ) {
         // Customer picker trigger
-        OutlinedButton(
+        PickerButton(
+            label = state.customer?.firstName
+                ?: stringResource(Res.string.draft_message_pick_customer),
+            enabled = true,
             onClick = { showCustomerSheet = true },
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = state.customer?.firstName
-                    ?: stringResource(Res.string.draft_message_pick_customer),
-            )
-        }
+        )
 
         Spacer(Modifier.height(DesignTokens.space3))
 
@@ -82,17 +83,12 @@ fun DraftMessageScreen(
         // no open orders so the user isn't stranded at a dead-end button).
         val customerHasNoOpenOrders =
             state.customer != null && state.orderOptions.isEmpty()
-        OutlinedButton(
-            onClick = { showOrderSheet = true },
+        PickerButton(
+            label = state.order?.garmentLabel
+                ?: stringResource(Res.string.draft_message_pick_order),
             enabled = state.customer != null && state.orderOptions.isNotEmpty(),
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = state.order?.garmentLabel
-                    ?: stringResource(Res.string.draft_message_pick_order),
-            )
-        }
+            onClick = { showOrderSheet = true },
+        )
         if (customerHasNoOpenOrders) {
             Spacer(Modifier.height(DesignTokens.space1))
             Text(
@@ -206,6 +202,38 @@ fun DraftMessageScreen(
             onSelect = { onAction(DraftMessageAction.SelectOrder(it)) },
             onDismissRequest = { showOrderSheet = false },
         )
+    }
+}
+
+/**
+ * Outlined "tap to choose" button with a trailing chevron — used for both
+ * the customer and order picker triggers so they read as dropdown-style
+ * selectors instead of inert text fields.
+ */
+@Composable
+private fun PickerButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = label, modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.size(DesignTokens.iconList),
+            )
+        }
     }
 }
 

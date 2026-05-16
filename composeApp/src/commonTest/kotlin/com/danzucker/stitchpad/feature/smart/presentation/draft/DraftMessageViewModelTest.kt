@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.smart.presentation.draft
 
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftIntent
@@ -12,6 +13,7 @@ import com.danzucker.stitchpad.feature.smart.domain.repository.SmartRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -38,6 +40,7 @@ class DraftMessageViewModelTest {
     private lateinit var fakeOrders: FakeOrderProvider
     private lateinit var fakeCustomers: FakeCustomerProvider
     private lateinit var fakeConnectivity: MutableStateFlow<Boolean>
+    private lateinit var fakeUsageStore: FakeSmartUsageStore
 
     @BeforeTest
     fun setUp() {
@@ -46,6 +49,7 @@ class DraftMessageViewModelTest {
         fakeOrders = FakeOrderProvider()
         fakeCustomers = FakeCustomerProvider()
         fakeConnectivity = MutableStateFlow(true)
+        fakeUsageStore = FakeSmartUsageStore()
     }
 
     @AfterTest
@@ -58,6 +62,7 @@ class DraftMessageViewModelTest {
         orderProvider = fakeOrders,
         customerProvider = fakeCustomers,
         connectivity = fakeConnectivity,
+        usageStore = fakeUsageStore,
     )
 
     @Test
@@ -255,6 +260,48 @@ class DraftMessageViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun SelectCustomer_with_single_open_order_auto_selects_it() = runTest {
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        runCurrent()
+        assertEquals(testOrder, vm.state.value.order)
+    }
+
+    @Test
+    fun SelectCustomer_with_multiple_orders_does_not_auto_select() = runTest {
+        val orderA = testOrder
+        val orderB = testOrder.copy(id = "o2", garmentLabel = "Adire shirt")
+        fakeOrders.openOrdersFor("c1") { listOf(orderA, orderB) }
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        runCurrent()
+        assertNull(vm.state.value.order)
+        assertEquals(listOf(orderA, orderB), vm.state.value.orderOptions)
+    }
+
+    @Test
+    fun successful_generate_publishes_remaining_quota_to_usage_store() = runTest {
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeRepo.respondWith(Result.Success(DraftMessageResult("Hi!", remainingFreeQuota = 3)))
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        assertEquals(3, fakeUsageStore.remainingFreeQuota.value)
+    }
+
+    @Test
+    fun initial_state_seeds_remaining_quota_from_usage_store() = runTest {
+        fakeUsageStore.update(2)
+        val vm = newVm()
+        runCurrent()
+        assertEquals(2, vm.state.value.remainingFreeQuota)
+    }
+
     // --- Fakes ---
 
     private class FakeSmartRepository : SmartRepository {
@@ -280,5 +327,13 @@ class DraftMessageViewModelTest {
         private var canned: List<CustomerSummary> = emptyList()
         fun respondWith(customers: List<CustomerSummary>) { canned = customers }
         override suspend fun search(query: String): List<CustomerSummary> = canned
+    }
+
+    private class FakeSmartUsageStore : SmartUsageStore {
+        private val state = MutableStateFlow<Int?>(null)
+        override val remainingFreeQuota: StateFlow<Int?> = state
+        override fun update(remaining: Int?) {
+            state.value = remaining
+        }
     }
 }

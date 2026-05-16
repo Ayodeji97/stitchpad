@@ -641,10 +641,10 @@ private fun DashboardContent(
             state.uiState != DashboardUiState.Loading
         ) {
             SmartSectionCard(
-                // V1: dashboard free-tier chip hidden; the in-screen counter on
-                // DraftMessageScreen is the V1 quota surface. Wire this to a
-                // real value in V1.5 when the premium entitlement flow ships.
-                remainingFreeQuota = null,
+                // Mirrored from the SmartUsageStore via DashboardViewModel —
+                // null until the user generates their first draft of the
+                // session, then tracks the most recent server-returned value.
+                remainingFreeQuota = state.smartFreeQuotaRemaining,
                 onDraftMessageClick = { onAction(DashboardAction.OnDraftMessageClick) },
             )
         }

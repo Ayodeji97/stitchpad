@@ -19,9 +19,11 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiS
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
+import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -45,6 +47,7 @@ class DashboardViewModel(
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
     private val weeklyGoalRepository: WeeklyGoalRepository,
+    private val smartUsageStore: SmartUsageStore,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) : ViewModel() {
@@ -60,6 +63,7 @@ class DashboardViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 loadData()
+                observeSmartQuota()
             }
         }
         .stateIn(
@@ -67,6 +71,19 @@ class DashboardViewModel(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = DashboardState()
         )
+
+    /**
+     * Mirror the Smart Suggestions cross-feature cache into dashboard state
+     * so the SmartSectionCard counter chip stays in sync. The store is
+     * updated by DraftMessageViewModel after each successful draft.
+     */
+    private fun observeSmartQuota() {
+        viewModelScope.launch {
+            smartUsageStore.remainingFreeQuota.collect { remaining ->
+                _state.update { it.copy(smartFreeQuotaRemaining = remaining) }
+            }
+        }
+    }
 
     // Single sealed-action dispatch table — every DashboardAction handled in
     // one place. Splitting into per-group helpers would scatter the contract
