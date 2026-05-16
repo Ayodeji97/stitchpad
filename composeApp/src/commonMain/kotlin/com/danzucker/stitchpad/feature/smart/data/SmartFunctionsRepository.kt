@@ -22,28 +22,39 @@ internal class SmartFunctionsRepository(
     }
 
     private fun FunctionsCallerError.toSmartError(): SmartError = when (this) {
-        is FunctionsCallerError.PermissionDenied ->
-            if (message.containsExhaustedMarker()) {
-                SmartError.FreeTierExhausted
-            } else {
-                SmartError.Unknown
-            }
+        is FunctionsCallerError.PermissionDenied -> recoverFromMessage(message, fallback = SmartError.Unknown)
         is FunctionsCallerError.InvalidArgument -> SmartError.InvalidInput
         FunctionsCallerError.Unavailable -> SmartError.ServiceUnavailable
         FunctionsCallerError.Network -> SmartError.Network
-        // GitLive on iOS sometimes surfaces canonical HttpsError codes as
-        // generic exceptions (the FunctionsExceptionCode mapping isn't always
-        // complete in the Apple wrapper). Defensively check the message
-        // substring so the upgrade sheet still fires when the server
-        // legitimately rejected with permission-denied: free_tier_exhausted.
-        is FunctionsCallerError.Unknown ->
-            if (message.containsExhaustedMarker()) {
-                SmartError.FreeTierExhausted
-            } else {
-                SmartError.Unknown
-            }
+        // GitLive on iOS surfaces canonical HttpsError codes as generic
+        // exceptions on the 2.x Apple wrapper (FunctionsExceptionCode mapping
+        // is incomplete for the Firebase Functions error domain). Defensively
+        // parse the server message so iOS still routes invalid-input to the
+        // dedicated UI, unavailable to "service unavailable", and
+        // permission-denied: free_tier_exhausted to the Upgrade sheet —
+        // instead of dumping everything into the generic Unknown bucket.
+        is FunctionsCallerError.Unknown -> recoverFromMessage(message, fallback = SmartError.Unknown)
     }
 
-    private fun String.containsExhaustedMarker(): Boolean =
-        contains("free_tier_exhausted")
+    /**
+     * Best-effort recovery of the intended SmartError from the server's
+     * message string. Used both when canonical code mapping fails (iOS) and
+     * when permission-denied could mean either "out of quota" or some other
+     * permission issue we'd rather not silently call FreeTierExhausted.
+     */
+    private fun recoverFromMessage(message: String, fallback: SmartError): SmartError = when {
+        message.contains(MARKER_FREE_TIER_EXHAUSTED) -> SmartError.FreeTierExhausted
+        message.contains(MARKER_SERVICE_UNAVAILABLE) -> SmartError.ServiceUnavailable
+        message.contains(MARKER_INVALID_INPUT) -> SmartError.InvalidInput
+        else -> fallback
+    }
+
+    private companion object {
+        // Markers must stay in sync with functions/src/smart/draftMessage.ts —
+        // they are how the iOS GitLive wrapper recovers the intent of the
+        // server error when the canonical code is lost.
+        const val MARKER_FREE_TIER_EXHAUSTED = "free_tier_exhausted"
+        const val MARKER_SERVICE_UNAVAILABLE = "service_unavailable"
+        const val MARKER_INVALID_INPUT = "invalid_input"
+    }
 }

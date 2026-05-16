@@ -107,6 +107,34 @@ class SmartFunctionsRepositoryTest {
         assertEquals(SmartError.FreeTierExhausted, result.error)
     }
 
+    @Test
+    fun unknown_error_carrying_invalid_input_marker_maps_to_InvalidInput() = runTest {
+        // Same iOS defensive path — stale/deleted orders are server
+        // invalid-argument but arrive as Unknown on iOS.
+        val fake = FakeFunctionsCaller(
+            response = Result.Error(FunctionsCallerError.Unknown("invalid_input: order not found")),
+        )
+        val repo = SmartFunctionsRepository(fake)
+
+        val result = repo.draftMessage(baseRequest)
+        assertIs<Result.Error<SmartError>>(result)
+        assertEquals(SmartError.InvalidInput, result.error)
+    }
+
+    @Test
+    fun unknown_error_carrying_service_unavailable_marker_maps_to_ServiceUnavailable() = runTest {
+        // Same iOS defensive path — Vertex failures hit the server's
+        // unavailable code but arrive as Unknown on iOS.
+        val fake = FakeFunctionsCaller(
+            response = Result.Error(FunctionsCallerError.Unknown("service_unavailable")),
+        )
+        val repo = SmartFunctionsRepository(fake)
+
+        val result = repo.draftMessage(baseRequest)
+        assertIs<Result.Error<SmartError>>(result)
+        assertEquals(SmartError.ServiceUnavailable, result.error)
+    }
+
     private class FakeFunctionsCaller(
         private val response: Result<DraftMessageResponseDto, FunctionsCallerError>,
     ) : FunctionsCaller {
