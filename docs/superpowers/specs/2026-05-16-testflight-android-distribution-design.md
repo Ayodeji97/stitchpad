@@ -44,7 +44,7 @@ These MUST be in place before the first beta build can ship. They are not implem
 5. **Google Play service account** created in Play Console → API access. Granted Release Manager role on the app. JSON key downloaded to `~/.stitchpad/play-service-account.json`.
 6. **Play Console app record + first-time admin checklist** completed before the first AAB upload: app created and linked to `com.danzucker.stitchpad`, privacy policy URL set, data safety form submitted, content rating questionnaire completed, target audience declared. Play won't accept an upload to any track (internal included) until the app-dashboard checklist is green.
 7. **Play Console internal testing track** initialized with the `pilot-tailors` tester list (emails collected by the PM intern). Opt-in URL captured for distribution to testers.
-8. **TestFlight external testing group** `pilot-tailors-ios` created in App Store Connect. Apple sends invites to whatever email is added; testers can accept on any Apple ID. The collected email just needs to be one the tester actually checks. Testers must have an iPhone/iPad running iOS **18.2 or later** (current `IPHONEOS_DEPLOYMENT_TARGET`). See open question in §Open items about whether to lower this for the pilot.
+8. **TestFlight external testing group** `pilot-tailors-ios` created in App Store Connect. Apple sends invites to whatever email is added; testers can accept on any Apple ID. The collected email just needs to be one the tester actually checks. Testers must have an iPhone/iPad running **iOS 16.0 or later** — this requires lowering `IPHONEOS_DEPLOYMENT_TARGET` from its current `18.2` to `16.0` (see §Implementation prerequisites below for the change). Picked 16.0 to include refurbished iPhone X / XR / 8 in circulation in Nigeria; otherwise the pilot would lose roughly 10–30% of potential testers.
 9. **Firebase release configuration files** present on the release machine: production `google-services.json` at `composeApp/` and production `GoogleService-Info.plist` at `iosApp/iosApp/`. Both are gitignored (per `.gitignore` rule `**/google-services.json` / `**/GoogleService-Info.plist`), so they live only on Daniel's MacBook and any future CI runner.
 
 ## Architecture
@@ -76,7 +76,7 @@ docs/
 
 - **Android `versionCode`:** `git rev-list --count HEAD`, evaluated at build time inside `build.gradle.kts`. Monotonically increases per commit; can never collide with itself. The Play store rejects any AAB with a `versionCode` ≤ the highest previously uploaded; using commit count guarantees we never trip that.
 - **iOS build number (`CURRENT_PROJECT_VERSION`):** same `git rev-list --count HEAD` value, written into the Xcode project by the Fastlane lane using `increment_build_number_in_xcodeproj`.
-- **`versionName` / `MARKETING_VERSION`:** hand-edited in source (`composeApp/build.gradle.kts` and the Xcode project). Format `0.<minor>.<patch>-beta` (e.g. `0.9.0-beta`). This stays manual because it's a semantic decision, not a counter.
+- **`versionName` / `MARKETING_VERSION`:** hand-edited in source (`composeApp/build.gradle.kts` and the Xcode project). Format `0.<minor>.<patch>-beta`. **Initial value: `0.9.0-beta`** — climbs through `0.9.1-beta`, `0.9.2-beta`, ... during the pilot, then jumps cleanly to `1.0.0` at public launch. This stays manual because it's a semantic decision, not a counter.
 
 ### Shared preflight (both lanes)
 
@@ -170,10 +170,10 @@ The existing debug menu (per `2026-05-14-debug-menu-design.md`) is gated on `isD
 - **Android closed → open testing track promotion** — when freemium ships and we want broader cohorts.
 - **Per-PR ephemeral builds** — only worth it once we have non-Daniel reviewers regularly testing UI changes.
 
-## Open questions for Daniel (decide before plan)
+## Implementation prerequisites (locked-in decisions)
 
-1. **Lower `IPHONEOS_DEPLOYMENT_TARGET` from 18.2?** Current 18.2 means testers need an iPhone updated to iOS 18.2+ (likely iPhone XS or newer, since iOS 18 dropped older models). Cursor's review suggested 16 or 17 to widen the Nigerian device mix. I have no data on actual tester device versions yet — depends on what PM intern's recruitment surfaces. Leaving as 18.2 in this spec; can be lowered in a one-line PR if the device survey shows it's needed.
-2. **Initial `versionName` value.** Repo is `1.0` today (placeholder). My pipeline writes build numbers via `git rev-list`, but `versionName` is hand-bumped. Pick a starting value before first lane run; current draft assumes `0.9.0-beta` to leave room for `1.0.0` at public launch.
+1. **Lower `IPHONEOS_DEPLOYMENT_TARGET` from 18.2 → 16.0** in `iosApp.xcodeproj/project.pbxproj` (both Debug and Release configurations, currently set on lines 286 and 350). Rationale: refurbished iPhone X / XR / 8 are common in Nigeria; 18.2 would exclude an estimated 10–30% of potential pilot testers. iOS 16.0 covers iPhone 8 and newer. Apple Sign-in is available since iOS 13, so no auth regression. Requires a regression pass on an iOS 16 simulator covering the screens that already have known iOS-platform quirks (`feedback_ios_modal_bottom_sheet_timing`, `feedback_kmp_jvm_only_apis`, `feedback_kotlin_native_epoch_days`).
+2. **Set initial `versionName` to `0.9.0-beta`** in `composeApp/build.gradle.kts` (currently `1.0`) and `MARKETING_VERSION` to `0.9.0-beta` in `iosApp.xcodeproj/project.pbxproj`. The build number (`versionCode` / `CURRENT_PROJECT_VERSION`) is auto-derived from `git rev-list --count HEAD` and overrides whatever's in source at lane-run time.
 
 ## Docs to update once lanes work
 
