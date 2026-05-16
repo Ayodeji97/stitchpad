@@ -20,6 +20,8 @@ import com.danzucker.stitchpad.di.platformModule
 import com.danzucker.stitchpad.di.reportsPresentationModule
 import com.danzucker.stitchpad.di.settingsDataModule
 import com.danzucker.stitchpad.di.settingsPresentationModule
+import com.danzucker.stitchpad.di.smartDataModule
+import com.danzucker.stitchpad.di.smartPresentationModule
 import com.danzucker.stitchpad.di.styleDataModule
 import com.danzucker.stitchpad.di.stylePresentationModule
 import org.koin.core.context.startKoin
@@ -48,6 +50,8 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             billingModule,
             settingsDataModule,
             settingsPresentationModule,
+            smartDataModule,
+            smartPresentationModule,
             platformModule
         )
         if (isDebugBuild) {

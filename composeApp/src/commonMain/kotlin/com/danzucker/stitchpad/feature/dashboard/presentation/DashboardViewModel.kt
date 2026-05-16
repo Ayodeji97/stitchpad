@@ -145,6 +145,7 @@ class DashboardViewModel(
             is DashboardAction.OnReconnectViewCustomerClick -> emitEvent(
                 DashboardEvent.NavigateToCustomerDetail(action.customerId)
             )
+            DashboardAction.OnDraftMessageClick -> emitEvent(DashboardEvent.NavigateToDraftMessage)
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }

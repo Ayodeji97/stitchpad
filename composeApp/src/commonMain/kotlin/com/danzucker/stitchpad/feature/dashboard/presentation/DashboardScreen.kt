@@ -73,6 +73,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
+import com.danzucker.stitchpad.feature.smart.presentation.SmartSectionCard
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NextBestActionCard
 import com.danzucker.stitchpad.ui.components.StitchPadFab
@@ -250,6 +251,7 @@ fun DashboardRoot(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToDraftMessage: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -275,6 +277,7 @@ fun DashboardRoot(
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToAddCustomerFirst = onNavigateToAddCustomerFirst,
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
+            onNavigateToDraftMessage = onNavigateToDraftMessage,
         )
     }
 
@@ -310,6 +313,7 @@ private fun handleDashboardEvent(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToDraftMessage: () -> Unit,
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
@@ -322,6 +326,7 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToSettings -> onNavigateToSettings()
         DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+        DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
             scope,
             snackbarHostState,
@@ -627,6 +632,20 @@ private fun DashboardContent(
                 onCtaClick = { onAction(DashboardAction.OnViewReconnectClick) },
                 ctaStyle = EmptyCardCtaStyle.OutlinedPill,
                 largeIllustration = true,
+            )
+        }
+
+        // 5b. Smart Suggestions section — gated on having at least one customer
+        //     (BrandNew state = no customers → no point opening a picker with nobody in it).
+        if (state.uiState != DashboardUiState.BrandNew &&
+            state.uiState != DashboardUiState.Loading
+        ) {
+            SmartSectionCard(
+                // V1: dashboard free-tier chip hidden; the in-screen counter on
+                // DraftMessageScreen is the V1 quota surface. Wire this to a
+                // real value in V1.5 when the premium entitlement flow ships.
+                remainingFreeQuota = null,
+                onDraftMessageClick = { onAction(DashboardAction.OnDraftMessageClick) },
             )
         }
 

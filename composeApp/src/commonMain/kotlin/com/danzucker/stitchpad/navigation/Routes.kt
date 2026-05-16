@@ -96,3 +96,6 @@ data object ReportsRoute
 
 @Serializable
 data object DebugMenuRoute
+
+@Serializable
+data object DraftMessageRoute

@@ -18,9 +18,12 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -45,6 +48,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.changepassword.Chan
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
+import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
@@ -55,6 +59,7 @@ import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
 import com.danzucker.stitchpad.navigation.DeleteAccountRoute
+import com.danzucker.stitchpad.navigation.DraftMessageRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
@@ -294,7 +299,10 @@ private fun MainNavGraph(
                 },
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
-                }
+                },
+                onNavigateToDraftMessage = {
+                    navController.navigate(DraftMessageRoute)
+                },
             )
         }
         composable<AddCustomerFirstRoute> {
@@ -308,6 +316,23 @@ private fun MainNavGraph(
                 },
                 onBack = { navController.navigateUp() },
             )
+        }
+        composable<DraftMessageRoute> {
+            val snackbarHostState = remember { SnackbarHostState() }
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+            ) { innerPadding ->
+                DraftMessageRoot(
+                    onUpgradeRequested = {
+                        navController.navigate(SettingsRoute) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateBack = { navController.navigateUp() },
+                    snackbarHostState = snackbarHostState,
+                    modifier = Modifier.padding(innerPadding),
+                )
+            }
         }
         composable<ReportsRoute> {
             ReportsRoot(

@@ -32,4 +32,7 @@ sealed interface DashboardEvent {
 
     /** Open the customer detail screen — used by the FirstCustomer card. */
     data class NavigateToCustomerDetail(val customerId: String) : DashboardEvent
+
+    /** Smart Suggestions: open the Draft Message screen. */
+    data object NavigateToDraftMessage : DashboardEvent
 }
