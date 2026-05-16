@@ -4,7 +4,7 @@
 
 **Goal:** Add a `fastlane ios beta` and `fastlane android beta` lane that, from Daniel's MacBook, build signed StitchPad release artifacts and upload them to TestFlight (external testing group) and Google Play (internal testing track) respectively.
 
-**Architecture:** Two Fastlane lanes share a preflight (detekt + `:composeApp:allTests` + a platform-specific "no-new-commits" guard that queries the store API for the last uploaded build number). The Android lane runs `./gradlew :composeApp:bundleRelease` against a new `signingConfigs.release` block backed by a gitignored `composeApp/release-signing.properties` and a keystore at `~/.stitchpad/release.jks`. The iOS lane builds the KMP framework via `embedAndSignAppleFrameworkForXcode` (the same task the Xcode build phase already invokes), archives with `gym` using existing automatic signing (team `7DUJFVWF7W`), and uploads with `pilot` using an App Store Connect API key at `~/.stitchpad/asc_api_key.p8`. Version codes are derived from `git rev-list --count HEAD` at build time and passed as Xcode `xcargs` (so no files are dirtied per build). The marketing version (`0.9.0-beta`) is hand-edited in source.
+**Architecture:** Two Fastlane lanes share a preflight (detekt + `:composeApp:allTests` + a platform-specific "no-new-commits" guard that queries the store API for the last uploaded build number). The Android lane runs `./gradlew :composeApp:bundleRelease` against a new `signingConfigs.release` block backed by a gitignored `composeApp/release-signing.properties` and a keystore at `~/.stitchpad/release.jks`. The iOS lane builds the KMP framework via `embedAndSignAppleFrameworkForXcode` (the same task the Xcode build phase already invokes), archives with `gym` using existing automatic signing (team `7DUJFVWF7W`), and uploads with `pilot` using an App Store Connect API key at `~/.stitchpad/asc_api_key.p8`. Version codes are derived from `git rev-list --count HEAD` at build time and passed as Xcode `xcargs` (so no files are dirtied per build). The marketing version (`0.9.0`) is hand-edited in source.
 
 **Tech Stack:** Fastlane (Ruby), Gradle KTS, Xcode (xcconfig), Google Play Developer API, App Store Connect API, GitLive Firebase KMP.
 
@@ -70,12 +70,12 @@ is available since iOS 13 so no auth regression."
 
 ---
 
-## Task 2: Set iOS Marketing Version to 0.9.0-beta
+## Task 2: Set iOS Marketing Version to 0.9.0
 
 **Files:**
 - Modify: `iosApp/Configuration/Config.xcconfig`
 
-**Why:** `1.0` is a placeholder that implies a production-ready release; pilot builds should ship as `0.9.0-beta` per spec §Versioning.
+**Why:** `1.0` is a placeholder that implies a production-ready release; pilot builds should ship as `0.9.0` per spec §Versioning.
 
 - [ ] **Step 1: Verify current state**
 
@@ -89,7 +89,7 @@ MARKETING_VERSION=1.0
 
 - [ ] **Step 2: Update MARKETING_VERSION**
 
-Edit `iosApp/Configuration/Config.xcconfig`. Change `MARKETING_VERSION=1.0` to `MARKETING_VERSION=0.9.0-beta`. Leave `CURRENT_PROJECT_VERSION=1` alone — Fastlane will override it at lane-run time.
+Edit `iosApp/Configuration/Config.xcconfig`. Change `MARKETING_VERSION=1.0` to `MARKETING_VERSION=0.9.0`. Leave `CURRENT_PROJECT_VERSION=1` alone — Fastlane will override it at lane-run time.
 
 - [ ] **Step 3: Verify the change**
 
@@ -98,14 +98,14 @@ Run: `grep "MARKETING_VERSION\|CURRENT_PROJECT_VERSION" iosApp/Configuration/Con
 Expected:
 ```
 CURRENT_PROJECT_VERSION=1
-MARKETING_VERSION=0.9.0-beta
+MARKETING_VERSION=0.9.0
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add iosApp/Configuration/Config.xcconfig
-git commit -m "chore(ios): set MARKETING_VERSION to 0.9.0-beta
+git commit -m "chore(ios): set MARKETING_VERSION to 0.9.0
 
 CURRENT_PROJECT_VERSION (build number) stays at 1; the Fastlane lane
 overrides it per-build via gym xcargs at upload time."
@@ -156,7 +156,7 @@ with:
 
 ```kotlin
 versionCode = gitCommitCount
-versionName = "0.9.0-beta"
+versionName = "0.9.0"
 ```
 
 - [ ] **Step 4: Verify the changes parse**
@@ -180,7 +180,7 @@ git commit -m "feat(android): derive versionCode from git rev-list, bump version
 versionCode now equals git rev-list --count HEAD, evaluated at
 configuration time. Guarantees monotonically increasing build numbers
 so Play never rejects an upload for a stale code. versionName bumped
-from placeholder 1.0 to 0.9.0-beta to match iOS marketing version."
+from placeholder 1.0 to 0.9.0 to match iOS marketing version."
 ```
 
 ---
@@ -838,10 +838,10 @@ When you ship a meaningful change (new screen, bugfix wave, etc.), bump the mark
 
 ```bash
 # Android
-sed -i '' 's/versionName = "0.9.0-beta"/versionName = "0.9.1-beta"/' composeApp/build.gradle.kts
+sed -i '' 's/versionName = "0.9.0"/versionName = "0.9.1"/' composeApp/build.gradle.kts
 
 # iOS
-sed -i '' 's/MARKETING_VERSION=0.9.0-beta/MARKETING_VERSION=0.9.1-beta/' iosApp/Configuration/Config.xcconfig
+sed -i '' 's/MARKETING_VERSION=0.9.0/MARKETING_VERSION=0.9.1/' iosApp/Configuration/Config.xcconfig
 
 git commit -am "chore(release): cut beta 0.9.1"
 ```
@@ -955,7 +955,7 @@ If everything passed cleanly, no commit needed — the validation steps don't pr
   - Goal / non-goals → Plan header
   - Hard prerequisites #1–9 → called out at the top as Daniel's manual work, validated in Task 9 runbook
   - Files to add → Tasks 4–9
-  - Versioning (git rev-list, versionName 0.9.0-beta) → Tasks 2, 3
+  - Versioning (git rev-list, versionName 0.9.0) → Tasks 2, 3
   - Shared preflight → Task 7 (`before_all`), reused in Task 8
   - iOS pipeline (auth, framework via embedAndSignAppleFrameworkForXcode, gym, pilot) → Task 8
   - Android pipeline (preflight, bundleRelease, upload_to_play_store) → Task 7
@@ -964,6 +964,6 @@ If everything passed cleanly, no commit needed — the validation steps don't pr
   - Debug menu on release builds → spec-only decision; no code change in this plan
   - Failure modes → Task 9 runbook table
   - Validation → Task 10
-  - Implementation prerequisites (16.0, 0.9.0-beta) → Tasks 1–3
+  - Implementation prerequisites (16.0, 0.9.0) → Tasks 1–3
 - **Placeholder scan:** no TBD / TODO / "implement appropriate error handling" — every step is concrete code, exact command, or exact file edit.
 - **Type consistency:** `current_build_number` / `release_notes` defined in Task 7 are referenced by Task 8; `gitCommitCount` defined in Task 3 used in the same task only. No mismatched names.

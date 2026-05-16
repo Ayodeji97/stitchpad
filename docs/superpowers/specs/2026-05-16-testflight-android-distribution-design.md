@@ -76,7 +76,7 @@ docs/
 
 - **Android `versionCode`:** `git rev-list --count HEAD`, evaluated at build time inside `build.gradle.kts`. Monotonically increases per commit; can never collide with itself. The Play store rejects any AAB with a `versionCode` ≤ the highest previously uploaded; using commit count guarantees we never trip that.
 - **iOS build number (`CURRENT_PROJECT_VERSION`):** same `git rev-list --count HEAD` value, written into the Xcode project by the Fastlane lane using `increment_build_number_in_xcodeproj`.
-- **`versionName` / `MARKETING_VERSION`:** hand-edited in source (`composeApp/build.gradle.kts` and the Xcode project). Format `0.<minor>.<patch>-beta`. **Initial value: `0.9.0-beta`** — climbs through `0.9.1-beta`, `0.9.2-beta`, ... during the pilot, then jumps cleanly to `1.0.0` at public launch. This stays manual because it's a semantic decision, not a counter.
+- **`versionName` / `MARKETING_VERSION`:** hand-edited in source (`composeApp/build.gradle.kts` and the Xcode project). Format `0.<minor>.<patch>` (period-separated digits only — Apple's `CFBundleShortVersionString` rejects suffixes like `-beta`, and TestFlight upload validation enforces this). **Initial value: `0.9.0`** — climbs through `0.9.1`, `0.9.2`, ... during the pilot, then jumps cleanly to `1.0.0` at public launch. The "beta" status is signaled by the distribution channel (TestFlight external testing, Play internal testing track), not by the version string. This stays manual because it's a semantic decision, not a counter.
 
 ### Shared preflight (both lanes)
 
@@ -173,7 +173,7 @@ The existing debug menu (per `2026-05-14-debug-menu-design.md`) is gated on `isD
 ## Implementation prerequisites (locked-in decisions)
 
 1. **Lower `IPHONEOS_DEPLOYMENT_TARGET` from 18.2 → 16.0** in `iosApp.xcodeproj/project.pbxproj` (both Debug and Release configurations, currently set on lines 286 and 350). Rationale: refurbished iPhone X / XR / 8 are common in Nigeria; 18.2 would exclude an estimated 10–30% of potential pilot testers. iOS 16.0 covers iPhone 8 and newer. Apple Sign-in is available since iOS 13, so no auth regression. Requires a regression pass on an iOS 16 simulator covering the screens that already have known iOS-platform quirks (`feedback_ios_modal_bottom_sheet_timing`, `feedback_kmp_jvm_only_apis`, `feedback_kotlin_native_epoch_days`).
-2. **Set initial `versionName` to `0.9.0-beta`** in `composeApp/build.gradle.kts` (currently `1.0`) and `MARKETING_VERSION` to `0.9.0-beta` in `iosApp.xcodeproj/project.pbxproj`. The build number (`versionCode` / `CURRENT_PROJECT_VERSION`) is auto-derived from `git rev-list --count HEAD` and overrides whatever's in source at lane-run time.
+2. **Set initial `versionName` to `0.9.0`** in `composeApp/build.gradle.kts` (currently `1.0`) and `MARKETING_VERSION` to `0.9.0` in `iosApp.xcodeproj/project.pbxproj`. The build number (`versionCode` / `CURRENT_PROJECT_VERSION`) is auto-derived from `git rev-list --count HEAD` and overrides whatever's in source at lane-run time.
 
 ## Docs to update once lanes work
 
