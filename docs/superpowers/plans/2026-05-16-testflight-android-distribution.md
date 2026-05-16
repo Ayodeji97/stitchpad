@@ -488,7 +488,9 @@ platform :android do
     end
 
     # Build signed AAB.
-    sh "cd .. && ./gradlew :composeApp:bundleRelease --console=plain"
+    # --no-configuration-cache forces gitCommitCount in build.gradle.kts to be
+    # freshly evaluated, so a warm config cache cannot serve a stale versionCode.
+    sh "cd .. && ./gradlew :composeApp:bundleRelease --console=plain --no-configuration-cache"
 
     aab = "../composeApp/build/outputs/bundle/release/composeApp-release.aab"
     UI.user_error!("AAB not found at #{aab}") unless File.exist?(File.join(__dir__, aab))
@@ -617,10 +619,13 @@ platform :ios do
 
     # Build the KMP framework using the same task Xcode's build phase invokes.
     # Avoids divergence between IDE builds and lane builds.
+    # --no-configuration-cache as above: keeps versionCode and any other
+    # git-derived values fresh on every release build.
     sh "cd .. && ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode " \
        "-Pkotlin.native.cocoapods.platform=iphoneos " \
        "-Pkotlin.native.cocoapods.archs=arm64 " \
-       "-Pkotlin.native.cocoapods.configuration=Release --console=plain"
+       "-Pkotlin.native.cocoapods.configuration=Release " \
+       "--console=plain --no-configuration-cache"
 
     # Archive + export signed IPA. Build number passed via xcargs so no files
     # are dirtied per lane run.
