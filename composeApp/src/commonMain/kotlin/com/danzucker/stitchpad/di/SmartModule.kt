@@ -14,6 +14,9 @@ import com.danzucker.stitchpad.feature.smart.presentation.draft.OpenOrdersProvid
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.functions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.koin.core.module.dsl.viewModel
@@ -34,10 +37,23 @@ val smartDataModule = module {
     single<StateFlow<Boolean>>(qualifier = named("connectivity")) {
         MutableStateFlow(true)
     }
+    // App-lifetime scope for the SmartUsageStore's auth-state listener.
+    // SupervisorJob so a transient failure in one collector doesn't kill
+    // the others; private to the smart feature for now (no other consumer).
+    single<CoroutineScope>(qualifier = named("smartAppScope")) {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
     // Process-local cache of the last-known free-tier remaining quota.
     // Updated by DraftMessageViewModel on each successful draft; observed
-    // by the dashboard so the SmartSectionCard chip stays in sync.
-    single<SmartUsageStore> { InMemorySmartUsageStore() }
+    // by the dashboard so the SmartSectionCard chip stays in sync. Wipes
+    // itself on auth changes so user A's quota never leaks into user B's
+    // session within the same process.
+    single<SmartUsageStore> {
+        InMemorySmartUsageStore(
+            auth = get(),
+            scope = get<CoroutineScope>(qualifier = named("smartAppScope")),
+        )
+    }
 }
 
 val smartPresentationModule = module {
