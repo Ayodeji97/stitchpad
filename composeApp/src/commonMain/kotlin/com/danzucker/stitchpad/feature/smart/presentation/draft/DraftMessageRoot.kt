@@ -36,6 +36,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.draft_message_back_content_description
 import stitchpad.composeapp.generated.resources.draft_message_copy_confirmed
 import stitchpad.composeapp.generated.resources.draft_message_free_tier_chip_compact
 import stitchpad.composeapp.generated.resources.draft_message_screen_title
@@ -77,7 +78,6 @@ fun DraftMessageRoot(
                     )
                 }
             }
-            DraftMessageEvent.NavigateBack -> onNavigateBack()
         }
     }
 
@@ -95,7 +95,9 @@ fun DraftMessageRoot(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
+                            contentDescription = stringResource(
+                                Res.string.draft_message_back_content_description,
+                            ),
                             tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }

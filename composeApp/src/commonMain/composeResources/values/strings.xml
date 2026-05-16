@@ -1108,13 +1108,14 @@
     <string name="draft_message_notes_placeholder">Optional</string>
     <string name="draft_message_notes_char_counter">%1$d / %2$d</string>
     <string name="draft_message_generate_cta">Generate draft</string>
-    <string name="draft_message_generating">Drafting…</string>
     <string name="draft_message_send_whatsapp">Send via WhatsApp</string>
     <string name="draft_message_copy_text">Copy text</string>
     <string name="draft_message_copy_confirmed">Copied to clipboard</string>
     <string name="draft_message_no_whatsapp_helper">Add a WhatsApp number to this customer to send directly.</string>
     <string name="draft_message_offline_helper">Need internet to draft messages.</string>
     <string name="draft_message_free_tier_chip_compact">%1$d / 5 left</string>
+    <string name="draft_message_out_of_free_drafts">Out of free drafts this month. Upgrade to keep drafting.</string>
+    <string name="draft_message_back_content_description">Back</string>
 
     <!-- Smart errors -->
     <string name="smart_error_network">No internet. Try again when you&apos;re back online.</string>

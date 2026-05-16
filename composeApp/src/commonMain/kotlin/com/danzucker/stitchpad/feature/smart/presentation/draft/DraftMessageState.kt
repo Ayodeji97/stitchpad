@@ -23,7 +23,20 @@ data class DraftMessageState(
             order != null &&
             intent != null &&
             isOnline &&
-            generationState !is GenerationState.Generating
+            generationState !is GenerationState.Generating &&
+            // Pre-disable on the client when the cached counter says 0 so the
+            // user doesn't fill in the form, tap Generate, and only then hit
+            // the Upgrade sheet. Server still enforces the limit (this is a
+            // UX hint, not the source of truth).
+            remainingFreeQuota != 0
+
+    /**
+     * Out of free drafts according to the cached counter. Surface this
+     * inline near the Generate button so it's clear *why* the CTA is
+     * disabled — otherwise it just looks broken.
+     */
+    val isOutOfFreeDrafts: Boolean
+        get() = remainingFreeQuota == 0
 }
 
 sealed interface GenerationState {
@@ -50,5 +63,4 @@ sealed interface DraftMessageEvent {
     data object ShowUpgradeSheet : DraftMessageEvent
     data class LaunchWhatsApp(val phoneE164: String, val message: String) : DraftMessageEvent
     data class CopyToClipboard(val text: String) : DraftMessageEvent
-    data object NavigateBack : DraftMessageEvent
 }

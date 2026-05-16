@@ -58,10 +58,18 @@ class DraftMessageViewModel(
         when (action) {
             DraftMessageAction.LoadCustomers -> loadCustomers()
             is DraftMessageAction.SelectCustomer -> selectCustomer(action.customer)
-            is DraftMessageAction.SelectOrder -> _state.update { it.copy(order = action.order) }
-            is DraftMessageAction.SelectIntent -> _state.update { it.copy(intent = action.intent) }
-            is DraftMessageAction.ToggleLanguage -> _state.update { it.copy(language = action.language) }
-            is DraftMessageAction.UpdateCustomNotes -> _state.update { it.copy(customNotes = action.notes) }
+            is DraftMessageAction.SelectOrder -> _state.update {
+                it.copy(order = action.order).clearStaleDraft()
+            }
+            is DraftMessageAction.SelectIntent -> _state.update {
+                it.copy(intent = action.intent).clearStaleDraft()
+            }
+            is DraftMessageAction.ToggleLanguage -> _state.update {
+                it.copy(language = action.language).clearStaleDraft()
+            }
+            is DraftMessageAction.UpdateCustomNotes -> _state.update {
+                it.copy(customNotes = action.notes).clearStaleDraft()
+            }
             DraftMessageAction.GenerateDraft -> generate()
             is DraftMessageAction.EditDraft -> _state.update {
                 if (it.generationState is GenerationState.Success) {
@@ -75,6 +83,19 @@ class DraftMessageViewModel(
         }
     }
 
+    /**
+     * After a draft succeeds, any change to the request inputs (customer,
+     * order, intent, language, notes) makes the previewed text stale —
+     * keeping `Success` around would let the user send a previous
+     * customer's draft to the newly selected customer's WhatsApp number.
+     */
+    private fun DraftMessageState.clearStaleDraft(): DraftMessageState =
+        if (generationState is GenerationState.Success) {
+            copy(generationState = GenerationState.Idle)
+        } else {
+            this
+        }
+
     private fun loadCustomers() {
         viewModelScope.launch {
             val customers = customerProvider.search("")
@@ -83,7 +104,9 @@ class DraftMessageViewModel(
     }
 
     private fun selectCustomer(customer: CustomerSummary) {
-        _state.update { it.copy(customer = customer, order = null, orderOptions = emptyList()) }
+        _state.update {
+            it.copy(customer = customer, order = null, orderOptions = emptyList()).clearStaleDraft()
+        }
         viewModelScope.launch {
             val orders = orderProvider.openOrdersFor(customer.id)
             _state.update {

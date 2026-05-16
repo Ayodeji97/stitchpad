@@ -302,6 +302,84 @@ class DraftMessageViewModelTest {
         assertEquals(2, vm.state.value.remainingFreeQuota)
     }
 
+    @Test
+    fun canGenerate_is_false_when_remaining_free_quota_is_zero() = runTest {
+        // UX gate so the form isn't submittable when the cached counter says
+        // 0 — saves the round-trip to the upgrade sheet on tap. Server still
+        // enforces the limit independently.
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeUsageStore.update(0)
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        runCurrent()
+        assertFalse(vm.state.value.canGenerate)
+        assertTrue(vm.state.value.isOutOfFreeDrafts)
+    }
+
+    @Test
+    fun switching_customer_after_a_successful_draft_clears_the_stale_text() = runTest {
+        // Privacy guard: without this clear, SendViaWhatsApp would dispatch
+        // the previous customer's draft to the newly selected customer's
+        // WhatsApp number.
+        val otherCustomer = CustomerSummary(id = "c-other", firstName = "Ada", whatsappNumber = "+2348099999999")
+        val otherOrder = testOrder.copy(id = "o-other", customerId = "c-other")
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeOrders.openOrdersFor("c-other") { listOf(otherOrder) }
+        fakeRepo.respondWith(Result.Success(DraftMessageResult("Hi Folake!", 4)))
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        assertIs<GenerationState.Success>(vm.state.value.generationState)
+
+        vm.onAction(DraftMessageAction.SelectCustomer(otherCustomer))
+        runCurrent()
+        assertEquals(GenerationState.Idle, vm.state.value.generationState)
+    }
+
+    @Test
+    fun changing_intent_or_language_or_notes_after_success_clears_the_stale_draft() = runTest {
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeRepo.respondWith(Result.Success(DraftMessageResult("Hi Folake!", 4)))
+
+        // Intent change
+        val vm1 = newVm()
+        vm1.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm1.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm1.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm1.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        vm1.onAction(DraftMessageAction.SelectIntent(DraftIntent.PickupReady))
+        runCurrent()
+        assertEquals(GenerationState.Idle, vm1.state.value.generationState)
+
+        // Language change
+        val vm2 = newVm()
+        vm2.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm2.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm2.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm2.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        vm2.onAction(DraftMessageAction.ToggleLanguage(DraftLanguage.Pidgin))
+        runCurrent()
+        assertEquals(GenerationState.Idle, vm2.state.value.generationState)
+
+        // Notes change
+        val vm3 = newVm()
+        vm3.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm3.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm3.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm3.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        vm3.onAction(DraftMessageAction.UpdateCustomNotes("be polite please"))
+        runCurrent()
+        assertEquals(GenerationState.Idle, vm3.state.value.generationState)
+    }
+
     // --- Fakes ---
 
     private class FakeSmartRepository : SmartRepository {

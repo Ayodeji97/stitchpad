@@ -43,13 +43,13 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_generate_cta
-import stitchpad.composeapp.generated.resources.draft_message_generating
 import stitchpad.composeapp.generated.resources.draft_message_intent_section_label
 import stitchpad.composeapp.generated.resources.draft_message_no_open_orders
 import stitchpad.composeapp.generated.resources.draft_message_notes_char_counter
 import stitchpad.composeapp.generated.resources.draft_message_notes_label
 import stitchpad.composeapp.generated.resources.draft_message_notes_placeholder
 import stitchpad.composeapp.generated.resources.draft_message_offline_helper
+import stitchpad.composeapp.generated.resources.draft_message_out_of_free_drafts
 import stitchpad.composeapp.generated.resources.draft_message_pick_customer
 import stitchpad.composeapp.generated.resources.draft_message_pick_order
 
@@ -129,10 +129,9 @@ fun DraftMessageScreen(
 
         Spacer(Modifier.height(DesignTokens.space4))
 
-        // Notes field — soft-capped at NOTES_MAX_CHARS to keep the prompt
-        // tight. Long custom notes derail the model and inflate token cost
-        // for free-tier drafts. Counter sits in the supportingText slot
-        // and turns error-colored when over.
+        // Notes field — hard-capped at NOTES_MAX_CHARS so the prompt stays
+        // tight and the free-tier token cost stays predictable. Counter sits
+        // in the supportingText slot as a live hint while the user types.
         OutlinedTextField(
             value = state.customNotes,
             onValueChange = { new ->
@@ -169,6 +168,17 @@ fun DraftMessageScreen(
             Spacer(Modifier.height(DesignTokens.space2))
         }
 
+        // Quota-exhausted helper — explains why the CTA below is disabled so
+        // it doesn't read as a broken button.
+        if (state.isOutOfFreeDrafts) {
+            Text(
+                text = stringResource(Res.string.draft_message_out_of_free_drafts),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(DesignTokens.space2))
+        }
+
         // Generate CTA
         Button(
             onClick = { onAction(DraftMessageAction.GenerateDraft) },
@@ -183,13 +193,7 @@ fun DraftMessageScreen(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
             } else {
-                Text(
-                    text = if (state.generationState is GenerationState.Generating) {
-                        stringResource(Res.string.draft_message_generating)
-                    } else {
-                        stringResource(Res.string.draft_message_generate_cta)
-                    },
-                )
+                Text(text = stringResource(Res.string.draft_message_generate_cta))
             }
         }
 
