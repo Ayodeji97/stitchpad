@@ -63,8 +63,14 @@ export interface DraftMessageIO {
  * The user doc IS the profile (no separate `profile` subdoc); customers store
  * `name` (full), not `firstName`; orders store the raw amounts + items, so
  * the formatted strings the prompt needs are computed here.
+ *
+ * The app writes `subscriptionTier`; `tier` is only present on test docs
+ * that were manually edited in the Firebase Console before the field was
+ * standardized. Read both with `subscriptionTier` preferred so premium
+ * users aren't rate-limited as free.
  */
 interface RawUserDoc {
+  subscriptionTier?: 'free' | 'premium';
   tier?: 'free' | 'premium';
 }
 
@@ -97,7 +103,7 @@ function productionIO(uid: string, customerId: string, orderId: string, db: admi
       data: (): UserProfileSummary | undefined => {
         const raw = snap.data() as RawUserDoc | undefined;
         if (!raw) return undefined;
-        return { tier: raw.tier ?? 'free' };
+        return { tier: raw.subscriptionTier ?? raw.tier ?? 'free' };
       },
     })),
     reserveFreeTierSlot: async (now: Date): Promise<FreeTierReservation> => {

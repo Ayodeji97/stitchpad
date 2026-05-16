@@ -22,12 +22,15 @@ internal class GitLiveFunctionsCaller(
             Result.Success(response)
         } catch (e: FirebaseFunctionsException) {
             Result.Error(mapFunctionsException(e))
-        } catch (e: Throwable) {
-            // Network/IO failures bubble up as platform exceptions on Android/iOS.
-            // Treat anything that is not a FirebaseFunctionsException as Unknown.
-            // We do not catch a specific IOException here — it is platform-different
-            // in KMP and would force expect/actual.
-            Result.Error(FunctionsCallerError.Unknown(e.message ?: "unknown"))
+        } catch (@Suppress("SwallowedException", "TooGenericExceptionCaught") _e: Throwable) {
+            // Anything that wasn't a FirebaseFunctionsException is almost
+            // always a transport-layer failure (no network, DNS, TLS),
+            // since the SDK surfaces all app-level errors as Functions
+            // exceptions. Treating these as Network lets the UI show the
+            // dedicated "no internet" message instead of the generic one.
+            // We don't catch IOException specifically — it's platform-
+            // different in KMP and would force expect/actual.
+            Result.Error(FunctionsCallerError.Network)
         }
     }
 
