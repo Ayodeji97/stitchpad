@@ -1,11 +1,11 @@
 package com.danzucker.stitchpad.feature.smart.presentation.draft
 
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftIntent
-import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageResult
 import com.danzucker.stitchpad.feature.smart.domain.model.OrderSummary

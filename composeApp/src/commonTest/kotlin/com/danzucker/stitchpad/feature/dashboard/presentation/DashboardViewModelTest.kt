@@ -89,7 +89,7 @@ class DashboardViewModelTest {
         return vm
     }
 
-    private class FakeSmartUsageStore : com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore {
+    private class FakeSmartUsageStore : com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore {
         private val flow = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
         override val remainingFreeQuota: kotlinx.coroutines.flow.StateFlow<Int?> = flow
         override fun update(remaining: Int?) {

@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
@@ -19,7 +20,6 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiS
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
-import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

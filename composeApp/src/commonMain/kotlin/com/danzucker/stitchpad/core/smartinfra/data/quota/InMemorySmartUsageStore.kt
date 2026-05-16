@@ -1,6 +1,6 @@
-package com.danzucker.stitchpad.feature.smart.data
+package com.danzucker.stitchpad.core.smartinfra.data.quota
 
-import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Process-local cache of the signed-in user's remaining free-tier draft
+ * Process-local cache of the signed-in user's remaining free-tier Smart
  * quota. Resets to `null` whenever the active user changes (including
  * sign-out) so a previous user's quota chip / "out of free drafts" hint
  * never leaks into the next user's session in the same process.

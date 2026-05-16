@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
