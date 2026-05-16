@@ -54,6 +54,7 @@ export interface DraftMessageIO {
     depositFormatted: string;
     balanceFormatted: string;
     deadlineFormatted: string;
+    isOpen: boolean;
   } | undefined }>;
 }
 
@@ -93,7 +94,15 @@ interface RawOrderDoc {
   items?: RawOrderItemDoc[];
   totalPrice?: number;
   payments?: RawPaymentDoc[];
+  // Legacy field on orders created before the payments[] migration. The
+  // Kotlin OrderRepository absorbs this into payments[] on the next write,
+  // but read paths still need to honor it standalone.
+  depositPaid?: number;
   deadline?: number | null;
+  // Used to filter out delivered/archived orders server-side so a stale
+  // client-side picker selection can't generate a draft for a closed order.
+  status?: string;
+  archivedAt?: number | null;
 }
 
 function productionIO(uid: string, customerId: string, orderId: string, db: admin.firestore.Firestore): DraftMessageIO {
@@ -135,7 +144,14 @@ function productionIO(uid: string, customerId: string, orderId: string, db: admi
         const raw = snap.data() as RawOrderDoc | undefined;
         if (!raw) return undefined;
         const total = raw.totalPrice ?? 0;
-        const deposit = (raw.payments ?? []).reduce((sum, p) => sum + (p.amount ?? 0), 0);
+        const paymentsSum = (raw.payments ?? []).reduce(
+          (sum, p) => sum + (p.amount ?? 0),
+          0,
+        );
+        // Fall back to legacy depositPaid when payments[] hasn't been written
+        // yet — otherwise existing orders draft with the full total as the
+        // outstanding balance.
+        const deposit = paymentsSum > 0 ? paymentsSum : (raw.depositPaid ?? 0);
         const balance = Math.max(0, total - deposit);
         const firstItem = raw.items?.[0];
         const garmentLabel =
@@ -148,6 +164,7 @@ function productionIO(uid: string, customerId: string, orderId: string, db: admi
           depositFormatted: formatNaira(deposit),
           balanceFormatted: formatNaira(balance),
           deadlineFormatted: raw.deadline ? formatDeadline(raw.deadline) : 'No deadline set',
+          isOpen: raw.archivedAt == null && (raw.status ?? 'PENDING') !== 'DELIVERED',
         };
       },
     })),
@@ -207,6 +224,12 @@ export async function draftMessageHandler(
   const order = orderSnap.data()!;
   if (order.customerId !== data.customerId) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: order does not belong to customer');
+  }
+  // The client picker only shows open orders, but the callable is open to
+  // direct invocation — reject delivered/archived orders here so a stale
+  // selection doesn't generate a draft for an already-closed order.
+  if (!order.isOpen) {
+    throw new functions.https.HttpsError('invalid-argument', 'invalid_input: order is not open');
   }
 
   // 3. Reserve the free-tier slot now that inputs are known good.

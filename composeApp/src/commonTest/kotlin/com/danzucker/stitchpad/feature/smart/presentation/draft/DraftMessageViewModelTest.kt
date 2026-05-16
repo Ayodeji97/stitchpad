@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageResult
 import com.danzucker.stitchpad.feature.smart.domain.model.OrderSummary
 import com.danzucker.stitchpad.feature.smart.domain.repository.SmartRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -300,6 +301,47 @@ class DraftMessageViewModelTest {
         val vm = newVm()
         runCurrent()
         assertEquals(2, vm.state.value.remainingFreeQuota)
+    }
+
+    @Test
+    fun rapid_customer_switch_does_not_let_stale_order_load_overwrite_state() = runTest {
+        // Race: select(A) starts loading A's orders → select(B) starts loading
+        // B's orders → A's slow load completes last. Without the cancel +
+        // freshness guard, A's orders would land on state.orderOptions while
+        // state.customer is already B, and the next Generate would fail with
+        // invalid_input on the server.
+        val customerA = testCustomer
+        val customerB = CustomerSummary(id = "c-other", firstName = "Ada", whatsappNumber = "+2348099999999")
+        val ordersA = listOf(testOrder)
+        val ordersB = listOf(testOrder.copy(id = "o-b", customerId = "c-other"))
+
+        val deferredA = CompletableDeferred<List<OrderSummary>>()
+        val deferredB = CompletableDeferred<List<OrderSummary>>()
+        val controllableOrders = object : OpenOrdersProvider {
+            override suspend fun openOrdersFor(customerId: String): List<OrderSummary> =
+                if (customerId == customerA.id) deferredA.await() else deferredB.await()
+        }
+        val vm = DraftMessageViewModel(
+            repository = fakeRepo,
+            orderProvider = controllableOrders,
+            customerProvider = fakeCustomers,
+            connectivity = fakeConnectivity,
+            usageStore = fakeUsageStore,
+        )
+
+        vm.onAction(DraftMessageAction.SelectCustomer(customerA))
+        runCurrent()
+        vm.onAction(DraftMessageAction.SelectCustomer(customerB))
+        runCurrent()
+        // A's load was kicked off first but completes last — this is the
+        // ordering that triggers the race in production.
+        deferredB.complete(ordersB)
+        runCurrent()
+        deferredA.complete(ordersA)
+        runCurrent()
+
+        assertEquals(customerB, vm.state.value.customer)
+        assertEquals(ordersB, vm.state.value.orderOptions)
     }
 
     @Test

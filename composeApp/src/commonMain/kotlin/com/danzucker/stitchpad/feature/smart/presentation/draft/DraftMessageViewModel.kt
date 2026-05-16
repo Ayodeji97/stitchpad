@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
 import com.danzucker.stitchpad.feature.smart.domain.repository.SmartRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,14 +104,24 @@ class DraftMessageViewModel(
         }
     }
 
+    /**
+     * Tracks the in-flight order load so a rapid customer A → B switch
+     * doesn't let A's load complete late and overwrite B's options.
+     */
+    private var orderLoadJob: Job? = null
+
     private fun selectCustomer(customer: CustomerSummary) {
+        orderLoadJob?.cancel()
         _state.update {
             it.copy(customer = customer, order = null, orderOptions = emptyList()).clearStaleDraft()
         }
-        viewModelScope.launch {
+        orderLoadJob = viewModelScope.launch {
             val orders = orderProvider.openOrdersFor(customer.id)
-            _state.update {
-                it.copy(
+            _state.update { current ->
+                // Defensive guard in case selection moved on while the load
+                // was already mid-flight (cancellation isn't always immediate).
+                if (current.customer?.id != customer.id) return@update current
+                current.copy(
                     orderOptions = orders,
                     // Auto-select when the customer has exactly one open order
                     // (common case — saves a tap into the picker sheet).

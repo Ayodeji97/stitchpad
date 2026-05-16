@@ -54,6 +54,7 @@ const fakeFirestore = (overrides: Partial<{
     depositFormatted: string;
     balanceFormatted: string;
     deadlineFormatted: string;
+    isOpen: boolean;
   };
 }>) => {
   const profile = overrides.profile ?? { tier: 'free' as const };
@@ -67,6 +68,7 @@ const fakeFirestore = (overrides: Partial<{
     depositFormatted: '₦5,000',
     balanceFormatted: '₦7,500',
     deadlineFormatted: 'Friday, May 22',
+    isOpen: true,
   };
 
   return {
@@ -133,12 +135,33 @@ describe('draftMessageHandler', () => {
       data: () => ({
         customerId: 'cust-OTHER',
         garmentLabel: 'x', depositFormatted: 'x', balanceFormatted: 'x', deadlineFormatted: 'x',
+        isOpen: true,
       }),
     });
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'invalid-argument',
     });
     expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('rejects with invalid-argument when the order is closed (delivered or archived)', async () => {
+    const fs = fakeFirestore({});
+    fs.orderGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({
+        customerId: 'cust-1',
+        garmentLabel: 'Adire boubou',
+        depositFormatted: '₦5,000',
+        balanceFormatted: '₦7,500',
+        deadlineFormatted: 'Friday, May 22',
+        isOpen: false,
+      }),
+    });
+    await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+    expect(fakeVertex.generateText).not.toHaveBeenCalled();
   });
 
   it('maps Vertex failures to unavailable and keeps the reservation', async () => {
