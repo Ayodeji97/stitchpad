@@ -13,6 +13,21 @@ export type IntentType =
 
 export type Language = 'en' | 'pcm'; // pcm = Nigerian Pidgin (ISO 639-3)
 
+/**
+ * Wire-name string for each Smart-feature consumer of the shared monthly
+ * quota counter. Stored as keys in FreeTierUsageDoc.perFeature so we can
+ * report which feature is consuming quota without a schema migration.
+ *
+ * Keep in sync with the Kotlin SmartFeatureKey enum in
+ * core/smartinfra/domain/quota/SmartFeatureKey.kt.
+ */
+export type SmartFeatureKey =
+  | 'draft'
+  | 'postcaption'
+  | 'referral_msg'
+  | 'referral_bio'
+  | 'contentplan_regen';
+
 export interface DraftMessageRequest {
   intentType: IntentType;
   customerId: string;
@@ -49,9 +64,13 @@ export interface UserProfileSummary {
 
 /**
  * Free-tier usage doc at `users/{uid}/usage/smart_drafts`.
+ *
+ * `perFeature` is optional on read for back-compat with docs created
+ * before the Smart Grow rollout. New writes always include it.
  */
 export interface FreeTierUsageDoc {
   monthYear: string; // YYYY-MM
   count: number;
   limit: number;
+  perFeature?: Record<string, number>;
 }

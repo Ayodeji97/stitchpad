@@ -125,7 +125,7 @@ interface RawOrderDoc {
   archivedAt?: number | null;
 }
 
-function productionIO(uid: string, customerId: string, orderId: string, db: admin.firestore.Firestore): DraftMessageIO {
+export function productionIO(uid: string, customerId: string, orderId: string, db: admin.firestore.Firestore): DraftMessageIO {
   return {
     profileGet: () => db.doc(`users/${uid}`).get().then((snap) => ({
       exists: snap.exists,
@@ -140,7 +140,7 @@ function productionIO(uid: string, customerId: string, orderId: string, db: admi
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const existing = snap.exists ? (snap.data() as FreeTierUsageDoc) : null;
-        const next = reconcileUsage({ existing, now });
+        const next = reconcileUsage({ existing, now }, 'draft');
         if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
           return { exhausted: true } as const;
         }
