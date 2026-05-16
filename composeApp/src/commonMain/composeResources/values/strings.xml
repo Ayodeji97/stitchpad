@@ -1110,8 +1110,10 @@
     <string name="draft_message_generating">Drafting…</string>
     <string name="draft_message_send_whatsapp">Send via WhatsApp</string>
     <string name="draft_message_copy_text">Copy text</string>
+    <string name="draft_message_copy_confirmed">Copied to clipboard</string>
     <string name="draft_message_no_whatsapp_helper">Add a WhatsApp number to this customer to send directly.</string>
     <string name="draft_message_offline_helper">Need internet to draft messages.</string>
+    <string name="draft_message_free_tier_chip_compact">%1$d / 5 left</string>
 
     <!-- Smart errors -->
     <string name="smart_error_network">No internet. Try again when you&apos;re back online.</string>
