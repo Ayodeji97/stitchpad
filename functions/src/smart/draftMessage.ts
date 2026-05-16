@@ -209,7 +209,13 @@ export async function draftMessageHandler(
   let draftText: string;
   try {
     draftText = await vertex().generateText({ systemPrompt, userPrompt });
-  } catch {
+  } catch (err) {
+    // Log the real Vertex failure so operators can diagnose it from Cloud
+    // Logging without changing the client-facing error code.
+    functions.logger.error('vertex_call_failed', {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     throw new functions.https.HttpsError('unavailable', 'service_unavailable');
   }
 
