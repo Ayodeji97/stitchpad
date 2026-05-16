@@ -1080,4 +1080,11 @@
     <string name="delete_account_goodbye_cta">Back to sign in</string>
 
     <string name="delete_account_failed">Could not delete your account. Please try again.</string>
+
+    <!-- Smart errors (stubbed for VM compile; finalized in Task 14) -->
+    <string name="smart_error_network">No internet — try again later.</string>
+    <string name="smart_error_invalid_input">That order isn&apos;t available anymore.</string>
+    <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again.</string>
+    <string name="smart_error_unknown">Something went wrong.</string>
+    <string name="draft_message_no_whatsapp_helper">Add a WhatsApp number to send.</string>
 </resources>

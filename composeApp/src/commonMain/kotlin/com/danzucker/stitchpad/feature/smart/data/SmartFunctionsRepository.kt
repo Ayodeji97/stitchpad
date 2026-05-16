@@ -23,8 +23,11 @@ internal class SmartFunctionsRepository(
 
     private fun FunctionsCallerError.toSmartError(): SmartError = when (this) {
         is FunctionsCallerError.PermissionDenied ->
-            if (message.contains("free_tier_exhausted")) SmartError.FreeTierExhausted
-            else SmartError.Unknown
+            if (message.contains("free_tier_exhausted")) {
+                SmartError.FreeTierExhausted
+            } else {
+                SmartError.Unknown
+            }
         is FunctionsCallerError.InvalidArgument -> SmartError.InvalidInput
         FunctionsCallerError.Unavailable -> SmartError.ServiceUnavailable
         FunctionsCallerError.Network -> SmartError.Network
