@@ -4,8 +4,15 @@
 <dict>
 	<key>GIDClientID</key>
 	<string>683791063936-9s6315iaq9plqfq98k23ra4r9gninai8.apps.googleusercontent.com</string>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>SplashBackground</string>
+		<key>UIImageName</key>
+		<string>BrandMark</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
