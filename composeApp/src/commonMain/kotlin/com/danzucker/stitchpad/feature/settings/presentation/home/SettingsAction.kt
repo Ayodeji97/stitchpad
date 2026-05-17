@@ -15,4 +15,5 @@ sealed interface SettingsAction {
     data object OnInviteClick : SettingsAction
     data object OnContactClick : SettingsAction
     data object OnDebugMenuClick : SettingsAction
+    data object OnUpgradeClick : SettingsAction
 }

@@ -39,8 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.ProfileHeroCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowChevron
@@ -131,6 +133,16 @@ fun SettingsScreen(
                 } else {
                     null
                 },
+            )
+
+            Spacer(Modifier.height(DesignTokens.space3))
+
+            PlanCard(
+                tier = state.subscriptionTier,
+                customerCount = state.customerCount,
+                customerLimit = state.customerLimit,
+                onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
+                modifier = Modifier,
             )
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
@@ -338,6 +350,9 @@ private fun SettingsScreenPreview() {
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 isPremium = false,
+                subscriptionTier = SubscriptionTier.FREE,
+                customerCount = 8,
+                customerLimit = 15,
                 measurementUnit = MeasurementUnit.INCHES,
             ),
             onAction = {},
@@ -360,6 +375,9 @@ private fun SettingsScreenAppleProviderPreview() {
                 signInProvider = SignInProvider.APPLE,
                 maskedSignInIdentifier = "folake@privaterelay.appleid.com",
                 isPremium = true,
+                subscriptionTier = SubscriptionTier.PRO,
+                customerCount = 42,
+                customerLimit = null,
                 measurementUnit = MeasurementUnit.CM,
             ),
             onAction = {},
@@ -382,6 +400,9 @@ private fun SettingsScreenDarkPreview() {
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 isPremium = false,
+                subscriptionTier = SubscriptionTier.FREE,
+                customerCount = 13,
+                customerLimit = 15,
             ),
             onAction = {},
         )

@@ -253,6 +253,7 @@ fun DashboardRoot(
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToDraftMessage: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -279,6 +280,7 @@ fun DashboardRoot(
             onNavigateToAddCustomerFirst = onNavigateToAddCustomerFirst,
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
+            onNavigateToUpgrade = onNavigateToUpgrade,
         )
     }
 
@@ -315,6 +317,7 @@ private fun handleDashboardEvent(
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToDraftMessage: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
@@ -328,11 +331,7 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
-        DashboardEvent.NavigateToUpgrade -> {
-            // TODO(Task 11): navController.navigate(Routes.Upgrade)
-            // The Upgrade route is added in Task 11. The event is wired and
-            // firing so the navigation plumbing is testable end-to-end now.
-        }
+        DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
             scope,
             snackbarHostState,

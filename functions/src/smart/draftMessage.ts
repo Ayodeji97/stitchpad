@@ -100,7 +100,6 @@ export interface DraftMessageIO {
  */
 interface RawUserDoc {
   subscriptionTier?: Tier;
-  tier?: 'free' | 'premium'; // legacy — removed in Task 11
   /** Welcome bonus seeded at signup; lifted into the usage doc on first Smart help call. */
   bonusCoins?: number;
 }
@@ -142,12 +141,7 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
       data: (): UserProfileSummary | undefined => {
         const raw = snap.data() as RawUserDoc | undefined;
         if (!raw) return undefined;
-        const rawTier = raw.subscriptionTier ?? raw.tier ?? 'free';
-        // Legacy 'premium' maps to 'pro' to match the client-side
-        // SubscriptionTier.fromWire — keep server + client in sync so
-        // Fola's test doc (and any other legacy 'premium' user) gets the
-        // same effective tier on both sides.
-        const tier: Tier = rawTier === 'premium' ? 'pro' : rawTier;
+        const tier: Tier = raw.subscriptionTier ?? 'free';
         return { tier, welcomeBonusCoins: raw.bonusCoins ?? 0 };
       },
     })),

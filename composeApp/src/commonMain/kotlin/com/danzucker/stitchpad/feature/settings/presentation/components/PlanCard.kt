@@ -32,18 +32,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.plan_card_atelier_state
 import stitchpad.composeapp.generated.resources.plan_card_count
 import stitchpad.composeapp.generated.resources.plan_card_cta_compare
 import stitchpad.composeapp.generated.resources.plan_card_cta_upgrade
 import stitchpad.composeapp.generated.resources.plan_card_cta_upgrade_now
 import stitchpad.composeapp.generated.resources.plan_card_cta_upgrade_priced
+import stitchpad.composeapp.generated.resources.plan_card_customer_unlimited
+import stitchpad.composeapp.generated.resources.plan_card_free_state
 import stitchpad.composeapp.generated.resources.plan_card_pill_almost_full
 import stitchpad.composeapp.generated.resources.plan_card_pill_free
 import stitchpad.composeapp.generated.resources.plan_card_pill_limit_reached
+import stitchpad.composeapp.generated.resources.plan_card_pro_state
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_inline
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_locked
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_warn
@@ -55,36 +60,42 @@ import stitchpad.composeapp.generated.resources.plan_card_title_warn
 private const val WARN_THRESHOLD_RATIO = 0.80f
 
 /**
- * Three visual states picked from [customerCount] / [customerLimit]:
- * - inline: ≤80% — brand pill + count + Upgrade text + chevron
- * - hero (warn): >80% AND <100% — dark hero, "N customers left" headline
- * - hero (locked): =100% — red-tinted hero, "Limit reached"
- *
- * Premium users are not expected to see this card; surface a confirming
- * "Pro plan" inline state from the caller if needed.
+ * Three visual states picked from [tier] + [customerCount] / [customerLimit]:
+ * - For Pro / Atelier (customerLimit == null): inline "unlimited" state, no Upgrade CTA.
+ * - For Free: inline ≤80%, hero-warn >80%, hero-locked =100%.
  */
 @Composable
 fun PlanCard(
+    tier: SubscriptionTier,
     customerCount: Int,
-    customerLimit: Int,
+    /** null means unlimited (Pro / Atelier). */
+    customerLimit: Int?,
     onUpgradeClick: () -> Unit,
-    onComparePlansClick: () -> Unit,
     modifier: Modifier = Modifier,
-    upgradePriceNgn: String = "1,000",
+    upgradePriceNgn: String = "2,000",
 ) {
+    // Paid tiers: show a confirming "You're on Pro/Atelier" inline card.
+    if (customerLimit == null) {
+        PlanCardPaid(
+            tier = tier,
+            modifier = modifier,
+        )
+        return
+    }
+
     val ratio = if (customerLimit > 0) customerCount.toFloat() / customerLimit else 0f
     val remaining = (customerLimit - customerCount).coerceAtLeast(0)
 
     when {
         ratio >= 1f -> PlanCardLocked(
             onUpgradeClick = onUpgradeClick,
-            onComparePlansClick = onComparePlansClick,
+            onComparePlansClick = onUpgradeClick,
             modifier = modifier,
         )
         ratio > WARN_THRESHOLD_RATIO -> PlanCardWarn(
             customersLeft = remaining,
             onUpgradeClick = onUpgradeClick,
-            onComparePlansClick = onComparePlansClick,
+            onComparePlansClick = onUpgradeClick,
             upgradePriceNgn = upgradePriceNgn,
             modifier = modifier,
         )
@@ -150,6 +161,48 @@ private fun PlanCardInline(
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(20.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun PlanCardPaid(
+    tier: SubscriptionTier,
+    modifier: Modifier = Modifier,
+) {
+    val tierLabel = stringResource(
+        when (tier) {
+            SubscriptionTier.PRO -> Res.string.plan_card_pro_state
+            SubscriptionTier.ATELIER -> Res.string.plan_card_atelier_state
+            SubscriptionTier.FREE -> Res.string.plan_card_free_state
+        }
+    )
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(DesignTokens.space4),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                PlanPill(
+                    text = tierLabel,
+                    backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Spacer(modifier = Modifier.height(DesignTokens.space2))
+                Text(
+                    text = stringResource(Res.string.plan_card_customer_unlimited),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }
@@ -333,10 +386,10 @@ private fun PlanCardInlinePreview() {
     StitchPadTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             PlanCard(
+                tier = SubscriptionTier.FREE,
                 customerCount = 8,
                 customerLimit = 15,
                 onUpgradeClick = {},
-                onComparePlansClick = {},
                 modifier = Modifier.padding(DesignTokens.space3),
             )
         }
@@ -350,10 +403,10 @@ private fun PlanCardWarnPreview() {
     StitchPadTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             PlanCard(
+                tier = SubscriptionTier.FREE,
                 customerCount = 13,
                 customerLimit = 15,
                 onUpgradeClick = {},
-                onComparePlansClick = {},
                 modifier = Modifier.padding(DesignTokens.space3),
             )
         }
@@ -367,10 +420,27 @@ private fun PlanCardLockedPreview() {
     StitchPadTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             PlanCard(
+                tier = SubscriptionTier.FREE,
                 customerCount = 15,
                 customerLimit = 15,
                 onUpgradeClick = {},
-                onComparePlansClick = {},
+                modifier = Modifier.padding(DesignTokens.space3),
+            )
+        }
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun PlanCardProPreview() {
+    StitchPadTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            PlanCard(
+                tier = SubscriptionTier.PRO,
+                customerCount = 42,
+                customerLimit = null,
+                onUpgradeClick = {},
                 modifier = Modifier.padding(DesignTokens.space3),
             )
         }
@@ -388,16 +458,16 @@ private fun PlanCardDarkPreview() {
                 verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             ) {
                 PlanCard(
+                    tier = SubscriptionTier.FREE,
                     customerCount = 8,
                     customerLimit = 15,
                     onUpgradeClick = {},
-                    onComparePlansClick = {},
                 )
                 PlanCard(
+                    tier = SubscriptionTier.FREE,
                     customerCount = 13,
                     customerLimit = 15,
                     onUpgradeClick = {},
-                    onComparePlansClick = {},
                 )
             }
         }

@@ -1013,6 +1013,28 @@
     <string name="plan_card_cta_upgrade_now">Upgrade now</string>
     <string name="plan_card_cta_compare">Compare plans →</string>
 
+    <!-- Settings PlanCard (re-landed) -->
+    <string name="plan_card_free_state">You&apos;re on Free</string>
+    <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>
+    <string name="plan_card_atelier_state">You&apos;re on Tailor Atelier</string>
+    <string name="plan_card_upgrade_cta">Upgrade</string>
+    <string name="plan_card_customer_progress">%1$d of %2$d customers</string>
+    <string name="plan_card_customer_unlimited">Unlimited customers</string>
+
+    <!-- Freemium — Upgrade screen -->
+    <string name="upgrade_screen_title">Upgrade your plan</string>
+    <string name="upgrade_pro_name">Tailor Pro</string>
+    <string name="upgrade_pro_price">₦2,000 / month</string>
+    <string name="upgrade_pro_annual">or ₦20,000 / year (save ₦4,000)</string>
+    <string name="upgrade_atelier_name">Tailor Atelier</string>
+    <string name="upgrade_atelier_price">₦4,000 / month</string>
+    <string name="upgrade_atelier_annual">or ₦40,000 / year (save ₦8,000)</string>
+    <string name="upgrade_cadence_monthly">Monthly</string>
+    <string name="upgrade_cadence_annual">Annual</string>
+    <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
+    <string name="upgrade_terms">Pay monthly with your card via Paystack. Stop anytime.</string>
+    <string name="upgrade_back_content_description">Back</string>
+
     <!-- Edit Profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_avatar_hint">Initial uses your business name</string>

@@ -2,11 +2,14 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
+import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -50,6 +54,8 @@ class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     private val entitlementsRepository: EntitlementsRepository,
+    private val entitlementsProvider: EntitlementsProvider,
+    private val customerRepository: CustomerRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val themePreferencesStore: ThemePreferencesStore,
 ) : ViewModel() {
@@ -101,6 +107,7 @@ class SettingsViewModel(
                 )
             }
             SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
+            SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
         }
     }
 
@@ -119,12 +126,30 @@ class SettingsViewModel(
             )
         }
 
+        val customerCountFlow = customerRepository.observeCustomers(authUser.id)
+            .map { result ->
+                when (result) {
+                    is Result.Success -> result.data.size
+                    is Result.Error -> 0
+                }
+            }
+
         val combined = combine(
             userRepository.observeUser(authUser.id),
             entitlementsRepository.observeIsPremium(),
+            entitlementsProvider.flow,
+            customerCountFlow,
             uiState,
-        ) { firestoreUser, isPremium, ui ->
-            buildState(authUser, provider, firestoreUser, isPremium, ui)
+        ) { firestoreUser, isPremium, entitlements, customerCount, ui ->
+            buildState(
+                authUser = authUser,
+                provider = provider,
+                firestoreUser = firestoreUser,
+                isPremium = isPremium,
+                entitlements = entitlements,
+                customerCount = customerCount,
+                ui = ui,
+            )
         }
         combined.collect { emit(it) }
     }
@@ -134,6 +159,8 @@ class SettingsViewModel(
         provider: SignInProvider,
         firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
         isPremium: Boolean,
+        entitlements: UserEntitlements,
+        customerCount: Int,
         ui: LocalUiState,
     ): SettingsState {
         val business = firestoreUser?.businessName.orEmpty().ifBlank {
@@ -148,6 +175,9 @@ class SettingsViewModel(
             signInProvider = provider,
             maskedSignInIdentifier = authUser.email,
             isPremium = isPremium,
+            subscriptionTier = entitlements.tier,
+            customerCount = customerCount,
+            customerLimit = if (entitlements.customerCap == Int.MAX_VALUE) null else entitlements.customerCap,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
             showSignOutDialog = ui.showSignOutDialog,
