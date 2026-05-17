@@ -21,10 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.components.StitchPadMark
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -34,7 +32,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.app_name
 import stitchpad.composeapp.generated.resources.splash_tagline
 
-private const val SPLASH_DURATION_MS = 1700L
+private const val SPLASH_DURATION_MS = 2400L
 private const val STAGGER_DELAY_MS = 200L
 private const val ELEMENT_ANIM_MS = 300
 private const val WORDMARK_OFFSET_DP = 8f
@@ -118,8 +116,7 @@ fun SplashScreen(
         Spacer(modifier = Modifier.height(DesignTokens.space5))
         Text(
             text = stringResource(Res.string.app_name),
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.displayMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.graphicsLayer(
                 alpha = wordmarkAlpha,
@@ -129,7 +126,7 @@ fun SplashScreen(
         Spacer(modifier = Modifier.height(DesignTokens.space2))
         Text(
             text = stringResource(Res.string.splash_tagline),
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             modifier = Modifier.graphicsLayer(alpha = taglineAlpha)
         )
