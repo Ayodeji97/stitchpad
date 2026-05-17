@@ -23,7 +23,7 @@
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
-                        <color key="backgroundColor" name="SplashBackground"/>
+                        <color key="backgroundColor" name="SplashBackground" red="0.078" green="0.067" blue="0.055" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="bMa-rk-001" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cen-ter-X"/>
                             <constraint firstItem="bMa-rk-001" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="cen-ter-Y"/>
@@ -37,5 +37,8 @@
     </scenes>
     <resources>
         <image name="BrandMark" width="100" height="100"/>
+        <namedColor name="SplashBackground">
+            <color red="0.078" green="0.067" blue="0.055" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
     </resources>
 </document>
