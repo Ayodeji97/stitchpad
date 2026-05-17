@@ -12,5 +12,9 @@ data class CustomerDto(
     val deliveryPreference: String = "PICKUP",
     val notes: String? = null,
     val createdAt: Long = 0L,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    /** "active" | "locked" — see CustomerSlotState. Missing on legacy docs → ACTIVE. */
+    val slotState: String = "active",
+    /** Epoch millis when slotState was set to "locked", null otherwise. */
+    val lockedAt: Long? = null,
 )
