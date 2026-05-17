@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+        Splash + window bg stay paperLight in dark mode too. The splash is light
+        in both modes by design — the Compose splash, iOS LaunchScreen, and
+        Android system splash all share the same paperLight surface so cold
+        launch is visually continuous regardless of the device's system theme.
+        Without this override, the system applies a dark default to the splash
+        on dark-mode devices and the launcher tile appears on a black backdrop.
+    -->
+
     <style name="Theme.StitchPad" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/paperLight</item>
     </style>
 
     <style name="Theme.StitchPad.SplashScreen" parent="Theme.SplashScreen">
-        <!-- Compat-library attribute (used by androidx.core:core-splashscreen). -->
         <item name="windowSplashScreenBackground">@color/paperLight</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-
-        <!-- Native Android 12+ splash attributes. The compat library is supposed to
-             forward the unprefixed attribute to these, but on real devices the native
-             ones must be set explicitly or the system falls back to its dark default. -->
         <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/paperLight</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/ic_launcher_foreground</item>
-
         <item name="postSplashScreenTheme">@style/Theme.StitchPad</item>
         <item name="android:windowBackground">@color/paperLight</item>
     </style>
