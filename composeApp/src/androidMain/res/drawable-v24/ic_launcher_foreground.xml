@@ -7,43 +7,43 @@
 
     <!-- Back cover (depth) — indigo700 #1E2B5C -->
     <path
-        android:fillColor="#1E2B5C"
+        android:fillColor="@color/colorBrandCoverDepth"
         android:pathData="M 40 34 L 72 34 A 2.5 2.5 0 0 1 74.5 36.5 L 74.5 75.5 A 2.5 2.5 0 0 1 72 78 L 40 78 A 2.5 2.5 0 0 1 37.5 75.5 L 37.5 36.5 A 2.5 2.5 0 0 1 40 34 Z" />
 
     <!-- Front cover — indigo500 #2C3E7C -->
     <path
-        android:fillColor="#2C3E7C"
+        android:fillColor="@color/colorBrandCover"
         android:pathData="M 36 30 L 68 30 A 2.5 2.5 0 0 1 70.5 32.5 L 70.5 71.5 A 2.5 2.5 0 0 1 68 74 L 36 74 A 2.5 2.5 0 0 1 33.5 71.5 L 33.5 32.5 A 2.5 2.5 0 0 1 36 30 Z" />
 
     <!-- Ruler ticks 1, 4, 7, 10 (long, 5.5dp wide, 0.7dp tall) at x=37 — paperLight -->
-    <path android:fillColor="#FAF6EC" android:pathData="M37,34.5 h5.5 v0.7 h-5.5 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,44.5 h5.5 v0.7 h-5.5 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,58.5 h5.5 v0.7 h-5.5 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,68.5 h5.5 v0.7 h-5.5 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,34.5 h5.5 v0.7 h-5.5 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,44.5 h5.5 v0.7 h-5.5 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,58.5 h5.5 v0.7 h-5.5 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,68.5 h5.5 v0.7 h-5.5 z" />
 
     <!-- Ruler ticks 2, 3, 5 (short, 3.3dp wide) — paperLight -->
-    <path android:fillColor="#FAF6EC" android:pathData="M37,38.0 h3.3 v0.7 h-3.3 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,41.5 h3.3 v0.7 h-3.3 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,48.0 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,38.0 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,41.5 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,48.0 h3.3 v0.7 h-3.3 z" />
 
     <!-- Tick 6 — saffron heritage #E8A800 (at y=54, canvas vertical center) -->
-    <path android:fillColor="#E8A800" android:pathData="M37,53.7 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandAccent" android:pathData="M37,53.7 h3.3 v0.7 h-3.3 z" />
 
     <!-- Ruler ticks 8, 9, 11, 12 (short, 3.3dp wide) — paperLight -->
-    <path android:fillColor="#FAF6EC" android:pathData="M37,61.5 h3.3 v0.7 h-3.3 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,65.0 h3.3 v0.7 h-3.3 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M37,71.5 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,61.5 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,65.0 h3.3 v0.7 h-3.3 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M37,71.5 h3.3 v0.7 h-3.3 z" />
 
     <!-- Stitch dashes at x=65 (binding spine), 11 dashes 2.5dp tall, 0.7dp wide, 1dp gap — paperLight -->
-    <path android:fillColor="#FAF6EC" android:pathData="M65,34.0 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,37.5 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,41.0 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,44.5 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,48.0 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,51.5 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,55.0 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,58.5 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,62.0 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,65.5 h0.7 v2.5 h-0.7 z" />
-    <path android:fillColor="#FAF6EC" android:pathData="M65,69.0 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,34.0 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,37.5 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,41.0 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,44.5 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,48.0 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,51.5 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,55.0 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,58.5 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,62.0 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,65.5 h0.7 v2.5 h-0.7 z" />
+    <path android:fillColor="@color/colorBrandDetail" android:pathData="M65,69.0 h0.7 v2.5 h-0.7 z" />
 </vector>

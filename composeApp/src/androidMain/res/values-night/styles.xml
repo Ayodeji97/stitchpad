@@ -2,25 +2,25 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-        Splash + window bg stay paperLight in dark mode too. The splash is light
-        in both modes by design — the Compose splash, iOS LaunchScreen, and
-        Android system splash all share the same paperLight surface so cold
-        launch is visually continuous regardless of the device's system theme.
-        Without this override, the system applies a dark default to the splash
-        on dark-mode devices and the launcher tile appears on a black backdrop.
+        Dark-mode splash. Same style names, same attribute structure as
+        values/styles.xml — the system resolves @color/colorSplashBg to the
+        inkDark override defined in values-night/colors.xml, so the system
+        splash, post-splash window, and Compose splash all end up on inkDark
+        in dark mode. The launcher foreground vector also adapts via its
+        @color/colorBrand* references.
     -->
 
-    <style name="Theme.StitchPad" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/paperLight</item>
+    <style name="Theme.StitchPad" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/colorSplashBg</item>
     </style>
 
     <style name="Theme.StitchPad.SplashScreen" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/paperLight</item>
+        <item name="windowSplashScreenBackground">@color/colorSplashBg</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/paperLight</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/colorSplashBg</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.StitchPad</item>
-        <item name="android:windowBackground">@color/paperLight</item>
+        <item name="android:windowBackground">@color/colorSplashBg</item>
     </style>
 
 </resources>
