@@ -73,6 +73,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
+import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndingBanner
 import com.danzucker.stitchpad.feature.smart.presentation.SmartSectionCard
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NextBestActionCard
@@ -296,7 +297,7 @@ fun DashboardRoot(
     )
 }
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "CyclomaticComplexMethod")
 private fun handleDashboardEvent(
     event: DashboardEvent,
     scope: CoroutineScope,
@@ -327,6 +328,11 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
+        DashboardEvent.NavigateToUpgrade -> {
+            // TODO(Task 11): navController.navigate(Routes.Upgrade)
+            // The Upgrade route is added in Task 11. The event is wired and
+            // firing so the navigation plumbing is testable end-to-end now.
+        }
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
             scope,
             snackbarHostState,
@@ -459,6 +465,16 @@ private fun DashboardContent(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
     ) {
         Spacer(Modifier.height(DesignTokens.space4))
+
+        // 0. Welcome-ending warning banner — shown when the free welcome
+        //    window is within 3 days of expiring. Placed above everything
+        //    else so the high-urgency message gets immediate attention.
+        if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
+            WelcomeEndingBanner(
+                daysLeft = state.welcomeBannerDaysLeft,
+                onSeeUpgrade = { onAction(DashboardAction.OpenUpgrade) },
+            )
+        }
 
         // 1. Header
         DashboardHeader(

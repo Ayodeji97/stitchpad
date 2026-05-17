@@ -1140,4 +1140,9 @@
     <string name="smart_upgrade_sheet_message">You&apos;ve used your 5 free drafts. Upgrade to draft as many as you need.</string>
     <string name="smart_upgrade_sheet_upgrade_cta">Upgrade</string>
     <string name="smart_upgrade_sheet_dismiss">Wait until next month</string>
+
+    <!-- Freemium — welcome window ending warning -->
+    <string name="welcome_ending_banner_title">Your welcome ends in %1$d day(s)</string>
+    <string name="welcome_ending_banner_body">After that, you&apos;ll be limited to 15 customers and 5 Smart coins per month. Upgrade to Tailor Pro to keep all your customers and get more help.</string>
+    <string name="welcome_ending_banner_cta">See Tailor Pro</string>
 </resources>

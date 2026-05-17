@@ -35,4 +35,7 @@ sealed interface DashboardEvent {
 
     /** Smart Suggestions: open the Draft Message screen. */
     data object NavigateToDraftMessage : DashboardEvent
+
+    /** Welcome-ending banner CTA: navigate to the Upgrade / Tailor Pro screen. */
+    data object NavigateToUpgrade : DashboardEvent
 }
