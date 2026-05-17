@@ -11,6 +11,7 @@ sealed interface DataError : Error {
         NO_INTERNET,
         SERVER_ERROR,
         SERIALIZATION,
+        CAP_REACHED,
         UNKNOWN
     }
     enum class Local : DataError {

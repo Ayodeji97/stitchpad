@@ -3,10 +3,12 @@ package com.danzucker.stitchpad.feature.customer.data
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomer
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
@@ -16,8 +18,18 @@ import kotlinx.coroutines.flow.map
 
 private const val TAG = "CustomerRepo"
 
+/**
+ * Counts the number of ACTIVE-slot customers in [dtos].
+ * LOCKED customers are excluded — they don't consume active cap.
+ * Exposed as `internal` so it can be unit-tested directly without
+ * needing to fake a [FirebaseFirestore] instance.
+ */
+internal fun countActiveCustomers(dtos: List<CustomerDto>): Int =
+    dtos.count { it.slotState.lowercase() == CustomerSlotState.ACTIVE.wireValue }
+
 class FirebaseCustomerRepository(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val entitlements: EntitlementsProvider,
 ) : CustomerRepository {
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
@@ -85,6 +97,31 @@ class FirebaseCustomerRepository(
         userId: String,
         customer: Customer
     ): EmptyResult<DataError.Network> {
+        // Cap enforcement: count ACTIVE-slot customers; LOCKED ones don't count.
+        // Fetch all docs and count client-side via countActiveCustomers() — consistent
+        // with how the rest of this repo avoids nullable-field where-clauses (see
+        // the observeOrders comment about whereEqualTo(field, null) cross-platform issues).
+        val entitlement = entitlements.current()
+        val activeCount = try {
+            val dtos = firestore.collection("users")
+                .document(userId)
+                .collection("customers")
+                .get()
+                .documents
+                .mapNotNull { doc -> runCatching { doc.data<CustomerDto>() }.getOrNull() }
+            countActiveCustomers(dtos)
+        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") _e: Throwable) {
+            // If we can't count, fail soft — server is still source of truth.
+            AppLogger.w(tag = TAG) { "Cap count failed; allowing createCustomer to proceed" }
+            0
+        }
+        if (activeCount >= entitlement.customerCap) {
+            AppLogger.i(tag = TAG) {
+                "createCustomer blocked: activeCount=$activeCount cap=${entitlement.customerCap}"
+            }
+            return Result.Error(DataError.Network.CAP_REACHED)
+        }
+
         val docRef = if (customer.id.isBlank()) {
             firestore.collection("users").document(userId).collection("customers").document
         } else {

@@ -210,6 +210,7 @@
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>
     <string name="error_customer_already_exists">A customer with this name already exists</string>
+    <string name="error_customer_cap_reached">You&apos;ve reached your customer limit. Upgrade to add more.</string>
 
     <!-- Customer detail screen -->
     <string name="customer_detail_measurements_section">Measurements</string>
