@@ -1,0 +1,140 @@
+import * as functions from 'firebase-functions/v1';
+import * as admin from 'firebase-admin';
+import { CustomerSlotInfo, SlotChange, ReconcileSlotsResponse } from './types';
+
+export type { CustomerSlotInfo, SlotChange, ReconcileSlotsResponse };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ACTIVITY_WINDOW_DAYS = 30;
+
+/**
+ * Pure function — picks which customers to LOCK to bring the active-slot
+ * count down to `cap`, using a 50/50 mix of active + inactive (rounded
+ * to nearest). Also promotes already-LOCKED customers back to ACTIVE
+ * when cap rises (e.g., the user upgrades to Pro).
+ *
+ * "Active" = last activity within the last 30 days from `now`.
+ * "Inactive" = older than 30 days (or never).
+ *
+ * Within each bucket, oldest-last-touch is locked first.
+ */
+export function selectSlotsToLock(
+  customers: CustomerSlotInfo[],
+  cap: number,
+  now: Date,
+): SlotChange[] {
+  const activeCustomers = customers.filter((c) => c.slotState === 'active');
+  const lockedCustomers = customers.filter((c) => c.slotState === 'locked');
+
+  // Cap rose? Promote all locked back to active. (V1.5 may also need to
+  // re-lock if user downgrades again; for V1.0 a separate call handles it.)
+  if (activeCustomers.length + lockedCustomers.length <= cap) {
+    return lockedCustomers.map((c) => ({ id: c.id, toState: 'active' as const }));
+  }
+
+  if (activeCustomers.length <= cap) {
+    return []; // Nothing to do — already at or below cap on active.
+  }
+
+  const toLockCount = activeCustomers.length - cap;
+  const nowMs = now.getTime();
+  const cutoff = nowMs - ACTIVITY_WINDOW_DAYS * DAY_MS;
+
+  const activeBucket = activeCustomers
+    .filter((c) => c.lastActivityMs >= cutoff)
+    .sort((a, b) => a.lastActivityMs - b.lastActivityMs); // oldest first
+  const inactiveBucket = activeCustomers
+    .filter((c) => c.lastActivityMs < cutoff)
+    .sort((a, b) => a.lastActivityMs - b.lastActivityMs); // oldest first
+
+  const fromInactive = Math.min(Math.round(toLockCount / 2), inactiveBucket.length);
+  const fromActive = Math.min(toLockCount - fromInactive, activeBucket.length);
+
+  // If one bucket is short, fill the gap from the other.
+  const remaining = toLockCount - fromInactive - fromActive;
+  const extras: CustomerSlotInfo[] = [];
+  if (remaining > 0) {
+    const fallback = inactiveBucket.length > activeBucket.length
+      ? inactiveBucket.slice(fromInactive)
+      : activeBucket.slice(fromActive);
+    extras.push(...fallback.slice(0, remaining));
+  }
+
+  return [
+    ...inactiveBucket.slice(0, fromInactive),
+    ...activeBucket.slice(0, fromActive),
+    ...extras,
+  ].map((c) => ({ id: c.id, toState: 'locked' as const }));
+}
+
+/**
+ * HTTPS callable. The client invokes this on app foreground when it
+ * detects a tier or welcome-window change. Idempotent — safe to call
+ * any time; only writes when a change is needed.
+ */
+export const reconcileCustomerSlots = functions
+  .region('europe-west1')
+  .https.onCall(async (_data, context): Promise<ReconcileSlotsResponse> => {
+    if (!context.auth?.uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+    }
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+    const userSnap = await db.doc(`users/${uid}`).get();
+    if (!userSnap.exists) {
+      throw new functions.https.HttpsError('failed-precondition', 'user_not_found');
+    }
+    const user = userSnap.data() as { subscriptionTier?: string; welcomeBonusAppliedAt?: number };
+    const tier = user.subscriptionTier ?? 'free';
+    const inWelcome = isInWelcomeWindow(user.welcomeBonusAppliedAt, new Date());
+    const cap = effectiveCap(tier, inWelcome);
+
+    const customersSnap = await db.collection(`users/${uid}/customers`).get();
+    const infos: CustomerSlotInfo[] = customersSnap.docs.map((d) => {
+      const c = d.data() as { slotState?: string; updatedAt?: number; lastActivityAt?: number };
+      return {
+        id: d.id,
+        lastActivityMs: c.lastActivityAt ?? c.updatedAt ?? 0,
+        slotState: (c.slotState as 'active' | 'locked') ?? 'active',
+      };
+    });
+
+    const changes = selectSlotsToLock(infos, cap, new Date());
+    if (changes.length === 0) {
+      const activeNow = infos.filter((c) => c.slotState === 'active').length;
+      return {
+        changes: [],
+        totalActiveAfter: activeNow,
+        totalLockedAfter: infos.length - activeNow,
+      };
+    }
+
+    const batch = db.batch();
+    for (const ch of changes) {
+      batch.update(db.doc(`users/${uid}/customers/${ch.id}`), {
+        slotState: ch.toState,
+        lockedAt: ch.toState === 'locked' ? Date.now() : null,
+      });
+    }
+    await batch.commit();
+
+    const activeAfter = infos.length - changes.filter((c) => c.toState === 'locked').length
+      + changes.filter((c) => c.toState === 'active').length;
+    return {
+      changes,
+      totalActiveAfter: activeAfter,
+      totalLockedAfter: infos.length - activeAfter,
+    };
+  });
+
+function effectiveCap(tier: string, inWelcome: boolean): number {
+  if (tier === 'pro' || tier === 'atelier') return Number.MAX_SAFE_INTEGER;
+  return inWelcome ? 30 : 15;
+}
+
+function isInWelcomeWindow(welcomeAppliedAtMs: number | undefined, now: Date): boolean {
+  if (!welcomeAppliedAtMs) return false;
+  const applied = new Date(welcomeAppliedAtMs);
+  const endOfMonth = new Date(applied.getUTCFullYear(), applied.getUTCMonth() + 1, 1);
+  return now.getTime() < endOfMonth.getTime();
+}
