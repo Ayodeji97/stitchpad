@@ -42,7 +42,7 @@ fun AuthHero(
     modifier: Modifier = Modifier,
     variant: AuthHeroVariant = AuthHeroVariant.Utility,
     height: Dp = 280.dp,
-    logoDiameter: Dp = 80.dp,
+    logoDiameter: Dp = 96.dp,
     showTagline: Boolean = true,
 ) {
     Box(
@@ -69,7 +69,7 @@ fun AuthHero(
                 size = logoDiameter,
                 coverColor = Color.White,
                 coverDepthColor = DesignTokens.neutral200,
-                detailColor = MaterialTheme.colorScheme.primary,
+                detailColor = DesignTokens.indigo700,
             )
             Spacer(Modifier.height(12.dp))
             Text(
