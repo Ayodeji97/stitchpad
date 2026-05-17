@@ -82,4 +82,10 @@ export interface FreeTierUsageDoc {
   count: number;
   limit: number;
   perFeature?: Record<string, number>;
+  /**
+   * Bonus coin balance (welcome bonus + future sponsored coins). Consumed
+   * BEFORE the monthly `count` increments. Persists across month rollovers
+   * (does not reset). Defaults to 0 for users created before V1.0.
+   */
+  bonusBalance?: number;
 }

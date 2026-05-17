@@ -11,6 +11,7 @@ describe('reconcileUsage', () => {
       count: 1,
       limit: USAGE_DEFAULT_LIMIT,
       perFeature: { draft: 1 },
+      bonusBalance: 0,
     });
   });
 
@@ -27,6 +28,7 @@ describe('reconcileUsage', () => {
       count: 4,
       limit: 5,
       perFeature: { draft: 4 },
+      bonusBalance: 0,
     });
   });
 
@@ -43,6 +45,7 @@ describe('reconcileUsage', () => {
       count: 1,
       limit: 5,
       perFeature: { draft: 1 },
+      bonusBalance: 0,
     });
   });
 
@@ -59,6 +62,7 @@ describe('reconcileUsage', () => {
       count: 1,
       limit: 100,
       perFeature: { draft: 1 },
+      bonusBalance: 0,
     });
   });
 
@@ -134,6 +138,24 @@ describe('reconcileUsage perFeature tagging', () => {
       const next = reconcileUsage({ existing: null, now: today }, key);
       expect(next.perFeature?.[key]).toBe(1);
     }
+  });
+});
+
+describe('reconcileUsage — bonus balance', () => {
+  it('preserves bonusBalance across month rollover', () => {
+    const existing = { monthYear: '2026-04', count: 3, limit: 5, bonusBalance: 10 };
+    const now = new Date('2026-05-01T08:00:00Z');
+    const next = reconcileUsage({ existing, now }, 'draft');
+    expect(next.monthYear).toBe('2026-05');
+    expect(next.count).toBe(1); // first call of new month
+    expect(next.bonusBalance).toBe(10); // bonus survives rollover
+  });
+
+  it('defaults missing bonusBalance to 0', () => {
+    const existing = { monthYear: '2026-05', count: 2, limit: 5 };
+    const now = new Date('2026-05-17T08:00:00Z');
+    const next = reconcileUsage({ existing, now }, 'draft');
+    expect(next.bonusBalance).toBe(0);
   });
 });
 

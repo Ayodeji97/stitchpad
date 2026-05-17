@@ -36,6 +36,7 @@ export function reconcileUsage(
       count: 1,
       limit: USAGE_DEFAULT_LIMIT,
       perFeature: { [featureKey]: 1 },
+      bonusBalance: 0,
     };
   }
 
@@ -45,6 +46,7 @@ export function reconcileUsage(
       count: 1,
       limit: existing.limit,
       perFeature: { [featureKey]: 1 },
+      bonusBalance: existing.bonusBalance ?? 0,
     };
   }
 
@@ -57,6 +59,7 @@ export function reconcileUsage(
       ...prevPerFeature,
       [featureKey]: (prevPerFeature[featureKey] ?? 0) + 1,
     },
+    bonusBalance: existing.bonusBalance ?? 0,
   };
 }
 

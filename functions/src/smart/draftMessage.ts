@@ -57,7 +57,7 @@ function vertex(): VertexClient {
  */
 export type FreeTierReservation =
   | { exhausted: true }
-  | { exhausted: false; usage: FreeTierUsageDoc };
+  | { exhausted: false; usage: FreeTierUsageDoc; consumedBonus: boolean };
 
 export interface DraftMessageIO {
   profileGet(): Promise<{ exists: boolean; data(): UserProfileSummary | undefined }>;
@@ -154,12 +154,29 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const existing = snap.exists ? (snap.data() as FreeTierUsageDoc) : null;
-        const next = reconcileUsage({ existing, now }, 'draft');
-        if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
+        const baseline = reconcileUsage({ existing, now }, 'draft');
+        const bonusAvailable = (baseline.bonusBalance ?? 0) > 0;
+
+        if (bonusAvailable) {
+          // Bonus consumed; monthly count NOT incremented. reconcileUsage's
+          // count++ is rolled back by setting count back to existing.count
+          // (or 0 if new month with bonus available).
+          const next: FreeTierUsageDoc = {
+            ...baseline,
+            count: existing?.monthYear === baseline.monthYear ? (existing?.count ?? 0) : 0,
+            bonusBalance: (baseline.bonusBalance ?? 0) - 1,
+          };
+          tx.set(ref, next);
+          return { exhausted: false, usage: next, consumedBonus: true } as const;
+        }
+
+        // No bonus available — monthly quota path. Reject if exhausted in
+        // the current month.
+        if (existing !== null && isExhausted(existing) && existing.monthYear === baseline.monthYear) {
           return { exhausted: true } as const;
         }
-        tx.set(ref, next);
-        return { exhausted: false, usage: next } as const;
+        tx.set(ref, baseline);
+        return { exhausted: false, usage: baseline, consumedBonus: false } as const;
       });
     },
     customerGet: () => db.doc(`users/${uid}/customers/${customerId}`).get().then((snap) => ({

@@ -272,6 +272,48 @@ describe('draftMessageHandler', () => {
     ).rejects.toMatchObject({ code: 'unimplemented' });
     expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
   });
+
+  it('consumes bonusBalance before monthly count', async () => {
+    const fs = fakeFirestore({
+      usage: { monthYear: '2026-05', count: 0, limit: 5, bonusBalance: 3 } as any,
+    });
+    // Override reserveFreeTierSlot to model bonus consumption with the same
+    // local-state mutation pattern as the real fake but tracking bonus.
+    let bonus = 3;
+    let count = 0;
+    fs.reserveFreeTierSlot = jest.fn().mockImplementation((_now: Date) => {
+      if (bonus > 0) {
+        bonus -= 1;
+        return Promise.resolve({
+          exhausted: false,
+          usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: bonus },
+          consumedBonus: true,
+        });
+      }
+      if (count >= 5) return Promise.resolve({ exhausted: true });
+      count += 1;
+      return Promise.resolve({
+        exhausted: false,
+        usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: 0 },
+        consumedBonus: false,
+      });
+    });
+
+    // First 3 calls hit bonus, count stays 0.
+    for (let i = 0; i < 3; i++) {
+      const result = await handler(validRequest, baseContext as any, fs);
+      expect(result.remainingFreeQuota).toBe(5); // count untouched
+    }
+    // Then 5 calls eat the monthly quota.
+    for (let i = 0; i < 5; i++) {
+      const result = await handler(validRequest, baseContext as any, fs);
+      expect(result.remainingFreeQuota).toBe(4 - i);
+    }
+    // 9th call: bonus gone, monthly quota gone — exhausted.
+    await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
 });
 
 describe('productionIO contract: reserveFreeTierSlot threads "draft" to reconcileUsage', () => {
