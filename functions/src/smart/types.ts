@@ -38,7 +38,7 @@ export interface DraftMessageRequest {
 
 export interface DraftMessageResponse {
   draftText: string;
-  remainingFreeQuota: number | null; // null = premium tier
+  remainingFreeQuota: number | null; // null = atelier tier
 }
 
 /**
@@ -53,14 +53,23 @@ export interface DraftContext {
   deadlineFormatted: string; // already-formatted string per the tailor's locale
 }
 
+export type Tier = 'free' | 'pro' | 'atelier';
+
 /**
  * User profile fields the Smart layer cares about. Read from the user
  * document itself at `users/{uid}` — there is no separate `profile` subdoc.
  * Missing `tier` field defaults to 'free'.
  */
 export interface UserProfileSummary {
-  tier: 'free' | 'premium';
+  tier: Tier;
 }
+
+/**
+ * Atelier-only intents that will be promoted to full Smart features in V1.5.
+ * The server gate is in place today so callers below Atelier get
+ * permission-denied immediately, before any quota is reserved.
+ */
+export type AtelierOnlyIntent = 'pricing_help' | 'reply_help';
 
 /**
  * Free-tier usage doc at `users/{uid}/usage/smart_drafts`.

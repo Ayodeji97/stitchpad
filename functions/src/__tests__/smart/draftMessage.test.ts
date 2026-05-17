@@ -48,7 +48,7 @@ const baseContext = {
  * shape and lets us assert how many times the reservation ran.
  */
 const fakeFirestore = (overrides: Partial<{
-  profile: { tier: 'free' | 'premium' };
+  profile: { tier: 'free' | 'pro' | 'atelier' };
   usage: FreeTierUsageDoc | null;
   customer: { firstName: string };
   order: {
@@ -118,13 +118,6 @@ describe('draftMessageHandler', () => {
       message: expect.stringContaining('free_tier_exhausted'),
     });
     expect(fakeVertex.generateText).not.toHaveBeenCalled();
-  });
-
-  it('skips reservation for premium users and returns null remaining quota', async () => {
-    const fs = fakeFirestore({ profile: { tier: 'premium' } });
-    const result = await handler(validRequest, baseContext as any, fs);
-    expect(result.remainingFreeQuota).toBeNull();
-    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
   });
 
   it('rejects with invalid-argument when customer does not exist', async () => {
@@ -240,6 +233,44 @@ describe('draftMessageHandler', () => {
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'permission-denied',
     });
+  });
+
+  it('treats subscriptionTier "atelier" as unlimited (no quota burn)', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'atelier' } });
+    const result = await handler(validRequest, baseContext as any, fs);
+    expect(result.remainingFreeQuota).toBeNull();
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('treats subscriptionTier "pro" as gated (Pro still consumes coins)', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'pro' } });
+    const result = await handler(validRequest, baseContext as any, fs);
+    expect(result.remainingFreeQuota).toBe(4); // limit 5 - count 1
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects Atelier-only intentType (pricing_help) when caller is "free"', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'free' } });
+    await expect(
+      handler({ ...validRequest, intentType: 'pricing_help' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('rejects Atelier-only intentType (pricing_help) when caller is "pro"', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'pro' } });
+    await expect(
+      handler({ ...validRequest, intentType: 'pricing_help' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('rejects Atelier-only intentType (pricing_help) even when caller IS atelier (templates ship in V1.5)', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'atelier' } });
+    await expect(
+      handler({ ...validRequest, intentType: 'pricing_help' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'unimplemented' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
+  AtelierOnlyIntent,
   DraftMessageRequest,
   DraftMessageResponse,
   DraftContext,
@@ -8,6 +9,7 @@ import {
   FreeTierUsageDoc,
   IntentType,
   Language,
+  Tier,
 } from './types';
 
 const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
@@ -16,6 +18,12 @@ const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
   'follow_up',
   'custom_note',
 ];
+const ATELIER_ONLY_INTENTS: readonly AtelierOnlyIntent[] = ['pricing_help', 'reply_help'];
+
+function requiresAtelier(intentType: string): boolean {
+  return (ATELIER_ONLY_INTENTS as readonly string[]).includes(intentType);
+}
+
 const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'pcm'];
 // Mirrors NOTES_MAX_CHARS in DraftMessageScreen.kt; keep the two in sync.
 const CUSTOM_NOTES_MAX_LENGTH = 200;
@@ -91,8 +99,8 @@ export interface DraftMessageIO {
  * users aren't rate-limited as free.
  */
 interface RawUserDoc {
-  subscriptionTier?: 'free' | 'premium';
-  tier?: 'free' | 'premium';
+  subscriptionTier?: Tier;
+  tier?: 'free' | 'premium'; // legacy — removed in Task 11
 }
 
 interface RawCustomerDoc {
@@ -132,7 +140,13 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
       data: (): UserProfileSummary | undefined => {
         const raw = snap.data() as RawUserDoc | undefined;
         if (!raw) return undefined;
-        return { tier: raw.subscriptionTier ?? raw.tier ?? 'free' };
+        const rawTier = raw.subscriptionTier ?? raw.tier ?? 'free';
+        // Legacy 'premium' maps to 'pro' to match the client-side
+        // SubscriptionTier.fromWire — keep server + client in sync so
+        // Fola's test doc (and any other legacy 'premium' user) gets the
+        // same effective tier on both sides.
+        const tier: Tier = rawTier === 'premium' ? 'pro' : rawTier;
+        return { tier };
       },
     })),
     reserveFreeTierSlot: async (now: Date): Promise<FreeTierReservation> => {
@@ -246,7 +260,7 @@ export async function draftMessageHandler(
   // Without this guard, buildUserPrompt would index its enum maps with the
   // unknown value, produce an `undefined` label, and we'd burn quota on a
   // garbage Vertex call.
-  if (!isIntentType(data.intentType)) {
+  if (!isIntentType(data.intentType) && !requiresAtelier(data.intentType)) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: unsupported intentType');
   }
   if (!isLanguage(data.language)) {
@@ -265,6 +279,28 @@ export async function draftMessageHandler(
   // 1. Tier check
   const profileSnap = await io.profileGet();
   const tier = profileSnap.exists ? profileSnap.data()?.tier ?? 'free' : 'free';
+
+  // Atelier-only intent guard. Done BEFORE customer/order validation so we
+  // don't burn round-trips on a request the caller can never make. Done
+  // BEFORE quota reservation for the same reason.
+  if (requiresAtelier(data.intentType) && tier !== 'atelier') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'atelier_required: this intent is only available on Tailor Atelier',
+    );
+  }
+
+  // Atelier-only intents are gated above for non-Atelier callers, but the
+  // actual prompt templates ship with V1.5. Until then, even Atelier users
+  // must be rejected so we don't reach buildUserPrompt with an unknown
+  // intent type. When V1.5 adds the templates, this guard goes away and
+  // the intents are moved into SUPPORTED_INTENT_TYPES.
+  if (requiresAtelier(data.intentType)) {
+    throw new functions.https.HttpsError(
+      'unimplemented',
+      'intent_not_yet_available: this Smart help will arrive in a future update',
+    );
+  }
 
   // 2. Validate customer + order BEFORE reserving the free-tier slot — a
   // stale selection or deleted order should fail loudly without burning
@@ -288,9 +324,10 @@ export async function draftMessageHandler(
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: order is not open');
   }
 
-  // 3. Reserve the free-tier slot now that inputs are known good.
+  // 3. Reserve a quota slot for non-Atelier tiers. Pro consumes coins
+  // (50/month, capped by tier-derived limit); Atelier is unlimited.
   let nextUsage: FreeTierUsageDoc | null = null;
-  if (tier === 'free') {
+  if (tier !== 'atelier') {
     const reservation = await io.reserveFreeTierSlot(now);
     if (reservation.exhausted) {
       throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
@@ -298,7 +335,7 @@ export async function draftMessageHandler(
     nextUsage = reservation.usage;
   }
 
-  // 3. Build prompts
+  // 4. Build prompts
   const draftCtx: DraftContext = {
     customerFirstName: customer.firstName,
     garmentLabel: order.garmentLabel,
@@ -314,7 +351,7 @@ export async function draftMessageHandler(
     customNotes: data.customNotes,
   });
 
-  // 4. Call Vertex
+  // 5. Call Vertex
   let draftText: string;
   try {
     draftText = await vertex().generateText({ systemPrompt, userPrompt });
@@ -334,7 +371,7 @@ export async function draftMessageHandler(
 
   return {
     draftText,
-    remainingFreeQuota: tier === 'premium' ? null : (nextUsage!.limit - nextUsage!.count),
+    remainingFreeQuota: tier === 'atelier' ? null : (nextUsage!.limit - nextUsage!.count),
   };
 }
 
