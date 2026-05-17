@@ -76,7 +76,7 @@ const fakeFirestore = (overrides: Partial<{
 
   return {
     profileGet: jest.fn().mockResolvedValue({ exists: true, data: () => profile }),
-    reserveFreeTierSlot: jest.fn().mockImplementation((now: Date) => {
+    reserveFreeTierSlot: jest.fn().mockImplementation((now: Date, _welcomeBonusToSeed: number = 0) => {
       const existing = usage;
       const next = reconcileUsage({ existing, now }, 'draft');
       if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
@@ -281,7 +281,7 @@ describe('draftMessageHandler', () => {
     // local-state mutation pattern as the real fake but tracking bonus.
     let bonus = 3;
     let count = 0;
-    fs.reserveFreeTierSlot = jest.fn().mockImplementation((_now: Date) => {
+    fs.reserveFreeTierSlot = jest.fn().mockImplementation((_now: Date, _welcomeBonusToSeed: number = 0) => {
       if (bonus > 0) {
         bonus -= 1;
         return Promise.resolve({
@@ -313,6 +313,43 @@ describe('draftMessageHandler', () => {
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'permission-denied',
     });
+  });
+
+  it('seeds the welcome bonus into the usage doc on the first Smart call', async () => {
+    // No usage doc exists yet (welcomeBonusToSeed should be honored).
+    const fs = fakeFirestore({ usage: null });
+    // Stub the profile to carry a welcome bonus of 30.
+    fs.profileGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ tier: 'free', welcomeBonusCoins: 30 }),
+    });
+    // Override reserveFreeTierSlot to model the seeding behaviour.
+    let bonusBalance: number | null = null;
+    let count = 0;
+    fs.reserveFreeTierSlot = jest.fn().mockImplementation((_now: Date, welcomeBonusToSeed = 0) => {
+      if (bonusBalance === null) {
+        bonusBalance = welcomeBonusToSeed; // first call seeds
+      }
+      const currentBonus = bonusBalance as number;
+      if (currentBonus > 0) {
+        bonusBalance = currentBonus - 1;
+        return Promise.resolve({
+          exhausted: false,
+          usage: { monthYear: '2026-05', count, limit: 5, bonusBalance },
+          consumedBonus: true,
+        });
+      }
+      count += 1;
+      return Promise.resolve({
+        exhausted: false,
+        usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: 0 },
+        consumedBonus: false,
+      });
+    });
+
+    const result = await handler(validRequest, baseContext as any, fs);
+    expect(result.remainingFreeQuota).toBe(5); // count untouched, bonus consumed
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledWith(expect.any(Date), 30);
   });
 });
 

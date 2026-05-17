@@ -62,6 +62,8 @@ export type Tier = 'free' | 'pro' | 'atelier';
  */
 export interface UserProfileSummary {
   tier: Tier;
+  /** Welcome bonus coins seeded on the user doc; lifted into the usage doc on first Smart call. */
+  welcomeBonusCoins: number;
 }
 
 /**

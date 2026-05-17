@@ -74,7 +74,7 @@ export interface DraftMessageIO {
    * draft. Accepted for V1 (small tester cohort, low Vertex flake rate);
    * a compensating decrement can be added in V1.5 if needed.
    */
-  reserveFreeTierSlot(now: Date): Promise<FreeTierReservation>;
+  reserveFreeTierSlot(now: Date, welcomeBonusToSeed?: number): Promise<FreeTierReservation>;
   customerGet(): Promise<{ exists: boolean; data(): { firstName: string } | undefined }>;
   orderGet(): Promise<{ exists: boolean; data(): {
     customerId: string;
@@ -101,6 +101,8 @@ export interface DraftMessageIO {
 interface RawUserDoc {
   subscriptionTier?: Tier;
   tier?: 'free' | 'premium'; // legacy — removed in Task 11
+  /** Welcome bonus seeded at signup; lifted into the usage doc on first Smart help call. */
+  bonusCoins?: number;
 }
 
 interface RawCustomerDoc {
@@ -146,24 +148,31 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         // Fola's test doc (and any other legacy 'premium' user) gets the
         // same effective tier on both sides.
         const tier: Tier = rawTier === 'premium' ? 'pro' : rawTier;
-        return { tier };
+        return { tier, welcomeBonusCoins: raw.bonusCoins ?? 0 };
       },
     })),
-    reserveFreeTierSlot: async (now: Date): Promise<FreeTierReservation> => {
+    reserveFreeTierSlot: async (now: Date, welcomeBonusToSeed: number = 0): Promise<FreeTierReservation> => {
       const ref = db.doc(`users/${uid}/usage/smart_drafts`);
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const existing = snap.exists ? (snap.data() as FreeTierUsageDoc) : null;
-        const baseline = reconcileUsage({ existing, now }, 'draft');
+
+        // First-ever Smart call: seed bonusBalance from the user-doc welcome bonus.
+        const seedBonus = existing === null ? welcomeBonusToSeed : 0;
+        const seededExisting: FreeTierUsageDoc | null = existing ?? (seedBonus > 0
+          ? { monthYear: '', count: 0, limit: 0, bonusBalance: seedBonus }
+          : null);
+
+        const baseline = reconcileUsage({ existing: seededExisting, now }, 'draft');
         const bonusAvailable = (baseline.bonusBalance ?? 0) > 0;
 
         if (bonusAvailable) {
           // Bonus consumed; monthly count NOT incremented. reconcileUsage's
-          // count++ is rolled back by setting count back to existing.count
+          // count++ is rolled back by setting count back to seededExisting.count
           // (or 0 if new month with bonus available).
           const next: FreeTierUsageDoc = {
             ...baseline,
-            count: existing?.monthYear === baseline.monthYear ? (existing?.count ?? 0) : 0,
+            count: seededExisting?.monthYear === baseline.monthYear ? (seededExisting?.count ?? 0) : 0,
             bonusBalance: (baseline.bonusBalance ?? 0) - 1,
           };
           tx.set(ref, next);
@@ -345,7 +354,7 @@ export async function draftMessageHandler(
   // (50/month, capped by tier-derived limit); Atelier is unlimited.
   let nextUsage: FreeTierUsageDoc | null = null;
   if (tier !== 'atelier') {
-    const reservation = await io.reserveFreeTierSlot(now);
+    const reservation = await io.reserveFreeTierSlot(now, profileSnap.data()?.welcomeBonusCoins ?? 0);
     if (reservation.exhausted) {
       throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
     }
