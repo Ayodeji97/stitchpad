@@ -1,12 +1,16 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -31,6 +35,7 @@ class WorkshopSetupViewModelTest {
     private lateinit var fakeUserRepository: FakeUserRepository
     private lateinit var fakeAuth: FakeAuthRepository
     private lateinit var onboardingPreferences: FakeOnboardingPreferences
+    private lateinit var appScope: CoroutineScope
 
     @BeforeTest
     fun setup() {
@@ -39,13 +44,26 @@ class WorkshopSetupViewModelTest {
         fakeAuth = FakeAuthRepository()
         onboardingPreferences = FakeOnboardingPreferences()
         fakeAuth.shouldReturnError = null
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        // ApplicationScope must dispatch on Dispatchers.Main (= UnconfinedTestDispatcher here)
+        // so fire-and-forget writes from the VM run eagerly and tests can assert against
+        // the fake repository without needing advanceUntilIdle.
+        appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        viewModel = createViewModel()
     }
 
     @AfterTest
     fun tearDown() {
+        appScope.cancel()
         Dispatchers.resetMain()
     }
+
+    private fun createViewModel(): WorkshopSetupViewModel =
+        WorkshopSetupViewModel(
+            userRepository = fakeUserRepository,
+            authRepository = fakeAuth,
+            onboardingPreferences = onboardingPreferences,
+            applicationScope = ApplicationScope(appScope),
+        )
 
     @Test
     fun initialStateIsEmpty() {
@@ -87,7 +105,7 @@ class WorkshopSetupViewModelTest {
     fun continueWithDataWritesToRepositoryAndNavigates() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
 
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = createViewModel()
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -112,7 +130,7 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithOnlyBusinessNameWritesProfileWithNullWhatsApp() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = createViewModel()
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -126,7 +144,7 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithBusinessNameAndInvalidWhatsAppSetsWhatsAppError() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = createViewModel()
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803"))
@@ -138,17 +156,20 @@ class WorkshopSetupViewModelTest {
     }
 
     @Test
-    fun continueWithRepositoryErrorEmitsShowError() = runTest {
+    fun continueWithRepositoryError_stillNavigatesToHome_andDoesNotEmitShowError() = runTest {
+        // V0 fire-and-forget contract: createUserProfile failure is swallowed so onboarding
+        // completes locally even when offline. The local DataStore flag is set and the user
+        // lands on Home; the profile syncs to Firestore when the network returns.
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeUserRepository.shouldReturnError = DataError.Network.UNKNOWN
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = createViewModel()
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
 
         val event = viewModel.events.first()
-        assertIs<WorkshopSetupEvent.ShowError>(event)
+        assertIs<WorkshopSetupEvent.NavigateToHome>(event)
     }
 
     @Test

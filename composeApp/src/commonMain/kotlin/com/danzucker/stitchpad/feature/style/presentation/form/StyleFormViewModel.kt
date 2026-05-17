@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.style.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
@@ -27,6 +28,7 @@ class StyleFormViewModel(
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
+    private val applicationScope: ApplicationScope,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
@@ -130,10 +132,29 @@ class StyleFormViewModel(
                 return@launch
             }
             if (s.isEditMode && s.existingStyle != null) {
+                val updatedStyle = s.existingStyle.copy(description = trimmedDescription)
+                if (s.selectedPhotoBytes == null) {
+                    // Description-only edit is a pure Firestore write — safe to fire-and-forget
+                    // so saves work offline. GitLive's set() suspends until server ACK, which
+                    // would hang offline; Firestore's local cache queues the mutation instead.
+                    applicationScope.launch {
+                        styleRepository.updateStyle(
+                            userId = userId,
+                            customerId = customerId,
+                            style = updatedStyle,
+                            newPhotoBytes = null,
+                        )
+                    }
+                    _state.update { it.copy(isSaving = false) }
+                    _events.send(StyleFormEvent.NavigateBack)
+                    return@launch
+                }
+                // New-photo edit requires Firebase Storage upload, which has no offline queue.
+                // Keep awaiting so we can surface upload errors; deferred to V1 photo queue.
                 val updateResult = styleRepository.updateStyle(
                     userId = userId,
                     customerId = customerId,
-                    style = s.existingStyle.copy(description = trimmedDescription),
+                    style = updatedStyle,
                     newPhotoBytes = s.selectedPhotoBytes,
                 )
                 _state.update { it.copy(isSaving = false) }
@@ -145,6 +166,8 @@ class StyleFormViewModel(
                 }
                 return@launch
             }
+            // Create always requires a photo (UI gates this) and bundles upload + doc write
+            // inside the repository — same V1-photo-queue limitation as new-photo edits.
             val createResult = styleRepository.createStyle(
                 userId = userId,
                 customerId = customerId,
@@ -160,21 +183,23 @@ class StyleFormViewModel(
             val newStyleId = (createResult as Result.Success).data
 
             // If opened from an order's "link" path, attach this style to items[0].
-            // Mirror the measurement-link flow: failure here is silent — style is
-            // already persisted; user can retry from the order detail picker.
+            // Fire-and-forget: it's a pure Firestore mutation, failure was already silent,
+            // and awaiting needlessly blocked nav-back. User can retry from order detail.
             val linkOrderId = linkToOrderId
             if (linkOrderId != null) {
-                when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
-                    is Result.Success -> {
-                        val order = orderResult.data
-                        val firstItem = order.items.firstOrNull()
-                        if (firstItem != null) {
-                            val updatedItems = listOf(firstItem.copy(styleId = newStyleId)) +
-                                order.items.drop(1)
-                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                applicationScope.launch {
+                    when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
+                        is Result.Success -> {
+                            val order = orderResult.data
+                            val firstItem = order.items.firstOrNull()
+                            if (firstItem != null) {
+                                val updatedItems = listOf(firstItem.copy(styleId = newStyleId)) +
+                                    order.items.drop(1)
+                                orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                            }
                         }
+                        is Result.Error -> Unit
                     }
-                    is Result.Error -> Unit
                 }
             }
 

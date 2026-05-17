@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -9,8 +10,11 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.measurement.data.FakeMeasurementPreferencesStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -36,6 +40,7 @@ class MeasurementFormViewModelTest {
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var preferencesStore: FakeMeasurementPreferencesStore
     private lateinit var orderRepository: FakeOrderRepository
+    private lateinit var appScope: CoroutineScope
 
     @BeforeTest
     fun setUp() {
@@ -44,10 +49,15 @@ class MeasurementFormViewModelTest {
         authRepository = FakeAuthRepository()
         preferencesStore = FakeMeasurementPreferencesStore()
         orderRepository = FakeOrderRepository()
+        // ApplicationScope on Dispatchers.Main (UnconfinedTestDispatcher) so fire-and-forget
+        // writes run eagerly inline. backgroundScope's StandardTestDispatcher scheduler is
+        // not reached by advanceUntilIdle in this setup, so use Main directly.
+        appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     }
 
     @AfterTest
     fun tearDown() {
+        appScope.cancel()
         Dispatchers.resetMain()
     }
 
@@ -65,6 +75,7 @@ class MeasurementFormViewModelTest {
             authRepository = authRepository,
             measurementPreferencesStore = preferencesStore,
             orderRepository = orderRepository,
+            applicationScope = ApplicationScope(appScope),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -358,7 +369,7 @@ class MeasurementFormViewModelTest {
         assertEquals(0L, saved.dateTaken)
     }
 
-    // --- Save: error paths ---
+    // --- Save: error paths + V0 fire-and-forget contract ---
 
     @Test
     fun save_withNoAuthUser_doesNotCallRepository() = runTest {
@@ -370,13 +381,17 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun save_withRepositoryError_setsErrorMessage() = runTest {
+    fun save_withRepositoryError_stillNavigatesBack_andDoesNotSurfaceError() = runTest {
+        // V0 fire-and-forget contract: save always navigates back; Firestore errors
+        // (offline, server rejection) are swallowed at repo level. V1 will surface them
+        // via a global pending-writes snackbar.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
-        assertNotNull(vm.state.value.errorMessage)
+        assertIs<MeasurementFormEvent.NavigateBack>(vm.events.first())
+        assertNull(vm.state.value.errorMessage)
         assertFalse(vm.state.value.isLoading)
     }
 
@@ -393,10 +408,11 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
+        // Save no longer surfaces errors (fire-and-forget). Use the loadMeasurement
+        // path (edit mode + observe error) to set errorMessage instead.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        measurementRepository.operationError = DataError.Network.UNKNOWN
-        val vm = createViewModel()
-        vm.onAction(MeasurementFormAction.OnSaveClick)
+        measurementRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel(measurementId = "meas-1")
         assertNotNull(vm.state.value.errorMessage)
 
         vm.onAction(MeasurementFormAction.OnErrorDismiss)

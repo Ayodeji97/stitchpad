@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -43,7 +44,8 @@ class OrderFormViewModel(
     private val customerRepository: CustomerRepository,
     private val styleRepository: StyleRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val applicationScope: ApplicationScope,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -330,81 +332,117 @@ class OrderFormViewModel(
 
         // Resolve order id BEFORE any upload so storage paths match the actual doc id.
         val actualOrderId = orderId ?: orderRepository.newOrderId(uid)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val isEdit = orderId != null
+        val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
 
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
 
-            val orderItems = formItems.map { item ->
-                val garmentType = item.garmentType!!
-                val price = item.price.toDoubleOrNull() ?: 0.0
-
-                val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
-
-                OrderItem(
-                    id = item.id,
-                    garmentType = garmentType,
-                    description = item.description.trim(),
-                    price = price,
-                    styleId = item.styleId,
-                    measurementId = item.measurementId,
-                    fabricPhotoUrl = fabricUrl,
-                    fabricPhotoStoragePath = fabricPath,
-                    fabricName = item.fabricName.trim().ifBlank { null },
-                )
-            }
-
-            val totalPrice = orderItems.sumOf { it.price }
-            val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
-            val now = Clock.System.now().toEpochMilliseconds()
-            val isEdit = orderId != null
-
-            val order = Order(
-                id = actualOrderId,
-                userId = uid,
-                customerId = customer.id,
-                customerName = customer.name,
-                items = orderItems,
-                status = if (isEdit) loadedStatus else OrderStatus.PENDING,
-                priority = s.priority,
-                statusHistory = if (isEdit) {
-                    loadedStatusHistory
-                } else {
-                    listOf(StatusChange(OrderStatus.PENDING, now))
-                },
-                totalPrice = totalPrice,
-                payments = if (!isEdit && deposit > 0.0) {
-                    listOf(
-                        Payment(
-                            id = Uuid.random().toString(),
-                            amount = deposit,
-                            method = PaymentMethod.OTHER,
-                            type = PaymentType.DEPOSIT,
-                            recordedAt = now,
-                            note = null,
-                        ),
+            // Fire-and-forget in applicationScope. Two-phase to avoid losing the order doc
+            // when Storage hangs offline:
+            //   1) Write the order doc IMMEDIATELY with current photoUrls (existing on edit,
+            //      null on brand-new items). Firestore's local cache queues this without
+            //      waiting for the network.
+            //   2) Sequentially upload any new fabric photos and patch the doc per item.
+            //      Storage has no offline queue — if it hangs, only the patch waits; the
+            //      doc is already safe in Firestore's queue.
+            applicationScope.launch {
+                val baseItems = formItems.map { item ->
+                    OrderItem(
+                        id = item.id,
+                        garmentType = item.garmentType!!,
+                        description = item.description.trim(),
+                        price = item.price.toDoubleOrNull() ?: 0.0,
+                        styleId = item.styleId,
+                        measurementId = item.measurementId,
+                        fabricPhotoUrl = item.fabricPhotoUrl,
+                        fabricPhotoStoragePath = item.fabricPhotoStoragePath,
+                        fabricName = item.fabricName.trim().ifBlank { null },
                     )
-                } else if (isEdit) {
-                    loadedPayments
-                } else {
-                    emptyList()
-                },
-                deadline = s.deadline,
-                notes = s.notes.trim().ifBlank { null },
-                createdAt = if (isEdit) loadedCreatedAt else 0L,
-                updatedAt = 0L
-            )
-
-            val result = if (isEdit) {
-                orderRepository.updateOrder(uid, order)
-            } else {
-                orderRepository.createOrder(uid, order)
-            }
-            _state.update { it.copy(isSaving = false) }
-            when (result) {
-                is Result.Success -> _events.send(OrderFormEvent.OrderSaved)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toOrderUiText())
                 }
+
+                val totalPrice = baseItems.sumOf { it.price }
+
+                val order = Order(
+                    id = actualOrderId,
+                    userId = uid,
+                    customerId = customer.id,
+                    customerName = customer.name,
+                    items = baseItems,
+                    status = if (isEdit) loadedStatus else OrderStatus.PENDING,
+                    priority = s.priority,
+                    statusHistory = if (isEdit) {
+                        loadedStatusHistory
+                    } else {
+                        listOf(StatusChange(OrderStatus.PENDING, now))
+                    },
+                    totalPrice = totalPrice,
+                    payments = if (!isEdit && deposit > 0.0) {
+                        listOf(
+                            Payment(
+                                id = Uuid.random().toString(),
+                                amount = deposit,
+                                method = PaymentMethod.OTHER,
+                                type = PaymentType.DEPOSIT,
+                                recordedAt = now,
+                                note = null,
+                            ),
+                        )
+                    } else if (isEdit) {
+                        loadedPayments
+                    } else {
+                        emptyList()
+                    },
+                    deadline = s.deadline,
+                    notes = s.notes.trim().ifBlank { null },
+                    createdAt = if (isEdit) loadedCreatedAt else 0L,
+                    updatedAt = 0L
+                )
+
+                if (isEdit) {
+                    orderRepository.updateOrder(uid, order)
+                } else {
+                    orderRepository.createOrder(uid, order)
+                }
+
+                uploadAndPatchFabricPhotos(uid, actualOrderId, formItems)
+            }
+
+            _state.update { it.copy(isSaving = false) }
+            _events.send(OrderFormEvent.OrderSaved)
+        }
+    }
+
+    /**
+     * Sequentially upload any new fabric photos and patch the order doc with the
+     * resulting URL per item. Sequential — not parallel — to avoid races between
+     * patch writes for different items. Offline: uploads can hang here without
+     * blocking the order doc, which was already written before this runs.
+     */
+    private suspend fun uploadAndPatchFabricPhotos(
+        uid: String,
+        orderId: String,
+        formItems: List<OrderItemFormState>,
+    ) {
+        val itemsWithNewPhotos = formItems.filter { it.fabricPhotoBytes != null }
+        for (item in itemsWithNewPhotos) {
+            val (uploadedUrl, uploadedPath) = uploadFabricPhotoIfNeeded(uid, orderId, item)
+            val urlChanged = uploadedUrl != null && uploadedUrl != item.fabricPhotoUrl
+            val latestResult = if (urlChanged) orderRepository.getOrder(uid, orderId) else null
+            if (latestResult is Result.Success) {
+                val latest = latestResult.data
+                val patched = latest.items.map { existing ->
+                    if (existing.id == item.id) {
+                        existing.copy(
+                            fabricPhotoUrl = uploadedUrl,
+                            fabricPhotoStoragePath = uploadedPath,
+                        )
+                    } else {
+                        existing
+                    }
+                }
+                orderRepository.updateOrder(uid, latest.copy(items = patched))
             }
         }
     }

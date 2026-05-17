@@ -1,13 +1,17 @@
 package com.danzucker.stitchpad.feature.style.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -32,6 +36,7 @@ class StyleFormViewModelTest {
     private lateinit var styleRepository: FakeStyleRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var orderRepository: FakeOrderRepository
+    private lateinit var appScope: CoroutineScope
 
     @BeforeTest
     fun setUp() {
@@ -39,10 +44,14 @@ class StyleFormViewModelTest {
         styleRepository = FakeStyleRepository()
         authRepository = FakeAuthRepository()
         orderRepository = FakeOrderRepository()
+        // ApplicationScope on Dispatchers.Main (= UnconfinedTestDispatcher) so fire-and-forget
+        // writes run eagerly during the outer viewModelScope.launch — matching V0 pattern.
+        appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     }
 
     @AfterTest
     fun tearDown() {
+        appScope.cancel()
         Dispatchers.resetMain()
     }
 
@@ -61,6 +70,7 @@ class StyleFormViewModelTest {
             styleRepository = styleRepository,
             authRepository = authRepository,
             orderRepository = orderRepository,
+            applicationScope = ApplicationScope(appScope),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

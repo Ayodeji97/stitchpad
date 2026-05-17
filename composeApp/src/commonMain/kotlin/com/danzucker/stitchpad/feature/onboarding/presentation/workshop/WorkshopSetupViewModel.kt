@@ -2,7 +2,7 @@ package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.coroutines.ApplicationScope
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
@@ -19,13 +19,13 @@ import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
-import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
 
 class WorkshopSetupViewModel(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
-    private val onboardingPreferences: OnboardingPreferencesStore
+    private val onboardingPreferences: OnboardingPreferencesStore,
+    private val applicationScope: ApplicationScope,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkshopSetupState())
@@ -91,38 +91,34 @@ class WorkshopSetupViewModel(
         val state = _state.value
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            try {
-                val user = authRepository.getCurrentUser()
-                if (user == null) {
-                    _events.send(
-                        WorkshopSetupEvent.ShowError(
-                            UiText.StringResourceText(Res.string.error_session_expired)
-                        )
+            val user = authRepository.getCurrentUser()
+            if (user == null) {
+                _events.send(
+                    WorkshopSetupEvent.ShowError(
+                        UiText.StringResourceText(Res.string.error_session_expired)
                     )
-                    _events.send(WorkshopSetupEvent.NavigateToLogin)
-                    return@launch
-                }
-                val whatsappE164 = state.whatsappNumber.trim().takeIf { it.isNotBlank() }
-                    ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
-                val result = userRepository.createUserProfile(
+                )
+                _events.send(WorkshopSetupEvent.NavigateToLogin)
+                _state.update { it.copy(isLoading = false) }
+                return@launch
+            }
+            val whatsappE164 = state.whatsappNumber.trim().takeIf { it.isNotBlank() }
+                ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
+
+            // Fire-and-forget the Firestore profile write so onboarding completes even
+            // offline. The local DataStore flag is set immediately so the user lands on
+            // Home and doesn't see the workshop setup screen again. Firestore's local
+            // mutation queue persists the profile and syncs on reconnect.
+            applicationScope.launch {
+                userRepository.createUserProfile(
                     userId = user.id,
                     businessName = state.businessName.trim().ifBlank { null },
                     whatsappNumber = whatsappE164,
                 )
-                when (result) {
-                    is Result.Success -> {
-                        onboardingPreferences.setWorkshopSetupCompleted()
-                        _events.send(WorkshopSetupEvent.NavigateToHome)
-                    }
-                    is Result.Error -> _events.send(
-                        WorkshopSetupEvent.ShowError(
-                            UiText.StringResourceText(Res.string.error_unknown)
-                        )
-                    )
-                }
-            } finally {
-                _state.update { it.copy(isLoading = false) }
             }
+            onboardingPreferences.setWorkshopSetupCompleted()
+            _state.update { it.copy(isLoading = false) }
+            _events.send(WorkshopSetupEvent.NavigateToHome)
         }
     }
 
