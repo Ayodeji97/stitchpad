@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,5 +35,34 @@ class CustomerMapperTest {
         val domain = dto.toCustomer("u1")
         assertEquals(CustomerSlotState.ACTIVE, domain.slotState)
         assertNull(domain.lockedAt)
+    }
+
+    /**
+     * Documents the root-cause of the "edit unlocks slotState" bug (Bug 2):
+     * Customer's default slotState is ACTIVE, so a form edit that reconstructs
+     * Customer without preserving the existing slotState will serialize "active"
+     * back to Firestore, silently unlocking a LOCKED customer.
+     *
+     * The fix lives in FirebaseCustomerRepository.updateCustomer, which reads
+     * the existing doc and copies slotState + lockedAt into the write payload.
+     * This test documents the mapper-level root cause and confirms that a
+     * Customer with default ACTIVE serializes to "active" — illustrating exactly
+     * what updateCustomer must override when the existing doc is LOCKED.
+     */
+    @Test
+    fun toDto_uses_Customer_default_ACTIVE_when_slotState_not_explicitly_set() {
+        // A form edit that builds Customer without reading the existing doc
+        // gets the Kotlin default: slotState = ACTIVE, lockedAt = null.
+        val editedCustomer = Customer(
+            id = "c1",
+            userId = "u1",
+            name = "Folake Edited",
+            phone = "08012345678",
+            // slotState defaults to ACTIVE — form did not load or preserve it
+        )
+        val dto = editedCustomer.toCustomerDto()
+        // Without the repo-level fix, this "active" would overwrite a LOCKED doc.
+        assertEquals("active", dto.slotState)
+        assertNull(dto.lockedAt)
     }
 }

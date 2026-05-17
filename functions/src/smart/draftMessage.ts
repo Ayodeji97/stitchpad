@@ -109,7 +109,7 @@ export interface DraftMessageIO {
  * users aren't rate-limited as free.
  */
 interface RawUserDoc {
-  subscriptionTier?: Tier;
+  subscriptionTier?: Tier | 'premium';
   /** Welcome bonus seeded at signup; lifted into the usage doc on first Smart help call. */
   bonusCoins?: number;
 }
@@ -151,7 +151,12 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
       data: (): UserProfileSummary | undefined => {
         const raw = snap.data() as RawUserDoc | undefined;
         if (!raw) return undefined;
-        const tier: Tier = raw.subscriptionTier ?? 'free';
+        // subscriptionTier could be "premium" on legacy test docs or
+        // pre-V1.0 accounts. Normalize to "pro" to match the client-side
+        // SubscriptionTier.fromWire and prevent the tier-allowance lookup
+        // from returning undefined.
+        const rawTier = (raw.subscriptionTier as string | undefined) ?? 'free';
+        const tier: Tier = rawTier === 'premium' ? 'pro' : (rawTier as Tier);
         return { tier, welcomeBonusCoins: raw.bonusCoins ?? 0 };
       },
     })),

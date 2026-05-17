@@ -145,11 +145,22 @@ class FirebaseCustomerRepository(
         customer: Customer
     ): EmptyResult<DataError.Network> {
         return try {
-            firestore.collection("users")
+            val docRef = firestore.collection("users")
                 .document(userId)
                 .collection("customers")
                 .document(customer.id)
-                .set(customer.toCustomerDto())
+            // Read the existing slotState + lockedAt before writing so that a
+            // form edit — which reconstructs Customer with the default ACTIVE —
+            // does NOT accidentally unlock a previously-locked customer and
+            // bypass the freemium cap. Only createCustomer (cap-gated) and
+            // reconcileCustomerSlots (Cloud Function) are authoritative for
+            // these fields.
+            val existing = runCatching { docRef.get().data<CustomerDto>() }.getOrNull()
+            val dto = customer.toCustomerDto().copy(
+                slotState = existing?.slotState ?: customer.toCustomerDto().slotState,
+                lockedAt = existing?.lockedAt ?: customer.lockedAt,
+            )
+            docRef.set(dto)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {

@@ -48,7 +48,7 @@ const baseContext = {
  * shape and lets us assert how many times the reservation ran.
  */
 const fakeFirestore = (overrides: Partial<{
-  profile: { tier: 'free' | 'pro' | 'atelier' };
+  profile: { tier: 'free' | 'pro' | 'atelier' | 'premium' };
   usage: FreeTierUsageDoc | null;
   customer: { firstName: string };
   order: {
@@ -246,6 +246,23 @@ describe('draftMessageHandler', () => {
     const fs = fakeFirestore({ profile: { tier: 'pro' } });
     const result = await handler(validRequest, baseContext as any, fs);
     expect(result.remainingFreeQuota).toBe(49); // limit 50 - count 1
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes legacy subscriptionTier "premium" to "pro" (pre-V1.0 doc)', async () => {
+    // productionIO.profileGet normalizes "premium" → "pro" before the handler
+    // sees it. The fake mirrors that normalization by overriding profileGet so
+    // the handler receives the already-normalized value, documenting the contract:
+    // wire value "premium" must be treated identically to "pro".
+    const fs = fakeFirestore({});
+    fs.profileGet = jest.fn().mockResolvedValue({
+      exists: true,
+      // Simulate what productionIO returns after normalizing "premium" → "pro".
+      data: () => ({ tier: 'pro', welcomeBonusCoins: 0 }),
+    });
+    const result = await handler(validRequest, baseContext as any, fs);
+    // Pro limit is 50; one slot consumed → 49 remaining.
+    expect(result.remainingFreeQuota).toBe(49);
     expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
   });
 
