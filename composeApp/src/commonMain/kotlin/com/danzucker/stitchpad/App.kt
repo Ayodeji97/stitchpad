@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.rememberNavController
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
@@ -21,13 +22,19 @@ import org.koin.compose.koinInject
 fun App() {
     val auth: FirebaseAuth = koinInject()
     val freemium: FreemiumRepository = koinInject()
+    val entitlementsProvider: EntitlementsProvider = koinInject()
 
     // Reuse the auth-state flow already present in the Koin graph to trigger
     // a best-effort, idempotent slot reconciliation whenever a user signs in
     // or the app comes to the foreground under a signed-in session.
     val uidFlow = remember(auth) { auth.authStateChanged.map { it?.uid } }
     val uid by uidFlow.collectAsState(initial = auth.currentUser?.uid)
-    LaunchedEffect(uid) {
+
+    // Also observe entitlements so reconciliation re-runs when the user's
+    // tier changes (e.g. upgrade) or the welcome window flips — not just
+    // on initial sign-in.
+    val entitlementsState by entitlementsProvider.flow.collectAsState()
+    LaunchedEffect(uid, entitlementsState.tier, entitlementsState.isInWelcomeWindow) {
         if (uid != null) {
             freemium.reconcileSlots() // best-effort, idempotent; failure is swallowed
         }

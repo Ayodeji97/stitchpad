@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
@@ -129,7 +130,7 @@ class SettingsViewModel(
         val customerCountFlow = customerRepository.observeCustomers(authUser.id)
             .map { result ->
                 when (result) {
-                    is Result.Success -> result.data.size
+                    is Result.Success -> result.data.count { it.slotState == CustomerSlotState.ACTIVE }
                     is Result.Error -> 0
                 }
             }

@@ -166,9 +166,41 @@ function toEpochMs(value: admin.firestore.Timestamp | number | undefined): numbe
   return value.toMillis(); // firestore.Timestamp
 }
 
-function isInWelcomeWindow(welcomeAppliedAtMs: number | undefined, now: Date): boolean {
+const LAGOS_TZ = 'Africa/Lagos';
+
+export function isInWelcomeWindow(welcomeAppliedAtMs: number | undefined, now: Date): boolean {
   if (!welcomeAppliedAtMs) return false;
+  const endOfMonthMs = endOfSignupMonthInLagos(welcomeAppliedAtMs);
+  return now.getTime() < endOfMonthMs;
+}
+
+/**
+ * Given the welcome-application instant, returns the millisecond instant of
+ * the first day of the NEXT calendar month at 00:00 Africa/Lagos. Mirrors
+ * the client-side EntitlementsCalculator so the welcome window is
+ * computed identically on both ends.
+ *
+ * Lagos is UTC+1 with no DST. If Nigeria ever adopts DST, the
+ * `- 60 * 60 * 1000` simplification below would need to be replaced with
+ * a proper Intl-based round-trip for the midnight-Lagos-to-UTC conversion.
+ */
+export function endOfSignupMonthInLagos(welcomeAppliedAtMs: number): number {
   const applied = new Date(welcomeAppliedAtMs);
-  const endOfMonth = new Date(applied.getUTCFullYear(), applied.getUTCMonth() + 1, 1);
-  return now.getTime() < endOfMonth.getTime();
+  // Pull year + month in Lagos using Intl.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: LAGOS_TZ,
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(applied);
+  const lagosYear = Number(parts.find((p) => p.type === 'year')?.value);
+  const lagosMonth = Number(parts.find((p) => p.type === 'month')?.value); // 1-12
+
+  // First day of the next month, at 00:00 Lagos local. Lagos is UTC+1
+  // (no DST), so "00:00 Lagos" = "23:00 UTC the day before". Use the
+  // known fixed offset instead of another Intl round-trip.
+  const nextYear = lagosMonth === 12 ? lagosYear + 1 : lagosYear;
+  const nextMonth = lagosMonth === 12 ? 1 : lagosMonth + 1;
+  // Date.UTC gives UTC midnight of 1st of nextMonth; subtract 1 hour to get
+  // Lagos midnight (UTC+1 → UTC-1h).
+  return Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0) - 60 * 60 * 1000;
 }

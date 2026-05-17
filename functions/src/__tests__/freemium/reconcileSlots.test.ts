@@ -1,4 +1,4 @@
-import { selectSlotsToLock, CustomerSlotInfo } from '../../freemium/reconcileSlots';
+import { selectSlotsToLock, CustomerSlotInfo, endOfSignupMonthInLagos, isInWelcomeWindow } from '../../freemium/reconcileSlots';
 
 describe('selectSlotsToLock', () => {
   const now = new Date('2026-05-17T08:00:00Z');
@@ -85,5 +85,43 @@ describe('selectSlotsToLock', () => {
     // No locks needed; locked → active promotions instead.
     expect(ops.filter((o) => o.toState === 'active').map((o) => o.id).sort())
       .toEqual(['b', 'c']);
+  });
+});
+
+describe('endOfSignupMonthInLagos', () => {
+  it('treats 2026-05-31T23:30:00Z as a JUNE signup in Lagos (June ends at 2026-07-01 00:00 Lagos)', () => {
+    // 2026-05-31T23:30Z = 2026-06-01T00:30 Lagos — so it is a June signup.
+    // June ends at 2026-07-01 00:00 Lagos = 2026-06-30 23:00 UTC.
+    const signupMs = Date.UTC(2026, 4, 31, 23, 30, 0); // 2026-05-31T23:30Z
+    const end = endOfSignupMonthInLagos(signupMs);
+    expect(end).toBe(Date.UTC(2026, 5, 30, 23, 0, 0));
+  });
+
+  it('treats 2026-05-15T12:00:00Z as a MAY signup in Lagos', () => {
+    // 2026-05-15T12:00Z = 2026-05-15T13:00 Lagos — a May signup.
+    // May ends at 2026-06-01 00:00 Lagos = 2026-05-31 23:00 UTC.
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0);
+    const end = endOfSignupMonthInLagos(signupMs);
+    expect(end).toBe(Date.UTC(2026, 4, 31, 23, 0, 0));
+  });
+});
+
+describe('isInWelcomeWindow (Lagos timezone)', () => {
+  it('returns true when now is before the end of the signup month in Lagos', () => {
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0); // May 15, Lagos
+    // Now = 2026-05-31T22:00Z — still inside May in Lagos (ends at 23:00Z).
+    const now = new Date(Date.UTC(2026, 4, 31, 22, 0, 0));
+    expect(isInWelcomeWindow(signupMs, now)).toBe(true);
+  });
+
+  it('returns false when now is at or after the end of the signup month in Lagos', () => {
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0); // May 15, Lagos
+    // Now = 2026-05-31T23:00Z — exactly Lagos midnight June 1st, window closed.
+    const now = new Date(Date.UTC(2026, 4, 31, 23, 0, 0));
+    expect(isInWelcomeWindow(signupMs, now)).toBe(false);
+  });
+
+  it('returns false for undefined welcomeAppliedAtMs', () => {
+    expect(isInWelcomeWindow(undefined, new Date())).toBe(false);
   });
 });
