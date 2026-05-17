@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode surface + brand overrides. Same names as values/colors.xml
+         so the system resolves them based on the device's current night mode. -->
+    <color name="colorSplashBg">#14110E</color>
+
+    <!-- Brighter indigo for the launcher mark cover so it stays visible
+         against inkDark. Matches the colorScheme.primary chosen for Compose
+         dark mode (indigo400). -->
+    <color name="colorBrandCover">#6772CC</color>
+    <color name="colorBrandCoverDepth">#2C3E7C</color>
+    <color name="colorBrandDetail">#FAF6EC</color>
+    <color name="colorBrandAccent">#E8A800</color>
+</resources>
