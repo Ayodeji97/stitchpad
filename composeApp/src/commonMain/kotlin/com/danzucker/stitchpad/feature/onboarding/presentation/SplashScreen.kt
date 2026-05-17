@@ -21,12 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.components.StitchPadMark
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.FrauncesFamily
+import com.danzucker.stitchpad.ui.theme.ManropeFamily
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.app_name
@@ -37,6 +41,7 @@ private const val STAGGER_DELAY_MS = 200L
 private const val ELEMENT_ANIM_MS = 300
 private const val WORDMARK_OFFSET_DP = 8f
 private const val MARK_SCALE_START = 0.92f
+private const val FONT_PRELOAD_TIMEOUT_MS = 1500L
 
 @Composable
 fun SplashRoot(onSplashFinished: () -> Unit) {
@@ -71,8 +76,18 @@ fun SplashRoot(onSplashFinished: () -> Unit) {
         label = "splash_tagline_alpha"
     )
 
+    val resolver = LocalFontFamilyResolver.current
+    val fraunces = FrauncesFamily()
+    val manrope = ManropeFamily()
+
     LaunchedEffect(Unit) {
         markVisible = true
+        withTimeoutOrNull(FONT_PRELOAD_TIMEOUT_MS) {
+            runCatching {
+                resolver.preload(fraunces)
+                resolver.preload(manrope)
+            }
+        }
         delay(STAGGER_DELAY_MS)
         wordmarkVisible = true
         delay(STAGGER_DELAY_MS)
