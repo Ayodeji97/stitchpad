@@ -1,0 +1,6 @@
+# Identifiers shared by all iOS lanes. Non-secret — safe to commit.
+app_identifier("com.danzucker.stitchpad")
+apple_id(ENV["FASTLANE_APPLE_ID"]) # Optional; only needed for 2FA password fallback.
+team_id("7DUJFVWF7W")
+
+# Android identifiers are referenced directly in the Fastfile (no AndroidAppfile in Phase 1).

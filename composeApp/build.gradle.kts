@@ -101,6 +101,18 @@ kotlin {
     }
 }
 
+// Derives Android versionCode from git commit count so it monotonically
+// increases. NOTE: Gradle's configuration cache is enabled for this project,
+// so this value is captured at config time and baked into the cache. A new
+// `git commit` does NOT invalidate the cache, so locally-cached builds may
+// serve a stale versionCode. The release lanes in fastlane/Fastfile pass
+// `--no-configuration-cache` to gradle to guarantee a fresh value at upload
+// time. For local debug builds the slight staleness is harmless.
+val gitCommitCount: Int = providers.exec {
+    commandLine("git", "rev-list", "--count", "HEAD")
+    workingDir = rootDir
+}.standardOutput.asText.get().trim().toIntOrNull() ?: 1
+
 android {
     namespace = "com.danzucker.stitchpad"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -109,8 +121,8 @@ android {
         applicationId = "com.danzucker.stitchpad"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitCommitCount
+        versionName = "0.9.0"
 
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"683791063936-cbl4lksbu3cpbulak03vr70h4djtb5su.apps.googleusercontent.com\"")
     }
@@ -122,9 +134,29 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    val releaseSigningProps = Properties().apply {
+        val propsFile = layout.projectDirectory.file("release-signing.properties").asFile
+        if (propsFile.exists()) {
+            propsFile.inputStream().use { load(it) }
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            val storeFilePath = releaseSigningProps.getProperty("storeFile")
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = releaseSigningProps.getProperty("storePassword")
+                keyAlias = releaseSigningProps.getProperty("keyAlias")
+                keyPassword = releaseSigningProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
