@@ -138,15 +138,16 @@ platform :ios do
       )
     end
 
-    # Build the KMP framework using the same task Xcode's build phase invokes.
-    # Avoids divergence between IDE builds and lane builds.
-    # --no-configuration-cache as elsewhere: keeps versionCode and any other
-    # git-derived values fresh on every release build.
-    sh "cd .. && ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode " \
-       "-Pkotlin.native.cocoapods.platform=iphoneos " \
-       "-Pkotlin.native.cocoapods.archs=arm64 " \
-       "-Pkotlin.native.cocoapods.configuration=Release " \
-       "--console=plain --no-configuration-cache"
+    # We don't pre-run :composeApp:embedAndSignAppleFrameworkForXcode from
+    # the lane: that task reads Xcode-supplied env vars (CONFIGURATION,
+    # ARCHS, BUILT_PRODUCTS_DIR, code-signing identity, etc.) that aren't
+    # present when invoked outside of an xcodebuild context. The Xcode
+    # project's existing Run Script build phase invokes the same task
+    # during `gym` below, where the env IS populated. Pre-running it
+    # silently fails or builds the wrong artifact.
+    #
+    # Compilation correctness was already validated by the shared preflight
+    # (detekt + :composeApp:allTests), so we trust the in-archive build.
 
     # Archive + export signed IPA. Build number passed via xcargs so no files
     # are dirtied per lane run.
