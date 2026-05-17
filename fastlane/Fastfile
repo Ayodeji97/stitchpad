@@ -163,16 +163,19 @@ platform :ios do
     )
 
     # Upload to TestFlight external group.
+    # NOTE: `skip_waiting_for_build_processing: false` is REQUIRED here.
+    # pilot's distribute step calls "Add Build to Beta Group" on the App
+    # Store Connect API, which only accepts builds in "Processed" state.
+    # If we skipped the wait, the upload would succeed but the build would
+    # never reach the pilot-tailors-ios group — silent breakage. The 15–45
+    # min wait is the cost of having the lane fully deliver the build.
     pilot(
       app_identifier: bundle_identifier,
       ipa: "../build/ios-archives/StitchPad-#{marketing}-#{current}.ipa",
       distribute_external: true,
       groups: ["pilot-tailors-ios"],
       changelog: release_notes,
-      # Exit the lane as soon as upload completes. Apple processes the build
-      # asynchronously (15-45 min) and emails Daniel when ready; no value in
-      # blocking the local lane to watch the spinner.
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: false
     )
 
     UI.success "Uploaded build #{current} of #{marketing} to TestFlight " \

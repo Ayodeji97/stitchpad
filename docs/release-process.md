@@ -102,7 +102,7 @@ Optional: customize the release notes that testers see:
 RELEASE_NOTES="Quick orders flow + measurement editing fixes" fastlane android beta
 ```
 
-Android lane: ~5-8 min on a warm cache. iOS lane: ~5-8 min upload + 15-45 min Apple processing (lane exits after upload; Apple emails when the build finishes processing).
+Android lane: ~5–8 min on a warm cache. iOS lane: ~5–8 min upload + 15–45 min Apple processing (the lane WAITS for processing before distributing to the TestFlight external group — required by Apple's API). Plan for ~20–50 min wall-clock per iOS release.
 
 ### After `android beta`
 
@@ -112,8 +112,8 @@ Android lane: ~5-8 min on a warm cache. iOS lane: ~5-8 min upload + 15-45 min Ap
 
 ### After `ios beta`
 
-- After the lane exits, Apple processes the upload for 15-45 min, then sends Daniel an email.
-- First build of a new `MARKETING_VERSION`: after processing, enters Beta App Review (24–48h typical). Pilot group can't install until Apple approves.
+- The lane uploads, then waits for Apple to finish processing (15–45 min) before distributing to the `pilot-tailors-ios` external group. Once the lane exits successfully, the build is in the group's queue (or queued for Beta App Review on a first-time-version build).
+- First build of a new `MARKETING_VERSION`: enters Beta App Review (24–48h typical). Pilot group can't install until Apple approves.
 - Subsequent build numbers of the same `MARKETING_VERSION`: skip review, go live to the group within ~15 min after TestFlight finishes processing.
 - You can install on your own iPhone immediately via the IPA at `build/ios-archives/StitchPad-<version>-<build>.ipa` (drag-and-drop in Xcode → Devices and Simulators).
 
