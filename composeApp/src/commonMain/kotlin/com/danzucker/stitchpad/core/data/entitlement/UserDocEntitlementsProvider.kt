@@ -11,12 +11,15 @@ import dev.gitlive.firebase.firestore.Timestamp
 import dev.gitlive.firebase.firestore.toMilliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -46,33 +49,59 @@ internal class UserDocEntitlementsProvider(
     private val _flow = MutableStateFlow(defaultEntitlements())
     override val flow: StateFlow<UserEntitlements> = _flow.asStateFlow()
 
+    /**
+     * Emits Unit immediately, then once every hour. Combined with the
+     * Firestore snapshot flow so that [EntitlementsCalculator.calculate]
+     * is re-run with the current [now] even if no document change occurs
+     * (e.g. the welcome window expiring at midnight while the app is open).
+     */
+    private val recomputeTicker = flow {
+        while (true) {
+            emit(Unit)
+            delay(60 * 60 * 1000L) // 1 hour
+        }
+    }
+
     init {
         scope.launch {
-            auth.authStateChanged
+            val snapshotFlow = auth.authStateChanged
                 .map { it?.uid }
                 .distinctUntilChanged()
                 .flatMapLatest { uid ->
                     if (uid == null) {
-                        flowOf(defaultEntitlements())
+                        flowOf(null as Map<String, Any?>?)
                     } else {
                         firestore.collection("users").document(uid).snapshots
                             .map { snap ->
-                                if (!snap.exists) return@map defaultEntitlements()
-                                @Suppress("UNCHECKED_CAST")
-                                val data = snap.data<Map<String, Any?>>()
-                                val tierWire = data["subscriptionTier"] as? String
-                                val seededAt = extractTimestamp(data["welcomeBonusAppliedAt"])
-                                EntitlementsCalculator.calculate(
-                                    tier = SubscriptionTier.fromWire(tierWire),
-                                    welcomeBonusAppliedAt = seededAt,
-                                    now = now(),
-                                    timeZone = timeZone,
-                                )
+                                if (!snap.exists) {
+                                    null
+                                } else {
+                                    snap.data<Map<String, Any?>>()
+                                }
                             }
                     }
                 }
-                .collectLatest { _flow.value = it }
+
+            combine(snapshotFlow, recomputeTicker) { data, _ -> data }
+                .collectLatest { data ->
+                    _flow.value = if (data == null) {
+                        defaultEntitlements()
+                    } else {
+                        computeFromData(data)
+                    }
+                }
         }
+    }
+
+    private fun computeFromData(data: Map<String, Any?>): UserEntitlements {
+        val tierWire = data["subscriptionTier"] as? String
+        val seededAt = extractTimestamp(data["welcomeBonusAppliedAt"])
+        return EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.fromWire(tierWire),
+            welcomeBonusAppliedAt = seededAt,
+            now = now(),
+            timeZone = timeZone,
+        )
     }
 
     override fun current(): UserEntitlements = _flow.value

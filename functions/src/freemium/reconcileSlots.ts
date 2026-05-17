@@ -127,14 +127,18 @@ export const reconcileCustomerSlots = functions
       };
     }
 
-    const batch = db.batch();
-    for (const ch of changes) {
-      batch.update(db.doc(`users/${uid}/customers/${ch.id}`), {
-        slotState: ch.toState,
-        lockedAt: ch.toState === 'locked' ? Date.now() : null,
-      });
+    const BATCH_LIMIT = 500;
+    for (let i = 0; i < changes.length; i += BATCH_LIMIT) {
+      const chunk = changes.slice(i, i + BATCH_LIMIT);
+      const batch = db.batch();
+      for (const ch of chunk) {
+        batch.update(db.doc(`users/${uid}/customers/${ch.id}`), {
+          slotState: ch.toState,
+          lockedAt: ch.toState === 'locked' ? Date.now() : null,
+        });
+      }
+      await batch.commit();
     }
-    await batch.commit();
 
     // Build a map of changes by id for fast lookup
     const changesById = new Map(changes.map((c) => [c.id, c.toState]));
