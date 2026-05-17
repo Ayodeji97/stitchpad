@@ -43,6 +43,23 @@ describe('selectSlotsToLock', () => {
     expect(lockedIds).toEqual(['c-15', 'c-16', 'c-17', 'c-18', 'c-19']);
   });
 
+  it('totalActiveAfter correctly counts promotions (locked → active on upgrade)', () => {
+    const customers = [
+      ...Array.from({ length: 15 }, (_, i) => customer(`active-${i}`, recent)),
+      ...Array.from({ length: 5 }, (_, i) => customer(`locked-${i}`, recent, 'locked')),
+    ];
+    const ops = selectSlotsToLock(customers, Number.MAX_SAFE_INTEGER, now);
+    // We don't import the reconcile handler, but we can validate the math
+    // for the simulated final state:
+    const changesById = new Map(ops.map((o) => [o.id, o.toState]));
+    let active = 0;
+    for (const c of customers) {
+      const finalState = changesById.get(c.id) ?? c.slotState;
+      if (finalState === 'active') active += 1;
+    }
+    expect(active).toBe(20); // all 20 active after promotion
+  });
+
   it('promotes LOCKED customers to ACTIVE when cap rises (upgrade)', () => {
     const customers = [
       customer('a', recent, 'active'),

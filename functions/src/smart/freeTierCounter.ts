@@ -5,6 +5,8 @@ export const USAGE_DEFAULT_LIMIT = 5;
 export interface ReconcileArgs {
   existing: FreeTierUsageDoc | null;
   now: Date;
+  /** Override the default limit (5). When provided, the returned doc carries this limit. */
+  limit?: number;
 }
 
 /**
@@ -29,12 +31,16 @@ export function reconcileUsage(
 ): FreeTierUsageDoc {
   const { existing, now } = args;
   const currentMonthYear = formatMonthYear(now);
+  // The provided limit overrides both the default and any existing doc limit.
+  // This is the upgrade story: a Free user (limit=5) upgrades to Pro (limit=50);
+  // their next Smart call fixes the usage-doc limit to 50.
+  const resolvedLimit = args.limit ?? existing?.limit ?? USAGE_DEFAULT_LIMIT;
 
   if (existing === null) {
     return {
       monthYear: currentMonthYear,
       count: 1,
-      limit: USAGE_DEFAULT_LIMIT,
+      limit: resolvedLimit,
       perFeature: { [featureKey]: 1 },
       bonusBalance: 0,
     };
@@ -44,7 +50,7 @@ export function reconcileUsage(
     return {
       monthYear: currentMonthYear,
       count: 1,
-      limit: existing.limit,
+      limit: resolvedLimit,
       perFeature: { [featureKey]: 1 },
       bonusBalance: existing.bonusBalance ?? 0,
     };
@@ -54,7 +60,7 @@ export function reconcileUsage(
   return {
     monthYear: existing.monthYear,
     count: existing.count + 1,
-    limit: existing.limit,
+    limit: resolvedLimit,
     perFeature: {
       ...prevPerFeature,
       [featureKey]: (prevPerFeature[featureKey] ?? 0) + 1,

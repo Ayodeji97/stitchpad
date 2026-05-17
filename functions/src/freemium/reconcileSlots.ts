@@ -84,9 +84,13 @@ export const reconcileCustomerSlots = functions
     if (!userSnap.exists) {
       throw new functions.https.HttpsError('failed-precondition', 'user_not_found');
     }
-    const user = userSnap.data() as { subscriptionTier?: string; welcomeBonusAppliedAt?: number };
+    const user = userSnap.data() as {
+      subscriptionTier?: string;
+      welcomeBonusAppliedAt?: admin.firestore.Timestamp | number;
+    };
     const tier = user.subscriptionTier ?? 'free';
-    const inWelcome = isInWelcomeWindow(user.welcomeBonusAppliedAt, new Date());
+    const welcomeMillis = toEpochMs(user.welcomeBonusAppliedAt);
+    const inWelcome = isInWelcomeWindow(welcomeMillis, new Date());
     const cap = effectiveCap(tier, inWelcome);
 
     const customersSnap = await db.collection(`users/${uid}/customers`).get();
@@ -118,8 +122,14 @@ export const reconcileCustomerSlots = functions
     }
     await batch.commit();
 
-    const activeAfter = infos.length - changes.filter((c) => c.toState === 'locked').length
-      + changes.filter((c) => c.toState === 'active').length;
+    // Build a map of changes by id for fast lookup
+    const changesById = new Map(changes.map((c) => [c.id, c.toState]));
+    // Apply the changes to the original states to compute the new totals.
+    let activeAfter = 0;
+    for (const info of infos) {
+      const finalState = changesById.get(info.id) ?? info.slotState;
+      if (finalState === 'active') activeAfter += 1;
+    }
     return {
       changes,
       totalActiveAfter: activeAfter,
@@ -130,6 +140,12 @@ export const reconcileCustomerSlots = functions
 function effectiveCap(tier: string, inWelcome: boolean): number {
   if (tier === 'pro' || tier === 'atelier') return Number.MAX_SAFE_INTEGER;
   return inWelcome ? 30 : 15;
+}
+
+function toEpochMs(value: admin.firestore.Timestamp | number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'number') return value;
+  return value.toMillis(); // firestore.Timestamp
 }
 
 function isInWelcomeWindow(welcomeAppliedAtMs: number | undefined, now: Date): boolean {

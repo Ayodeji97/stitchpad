@@ -20,6 +20,16 @@ const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
 ];
 const ATELIER_ONLY_INTENTS: readonly AtelierOnlyIntent[] = ['pricing_help', 'reply_help'];
 
+const TIER_COIN_ALLOWANCE: Record<Tier, number> = {
+  free: 5,
+  pro: 50,
+  atelier: Number.MAX_SAFE_INTEGER, // unmetered — never reaches reserveFreeTierSlot anyway
+};
+
+function coinAllowanceForTier(tier: Tier): number {
+  return TIER_COIN_ALLOWANCE[tier];
+}
+
 function requiresAtelier(intentType: string): boolean {
   return (ATELIER_ONLY_INTENTS as readonly string[]).includes(intentType);
 }
@@ -74,7 +84,7 @@ export interface DraftMessageIO {
    * draft. Accepted for V1 (small tester cohort, low Vertex flake rate);
    * a compensating decrement can be added in V1.5 if needed.
    */
-  reserveFreeTierSlot(now: Date, welcomeBonusToSeed?: number): Promise<FreeTierReservation>;
+  reserveFreeTierSlot(now: Date, welcomeBonusToSeed?: number, tierLimit?: number): Promise<FreeTierReservation>;
   customerGet(): Promise<{ exists: boolean; data(): { firstName: string } | undefined }>;
   orderGet(): Promise<{ exists: boolean; data(): {
     customerId: string;
@@ -145,7 +155,7 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         return { tier, welcomeBonusCoins: raw.bonusCoins ?? 0 };
       },
     })),
-    reserveFreeTierSlot: async (now: Date, welcomeBonusToSeed: number = 0): Promise<FreeTierReservation> => {
+    reserveFreeTierSlot: async (now: Date, welcomeBonusToSeed: number = 0, tierLimit?: number): Promise<FreeTierReservation> => {
       const ref = db.doc(`users/${uid}/usage/smart_drafts`);
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
@@ -157,7 +167,7 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
           ? { monthYear: '', count: 0, limit: 0, bonusBalance: seedBonus }
           : null);
 
-        const baseline = reconcileUsage({ existing: seededExisting, now }, 'draft');
+        const baseline = reconcileUsage({ existing: seededExisting, now, limit: tierLimit }, 'draft');
         const bonusAvailable = (baseline.bonusBalance ?? 0) > 0;
 
         if (bonusAvailable) {
@@ -348,7 +358,11 @@ export async function draftMessageHandler(
   // (50/month, capped by tier-derived limit); Atelier is unlimited.
   let nextUsage: FreeTierUsageDoc | null = null;
   if (tier !== 'atelier') {
-    const reservation = await io.reserveFreeTierSlot(now, profileSnap.data()?.welcomeBonusCoins ?? 0);
+    const reservation = await io.reserveFreeTierSlot(
+      now,
+      profileSnap.data()?.welcomeBonusCoins ?? 0,
+      coinAllowanceForTier(tier),
+    );
     if (reservation.exhausted) {
       throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
     }

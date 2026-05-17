@@ -76,9 +76,9 @@ const fakeFirestore = (overrides: Partial<{
 
   return {
     profileGet: jest.fn().mockResolvedValue({ exists: true, data: () => profile }),
-    reserveFreeTierSlot: jest.fn().mockImplementation((now: Date, _welcomeBonusToSeed: number = 0) => {
+    reserveFreeTierSlot: jest.fn().mockImplementation((now: Date, _welcomeBonusToSeed: number = 0, tierLimit?: number) => {
       const existing = usage;
-      const next = reconcileUsage({ existing, now }, 'draft');
+      const next = reconcileUsage({ existing, now, limit: tierLimit }, 'draft');
       if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
         return Promise.resolve({ exhausted: true });
       }
@@ -245,7 +245,7 @@ describe('draftMessageHandler', () => {
   it('treats subscriptionTier "pro" as gated (Pro still consumes coins)', async () => {
     const fs = fakeFirestore({ profile: { tier: 'pro' } });
     const result = await handler(validRequest, baseContext as any, fs);
-    expect(result.remainingFreeQuota).toBe(4); // limit 5 - count 1
+    expect(result.remainingFreeQuota).toBe(49); // limit 50 - count 1
     expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
   });
 
@@ -349,7 +349,7 @@ describe('draftMessageHandler', () => {
 
     const result = await handler(validRequest, baseContext as any, fs);
     expect(result.remainingFreeQuota).toBe(5); // count untouched, bonus consumed
-    expect(fs.reserveFreeTierSlot).toHaveBeenCalledWith(expect.any(Date), 30);
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledWith(expect.any(Date), 30, 5); // free tier limit
   });
 });
 

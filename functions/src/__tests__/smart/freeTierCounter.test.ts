@@ -159,6 +159,27 @@ describe('reconcileUsage — bonus balance', () => {
   });
 });
 
+describe('reconcileUsage — tier-specific limit', () => {
+  it('uses the provided limit on a fresh doc', () => {
+    const now = new Date('2026-05-17T08:00:00Z');
+    const next = reconcileUsage({ existing: null, now, limit: 50 }, 'draft');
+    expect(next.limit).toBe(50);
+  });
+
+  it('overrides an existing legacy limit with the provided one (upgrade path)', () => {
+    const existing: FreeTierUsageDoc = { monthYear: '2026-05', count: 2, limit: 5 };
+    const now = new Date('2026-05-17T08:00:00Z');
+    const next = reconcileUsage({ existing, now, limit: 50 }, 'draft');
+    expect(next.limit).toBe(50); // pro user — limit upgraded
+    expect(next.count).toBe(3); // count still incremented
+  });
+
+  it('falls back to default limit when not provided', () => {
+    const next = reconcileUsage({ existing: null, now: new Date() }, 'draft');
+    expect(next.limit).toBe(5);
+  });
+});
+
 describe('isExhausted', () => {
   it('false when count is below limit', () => {
     expect(isExhausted({ monthYear: '2026-05', count: 4, limit: 5 })).toBe(false);
