@@ -183,6 +183,17 @@
     <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
+    <!-- Freemium — customer slot locking + swap -->
+    <string name="customer_locked_section_title">Locked customers</string>
+    <string name="customer_locked_chip">Locked</string>
+    <string name="customer_locked_explainer">This customer is locked because you have more than your Free plan allows. Upgrade to Tailor Pro to view them, or swap with one of your active customers.</string>
+    <string name="customer_swap_cta">Swap with an active customer</string>
+    <string name="customer_swap_sheet_title">Swap %1$s back in</string>
+    <string name="customer_swap_sheet_subtitle">Pick one of your active customers to lock instead.</string>
+    <string name="customer_swap_confirm">Swap</string>
+    <string name="customer_swap_success">Swapped %1$s in</string>
+    <string name="customer_swap_failure">Couldn&apos;t swap. Try again in a moment.</string>
+
     <!-- Customer form screen -->
     <string name="customer_form_title_add">Add Customer</string>
     <string name="customer_form_title_edit">Edit Customer</string>
