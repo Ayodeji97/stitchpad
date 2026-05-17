@@ -9,7 +9,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -113,7 +113,10 @@ class CustomerCapTest {
         EntitlementsCalculator.calculate(
             tier = SubscriptionTier.FREE,
             welcomeBonusAppliedAt = null,
-            now = Clock.System.now(),
+            // Fixed instant rather than Clock.System.now() — `kotlinx.datetime
+            // .Clock.System` is unresolved on iOS Native in 0.6.2 (see
+            // [[feedback-ios-clock-injection]]).
+            now = Instant.parse("2026-05-17T08:00:00Z"),
             timeZone = TimeZone.of("Africa/Lagos"),
         ).copy(customerCap = customerCap)
 
