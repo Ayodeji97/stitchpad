@@ -60,6 +60,20 @@ describe('selectSlotsToLock', () => {
     expect(active).toBe(20); // all 20 active after promotion
   });
 
+  it('promotes locked customers when a finite cap rises but total still exceeds', () => {
+    // 15 active + 25 locked, cap rises to 30 → promote 15 locked to active.
+    const customers = [
+      ...Array.from({ length: 15 }, (_, i) => customer(`active-${i}`, recent)),
+      ...Array.from({ length: 25 }, (_, i) => customer(`locked-${i}`, recent - i * 1000, 'locked')),
+    ];
+    const ops = selectSlotsToLock(customers, 30, now);
+    expect(ops.length).toBe(15);
+    expect(ops.every((o) => o.toState === 'active')).toBe(true);
+    // The 15 with the most recent activity should be promoted (locked-0..locked-14)
+    const promotedIds = ops.map((o) => o.id).sort();
+    expect(promotedIds).toEqual(Array.from({ length: 15 }, (_, i) => `locked-${i}`).sort());
+  });
+
   it('promotes LOCKED customers to ACTIVE when cap rises (upgrade)', () => {
     const customers = [
       customer('a', recent, 'active'),

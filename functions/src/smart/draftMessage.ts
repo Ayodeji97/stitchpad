@@ -46,7 +46,7 @@ function isLanguage(value: unknown): value is Language {
   return typeof value === 'string' && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
 }
 import { buildSystemPrompt, buildUserPrompt } from './promptBuilder';
-import { reconcileUsage, isExhausted } from './freeTierCounter';
+import { reconcileUsage } from './freeTierCounter';
 import { getVertexClient, VertexClient } from './vertexClient';
 
 /**
@@ -188,9 +188,14 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
           return { exhausted: false, usage: next, consumedBonus: true } as const;
         }
 
-        // No bonus available — monthly quota path. Reject if exhausted in
-        // the current month.
-        if (existing !== null && isExhausted(existing) && existing.monthYear === baseline.monthYear) {
+        // No bonus available — monthly quota path. Check exhaustion by
+        // comparing the EXISTING count against the BASELINE limit (which
+        // carries the tier-derived override). Using existing.limit (the old
+        // check) breaks when a Free user at 5/5 upgrades to Pro — their
+        // existing.limit is still 5 so they would be blocked. Using
+        // baseline.limit (the new tier-derived limit, e.g. 50 for Pro) means
+        // the same user correctly gets their new quota on the next call.
+        if (existing !== null && existing.count >= baseline.limit && existing.monthYear === baseline.monthYear) {
           return { exhausted: true } as const;
         }
         tx.set(ref, baseline);

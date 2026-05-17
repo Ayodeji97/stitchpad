@@ -1,6 +1,6 @@
 import firebaseFunctionsTest from 'firebase-functions-test';
 import * as freeTierCounter from '../../smart/freeTierCounter';
-import { reconcileUsage, isExhausted } from '../../smart/freeTierCounter';
+import { reconcileUsage } from '../../smart/freeTierCounter';
 import { formatDeadline } from '../../smart/draftMessage';
 import { FreeTierUsageDoc } from '../../smart/types';
 import { VertexClient } from '../../smart/vertexClient';
@@ -79,7 +79,11 @@ const fakeFirestore = (overrides: Partial<{
     reserveFreeTierSlot: jest.fn().mockImplementation((now: Date, _welcomeBonusToSeed: number = 0, tierLimit?: number) => {
       const existing = usage;
       const next = reconcileUsage({ existing, now, limit: tierLimit }, 'draft');
-      if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
+      // Mirror the production fix: compare existing.count against the
+      // BASELINE limit (next.limit, which carries the tier-derived override),
+      // not the existing doc's limit — so an upgraded user with a stale 5/5
+      // free doc gets their new Pro limit of 50 applied on the next call.
+      if (existing !== null && existing.count >= next.limit && existing.monthYear === next.monthYear) {
         return Promise.resolve({ exhausted: true });
       }
       usage = next;
@@ -118,6 +122,18 @@ describe('draftMessageHandler', () => {
       message: expect.stringContaining('free_tier_exhausted'),
     });
     expect(fakeVertex.generateText).not.toHaveBeenCalled();
+  });
+
+  it('does not block an upgraded user whose old free quota was exhausted', async () => {
+    // User was Free, hit 5/5 (exhausted). Upgrades to Pro. Next call
+    // should succeed with the new Pro limit of 50.
+    const fs = fakeFirestore({
+      profile: { tier: 'pro' },
+      usage: { monthYear: '2026-05', count: 5, limit: 5 } as any,
+    });
+    const result = await handler(validRequest, baseContext as any, fs);
+    // 50 (Pro limit) - 6 (incremented count) = 44 remaining
+    expect(result.remainingFreeQuota).toBe(44);
   });
 
   it('rejects with invalid-argument when customer does not exist', async () => {

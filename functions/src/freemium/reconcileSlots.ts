@@ -26,14 +26,28 @@ export function selectSlotsToLock(
   const activeCustomers = customers.filter((c) => c.slotState === 'active');
   const lockedCustomers = customers.filter((c) => c.slotState === 'locked');
 
-  // Cap rose? Promote all locked back to active. (V1.5 may also need to
-  // re-lock if user downgrades again; for V1.0 a separate call handles it.)
+  // Cap rose enough to fit everyone — promote all locked back to active.
+  // (V1.5 may also need to re-lock if user downgrades again; for V1.0 a
+  // separate call handles it.)
   if (activeCustomers.length + lockedCustomers.length <= cap) {
     return lockedCustomers.map((c) => ({ id: c.id, toState: 'active' as const }));
   }
 
+  // Cap is finite but rose: promote enough locked customers to reach the
+  // new active cap. Within locked, promote MOST-RECENT activity first
+  // (mirror image of the lock rule — last-locked-by-activity first to be
+  // unlocked).
+  if (activeCustomers.length < cap && lockedCustomers.length > 0) {
+    const slotsAvailable = cap - activeCustomers.length;
+    const toPromote = lockedCustomers
+      .slice() // don't mutate input
+      .sort((a, b) => b.lastActivityMs - a.lastActivityMs) // newest first
+      .slice(0, slotsAvailable);
+    return toPromote.map((c) => ({ id: c.id, toState: 'active' as const }));
+  }
+
   if (activeCustomers.length <= cap) {
-    return []; // Nothing to do — already at or below cap on active.
+    return []; // Nothing to do — already at or below cap on active and no locked to promote.
   }
 
   const toLockCount = activeCustomers.length - cap;
