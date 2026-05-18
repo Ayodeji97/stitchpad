@@ -1,8 +1,11 @@
 package com.danzucker.stitchpad.feature.debug.presentation
 
+import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
+import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -54,10 +57,21 @@ class DebugMenuViewModelTest {
         val vm = DebugMenuViewModel(
             seeder = seeder,
             sessionActions = sessionActions,
+            freemiumActions = NoopFreemiumDebugActions,
+            now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    private object NoopFreemiumDebugActions : FreemiumDebugActions {
+        override suspend fun setTier(tier: SubscriptionTier): DebugActionResult = DebugActionResult.Success
+        override suspend fun expireWelcomeWindow(nowMs: Long): DebugActionResult = DebugActionResult.Success
+        override suspend fun resetWelcomeWindow(): DebugActionResult = DebugActionResult.Success
+        override suspend fun setBonusCoins(coins: Int): DebugActionResult = DebugActionResult.Success
+        override suspend fun resetSmartUsage(): DebugActionResult = DebugActionResult.Success
+        override suspend fun reconcileSlots(): DebugActionResult = DebugActionResult.Success
     }
 
     @Test

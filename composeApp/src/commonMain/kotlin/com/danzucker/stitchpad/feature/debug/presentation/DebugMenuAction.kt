@@ -11,4 +11,14 @@ sealed interface DebugMenuAction {
     data object OnSwitchToFolaClick : DebugMenuAction
     data object OnSwitchToGabbyClick : DebugMenuAction
     data object OnWipeDataClick : DebugMenuAction
+
+    data object OnSetTierFreeClick : DebugMenuAction
+    data object OnSetTierProClick : DebugMenuAction
+    data object OnSetTierAtelierClick : DebugMenuAction
+    data object OnExpireWelcomeWindowClick : DebugMenuAction
+    data object OnResetWelcomeWindowClick : DebugMenuAction
+    data object OnDrainBonusCoinsClick : DebugMenuAction
+    data object OnRefillBonusCoinsClick : DebugMenuAction
+    data object OnResetSmartUsageClick : DebugMenuAction
+    data object OnReconcileSlotsClick : DebugMenuAction
 }

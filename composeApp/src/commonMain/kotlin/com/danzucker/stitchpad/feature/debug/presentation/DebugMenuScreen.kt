@@ -11,8 +11,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -130,6 +134,68 @@ fun DebugMenuScreen(
                         "Switch to Gabby (not configured)"
                     },
                     onClick = { onAction(DebugMenuAction.OnSwitchToGabbyClick) },
+                )
+            }
+
+            SettingsSectionCard(label = "Freemium · tier") {
+                SettingsRow(
+                    icon = Icons.Outlined.Star,
+                    label = "Set tier: Free",
+                    onClick = { onAction(DebugMenuAction.OnSetTierFreeClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Star,
+                    label = "Set tier: Pro",
+                    onClick = { onAction(DebugMenuAction.OnSetTierProClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Star,
+                    label = "Set tier: Atelier",
+                    onClick = { onAction(DebugMenuAction.OnSetTierAtelierClick) },
+                )
+            }
+
+            SettingsSectionCard(label = "Freemium · welcome window") {
+                SettingsRow(
+                    icon = Icons.Outlined.HourglassEmpty,
+                    label = "Expire welcome window",
+                    onClick = { onAction(DebugMenuAction.OnExpireWelcomeWindowClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Refresh,
+                    label = "Reset welcome window (now)",
+                    onClick = { onAction(DebugMenuAction.OnResetWelcomeWindowClick) },
+                )
+            }
+
+            SettingsSectionCard(label = "Freemium · Smart coins") {
+                SettingsRow(
+                    icon = Icons.Outlined.MonetizationOn,
+                    label = "Drain bonus coins (→ 0)",
+                    onClick = { onAction(DebugMenuAction.OnDrainBonusCoinsClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.MonetizationOn,
+                    label = "Refill bonus coins (→ 30)",
+                    onClick = { onAction(DebugMenuAction.OnRefillBonusCoinsClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Refresh,
+                    label = "Reset Smart usage doc",
+                    onClick = { onAction(DebugMenuAction.OnResetSmartUsageClick) },
+                )
+            }
+
+            SettingsSectionCard(label = "Freemium · slots") {
+                SettingsRow(
+                    icon = Icons.Outlined.Sync,
+                    label = "Reconcile customer slots",
+                    onClick = { onAction(DebugMenuAction.OnReconcileSlotsClick) },
                 )
             }
 
