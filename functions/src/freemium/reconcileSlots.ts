@@ -1,0 +1,206 @@
+import * as functions from 'firebase-functions/v1';
+import * as admin from 'firebase-admin';
+import { CustomerSlotInfo, SlotChange, ReconcileSlotsResponse } from './types';
+
+export type { CustomerSlotInfo, SlotChange, ReconcileSlotsResponse };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ACTIVITY_WINDOW_DAYS = 30;
+
+/**
+ * Pure function — picks which customers to LOCK to bring the active-slot
+ * count down to `cap`, using a 50/50 mix of active + inactive (rounded
+ * to nearest). Also promotes already-LOCKED customers back to ACTIVE
+ * when cap rises (e.g., the user upgrades to Pro).
+ *
+ * "Active" = last activity within the last 30 days from `now`.
+ * "Inactive" = older than 30 days (or never).
+ *
+ * Within each bucket, oldest-last-touch is locked first.
+ */
+export function selectSlotsToLock(
+  customers: CustomerSlotInfo[],
+  cap: number,
+  now: Date,
+): SlotChange[] {
+  const activeCustomers = customers.filter((c) => c.slotState === 'active');
+  const lockedCustomers = customers.filter((c) => c.slotState === 'locked');
+
+  // Cap rose enough to fit everyone — promote all locked back to active.
+  // (V1.5 may also need to re-lock if user downgrades again; for V1.0 a
+  // separate call handles it.)
+  if (activeCustomers.length + lockedCustomers.length <= cap) {
+    return lockedCustomers.map((c) => ({ id: c.id, toState: 'active' as const }));
+  }
+
+  // Cap is finite but rose: promote enough locked customers to reach the
+  // new active cap. Within locked, promote MOST-RECENT activity first
+  // (mirror image of the lock rule — last-locked-by-activity first to be
+  // unlocked).
+  if (activeCustomers.length < cap && lockedCustomers.length > 0) {
+    const slotsAvailable = cap - activeCustomers.length;
+    const toPromote = lockedCustomers
+      .slice() // don't mutate input
+      .sort((a, b) => b.lastActivityMs - a.lastActivityMs) // newest first
+      .slice(0, slotsAvailable);
+    return toPromote.map((c) => ({ id: c.id, toState: 'active' as const }));
+  }
+
+  if (activeCustomers.length <= cap) {
+    return []; // Nothing to do — already at or below cap on active and no locked to promote.
+  }
+
+  const toLockCount = activeCustomers.length - cap;
+  const nowMs = now.getTime();
+  const cutoff = nowMs - ACTIVITY_WINDOW_DAYS * DAY_MS;
+
+  const activeBucket = activeCustomers
+    .filter((c) => c.lastActivityMs >= cutoff)
+    .sort((a, b) => a.lastActivityMs - b.lastActivityMs); // oldest first
+  const inactiveBucket = activeCustomers
+    .filter((c) => c.lastActivityMs < cutoff)
+    .sort((a, b) => a.lastActivityMs - b.lastActivityMs); // oldest first
+
+  const fromInactive = Math.min(Math.round(toLockCount / 2), inactiveBucket.length);
+  const fromActive = Math.min(toLockCount - fromInactive, activeBucket.length);
+
+  // If one bucket is short, fill the gap from the other.
+  const remaining = toLockCount - fromInactive - fromActive;
+  const extras: CustomerSlotInfo[] = [];
+  if (remaining > 0) {
+    const fallback = inactiveBucket.length > activeBucket.length
+      ? inactiveBucket.slice(fromInactive)
+      : activeBucket.slice(fromActive);
+    extras.push(...fallback.slice(0, remaining));
+  }
+
+  return [
+    ...inactiveBucket.slice(0, fromInactive),
+    ...activeBucket.slice(0, fromActive),
+    ...extras,
+  ].map((c) => ({ id: c.id, toState: 'locked' as const }));
+}
+
+/**
+ * HTTPS callable. The client invokes this on app foreground when it
+ * detects a tier or welcome-window change. Idempotent — safe to call
+ * any time; only writes when a change is needed.
+ */
+export const reconcileCustomerSlots = functions
+  .region('europe-west1')
+  .https.onCall(async (_data, context): Promise<ReconcileSlotsResponse> => {
+    if (!context.auth?.uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+    }
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+    const userSnap = await db.doc(`users/${uid}`).get();
+    if (!userSnap.exists) {
+      throw new functions.https.HttpsError('failed-precondition', 'user_not_found');
+    }
+    const user = userSnap.data() as {
+      subscriptionTier?: string;
+      welcomeBonusAppliedAt?: admin.firestore.Timestamp | number;
+    };
+    const tier = user.subscriptionTier ?? 'free';
+    const welcomeMillis = toEpochMs(user.welcomeBonusAppliedAt);
+    const inWelcome = isInWelcomeWindow(welcomeMillis, new Date());
+    const cap = effectiveCap(tier, inWelcome);
+
+    const customersSnap = await db.collection(`users/${uid}/customers`).get();
+    const infos: CustomerSlotInfo[] = customersSnap.docs.map((d) => {
+      const c = d.data() as { slotState?: string; updatedAt?: number; lastActivityAt?: number };
+      return {
+        id: d.id,
+        lastActivityMs: c.lastActivityAt ?? c.updatedAt ?? 0,
+        slotState: (c.slotState as 'active' | 'locked') ?? 'active',
+      };
+    });
+
+    const changes = selectSlotsToLock(infos, cap, new Date());
+    if (changes.length === 0) {
+      const activeNow = infos.filter((c) => c.slotState === 'active').length;
+      return {
+        changes: [],
+        totalActiveAfter: activeNow,
+        totalLockedAfter: infos.length - activeNow,
+      };
+    }
+
+    const BATCH_LIMIT = 500;
+    for (let i = 0; i < changes.length; i += BATCH_LIMIT) {
+      const chunk = changes.slice(i, i + BATCH_LIMIT);
+      const batch = db.batch();
+      for (const ch of chunk) {
+        batch.update(db.doc(`users/${uid}/customers/${ch.id}`), {
+          slotState: ch.toState,
+          lockedAt: ch.toState === 'locked' ? Date.now() : null,
+        });
+      }
+      await batch.commit();
+    }
+
+    // Build a map of changes by id for fast lookup
+    const changesById = new Map(changes.map((c) => [c.id, c.toState]));
+    // Apply the changes to the original states to compute the new totals.
+    let activeAfter = 0;
+    for (const info of infos) {
+      const finalState = changesById.get(info.id) ?? info.slotState;
+      if (finalState === 'active') activeAfter += 1;
+    }
+    return {
+      changes,
+      totalActiveAfter: activeAfter,
+      totalLockedAfter: infos.length - activeAfter,
+    };
+  });
+
+function effectiveCap(tier: string, inWelcome: boolean): number {
+  if (tier === 'pro' || tier === 'atelier') return Number.MAX_SAFE_INTEGER;
+  return inWelcome ? 30 : 15;
+}
+
+function toEpochMs(value: admin.firestore.Timestamp | number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'number') return value;
+  return value.toMillis(); // firestore.Timestamp
+}
+
+const LAGOS_TZ = 'Africa/Lagos';
+
+export function isInWelcomeWindow(welcomeAppliedAtMs: number | undefined, now: Date): boolean {
+  if (!welcomeAppliedAtMs) return false;
+  const endOfMonthMs = endOfSignupMonthInLagos(welcomeAppliedAtMs);
+  return now.getTime() < endOfMonthMs;
+}
+
+/**
+ * Given the welcome-application instant, returns the millisecond instant of
+ * the first day of the NEXT calendar month at 00:00 Africa/Lagos. Mirrors
+ * the client-side EntitlementsCalculator so the welcome window is
+ * computed identically on both ends.
+ *
+ * Lagos is UTC+1 with no DST. If Nigeria ever adopts DST, the
+ * `- 60 * 60 * 1000` simplification below would need to be replaced with
+ * a proper Intl-based round-trip for the midnight-Lagos-to-UTC conversion.
+ */
+export function endOfSignupMonthInLagos(welcomeAppliedAtMs: number): number {
+  const applied = new Date(welcomeAppliedAtMs);
+  // Pull year + month in Lagos using Intl.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: LAGOS_TZ,
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(applied);
+  const lagosYear = Number(parts.find((p) => p.type === 'year')?.value);
+  const lagosMonth = Number(parts.find((p) => p.type === 'month')?.value); // 1-12
+
+  // First day of the next month, at 00:00 Lagos local. Lagos is UTC+1
+  // (no DST), so "00:00 Lagos" = "23:00 UTC the day before". Use the
+  // known fixed offset instead of another Intl round-trip.
+  const nextYear = lagosMonth === 12 ? lagosYear + 1 : lagosYear;
+  const nextMonth = lagosMonth === 12 ? 1 : lagosMonth + 1;
+  // Date.UTC gives UTC midnight of 1st of nextMonth; subtract 1 hour to get
+  // Lagos midnight (UTC+1 → UTC-1h).
+  return Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0) - 60 * 60 * 1000;
+}

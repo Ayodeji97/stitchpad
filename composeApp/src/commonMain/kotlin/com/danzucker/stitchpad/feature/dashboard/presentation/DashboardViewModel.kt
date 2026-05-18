@@ -2,11 +2,13 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
@@ -19,7 +21,6 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiS
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
-import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,6 +49,7 @@ class DashboardViewModel(
     private val authRepository: AuthRepository,
     private val weeklyGoalRepository: WeeklyGoalRepository,
     private val smartUsageStore: SmartUsageStore,
+    private val entitlements: EntitlementsProvider,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) : ViewModel() {
@@ -64,6 +66,7 @@ class DashboardViewModel(
                 hasLoadedInitialData = true
                 loadData()
                 observeSmartQuota()
+                observeEntitlements()
             }
         }
         .stateIn(
@@ -81,6 +84,29 @@ class DashboardViewModel(
         viewModelScope.launch {
             smartUsageStore.remainingFreeQuota.collect { remaining ->
                 _state.update { it.copy(smartFreeQuotaRemaining = remaining) }
+            }
+        }
+    }
+
+    /**
+     * Observe the user's entitlements and push the welcome-ending banner
+     * state when [UserEntitlements.isWithinWelcomeEndingWarning] is true.
+     * Days-left is derived from the ms delta so that the banner always
+     * shows a non-negative integer even if the snapshot is slightly stale.
+     */
+    private fun observeEntitlements() {
+        viewModelScope.launch {
+            entitlements.flow.collect { e ->
+                val daysLeft = e.welcomeEndsAt?.let { end ->
+                    val ms = end.toEpochMilliseconds() - nowMillis()
+                    (ms / ONE_DAY_MILLIS).toInt().coerceAtLeast(0)
+                }
+                _state.update {
+                    it.copy(
+                        welcomeBannerDaysLeft = daysLeft,
+                        showWelcomeBanner = e.isWithinWelcomeEndingWarning,
+                    )
+                }
             }
         }
     }
@@ -163,6 +189,7 @@ class DashboardViewModel(
                 DashboardEvent.NavigateToCustomerDetail(action.customerId)
             )
             DashboardAction.OnDraftMessageClick -> emitEvent(DashboardEvent.NavigateToDraftMessage)
+            DashboardAction.OpenUpgrade -> emitEvent(DashboardEvent.NavigateToUpgrade)
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }

@@ -1,11 +1,13 @@
 package com.danzucker.stitchpad.feature.smart.data
 
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.smartinfra.data.ai.FunctionsCaller
+import com.danzucker.stitchpad.core.smartinfra.data.ai.FunctionsCallerError
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import com.danzucker.stitchpad.feature.smart.data.dto.DraftMessageRequestDto
 import com.danzucker.stitchpad.feature.smart.data.dto.DraftMessageResponseDto
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftIntent
-import com.danzucker.stitchpad.feature.smart.domain.model.DraftLanguage
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageResult
 import kotlinx.coroutines.test.runTest

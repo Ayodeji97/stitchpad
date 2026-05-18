@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.smart.data
 
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.smartinfra.data.ai.FunctionsCaller
+import com.danzucker.stitchpad.core.smartinfra.data.ai.FunctionsCallerError
 import com.danzucker.stitchpad.feature.smart.data.mapper.toDomain
 import com.danzucker.stitchpad.feature.smart.data.mapper.toDto
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError

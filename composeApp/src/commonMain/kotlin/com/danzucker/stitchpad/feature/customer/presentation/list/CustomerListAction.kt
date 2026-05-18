@@ -12,4 +12,7 @@ sealed interface CustomerListAction {
     data object OnConfirmDelete : CustomerListAction
     data object OnDismissDeleteDialog : CustomerListAction
     data object OnErrorDismiss : CustomerListAction
+    data class OpenSwapSheetFor(val lockedCustomerId: String) : CustomerListAction
+    data object DismissSwapSheet : CustomerListAction
+    data class ConfirmSwap(val lockedCustomerId: String, val activeCustomerIdToDemote: String) : CustomerListAction
 }

@@ -14,5 +14,9 @@ module.exports = {
     quotes: ['error', 'single'],
     semi: ['error', 'always'],
     '@typescript-eslint/no-explicit-any': 'warn',
+    // Allow underscore-prefixed names for intentionally-unused params
+    // (mock signatures that must match a production interface but only
+    // touch a subset of the args).
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
   },
 };

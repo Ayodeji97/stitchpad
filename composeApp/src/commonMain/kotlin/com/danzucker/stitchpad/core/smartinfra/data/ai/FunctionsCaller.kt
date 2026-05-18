@@ -1,4 +1,4 @@
-package com.danzucker.stitchpad.feature.smart.data
+package com.danzucker.stitchpad.core.smartinfra.data.ai
 
 import com.danzucker.stitchpad.core.domain.error.Error
 import com.danzucker.stitchpad.core.domain.error.Result

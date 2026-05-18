@@ -99,3 +99,6 @@ data object DebugMenuRoute
 
 @Serializable
 data object DraftMessageRoute
+
+@Serializable
+data object UpgradeRoute

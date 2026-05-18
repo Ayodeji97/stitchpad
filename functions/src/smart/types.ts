@@ -13,6 +13,21 @@ export type IntentType =
 
 export type Language = 'en' | 'pcm'; // pcm = Nigerian Pidgin (ISO 639-3)
 
+/**
+ * Wire-name string for each Smart-feature consumer of the shared monthly
+ * quota counter. Stored as keys in FreeTierUsageDoc.perFeature so we can
+ * report which feature is consuming quota without a schema migration.
+ *
+ * Keep in sync with the Kotlin SmartFeatureKey enum in
+ * core/smartinfra/domain/quota/SmartFeatureKey.kt.
+ */
+export type SmartFeatureKey =
+  | 'draft'
+  | 'postcaption'
+  | 'referral_msg'
+  | 'referral_bio'
+  | 'contentplan_regen';
+
 export interface DraftMessageRequest {
   intentType: IntentType;
   customerId: string;
@@ -23,7 +38,7 @@ export interface DraftMessageRequest {
 
 export interface DraftMessageResponse {
   draftText: string;
-  remainingFreeQuota: number | null; // null = premium tier
+  remainingFreeQuota: number | null; // null = atelier tier
 }
 
 /**
@@ -38,20 +53,41 @@ export interface DraftContext {
   deadlineFormatted: string; // already-formatted string per the tailor's locale
 }
 
+export type Tier = 'free' | 'pro' | 'atelier';
+
 /**
  * User profile fields the Smart layer cares about. Read from the user
  * document itself at `users/{uid}` — there is no separate `profile` subdoc.
  * Missing `tier` field defaults to 'free'.
  */
 export interface UserProfileSummary {
-  tier: 'free' | 'premium';
+  tier: Tier;
+  /** Welcome bonus coins seeded on the user doc; lifted into the usage doc on first Smart call. */
+  welcomeBonusCoins: number;
 }
 
 /**
+ * Atelier-only intents that will be promoted to full Smart features in V1.5.
+ * The server gate is in place today so callers below Atelier get
+ * permission-denied immediately, before any quota is reserved.
+ */
+export type AtelierOnlyIntent = 'pricing_help' | 'reply_help';
+
+/**
  * Free-tier usage doc at `users/{uid}/usage/smart_drafts`.
+ *
+ * `perFeature` is optional on read for back-compat with docs created
+ * before the Smart Grow rollout. New writes always include it.
  */
 export interface FreeTierUsageDoc {
   monthYear: string; // YYYY-MM
   count: number;
   limit: number;
+  perFeature?: Record<string, number>;
+  /**
+   * Bonus coin balance (welcome bonus + future sponsored coins). Consumed
+   * BEFORE the monthly `count` increments. Persists across month rollovers
+   * (does not reset). Defaults to 0 for users created before V1.0.
+   */
+  bonusBalance?: number;
 }

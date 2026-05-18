@@ -183,6 +183,17 @@
     <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
+    <!-- Freemium — customer slot locking + swap -->
+    <string name="customer_locked_section_title">Locked customers</string>
+    <string name="customer_locked_chip">Locked</string>
+    <string name="customer_locked_explainer">This customer is locked because you have more than your Free plan allows. Upgrade to Tailor Pro to view them, or swap with one of your active customers.</string>
+    <string name="customer_swap_cta">Swap with an active customer</string>
+    <string name="customer_swap_sheet_title">Swap %1$s back in</string>
+    <string name="customer_swap_sheet_subtitle">Pick one of your active customers to lock instead.</string>
+    <string name="customer_swap_confirm">Swap</string>
+    <string name="customer_swap_success">Swapped %1$s in</string>
+    <string name="customer_swap_failure">Couldn&apos;t swap. Try again in a moment.</string>
+
     <!-- Customer form screen -->
     <string name="customer_form_title_add">Add Customer</string>
     <string name="customer_form_title_edit">Edit Customer</string>
@@ -210,6 +221,7 @@
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>
     <string name="error_customer_already_exists">A customer with this name already exists</string>
+    <string name="error_customer_cap_reached">You&apos;ve reached your customer limit. Upgrade to add more.</string>
 
     <!-- Customer detail screen -->
     <string name="customer_detail_measurements_section">Measurements</string>
@@ -1001,6 +1013,28 @@
     <string name="plan_card_cta_upgrade_now">Upgrade now</string>
     <string name="plan_card_cta_compare">Compare plans →</string>
 
+    <!-- Settings PlanCard (re-landed) -->
+    <string name="plan_card_free_state">You&apos;re on Free</string>
+    <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>
+    <string name="plan_card_atelier_state">You&apos;re on Tailor Atelier</string>
+    <string name="plan_card_upgrade_cta">Upgrade</string>
+    <string name="plan_card_customer_progress">%1$d of %2$d customers</string>
+    <string name="plan_card_customer_unlimited">Unlimited customers</string>
+
+    <!-- Freemium — Upgrade screen -->
+    <string name="upgrade_screen_title">Upgrade your plan</string>
+    <string name="upgrade_pro_name">Tailor Pro</string>
+    <string name="upgrade_pro_price">₦2,000 / month</string>
+    <string name="upgrade_pro_annual">or ₦20,000 / year (save ₦4,000)</string>
+    <string name="upgrade_atelier_name">Tailor Atelier</string>
+    <string name="upgrade_atelier_price">₦4,000 / month</string>
+    <string name="upgrade_atelier_annual">or ₦40,000 / year (save ₦8,000)</string>
+    <string name="upgrade_cadence_monthly">Monthly</string>
+    <string name="upgrade_cadence_annual">Annual</string>
+    <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
+    <string name="upgrade_terms">Pay monthly with your card via Paystack. Stop anytime.</string>
+    <string name="upgrade_back_content_description">Back</string>
+
     <!-- Edit Profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_avatar_hint">Initial uses your business name</string>
@@ -1128,4 +1162,9 @@
     <string name="smart_upgrade_sheet_message">You&apos;ve used your 5 free drafts. Upgrade to draft as many as you need.</string>
     <string name="smart_upgrade_sheet_upgrade_cta">Upgrade</string>
     <string name="smart_upgrade_sheet_dismiss">Wait until next month</string>
+
+    <!-- Freemium — welcome window ending warning -->
+    <string name="welcome_ending_banner_title">Your welcome ends in %1$d day(s)</string>
+    <string name="welcome_ending_banner_body">After that, you&apos;ll be limited to 15 customers and 5 Smart coins per month. Upgrade to Tailor Pro to keep all your customers and get more help.</string>
+    <string name="welcome_ending_banner_cta">See Tailor Pro</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 
@@ -13,6 +14,10 @@ data class SettingsState(
     val signInProvider: SignInProvider = SignInProvider.UNKNOWN,
     val maskedSignInIdentifier: String = "",
     val isPremium: Boolean = false,
+    val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
+    val customerCount: Int = 0,
+    /** null means unlimited (Pro / Atelier tier). */
+    val customerLimit: Int? = null,
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val showSignOutDialog: Boolean = false,
