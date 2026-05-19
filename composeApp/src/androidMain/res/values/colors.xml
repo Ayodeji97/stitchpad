@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand neutrals. Stable hexes — overridden in values-night for surfaces
+         that should follow system theme. -->
+    <color name="paperLight">#FAF6EC</color>
+    <color name="inkDark">#14110E</color>
+
+    <!-- Splash + launcher surface. Adapts to system theme. -->
+    <color name="colorSplashBg">#FAF6EC</color>
+
+    <!-- Brand colors used by the launcher / splash icon vector. Adapt to
+         system theme so the mark stays visible against both surfaces. -->
+    <color name="colorBrandCover">#2C3E7C</color>
+    <color name="colorBrandCoverDepth">#1E2B5C</color>
+    <color name="colorBrandDetail">#FAF6EC</color>
+    <color name="colorBrandAccent">#E8A800</color>
+</resources>

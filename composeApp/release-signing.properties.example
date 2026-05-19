@@ -1,0 +1,7 @@
+# Copy to release-signing.properties (gitignored) and fill in real values.
+# Daniel keeps the keystore at ~/.stitchpad/release.jks — paths are absolute
+# so they work regardless of where gradle is invoked from.
+storeFile=/Users/danzucker/.stitchpad/release.jks
+storePassword=
+keyAlias=stitchpad-release
+keyPassword=

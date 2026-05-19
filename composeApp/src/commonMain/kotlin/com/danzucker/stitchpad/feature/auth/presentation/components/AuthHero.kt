@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.danzucker.stitchpad.ui.components.StitchPadMark
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.FrauncesFamily
 import org.jetbrains.compose.resources.DrawableResource
@@ -41,7 +42,7 @@ fun AuthHero(
     modifier: Modifier = Modifier,
     variant: AuthHeroVariant = AuthHeroVariant.Utility,
     height: Dp = 280.dp,
-    logoDiameter: Dp = 80.dp,
+    logoDiameter: Dp = 96.dp,
     showTagline: Boolean = true,
 ) {
     Box(
@@ -64,7 +65,12 @@ fun AuthHero(
                 .padding(top = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            StitchPadLogo(diameter = logoDiameter)
+            StitchPadMark(
+                size = logoDiameter,
+                coverColor = Color.White,
+                coverDepthColor = DesignTokens.neutral200,
+                detailColor = DesignTokens.indigo700,
+            )
             Spacer(Modifier.height(12.dp))
             Text(
                 text = stringResource(Res.string.brand_name),
