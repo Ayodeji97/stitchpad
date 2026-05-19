@@ -4,7 +4,6 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
-import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.Timestamp
@@ -25,9 +24,29 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 
-private const val TAG = "EntitlementsProvider"
+/**
+ * Wire shape of the slice of `users/{uid}` we actually read for entitlements.
+ *
+ * Why a typed DTO instead of `Map<String, Any?>`: kotlinx.serialization on
+ * Kotlin/Native has no runtime serializer for `Any?`, so calling
+ * `snap.data<Map<String, Any?>>()` crashes the first time the snapshot
+ * listener fires on iOS with `SerializationException: Serializer for class
+ * 'Any' is not found`. Android falls back to reflection-based serializers
+ * and silently worked — the bug only surfaced on a physical iOS device.
+ *
+ * All writers of `welcomeBonusAppliedAt` must write a `Timestamp` (not a
+ * raw `Long`) for the deserialization here to succeed. See
+ * [com.danzucker.stitchpad.core.debug.FreemiumDebugActions.expireWelcomeWindow]
+ * for the debug-menu path.
+ */
+@Serializable
+private data class UserEntitlementsDoc(
+    val subscriptionTier: String? = null,
+    val welcomeBonusAppliedAt: Timestamp? = null,
+)
 
 /**
  * Watches the signed-in user's Firestore document and recomputes
@@ -69,14 +88,14 @@ internal class UserDocEntitlementsProvider(
                 .distinctUntilChanged()
                 .flatMapLatest { uid ->
                     if (uid == null) {
-                        flowOf(null as Map<String, Any?>?)
+                        flowOf(null as UserEntitlementsDoc?)
                     } else {
                         firestore.collection("users").document(uid).snapshots
                             .map { snap ->
                                 if (!snap.exists) {
                                     null
                                 } else {
-                                    snap.data<Map<String, Any?>>()
+                                    snap.data<UserEntitlementsDoc>()
                                 }
                             }
                     }
@@ -93,11 +112,12 @@ internal class UserDocEntitlementsProvider(
         }
     }
 
-    private fun computeFromData(data: Map<String, Any?>): UserEntitlements {
-        val tierWire = data["subscriptionTier"] as? String
-        val seededAt = extractTimestamp(data["welcomeBonusAppliedAt"])
+    private fun computeFromData(data: UserEntitlementsDoc): UserEntitlements {
+        val seededAt = data.welcomeBonusAppliedAt?.let {
+            Instant.fromEpochMilliseconds(it.toMilliseconds().toLong())
+        }
         return EntitlementsCalculator.calculate(
-            tier = SubscriptionTier.fromWire(tierWire),
+            tier = SubscriptionTier.fromWire(data.subscriptionTier),
             welcomeBonusAppliedAt = seededAt,
             now = now(),
             timeZone = timeZone,
@@ -112,29 +132,4 @@ internal class UserDocEntitlementsProvider(
         now = now(),
         timeZone = timeZone,
     )
-
-    /**
-     * Extracts a server-written timestamp from a raw Firestore map value.
-     *
-     * GitLive Firestore returns [FieldValue.serverTimestamp] writes as a
-     * [Timestamp] object (not a Long) when the document is read back as
-     * [Map<String, Any?>]. Convert via [Timestamp.toMilliseconds] which
-     * returns a Double (milliseconds since epoch).
-     */
-    private fun extractTimestamp(raw: Any?): Instant? {
-        return when (raw) {
-            is Timestamp -> {
-                val millis = raw.toMilliseconds().toLong()
-                Instant.fromEpochMilliseconds(millis)
-            }
-            is Long -> Instant.fromEpochMilliseconds(raw)
-            is Double -> Instant.fromEpochMilliseconds(raw.toLong())
-            else -> {
-                if (raw != null) {
-                    AppLogger.w(tag = TAG) { "Unexpected welcomeBonusAppliedAt type: ${raw::class}" }
-                }
-                null
-            }
-        }
-    }
 }

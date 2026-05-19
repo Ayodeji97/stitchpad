@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.Timestamp
 
 private const val TAG = "FreemiumDebugActions"
 private const val USERS = "users"
@@ -52,10 +53,18 @@ class DefaultFreemiumDebugActions(
     /** Backdate the welcome window past its expiry → FREE 15-customer cap. */
     override suspend fun expireWelcomeWindow(nowMs: Long): DebugActionResult {
         val backdatedMs = nowMs - EXPIRED_WINDOW_OFFSET_MS
+        // Must write a Timestamp (not a raw Long) — UserDocEntitlementsProvider
+        // deserializes welcomeBonusAppliedAt via a typed @Serializable DTO whose
+        // field type is Timestamp?. Writing a Long here would crash the iOS
+        // listener with SerializationException on the next snapshot emit.
+        val backdatedTimestamp = Timestamp(
+            seconds = backdatedMs / 1000,
+            nanoseconds = ((backdatedMs % 1000) * 1_000_000).toInt(),
+        )
         return userDocUpdate("expireWelcomeWindow") { doc ->
             doc.set(
                 mapOf(
-                    "welcomeBonusAppliedAt" to backdatedMs,
+                    "welcomeBonusAppliedAt" to backdatedTimestamp,
                     "updatedAt" to FieldValue.serverTimestamp,
                 ),
                 merge = true,
