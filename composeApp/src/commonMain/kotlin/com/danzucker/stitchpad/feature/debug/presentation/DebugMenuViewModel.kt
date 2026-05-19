@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.debug.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
@@ -114,7 +115,7 @@ class DebugMenuViewModel(
                 freemiumActions.setBonusCoins(0)
             }
             DebugMenuAction.OnRefillBonusCoinsClick -> runFreemium("Bonus coins refilled") {
-                freemiumActions.setBonusCoins(FreemiumDebugActions.WELCOME_BONUS_COINS)
+                freemiumActions.setBonusCoins(FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT)
             }
             DebugMenuAction.OnResetSmartUsageClick -> runFreemium("Smart usage reset") {
                 freemiumActions.resetSmartUsage()

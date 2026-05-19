@@ -954,6 +954,7 @@
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_hero_plan_pro">Tailor Pro</string>
+    <string name="settings_hero_plan_atelier">Tailor Atelier</string>
     <string name="settings_section_business">Business</string>
     <string name="settings_section_support">Support</string>
     <string name="settings_row_invite">Invite a tailor</string>
@@ -1156,6 +1157,7 @@
     <string name="smart_error_invalid_input">That order isn&apos;t available anymore.</string>
     <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again in a moment.</string>
     <string name="smart_error_unknown">Something went wrong. Please try again.</string>
+    <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
 
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>

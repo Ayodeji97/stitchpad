@@ -4,6 +4,10 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import org.jetbrains.compose.resources.StringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.settings_hero_plan_atelier
+import stitchpad.composeapp.generated.resources.settings_hero_plan_pro
 
 data class SettingsState(
     val isLoading: Boolean = true,
@@ -13,7 +17,6 @@ data class SettingsState(
     val avatarColorIndex: Int = 0,
     val signInProvider: SignInProvider = SignInProvider.UNKNOWN,
     val maskedSignInIdentifier: String = "",
-    val isPremium: Boolean = false,
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
     val customerCount: Int = 0,
     /** null means unlimited (Pro / Atelier tier). */
@@ -44,4 +47,19 @@ data class SettingsState(
      * row already shows the same email above.
      */
     val showChangeEmailRow: Boolean get() = signInProvider == SignInProvider.EMAIL_PASSWORD
+
+    /**
+     * Pro/Atelier badge label for the profile hero. Null for FREE — keeps the
+     * hero clean while paid tiers get a visible cue. Derived from the real
+     * subscriptionTier (sourced from EntitlementsProvider) — not from the
+     * placeholder InMemoryEntitlementsRepository.observeIsPremium() flow, which
+     * was always-false in production DI and caused a real Pro user's PlanCard
+     * to show Pro while the hero badge stayed empty.
+     */
+    val proBadgeLabel: StringResource?
+        get() = when (subscriptionTier) {
+            SubscriptionTier.PRO -> Res.string.settings_hero_plan_pro
+            SubscriptionTier.ATELIER -> Res.string.settings_hero_plan_atelier
+            SubscriptionTier.FREE -> null
+        }
 }

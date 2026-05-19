@@ -73,8 +73,20 @@ export function isExhausted(doc: FreeTierUsageDoc): boolean {
   return doc.count >= doc.limit;
 }
 
+// Africa/Lagos so the monthly Smart quota rolls over at the same instant as the
+// welcome-window expiry (reconcileSlots.ts isInWelcomeWindow). Using UTC here
+// would have created a ~1-hour skew at every month boundary: bonus accounting
+// keyed on the Lagos calendar month, monthly count keyed on the UTC month.
+const LAGOS_TZ = 'Africa/Lagos';
+const LAGOS_MONTH_YEAR_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: LAGOS_TZ,
+  year: 'numeric',
+  month: '2-digit',
+});
+
 function formatMonthYear(d: Date): string {
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const parts = LAGOS_MONTH_YEAR_FMT.formatToParts(d);
+  const year = parts.find((p) => p.type === 'year')?.value ?? '0000';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '00';
   return `${year}-${month}`;
 }

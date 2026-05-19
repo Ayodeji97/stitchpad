@@ -44,12 +44,19 @@ object EntitlementsCalculator {
 
         val isInWelcomeWindow = welcomeEndsAt != null && now < welcomeEndsAt
 
+        // Lagos calendar days remaining. Computed once and used by both
+        // the warning flag and the banner copy so the dashboard never shows
+        // "2 days left" while the warning flag thinks 3 days remain
+        // (or vice versa) — that drift happened before, when the banner
+        // copy did `ms / 86_400_000` in the system default timezone.
+        val welcomeDaysLeft: Int? = welcomeEndsAt?.takeIf { isInWelcomeWindow }?.let { end ->
+            val nowLocal = now.toLocalDateTime(timeZone).date
+            val endLocal = end.toLocalDateTime(timeZone).date
+            nowLocal.daysUntil(endLocal)
+        }
+
         val isWithinWelcomeEndingWarning =
-            welcomeEndsAt != null && isInWelcomeWindow && run {
-                val nowLocal = now.toLocalDateTime(timeZone).date
-                val endLocal = welcomeEndsAt.toLocalDateTime(timeZone).date
-                nowLocal.daysUntil(endLocal) <= WELCOME_ENDING_WARNING_DAYS
-            }
+            welcomeDaysLeft != null && welcomeDaysLeft <= WELCOME_ENDING_WARNING_DAYS
 
         val customerCap = when {
             tier == SubscriptionTier.FREE && isInWelcomeWindow -> WELCOME_CUSTOMER_CAP
@@ -70,6 +77,7 @@ object EntitlementsCalculator {
             isInWelcomeWindow = isInWelcomeWindow,
             welcomeEndsAt = welcomeEndsAt,
             isWithinWelcomeEndingWarning = isWithinWelcomeEndingWarning,
+            welcomeDaysLeft = welcomeDaysLeft,
         )
     }
 

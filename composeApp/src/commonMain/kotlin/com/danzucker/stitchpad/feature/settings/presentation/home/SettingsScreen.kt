@@ -55,7 +55,6 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.settings_hero_plan_pro
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
@@ -128,11 +127,7 @@ fun SettingsScreen(
                 subtitle = state.heroSubtitle.ifBlank { state.email },
                 avatarColorIndex = state.avatarColorIndex,
                 onClick = { onAction(SettingsAction.OnProfileClick) },
-                planBadgeLabel = if (state.isPremium) {
-                    stringResource(Res.string.settings_hero_plan_pro)
-                } else {
-                    null
-                },
+                planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
             )
 
             Spacer(Modifier.height(DesignTokens.space3))
@@ -349,7 +344,6 @@ private fun SettingsScreenPreview() {
                 avatarColorIndex = 0,
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
-                isPremium = false,
                 subscriptionTier = SubscriptionTier.FREE,
                 customerCount = 8,
                 customerLimit = 15,
@@ -374,7 +368,6 @@ private fun SettingsScreenAppleProviderPreview() {
                 avatarColorIndex = 3,
                 signInProvider = SignInProvider.APPLE,
                 maskedSignInIdentifier = "folake@privaterelay.appleid.com",
-                isPremium = true,
                 subscriptionTier = SubscriptionTier.PRO,
                 customerCount = 42,
                 customerLimit = null,
@@ -399,7 +392,6 @@ private fun SettingsScreenDarkPreview() {
                 avatarColorIndex = 4,
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
-                isPremium = false,
                 subscriptionTier = SubscriptionTier.FREE,
                 customerCount = 13,
                 customerLimit = 15,

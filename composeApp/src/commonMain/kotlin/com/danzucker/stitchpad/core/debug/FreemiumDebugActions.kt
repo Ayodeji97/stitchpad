@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.debug
 
+import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -29,10 +30,6 @@ interface FreemiumDebugActions {
     suspend fun setBonusCoins(coins: Int): DebugActionResult
     suspend fun resetSmartUsage(): DebugActionResult
     suspend fun reconcileSlots(): DebugActionResult
-
-    companion object {
-        const val WELCOME_BONUS_COINS: Int = 30
-    }
 }
 
 class DefaultFreemiumDebugActions(
@@ -72,7 +69,7 @@ class DefaultFreemiumDebugActions(
             doc.set(
                 mapOf(
                     "welcomeBonusAppliedAt" to FieldValue.serverTimestamp,
-                    "bonusCoins" to FreemiumDebugActions.WELCOME_BONUS_COINS,
+                    "bonusCoins" to FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT,
                     "updatedAt" to FieldValue.serverTimestamp,
                 ),
                 merge = true,

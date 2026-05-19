@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class UpgradeViewModel(
-    entitlements: EntitlementsProvider,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -31,6 +31,27 @@ class UpgradeViewModel(
 
     private val _events = Channel<UpgradeEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+
+    init {
+        // Keep currentTier in sync with the provider's live flow so the
+        // PlanCard-style header on this screen updates when the upgrade
+        // lands (Paystack webhook → user-doc tier change → EntitlementsProvider
+        // re-emit). Also fires a UpgradeDetected event when tier rises so the
+        // Root composable can pop back to Settings instead of stranding the
+        // user on a now-irrelevant upgrade picker.
+        viewModelScope.launch {
+            val startingTier = entitlements.current().tier
+            entitlements.flow.collect { e ->
+                _state.update { it.copy(currentTier = e.tier) }
+                if (e.tier.isHigherThan(startingTier)) {
+                    _events.send(UpgradeEvent.UpgradeDetected)
+                }
+            }
+        }
+    }
+
+    private fun SubscriptionTier.isHigherThan(other: SubscriptionTier): Boolean =
+        ordinal > other.ordinal
 
     fun onAction(action: UpgradeAction) {
         when (action) {

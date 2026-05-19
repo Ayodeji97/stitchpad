@@ -20,6 +20,7 @@ fun UpgradeRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is UpgradeEvent.OpenExternalBrowser -> uriHandler.openUri(event.url)
+            UpgradeEvent.UpgradeDetected -> onBack()
         }
     }
 

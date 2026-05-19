@@ -45,6 +45,9 @@ internal class SmartFunctionsRepository(
      * permission issue we'd rather not silently call FreeTierExhausted.
      */
     private fun recoverFromMessage(message: String, fallback: SmartError): SmartError = when {
+        // Order matters: pro_quota_exhausted contains the substring "exhausted"
+        // but NOT "free_tier_exhausted", so the dedicated check must run first.
+        message.contains(MARKER_PRO_QUOTA_EXHAUSTED) -> SmartError.ProQuotaExhausted
         message.contains(MARKER_FREE_TIER_EXHAUSTED) -> SmartError.FreeTierExhausted
         message.contains(MARKER_SERVICE_UNAVAILABLE) -> SmartError.ServiceUnavailable
         message.contains(MARKER_INVALID_INPUT) -> SmartError.InvalidInput
@@ -56,6 +59,7 @@ internal class SmartFunctionsRepository(
         // they are how the iOS GitLive wrapper recovers the intent of the
         // server error when the canonical code is lost.
         const val MARKER_FREE_TIER_EXHAUSTED = "free_tier_exhausted"
+        const val MARKER_PRO_QUOTA_EXHAUSTED = "pro_quota_exhausted"
         const val MARKER_SERVICE_UNAVAILABLE = "service_unavailable"
         const val MARKER_INVALID_INPUT = "invalid_input"
     }

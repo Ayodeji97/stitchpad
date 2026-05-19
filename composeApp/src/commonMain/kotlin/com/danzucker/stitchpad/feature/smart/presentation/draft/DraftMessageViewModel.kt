@@ -22,6 +22,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_no_whatsapp_helper
 import stitchpad.composeapp.generated.resources.smart_error_invalid_input
 import stitchpad.composeapp.generated.resources.smart_error_network
+import stitchpad.composeapp.generated.resources.smart_error_pro_quota_exhausted
 import stitchpad.composeapp.generated.resources.smart_error_service_unavailable
 import stitchpad.composeapp.generated.resources.smart_error_unknown
 
@@ -211,6 +212,11 @@ class DraftMessageViewModel(
         _state.update { it.copy(generationState = GenerationState.Idle) }
         when (error) {
             SmartError.FreeTierExhausted -> _events.send(DraftMessageEvent.ShowUpgradeSheet)
+            SmartError.ProQuotaExhausted -> _events.send(
+                DraftMessageEvent.ShowSnackbar(
+                    UiText.StringResourceText(Res.string.smart_error_pro_quota_exhausted)
+                )
+            )
             SmartError.InvalidInput -> {
                 _state.update { it.copy(order = null) }
                 _events.send(

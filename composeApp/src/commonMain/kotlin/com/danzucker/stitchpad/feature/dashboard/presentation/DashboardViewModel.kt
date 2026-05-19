@@ -91,19 +91,17 @@ class DashboardViewModel(
     /**
      * Observe the user's entitlements and push the welcome-ending banner
      * state when [UserEntitlements.isWithinWelcomeEndingWarning] is true.
-     * Days-left is derived from the ms delta so that the banner always
-     * shows a non-negative integer even if the snapshot is slightly stale.
+     * `welcomeDaysLeft` comes straight from EntitlementsCalculator so the
+     * banner copy and the show/hide flag share Lagos calendar math —
+     * previously this used `ms / 86_400_000` in the system default timezone,
+     * which could drift the displayed number by one day vs. the warning flag.
      */
     private fun observeEntitlements() {
         viewModelScope.launch {
             entitlements.flow.collect { e ->
-                val daysLeft = e.welcomeEndsAt?.let { end ->
-                    val ms = end.toEpochMilliseconds() - nowMillis()
-                    (ms / ONE_DAY_MILLIS).toInt().coerceAtLeast(0)
-                }
                 _state.update {
                     it.copy(
-                        welcomeBannerDaysLeft = daysLeft,
+                        welcomeBannerDaysLeft = e.welcomeDaysLeft,
                         showWelcomeBanner = e.isWithinWelcomeEndingWarning,
                     )
                 }

@@ -166,14 +166,27 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         const snap = await tx.get(ref);
         const existing = snap.exists ? (snap.data() as FreeTierUsageDoc) : null;
 
-        // First-ever Smart call: seed bonusBalance from the user-doc welcome bonus.
-        const seedBonus = existing === null ? welcomeBonusToSeed : 0;
-        const seededExisting: FreeTierUsageDoc | null = existing ?? (seedBonus > 0
-          ? { monthYear: '', count: 0, limit: 0, bonusBalance: seedBonus }
-          : null);
+        // Seed bonusBalance from the user-doc welcome bonus on the FIRST call
+        // that has the opportunity to do so. Two paths:
+        //  (a) No usage doc yet (brand-new user) — original V1.0 path.
+        //  (b) Usage doc exists but `bonusLiftedAt` is absent — covers testers
+        //      whose usage doc was created BEFORE V1.0 added bonusBalance.
+        //      Without (b) the 30-coin welcome bonus is permanently stranded
+        //      on the user doc and never reaches the gating logic below.
+        const neverLifted = existing === null || existing.bonusLiftedAt === undefined;
+        const seedBonus = neverLifted ? welcomeBonusToSeed : 0;
+        const seededExisting: FreeTierUsageDoc | null = existing
+          ? { ...existing, bonusBalance: (existing.bonusBalance ?? 0) + seedBonus }
+          : (seedBonus > 0
+            ? { monthYear: '', count: 0, limit: 0, bonusBalance: seedBonus }
+            : null);
 
         const baseline = reconcileUsage({ existing: seededExisting, now, limit: tierLimit }, 'draft');
         const bonusAvailable = (baseline.bonusBalance ?? 0) > 0;
+        // Stamp on every write so neverLifted is permanently false after the
+        // first call that processed the bonus (regardless of whether it had
+        // anything to lift) — prevents double-lift on subsequent calls.
+        const liftedAt = existing?.bonusLiftedAt ?? now.getTime();
 
         if (bonusAvailable) {
           // Bonus consumed; monthly count NOT incremented. reconcileUsage's
@@ -183,6 +196,7 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
             ...baseline,
             count: seededExisting?.monthYear === baseline.monthYear ? (seededExisting?.count ?? 0) : 0,
             bonusBalance: (baseline.bonusBalance ?? 0) - 1,
+            bonusLiftedAt: liftedAt,
           };
           tx.set(ref, next);
           return { exhausted: false, usage: next, consumedBonus: true } as const;
@@ -198,8 +212,9 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         if (existing !== null && existing.count >= baseline.limit && existing.monthYear === baseline.monthYear) {
           return { exhausted: true } as const;
         }
-        tx.set(ref, baseline);
-        return { exhausted: false, usage: baseline, consumedBonus: false } as const;
+        const nextNoBonus: FreeTierUsageDoc = { ...baseline, bonusLiftedAt: liftedAt };
+        tx.set(ref, nextNoBonus);
+        return { exhausted: false, usage: nextNoBonus, consumedBonus: false } as const;
       });
     },
     customerGet: () => db.doc(`users/${uid}/customers/${customerId}`).get().then((snap) => ({
@@ -374,7 +389,11 @@ export async function draftMessageHandler(
       coinAllowanceForTier(tier),
     );
     if (reservation.exhausted) {
-      throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
+      // Distinct error codes so the client can render tier-aware copy:
+      // free → "Out of free drafts, upgrade to Pro" sheet,
+      // pro  → "You've used your 50 Pro drafts this month" snackbar.
+      const code = tier === 'pro' ? 'pro_quota_exhausted' : 'free_tier_exhausted';
+      throw new functions.https.HttpsError('permission-denied', code);
     }
     nextUsage = reservation.usage;
   }

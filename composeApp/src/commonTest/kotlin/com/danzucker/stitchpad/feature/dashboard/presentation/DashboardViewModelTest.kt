@@ -120,6 +120,7 @@ class DashboardViewModelTest {
             isInWelcomeWindow = false,
             welcomeEndsAt = null,
             isWithinWelcomeEndingWarning = false,
+            welcomeDaysLeft = null,
         )
     }
 

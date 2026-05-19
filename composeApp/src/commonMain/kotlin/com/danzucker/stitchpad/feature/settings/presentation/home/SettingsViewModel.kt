@@ -16,7 +16,6 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
-import com.danzucker.stitchpad.feature.billing.domain.EntitlementsRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,7 +53,6 @@ private data class LocalUiState(
 class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
-    private val entitlementsRepository: EntitlementsRepository,
     private val entitlementsProvider: EntitlementsProvider,
     private val customerRepository: CustomerRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
@@ -137,16 +135,14 @@ class SettingsViewModel(
 
         val combined = combine(
             userRepository.observeUser(authUser.id),
-            entitlementsRepository.observeIsPremium(),
             entitlementsProvider.flow,
             customerCountFlow,
             uiState,
-        ) { firestoreUser, isPremium, entitlements, customerCount, ui ->
+        ) { firestoreUser, entitlements, customerCount, ui ->
             buildState(
                 authUser = authUser,
                 provider = provider,
                 firestoreUser = firestoreUser,
-                isPremium = isPremium,
                 entitlements = entitlements,
                 customerCount = customerCount,
                 ui = ui,
@@ -159,7 +155,6 @@ class SettingsViewModel(
         authUser: com.danzucker.stitchpad.core.domain.model.User,
         provider: SignInProvider,
         firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
-        isPremium: Boolean,
         entitlements: UserEntitlements,
         customerCount: Int,
         ui: LocalUiState,
@@ -175,7 +170,6 @@ class SettingsViewModel(
             avatarColorIndex = firestoreUser?.avatarColorIndex ?: authUser.avatarColorIndex,
             signInProvider = provider,
             maskedSignInIdentifier = authUser.email,
-            isPremium = isPremium,
             subscriptionTier = entitlements.tier,
             customerCount = customerCount,
             customerLimit = if (entitlements.customerCap == Int.MAX_VALUE) null else entitlements.customerCap,

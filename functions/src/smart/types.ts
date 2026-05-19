@@ -90,4 +90,13 @@ export interface FreeTierUsageDoc {
    * (does not reset). Defaults to 0 for users created before V1.0.
    */
   bonusBalance?: number;
+  /**
+   * Server-set timestamp marking the FIRST call that processed the welcome
+   * bonus lift. Used to distinguish "bonus was lifted and then spent down to
+   * 0" from "bonus has never been lifted yet" (e.g. for testers whose usage
+   * doc was created before V1.0 added bonusBalance — without this flag, their
+   * 30-coin welcome bonus would never be lifted because `existing !== null`).
+   * Set exactly once. Absent on docs written before this field was added.
+   */
+  bonusLiftedAt?: number;
 }

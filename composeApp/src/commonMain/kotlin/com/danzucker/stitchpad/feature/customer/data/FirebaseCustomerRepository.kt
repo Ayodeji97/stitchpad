@@ -93,6 +93,7 @@ class FirebaseCustomerRepository(
         }
     }
 
+    @Suppress("ReturnCount")
     override suspend fun createCustomer(
         userId: String,
         customer: Customer
@@ -110,10 +111,14 @@ class FirebaseCustomerRepository(
                 .documents
                 .mapNotNull { doc -> runCatching { doc.data<CustomerDto>() }.getOrNull() }
             countActiveCustomers(dtos)
-        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") _e: Throwable) {
-            // If we can't count, fail soft — server is still source of truth.
-            AppLogger.w(tag = TAG) { "Cap count failed; allowing createCustomer to proceed" }
-            0
+        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+            // Fail closed: without a count we cannot enforce the cap, and there
+            // is no server-side create guard to fall back on (Firestore rules
+            // don't currently validate cap on writes). Allowing the create
+            // would let a burst of writes during an outage exceed the cap;
+            // surface a network error so the UI retries instead.
+            AppLogger.e(tag = TAG, throwable = e) { "Cap count failed; blocking createCustomer" }
+            return Result.Error(DataError.Network.UNKNOWN)
         }
         if (activeCount >= entitlement.customerCap) {
             AppLogger.i(tag = TAG) {
@@ -152,9 +157,12 @@ class FirebaseCustomerRepository(
             // Read the existing slotState + lockedAt before writing so that a
             // form edit — which reconstructs Customer with the default ACTIVE —
             // does NOT accidentally unlock a previously-locked customer and
-            // bypass the freemium cap. Only createCustomer (cap-gated) and
-            // reconcileCustomerSlots (Cloud Function) are authoritative for
-            // these fields.
+            // bypass the freemium cap. Authoritative writers of these fields:
+            //   - createCustomer (cap-gated, this file)
+            //   - reconcileCustomerSlots (Cloud Function, server-side cap)
+            //   - swapCustomerSlot (CloudFunctionsFreemiumRepository, paired
+            //     active↔locked swap; user-initiated)
+            // updateCustomer is NOT authoritative and must preserve them.
             val existing = runCatching { docRef.get().data<CustomerDto>() }.getOrNull()
             val dto = customer.toCustomerDto().copy(
                 slotState = existing?.slotState ?: customer.toCustomerDto().slotState,

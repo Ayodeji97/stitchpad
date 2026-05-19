@@ -30,4 +30,11 @@ data class UserEntitlements(
      * the "your welcome is ending" dashboard banner.
      */
     val isWithinWelcomeEndingWarning: Boolean,
+    /**
+     * Calendar days (Africa/Lagos) until [welcomeEndsAt]. Null when no
+     * welcome window applies or once it has ended. Always computed from
+     * the same Lagos calendar math as [isWithinWelcomeEndingWarning] so
+     * banner copy ("N days left") and the show/hide flag never disagree.
+     */
+    val welcomeDaysLeft: Int?,
 )

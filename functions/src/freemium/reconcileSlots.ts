@@ -102,7 +102,7 @@ export const reconcileCustomerSlots = functions
       subscriptionTier?: string;
       welcomeBonusAppliedAt?: admin.firestore.Timestamp | number;
     };
-    const tier = user.subscriptionTier ?? 'free';
+    const tier = normalizeTier(user.subscriptionTier);
     const welcomeMillis = toEpochMs(user.welcomeBonusAppliedAt);
     const inWelcome = isInWelcomeWindow(welcomeMillis, new Date());
     const cap = effectiveCap(tier, inWelcome);
@@ -158,6 +158,14 @@ export const reconcileCustomerSlots = functions
 function effectiveCap(tier: string, inWelcome: boolean): number {
   if (tier === 'pro' || tier === 'atelier') return Number.MAX_SAFE_INTEGER;
   return inWelcome ? 30 : 15;
+}
+
+// Legacy accounts may carry subscriptionTier === "premium" from pre-V1.0 writes.
+// draftMessage.ts normalizes the same way; keep both in lockstep so a "premium"
+// account doesn't silently fall through to the free cap and lock its customers.
+function normalizeTier(raw: string | undefined): string {
+  if (raw === 'premium') return 'pro';
+  return raw ?? 'free';
 }
 
 function toEpochMs(value: admin.firestore.Timestamp | number | undefined): number | undefined {
