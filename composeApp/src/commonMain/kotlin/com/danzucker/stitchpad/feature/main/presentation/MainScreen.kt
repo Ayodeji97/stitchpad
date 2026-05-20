@@ -195,7 +195,8 @@ private fun MainNavGraph(
         }
         composable<CustomerFormRoute> {
             CustomerFormRoot(
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<MeasurementFormRoute> {

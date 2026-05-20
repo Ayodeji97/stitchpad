@@ -223,6 +223,20 @@
     <string name="error_customer_already_exists">A customer with this name already exists</string>
     <string name="error_customer_cap_reached">You&apos;ve reached your customer limit. Upgrade to add more.</string>
 
+    <!-- Customer cap-reached bottom sheet (replaces snackbar for CAP_REACHED) -->
+    <string name="cap_reached_sheet_eyebrow">CUSTOMER LIMIT REACHED</string>
+    <string name="cap_reached_sheet_title">Ready to grow your workshop?</string>
+    <string name="cap_reached_sheet_stat">%1$d of %2$d active customers</string>
+    <string name="cap_reached_sheet_pro_tier">Tailor Pro</string>
+    <string name="cap_reached_sheet_price">₦2,000/mo</string>
+    <string name="cap_reached_sheet_benefit_unlimited">Unlimited customers</string>
+    <string name="cap_reached_sheet_benefit_drafts">50 Smart drafts a month</string>
+    <string name="cap_reached_sheet_benefit_cancel">Cancel anytime</string>
+    <string name="cap_reached_sheet_upgrade_cta">Upgrade to Pro</string>
+    <string name="cap_reached_sheet_swap_prefix">or </string>
+    <string name="cap_reached_sheet_swap_link">swap a customer</string>
+    <string name="cap_reached_sheet_swap_suffix"> to stay on Free</string>
+
     <!-- Customer detail screen -->
     <string name="customer_detail_measurements_section">Measurements</string>
     <string name="customer_detail_no_measurements">No measurements yet. Tap + to record one.</string>
