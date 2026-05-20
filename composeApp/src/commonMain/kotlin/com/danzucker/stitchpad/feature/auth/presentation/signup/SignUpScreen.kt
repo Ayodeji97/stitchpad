@@ -44,6 +44,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
@@ -60,6 +61,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -131,7 +133,8 @@ fun SignUpScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DesignTokens.neutral900),
+            .background(DesignTokens.neutral900)
+            .clearFocusOnTap(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AuthHero()
@@ -168,6 +171,7 @@ fun SignUpScreen(
                     value = state.displayName,
                     onValueChange = { onAction(SignUpAction.OnDisplayNameChange(it)) },
                     leadingIcon = Icons.Outlined.Person,
+                    imeAction = ImeAction.Next,
                     placeholder = stringResource(Res.string.signup_name_placeholder),
                     errorText = state.displayNameError?.asString(),
                     onFocusLost = { onAction(SignUpAction.OnDisplayNameBlur) },
@@ -180,6 +184,7 @@ fun SignUpScreen(
                     onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
                     keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next,
                     placeholder = stringResource(Res.string.placeholder_email),
                     errorText = state.emailError?.asString(),
                     onFocusLost = { onAction(SignUpAction.OnEmailBlur) },
@@ -192,6 +197,7 @@ fun SignUpScreen(
                     value = state.password,
                     onValueChange = { onAction(SignUpAction.OnPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
+                    imeAction = ImeAction.Next,
                     isPassword = true,
                     isPasswordVisible = state.isPasswordVisible,
                     onTogglePassword = { onAction(SignUpAction.OnTogglePasswordVisibility) },
@@ -229,6 +235,7 @@ fun SignUpScreen(
                     value = state.confirmPassword,
                     onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
+                    imeAction = ImeAction.Done,
                     isPassword = true,
                     isPasswordVisible = state.isConfirmPasswordVisible,
                     onTogglePassword = { onAction(SignUpAction.OnToggleConfirmPasswordVisibility) },

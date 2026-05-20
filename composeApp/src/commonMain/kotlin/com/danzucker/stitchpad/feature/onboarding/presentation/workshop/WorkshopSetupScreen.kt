@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -56,6 +54,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -120,20 +119,11 @@ fun WorkshopSetupScreen(
     snackbarHostState: SnackbarHostState,
     onAction: (WorkshopSetupAction) -> Unit,
 ) {
-    val focusManager = LocalFocusManager.current
-    // Tap-outside-to-dismiss: needed because the WhatsApp field uses
-    // KeyboardType.Phone, and iOS numeric keypads never show a Done/Return
-    // key. Without this escape hatch the user can get stuck behind the
-    // keyboard on iOS. Indication=null so the background tap has no ripple.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DesignTokens.neutral900)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = { focusManager.clearFocus() },
-            ),
+            .clearFocusOnTap(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AuthHero()

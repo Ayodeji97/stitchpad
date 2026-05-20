@@ -44,6 +44,7 @@ import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.presentation.components.ReauthBottomSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -128,6 +129,7 @@ fun ChangeEmailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clearFocusOnTap()
                 .padding(horizontal = DesignTokens.space4),
             verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         ) {

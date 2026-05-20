@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reauth_cancel
@@ -72,6 +73,7 @@ fun ReauthBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .clearFocusOnTap()
                 .padding(
                     start = DesignTokens.space4,
                     end = DesignTokens.space4,

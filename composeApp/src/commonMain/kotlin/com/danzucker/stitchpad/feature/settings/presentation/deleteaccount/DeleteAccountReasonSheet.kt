@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.feature.settings.domain.DeletionReason
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -93,6 +94,7 @@ private fun ReasonSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clearFocusOnTap()
             .padding(
                 start = DesignTokens.space4,
                 end = DesignTokens.space4,

@@ -79,6 +79,7 @@ import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
@@ -181,6 +182,7 @@ fun CustomerListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .clearFocusOnTap()
         ) {
             CustomerSearchField(
                 query = state.searchQuery,
