@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-Android-12 (API < 31) backup rules. Applied via android:fullBackupContent.
+
+  Excludes stitchpad_prefs (the SharedPreferences file backing
+  OnboardingPreferences) from Auto-Backup. Without this, uninstalling and
+  reinstalling on the same Google account restores has_seen_onboarding=true
+  from cloud backup, causing the value-prop tour to be silently skipped on
+  a "fresh" install. Excluding from cloud backup means every install starts
+  with a clean preference state.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="stitchpad_prefs.xml" />
+</full-backup-content>
