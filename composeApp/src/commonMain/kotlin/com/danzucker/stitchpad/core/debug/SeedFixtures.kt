@@ -286,8 +286,9 @@ internal object SeedFixtures {
     /**
      * Generate [count] additive demo customers with numbered names so they
      * can be visually counted in the customer list (e.g. when testing the
-     * welcome 30-customer cap). IDs are prefixed `seed-bulk-` so they don't
-     * collide with the fixed seedActive/seedReconnect fixtures.
+     * First Month 200-customer cap or the post-First-Month 15-cap). IDs
+     * are prefixed `seed-bulk-` so they don't collide with the fixed
+     * seedActive/seedReconnect fixtures.
      */
     fun bulkCustomers(userId: String, now: Long, count: Int): List<Customer> {
         return List(count) { i ->

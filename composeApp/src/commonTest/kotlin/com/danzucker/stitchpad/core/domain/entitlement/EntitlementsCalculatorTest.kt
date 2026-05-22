@@ -31,7 +31,7 @@ class EntitlementsCalculatorTest {
     }
 
     @Test
-    fun free_user_in_welcome_window_has_30_cap_and_welcomeEndsAt_is_end_of_signup_month() {
+    fun free_user_in_welcome_window_has_first_month_cap_and_welcomeEndsAt_is_end_of_signup_month() {
         // Signed up May 5 2026 in Lagos → welcome window covers all of May.
         val signedUp = Instant.parse("2026-05-05T10:00:00Z")
         val now = Instant.parse("2026-05-17T08:00:00Z")
@@ -41,7 +41,11 @@ class EntitlementsCalculatorTest {
             now = now,
             timeZone = tz,
         )
-        assertEquals(30, e.customerCap)
+        // First-month cap = WELCOME_CUSTOMER_CAP (200). The exact value matters
+        // because reconcileSlots.ts:effectiveCap reads the same constant; if
+        // either side drifts, customers get locked the client just allowed.
+        assertEquals(EntitlementsCalculator.WELCOME_CUSTOMER_CAP, e.customerCap)
+        assertEquals(200, e.customerCap)
         assertTrue(e.isInWelcomeWindow)
         // Welcome window ends at the END of the calendar month (last instant of May).
         // Equivalent to "start of June" in Lagos zone.

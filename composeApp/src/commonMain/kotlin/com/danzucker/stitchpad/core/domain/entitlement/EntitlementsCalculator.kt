@@ -17,8 +17,10 @@ import kotlinx.datetime.toLocalDateTime
  * calendar month. Hard-coded to Africa/Lagos for V1.0 — V1.5 will pass
  * the user's timezone through.
  *
- * All limits (15-cap, 30-cap during welcome, coin allowances) live here
- * as constants — change them here, change them once.
+ * All limits (15-cap post-First-Month, 200-cap during First Month, coin
+ * allowances) live here as constants — change them here, change them once.
+ * The server-side counterpart is `functions/src/freemium/reconcileSlots.ts`
+ * `effectiveCap` — keep both in lockstep.
  */
 object EntitlementsCalculator {
 

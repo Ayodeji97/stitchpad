@@ -60,32 +60,34 @@ This is required because the deployed `smartDraftMessage` was missing the `limit
 
 ---
 
-## Scenario 2 — Welcome window + 30-customer cap
+## Scenario 2 — First Month + 200-customer cap
 
-Tests that during the calendar-month welcome window, Free users can add up to **30** customers.
+Tests that during the First Month, Free users have effectively unlimited customers (the 200 ceiling exists for system safety but is never exposed in the UI per the V1.0 design spec).
 
-The PlanCard transitions through **three visual states** as you fill the cap:
+The PlanCard during First Month uses a **different layout** from post-First-Month:
 
-| Customer count | Ratio | State | What you see |
-|---|---|---|---|
-| 0–24 / 30 | ≤ 80% | **Inline** (flat card) | `FREE` pill, `X of 30 customers`, subtitle "Unlock unlimited customers and reports", small `Upgrade ›` text on the right |
-| 25–29 / 30 | 80%–99% | **Warn** (amber hero) | `Free plan · Almost full` pill, `N customers left before your free limit` title, prominent `Upgrade — ₦2,000/mo` button + `Compare plans →` |
-| 30 / 30 | 100% | **Locked** (red hero) | `Free plan · Limit reached` pill, `You can't add new customers` title, prominent `Upgrade now` button + `Compare plans →` |
+| What you see during First Month | Why |
+|---|---|
+| `[FIRST MONTH · N days left]` pill | Period badge — counts down to month-end transition |
+| `✨ AI drafts ▓▓░░░░ X of 30 used` | AI is the primary conversion signal during First Month |
+| `N customers added · no limits this month` (no fraction) | Customer count is shown but **never as a fraction** — 200 is hidden |
+| `How First Month works →` affordance | Links to founder note / Settings explainer |
 
 | # | Setup | Action | Expected | Pass? |
 |---|---|---|---|---|
-| 2.1 | Sandbox reset done | Open Settings → PlanCard | **Inline state.** `FREE` pill, counter reads `0 of 30 customers`, subtitle "Unlock unlimited customers and reports", `Upgrade ›` text on the right | ☐ |
-| 2.2 | — | Debug → Bulk seed → total=24, measurements=10, orders=10 → Seed | All 24 succeed; PlanCard still in **inline** state (24/30 = 80%) | ☐ |
-| 2.3 | — | Add 1 more customer manually (FAB) | Customer count = 25. PlanCard transitions to **Warn** state: amber hero, `Free plan · Almost full` pill, title `5 customers left before your free limit` | ☐ |
-| 2.4 | — | Debug → Bulk seed → total=4, measurements=0, orders=0 → Seed | All 4 succeed; count = 29. Warn-state title now reads `1 customers left…` (⚠️ known plural bug — see follow-ups) | ☐ |
-| 2.5 | — | Tap FAB → add a 30th customer manually | Save succeeds; count = 30. PlanCard transitions to **Locked** state: red hero, `Free plan · Limit reached` pill, title `You can't add new customers`, `Upgrade now` button visible | ☐ |
-| 2.6 | — | Tap FAB → try to add a 31st | Form blocks with upgrade-prompt copy ("You've reached your customer limit"). Snackbar / dialog references upgrading | ☐ |
-| 2.7 | — | Verify Firestore: `users/{uid}.customerCount == 30` | Server-side counter agrees with UI | ☐ |
-| 2.8 | — | Open Settings → PlanCard → tap `Upgrade now` | UpgradeScreen opens | ☐ |
+| 2.1 | Sandbox reset done | Open Settings → PlanCard | **First Month layout.** `[FIRST MONTH · ~30 days left]` pill, AI progress at `0 of 30 used`, customer line reads `0 customers added · no limits this month`. **No "200" anywhere on the card.** | ☐ |
+| 2.2 | — | Debug → Bulk seed → total=50, measurements=10, orders=10 → Seed | All 50 succeed cleanly; PlanCard still in **First Month inline** layout. Customer line now reads `50 customers added · no limits this month` | ☐ |
+| 2.3 | — | Add 1 more customer manually (FAB) | Customer count = 51. PlanCard still inline; First Month chip still visible | ☐ |
+| 2.4 | — | Debug → Bulk seed → total=100, measurements=0, orders=0 → Seed | All 100 succeed; count = 151. PlanCard still inline (well below 200) | ☐ |
+| 2.5 | — | Debug → Bulk seed → total=49 → Seed | Lands at 200 customers. The 200th customer should hit the **white-glove escalation screen** (PR 6) — "You're moving fast! Reach out to support…" with WhatsApp CTA. | ☐ |
+| 2.6 | — | Verify Firestore: `users/{uid}.customerCount == 200` | Server-side counter agrees | ☐ |
+| 2.7 | — | Tap WhatsApp CTA on the escalation screen | WhatsApp opens with support number + intro message | ☐ |
 
-> **Why split into 24 → 25 → 29 → 30?** The PlanCard states transition at the 80% and 100% thresholds. Splitting the seed lets you verify each transition (inline → warn → locked) in a single test pass. Bulk-seed is additive — second seed adds on top of the first.
+> **Why this isn't a typical "fill the cap" test.** During First Month the cap is essentially invisible to users. Hitting 200 is a rare power-user case routed to a dedicated white-glove screen (PR 6), not a generic "you've reached your limit" state. The standard inline/warn/locked PlanCard states only fire **post-First-Month** when the cap drops to 15 — see Scenario 4 for that test.
 >
-> **Why not just bulk-seed 31?** `FirebaseCustomerRepository.createCustomer` enforces the cap on each insert. Bulk-seed silently stops at 30. The manual 31st-tap is what surfaces the upgrade-prompt copy in the form.
+> **Why bulk-seed 50, then 100, then 49?** Demonstrates the cap is unlimited from the user's perspective. The 200 is a system safety ceiling reached only by a power user uploading their entire customer book.
+>
+> **Skip 2.5–2.7 if PR 6 hasn't landed yet.** Without the white-glove screen, hitting 200 will show a generic CAP_REACHED error from the cap-reached bottom sheet.
 
 ---
 

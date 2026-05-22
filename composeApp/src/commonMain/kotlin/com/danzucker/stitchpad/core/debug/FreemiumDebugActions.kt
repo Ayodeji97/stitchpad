@@ -80,7 +80,7 @@ class DefaultFreemiumDebugActions(
         }
     }
 
-    /** Reset welcome window to now → 30-customer cap for one calendar month. */
+    /** Reset welcome window to now → First Month customer cap (200) for one calendar month. */
     override suspend fun resetWelcomeWindow(): DebugActionResult =
         userDocUpdate("resetWelcomeWindow") { doc ->
             doc.set(
