@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -168,22 +169,13 @@ class SettingsViewModel(
         val business = firestoreUser?.businessName.orEmpty().ifBlank {
             authUser.displayName.ifBlank { authUser.email.substringBefore('@') }
         }
-        // Tier-derived monthly AI draft limit. ATELIER_COIN_ALLOWANCE is 500 in code
-        // but for UI purposes Atelier should display as "unlimited" — so we treat it
-        // as null past the Pro threshold.
-        val aiLimit: Int? = when (entitlements.tier) {
-            com.danzucker.stitchpad.core.domain.model.SubscriptionTier.ATELIER -> null
-            else -> entitlements.smartCoinAllowance
-        }
-        // Drafts used = limit - remaining. Falls back to 0 when the in-memory cache
-        // is null (no successful draft this session). Per the V1.0 spec, the chip
-        // can lag the server doc until the next successful generation hydrates it;
-        // accept that lag for V1.0 (hydration-on-start ships in V1.1).
-        val aiDraftsUsed = when {
-            aiLimit == null -> 0
-            remainingAiQuota == null -> 0
-            else -> (aiLimit - remainingAiQuota).coerceAtLeast(0)
-        }
+        val aiDisplay = computeAiDisplay(
+            tier = entitlements.tier,
+            isInWelcomeWindow = entitlements.isInWelcomeWindow,
+            smartCoinAllowance = entitlements.smartCoinAllowance,
+            bonusCoinsRemaining = firestoreUser?.bonusCoins,
+            remainingMonthlyQuota = remainingAiQuota,
+        )
         return SettingsState(
             isLoading = false,
             businessName = business,
@@ -195,8 +187,8 @@ class SettingsViewModel(
             subscriptionTier = entitlements.tier,
             customerCount = customerCount,
             customerLimit = if (entitlements.customerCap == Int.MAX_VALUE) null else entitlements.customerCap,
-            aiDraftsUsed = aiDraftsUsed,
-            aiDraftLimit = aiLimit,
+            aiDraftsUsed = aiDisplay.used,
+            aiDraftLimit = aiDisplay.limit,
             isFirstMonth = entitlements.isInWelcomeWindow,
             welcomeDaysLeft = entitlements.welcomeDaysLeft,
             measurementUnit = ui.measurementUnit,
@@ -259,5 +251,46 @@ class SettingsViewModel(
 
     private fun emit(event: SettingsEvent) {
         viewModelScope.launch { _events.send(event) }
+    }
+}
+
+/**
+ * What the PlanCard renders for AI usage: a tier-derived limit + the count consumed
+ * against it. Atelier maps to (null, 0) — null limit means "unlimited" to PlanCard
+ * which short-circuits to PlanCardPaid.
+ */
+internal data class AiDisplay(val limit: Int?, val used: Int)
+
+/**
+ * Pure mapping from entitlements + raw quota mirrors → what to show on PlanCard.
+ *
+ * Three branches by spec decision #6:
+ * - **Atelier** → (null, 0): unlimited, no fraction shown
+ * - **First Month** → (30, 30 - bonusCoinsRemaining): tracks welcome-bonus consumption
+ * - **Post-First-Month (Free / Pro)** → (smartCoinAllowance, allowance - remainingMonthlyQuota)
+ *
+ * `bonusCoinsRemaining == null` (pre-V1.0 account without the field) is treated as the
+ * full 30 so first-time render shows "0 of 30 used", not "30 of 30 used". Same idea for
+ * `remainingMonthlyQuota == null` post-First-Month — defaults to 0 used (the known V1.0
+ * chip-staleness quirk; will be hydrated from Firestore in V1.1).
+ */
+internal fun computeAiDisplay(
+    tier: com.danzucker.stitchpad.core.domain.model.SubscriptionTier,
+    isInWelcomeWindow: Boolean,
+    smartCoinAllowance: Int,
+    bonusCoinsRemaining: Int?,
+    remainingMonthlyQuota: Int?,
+): AiDisplay = when {
+    tier == com.danzucker.stitchpad.core.domain.model.SubscriptionTier.ATELIER ->
+        AiDisplay(limit = null, used = 0)
+    isInWelcomeWindow -> {
+        val limit = FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT
+        val remaining = bonusCoinsRemaining ?: limit
+        AiDisplay(limit = limit, used = (limit - remaining).coerceAtLeast(0))
+    }
+    else -> {
+        val used = if (remainingMonthlyQuota == null) 0
+        else (smartCoinAllowance - remainingMonthlyQuota).coerceAtLeast(0)
+        AiDisplay(limit = smartCoinAllowance, used = used)
     }
 }

@@ -123,9 +123,13 @@ fun PlanCard(
     modifier: Modifier = Modifier,
     upgradePriceNgn: String = "2,000",
 ) {
-    // Paid tiers with unlimited everything: short-circuit to the "you're on Pro/Atelier"
-    // card. Pro/Atelier AI exhaustion surfaces via a snackbar in DraftMessageVM, not here.
-    if (customerLimit == null && aiDraftLimit == null) {
+    // Any paid tier short-circuits to the "you're on Pro/Atelier" card regardless of
+    // their AI quota state. The previous gate required BOTH customer- and AI-limits to
+    // be null, which broke Pro (customerLimit = null, aiDraftLimit = 50) — Pro fell
+    // through to the Free state machine and rendered "42 of 0 customers" garbage at the
+    // PlanCardInline branch. Pro/Atelier AI exhaustion surfaces via a snackbar from
+    // DraftMessageViewModel (pro_quota_exhausted marker), not the PlanCard.
+    if (tier != SubscriptionTier.FREE) {
         PlanCardPaid(tier = tier, modifier = modifier)
         return
     }
