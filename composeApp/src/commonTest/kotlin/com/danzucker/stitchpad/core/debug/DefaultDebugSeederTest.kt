@@ -142,4 +142,62 @@ class DefaultDebugSeederTest {
 
         assertTrue(result is SeedResult.Failure, "expected Failure, got $result")
     }
+
+    @Test
+    fun `seedBulkCustomers creates N customers, M measurements, O orders`() = runTest {
+        val result = createSeeder().seedBulkCustomers(
+            count = 30,
+            withMeasurementsCount = 5,
+            withOrdersCount = 3,
+        )
+
+        assertTrue(result is SeedResult.Success, "expected Success, got $result")
+        assertEquals(30, customerRepository.customersList.size)
+        assertEquals(3, orderRepository.ordersList.size)
+        assertNotNull(measurementRepository.lastCreatedMeasurement)
+    }
+
+    @Test
+    fun `seedBulkCustomers is additive over existing data`() = runTest {
+        customerRepository.customersList = listOf(
+            Customer(
+                id = "pre-existing",
+                userId = "test-uid",
+                name = "Existing",
+                phone = "+1",
+                createdAt = 0,
+            )
+        )
+
+        val result = createSeeder().seedBulkCustomers(
+            count = 5,
+            withMeasurementsCount = 0,
+            withOrdersCount = 0,
+        )
+
+        assertTrue(result is SeedResult.Success, "expected Success, got $result")
+        assertEquals(6, customerRepository.customersList.size)
+    }
+
+    @Test
+    fun `seedBulkCustomers rejects zero count`() = runTest {
+        val result = createSeeder().seedBulkCustomers(
+            count = 0,
+            withMeasurementsCount = 0,
+            withOrdersCount = 0,
+        )
+
+        assertTrue(result is SeedResult.Failure, "expected Failure, got $result")
+    }
+
+    @Test
+    fun `seedBulkCustomers rejects measurement count exceeding total`() = runTest {
+        val result = createSeeder().seedBulkCustomers(
+            count = 5,
+            withMeasurementsCount = 6,
+            withOrdersCount = 0,
+        )
+
+        assertTrue(result is SeedResult.Failure, "expected Failure, got $result")
+    }
 }

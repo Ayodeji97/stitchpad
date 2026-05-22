@@ -44,6 +44,18 @@ class DebugMenuViewModel(
                 DebugScenario.ActiveWorkshop
             ) { seeder.seedActiveWorkshop() }
             DebugMenuAction.OnSeedAllReconnectClick -> runSeed(DebugScenario.AllReconnect) { seeder.seedAllReconnect() }
+            DebugMenuAction.OnBulkSeedClick -> _state.update { it.copy(bulkSeed = BulkSeedDialogState()) }
+            DebugMenuAction.OnBulkSeedDismiss -> _state.update { it.copy(bulkSeed = null) }
+            is DebugMenuAction.OnBulkSeedTotalChange -> _state.update {
+                it.copy(bulkSeed = it.bulkSeed?.copy(totalInput = action.value.filter(Char::isDigit)))
+            }
+            is DebugMenuAction.OnBulkSeedMeasurementsChange -> _state.update {
+                it.copy(bulkSeed = it.bulkSeed?.copy(measurementsInput = action.value.filter(Char::isDigit)))
+            }
+            is DebugMenuAction.OnBulkSeedOrdersChange -> _state.update {
+                it.copy(bulkSeed = it.bulkSeed?.copy(ordersInput = action.value.filter(Char::isDigit)))
+            }
+            DebugMenuAction.OnBulkSeedConfirm -> runBulkSeed()
             DebugMenuAction.OnClearActiveScenarioClick -> {
                 _state.update { it.copy(activeScenario = null) }
                 emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Active state cleared")))
@@ -80,6 +92,45 @@ class DebugMenuViewModel(
             emit(DebugMenuEvent.NavigateToLogin)
         } else {
             emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Sign-out failed")))
+        }
+    }
+
+    private fun runSetSmartUsage() {
+        val dialog = _state.value.smartUsage ?: return
+        if (!dialog.isValid) return
+        val count = dialog.count ?: return
+        val bonus = dialog.bonus ?: return
+        _state.update { it.copy(smartUsage = null) }
+        runJob {
+            val r = freemiumActions.setSmartUsage(
+                monthlyCount = count,
+                bonusBalance = bonus,
+                nowMs = now(),
+            )
+            val message = when (r) {
+                DebugActionResult.Success ->
+                    UiText.DynamicString("Smart usage: count=$count, bonus=$bonus")
+                is DebugActionResult.Failure ->
+                    UiText.DynamicString("Set Smart usage failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
+        }
+    }
+
+    private fun runBulkSeed() {
+        val dialog = _state.value.bulkSeed ?: return
+        if (!dialog.isValid) return
+        val total = dialog.total ?: return
+        val measurements = dialog.measurements ?: return
+        val orders = dialog.orders ?: return
+        _state.update { it.copy(bulkSeed = null) }
+        runJob {
+            val r = seeder.seedBulkCustomers(total, measurements, orders)
+            val message = when (r) {
+                SeedResult.Success -> UiText.DynamicString("Seeded $total customers")
+                is SeedResult.Failure -> UiText.DynamicString("Bulk seed failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
         }
     }
 
@@ -120,6 +171,19 @@ class DebugMenuViewModel(
             DebugMenuAction.OnResetSmartUsageClick -> runFreemium("Smart usage reset") {
                 freemiumActions.resetSmartUsage()
             }
+            DebugMenuAction.OnSetSmartUsageClick -> _state.update {
+                it.copy(smartUsage = SmartUsageDialogState())
+            }
+            DebugMenuAction.OnSetSmartUsageDismiss -> _state.update {
+                it.copy(smartUsage = null)
+            }
+            is DebugMenuAction.OnSetSmartUsageCountChange -> _state.update {
+                it.copy(smartUsage = it.smartUsage?.copy(countInput = action.value.filter(Char::isDigit)))
+            }
+            is DebugMenuAction.OnSetSmartUsageBonusChange -> _state.update {
+                it.copy(smartUsage = it.smartUsage?.copy(bonusInput = action.value.filter(Char::isDigit)))
+            }
+            DebugMenuAction.OnSetSmartUsageConfirm -> runSetSmartUsage()
             DebugMenuAction.OnReconcileSlotsClick -> runFreemium("Slots reconciled") {
                 freemiumActions.reconcileSlots()
             }

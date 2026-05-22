@@ -9,24 +9,33 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowDivider
@@ -99,6 +108,14 @@ fun DebugMenuScreen(
                         onClick = { onAction(DebugMenuAction.OnClearActiveScenarioClick) },
                     )
                 }
+            }
+
+            SettingsSectionCard(label = "Bulk seed") {
+                SettingsRow(
+                    icon = Icons.Outlined.Group,
+                    label = "Seed N demo customers…",
+                    onClick = { onAction(DebugMenuAction.OnBulkSeedClick) },
+                )
             }
 
             SettingsSectionCard(label = "Session") {
@@ -189,6 +206,12 @@ fun DebugMenuScreen(
                     label = "Reset Smart usage doc",
                     onClick = { onAction(DebugMenuAction.OnResetSmartUsageClick) },
                 )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.MonetizationOn,
+                    label = "Set Smart usage…",
+                    onClick = { onAction(DebugMenuAction.OnSetSmartUsageClick) },
+                )
             }
 
             SettingsSectionCard(label = "Freemium · slots") {
@@ -208,7 +231,143 @@ fun DebugMenuScreen(
                 )
             }
         }
+
+        state.bulkSeed?.let { dialog ->
+            BulkSeedDialog(
+                state = dialog,
+                onAction = onAction,
+            )
+        }
+        state.smartUsage?.let { dialog ->
+            SmartUsageDialog(
+                state = dialog,
+                onAction = onAction,
+            )
+        }
     }
+}
+
+@Composable
+private fun SmartUsageDialog(
+    state: SmartUsageDialogState,
+    onAction: (DebugMenuAction) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { onAction(DebugMenuAction.OnSetSmartUsageDismiss) },
+        title = {
+            Text(
+                text = "Set Smart usage",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Writes users/{uid}/usage/smart_drafts directly. " +
+                        "Skip count=5 to land at \"next call → upgrade sheet\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = state.countInput,
+                    onValueChange = { onAction(DebugMenuAction.OnSetSmartUsageCountChange(it)) },
+                    label = { Text("Free drafts used this month") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = state.bonusInput,
+                    onValueChange = { onAction(DebugMenuAction.OnSetSmartUsageBonusChange(it)) },
+                    label = { Text("Bonus coin balance") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onAction(DebugMenuAction.OnSetSmartUsageConfirm) },
+                enabled = state.isValid,
+            ) {
+                Text(text = "Apply", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAction(DebugMenuAction.OnSetSmartUsageDismiss) }) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+private fun BulkSeedDialog(
+    state: BulkSeedDialogState,
+    onAction: (DebugMenuAction) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { onAction(DebugMenuAction.OnBulkSeedDismiss) },
+        title = {
+            Text(
+                text = "Seed demo customers",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Additive — does not wipe existing data. " +
+                        "Subject to your current tier's customer cap.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = state.totalInput,
+                    onValueChange = { onAction(DebugMenuAction.OnBulkSeedTotalChange(it)) },
+                    label = { Text("Total customers") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = state.measurementsInput,
+                    onValueChange = { onAction(DebugMenuAction.OnBulkSeedMeasurementsChange(it)) },
+                    label = { Text("# with measurements") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = state.ordersInput,
+                    onValueChange = { onAction(DebugMenuAction.OnBulkSeedOrdersChange(it)) },
+                    label = { Text("# with orders") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onAction(DebugMenuAction.OnBulkSeedConfirm) },
+                enabled = state.isValid,
+            ) {
+                Text(text = "Seed", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAction(DebugMenuAction.OnBulkSeedDismiss) }) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable
@@ -240,6 +399,22 @@ private fun DebugMenuScreenNotConfiguredPreview() {
     StitchPadTheme {
         DebugMenuScreen(
             state = DebugMenuState(testAccountsConfigured = false),
+            snackbarHostState = SnackbarHostState(),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun DebugMenuScreenBulkSeedDialogPreview() {
+    StitchPadTheme {
+        DebugMenuScreen(
+            state = DebugMenuState(
+                testAccountsConfigured = true,
+                bulkSeed = BulkSeedDialogState(),
+            ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},
         )

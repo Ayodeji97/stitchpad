@@ -9,6 +9,9 @@ import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.Timestamp
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 private const val TAG = "FreemiumDebugActions"
 private const val USERS = "users"
@@ -30,6 +33,11 @@ interface FreemiumDebugActions {
     suspend fun resetWelcomeWindow(): DebugActionResult
     suspend fun setBonusCoins(coins: Int): DebugActionResult
     suspend fun resetSmartUsage(): DebugActionResult
+    suspend fun setSmartUsage(
+        monthlyCount: Int,
+        bonusBalance: Int,
+        nowMs: Long,
+    ): DebugActionResult
     suspend fun reconcileSlots(): DebugActionResult
 }
 
@@ -112,6 +120,51 @@ class DefaultFreemiumDebugActions(
             AppLogger.e(tag = TAG, throwable = e) { "resetSmartUsage failed" }
             DebugActionResult.Failure(e.message ?: "Unknown error")
         }
+    }
+
+    /**
+     * Force the Smart usage doc to a chosen state. Bypasses real AI calls so
+     * testers can land at "5/5 free drafts used → next call fires upgrade
+     * sheet" or "bonus drained, free unused" without generating dozens of
+     * drafts. monthYear is pinned to the current Africa/Lagos month so the
+     * server doesn't reset the counter on the next call.
+     *
+     * NOTE: writes `bonusLiftedAt` to the current epoch ms so the server
+     * does not re-lift the 30-coin welcome bonus on top of the values we
+     * just wrote (server lifts exactly once, gated by this field).
+     */
+    override suspend fun setSmartUsage(
+        monthlyCount: Int,
+        bonusBalance: Int,
+        nowMs: Long,
+    ): DebugActionResult {
+        val uid = authRepository.getCurrentUser()?.id
+            ?: return DebugActionResult.Failure("Not signed in")
+        val monthYear = currentMonthYear(nowMs)
+        return try {
+            firestore.collection(USERS).document(uid)
+                .collection(USAGE).document(SMART_DRAFTS)
+                .set(
+                    mapOf(
+                        "monthYear" to monthYear,
+                        "count" to monthlyCount,
+                        "bonusBalance" to bonusBalance,
+                        "bonusLiftedAt" to nowMs,
+                    ),
+                    merge = true,
+                )
+            DebugActionResult.Success
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "setSmartUsage failed" }
+            DebugActionResult.Failure(e.message ?: "Unknown error")
+        }
+    }
+
+    private fun currentMonthYear(nowMs: Long): String {
+        val local = Instant.fromEpochMilliseconds(nowMs)
+            .toLocalDateTime(TimeZone.of("Africa/Lagos"))
+        val mm = local.monthNumber.toString().padStart(2, '0')
+        return "${local.year}-$mm"
     }
 
     override suspend fun reconcileSlots(): DebugActionResult =

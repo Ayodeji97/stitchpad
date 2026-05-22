@@ -71,6 +71,11 @@ class DebugMenuViewModelTest {
         override suspend fun resetWelcomeWindow(): DebugActionResult = DebugActionResult.Success
         override suspend fun setBonusCoins(coins: Int): DebugActionResult = DebugActionResult.Success
         override suspend fun resetSmartUsage(): DebugActionResult = DebugActionResult.Success
+        override suspend fun setSmartUsage(
+            monthlyCount: Int,
+            bonusBalance: Int,
+            nowMs: Long,
+        ): DebugActionResult = DebugActionResult.Success
         override suspend fun reconcileSlots(): DebugActionResult = DebugActionResult.Success
     }
 
@@ -185,16 +190,91 @@ class DebugMenuViewModelTest {
         assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
     }
 
+    @Test
+    fun `OnBulkSeedClick opens dialog with defaults`() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(DebugMenuAction.OnBulkSeedClick)
+
+        val dialog = vm.state.first().bulkSeed
+        assertTrue(dialog != null)
+        assertEquals("30", dialog.totalInput)
+    }
+
+    @Test
+    fun `OnBulkSeedConfirm forwards count to seeder and closes dialog`() = runTest {
+        val vm = createViewModel()
+        seeder.seedBulkCustomersResult = SeedResult.Success
+
+        vm.onAction(DebugMenuAction.OnBulkSeedClick)
+        vm.onAction(DebugMenuAction.OnBulkSeedTotalChange("29"))
+        vm.onAction(DebugMenuAction.OnBulkSeedMeasurementsChange("5"))
+        vm.onAction(DebugMenuAction.OnBulkSeedOrdersChange("3"))
+        vm.onAction(DebugMenuAction.OnBulkSeedConfirm)
+
+        assertEquals(1, seeder.seedBulkCustomersCalls)
+        assertEquals(Triple(29, 5, 3), seeder.lastBulkSeedArgs)
+        assertEquals(null, vm.state.first().bulkSeed)
+    }
+
+    @Test
+    fun `OnSetSmartUsageClick opens dialog with defaults`() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(DebugMenuAction.OnSetSmartUsageClick)
+
+        val dialog = vm.state.first().smartUsage
+        assertTrue(dialog != null)
+        assertEquals("5", dialog.countInput)
+    }
+
+    @Test
+    fun `OnSetSmartUsageConfirm closes dialog on success`() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(DebugMenuAction.OnSetSmartUsageClick)
+        vm.onAction(DebugMenuAction.OnSetSmartUsageCountChange("4"))
+        vm.onAction(DebugMenuAction.OnSetSmartUsageBonusChange("0"))
+        vm.onAction(DebugMenuAction.OnSetSmartUsageConfirm)
+
+        assertEquals(null, vm.state.first().smartUsage)
+    }
+
+    @Test
+    fun `OnBulkSeedConfirm is no-op when input invalid`() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(DebugMenuAction.OnBulkSeedClick)
+        vm.onAction(DebugMenuAction.OnBulkSeedTotalChange("0"))
+        vm.onAction(DebugMenuAction.OnBulkSeedConfirm)
+
+        assertEquals(0, seeder.seedBulkCustomersCalls)
+        // Dialog remains open so user can fix input
+        assertTrue(vm.state.first().bulkSeed != null)
+    }
+
     private class FakeDebugSeeder : DebugSeeder {
         var seedBrandNewResult: SeedResult = SeedResult.Success
         var seedActiveWorkshopResult: SeedResult = SeedResult.Success
         var seedAllReconnectResult: SeedResult = SeedResult.Success
+        var seedBulkCustomersResult: SeedResult = SeedResult.Success
         var seedBrandNewCalls = 0
         var seedActiveWorkshopCalls = 0
+        var seedBulkCustomersCalls = 0
+        var lastBulkSeedArgs: Triple<Int, Int, Int>? = null
 
         override suspend fun seedBrandNew(): SeedResult { seedBrandNewCalls++; return seedBrandNewResult }
         override suspend fun seedActiveWorkshop(): SeedResult { seedActiveWorkshopCalls++; return seedActiveWorkshopResult }
         override suspend fun seedAllReconnect(): SeedResult = seedAllReconnectResult
+        override suspend fun seedBulkCustomers(
+            count: Int,
+            withMeasurementsCount: Int,
+            withOrdersCount: Int,
+        ): SeedResult {
+            seedBulkCustomersCalls++
+            lastBulkSeedArgs = Triple(count, withMeasurementsCount, withOrdersCount)
+            return seedBulkCustomersResult
+        }
         override suspend fun wipeAllData(): SeedResult = SeedResult.Success
     }
 }
