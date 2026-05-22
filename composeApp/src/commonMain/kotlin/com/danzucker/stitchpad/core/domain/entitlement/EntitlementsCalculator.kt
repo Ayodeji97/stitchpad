@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.core.domain.entitlement
 
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
-import kotlin.time.Duration.Companion.days
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
@@ -58,10 +57,10 @@ object EntitlementsCalculator {
         now: Instant,
         timeZone: TimeZone,
     ): UserEntitlements {
-        // `Instant + Duration` is the canonical signature across Kotlin/Native and JVM.
-        // The 3-arg form `plus(value, unit)` exists only on JVM kotlinx.datetime and
-        // silently breaks the iOS framework build — see [[feedback-kmp-jvm-only-apis]].
-        val welcomeEndsAt = welcomeBonusAppliedAt?.plus(WELCOME_WINDOW_DAYS.days)
+        val welcomeEndsAt = welcomeBonusAppliedAt?.plus(
+            value = WELCOME_WINDOW_DAYS.toLong() * SECONDS_PER_DAY,
+            unit = kotlin.time.DurationUnit.SECONDS,
+        )
 
         val isInWelcomeWindow = welcomeEndsAt != null && now < welcomeEndsAt
 
@@ -102,4 +101,5 @@ object EntitlementsCalculator {
         )
     }
 
+    private const val SECONDS_PER_DAY: Long = 24L * 60 * 60
 }
