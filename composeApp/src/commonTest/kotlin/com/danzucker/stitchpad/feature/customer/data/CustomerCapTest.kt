@@ -58,10 +58,11 @@ class CustomerCapTest {
     }
 
     @Test
-    fun countActiveCustomers_succeeds_at_welcome_cap_30_when_one_slot_free() {
-        // 29 ACTIVE slots, cap = 30 (welcome window) → one slot free
+    fun countActiveCustomers_does_not_reach_welcome_cap_well_below_it() {
+        // 29 ACTIVE slots, cap = WELCOME_CUSTOMER_CAP (First Month) → still well below the cap.
+        // Asserts the count is the active count, not a stale "cap reached" flag.
         val dtos = List(29) { makeDto(slotState = "active") }
-        val cap = EntitlementsCalculator.WELCOME_CUSTOMER_CAP // 30
+        val cap = EntitlementsCalculator.WELCOME_CUSTOMER_CAP
 
         val activeCount = countActiveCustomers(dtos)
         val capReached = activeCount >= cap
