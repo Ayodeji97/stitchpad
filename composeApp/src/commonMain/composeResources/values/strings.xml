@@ -1029,6 +1029,35 @@
     <string name="plan_card_cta_upgrade_now">Upgrade now</string>
     <string name="plan_card_cta_compare">Compare plans →</string>
 
+    <!-- PlanCard — First Month (V1.0 freemium) -->
+    <string name="plan_card_first_month_pill_one">First month · 1 day left</string>
+    <string name="plan_card_first_month_pill_other">First month · %1$d days left</string>
+    <string name="plan_card_first_month_ai_headline">AI drafts</string>
+    <string name="plan_card_first_month_ai_progress">%1$d of %2$d used</string>
+    <string name="plan_card_first_month_minutes_saved">~%1$d minutes saved drafting messages</string>
+    <string name="plan_card_first_month_customers_no_limits">%1$d customers added · no limits this month</string>
+    <string name="plan_card_first_month_help">How First Month works →</string>
+
+    <!-- PlanCard — AI Warn (used in both First Month and Post-First-Month Free) -->
+    <string name="plan_card_pill_ai_almost_out_first_month">First month · AI almost out</string>
+    <string name="plan_card_pill_ai_almost_out_free">Free · AI almost out</string>
+    <string name="plan_card_title_ai_warn_one">1 AI draft left this month</string>
+    <string name="plan_card_title_ai_warn_other">%1$d AI drafts left this month</string>
+    <string name="plan_card_subtitle_ai_warn_first_month">You\'re using AI heavily — Pro gives you 500 drafts a month.</string>
+    <string name="plan_card_subtitle_ai_warn_free">Pro gives you 500 drafts a month and unlimited customers.</string>
+
+    <!-- PlanCard — AI Locked (success-framed, used in both First Month and Post-First-Month Free) -->
+    <string name="plan_card_pill_ai_used_up_first_month">First month · AI used up</string>
+    <string name="plan_card_pill_ai_used_up_free">Free · AI used up</string>
+    <string name="plan_card_title_ai_locked">You used all %1$d AI drafts this month — ~%2$d minutes saved</string>
+    <string name="plan_card_subtitle_ai_locked">Pro tailors get 500 drafts a month. Never run out.</string>
+    <string name="plan_card_ai_resets_caption">AI resets next month</string>
+
+    <!-- PlanCard — Both Locked (rare worst case post-First-Month) -->
+    <string name="plan_card_pill_maxed_out">Free · Maxed out</string>
+    <string name="plan_card_title_maxed_out">You\'ve hit your customer limit AND used all AI drafts this month</string>
+    <string name="plan_card_subtitle_maxed_out">Pro: unlimited customers + 500 drafts a month.</string>
+
     <!-- Settings PlanCard (re-landed) -->
     <string name="plan_card_free_state">You&apos;re on Free</string>
     <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>

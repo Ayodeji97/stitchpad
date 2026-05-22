@@ -136,6 +136,10 @@ fun SettingsScreen(
                 tier = state.subscriptionTier,
                 customerCount = state.customerCount,
                 customerLimit = state.customerLimit,
+                aiDraftsUsed = state.aiDraftsUsed,
+                aiDraftLimit = state.aiDraftLimit,
+                isFirstMonth = state.isFirstMonth,
+                welcomeDaysLeft = state.welcomeDaysLeft,
                 onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
                 modifier = Modifier,
             )

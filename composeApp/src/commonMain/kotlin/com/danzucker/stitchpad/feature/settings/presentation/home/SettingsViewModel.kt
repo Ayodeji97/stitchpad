@@ -13,6 +13,7 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
@@ -57,6 +58,7 @@ class SettingsViewModel(
     private val customerRepository: CustomerRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val themePreferencesStore: ThemePreferencesStore,
+    private val smartUsageStore: SmartUsageStore,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -137,30 +139,50 @@ class SettingsViewModel(
             userRepository.observeUser(authUser.id),
             entitlementsProvider.flow,
             customerCountFlow,
+            smartUsageStore.remainingFreeQuota,
             uiState,
-        ) { firestoreUser, entitlements, customerCount, ui ->
+        ) { firestoreUser, entitlements, customerCount, remainingAi, ui ->
             buildState(
                 authUser = authUser,
                 provider = provider,
                 firestoreUser = firestoreUser,
                 entitlements = entitlements,
                 customerCount = customerCount,
+                remainingAiQuota = remainingAi,
                 ui = ui,
             )
         }
         combined.collect { emit(it) }
     }
 
+    @Suppress("LongParameterList")
     private fun buildState(
         authUser: com.danzucker.stitchpad.core.domain.model.User,
         provider: SignInProvider,
         firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
         entitlements: UserEntitlements,
         customerCount: Int,
+        remainingAiQuota: Int?,
         ui: LocalUiState,
     ): SettingsState {
         val business = firestoreUser?.businessName.orEmpty().ifBlank {
             authUser.displayName.ifBlank { authUser.email.substringBefore('@') }
+        }
+        // Tier-derived monthly AI draft limit. ATELIER_COIN_ALLOWANCE is 500 in code
+        // but for UI purposes Atelier should display as "unlimited" — so we treat it
+        // as null past the Pro threshold.
+        val aiLimit: Int? = when (entitlements.tier) {
+            com.danzucker.stitchpad.core.domain.model.SubscriptionTier.ATELIER -> null
+            else -> entitlements.smartCoinAllowance
+        }
+        // Drafts used = limit - remaining. Falls back to 0 when the in-memory cache
+        // is null (no successful draft this session). Per the V1.0 spec, the chip
+        // can lag the server doc until the next successful generation hydrates it;
+        // accept that lag for V1.0 (hydration-on-start ships in V1.1).
+        val aiDraftsUsed = when {
+            aiLimit == null -> 0
+            remainingAiQuota == null -> 0
+            else -> (aiLimit - remainingAiQuota).coerceAtLeast(0)
         }
         return SettingsState(
             isLoading = false,
@@ -173,6 +195,10 @@ class SettingsViewModel(
             subscriptionTier = entitlements.tier,
             customerCount = customerCount,
             customerLimit = if (entitlements.customerCap == Int.MAX_VALUE) null else entitlements.customerCap,
+            aiDraftsUsed = aiDraftsUsed,
+            aiDraftLimit = aiLimit,
+            isFirstMonth = entitlements.isInWelcomeWindow,
+            welcomeDaysLeft = entitlements.welcomeDaysLeft,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
             showSignOutDialog = ui.showSignOutDialog,
