@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
@@ -59,6 +60,8 @@ import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
 import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_founders_note
+import stitchpad.composeapp.generated.resources.settings_row_founders_note_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_debug_menu
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
@@ -231,6 +234,14 @@ fun SettingsScreen(
                     label = stringResource(Res.string.settings_row_contact),
                     subtitle = stringResource(Res.string.settings_row_contact_subtitle),
                     onClick = { onAction(SettingsAction.OnContactClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Info,
+                    label = stringResource(Res.string.settings_row_founders_note),
+                    subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
+                    onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
                     trailing = { SettingsRowChevron() },
                 )
             }

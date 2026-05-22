@@ -45,6 +45,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeE
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
+import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -68,6 +69,7 @@ import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
+import com.danzucker.stitchpad.navigation.FoundersNoteRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
 import org.jetbrains.compose.resources.stringResource
 
@@ -355,6 +357,12 @@ private fun MainNavGraph(
                 onSignedOut = onSignedOut,
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
+            )
+        }
+        composable<FoundersNoteRoute> {
+            FoundersNoteRoot(
+                onNavigateBack = { navController.navigateUp() },
             )
         }
         composable<EditProfileRoute> {
