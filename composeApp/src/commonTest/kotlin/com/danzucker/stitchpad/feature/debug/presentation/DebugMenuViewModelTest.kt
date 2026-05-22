@@ -69,6 +69,10 @@ class DebugMenuViewModelTest {
         override suspend fun setTier(tier: SubscriptionTier): DebugActionResult = DebugActionResult.Success
         override suspend fun expireWelcomeWindow(nowMs: Long): DebugActionResult = DebugActionResult.Success
         override suspend fun resetWelcomeWindow(): DebugActionResult = DebugActionResult.Success
+        override suspend fun setWelcomeDaysLeft(
+            daysLeft: Int,
+            nowMs: Long,
+        ): DebugActionResult = DebugActionResult.Success
         override suspend fun setBonusCoins(coins: Int): DebugActionResult = DebugActionResult.Success
         override suspend fun resetSmartUsage(): DebugActionResult = DebugActionResult.Success
         override suspend fun setSmartUsage(

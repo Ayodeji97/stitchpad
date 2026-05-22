@@ -120,6 +120,22 @@ class DebugMenuViewModel(
     }
 
     @Suppress("ReturnCount")
+    private fun runSetWelcomeDaysLeft() {
+        val dialog = _state.value.welcomeDaysLeft ?: return
+        if (!dialog.isValid) return
+        val days = dialog.days ?: return
+        _state.update { it.copy(welcomeDaysLeft = null) }
+        runJob {
+            val r = freemiumActions.setWelcomeDaysLeft(daysLeft = days, nowMs = now())
+            val message = when (r) {
+                DebugActionResult.Success -> UiText.DynamicString("Welcome window: $days days left")
+                is DebugActionResult.Failure -> UiText.DynamicString("Set days left failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
+        }
+    }
+
+    @Suppress("ReturnCount")
     private fun runBulkSeed() {
         val dialog = _state.value.bulkSeed ?: return
         if (!dialog.isValid) return
@@ -166,6 +182,16 @@ class DebugMenuViewModel(
             DebugMenuAction.OnResetWelcomeWindowClick -> runFreemium("Welcome window reset") {
                 freemiumActions.resetWelcomeWindow()
             }
+            DebugMenuAction.OnSetWelcomeDaysLeftClick -> _state.update {
+                it.copy(welcomeDaysLeft = WelcomeDaysLeftDialogState())
+            }
+            DebugMenuAction.OnSetWelcomeDaysLeftDismiss -> _state.update {
+                it.copy(welcomeDaysLeft = null)
+            }
+            is DebugMenuAction.OnSetWelcomeDaysLeftChange -> _state.update {
+                it.copy(welcomeDaysLeft = it.welcomeDaysLeft?.copy(daysInput = action.value.filter(Char::isDigit)))
+            }
+            DebugMenuAction.OnSetWelcomeDaysLeftConfirm -> runSetWelcomeDaysLeft()
             DebugMenuAction.OnDrainBonusCoinsClick -> runFreemium("Bonus coins drained") {
                 freemiumActions.setBonusCoins(0)
             }

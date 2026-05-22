@@ -2,25 +2,29 @@ package com.danzucker.stitchpad.core.domain.entitlement
 
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
 
 /**
  * Pure function: turn user-doc fields into a [UserEntitlements] snapshot.
  *
- * Welcome window definition (per the freemium spec): a new tailor's
- * welcome covers the calendar month they signed up in, in their local
- * timezone. The window ends at midnight on the first day of the NEXT
- * calendar month. Hard-coded to Africa/Lagos for V1.0 — V1.5 will pass
- * the user's timezone through.
+ * Welcome window definition (per the freemium V1.0 design spec, updated
+ * 2026-05-22): a new tailor's First Month is a **rolling 30 days from
+ * signup**. The window ends exactly 30 days after `welcomeBonusAppliedAt`,
+ * regardless of when in the calendar month they signed up — so every user
+ * gets the same 30-day experience, not "whatever's left of the month".
+ *
+ * (The previous calendar-month-aligned model was unfair to late-in-month
+ * signups: a tailor signing up on the 28th only got 3 days of First Month.
+ * Smart-draft monthly quota still resets on the Lagos calendar 1st — that's
+ * a separate billing-cycle concept handled by `freeTierCounter.ts`.)
  *
  * All limits (15-cap post-First-Month, 200-cap during First Month, coin
- * allowances) live here as constants — change them here, change them once.
- * The server-side counterpart is `functions/src/freemium/reconcileSlots.ts`
- * `effectiveCap` — keep both in lockstep.
+ * allowances, 30-day welcome) live here as constants — change them here,
+ * change them once. The server-side counterpart is
+ * `functions/src/freemium/reconcileSlots.ts` — keep `effectiveCap` and
+ * the welcome-end calculation in lockstep with the values below.
  */
 object EntitlementsCalculator {
 
@@ -40,26 +44,31 @@ object EntitlementsCalculator {
     const val ATELIER_COIN_ALLOWANCE: Int = 500
     const val WELCOME_ENDING_WARNING_DAYS: Int = 3
 
+    /**
+     * Length of the rolling First Month window in days, measured from
+     * `welcomeBonusAppliedAt`. MUST stay in lockstep with the server-side
+     * `WELCOME_WINDOW_DAYS` in `functions/src/freemium/reconcileSlots.ts`.
+     */
+    const val WELCOME_WINDOW_DAYS: Int = 30
+
     fun calculate(
         tier: SubscriptionTier,
         welcomeBonusAppliedAt: Instant?,
         now: Instant,
         timeZone: TimeZone,
     ): UserEntitlements {
-        val welcomeEndsAt = welcomeBonusAppliedAt?.let { signedUp ->
-            val signupLocal = signedUp.toLocalDateTime(timeZone)
-            // First day of the NEXT calendar month, at 00:00 local.
-            val nextMonth = signupLocal.date.plusMonths(1).withDayOfMonth1()
-            nextMonth.atStartOfDayIn(timeZone)
-        }
+        val welcomeEndsAt = welcomeBonusAppliedAt?.plus(
+            value = WELCOME_WINDOW_DAYS.toLong() * SECONDS_PER_DAY,
+            unit = kotlin.time.DurationUnit.SECONDS,
+        )
 
         val isInWelcomeWindow = welcomeEndsAt != null && now < welcomeEndsAt
 
-        // Lagos calendar days remaining. Computed once and used by both
-        // the warning flag and the banner copy so the dashboard never shows
-        // "2 days left" while the warning flag thinks 3 days remain
-        // (or vice versa) — that drift happened before, when the banner
-        // copy did `ms / 86_400_000` in the system default timezone.
+        // Days-remaining is computed against the user's local calendar day in
+        // [timeZone] (Africa/Lagos for V1.0) so the chip shows the same N
+        // regardless of what side of midnight the user opens the app — that's
+        // a UX requirement, not a math nicety. The conversion to LocalDate
+        // truncates time-of-day so partial-day fractions don't round oddly.
         val welcomeDaysLeft: Int? = welcomeEndsAt?.takeIf { isInWelcomeWindow }?.let { end ->
             val nowLocal = now.toLocalDateTime(timeZone).date
             val endLocal = end.toLocalDateTime(timeZone).date
@@ -92,23 +101,5 @@ object EntitlementsCalculator {
         )
     }
 
-    // ----- date helpers (kotlinx.datetime doesn't have these built in) -----
-
-    private fun LocalDate.plusMonths(n: Int): LocalDate {
-        val totalMonths = this.monthNumber + n
-        val newYear = this.year + (totalMonths - 1) / 12
-        val newMonth = ((totalMonths - 1) % 12) + 1
-        val daysInMonth = daysInMonth(newYear, newMonth)
-        return LocalDate(newYear, newMonth, this.dayOfMonth.coerceAtMost(daysInMonth))
-    }
-
-    private fun LocalDate.withDayOfMonth1(): LocalDate =
-        LocalDate(this.year, this.monthNumber, 1)
-
-    private fun daysInMonth(year: Int, month: Int): Int = when (month) {
-        1, 3, 5, 7, 8, 10, 12 -> 31
-        4, 6, 9, 11 -> 30
-        2 -> if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) 29 else 28
-        else -> error("bad month $month")
-    }
+    private const val SECONDS_PER_DAY: Long = 24L * 60 * 60
 }

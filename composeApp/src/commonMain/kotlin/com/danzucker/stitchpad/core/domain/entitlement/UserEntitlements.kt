@@ -20,9 +20,11 @@ data class UserEntitlements(
     /** True when the user is still inside their signup welcome window. */
     val isInWelcomeWindow: Boolean,
     /**
-     * When the welcome window expires (start of the next calendar month
-     * after signup). `null` once the window has ended or was never
-     * applied.
+     * When the welcome window expires — exactly
+     * [EntitlementsCalculator.WELCOME_WINDOW_DAYS] (30) after
+     * `welcomeBonusAppliedAt`. `null` once the window has ended or was
+     * never applied. Rolling-day math, NOT calendar-month aligned — see
+     * the EntitlementsCalculator KDoc for why.
      */
     val welcomeEndsAt: Instant?,
     /**

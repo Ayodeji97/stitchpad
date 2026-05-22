@@ -2,8 +2,9 @@ import {
   effectiveCap,
   selectSlotsToLock,
   CustomerSlotInfo,
-  endOfSignupMonthInLagos,
+  welcomeEndsAtMs,
   isInWelcomeWindow,
+  WELCOME_WINDOW_DAYS,
 } from '../../freemium/reconcileSlots';
 
 describe('selectSlotsToLock', () => {
@@ -94,37 +95,54 @@ describe('selectSlotsToLock', () => {
   });
 });
 
-describe('endOfSignupMonthInLagos', () => {
-  it('treats 2026-05-31T23:30:00Z as a JUNE signup in Lagos (June ends at 2026-07-01 00:00 Lagos)', () => {
-    // 2026-05-31T23:30Z = 2026-06-01T00:30 Lagos — so it is a June signup.
-    // June ends at 2026-07-01 00:00 Lagos = 2026-06-30 23:00 UTC.
-    const signupMs = Date.UTC(2026, 4, 31, 23, 30, 0); // 2026-05-31T23:30Z
-    const end = endOfSignupMonthInLagos(signupMs);
-    expect(end).toBe(Date.UTC(2026, 5, 30, 23, 0, 0));
+describe('welcomeEndsAtMs (rolling 30-day window)', () => {
+  // Switched from calendar-month-aligned to rolling 30-days on 2026-05-22 so
+  // every signup gets a fair First Month regardless of which day of the month
+  // they joined. MUST match Kotlin EntitlementsCalculator.WELCOME_WINDOW_DAYS.
+  it('returns exactly 30 days after signup', () => {
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0);
+    const expectedEnd = signupMs + 30 * 24 * 60 * 60 * 1000;
+    expect(welcomeEndsAtMs(signupMs)).toBe(expectedEnd);
   });
 
-  it('treats 2026-05-15T12:00:00Z as a MAY signup in Lagos', () => {
-    // 2026-05-15T12:00Z = 2026-05-15T13:00 Lagos — a May signup.
-    // May ends at 2026-06-01 00:00 Lagos = 2026-05-31 23:00 UTC.
-    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0);
-    const end = endOfSignupMonthInLagos(signupMs);
-    expect(end).toBe(Date.UTC(2026, 4, 31, 23, 0, 0));
+  it('uses the WELCOME_WINDOW_DAYS constant — not a hardcoded 30', () => {
+    // Pin the constant + literal so silent constant bumps fail this test.
+    expect(WELCOME_WINDOW_DAYS).toBe(30);
+    const signupMs = Date.UTC(2026, 4, 22, 0, 0, 0);
+    expect(welcomeEndsAtMs(signupMs))
+      .toBe(signupMs + WELCOME_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  });
+
+  it('does not depend on calendar boundaries — May 28 signup gets full 30 days', () => {
+    // The bug we fixed: under calendar-month logic, a May 28 signup only got
+    // 3 days of First Month. Under rolling-30, they get 30 days same as anyone.
+    const signupMs = Date.UTC(2026, 4, 28, 12, 0, 0);
+    const end = welcomeEndsAtMs(signupMs);
+    const daysOfWindow = (end - signupMs) / (24 * 60 * 60 * 1000);
+    expect(daysOfWindow).toBe(30);
   });
 });
 
-describe('isInWelcomeWindow (Lagos timezone)', () => {
-  it('returns true when now is before the end of the signup month in Lagos', () => {
-    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0); // May 15, Lagos
-    // Now = 2026-05-31T22:00Z — still inside May in Lagos (ends at 23:00Z).
-    const now = new Date(Date.UTC(2026, 4, 31, 22, 0, 0));
+describe('isInWelcomeWindow (rolling 30-day)', () => {
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  it('returns true 29 days after signup', () => {
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0);
+    const now = new Date(signupMs + 29 * dayMs);
     expect(isInWelcomeWindow(signupMs, now)).toBe(true);
   });
 
-  it('returns false when now is at or after the end of the signup month in Lagos', () => {
-    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0); // May 15, Lagos
-    // Now = 2026-05-31T23:00Z — exactly Lagos midnight June 1st, window closed.
-    const now = new Date(Date.UTC(2026, 4, 31, 23, 0, 0));
+  it('returns false exactly 30 days after signup', () => {
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0);
+    const now = new Date(signupMs + 30 * dayMs);
     expect(isInWelcomeWindow(signupMs, now)).toBe(false);
+  });
+
+  it('returns true just before the 30-day boundary', () => {
+    const signupMs = Date.UTC(2026, 4, 15, 12, 0, 0);
+    // One millisecond before the boundary — still inside the window.
+    const now = new Date(signupMs + 30 * dayMs - 1);
+    expect(isInWelcomeWindow(signupMs, now)).toBe(true);
   });
 
   it('returns false for undefined welcomeAppliedAtMs', () => {

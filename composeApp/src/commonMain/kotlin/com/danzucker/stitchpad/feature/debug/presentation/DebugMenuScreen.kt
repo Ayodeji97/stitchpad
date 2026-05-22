@@ -186,6 +186,12 @@ fun DebugMenuScreen(
                     label = "Reset welcome window (now)",
                     onClick = { onAction(DebugMenuAction.OnResetWelcomeWindowClick) },
                 )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.HourglassEmpty,
+                    label = "Set welcome days left…",
+                    onClick = { onAction(DebugMenuAction.OnSetWelcomeDaysLeftClick) },
+                )
             }
 
             SettingsSectionCard(label = "Freemium · Smart coins") {
@@ -244,7 +250,58 @@ fun DebugMenuScreen(
                 onAction = onAction,
             )
         }
+        state.welcomeDaysLeft?.let { dialog ->
+            WelcomeDaysLeftDialog(
+                state = dialog,
+                onAction = onAction,
+            )
+        }
     }
+}
+
+@Composable
+private fun WelcomeDaysLeftDialog(
+    state: WelcomeDaysLeftDialogState,
+    onAction: (DebugMenuAction) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { onAction(DebugMenuAction.OnSetWelcomeDaysLeftDismiss) },
+        title = {
+            Text(text = "Set welcome days left", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Backdates welcomeBonusAppliedAt so the rolling 30-day " +
+                        "First Month window ends in N days. Range: 0–30.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = state.daysInput,
+                    onValueChange = { onAction(DebugMenuAction.OnSetWelcomeDaysLeftChange(it)) },
+                    label = { Text("Days left (0–30)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onAction(DebugMenuAction.OnSetWelcomeDaysLeftConfirm) },
+                enabled = state.isValid,
+            ) {
+                Text(text = "Apply", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAction(DebugMenuAction.OnSetWelcomeDaysLeftDismiss) }) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

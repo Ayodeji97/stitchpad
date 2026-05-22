@@ -904,7 +904,7 @@ These were discussed but not locked. Revisit before V1.0 ship:
 
 | Term | Meaning |
 |---|---|
-| **First Month** | The 30-day calendar-month period after signup. Internal field: `welcomeBonusAppliedAt`. |
+| **First Month** | A rolling 30-day window from signup (`welcomeBonusAppliedAt + WELCOME_WINDOW_DAYS`). Switched from calendar-month-aligned on 2026-05-22 because the latter was unfair to late-month signups. Smart-draft monthly quota is a separate concept and stays calendar-month. |
 | **Locked customer** | A customer in the read-only state (not deleted, not hidden). |
 | **Active 15** | The 15 most-recent/active customers a Free user keeps post-First-Month. |
 | **Auto-pin** | The deterministic algorithm that picks which customers stay active. |
@@ -928,3 +928,5 @@ These were discussed but not locked. Revisit before V1.0 ship:
 | 2026-05-22 | Referral: +2 slots stacking, 1 month Pro per 5 paying refs (discrete) | Daniel |
 | 2026-05-22 | No individual referral names displayed | Daniel |
 | 2026-05-22 | No fabricated testimonials at V1.0 | Daniel |
+| 2026-05-22 | **First Month → rolling 30-days from signup** (was calendar-month aligned). Smart-draft monthly quota stays calendar-month. Constant: `WELCOME_WINDOW_DAYS = 30`. | Daniel |
+| 2026-05-22 | Add "Set welcome days left…" debug action (0–30) for testing the 3-day warning, singular-day pill, and post-First-Month transition without clock mocking | Daniel |

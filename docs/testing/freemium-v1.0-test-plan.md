@@ -95,13 +95,16 @@ The PlanCard during First Month uses a **different layout** from post-First-Mont
 
 Tests the "Your welcome ends in N days" dashboard banner.
 
-> **⚠️ Calendar-locked test.** The welcome window expires at midnight on the 1st of the next calendar month (Africa/Lagos). The 3-day warning fires only when today is within 3 days of that boundary. There is **no debug helper** to fake "today" — you can only run this test in the last 3 days of any calendar month, OR by manually backdating `welcomeBonusAppliedAt` in the Firebase Console to a date in last month (which immediately expires the window — see Scenario 4).
+> The welcome window is a **rolling 30 days** from signup — see `EntitlementsCalculator.WELCOME_WINDOW_DAYS`. The 3-day warning fires when `welcomeDaysLeft <= 3`. Use the new debug helper to land at any day-left state instantly, no clock mocking needed.
 
 | # | Setup | Action | Expected | Pass? |
 |---|---|---|---|---|
-| 3.1 | Only runnable in last 3 days of month | Sandbox reset, then open Dashboard | "Your welcome ends in N day(s)" banner appears with Upgrade CTA | ☐ |
-| 3.2 | — | Tap CTA | UpgradeScreen opens | ☐ |
-| 3.3 | — | Verify `welcomeDaysLeft <= 3` in app state | Logs / Reduxomatic shows the value | ☐ |
+| 3.1 | Sandbox reset done | Debug → Freemium · welcome window → **Set welcome days left… → 2 → Apply** | Snackbar: "Welcome window: 2 days left". App state propagates within a beat | ☐ |
+| 3.2 | — | Open Dashboard | "Your first month ends in 2 days" banner appears with Upgrade CTA | ☐ |
+| 3.3 | — | Tap CTA | UpgradeScreen opens | ☐ |
+| 3.4 | — | Debug → Set welcome days left → **1** | Banner copy uses singular form: "Your first month ends tomorrow" (validates plural string from PR 1) | ☐ |
+| 3.5 | — | Debug → Set welcome days left → **0** | Banner disappears; PlanCard transitions to post-First-Month state (15-cap visible). Foreground triggers `reconcileSlots` per PR 5 | ☐ |
+| 3.6 | — | Debug → Set welcome days left → **30** | Fresh full-window state: PlanCard pill "First month · 30 days left", no warning banner | ☐ |
 
 If you can't run this in the calendar window, document as **skipped** and re-test at month-end.
 
@@ -214,7 +217,7 @@ Quick check that signing out + back in doesn't leak state.
 These are expected behaviors that may look confusing during testing:
 
 - **Smart chip lag.** The dashboard "X of 5 free drafts" chip reads from a **process-local in-memory cache** that only updates after a real successful draft. If you use `Set Smart usage` debug action to change the Firestore doc, the chip won't reflect it until you (a) sign out + back in, or (b) generate one successful draft. **The server is still authoritative** — the upgrade sheet fires correctly even when the chip is stale. V1.1 will add Firestore-backed chip hydration.
-- **Welcome 3-day warning calendar-locked.** As noted in Scenario 3, this only fires when today is within 3 days of the next-month boundary. No debug shortcut without also mocking the clock (out of scope for V1.0).
+- **Rolling 30-day welcome window.** First Month is a rolling 30 days from `welcomeBonusAppliedAt`, NOT calendar-month-aligned. The Debug → "Set welcome days left…" action backdates `welcomeBonusAppliedAt` so the chip shows exactly N days remaining without waiting in real time.
 - **`Drain bonus coins`** writes to the user-doc `bonusCoins` field (the seed), NOT to the `bonusBalance` on the usage doc (the lifted balance). Use **Set Smart usage** to control the lifted balance the server actually checks during Smart calls.
 - **Bulk-seed is additive.** It doesn't wipe — pair with `Wipe my data` first if you need a clean slate. Subject to current tier cap (won't seed past 30 on Free welcome).
 - **Welcome 30-cap collisions.** If you've already added customers and then `Reset welcome window`, the cap remains at 30. To re-test the cap-hit copy, use `Wipe my data` first.
