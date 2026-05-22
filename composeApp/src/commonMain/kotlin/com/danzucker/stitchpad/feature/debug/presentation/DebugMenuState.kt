@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.debug.presentation
 
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
+
 enum class DebugScenario {
     BrandNew,
     ActiveWorkshop,
@@ -16,13 +18,11 @@ data class DebugMenuState(
 )
 
 data class WelcomeDaysLeftDialogState(
-    val daysInput: String = "30",
+    val daysInput: String = EntitlementsCalculator.WELCOME_WINDOW_DAYS.toString(),
 ) {
     val days: Int? get() = daysInput.toIntOrNull()
-    val isValid: Boolean get() = days?.let { it in 0..MAX_DAYS } ?: false
-    companion object {
-        const val MAX_DAYS: Int = 30
-    }
+    val isValid: Boolean
+        get() = days?.let { it in 0..EntitlementsCalculator.WELCOME_WINDOW_DAYS } ?: false
 }
 
 data class SmartUsageDialogState(

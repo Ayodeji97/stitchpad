@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.core.debug
 
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -18,8 +19,10 @@ private const val USERS = "users"
 private const val USAGE = "usage"
 private const val SMART_DRAFTS = "smart_drafts"
 private const val MS_PER_DAY = 24L * 60 * 60 * 1000
-private const val WELCOME_WINDOW_DAYS = 30
-private const val EXPIRED_WINDOW_OFFSET_MS = (WELCOME_WINDOW_DAYS + 5L) * MS_PER_DAY
+// 5 days of headroom past the rolling welcome window so backdating
+// definitely lands outside it even after a partial-day rounding error.
+private val EXPIRED_WINDOW_OFFSET_MS =
+    (EntitlementsCalculator.WELCOME_WINDOW_DAYS + 5L) * MS_PER_DAY
 
 /**
  * Debug-only knobs for the V1.0 freemium model. Writes directly to the
@@ -106,8 +109,8 @@ class DefaultFreemiumDebugActions(
      * 30-day window ends in [daysLeft] more days. Clamps to 0..30.
      */
     override suspend fun setWelcomeDaysLeft(daysLeft: Int, nowMs: Long): DebugActionResult {
-        val clamped = daysLeft.coerceIn(0, WELCOME_WINDOW_DAYS)
-        val daysIntoWindow = WELCOME_WINDOW_DAYS - clamped
+        val clamped = daysLeft.coerceIn(0, EntitlementsCalculator.WELCOME_WINDOW_DAYS)
+        val daysIntoWindow = EntitlementsCalculator.WELCOME_WINDOW_DAYS - clamped
         val backdatedMs = nowMs - daysIntoWindow.toLong() * MS_PER_DAY
         val backdatedTimestamp = Timestamp(
             seconds = backdatedMs / 1000,

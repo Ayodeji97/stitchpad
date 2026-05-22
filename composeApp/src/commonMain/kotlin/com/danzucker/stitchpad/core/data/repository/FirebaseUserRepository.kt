@@ -117,8 +117,8 @@ class FirebaseUserRepository(
      * Initial user-doc shape written on first signup. Includes the
      * V1.0 freemium fields: welcome-bonus marker so EntitlementsCalculator
      * grants the First Month customer cap (WELCOME_CUSTOMER_CAP = 200) for
-     * the first calendar month, and a `bonusCoins` field that's a fast
-     * path for the client UI (server
+     * a rolling WELCOME_WINDOW_DAYS (30) window from signup, and a
+     * `bonusCoins` field that's a fast path for the client UI (server
      * is still source of truth via the usage doc).
      *
      * Note: bonusCoins on the user doc is for display only — the server's

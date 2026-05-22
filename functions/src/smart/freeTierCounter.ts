@@ -73,10 +73,12 @@ export function isExhausted(doc: FreeTierUsageDoc): boolean {
   return doc.count >= doc.limit;
 }
 
-// Africa/Lagos so the monthly Smart quota rolls over at the same instant as the
-// welcome-window expiry (reconcileSlots.ts isInWelcomeWindow). Using UTC here
-// would have created a ~1-hour skew at every month boundary: bonus accounting
-// keyed on the Lagos calendar month, monthly count keyed on the UTC month.
+// Africa/Lagos so the monthly Smart quota rolls over at midnight Lagos local,
+// matching what a Nigerian tailor expects when they read "5 free drafts a
+// month". Using UTC here would shift the rollover an hour earlier in local
+// time. NOTE: this is independent from the welcome-window expiry — that's a
+// rolling 30-day-from-signup window per user (see reconcileSlots.ts
+// welcomeEndsAtMs), not a calendar-month-aligned event.
 const LAGOS_TZ = 'Africa/Lagos';
 const LAGOS_MONTH_YEAR_FMT = new Intl.DateTimeFormat('en-CA', {
   timeZone: LAGOS_TZ,

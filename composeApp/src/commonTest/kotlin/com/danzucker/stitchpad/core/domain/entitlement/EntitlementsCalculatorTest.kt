@@ -87,6 +87,32 @@ class EntitlementsCalculatorTest {
     }
 
     @Test
+    fun welcome_window_is_exclusive_at_exact_boundary_instant() {
+        // Mirrors the TS test `isInWelcomeWindow returns false exactly 30 days after
+        // signup`. The boundary is exclusive (`now < welcomeEndsAt`), so at the
+        // exact 30-day instant the window is closed.
+        val signedUp = Instant.parse("2026-04-10T10:00:00Z")
+        val exactlyAtBoundary = Instant.parse("2026-05-10T10:00:00Z") // signedUp + 30 days
+        val justInside = Instant.parse("2026-05-10T09:59:59.999Z")
+
+        val atBoundary = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.FREE,
+            welcomeBonusAppliedAt = signedUp,
+            now = exactlyAtBoundary,
+            timeZone = tz,
+        )
+        val insideBoundary = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.FREE,
+            welcomeBonusAppliedAt = signedUp,
+            now = justInside,
+            timeZone = tz,
+        )
+
+        assertFalse(atBoundary.isInWelcomeWindow, "At exact 30-day instant, window is closed")
+        assertTrue(insideBoundary.isInWelcomeWindow, "1ms before the boundary is still inside")
+    }
+
+    @Test
     fun pro_user_has_unlimited_customers_and_50_coins() {
         val e = EntitlementsCalculator.calculate(
             tier = SubscriptionTier.PRO,
