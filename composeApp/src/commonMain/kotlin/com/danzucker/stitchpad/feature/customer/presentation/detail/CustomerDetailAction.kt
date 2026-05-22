@@ -10,6 +10,7 @@ sealed interface CustomerDetailAction {
     data object OnConfirmDelete : CustomerDetailAction
     data object OnDismissDeleteDialog : CustomerDetailAction
     data object OnViewStylesClick : CustomerDetailAction
+    data object OnUpgradeClick : CustomerDetailAction
     data object OnNavigateBack : CustomerDetailAction
     data object OnErrorDismiss : CustomerDetailAction
 }

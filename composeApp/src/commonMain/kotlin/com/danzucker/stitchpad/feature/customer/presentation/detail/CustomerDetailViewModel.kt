@@ -70,6 +70,9 @@ class CustomerDetailViewModel(
             CustomerDetailAction.OnViewStylesClick -> {
                 viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToStyleGallery(customerId)) }
             }
+            CustomerDetailAction.OnUpgradeClick -> {
+                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToUpgrade) }
+            }
             CustomerDetailAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateBack) }
             }
