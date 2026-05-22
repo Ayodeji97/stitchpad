@@ -1018,7 +1018,7 @@
     <string name="plan_card_pill_almost_full">Free plan · Almost full</string>
     <string name="plan_card_pill_limit_reached">Free plan · Limit reached</string>
     <string name="plan_card_count">%1$d of %2$d customers</string>
-    <string name="plan_card_subtitle_inline">Upgrade for unlimited customers + reports</string>
+    <string name="plan_card_subtitle_inline">Unlock unlimited customers and reports</string>
     <string name="plan_card_title_warn">%1$d customers left before your free limit</string>
     <string name="plan_card_subtitle_warn">Upgrade to keep adding customers, unlock reports, and back up your work.</string>
     <string name="plan_card_title_locked">You can&apos;t add new customers</string>
