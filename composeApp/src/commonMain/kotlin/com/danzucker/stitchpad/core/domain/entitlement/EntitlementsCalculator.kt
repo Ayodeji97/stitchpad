@@ -17,13 +17,23 @@ import kotlinx.datetime.toLocalDateTime
  * calendar month. Hard-coded to Africa/Lagos for V1.0 — V1.5 will pass
  * the user's timezone through.
  *
- * All limits (15-cap, 30-cap during welcome, coin allowances) live here
- * as constants — change them here, change them once.
+ * All limits (15-cap post-First-Month, 200-cap during First Month, coin
+ * allowances) live here as constants — change them here, change them once.
+ * The server-side counterpart is `functions/src/freemium/reconcileSlots.ts`
+ * `effectiveCap` — keep both in lockstep.
  */
 object EntitlementsCalculator {
 
     const val FREE_CUSTOMER_CAP: Int = 15
-    const val WELCOME_CUSTOMER_CAP: Int = 30
+    /**
+     * First-Month customer cap for newly signed-up Free tailors.
+     *
+     * Public framing: "unlimited" (see freemium V1.0 design spec). This 200 is a system
+     * safety ceiling, not a user-facing limit — the UI never displays the number. The rare
+     * power user who reaches 200 hits a white-glove escalation screen (PR 6), not a generic
+     * cap-reached state.
+     */
+    const val WELCOME_CUSTOMER_CAP: Int = 200
     const val FREE_COIN_ALLOWANCE: Int = 5
     const val PRO_COIN_ALLOWANCE: Int = 50
     const val ATELIER_COIN_ALLOWANCE: Int = 500

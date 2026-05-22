@@ -20,6 +20,11 @@ interface DebugSeeder {
     suspend fun seedBrandNew(): SeedResult
     suspend fun seedActiveWorkshop(): SeedResult
     suspend fun seedAllReconnect(): SeedResult
+    suspend fun seedBulkCustomers(
+        count: Int,
+        withMeasurementsCount: Int,
+        withOrdersCount: Int,
+    ): SeedResult
     suspend fun wipeAllData(): SeedResult
 }
 
@@ -79,6 +84,41 @@ class DefaultDebugSeeder(
         return SeedFixtures.allReconnectOrders(customers, t).createEachOrFail("createOrder") {
             orderRepository.createOrder(userId, it)
         }
+    }
+
+    @Suppress("ReturnCount")
+    override suspend fun seedBulkCustomers(
+        count: Int,
+        withMeasurementsCount: Int,
+        withOrdersCount: Int,
+    ): SeedResult {
+        if (count <= 0) return SeedResult.Failure("Count must be > 0")
+        if (withMeasurementsCount < 0 || withOrdersCount < 0) {
+            return SeedResult.Failure("Counts cannot be negative")
+        }
+        if (withMeasurementsCount > count || withOrdersCount > count) {
+            return SeedResult.Failure("Measurement/order count cannot exceed total")
+        }
+        val userId = authRepository.getCurrentUser()?.id
+            ?: return SeedResult.Failure("Not signed in")
+
+        val t = now()
+        val customers = SeedFixtures.bulkCustomers(userId, t, count)
+
+        val customersResult = customers.createEachOrFail("createCustomer") {
+            customerRepository.createCustomer(userId, it)
+        }
+        if (customersResult is SeedResult.Failure) return customersResult
+
+        val measurementsResult = customers.take(withMeasurementsCount).createEachOrFail("createMeasurement") {
+            measurementRepository.createMeasurement(userId, it.id, SeedFixtures.bulkMeasurementFor(it, t))
+        }
+        if (measurementsResult is SeedResult.Failure) return measurementsResult
+
+        return customers.take(withOrdersCount).mapIndexed { i, c -> i to c }
+            .createEachOrFail("createOrder") { (i, c) ->
+                orderRepository.createOrder(userId, SeedFixtures.bulkOrderFor(c, i, t))
+            }
     }
 
     override suspend fun wipeAllData(): SeedResult {

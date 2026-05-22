@@ -155,9 +155,21 @@ export const reconcileCustomerSlots = functions
     };
   });
 
-function effectiveCap(tier: string, inWelcome: boolean): number {
+// Customer-cap constants. MUST stay in lockstep with Kotlin's
+// EntitlementsCalculator (composeApp/.../core/domain/entitlement/EntitlementsCalculator.kt):
+//
+//   FIRST_MONTH_CUSTOMER_CAP = 200  // matches WELCOME_CUSTOMER_CAP on the client
+//   FREE_CUSTOMER_CAP        = 15   // matches FREE_CUSTOMER_CAP on the client
+//
+// If these diverge, reconcileSlots will lock customers the client just allowed —
+// a real data-corruption flow on First Month users with 31–199 customers, which
+// is exactly what the PR-1 review caught when this server constant lagged 30.
+const FIRST_MONTH_CUSTOMER_CAP = 200;
+const FREE_CUSTOMER_CAP = 15;
+
+export function effectiveCap(tier: string, inWelcome: boolean): number {
   if (tier === 'pro' || tier === 'atelier') return Number.MAX_SAFE_INTEGER;
-  return inWelcome ? 30 : 15;
+  return inWelcome ? FIRST_MONTH_CUSTOMER_CAP : FREE_CUSTOMER_CAP;
 }
 
 // Legacy accounts may carry subscriptionTier === "premium" from pre-V1.0 writes.

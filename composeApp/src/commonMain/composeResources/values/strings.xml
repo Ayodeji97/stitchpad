@@ -1018,8 +1018,9 @@
     <string name="plan_card_pill_almost_full">Free plan · Almost full</string>
     <string name="plan_card_pill_limit_reached">Free plan · Limit reached</string>
     <string name="plan_card_count">%1$d of %2$d customers</string>
-    <string name="plan_card_subtitle_inline">Upgrade for unlimited customers + reports</string>
-    <string name="plan_card_title_warn">%1$d customers left before your free limit</string>
+    <string name="plan_card_subtitle_inline">Unlock unlimited customers and reports</string>
+    <string name="plan_card_title_warn_one">1 customer left before your free limit</string>
+    <string name="plan_card_title_warn_other">%1$d customers left before your free limit</string>
     <string name="plan_card_subtitle_warn">Upgrade to keep adding customers, unlock reports, and back up your work.</string>
     <string name="plan_card_title_locked">You can&apos;t add new customers</string>
     <string name="plan_card_subtitle_locked">Upgrade to keep growing — your existing customers are safe and unchanged.</string>
@@ -1179,8 +1180,11 @@
     <string name="smart_upgrade_sheet_upgrade_cta">Upgrade</string>
     <string name="smart_upgrade_sheet_dismiss">Wait until next month</string>
 
-    <!-- Freemium — welcome window ending warning -->
-    <string name="welcome_ending_banner_title">Your welcome ends in %1$d day(s)</string>
-    <string name="welcome_ending_banner_body">After that, you&apos;ll be limited to 15 customers and 5 Smart coins per month. Upgrade to Tailor Pro to keep all your customers and get more help.</string>
+    <!-- Freemium — First Month ending warning. (Resource keys keep their welcome_* names
+         for stable developer-facing references; user-facing copy uses "first month" per
+         the V1.0 design spec.) -->
+    <string name="welcome_ending_banner_title_one">Your first month ends tomorrow</string>
+    <string name="welcome_ending_banner_title_other">Your first month ends in %1$d days</string>
+    <string name="welcome_ending_banner_body">After your first month, your 15 most active customers stay active. The rest stay safe and searchable — unlock or swap to take new orders. Upgrade to Pro to keep all of them active.</string>
     <string name="welcome_ending_banner_cta">See Tailor Pro</string>
 </resources>

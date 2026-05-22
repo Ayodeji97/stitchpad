@@ -17,7 +17,8 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.welcome_ending_banner_body
 import stitchpad.composeapp.generated.resources.welcome_ending_banner_cta
-import stitchpad.composeapp.generated.resources.welcome_ending_banner_title
+import stitchpad.composeapp.generated.resources.welcome_ending_banner_title_one
+import stitchpad.composeapp.generated.resources.welcome_ending_banner_title_other
 
 @Composable
 fun WelcomeEndingBanner(
@@ -31,8 +32,13 @@ fun WelcomeEndingBanner(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
     ) {
         Column(modifier = Modifier.padding(DesignTokens.space4)) {
+            val titleRes = if (daysLeft == 1) {
+                Res.string.welcome_ending_banner_title_one
+            } else {
+                Res.string.welcome_ending_banner_title_other
+            }
             Text(
-                text = stringResource(Res.string.welcome_ending_banner_title, daysLeft),
+                text = stringResource(titleRes, daysLeft),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )

@@ -1,4 +1,10 @@
-import { selectSlotsToLock, CustomerSlotInfo, endOfSignupMonthInLagos, isInWelcomeWindow } from '../../freemium/reconcileSlots';
+import {
+  effectiveCap,
+  selectSlotsToLock,
+  CustomerSlotInfo,
+  endOfSignupMonthInLagos,
+  isInWelcomeWindow,
+} from '../../freemium/reconcileSlots';
 
 describe('selectSlotsToLock', () => {
   const now = new Date('2026-05-17T08:00:00Z');
@@ -123,5 +129,29 @@ describe('isInWelcomeWindow (Lagos timezone)', () => {
 
   it('returns false for undefined welcomeAppliedAtMs', () => {
     expect(isInWelcomeWindow(undefined, new Date())).toBe(false);
+  });
+});
+
+describe('effectiveCap', () => {
+  // These constants are duplicated from EntitlementsCalculator.kt on the client
+  // side. If either side bumps the cap without updating the other, this test
+  // catches the drift before reconcileCustomerSlots locks customers the client
+  // just allowed (the PR-1 review caught exactly this lag).
+  it('uses 200 for Free users in First Month (matches Kotlin WELCOME_CUSTOMER_CAP)', () => {
+    expect(effectiveCap('free', true)).toBe(200);
+  });
+
+  it('uses 15 for Free users after First Month (matches Kotlin FREE_CUSTOMER_CAP)', () => {
+    expect(effectiveCap('free', false)).toBe(15);
+  });
+
+  it('returns Number.MAX_SAFE_INTEGER for Pro regardless of welcome state', () => {
+    expect(effectiveCap('pro', true)).toBe(Number.MAX_SAFE_INTEGER);
+    expect(effectiveCap('pro', false)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it('returns Number.MAX_SAFE_INTEGER for Atelier regardless of welcome state', () => {
+    expect(effectiveCap('atelier', true)).toBe(Number.MAX_SAFE_INTEGER);
+    expect(effectiveCap('atelier', false)).toBe(Number.MAX_SAFE_INTEGER);
   });
 });

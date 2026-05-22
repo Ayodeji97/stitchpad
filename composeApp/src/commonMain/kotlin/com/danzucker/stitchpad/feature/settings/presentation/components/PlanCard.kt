@@ -53,7 +53,8 @@ import stitchpad.composeapp.generated.resources.plan_card_subtitle_inline
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_locked
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_warn
 import stitchpad.composeapp.generated.resources.plan_card_title_locked
-import stitchpad.composeapp.generated.resources.plan_card_title_warn
+import stitchpad.composeapp.generated.resources.plan_card_title_warn_one
+import stitchpad.composeapp.generated.resources.plan_card_title_warn_other
 
 // Hero-warn variant kicks in at 80% of the cap (e.g. 12/15). Tuned with the
 // freemium decision when PlanCard is re-wired into Settings.
@@ -227,7 +228,14 @@ private fun PlanCardWarn(
         pillText = stringResource(Res.string.plan_card_pill_almost_full),
         pillBorderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.40f),
         pillContentColor = MaterialTheme.colorScheme.tertiary,
-        title = stringResource(Res.string.plan_card_title_warn, customersLeft),
+        title = stringResource(
+            if (customersLeft == 1) {
+                Res.string.plan_card_title_warn_one
+            } else {
+                Res.string.plan_card_title_warn_other
+            },
+            customersLeft,
+        ),
         subtitle = stringResource(Res.string.plan_card_subtitle_warn),
         primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePriceNgn),
         onPrimaryCta = onUpgradeClick,
