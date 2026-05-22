@@ -17,7 +17,14 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
  * reference "seed-customer-1" reliably. createdAt is supplied by the caller
  * (typically a now() function from the ViewModel) so fixtures don't bake in
  * stale times when the device clock changes.
+ *
+ * detekt: TooManyFunctions is suppressed because this is a deliberately
+ * function-heavy fixture object — each scenario (Active workshop, All-
+ * reconnect, Bulk demo) needs its own customer + order + measurement
+ * factories. Splitting into three sibling objects would add boilerplate
+ * without improving clarity.
  */
+@Suppress("TooManyFunctions")
 internal object SeedFixtures {
 
     private const val DAY_MS = 24L * 60 * 60 * 1000L

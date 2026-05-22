@@ -35,6 +35,7 @@ class DebugMenuViewModel(
     private val _events = Channel<DebugMenuEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: DebugMenuAction) {
         if (handleFreemiumAction(action)) return
         when (action) {
@@ -95,6 +96,7 @@ class DebugMenuViewModel(
         }
     }
 
+    @Suppress("ReturnCount")
     private fun runSetSmartUsage() {
         val dialog = _state.value.smartUsage ?: return
         if (!dialog.isValid) return
@@ -117,6 +119,7 @@ class DebugMenuViewModel(
         }
     }
 
+    @Suppress("ReturnCount")
     private fun runBulkSeed() {
         val dialog = _state.value.bulkSeed ?: return
         if (!dialog.isValid) return
@@ -145,6 +148,7 @@ class DebugMenuViewModel(
         emit(DebugMenuEvent.ShowSnackbar(message))
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun handleFreemiumAction(action: DebugMenuAction): Boolean {
         when (action) {
             DebugMenuAction.OnSetTierFreeClick -> runFreemium("Tier: Free") {

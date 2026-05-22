@@ -25,6 +25,7 @@ import kotlinx.datetime.toLocalDateTime
 object EntitlementsCalculator {
 
     const val FREE_CUSTOMER_CAP: Int = 15
+
     /**
      * First-Month customer cap for newly signed-up Free tailors.
      *
