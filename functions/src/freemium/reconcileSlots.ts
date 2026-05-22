@@ -186,41 +186,30 @@ function toEpochMs(value: admin.firestore.Timestamp | number | undefined): numbe
   return value.toMillis(); // firestore.Timestamp
 }
 
-const LAGOS_TZ = 'Africa/Lagos';
+/**
+ * Length of the rolling First Month window in days, measured from
+ * `welcomeBonusAppliedAt`. MUST stay in lockstep with Kotlin's
+ * `EntitlementsCalculator.WELCOME_WINDOW_DAYS`. Tests on both sides pin
+ * the literal value — see `effectiveCap` tests and EntitlementsCalculatorTest.
+ */
+export const WELCOME_WINDOW_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function isInWelcomeWindow(welcomeAppliedAtMs: number | undefined, now: Date): boolean {
   if (!welcomeAppliedAtMs) return false;
-  const endOfMonthMs = endOfSignupMonthInLagos(welcomeAppliedAtMs);
-  return now.getTime() < endOfMonthMs;
+  return now.getTime() < welcomeEndsAtMs(welcomeAppliedAtMs);
 }
 
 /**
- * Given the welcome-application instant, returns the millisecond instant of
- * the first day of the NEXT calendar month at 00:00 Africa/Lagos. Mirrors
- * the client-side EntitlementsCalculator so the welcome window is
- * computed identically on both ends.
+ * Given the welcome-application instant, returns the millisecond instant when
+ * the rolling First Month window expires — exactly `WELCOME_WINDOW_DAYS` after
+ * the application. Mirrors the client-side EntitlementsCalculator so the
+ * welcome window is computed identically on both ends.
  *
- * Lagos is UTC+1 with no DST. If Nigeria ever adopts DST, the
- * `- 60 * 60 * 1000` simplification below would need to be replaced with
- * a proper Intl-based round-trip for the midnight-Lagos-to-UTC conversion.
+ * Previously this was calendar-month-aligned (end of the Lagos signup month).
+ * Switched to rolling on 2026-05-22 so every signup gets a fair 30 days
+ * regardless of which day of the month they signed up.
  */
-export function endOfSignupMonthInLagos(welcomeAppliedAtMs: number): number {
-  const applied = new Date(welcomeAppliedAtMs);
-  // Pull year + month in Lagos using Intl.
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: LAGOS_TZ,
-    year: 'numeric',
-    month: 'numeric',
-  }).formatToParts(applied);
-  const lagosYear = Number(parts.find((p) => p.type === 'year')?.value);
-  const lagosMonth = Number(parts.find((p) => p.type === 'month')?.value); // 1-12
-
-  // First day of the next month, at 00:00 Lagos local. Lagos is UTC+1
-  // (no DST), so "00:00 Lagos" = "23:00 UTC the day before". Use the
-  // known fixed offset instead of another Intl round-trip.
-  const nextYear = lagosMonth === 12 ? lagosYear + 1 : lagosYear;
-  const nextMonth = lagosMonth === 12 ? 1 : lagosMonth + 1;
-  // Date.UTC gives UTC midnight of 1st of nextMonth; subtract 1 hour to get
-  // Lagos midnight (UTC+1 → UTC-1h).
-  return Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0) - 60 * 60 * 1000;
+export function welcomeEndsAtMs(welcomeAppliedAtMs: number): number {
+  return welcomeAppliedAtMs + WELCOME_WINDOW_DAYS * MS_PER_DAY;
 }

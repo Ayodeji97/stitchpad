@@ -12,7 +12,18 @@ data class DebugMenuState(
     val activeScenario: DebugScenario? = null,
     val bulkSeed: BulkSeedDialogState? = null,
     val smartUsage: SmartUsageDialogState? = null,
+    val welcomeDaysLeft: WelcomeDaysLeftDialogState? = null,
 )
+
+data class WelcomeDaysLeftDialogState(
+    val daysInput: String = "30",
+) {
+    val days: Int? get() = daysInput.toIntOrNull()
+    val isValid: Boolean get() = days?.let { it in 0..MAX_DAYS } ?: false
+    companion object {
+        const val MAX_DAYS: Int = 30
+    }
+}
 
 data class SmartUsageDialogState(
     val countInput: String = "5",

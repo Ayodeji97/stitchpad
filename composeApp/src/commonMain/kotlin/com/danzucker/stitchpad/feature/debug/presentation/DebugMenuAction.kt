@@ -23,6 +23,10 @@ sealed interface DebugMenuAction {
     data object OnSetTierAtelierClick : DebugMenuAction
     data object OnExpireWelcomeWindowClick : DebugMenuAction
     data object OnResetWelcomeWindowClick : DebugMenuAction
+    data object OnSetWelcomeDaysLeftClick : DebugMenuAction
+    data object OnSetWelcomeDaysLeftDismiss : DebugMenuAction
+    data class OnSetWelcomeDaysLeftChange(val value: String) : DebugMenuAction
+    data object OnSetWelcomeDaysLeftConfirm : DebugMenuAction
     data object OnDrainBonusCoinsClick : DebugMenuAction
     data object OnRefillBonusCoinsClick : DebugMenuAction
     data object OnResetSmartUsageClick : DebugMenuAction
