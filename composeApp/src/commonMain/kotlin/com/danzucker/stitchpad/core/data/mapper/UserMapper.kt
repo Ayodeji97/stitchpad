@@ -10,7 +10,8 @@ fun UserDto.toUser(): User = User(
     businessName = businessName,
     phoneNumber = phoneNumber,
     whatsappNumber = whatsappNumber ?: legacyWhatsappNumber,
-    avatarColorIndex = avatarColorIndex
+    avatarColorIndex = avatarColorIndex,
+    bonusCoins = bonusCoins,
 )
 
 fun User.toUserDto(): UserDto = UserDto(
@@ -20,5 +21,6 @@ fun User.toUserDto(): UserDto = UserDto(
     businessName = businessName,
     phoneNumber = phoneNumber,
     whatsappNumber = whatsappNumber,
-    avatarColorIndex = avatarColorIndex
+    avatarColorIndex = avatarColorIndex,
+    bonusCoins = bonusCoins,
 )

@@ -238,7 +238,7 @@ class DebugMenuViewModelTest {
 
         vm.onAction(DebugMenuAction.OnSetSmartUsageClick)
         vm.onAction(DebugMenuAction.OnSetSmartUsageCountChange("4"))
-        vm.onAction(DebugMenuAction.OnSetSmartUsageBonusChange("0"))
+        vm.onAction(DebugMenuAction.OnSetSmartUsageBonusUsedChange("0"))
         vm.onAction(DebugMenuAction.OnSetSmartUsageConfirm)
 
         assertEquals(null, vm.state.first().smartUsage)

@@ -1,11 +1,11 @@
 package com.danzucker.stitchpad.core.domain.entitlement
 
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
-import kotlin.time.Duration.Companion.days
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration.Companion.days
 
 /**
  * Pure function: turn user-doc fields into a [UserEntitlements] snapshot.
@@ -101,5 +101,4 @@ object EntitlementsCalculator {
             welcomeDaysLeft = welcomeDaysLeft,
         )
     }
-
 }

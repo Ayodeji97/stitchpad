@@ -29,5 +29,7 @@ data class UserDto(
     val whatsappNumber: String? = null,
     @SerialName("whatsappNumber")
     val legacyWhatsappNumber: String? = null,
-    val avatarColorIndex: Int = 0
+    val avatarColorIndex: Int = 0,
+    /** Welcome bonus AI coins remaining. See User.bonusCoins for full context. */
+    val bonusCoins: Int? = null,
 )

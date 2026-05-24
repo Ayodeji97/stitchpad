@@ -101,17 +101,22 @@ class DebugMenuViewModel(
         val dialog = _state.value.smartUsage ?: return
         if (!dialog.isValid) return
         val count = dialog.count ?: return
-        val bonus = dialog.bonus ?: return
+        val bonusUsed = dialog.bonusUsed ?: return
         _state.update { it.copy(smartUsage = null) }
+        // Server's truth field is REMAINING balance, not used. Convert here so
+        // the dialog can keep its tester-friendly "drafts used" semantic
+        // (matches the count field's semantic).
+        val bonusBalance = (FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT - bonusUsed)
+            .coerceIn(0, FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT)
         runJob {
             val r = freemiumActions.setSmartUsage(
                 monthlyCount = count,
-                bonusBalance = bonus,
+                bonusBalance = bonusBalance,
                 nowMs = now(),
             )
             val message = when (r) {
                 DebugActionResult.Success ->
-                    UiText.DynamicString("Smart usage: count=$count, bonus=$bonus")
+                    UiText.DynamicString("Smart usage: count=$count, bonusUsed=$bonusUsed")
                 is DebugActionResult.Failure ->
                     UiText.DynamicString("Set Smart usage failed: ${r.reason}")
             }
@@ -210,8 +215,8 @@ class DebugMenuViewModel(
             is DebugMenuAction.OnSetSmartUsageCountChange -> _state.update {
                 it.copy(smartUsage = it.smartUsage?.copy(countInput = action.value.filter(Char::isDigit)))
             }
-            is DebugMenuAction.OnSetSmartUsageBonusChange -> _state.update {
-                it.copy(smartUsage = it.smartUsage?.copy(bonusInput = action.value.filter(Char::isDigit)))
+            is DebugMenuAction.OnSetSmartUsageBonusUsedChange -> _state.update {
+                it.copy(smartUsage = it.smartUsage?.copy(bonusUsedInput = action.value.filter(Char::isDigit)))
             }
             DebugMenuAction.OnSetSmartUsageConfirm -> runSetSmartUsage()
             DebugMenuAction.OnReconcileSlotsClick -> runFreemium("Slots reconciled") {

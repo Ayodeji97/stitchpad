@@ -321,7 +321,8 @@ private fun SmartUsageDialog(
             Column {
                 Text(
                     text = "Writes users/{uid}/usage/smart_drafts directly. " +
-                        "Skip count=5 to land at \"next call → upgrade sheet\".",
+                        "Set count=5 to land at \"next call → upgrade sheet\". " +
+                        "Both fields use \"drafts used\" semantic (e.g. bonus=6 → \"6 of 30 used\").",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -336,9 +337,9 @@ private fun SmartUsageDialog(
                 )
                 Spacer(Modifier.height(DesignTokens.space2))
                 OutlinedTextField(
-                    value = state.bonusInput,
-                    onValueChange = { onAction(DebugMenuAction.OnSetSmartUsageBonusChange(it)) },
-                    label = { Text("Bonus coin balance") },
+                    value = state.bonusUsedInput,
+                    onValueChange = { onAction(DebugMenuAction.OnSetSmartUsageBonusUsedChange(it)) },
+                    label = { Text("Bonus drafts used (0–30)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),

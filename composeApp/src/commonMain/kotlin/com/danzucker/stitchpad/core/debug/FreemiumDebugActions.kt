@@ -19,6 +19,7 @@ private const val USERS = "users"
 private const val USAGE = "usage"
 private const val SMART_DRAFTS = "smart_drafts"
 private const val MS_PER_DAY = 24L * 60 * 60 * 1000
+
 // 5 days of headroom past the rolling welcome window so backdating
 // definitely lands outside it even after a partial-day rounding error.
 private val EXPIRED_WINDOW_OFFSET_MS =

@@ -21,6 +21,22 @@ data class SettingsState(
     val customerCount: Int = 0,
     /** null means unlimited (Pro / Atelier tier). */
     val customerLimit: Int? = null,
+    /**
+     * AI drafts the user has consumed this month against their tier-derived monthly limit.
+     * Defaults to 0 when the [InMemorySmartUsageStore] cache hasn't been hydrated yet —
+     * see the chip-staleness quirk in the V1.0 design spec; the conversion-critical signal
+     * is the server's authoritative `free_tier_exhausted` error, not this number.
+     */
+    val aiDraftsUsed: Int = 0,
+    /** null means unlimited (Atelier). 5 for Free, 50 for Pro. */
+    val aiDraftLimit: Int? = 5,
+    /**
+     * True only while the user is inside their First Month window. Drives PlanCard to
+     * show AI usage as the headline + "unlimited customers" framing (per V1.0 spec).
+     */
+    val isFirstMonth: Boolean = false,
+    /** Calendar days remaining in the First Month window, null when not in it. */
+    val welcomeDaysLeft: Int? = null,
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val showSignOutDialog: Boolean = false,
