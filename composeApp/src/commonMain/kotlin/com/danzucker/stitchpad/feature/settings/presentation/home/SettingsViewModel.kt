@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
@@ -60,6 +62,7 @@ class SettingsViewModel(
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val themePreferencesStore: ThemePreferencesStore,
     private val smartUsageStore: SmartUsageStore,
+    private val smartUsageDocSource: SmartUsageDocSource,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -136,17 +139,29 @@ class SettingsViewModel(
                 }
             }
 
-        val combined = combine(
+        // Pair the user-doc and usage-doc streams up front so the outer combine
+        // stays at 5 args (kotlinx-coroutines has no 6-arg overload). The usage
+        // snapshot's bonusBalance drives the First Month chip and monthlyCount
+        // drives the post-First-Month chip; both null = doc absent or fields
+        // missing, in which case the consumer falls through to other sources.
+        val userWithUsageFlow = combine(
             userRepository.observeUser(authUser.id),
+            smartUsageDocSource.observeSnapshot(authUser.id),
+        ) { firestoreUser, usage -> firestoreUser to usage }
+
+        val combined = combine(
+            userWithUsageFlow,
             entitlementsProvider.flow,
             customerCountFlow,
             smartUsageStore.remainingFreeQuota,
             uiState,
-        ) { firestoreUser, entitlements, customerCount, remainingAi, ui ->
+        ) { userBundle, entitlements, customerCount, remainingAi, ui ->
+            val (firestoreUser, usage) = userBundle
             buildState(
                 authUser = authUser,
                 provider = provider,
                 firestoreUser = firestoreUser,
+                usageSnapshot = usage,
                 entitlements = entitlements,
                 customerCount = customerCount,
                 remainingAiQuota = remainingAi,
@@ -161,6 +176,7 @@ class SettingsViewModel(
         authUser: com.danzucker.stitchpad.core.domain.model.User,
         provider: SignInProvider,
         firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
+        usageSnapshot: SmartUsageSnapshot,
         entitlements: UserEntitlements,
         customerCount: Int,
         remainingAiQuota: Int?,
@@ -174,6 +190,8 @@ class SettingsViewModel(
             isInWelcomeWindow = entitlements.isInWelcomeWindow,
             smartCoinAllowance = entitlements.smartCoinAllowance,
             bonusCoinsRemaining = firestoreUser?.bonusCoins,
+            usageBonusBalance = usageSnapshot.bonusBalance,
+            usageMonthlyCount = usageSnapshot.monthlyCount,
             remainingMonthlyQuota = remainingAiQuota,
         )
         return SettingsState(
@@ -266,31 +284,44 @@ internal data class AiDisplay(val limit: Int?, val used: Int)
  *
  * Three branches by spec decision #6:
  * - **Atelier** → (null, 0): unlimited, no fraction shown
- * - **First Month** → (30, 30 - bonusCoinsRemaining): tracks welcome-bonus consumption
- * - **Post-First-Month (Free / Pro)** → (smartCoinAllowance, allowance - remainingMonthlyQuota)
+ * - **First Month** → (30, 30 - effective bonus remaining)
+ * - **Post-First-Month (Free / Pro)** → (smartCoinAllowance, effective monthly used)
  *
- * `bonusCoinsRemaining == null` (pre-V1.0 account without the field) is treated as the
- * full 30 so first-time render shows "0 of 30 used", not "30 of 30 used". Same idea for
- * `remainingMonthlyQuota == null` post-First-Month — defaults to 0 used (the known V1.0
- * chip-staleness quirk; will be hydrated from Firestore in V1.1).
+ * **First Month bonus precedence:** `usageBonusBalance` from the server-decremented
+ * `users/{uid}/usage/smart_drafts.bonusBalance` is the truth and wins whenever it's
+ * non-null. Falls back to user-doc `bonusCoinsRemaining` (the signup-time seed) when
+ * the usage doc doesn't exist yet — i.e. before the first Smart call lifts the bonus
+ * onto the server's gating doc. If both are null (pre-V1.0 account), defaults to a
+ * full balance so first-time render shows "0 of 30 used", not "30 of 30 used".
+ *
+ * **Post-First-Month count precedence:** `usageMonthlyCount` from the usage doc's
+ * `count` field is the server truth and wins when non-null. Falls back to the
+ * in-process `SmartUsageStore.remainingFreeQuota` cache (`smartCoinAllowance - cache`)
+ * for sessions where the usage doc hasn't materialized yet, then to 0 when neither
+ * source is hydrated. Clamped at `smartCoinAllowance` to defend against the rare
+ * post-tier-downgrade case where doc count > new allowance.
  */
+@Suppress("LongParameterList")
 internal fun computeAiDisplay(
     tier: com.danzucker.stitchpad.core.domain.model.SubscriptionTier,
     isInWelcomeWindow: Boolean,
     smartCoinAllowance: Int,
     bonusCoinsRemaining: Int?,
+    usageBonusBalance: Int?,
+    usageMonthlyCount: Int?,
     remainingMonthlyQuota: Int?,
 ): AiDisplay = when {
     tier == com.danzucker.stitchpad.core.domain.model.SubscriptionTier.ATELIER ->
         AiDisplay(limit = null, used = 0)
     isInWelcomeWindow -> {
         val limit = FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT
-        val remaining = bonusCoinsRemaining ?: limit
+        val remaining = usageBonusBalance ?: bonusCoinsRemaining ?: limit
         AiDisplay(limit = limit, used = (limit - remaining).coerceAtLeast(0))
     }
     else -> {
-        val used = if (remainingMonthlyQuota == null) 0
-        else (smartCoinAllowance - remainingMonthlyQuota).coerceAtLeast(0)
-        AiDisplay(limit = smartCoinAllowance, used = used)
+        val used = usageMonthlyCount
+            ?: remainingMonthlyQuota?.let { (smartCoinAllowance - it).coerceAtLeast(0) }
+            ?: 0
+        AiDisplay(limit = smartCoinAllowance, used = used.coerceIn(0, smartCoinAllowance))
     }
 }

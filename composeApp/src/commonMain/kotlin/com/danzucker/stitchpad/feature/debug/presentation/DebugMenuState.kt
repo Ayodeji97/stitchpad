@@ -27,15 +27,19 @@ data class WelcomeDaysLeftDialogState(
 
 data class SmartUsageDialogState(
     val countInput: String = "5",
-    val bonusInput: String = "0",
+    // "Drafts USED out of the 30-coin welcome bonus" — matches the count field's
+    // used-flavored semantic so testers don't have to flip-flop interpretations.
+    // The ViewModel converts this to bonusBalance = (30 - bonusUsed) before
+    // writing to Firestore (the server's truth field is "remaining", not "used").
+    val bonusUsedInput: String = "0",
 ) {
     val count: Int? get() = countInput.toIntOrNull()
-    val bonus: Int? get() = bonusInput.toIntOrNull()
+    val bonusUsed: Int? get() = bonusUsedInput.toIntOrNull()
 
     val isValid: Boolean
         get() {
             val c = count ?: return false
-            val b = bonus ?: return false
+            val b = bonusUsed ?: return false
             return c >= 0 && b >= 0
         }
 }

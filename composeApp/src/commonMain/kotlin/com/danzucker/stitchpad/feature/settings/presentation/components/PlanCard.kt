@@ -1,3 +1,9 @@
+@file:Suppress("TooManyFunctions")
+// PlanCard renders three tier-specific cards (Free / First Month / Paid) plus the
+// preview surface, each composed of small private composables. Splitting the file
+// further would obscure the shared design tokens; @Suppress documents this is
+// deliberate.
+
 package com.danzucker.stitchpad.feature.settings.presentation.components
 
 import androidx.compose.foundation.BorderStroke
@@ -50,7 +56,6 @@ import stitchpad.composeapp.generated.resources.plan_card_first_month_ai_headlin
 import stitchpad.composeapp.generated.resources.plan_card_first_month_ai_progress
 import stitchpad.composeapp.generated.resources.plan_card_first_month_customers_no_limits
 import stitchpad.composeapp.generated.resources.plan_card_first_month_help
-import stitchpad.composeapp.generated.resources.plan_card_first_month_minutes_saved
 import stitchpad.composeapp.generated.resources.plan_card_first_month_pill_one
 import stitchpad.composeapp.generated.resources.plan_card_first_month_pill_other
 import stitchpad.composeapp.generated.resources.plan_card_free_state
@@ -230,7 +235,6 @@ private fun PlanCardFirstMonthInline(
         Res.string.plan_card_first_month_pill_other
     }
     val aiRatio = if (aiDraftLimit > 0) aiDraftsUsed.toFloat() / aiDraftLimit else 0f
-    val minutesSaved = (aiDraftsUsed * MINUTES_SAVED_PER_AI_DRAFT).toInt()
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
@@ -276,16 +280,6 @@ private fun PlanCardFirstMonthInline(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (minutesSaved > 0) {
-                Text(
-                    text = stringResource(
-                        Res.string.plan_card_first_month_minutes_saved,
-                        minutesSaved,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
 
             Spacer(modifier = Modifier.height(DesignTokens.space3))
 
@@ -689,11 +683,23 @@ private fun PlanHeroFrame(
                         )
                     }
                     TextButton(onClick = onGhostCta) {
-                        Text(
-                            text = ghostCtaText,
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = ghostCtaText,
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                            )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.85f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                 }
             }
