@@ -102,3 +102,6 @@ data object DraftMessageRoute
 
 @Serializable
 data object UpgradeRoute
+
+@Serializable
+data object FoundersNoteRoute

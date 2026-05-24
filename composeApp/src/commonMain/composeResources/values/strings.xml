@@ -1064,6 +1064,19 @@
     <string name="plan_card_title_maxed_out">You&apos;ve hit your customer limit and used all AI drafts this month</string>
     <string name="plan_card_subtitle_maxed_out">Tailor Pro: unlimited customers + 500 drafts a month.</string>
 
+    <!-- Founder note (Settings → About your plan) -->
+    <string name="settings_row_founders_note">About your plan</string>
+    <string name="settings_row_founders_note_subtitle">A note from the founder</string>
+    <string name="founders_note_title">A note from Daniel</string>
+    <string name="founders_note_screen_heading">Here&apos;s why we built it this way</string>
+    <string name="founders_note_paragraph_1">Your first 30 days are unlimited. Bring your whole business in. Every customer, every order, every measurement.</string>
+    <string name="founders_note_paragraph_2">After your first month, we keep your 15 most active customers handy on Free. The rest stay safe and searchable. You can view them anytime and unlock or swap whenever you need to take a new order.</string>
+    <string name="founders_note_paragraph_3">We never delete your customers. We never change your data overnight.</string>
+    <string name="founders_note_paragraph_4">The cap exists because AI calls cost us real money per draft. The 15-customer Free plan keeps the app sustainable while offering a real product to everyone, not a demo, not a trial.</string>
+    <string name="founders_note_paragraph_5">If something feels off, message us directly. We read everything.</string>
+    <string name="founders_note_signature">— Daniel, founder</string>
+    <string name="founders_note_whatsapp_cta">Message us on WhatsApp</string>
+
     <!-- Settings PlanCard (re-landed) -->
     <string name="plan_card_free_state">You&apos;re on Free</string>
     <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>

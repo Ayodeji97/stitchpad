@@ -113,6 +113,7 @@ class SettingsViewModel(
             }
             SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
+            SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
         }
     }
 
