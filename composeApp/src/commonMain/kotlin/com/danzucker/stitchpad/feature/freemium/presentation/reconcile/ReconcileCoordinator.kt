@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 private const val TAG = "ReconcileCoordinator"
+
 // Last 4 chars of uid in logs — enough to disambiguate test accounts
 // (Fola vs Gabby) without spilling full Firebase Auth uids into log streams.
 private const val UID_SUFFIX_LEN = 4

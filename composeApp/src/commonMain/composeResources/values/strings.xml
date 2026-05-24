@@ -1061,7 +1061,7 @@
 
     <!-- PlanCard — Both Locked (rare worst case post-First-Month) -->
     <string name="plan_card_pill_maxed_out">Free · Maxed out</string>
-    <string name="plan_card_title_maxed_out">You&apos;ve hit your customer limit AND used all AI drafts this month</string>
+    <string name="plan_card_title_maxed_out">You&apos;ve hit your customer limit and used all AI drafts this month</string>
     <string name="plan_card_subtitle_maxed_out">Tailor Pro: unlimited customers + 500 drafts a month.</string>
 
     <!-- Settings PlanCard (re-landed) -->
