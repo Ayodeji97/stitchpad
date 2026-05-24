@@ -25,7 +25,7 @@ import kotlin.test.assertIs
  * Three tests mirror the plan's scenarios:
  *   1. at-cap → CAP_REACHED (standard 15-cap)
  *   2. under-cap → allowed (standard 15-cap)
- *   3. welcome window cap (30) → allowed when one slot is still free
+ *   3. welcome window cap (200) → allowed when one slot is still free
  */
 class CustomerCapTest {
 
