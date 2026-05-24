@@ -71,11 +71,11 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_edit_customer
 import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
+import stitchpad.composeapp.generated.resources.customer_detail_measurements_section
+import stitchpad.composeapp.generated.resources.customer_detail_no_measurements
 import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_body
 import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_title
 import stitchpad.composeapp.generated.resources.customer_locked_detail_unlock_cta
-import stitchpad.composeapp.generated.resources.customer_detail_measurements_section
-import stitchpad.composeapp.generated.resources.customer_detail_no_measurements
 import stitchpad.composeapp.generated.resources.fab_add_measurement
 import stitchpad.composeapp.generated.resources.measurement_delete_message
 import stitchpad.composeapp.generated.resources.measurement_delete_title
