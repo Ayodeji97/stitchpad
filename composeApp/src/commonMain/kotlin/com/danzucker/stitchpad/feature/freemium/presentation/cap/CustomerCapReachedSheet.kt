@@ -35,10 +35,12 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cap_reached_sheet_benefit_cancel
@@ -85,80 +87,99 @@ fun CustomerCapReachedSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        Column(
+        CustomerCapReachedSheetContent(
+            activeCount = activeCount,
+            customerCap = customerCap,
+            onUpgradeClick = onUpgradeClick,
+            onSwapClick = onSwapClick,
+        )
+    }
+}
+
+/**
+ * Inner column extracted so @Preview can render it — `ModalBottomSheet` itself
+ * doesn't lay out in preview mode (no host activity / sheet state).
+ */
+@Composable
+private fun CustomerCapReachedSheetContent(
+    activeCount: Int,
+    customerCap: Int,
+    onUpgradeClick: () -> Unit,
+    onSwapClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = DesignTokens.space4)
+            .padding(bottom = DesignTokens.space5),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
+        // Eyebrow — copper accent, all caps, wide letter spacing.
+        Text(
+            text = stringResource(Res.string.cap_reached_sheet_eyebrow),
+            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
+            fontWeight = FontWeight.SemiBold,
+            color = LocalStitchPadColors.current.brandAccent,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Serif headline reframes the cap as opportunity, not a block.
+        Text(
+            text = stringResource(Res.string.cap_reached_sheet_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Current usage anchor so the user knows exactly where they stand.
+        Text(
+            text = stringResource(
+                Res.string.cap_reached_sheet_stat,
+                activeCount,
+                customerCap,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(DesignTokens.space3))
+
+        ProBenefitsCard()
+
+        Spacer(Modifier.height(DesignTokens.space3))
+
+        Button(
+            onClick = onUpgradeClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = DesignTokens.space4)
-                .padding(bottom = DesignTokens.space5),
-            verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                .height(54.dp),
+            shape = RoundedCornerShape(DesignTokens.radiusLg),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
         ) {
-            // Eyebrow — copper accent, all caps, wide letter spacing.
-            Text(
-                text = stringResource(Res.string.cap_reached_sheet_eyebrow),
-                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
-                fontWeight = FontWeight.SemiBold,
-                color = LocalStitchPadColors.current.brandAccent,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+            Icon(
+                imageVector = Icons.Outlined.Star,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
             )
-
-            // Serif headline reframes the cap as opportunity, not a block.
+            Spacer(Modifier.width(DesignTokens.space2))
             Text(
-                text = stringResource(Res.string.cap_reached_sheet_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(Res.string.cap_reached_sheet_upgrade_cta),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
             )
-
-            // Current usage anchor so the user knows exactly where they stand.
-            Text(
-                text = stringResource(
-                    Res.string.cap_reached_sheet_stat,
-                    activeCount,
-                    customerCap,
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(Modifier.height(DesignTokens.space3))
-
-            ProBenefitsCard()
-
-            Spacer(Modifier.height(DesignTokens.space3))
-
-            Button(
-                onClick = onUpgradeClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(DesignTokens.radiusLg),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Star,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(DesignTokens.space2))
-                Text(
-                    text = stringResource(Res.string.cap_reached_sheet_upgrade_cta),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-
-            Spacer(Modifier.height(DesignTokens.space1))
-
-            SwapTextLink(onSwapClick = onSwapClick)
         }
+
+        Spacer(Modifier.height(DesignTokens.space1))
+
+        SwapTextLink(onSwapClick = onSwapClick)
     }
 }
 
@@ -279,6 +300,39 @@ private fun SwapTextLink(onSwapClick: () -> Unit) {
             text = annotated,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
+        )
+    }
+}
+
+// ── Previews ───────────────────────────────────────────────────────────────
+// ModalBottomSheet doesn't render in @Preview (no sheet state / host); these
+// preview the inner content composable directly. Mirrors the pattern used by
+// ReauthBottomSheet and DeleteAccountReasonSheet.
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun CustomerCapReachedSheetContentPreview() {
+    StitchPadTheme {
+        CustomerCapReachedSheetContent(
+            activeCount = 15,
+            customerCap = 15,
+            onUpgradeClick = {},
+            onSwapClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun CustomerCapReachedSheetContentDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        CustomerCapReachedSheetContent(
+            activeCount = 15,
+            customerCap = 15,
+            onUpgradeClick = {},
+            onSwapClick = {},
         )
     }
 }
