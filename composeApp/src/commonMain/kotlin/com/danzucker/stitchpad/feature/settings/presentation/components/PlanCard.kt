@@ -76,6 +76,7 @@ import stitchpad.composeapp.generated.resources.plan_card_subtitle_locked
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_maxed_out
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_warn
 import stitchpad.composeapp.generated.resources.plan_card_title_ai_locked
+import stitchpad.composeapp.generated.resources.plan_card_title_ai_locked_minutes
 import stitchpad.composeapp.generated.resources.plan_card_title_ai_warn_one
 import stitchpad.composeapp.generated.resources.plan_card_title_ai_warn_other
 import stitchpad.composeapp.generated.resources.plan_card_title_locked
@@ -555,11 +556,8 @@ private fun PlanCardAiLocked(
         ),
         pillBorderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.40f),
         pillContentColor = MaterialTheme.colorScheme.tertiary,
-        title = stringResource(
-            Res.string.plan_card_title_ai_locked,
-            aiDraftLimit,
-            minutesSaved,
-        ),
+        title = stringResource(Res.string.plan_card_title_ai_locked, aiDraftLimit),
+        titleSecondLine = stringResource(Res.string.plan_card_title_ai_locked_minutes, minutesSaved),
         subtitle = stringResource(Res.string.plan_card_subtitle_ai_locked),
         primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_now),
         onPrimaryCta = onUpgradeClick,
@@ -616,6 +614,11 @@ private fun PlanHeroFrame(
     ghostCtaText: String,
     onGhostCta: () -> Unit,
     modifier: Modifier = Modifier,
+    // Optional stat-style line rendered immediately under the title. Used by
+    // PlanCardAiLocked for "~N minutes saved" so it gets its own line instead
+    // of trailing the title with an em-dash that wraps awkwardly on narrow
+    // device widths.
+    titleSecondLine: String? = null,
 ) {
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
@@ -658,6 +661,16 @@ private fun PlanHeroFrame(
                     color = Color.White,
                     fontSize = 18.sp,
                 )
+                if (titleSecondLine != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = titleSecondLine,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.92f),
+                        fontSize = 16.sp,
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = subtitle,
