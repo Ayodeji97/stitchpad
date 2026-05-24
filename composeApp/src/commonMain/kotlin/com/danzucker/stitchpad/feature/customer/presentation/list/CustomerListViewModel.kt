@@ -38,6 +38,7 @@ class CustomerListViewModel(
 
     private var hasLoadedInitialData = false
     private var allCustomers: List<Customer> = emptyList()
+    private var allLockedCustomers: List<Customer> = emptyList()
 
     private val _state = MutableStateFlow(CustomerListState())
 
@@ -65,7 +66,8 @@ class CustomerListViewModel(
                 _state.update {
                     it.copy(
                         searchQuery = action.query,
-                        customers = filterCustomers(allCustomers, action.query, it.deliveryFilter)
+                        customers = filterCustomers(allCustomers, action.query, it.deliveryFilter),
+                        lockedCustomers = filterCustomers(allLockedCustomers, action.query, it.deliveryFilter),
                     )
                 }
             }
@@ -73,7 +75,8 @@ class CustomerListViewModel(
                 _state.update {
                     it.copy(
                         deliveryFilter = action.filter,
-                        customers = filterCustomers(allCustomers, it.searchQuery, action.filter)
+                        customers = filterCustomers(allCustomers, it.searchQuery, action.filter),
+                        lockedCustomers = filterCustomers(allLockedCustomers, it.searchQuery, action.filter),
                     )
                 }
             }
@@ -152,10 +155,11 @@ class CustomerListViewModel(
                             it.slotState == CustomerSlotState.ACTIVE
                         }
                         allCustomers = active
+                        allLockedCustomers = locked
                         _state.update { state ->
                             state.copy(
                                 customers = filterCustomers(active, state.searchQuery, state.deliveryFilter),
-                                lockedCustomers = locked,
+                                lockedCustomers = filterCustomers(locked, state.searchQuery, state.deliveryFilter),
                                 hasAnyCustomers = result.data.isNotEmpty(),
                                 isLoading = false
                             )

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -98,6 +99,8 @@ import stitchpad.composeapp.generated.resources.customer_fab_cd
 import stitchpad.composeapp.generated.resources.customer_filter_all
 import stitchpad.composeapp.generated.resources.customer_list_title
 import stitchpad.composeapp.generated.resources.customer_locked_chip
+import stitchpad.composeapp.generated.resources.customer_locked_row_swap_cta
+import stitchpad.composeapp.generated.resources.customer_locked_section_subtitle
 import stitchpad.composeapp.generated.resources.customer_locked_section_title
 import stitchpad.composeapp.generated.resources.customer_search_clear_cd
 import stitchpad.composeapp.generated.resources.customer_search_hint
@@ -228,17 +231,50 @@ fun CustomerListScreen(
                         if (state.lockedCustomers.isNotEmpty()) {
                             item(key = "locked_section_header") {
                                 Spacer(Modifier.height(DesignTokens.space4))
-                                Text(
-                                    text = stringResource(Res.string.customer_locked_section_title),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = DesignTokens.space4),
-                                )
+                                Column(
+                                    modifier = Modifier.padding(
+                                        horizontal = DesignTokens.space4,
+                                        vertical = DesignTokens.space2,
+                                    ),
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(Modifier.width(DesignTokens.space2))
+                                        Text(
+                                            text = stringResource(
+                                                Res.string.customer_locked_section_title,
+                                            ),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Spacer(Modifier.width(DesignTokens.space2))
+                                        Text(
+                                            text = "· ${state.lockedCustomers.size}",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(
+                                            Res.string.customer_locked_section_subtitle,
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                             items(state.lockedCustomers, key = { "locked_${it.id}" }) { customer ->
                                 LockedCustomerRow(
                                     customer = customer,
-                                    onTap = { onAction(CustomerListAction.OpenSwapSheetFor(customer.id)) },
+                                    onTap = { onAction(CustomerListAction.OnCustomerClick(customer)) },
+                                    onSwapTap = { onAction(CustomerListAction.OpenSwapSheetFor(customer.id)) },
                                 )
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.outlineVariant,
@@ -499,14 +535,19 @@ private fun CustomerEmptyState(modifier: Modifier = Modifier) {
 private fun LockedCustomerRow(
     customer: Customer,
     onTap: () -> Unit,
+    onSwapTap: () -> Unit,
 ) {
+    // The main row tap opens the customer's read-only detail page (per V1.0 spec
+    // decision #2 — locked data is visible, not hidden). The Swap text button on the
+    // right invokes the existing SwapSheet path directly so swapping stays one tap
+    // from the list.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onTap)
-            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
+            .padding(start = DesignTokens.space4, top = DesignTokens.space3, bottom = DesignTokens.space3),
     ) {
         CustomerAvatar(
             name = customer.name,
@@ -521,7 +562,7 @@ private fun LockedCustomerRow(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(2.dp))
             Text(
@@ -531,12 +572,14 @@ private fun LockedCustomerRow(
             )
         }
 
-        Icon(
-            imageVector = Icons.Default.Lock,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size(18.dp)
-        )
+        TextButton(onClick = onSwapTap) {
+            Text(
+                text = stringResource(Res.string.customer_locked_row_swap_cta),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 

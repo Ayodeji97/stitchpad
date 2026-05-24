@@ -190,7 +190,8 @@ private fun MainNavGraph(
                 },
                 onNavigateToStyleGallery = { customerId ->
                     navController.navigate(StyleGalleryRoute(customerId = customerId))
-                }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<CustomerFormRoute> {

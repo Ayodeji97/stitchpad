@@ -184,9 +184,14 @@
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
     <!-- Freemium — customer slot locking + swap -->
-    <string name="customer_locked_section_title">Locked customers</string>
+    <string name="customer_locked_section_title">Locked</string>
+    <string name="customer_locked_section_subtitle">Safe and searchable. Unlock anytime to take new orders.</string>
     <string name="customer_locked_chip">Locked</string>
     <string name="customer_locked_explainer">This customer is locked because you have more than your Free plan allows. Upgrade to Tailor Pro to view them, or swap with one of your active customers.</string>
+    <string name="customer_locked_detail_banner_title">Locked — read-only</string>
+    <string name="customer_locked_detail_banner_body">All data preserved. To start a new order, take new measurements, or edit this profile, unlock or swap.</string>
+    <string name="customer_locked_detail_unlock_cta">Unlock with Pro</string>
+    <string name="customer_locked_row_swap_cta">Swap</string>
     <string name="customer_swap_cta">Swap with an active customer</string>
     <string name="customer_swap_sheet_title">Swap %1$s back in</string>
     <string name="customer_swap_sheet_subtitle">Pick one of your active customers to lock instead.</string>

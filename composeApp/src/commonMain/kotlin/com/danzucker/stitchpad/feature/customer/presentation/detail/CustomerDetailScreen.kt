@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -49,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,6 +74,9 @@ import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
 import stitchpad.composeapp.generated.resources.customer_detail_measurements_section
 import stitchpad.composeapp.generated.resources.customer_detail_no_measurements
+import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_body
+import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_title
+import stitchpad.composeapp.generated.resources.customer_locked_detail_unlock_cta
 import stitchpad.composeapp.generated.resources.fab_add_measurement
 import stitchpad.composeapp.generated.resources.measurement_delete_message
 import stitchpad.composeapp.generated.resources.measurement_delete_title
@@ -82,13 +87,20 @@ import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_section_header
 
+// Inert surfaces on a locked customer's detail page render at this alpha so the
+// visual hierarchy matches the affordance. 0.5f tested as the sweet spot — high
+// enough that the measurement values stay readable, low enough that the surfaces
+// clearly look "off". Only the "Unlock with Pro" CTA renders at full opacity.
+private const val LOCKED_CONTENT_ALPHA = 0.5f
+
 @Composable
 fun CustomerDetailRoot(
     onNavigateBack: () -> Unit,
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
     onNavigateToEditMeasurement: (String, String) -> Unit,
-    onNavigateToStyleGallery: (String) -> Unit
+    onNavigateToStyleGallery: (String) -> Unit,
+    onNavigateToUpgrade: () -> Unit,
 ) {
     val viewModel: CustomerDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -104,6 +116,7 @@ fun CustomerDetailRoot(
                 event.measurementId,
             )
             is CustomerDetailEvent.NavigateToStyleGallery -> onNavigateToStyleGallery(event.customerId)
+            CustomerDetailEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
 
@@ -151,12 +164,18 @@ fun CustomerDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onAction(CustomerDetailAction.OnEditCustomerClick) }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(Res.string.cd_edit_customer),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    // Edit, FAB, and per-measurement swipe-to-delete are gated when the customer
+                    // is in the LOCKED slot state (per V1.0 design spec decision #2 — locked
+                    // surfaces are read-only). Upgrade unlocks; the Upgrade CTA inside the body
+                    // is the user's path forward.
+                    if (!state.isLocked) {
+                        IconButton(onClick = { onAction(CustomerDetailAction.OnEditCustomerClick) }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(Res.string.cd_edit_customer),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -166,10 +185,12 @@ fun CustomerDetailScreen(
             )
         },
         floatingActionButton = {
-            StitchPadFab(
-                onClick = { onAction(CustomerDetailAction.OnAddMeasurementClick) },
-                contentDescription = stringResource(Res.string.fab_add_measurement)
-            )
+            if (!state.isLocked) {
+                StitchPadFab(
+                    onClick = { onAction(CustomerDetailAction.OnAddMeasurementClick) },
+                    contentDescription = stringResource(Res.string.fab_add_measurement),
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
@@ -192,6 +213,16 @@ fun CustomerDetailScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
+                    if (state.isLocked) {
+                        item(key = "locked_banner") {
+                            LockedDetailBanner(
+                                modifier = Modifier.padding(
+                                    horizontal = DesignTokens.space4,
+                                    vertical = DesignTokens.space3,
+                                ),
+                            )
+                        }
+                    }
                     item {
                         CustomerHeaderSection(customer = state.customer)
                     }
@@ -208,11 +239,18 @@ fun CustomerDetailScreen(
                         }
                     } else {
                         items(items = state.measurements, key = { it.id }) { measurement ->
-                            SwipeableMeasurementItem(
-                                measurement = measurement,
-                                onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
-                                onDelete = { onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement)) }
-                            )
+                            if (state.isLocked) {
+                                // Locked customers: row is fully inert (no tap, no swipe) and
+                                // visually muted so the affordance matches the behavior. Only
+                                // the "Unlock with Pro" CTA below stays interactive.
+                                ReadOnlyMeasurementItem(measurement = measurement)
+                            } else {
+                                SwipeableMeasurementItem(
+                                    measurement = measurement,
+                                    onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
+                                    onDelete = { onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement)) },
+                                )
+                            }
                             HorizontalDivider(
                                 color = MaterialTheme.colorScheme.outlineVariant,
                                 modifier = Modifier.padding(start = DesignTokens.space4)
@@ -220,9 +258,34 @@ fun CustomerDetailScreen(
                         }
                     }
                     item {
-                        StylesSectionRow(
-                            onClick = { onAction(CustomerDetailAction.OnViewStylesClick) }
-                        )
+                        val stylesClick: (() -> Unit)? = if (state.isLocked) {
+                            null
+                        } else {
+                            { onAction(CustomerDetailAction.OnViewStylesClick) }
+                        }
+                        StylesSectionRow(onClick = stylesClick)
+                    }
+                    if (state.isLocked) {
+                        item(key = "locked_upgrade_cta") {
+                            Spacer(Modifier.height(DesignTokens.space4))
+                            Button(
+                                onClick = { onAction(CustomerDetailAction.OnUpgradeClick) },
+                                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = DesignTokens.space4),
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.customer_locked_detail_unlock_cta),
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Spacer(Modifier.height(DesignTokens.space4))
+                        }
                     }
                 }
             }
@@ -398,7 +461,61 @@ private fun SwipeableMeasurementItem(
 }
 
 @Composable
-private fun StylesSectionRow(onClick: () -> Unit) {
+private fun ReadOnlyMeasurementItem(measurement: Measurement) {
+    // Used when the customer is locked: no swipe-to-delete wrapper AND no click handler.
+    // Per V1.0 design spec decision #2, locked customers are fully visible read-only —
+    // every surface on the detail page is inert except the "Unlock with Pro" CTA.
+    // Muted to 50% alpha so the visual affordance matches the (lack of) behavior.
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(LOCKED_CONTENT_ALPHA),
+    ) {
+        MeasurementListItem(measurement = measurement, onClick = null)
+    }
+}
+
+@Composable
+private fun LockedDetailBanner(modifier: Modifier = Modifier) {
+    // Calm, informative banner (not error-red) — the data is preserved and accessible,
+    // only write actions are gated. Per V1.0 design spec: "locked = workflow gate, not a wall".
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+            modifier = Modifier.padding(DesignTokens.space3),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.customer_locked_detail_banner_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(Res.string.customer_locked_detail_banner_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StylesSectionRow(onClick: (() -> Unit)?) {
     Column(modifier = Modifier.padding(top = DesignTokens.space6)) {
         Text(
             text = stringResource(Res.string.style_section_header),
@@ -413,12 +530,17 @@ private fun StylesSectionRow(onClick: () -> Unit) {
             )
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        val interactionModifier = if (onClick != null) {
+            Modifier.clickable(onClick = onClick)
+        } else {
+            Modifier.alpha(LOCKED_CONTENT_ALPHA)
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .then(interactionModifier)
                 .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4)
         ) {
             Box(
@@ -457,7 +579,7 @@ private fun StylesSectionRow(onClick: () -> Unit) {
 }
 
 @Composable
-private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
+private fun MeasurementListItem(measurement: Measurement, onClick: (() -> Unit)?) {
     val profileTitle = if (measurement.gender == CustomerGender.FEMALE) {
         stringResource(Res.string.measurement_female_profile)
     } else {
@@ -473,12 +595,13 @@ private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
     }
     val subtitleParts = listOfNotNull(dateText.ifBlank { null }, unitLabel)
 
+    val tapModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(tapModifier)
             .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
     ) {
         Column(modifier = Modifier.weight(1f)) {
