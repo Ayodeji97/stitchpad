@@ -1049,7 +1049,8 @@
     <!-- PlanCard — AI Locked (success-framed, used in both First Month and Post-First-Month Free) -->
     <string name="plan_card_pill_ai_used_up_first_month">First month · AI used up</string>
     <string name="plan_card_pill_ai_used_up_free">Free · AI used up</string>
-    <string name="plan_card_title_ai_locked">You used all %1$d AI drafts this month — ~%2$d minutes saved</string>
+    <string name="plan_card_title_ai_locked">You used all %1$d AI drafts this month</string>
+    <string name="plan_card_title_ai_locked_minutes">~%1$d minutes saved</string>
     <string name="plan_card_subtitle_ai_locked">Tailor Pro gives you 500 drafts a month. Never run out.</string>
     <string name="plan_card_ai_resets_caption">AI resets next month</string>
 
