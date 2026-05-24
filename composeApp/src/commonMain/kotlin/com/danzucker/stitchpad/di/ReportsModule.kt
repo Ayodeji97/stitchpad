@@ -13,7 +13,7 @@ val reportsPresentationModule = module {
             orderRepository = get(),
             customerRepository = get(),
             authRepository = get(),
-            entitlementsRepository = get()
+            entitlementsProvider = get()
         )
     }
 }

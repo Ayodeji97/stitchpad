@@ -2,13 +2,14 @@ package com.danzucker.stitchpad.feature.reports.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
-import com.danzucker.stitchpad.feature.billing.domain.EntitlementsRepository
 import com.danzucker.stitchpad.feature.reports.domain.CustomerInsightsCalculator
 import com.danzucker.stitchpad.feature.reports.domain.KpiCalculator
 import com.danzucker.stitchpad.feature.reports.domain.ProductionCountsCalculator
@@ -19,6 +20,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -35,7 +37,7 @@ class ReportsViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
-    private val entitlementsRepository: EntitlementsRepository,
+    private val entitlementsProvider: EntitlementsProvider,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) : ViewModel() {
@@ -120,7 +122,7 @@ class ReportsViewModel(
                 customerRepository.observeCustomers(user.id),
                 periodFlow,
                 customRangeFlow,
-                entitlementsRepository.observeIsPremium()
+                entitlementsProvider.flow.map { it.tier != SubscriptionTier.FREE }
             ) { ordersResult, customersResult, period, customRange, isPremium ->
                 Inputs(ordersResult, customersResult, period, customRange, isPremium)
             }.collect { recompute(it) }

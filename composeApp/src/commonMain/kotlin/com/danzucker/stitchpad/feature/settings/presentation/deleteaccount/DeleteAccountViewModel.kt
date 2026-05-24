@@ -113,7 +113,7 @@ class DeleteAccountViewModel(
                     isLoading = false,
                     email = authUser.email,
                     signInProvider = authRepository.getSignInProvider(),
-                    // plan + daysActive will be wired from EntitlementsRepository / users
+                    // plan + daysActive will be wired from EntitlementsProvider / users
                     // doc once the analytics surface needs them; for V1 we ship the
                     // anonymous payload with conservative defaults.
                     plan = "free",

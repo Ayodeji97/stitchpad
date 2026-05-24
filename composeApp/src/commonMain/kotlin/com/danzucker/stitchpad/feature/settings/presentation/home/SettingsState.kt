@@ -67,10 +67,10 @@ data class SettingsState(
     /**
      * Pro/Atelier badge label for the profile hero. Null for FREE — keeps the
      * hero clean while paid tiers get a visible cue. Derived from the real
-     * subscriptionTier (sourced from EntitlementsProvider) — not from the
-     * placeholder InMemoryEntitlementsRepository.observeIsPremium() flow, which
-     * was always-false in production DI and caused a real Pro user's PlanCard
-     * to show Pro while the hero badge stayed empty.
+     * subscriptionTier sourced from EntitlementsProvider. (Historical note:
+     * an earlier in-memory entitlement stub hardcoded `isPremium = false` and
+     * caused this badge to stay empty even for real Pro users — fixed by
+     * routing everything through EntitlementsProvider.)
      */
     val proBadgeLabel: StringResource?
         get() = when (subscriptionTier) {
