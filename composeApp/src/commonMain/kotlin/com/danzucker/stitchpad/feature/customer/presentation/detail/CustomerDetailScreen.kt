@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,6 +86,12 @@ import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_section_header
+
+// Inert surfaces on a locked customer's detail page render at this alpha so the
+// visual hierarchy matches the affordance. 0.5f tested as the sweet spot — high
+// enough that the measurement values stay readable, low enough that the surfaces
+// clearly look "off". Only the "Unlock with Pro" CTA renders at full opacity.
+private const val LOCKED_CONTENT_ALPHA = 0.5f
 
 @Composable
 fun CustomerDetailRoot(
@@ -233,12 +240,10 @@ fun CustomerDetailScreen(
                     } else {
                         items(items = state.measurements, key = { it.id }) { measurement ->
                             if (state.isLocked) {
-                                // Read-only measurement row — tap navigates to view but swipe-to-delete
-                                // is suppressed since the user can't write to a locked customer.
-                                ReadOnlyMeasurementItem(
-                                    measurement = measurement,
-                                    onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
-                                )
+                                // Locked customers: row is fully inert (no tap, no swipe) and
+                                // visually muted so the affordance matches the behavior. Only
+                                // the "Unlock with Pro" CTA below stays interactive.
+                                ReadOnlyMeasurementItem(measurement = measurement)
                             } else {
                                 SwipeableMeasurementItem(
                                     measurement = measurement,
@@ -253,9 +258,12 @@ fun CustomerDetailScreen(
                         }
                     }
                     item {
-                        StylesSectionRow(
-                            onClick = { onAction(CustomerDetailAction.OnViewStylesClick) }
-                        )
+                        val stylesClick: (() -> Unit)? = if (state.isLocked) {
+                            null
+                        } else {
+                            { onAction(CustomerDetailAction.OnViewStylesClick) }
+                        }
+                        StylesSectionRow(onClick = stylesClick)
                     }
                     if (state.isLocked) {
                         item(key = "locked_upgrade_cta") {
@@ -453,16 +461,18 @@ private fun SwipeableMeasurementItem(
 }
 
 @Composable
-private fun ReadOnlyMeasurementItem(
-    measurement: Measurement,
-    onClick: () -> Unit,
-) {
-    // No swipe-to-delete wrapper, just the row. Used when the customer is locked.
+private fun ReadOnlyMeasurementItem(measurement: Measurement) {
+    // Used when the customer is locked: no swipe-to-delete wrapper AND no click handler.
+    // Per V1.0 design spec decision #2, locked customers are fully visible read-only —
+    // every surface on the detail page is inert except the "Unlock with Pro" CTA.
+    // Muted to 50% alpha so the visual affordance matches the (lack of) behavior.
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(LOCKED_CONTENT_ALPHA),
     ) {
-        MeasurementListItem(measurement = measurement, onClick = onClick)
+        MeasurementListItem(measurement = measurement, onClick = null)
     }
 }
 
@@ -505,7 +515,7 @@ private fun LockedDetailBanner(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StylesSectionRow(onClick: () -> Unit) {
+private fun StylesSectionRow(onClick: (() -> Unit)?) {
     Column(modifier = Modifier.padding(top = DesignTokens.space6)) {
         Text(
             text = stringResource(Res.string.style_section_header),
@@ -520,12 +530,17 @@ private fun StylesSectionRow(onClick: () -> Unit) {
             )
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        val interactionModifier = if (onClick != null) {
+            Modifier.clickable(onClick = onClick)
+        } else {
+            Modifier.alpha(LOCKED_CONTENT_ALPHA)
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .then(interactionModifier)
                 .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4)
         ) {
             Box(
@@ -564,7 +579,7 @@ private fun StylesSectionRow(onClick: () -> Unit) {
 }
 
 @Composable
-private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
+private fun MeasurementListItem(measurement: Measurement, onClick: (() -> Unit)?) {
     val profileTitle = if (measurement.gender == CustomerGender.FEMALE) {
         stringResource(Res.string.measurement_female_profile)
     } else {
@@ -580,12 +595,13 @@ private fun MeasurementListItem(measurement: Measurement, onClick: () -> Unit) {
     }
     val subtitleParts = listOfNotNull(dateText.ifBlank { null }, unitLabel)
 
+    val tapModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(tapModifier)
             .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
     ) {
         Column(modifier = Modifier.weight(1f)) {
