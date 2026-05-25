@@ -282,14 +282,14 @@ fun CustomerFormScreen(
                 )
             )
 
+            Spacer(Modifier.height(DesignTokens.space2))
+
             if (!state.isEditMode) {
                 MeasurementsToggleRow(
                     checked = state.addMeasurementsNext,
                     onToggle = { onAction(CustomerFormAction.OnToggleAddMeasurementsNext) }
                 )
             }
-
-            Spacer(Modifier.height(DesignTokens.space2))
 
             SaveButton(
                 isLoading = state.isLoading,
