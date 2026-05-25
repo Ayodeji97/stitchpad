@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.Timestamp
@@ -22,11 +23,26 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
+
+private const val TAG = "EntitlementsProvider"
+
+// Last 4 chars of uid in logs — enough to disambiguate test accounts
+// (Fola vs Gabby) in Xcode console / Crashlytics without spilling full
+// Firebase Auth uids into log streams. Mirrors ReconcileCoordinator's
+// UID_SUFFIX_LEN policy.
+private const val UID_SUFFIX_LEN = 4
+
+// Backoff between snapshot-listener retries when Firestore errors out
+// (permission-denied transient, network blip, deserialization crash).
+// retryWhen keeps the listener alive so a transient failure doesn't leave
+// the user permanently on default entitlements until they sign out + back in.
+private const val SNAPSHOT_RETRY_DELAY_MS = 5_000L
 
 /**
  * Wire shape of the slice of `users/{uid}` we actually read for entitlements.
@@ -48,6 +64,18 @@ private data class UserEntitlementsDoc(
     val subscriptionTier: String? = null,
     val welcomeBonusAppliedAt: Timestamp? = null,
 )
+
+/**
+ * Internal upstream signal so the collector can distinguish "signed out"
+ * (don't mark hydrated; awaitHydrated must keep waiting) from "signed in
+ * with a snapshot result" (mark hydrated atomically with `_flow` update).
+ * Without this distinction, `awaitHydrated` would race the collector and
+ * could resume on a stale default before [_flow] received the real value.
+ */
+private sealed interface SnapshotSignal {
+    data object SignedOut : SnapshotSignal
+    data class Loaded(val doc: UserEntitlementsDoc?) : SnapshotSignal
+}
 
 /**
  * Watches the signed-in user's Firestore document and recomputes
@@ -96,27 +124,63 @@ internal class UserDocEntitlementsProvider(
                 .distinctUntilChanged()
                 .flatMapLatest { uid ->
                     if (uid == null) {
-                        flowOf(null as UserEntitlementsDoc?)
+                        flowOf<SnapshotSignal>(SnapshotSignal.SignedOut)
                     } else {
                         firestore.collection("users").document(uid).snapshots
-                            .map { snap ->
-                                if (!snap.exists) {
-                                    null
-                                } else {
-                                    snap.data<UserEntitlementsDoc>()
+                            .map<_, SnapshotSignal> { snap ->
+                                SnapshotSignal.Loaded(
+                                    if (snap.exists) snap.data<UserEntitlementsDoc>() else null
+                                )
+                            }
+                            // retryWhen (not .catch) so the listener keeps
+                            // running after a transient Firestore failure
+                            // (permission-denied, network blip, deserialization
+                            // crash). .catch + emit would END the inner flow
+                            // and leave the user permanently on default
+                            // entitlements until they sign out + sign in.
+                            // The awaitHydrated timeout below is the
+                            // user-facing safety net for the rare case where
+                            // retries never succeed.
+                            .retryWhen { error, _ ->
+                                AppLogger.e(tag = TAG, throwable = error) {
+                                    "user-doc snapshot failed uid=...${uid.takeLast(UID_SUFFIX_LEN)}; " +
+                                        "retrying in ${SNAPSHOT_RETRY_DELAY_MS}ms"
                                 }
+                                delay(SNAPSHOT_RETRY_DELAY_MS)
+                                true
                             }
                     }
                 }
 
-            combine(snapshotFlow, recomputeTicker) { data, _ -> data }
-                .collectLatest { data ->
-                    if (data == null) {
-                        _flow.value = defaultEntitlements()
-                        _hydrated.value = false
-                    } else {
-                        _flow.value = computeFromData(data)
-                        _hydrated.value = true
+            combine(snapshotFlow, recomputeTicker) { signal, _ -> signal }
+                .collectLatest { signal ->
+                    // Write `_flow` BEFORE flipping `_hydrated` so a racing
+                    // awaitHydrated() that resumes on the hydration flag
+                    // reads the real value, not the stale default.
+                    when (signal) {
+                        SnapshotSignal.SignedOut -> {
+                            _flow.value = defaultEntitlements()
+                            _hydrated.value = false
+                        }
+                        is SnapshotSignal.Loaded -> {
+                            if (signal.doc == null) {
+                                // Signed in but user doc missing — typically:
+                                //   (a) fresh signup race before createUserProfile lands
+                                //   (b) accidental doc deletion / admin sweep
+                                // Do NOT mark hydrated. The real entitlements may
+                                // arrive shortly with a non-trivial cap (First Month
+                                // 200, Pro ∞), and a cap gate that proceeds with the
+                                // FREE/15 default could falsely block a Pro account
+                                // or miss the First Month customer cap. The snapshot
+                                // listener stays alive; once the doc lands, the next
+                                // Loaded emission flips hydrated and replaces _flow.
+                                _flow.value = defaultEntitlements()
+                                _hydrated.value = false
+                            } else {
+                                _flow.value = computeFromData(signal.doc)
+                                _hydrated.value = true
+                            }
+                        }
                     }
                 }
         }
@@ -137,6 +201,14 @@ internal class UserDocEntitlementsProvider(
     override fun current(): UserEntitlements = _flow.value
 
     override suspend fun awaitHydrated(): UserEntitlements {
+        // No timeout: a wall-clock cutoff would return the default FREE/15 on
+        // a merely slow snapshot, falsely blocking Pro/Atelier users with
+        // 15+ customers on poor networks — the exact bug awaitHydrated exists
+        // to prevent. retryWhen above keeps the snapshot listener alive
+        // through transient failures, so callers always converge eventually.
+        // Permanent failures (rules deny, account doc missing) leave the
+        // caller's UI in a spinner — honest signal that the gate can't be
+        // evaluated, vs silently letting the user proceed against stale data.
         _hydrated.first { it }
         return _flow.value
     }
