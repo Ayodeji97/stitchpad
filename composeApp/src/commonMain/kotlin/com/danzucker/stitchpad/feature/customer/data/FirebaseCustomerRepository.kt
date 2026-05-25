@@ -21,11 +21,22 @@ private const val TAG = "CustomerRepo"
 /**
  * Counts the number of ACTIVE-slot customers in [dtos].
  * LOCKED customers are excluded — they don't consume active cap.
+ *
+ * Uses [CustomerSlotState.fromWire] so the cap count matches the way the
+ * rest of the system buckets slot states: the UI mapper, the server's
+ * `normalizeSlotState` in reconcileSlots.ts, and Firestore rules all treat
+ * anything-not-`"locked"` as `ACTIVE`. An exact-equality count would skip
+ * an arbitrary-string `slotState` (e.g. `"fancy"` from a direct Firestore
+ * SDK write) here while the UI + reconcile still count it — a brief
+ * client-side cap-bypass window before reconcile fires. Cursor's PR #70
+ * review caught this as the client-side mirror of the server fix shipped
+ * in PR #69.
+ *
  * Exposed as `internal` so it can be unit-tested directly without
  * needing to fake a [FirebaseFirestore] instance.
  */
 internal fun countActiveCustomers(dtos: List<CustomerDto>): Int =
-    dtos.count { it.slotState.lowercase() == CustomerSlotState.ACTIVE.wireValue }
+    dtos.count { CustomerSlotState.fromWire(it.slotState) == CustomerSlotState.ACTIVE }
 
 class FirebaseCustomerRepository(
     private val firestore: FirebaseFirestore,
