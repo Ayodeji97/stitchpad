@@ -215,9 +215,6 @@
     <string name="customer_form_notes_placeholder">Prefers ankara fabric, usually picks up Saturdays…</string>
     <string name="customer_form_save_button">Save Customer</string>
 
-    <!-- Customer list filters -->
-    <string name="customer_filter_all">All</string>
-
     <!-- Delivery preference options -->
     <string name="delivery_pickup">Pickup</string>
     <string name="delivery_delivery">Delivery</string>

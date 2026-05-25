@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -66,17 +65,8 @@ class CustomerListViewModel(
                 _state.update {
                     it.copy(
                         searchQuery = action.query,
-                        customers = filterCustomers(allCustomers, action.query, it.deliveryFilter),
-                        lockedCustomers = filterCustomers(allLockedCustomers, action.query, it.deliveryFilter),
-                    )
-                }
-            }
-            is CustomerListAction.OnDeliveryFilterChange -> {
-                _state.update {
-                    it.copy(
-                        deliveryFilter = action.filter,
-                        customers = filterCustomers(allCustomers, it.searchQuery, action.filter),
-                        lockedCustomers = filterCustomers(allLockedCustomers, it.searchQuery, action.filter),
+                        customers = filterCustomers(allCustomers, action.query),
+                        lockedCustomers = filterCustomers(allLockedCustomers, action.query),
                     )
                 }
             }
@@ -158,9 +148,8 @@ class CustomerListViewModel(
                         allLockedCustomers = locked
                         _state.update { state ->
                             state.copy(
-                                customers = filterCustomers(active, state.searchQuery, state.deliveryFilter),
-                                lockedCustomers = filterCustomers(locked, state.searchQuery, state.deliveryFilter),
-                                hasAnyCustomers = result.data.isNotEmpty(),
+                                customers = filterCustomers(active, state.searchQuery),
+                                lockedCustomers = filterCustomers(locked, state.searchQuery),
                                 isLoading = false
                             )
                         }
@@ -256,19 +245,9 @@ class CustomerListViewModel(
     private fun filterCustomers(
         customers: List<Customer>,
         query: String,
-        deliveryFilter: DeliveryPreference?
     ): List<Customer> {
-        var result = customers
-        if (query.isNotBlank()) {
-            val q = query.lowercase().trim()
-            result = result.filter { it.name.lowercase().contains(q) || it.phone.contains(q) }
-        }
-        if (deliveryFilter != null) {
-            result = result.filter {
-                it.deliveryPreference == deliveryFilter ||
-                    it.deliveryPreference == DeliveryPreference.EITHER
-            }
-        }
-        return result
+        if (query.isBlank()) return customers
+        val q = query.lowercase().trim()
+        return customers.filter { it.name.lowercase().contains(q) || it.phone.contains(q) }
     }
 }

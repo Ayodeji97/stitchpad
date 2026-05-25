@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.feature.customer.presentation.list
 
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.core.presentation.UiText
 
 data class CustomerListState(
@@ -9,13 +8,6 @@ data class CustomerListState(
     val lockedCustomers: List<Customer> = emptyList(),
     val swapSheetForId: String? = null,
     val searchQuery: String = "",
-    val deliveryFilter: DeliveryPreference? = null,
-    /**
-     * True once the user has at least one customer in the unfiltered list.
-     * Drives whether the delivery-filter chip row is shown — chips would
-     * just be visual noise on a brand-new account's empty Customers tab.
-     */
-    val hasAnyCustomers: Boolean = false,
     val isLoading: Boolean = true,
     /**
      * True once the orders flow has emitted [com.danzucker.stitchpad.core.domain.error.Result.Success]
