@@ -46,9 +46,14 @@ private const val ROTATION_DURATION_MS = 200
 private const val MINI_FAB_STAGGER_MS = 30
 
 /**
- * One action surfaced by [StitchPadSpeedDialFab]. Order in the
- * `actions` list = bottom-up on screen (first action sits closest to
- * the main FAB).
+ * One action surfaced by [StitchPadSpeedDialFab]. Actions render
+ * top-to-bottom in the order given, stacked ABOVE the main FAB —
+ * so the LAST action in the list sits closest to the main FAB.
+ *
+ * For example, passing `[customer, order]` renders:
+ *   customer  (top)
+ *   order     (closest to FAB)
+ *   [main FAB]
  */
 data class SpeedDialAction(
     val label: String,

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -102,10 +101,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
-import stitchpad.composeapp.generated.resources.dashboard_fab_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_customer_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_order_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
@@ -441,15 +440,28 @@ fun DashboardScreen(
     )
 
     val closeCd = stringResource(Res.string.dashboard_fab_close_cd)
-    val addCd = stringResource(Res.string.dashboard_fab_cd)
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            containerColor = MaterialTheme.colorScheme.background,
-        ) { innerPadding ->
-            val contentModifier = Modifier
+    val quickActionsCd = stringResource(Res.string.dashboard_fab_quick_actions_cd)
+    Scaffold(
+        floatingActionButton = {
+            if (showFab) {
+                StitchPadSpeedDialFab(
+                    isExpanded = isFabExpanded,
+                    onToggle = { isFabExpanded = !isFabExpanded },
+                    actions = speedDialActions,
+                    closeContentDescription = closeCd,
+                    addContentDescription = quickActionsCd,
+                )
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
+        ) {
+            val contentModifier = Modifier.fillMaxSize()
             when (state.uiState) {
                 DashboardUiState.Loading -> LoadingState(modifier = contentModifier)
                 DashboardUiState.BrandNew,
@@ -465,33 +477,18 @@ fun DashboardScreen(
                     bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
                 )
             }
-        }
 
-        // Backdrop scrim — covers content but sits BELOW the FAB cluster in z-order.
-        // Tap dismisses. Renders only when expanded and only when the FAB is shown.
-        if (isFabExpanded && showFab) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
-                    .clickable(onClick = collapseFab),
-            )
-        }
-
-        // Speed-dial FAB cluster — sibling of Scaffold, sibling of scrim,
-        // rendered AFTER the scrim so it z-orders above it.
-        if (showFab) {
-            StitchPadSpeedDialFab(
-                isExpanded = isFabExpanded,
-                onToggle = { isFabExpanded = !isFabExpanded },
-                actions = speedDialActions,
-                closeContentDescription = closeCd,
-                addContentDescription = addCd,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-                    .navigationBarsPadding(),
-            )
+            // Backdrop scrim — sits inside the Scaffold content lambda. Scaffold draws its
+            // FAB slot on top of content, so the FAB remains tappable above the scrim.
+            // The scrim dims the dashboard content without obstructing the FAB or snackbar.
+            if (isFabExpanded && showFab) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                        .clickable(onClick = collapseFab),
+                )
+            }
         }
     }
 }
