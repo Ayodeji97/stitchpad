@@ -7,6 +7,8 @@ data class CustomerListState(
     val customers: List<Customer> = emptyList(),
     val lockedCustomers: List<Customer> = emptyList(),
     val swapSheetForId: String? = null,
+    /** When non-null, the row-overflow actions sheet is open for this customer id. */
+    val actionsSheetForId: String? = null,
     val searchQuery: String = "",
     val isLoading: Boolean = true,
     /**

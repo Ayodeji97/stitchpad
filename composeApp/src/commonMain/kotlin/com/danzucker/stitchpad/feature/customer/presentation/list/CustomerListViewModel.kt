@@ -13,6 +13,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
@@ -24,6 +25,8 @@ import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.customer_delete_orders_load_failed
 import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_load
+
+private const val SHEET_DISMISS_DELAY_MS = 450L
 
 class CustomerListViewModel(
     private val customerRepository: CustomerRepository,
@@ -84,6 +87,10 @@ class CustomerListViewModel(
                 val activeCount = activeOrderCountByCustomerId[action.customer.id] ?: 0
                 _state.update {
                     it.copy(
+                        // Sheet may be open (delete tapped from CustomerActionsSheet) — close it
+                        // before the dialog appears so the user only sees one modal at a time.
+                        // Dialog is Compose-native, not UIKit, so no 450ms timing race needed.
+                        actionsSheetForId = null,
                         showDeleteDialog = true,
                         customerToDelete = action.customer,
                         customerToDeleteActiveOrderCount = activeCount
@@ -128,6 +135,24 @@ class CustomerListViewModel(
                     }
                     _state.update { it.copy(swapSheetForId = null) }
                 }
+            }
+            is CustomerListAction.OnOverflowClick -> {
+                _state.update { it.copy(actionsSheetForId = action.customer.id) }
+            }
+            CustomerListAction.DismissActionsSheet -> {
+                _state.update { it.copy(actionsSheetForId = null) }
+            }
+            is CustomerListAction.OnViewCustomerFromSheet -> {
+                navigateFromSheet { CustomerListEvent.NavigateToCustomerDetail(action.customerId) }
+            }
+            is CustomerListAction.OnEditCustomerFromRow -> {
+                navigateFromSheet { CustomerListEvent.NavigateToEditCustomer(action.customerId) }
+            }
+            is CustomerListAction.OnAddMeasurementFromRow -> {
+                navigateFromSheet { CustomerListEvent.NavigateToAddMeasurement(action.customerId) }
+            }
+            is CustomerListAction.OnNewOrderFromRow -> {
+                navigateFromSheet { CustomerListEvent.NavigateToOrderForm(action.customerId) }
             }
         }
     }
@@ -249,5 +274,20 @@ class CustomerListViewModel(
         if (query.isBlank()) return customers
         val q = query.lowercase().trim()
         return customers.filter { it.name.lowercase().contains(q) || it.phone.contains(q) }
+    }
+
+    /**
+     * Common path for the four "from row" nav actions: close the sheet, wait
+     * ~450ms for the Compose dismissal to fully settle (per
+     * `feedback_ios_modal_bottom_sheet_timing` — UIKit-backed nav after a
+     * Compose sheet dismiss can silently no-op on iOS), then emit the nav
+     * event.
+     */
+    private fun navigateFromSheet(event: () -> CustomerListEvent) {
+        _state.update { it.copy(actionsSheetForId = null) }
+        viewModelScope.launch {
+            delay(SHEET_DISMISS_DELAY_MS)
+            _events.send(event())
+        }
     }
 }

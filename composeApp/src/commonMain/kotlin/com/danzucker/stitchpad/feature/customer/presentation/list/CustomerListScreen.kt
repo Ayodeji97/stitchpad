@@ -21,11 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
+import com.danzucker.stitchpad.feature.customer.presentation.list.components.CustomerActionsSheet
 import com.danzucker.stitchpad.feature.freemium.presentation.swap.SwapSheet
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
@@ -81,6 +82,7 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.cd_customer_overflow
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_dismiss
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_message
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_title
@@ -106,7 +108,10 @@ import stitchpad.composeapp.generated.resources.customer_swap_success
 @Composable
 fun CustomerListRoot(
     onNavigateToAddCustomer: () -> Unit,
-    onNavigateToCustomerDetail: (String) -> Unit
+    onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToEditCustomer: (String) -> Unit,
+    onNavigateToAddMeasurement: (String) -> Unit,
+    onNavigateToOrderForm: (String) -> Unit,
 ) {
     val viewModel: CustomerListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -117,6 +122,9 @@ fun CustomerListRoot(
         when (event) {
             CustomerListEvent.NavigateToAddCustomer -> onNavigateToAddCustomer()
             is CustomerListEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+            is CustomerListEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
+            is CustomerListEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
+            is CustomerListEvent.NavigateToOrderForm -> onNavigateToOrderForm(event.customerId)
             is CustomerListEvent.SwapSucceeded -> scope.launch {
                 snackbarHostState.showSnackbar(
                     getString(Res.string.customer_swap_success, event.promotedFirstName)
@@ -214,7 +222,8 @@ fun CustomerListScreen(
                             SwipeableCustomerItem(
                                 customer = customer,
                                 onClick = { onAction(CustomerListAction.OnCustomerClick(customer)) },
-                                onDelete = { onAction(CustomerListAction.OnDeleteCustomerClick(customer)) }
+                                onDelete = { onAction(CustomerListAction.OnDeleteCustomerClick(customer)) },
+                                onOverflowClick = { onAction(CustomerListAction.OnOverflowClick(customer)) },
                             )
                             HorizontalDivider(
                                 color = MaterialTheme.colorScheme.outlineVariant,
@@ -292,6 +301,21 @@ fun CustomerListScreen(
                 activeCustomers = state.customers,
                 onConfirm = { demoteId -> onAction(CustomerListAction.ConfirmSwap(lockedId, demoteId)) },
                 onDismiss = { onAction(CustomerListAction.DismissSwapSheet) },
+            )
+        }
+    }
+
+    state.actionsSheetForId?.let { customerId ->
+        val customer = state.customers.firstOrNull { it.id == customerId }
+        if (customer != null) {
+            CustomerActionsSheet(
+                customer = customer,
+                onView = { id -> onAction(CustomerListAction.OnViewCustomerFromSheet(id)) },
+                onEdit = { id -> onAction(CustomerListAction.OnEditCustomerFromRow(id)) },
+                onNewMeasurement = { id -> onAction(CustomerListAction.OnAddMeasurementFromRow(id)) },
+                onNewOrder = { id -> onAction(CustomerListAction.OnNewOrderFromRow(id)) },
+                onDelete = { c -> onAction(CustomerListAction.OnDeleteCustomerClick(c)) },
+                onDismiss = { onAction(CustomerListAction.DismissActionsSheet) },
             )
         }
     }
@@ -574,7 +598,8 @@ private fun LockedCustomerRow(
 private fun SwipeableCustomerItem(
     customer: Customer,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onOverflowClick: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -613,20 +638,29 @@ private fun SwipeableCustomerItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            CustomerListItem(customer = customer, onClick = onClick)
+            CustomerListItem(customer = customer, onClick = onClick, onOverflowClick = onOverflowClick)
         }
     }
 }
 
 @Composable
-private fun CustomerListItem(customer: Customer, onClick: () -> Unit) {
+private fun CustomerListItem(
+    customer: Customer,
+    onClick: () -> Unit,
+    onOverflowClick: () -> Unit,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
+            .padding(
+                start = DesignTokens.space4,
+                end = DesignTokens.space2,
+                top = DesignTokens.space3,
+                bottom = DesignTokens.space3,
+            )
     ) {
         CustomerAvatar(name = customer.name, size = 44.dp)
 
@@ -647,12 +681,13 @@ private fun CustomerListItem(customer: Customer, onClick: () -> Unit) {
             )
         }
 
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.size(20.dp)
-        )
+        IconButton(onClick = onOverflowClick) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.cd_customer_overflow, customer.name),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
