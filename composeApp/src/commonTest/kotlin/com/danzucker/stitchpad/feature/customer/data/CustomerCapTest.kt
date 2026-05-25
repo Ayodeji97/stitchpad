@@ -81,10 +81,24 @@ class CustomerCapTest {
     }
 
     @Test
-    fun countActiveCustomers_treats_unknown_slotState_as_inactive() {
-        // Unknown slot-state should not count toward the cap
-        val dtos = listOf(makeDto(slotState = ""))
-        assertEquals(0, countActiveCustomers(dtos))
+    fun countActiveCustomers_treats_unknown_slotState_as_active() {
+        // Aligned with CustomerSlotState.fromWire + server normalizeSlotState:
+        // anything-not-"locked" buckets as ACTIVE. Without this, an arbitrary
+        // slotState string (e.g. "fancy" from a malicious direct Firestore
+        // write) would skip the client cap count here while the UI + reconcile
+        // still count it active — a brief client-side cap-bypass window.
+        // Cursor's PR #70 review caught this as the client mirror of the
+        // server fix shipped in PR #69.
+        val dtos = listOf(
+            makeDto(slotState = ""),
+            makeDto(slotState = "fancy"),
+            makeDto(slotState = "unlimited"),
+            makeDto(slotState = "active"),
+            makeDto(slotState = "ACTIVE"),
+            makeDto(slotState = "locked"),
+        )
+        // 5 of 6 are not-"locked" → counted as active.
+        assertEquals(5, countActiveCustomers(dtos))
     }
 
     // ── DataError.Network.CAP_REACHED mapping test ────────────────────────
