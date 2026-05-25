@@ -1,5 +1,6 @@
 import {
   effectiveCap,
+  normalizeSlotState,
   selectSlotsToLock,
   CustomerSlotInfo,
   welcomeEndsAtMs,
@@ -171,5 +172,37 @@ describe('effectiveCap', () => {
   it('returns Number.MAX_SAFE_INTEGER for Atelier regardless of welcome state', () => {
     expect(effectiveCap('atelier', true)).toBe(Number.MAX_SAFE_INTEGER);
     expect(effectiveCap('atelier', false)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+});
+
+// Regression guard for the Codex review finding: Firestore rules leave
+// slotState client-writable, so a malicious or buggy client can write any
+// string. Before normalization the value `'fancy'` (or `''`, or `'unlimited'`)
+// would escape both selectSlotsToLock buckets and the customer would never
+// be locked — a durable cap bypass. These tests pin the contract that any
+// non-'locked' value collapses to 'active' so reconcile always counts it.
+describe('normalizeSlotState', () => {
+  it('returns "locked" for the literal "locked"', () => {
+    expect(normalizeSlotState('locked')).toBe('locked');
+  });
+
+  it('returns "locked" for case-insensitive "LOCKED"', () => {
+    expect(normalizeSlotState('LOCKED')).toBe('locked');
+    expect(normalizeSlotState('Locked')).toBe('locked');
+  });
+
+  it('returns "active" for the literal "active"', () => {
+    expect(normalizeSlotState('active')).toBe('active');
+  });
+
+  it('returns "active" for arbitrary unknown strings (cap-bypass defense)', () => {
+    expect(normalizeSlotState('fancy')).toBe('active');
+    expect(normalizeSlotState('unlimited')).toBe('active');
+    expect(normalizeSlotState('free')).toBe('active');
+    expect(normalizeSlotState('')).toBe('active');
+  });
+
+  it('returns "active" for undefined (missing field on legacy doc)', () => {
+    expect(normalizeSlotState(undefined)).toBe('active');
   });
 });
