@@ -98,6 +98,8 @@ import stitchpad.composeapp.generated.resources.customer_locked_section_subtitle
 import stitchpad.composeapp.generated.resources.customer_locked_section_title
 import stitchpad.composeapp.generated.resources.customer_search_clear_cd
 import stitchpad.composeapp.generated.resources.customer_search_hint
+import stitchpad.composeapp.generated.resources.customer_search_no_results_subtitle
+import stitchpad.composeapp.generated.resources.customer_search_no_results_title
 import stitchpad.composeapp.generated.resources.customer_swap_failure
 import stitchpad.composeapp.generated.resources.customer_swap_success
 
@@ -194,7 +196,14 @@ fun CustomerListScreen(
                     }
                 }
                 state.customers.isEmpty() && state.lockedCustomers.isEmpty() -> {
-                    CustomerEmptyState(modifier = Modifier.fillMaxSize())
+                    if (state.searchQuery.isNotBlank()) {
+                        CustomerSearchNoResultsState(
+                            query = state.searchQuery,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        CustomerEmptyState(modifier = Modifier.fillMaxSize())
+                    }
                 }
                 else -> {
                     LazyColumn(
@@ -467,6 +476,48 @@ private fun CustomerEmptyState(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun CustomerSearchNoResultsState(
+    query: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.padding(horizontal = DesignTokens.space8)
+    ) {
+        Spacer(Modifier.weight(1f))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(DesignTokens.radiusXl))
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+        Spacer(Modifier.height(DesignTokens.space4))
+        Text(
+            text = stringResource(Res.string.customer_search_no_results_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        Text(
+            text = stringResource(Res.string.customer_search_no_results_subtitle, query),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.weight(3f))
+    }
+}
+
+@Composable
 private fun LockedCustomerRow(
     customer: Customer,
     onTap: () -> Unit,
@@ -611,6 +662,23 @@ private fun CustomerListItem(customer: Customer, onClick: () -> Unit) {
 private fun CustomerListScreenEmptyPreview() {
     StitchPadTheme {
         CustomerListScreen(state = CustomerListState(isLoading = false), onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerListScreenSearchNoResultsPreview() {
+    StitchPadTheme {
+        CustomerListScreen(
+            state = CustomerListState(
+                isLoading = false,
+                searchQuery = "ksfnskd",
+                customers = emptyList(),
+                lockedCustomers = emptyList()
+            ),
+            onAction = {}
+        )
     }
 }
 
