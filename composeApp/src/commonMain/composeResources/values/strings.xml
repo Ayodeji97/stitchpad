@@ -166,6 +166,8 @@
     <string name="customer_empty_state">No customers yet. Tap + to add one.</string>
     <string name="customer_empty_state_title">No customers yet</string>
     <string name="customer_empty_state_subtitle">Tap the + button to add your first customer</string>
+    <string name="customer_search_no_results_title">Customer not found</string>
+    <string name="customer_search_no_results_subtitle">No saved customer matches “%1$s”. Try a different name or phone number.</string>
     <string name="customer_search_clear_cd">Clear search</string>
     <string name="customer_fab_cd">Add customer</string>
 
