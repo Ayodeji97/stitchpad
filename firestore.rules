@@ -46,7 +46,19 @@ service cloud.firestore {
     // ── /users/{uid} ───────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isOwner(uid);
-      allow delete: if isOwner(uid);
+
+      // Client-side delete is denied to prevent welcome-window replay.
+      // Without this, a signed-in user using the Firestore SDK directly
+      // could delete their own user doc (customers subcollection is NOT
+      // cascade-deleted by Firestore) and then immediately recreate it
+      // under `allow create` rules with a fresh `welcomeBonusAppliedAt
+      // == request.time` and `bonusCoins == 30` — restoring First Month
+      // status + bonus coins indefinitely while keeping all their data.
+      //
+      // Legitimate account deletion goes through Auth.delete() →
+      // onAuthUserDeleted Cloud Function, which uses the Admin SDK
+      // (bypasses rules) to clean up users/{uid} + subcollections.
+      allow delete: if false;
 
       // Initial profile create: enforce safe defaults for every financially
       // meaningful field. Matches `FirebaseUserRepository.buildInitialUserDoc()`.
