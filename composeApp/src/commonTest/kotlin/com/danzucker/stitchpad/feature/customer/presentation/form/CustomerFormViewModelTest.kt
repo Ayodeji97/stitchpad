@@ -475,4 +475,32 @@ class CustomerFormViewModelTest {
         viewModel.onAction(CustomerFormAction.OnErrorDismiss)
         assertNull(viewModel.state.value.errorMessage)
     }
+
+    // --- addMeasurementsNext ---
+
+    @Test
+    fun initialState_addMode_addMeasurementsNextIsTrue() = runTest {
+        val viewModel = createViewModel()
+        assertTrue(viewModel.state.value.addMeasurementsNext)
+    }
+
+    @Test
+    fun initialState_editMode_addMeasurementsNextIsTrue() = runTest {
+        // Default is true in both modes; the screen hides the row in edit mode,
+        // and save() short-circuits to NavigateBack when isEditMode is true.
+        val viewModel = createViewModel(customerId = "customer-123")
+        assertTrue(viewModel.state.value.addMeasurementsNext)
+    }
+
+    @Test
+    fun onToggleAddMeasurementsNext_flipsFlag() = runTest {
+        val viewModel = createViewModel()
+        assertTrue(viewModel.state.value.addMeasurementsNext)
+
+        viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)
+        assertFalse(viewModel.state.value.addMeasurementsNext)
+
+        viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)
+        assertTrue(viewModel.state.value.addMeasurementsNext)
+    }
 }

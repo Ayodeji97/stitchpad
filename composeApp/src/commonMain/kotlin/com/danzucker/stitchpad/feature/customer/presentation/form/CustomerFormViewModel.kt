@@ -79,6 +79,8 @@ class CustomerFormViewModel(
             CustomerFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(CustomerFormEvent.NavigateBack) }
             }
+            CustomerFormAction.OnToggleAddMeasurementsNext ->
+                _state.update { it.copy(addMeasurementsNext = !it.addMeasurementsNext) }
             CustomerFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
