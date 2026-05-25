@@ -113,7 +113,7 @@ export const reconcileCustomerSlots = functions
       return {
         id: d.id,
         lastActivityMs: c.lastActivityAt ?? c.updatedAt ?? 0,
-        slotState: (c.slotState as 'active' | 'locked') ?? 'active',
+        slotState: normalizeSlotState(c.slotState),
       };
     });
 
@@ -170,6 +170,24 @@ const FREE_CUSTOMER_CAP = 15;
 export function effectiveCap(tier: string, inWelcome: boolean): number {
   if (tier === 'pro' || tier === 'atelier') return Number.MAX_SAFE_INTEGER;
   return inWelcome ? FIRST_MONTH_CUSTOMER_CAP : FREE_CUSTOMER_CAP;
+}
+
+/**
+ * Coerce any client-supplied slotState string to one of the two valid buckets.
+ *
+ * Firestore rules deliberately leave `customers/{id}.slotState` client-writable
+ * for V1.0 (the SwapSheet flow batches two slotState writes from the client).
+ * A malicious or buggy client could write an arbitrary value like `"fancy"` or
+ * `""` — without normalization here, `selectSlotsToLock` filters by exact
+ * `=== 'active'` / `=== 'locked'` equality, so unknown values escape both
+ * buckets and the customer becomes permanently invisible to reconcile (durable
+ * cap bypass).
+ *
+ * Mirrors the Kotlin `CustomerSlotState.fromWire` mapping (anything-not-locked
+ * → active) so reconcile always counts the customer toward the cap.
+ */
+export function normalizeSlotState(raw: string | undefined): 'active' | 'locked' {
+  return raw?.toLowerCase() === 'locked' ? 'locked' : 'active';
 }
 
 // Legacy accounts may carry subscriptionTier === "premium" from pre-V1.0 writes.
