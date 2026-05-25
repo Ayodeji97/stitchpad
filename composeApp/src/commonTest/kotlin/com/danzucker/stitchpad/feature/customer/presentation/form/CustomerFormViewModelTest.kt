@@ -2,13 +2,18 @@ package com.danzucker.stitchpad.feature.customer.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -54,6 +59,7 @@ class CustomerFormViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             emailValidator = emailValidator,
+            entitlements = FakeEntitlementsProvider(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -69,9 +75,33 @@ class CustomerFormViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             emailValidator = validator,
+            entitlements = FakeEntitlementsProvider(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    /**
+     * Minimal [EntitlementsProvider] stub for tests that don't exercise the
+     * cap-reached path. Defaults to FREE / 15-cap so the values are
+     * representative; tests can override by passing a different cap.
+     */
+    private class FakeEntitlementsProvider(
+        customerCap: Int = 15,
+    ) : EntitlementsProvider {
+        private val entitlements = UserEntitlements(
+            tier = SubscriptionTier.FREE,
+            customerCap = customerCap,
+            smartCoinAllowance = 5,
+            isInWelcomeWindow = false,
+            welcomeEndsAt = null,
+            isWithinWelcomeEndingWarning = false,
+            welcomeDaysLeft = null,
+        )
+        private val _flow = MutableStateFlow(entitlements)
+        override val flow: StateFlow<UserEntitlements> = _flow
+        override fun current(): UserEntitlements = entitlements
+        override suspend fun awaitHydrated(): UserEntitlements = entitlements
     }
 
     // --- Initial state ---

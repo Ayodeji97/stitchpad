@@ -70,6 +70,9 @@ class CustomerDetailViewModel(
             CustomerDetailAction.OnViewStylesClick -> {
                 viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToStyleGallery(customerId)) }
             }
+            CustomerDetailAction.OnUpgradeClick -> {
+                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToUpgrade) }
+            }
             CustomerDetailAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateBack) }
             }
@@ -85,16 +88,22 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            launch { loadCustomer(userId) }
+            launch { observeCustomer(userId) }
             observeMeasurements(userId)
         }
     }
 
-    private suspend fun loadCustomer(userId: String) {
-        when (val result = customerRepository.getCustomer(userId, customerId)) {
-            is Result.Success -> _state.update { it.copy(customer = result.data, isLoading = false) }
-            is Result.Error -> _state.update {
-                it.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+    // Observes the customer doc rather than one-shot fetching it so the screen
+    // reflects live slotState flips. Without this, a customer locked by the
+    // server's reconcile while the detail screen is open keeps rendering the
+    // editable (active) UI until the user navigates away and back.
+    private suspend fun observeCustomer(userId: String) {
+        customerRepository.observeCustomer(userId, customerId).collect { result ->
+            when (result) {
+                is Result.Success -> _state.update { it.copy(customer = result.data, isLoading = false) }
+                is Result.Error -> _state.update {
+                    it.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+                }
             }
         }
     }

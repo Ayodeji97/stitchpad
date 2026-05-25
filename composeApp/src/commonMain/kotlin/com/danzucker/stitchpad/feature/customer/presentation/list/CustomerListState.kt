@@ -6,6 +6,8 @@ import com.danzucker.stitchpad.core.presentation.UiText
 
 data class CustomerListState(
     val customers: List<Customer> = emptyList(),
+    val lockedCustomers: List<Customer> = emptyList(),
+    val swapSheetForId: String? = null,
     val searchQuery: String = "",
     val deliveryFilter: DeliveryPreference? = null,
     /**

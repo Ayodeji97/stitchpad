@@ -1,0 +1,137 @@
+rules_version = '2';
+
+// StitchPad Firestore security rules — V1.0 freemium.
+//
+// Threat model: a signed-in malicious client wielding a Firestore SDK can bypass
+// our Kotlin/Compose UI gates and write directly to their own docs. These rules
+// stop the high-value bypasses:
+//   1. Granting themselves a paid tier (subscriptionTier flip).
+//   2. Re-filling their welcome bonus (bonusCoins refill).
+//   3. Replaying the welcome window (welcomeBonusAppliedAt rewind).
+//   4. Editing the server's Smart-usage truth (usage/smart_drafts.bonusBalance / count).
+//
+// What we deliberately DO NOT enforce in rules (V1.0):
+//   - **Customer cap on create.** Client UI gates the +Customer button against the
+//     active count; reconcileSlots Cloud Function reconciles excess back to locked
+//     on the next foreground. A determined bypasser can briefly seed extra active
+//     customers; the cap re-asserts on next reconcile. Rule-level enforcement
+//     would require a per-create `get()` lookup of the user doc (expensive) and
+//     duplicating the welcome-window math in rules — deferred until we ship a
+//     server-side createCustomer Cloud Function.
+//   - **Customer slotState locking.** The SwapSheet flow batches two updates from
+//     the client (promote + demote). Locking slotState would break it. Deferred
+//     until swap migrates to a Cloud Function (tracked as a V1.0 follow-up).
+//   - **Tier flips via debug menu.** Setting tier=pro from the deployed app's
+//     debug menu hits these rules and fails. Use Firebase Console > Firestore to
+//     manually flip a tester account's tier when needed. Production has no
+//     legitimate client-side tier-write path until a Paystack webhook function
+//     lands.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // True iff the incoming update keeps `field` at its existing value (i.e. the
+    // client did not attempt to change it). Compatible with merge-true updates
+    // where `request.resource.data` is the full merged result.
+    function fieldUnchanged(field) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
+    }
+
+    // ── /users/{uid} ───────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow delete: if isOwner(uid);
+
+      // Initial profile create: enforce safe defaults for every financially
+      // meaningful field. Matches `FirebaseUserRepository.buildInitialUserDoc()`.
+      // Anything the client invents beyond these caps gets rejected.
+      //
+      // welcomeBonusAppliedAt must equal request.time (the server-resolved
+      // value that FieldValue.serverTimestamp materializes into). Without this
+      // a malicious client could set it to a future timestamp at signup and
+      // permanently extend their First Month welcome window.
+      allow create: if isOwner(uid)
+        && (!('subscriptionTier' in request.resource.data) ||
+            request.resource.data.subscriptionTier == 'free')
+        && (!('subscriptionStatus' in request.resource.data) ||
+            request.resource.data.subscriptionStatus == 'active')
+        && (!('subscriptionRenews' in request.resource.data) ||
+            request.resource.data.subscriptionRenews == false)
+        && (!('customerCount' in request.resource.data) ||
+            request.resource.data.customerCount == 0)
+        && (!('bonusCoins' in request.resource.data) ||
+            request.resource.data.bonusCoins == 30)
+        && (!('welcomeBonusAppliedAt' in request.resource.data) ||
+            request.resource.data.welcomeBonusAppliedAt == request.time);
+
+      // Profile updates: user can edit display fields freely, but cannot touch
+      // the financially meaningful fields. Server (admin SDK) bypasses these
+      // rules so Cloud Functions and Firebase Console edits still work.
+      allow update: if isOwner(uid)
+        && fieldUnchanged('subscriptionTier')
+        && fieldUnchanged('subscriptionStatus')
+        && fieldUnchanged('subscriptionRenews')
+        && fieldUnchanged('welcomeBonusAppliedAt')
+        && fieldUnchanged('bonusCoins')
+        && fieldUnchanged('customerCount');
+
+      // ── Customer subcollection ───────────────────────────────────────────
+      // slotState/lockedAt stay client-writable in V1.0 because the SwapSheet
+      // mutates them directly via Firestore batch. See top-level comment.
+      match /customers/{customerId} {
+        allow read, create, update, delete: if isOwner(uid);
+
+        match /measurements/{measurementId} {
+          allow read, write: if isOwner(uid);
+        }
+
+        match /styles/{styleId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      // ── Orders subcollection ─────────────────────────────────────────────
+      match /orders/{orderId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Goals subcollection ──────────────────────────────────────────────
+      match /goals/{goalId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Smart usage subcollection — server-only writes ───────────────────
+      // The client reads `users/{uid}/usage/smart_drafts.bonusBalance` and
+      // `.count` to keep PlanCard in sync (see SmartUsageDocSource), but the
+      // server's draftMessage Cloud Function is the only writer — it decrements
+      // bonusBalance per draft and increments count per monthly call.
+      //
+      // A successful client write here would let a user reset their AI quota
+      // mid-month. Hard deny.
+      match /usage/{usageDoc} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────
+    // FirestoreDeletionFeedbackRepository writes anonymous-shaped feedback
+    // (reason, additionalNotes, plan, daysActive, platform, appVersion,
+    // locale, createdAtEpochMs) here right before the user deletes their
+    // account. Any authenticated user can create; nobody can read, update,
+    // or delete from a client. Admin SDK / Firebase Console bypass rules
+    // for analytics consumption.
+    //
+    // Without this rule, the delete-account flow silently drops feedback
+    // (rules default to deny), masking signal we need from churn.
+    match /account_deletion_feedback/{docId} {
+      allow create: if request.auth != null;
+    }
+  }
+}

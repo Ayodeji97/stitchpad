@@ -59,6 +59,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGr
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.edit_profile_avatar_hint
@@ -151,6 +152,7 @@ fun EditProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clearFocusOnTap()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = DesignTokens.space4),
             horizontalAlignment = Alignment.CenterHorizontally,

@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.data.mapper.toUser
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -36,13 +37,7 @@ class FirebaseUserRepository(
                     "updatedAt" to FieldValue.serverTimestamp
                 )
             } else {
-                mutableMapOf(
-                    "subscriptionTier" to "free",
-                    "subscriptionStatus" to "active",
-                    "customerCount" to 0,
-                    "createdAt" to FieldValue.serverTimestamp,
-                    "updatedAt" to FieldValue.serverTimestamp
-                )
+                buildInitialUserDoc()
             }
             businessName?.let { data["businessName"] = it }
             whatsappNumber?.let { data["whatsapp"] = it }
@@ -116,5 +111,32 @@ class FirebaseUserRepository(
                 AppLogger.e(tag = TAG, throwable = error) { "observeUser failed userId=$userId" }
                 emit(null)
             }
+    }
+
+    /**
+     * Initial user-doc shape written on first signup. Includes the
+     * V1.0 freemium fields: welcome-bonus marker so EntitlementsCalculator
+     * grants the First Month customer cap (WELCOME_CUSTOMER_CAP = 200) for
+     * a rolling WELCOME_WINDOW_DAYS (30) window from signup, and a
+     * `bonusCoins` field that's a fast path for the client UI (server
+     * is still source of truth via the usage doc).
+     *
+     * Note: bonusCoins on the user doc is for display only — the server's
+     * usage-doc `bonusBalance` is what actually gates Smart help. They're
+     * seeded to the same value here so they're consistent at signup.
+     */
+    private fun buildInitialUserDoc(): MutableMap<String, Any> = mutableMapOf(
+        "subscriptionTier" to SubscriptionTier.FREE.wireValue,
+        "subscriptionStatus" to "active",
+        "subscriptionRenews" to false,
+        "customerCount" to 0,
+        "welcomeBonusAppliedAt" to FieldValue.serverTimestamp,
+        "bonusCoins" to WELCOME_BONUS_COIN_COUNT,
+        "createdAt" to FieldValue.serverTimestamp,
+        "updatedAt" to FieldValue.serverTimestamp
+    )
+
+    companion object {
+        const val WELCOME_BONUS_COIN_COUNT: Int = 30
     }
 }

@@ -17,4 +17,7 @@ sealed interface ReportsEvent {
         val totalOwed: Double,
         val oldestDeadline: LocalDate?
     ) : ReportsEvent
+
+    /** Fired when a Free-tier tailor taps the paywall card's Upgrade CTA. */
+    data object NavigateToUpgrade : ReportsEvent
 }

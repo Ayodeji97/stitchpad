@@ -2,7 +2,7 @@ package com.danzucker.stitchpad.feature.smart.data.mapper
 
 import com.danzucker.stitchpad.feature.smart.data.dto.DraftMessageResponseDto
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftIntent
-import com.danzucker.stitchpad.feature.smart.domain.model.DraftLanguage
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals

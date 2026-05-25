@@ -22,6 +22,8 @@ fun SettingsRoot(
     onNavigateToDeleteAccount: () -> Unit,
     onSignedOut: () -> Unit,
     onNavigateToDebugMenu: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
+    onNavigateToFoundersNote: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -37,6 +39,8 @@ fun SettingsRoot(
             SettingsEvent.NavigateToDeleteAccount -> onNavigateToDeleteAccount()
             SettingsEvent.NavigateToLoginAfterSignOut -> onSignedOut()
             SettingsEvent.NavigateToDebugMenu -> onNavigateToDebugMenu()
+            SettingsEvent.NavigateToUpgrade -> onNavigateToUpgrade()
+            SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {

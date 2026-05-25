@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -350,10 +351,17 @@ private fun CustomerSelectionStep(
     onAction: (OrderFormAction) -> Unit
 ) {
     val query = state.customerSearchQuery.lowercase().trim()
+    // Locked customers are read-only by design (PR #59 spec decision #2 — "lock
+    // gates new work, not viewing"). Filter them out of the order picker so a
+    // new order can't be created against a locked customer; the locked customer
+    // detail screen's "Unlock with Pro" CTA is the conversion path.
+    // state.customers stays the full list for resolvePendingCustomer to still
+    // resolve an edit-existing-order-whose-customer-was-since-locked case.
+    val activeOnly = state.customers.filter { it.slotState == CustomerSlotState.ACTIVE }
     val filteredCustomers = if (query.isBlank()) {
-        state.customers
+        activeOnly
     } else {
-        state.customers.filter {
+        activeOnly.filter {
             it.name.lowercase().contains(query) || it.phone.contains(query)
         }
     }

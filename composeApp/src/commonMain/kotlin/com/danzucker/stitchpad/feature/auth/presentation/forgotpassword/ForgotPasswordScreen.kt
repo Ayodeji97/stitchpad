@@ -35,6 +35,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
@@ -50,6 +51,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -103,7 +105,8 @@ fun ForgotPasswordScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DesignTokens.neutral900),
+            .background(DesignTokens.neutral900)
+            .clearFocusOnTap(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AuthHero()
@@ -166,6 +169,7 @@ private fun FormContent(
         onValueChange = { onAction(ForgotPasswordAction.OnEmailChange(it)) },
         leadingIcon = Icons.Outlined.Mail,
         keyboardType = KeyboardType.Email,
+        imeAction = ImeAction.Done,
         placeholder = stringResource(Res.string.placeholder_email),
         errorText = state.emailError?.asString(),
         onFocusLost = { onAction(ForgotPasswordAction.OnEmailBlur) },

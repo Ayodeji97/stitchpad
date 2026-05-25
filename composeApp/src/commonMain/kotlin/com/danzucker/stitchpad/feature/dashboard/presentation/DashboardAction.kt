@@ -58,6 +58,9 @@ sealed interface DashboardAction {
     /** Smart Suggestions section card tapped → open Draft Message screen. */
     data object OnDraftMessageClick : DashboardAction
 
+    /** Welcome-ending banner CTA tapped → navigate to the Upgrade screen. */
+    data object OpenUpgrade : DashboardAction
+
     /** Tapped the body of the "Your customer" card → open detail. */
     data class OnCustomerReadyClick(val customerId: String) : DashboardAction
 

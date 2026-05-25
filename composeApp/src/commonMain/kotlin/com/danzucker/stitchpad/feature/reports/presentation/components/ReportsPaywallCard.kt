@@ -24,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_paywall_body
@@ -95,5 +97,23 @@ fun ReportsPaywallCard(
                 fontWeight = FontWeight.Bold
             )
         }
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReportsPaywallCardPreview() {
+    StitchPadTheme {
+        ReportsPaywallCard(onUpgradeClick = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ReportsPaywallCardDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        ReportsPaywallCard(onUpgradeClick = {})
     }
 }

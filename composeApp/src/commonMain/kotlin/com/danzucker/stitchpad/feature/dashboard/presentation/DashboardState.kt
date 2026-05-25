@@ -56,5 +56,10 @@ data class DashboardState(
     // i.e. the user hasn't drafted anything yet this session or is premium).
     // Mirrored from the SmartUsageStore singleton.
     val smartFreeQuotaRemaining: Int? = null,
+    // Welcome-ending banner — shown when the user's free welcome window is
+    // within 3 days of expiring. Days-left is null when showWelcomeBanner is
+    // false so rendering code can guard on both fields safely.
+    val welcomeBannerDaysLeft: Int? = null,
+    val showWelcomeBanner: Boolean = false,
     val errorMessage: UiText? = null
 )

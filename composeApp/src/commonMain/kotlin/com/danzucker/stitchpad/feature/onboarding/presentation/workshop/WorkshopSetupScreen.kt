@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -53,6 +54,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.clearFocusOnTap
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -120,7 +122,8 @@ fun WorkshopSetupScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DesignTokens.neutral900),
+            .background(DesignTokens.neutral900)
+            .clearFocusOnTap(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AuthHero()
@@ -161,6 +164,7 @@ fun WorkshopSetupScreen(
                     helperText = stringResource(Res.string.workshop_business_name_helper),
                     errorText = state.businessNameError?.let { stringResource(it) },
                     onFocusLost = { onAction(WorkshopSetupAction.OnBusinessNameBlur) },
+                    imeAction = ImeAction.Next,
                 )
 
                 // 4. WhatsApp number — bespoke composition
@@ -253,6 +257,7 @@ fun WorkshopSetupScreen(
                             onValueChange = { onAction(WorkshopSetupAction.OnWhatsAppNumberChange(it)) },
                             leadingIcon = Icons.Outlined.Phone,
                             keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Done,
                             placeholder = stringResource(Res.string.workshop_whatsapp_placeholder),
                             errorText = state.whatsappError?.let { stringResource(it) },
                             onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },

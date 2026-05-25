@@ -1,6 +1,8 @@
 import firebaseFunctionsTest from 'firebase-functions-test';
-import { reconcileUsage, isExhausted } from '../../smart/freeTierCounter';
+import * as freeTierCounter from '../../smart/freeTierCounter';
+import { reconcileUsage } from '../../smart/freeTierCounter';
 import { formatDeadline } from '../../smart/draftMessage';
+import { FreeTierUsageDoc } from '../../smart/types';
 import { VertexClient } from '../../smart/vertexClient';
 
 const test = firebaseFunctionsTest();
@@ -46,8 +48,8 @@ const baseContext = {
  * shape and lets us assert how many times the reservation ran.
  */
 const fakeFirestore = (overrides: Partial<{
-  profile: { tier: 'free' | 'premium' };
-  usage: { monthYear: string; count: number; limit: number } | null;
+  profile: { tier: 'free' | 'pro' | 'atelier' | 'premium' };
+  usage: FreeTierUsageDoc | null;
   customer: { firstName: string };
   order: {
     customerId: string;
@@ -59,9 +61,9 @@ const fakeFirestore = (overrides: Partial<{
   };
 }>) => {
   const profile = overrides.profile ?? { tier: 'free' as const };
-  const initialUsage: { monthYear: string; count: number; limit: number } | null =
+  const initialUsage: FreeTierUsageDoc | null =
     'usage' in overrides ? (overrides.usage ?? null) : { monthYear: '2026-05', count: 0, limit: 5 };
-  let usage: { monthYear: string; count: number; limit: number } | null = initialUsage;
+  let usage: FreeTierUsageDoc | null = initialUsage;
   const customer = overrides.customer ?? { firstName: 'Folake' };
   const order = overrides.order ?? {
     customerId: 'cust-1',
@@ -74,10 +76,14 @@ const fakeFirestore = (overrides: Partial<{
 
   return {
     profileGet: jest.fn().mockResolvedValue({ exists: true, data: () => profile }),
-    reserveFreeTierSlot: jest.fn().mockImplementation((now: Date) => {
+    reserveFreeTierSlot: jest.fn().mockImplementation((now: Date, _welcomeBonusToSeed: number = 0, tierLimit?: number) => {
       const existing = usage;
-      const next = reconcileUsage({ existing, now });
-      if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
+      const next = reconcileUsage({ existing, now, limit: tierLimit }, 'draft');
+      // Mirror the production fix: compare existing.count against the
+      // BASELINE limit (next.limit, which carries the tier-derived override),
+      // not the existing doc's limit — so an upgraded user with a stale 5/5
+      // free doc gets their new Pro limit of 50 applied on the next call.
+      if (existing !== null && existing.count >= next.limit && existing.monthYear === next.monthYear) {
         return Promise.resolve({ exhausted: true });
       }
       usage = next;
@@ -101,6 +107,12 @@ describe('draftMessageHandler', () => {
     expect(result.draftText).toContain('Folake');
     expect(result.remainingFreeQuota).toBe(4); // limit 5 - count 1
     expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
+    // Verifies the response shape end-to-end via the fake. The production
+    // wire (productionIO -> reconcileUsage with 'draft') is covered
+    // separately by the productionIO contract test below.
+    const reservation = await (fs.reserveFreeTierSlot as jest.Mock).mock.results[0].value;
+    expect(reservation.exhausted).toBe(false);
+    expect(reservation.usage.perFeature).toEqual({ draft: 1 });
   });
 
   it('rejects with permission-denied when free tier exhausted', async () => {
@@ -112,11 +124,16 @@ describe('draftMessageHandler', () => {
     expect(fakeVertex.generateText).not.toHaveBeenCalled();
   });
 
-  it('skips reservation for premium users and returns null remaining quota', async () => {
-    const fs = fakeFirestore({ profile: { tier: 'premium' } });
+  it('does not block an upgraded user whose old free quota was exhausted', async () => {
+    // User was Free, hit 5/5 (exhausted). Upgrades to Pro. Next call
+    // should succeed with the new Pro limit of 50.
+    const fs = fakeFirestore({
+      profile: { tier: 'pro' },
+      usage: { monthYear: '2026-05', count: 5, limit: 5 } as any,
+    });
     const result = await handler(validRequest, baseContext as any, fs);
-    expect(result.remainingFreeQuota).toBeNull();
-    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+    // 50 (Pro limit) - 6 (incremented count) = 44 remaining
+    expect(result.remainingFreeQuota).toBe(44);
   });
 
   it('rejects with invalid-argument when customer does not exist', async () => {
@@ -232,6 +249,182 @@ describe('draftMessageHandler', () => {
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'permission-denied',
     });
+  });
+
+  it('treats subscriptionTier "atelier" as unlimited (no quota burn)', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'atelier' } });
+    const result = await handler(validRequest, baseContext as any, fs);
+    expect(result.remainingFreeQuota).toBeNull();
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('treats subscriptionTier "pro" as gated (Pro still consumes coins)', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'pro' } });
+    const result = await handler(validRequest, baseContext as any, fs);
+    expect(result.remainingFreeQuota).toBe(49); // limit 50 - count 1
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes legacy subscriptionTier "premium" to "pro" (pre-V1.0 doc)', async () => {
+    // productionIO.profileGet normalizes "premium" → "pro" before the handler
+    // sees it. The fake mirrors that normalization by overriding profileGet so
+    // the handler receives the already-normalized value, documenting the contract:
+    // wire value "premium" must be treated identically to "pro".
+    const fs = fakeFirestore({});
+    fs.profileGet = jest.fn().mockResolvedValue({
+      exists: true,
+      // Simulate what productionIO returns after normalizing "premium" → "pro".
+      data: () => ({ tier: 'pro', welcomeBonusCoins: 0 }),
+    });
+    const result = await handler(validRequest, baseContext as any, fs);
+    // Pro limit is 50; one slot consumed → 49 remaining.
+    expect(result.remainingFreeQuota).toBe(49);
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects Atelier-only intentType (pricing_help) when caller is "free"', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'free' } });
+    await expect(
+      handler({ ...validRequest, intentType: 'pricing_help' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('rejects Atelier-only intentType (pricing_help) when caller is "pro"', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'pro' } });
+    await expect(
+      handler({ ...validRequest, intentType: 'pricing_help' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('rejects Atelier-only intentType (pricing_help) even when caller IS atelier (templates ship in V1.5)', async () => {
+    const fs = fakeFirestore({ profile: { tier: 'atelier' } });
+    await expect(
+      handler({ ...validRequest, intentType: 'pricing_help' as any }, baseContext as any, fs),
+    ).rejects.toMatchObject({ code: 'unimplemented' });
+    expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
+  });
+
+  it('consumes bonusBalance before monthly count', async () => {
+    const fs = fakeFirestore({
+      usage: { monthYear: '2026-05', count: 0, limit: 5, bonusBalance: 3 } as any,
+    });
+    // Override reserveFreeTierSlot to model bonus consumption with the same
+    // local-state mutation pattern as the real fake but tracking bonus.
+    let bonus = 3;
+    let count = 0;
+    fs.reserveFreeTierSlot = jest.fn().mockImplementation((_now: Date, _welcomeBonusToSeed: number = 0) => {
+      if (bonus > 0) {
+        bonus -= 1;
+        return Promise.resolve({
+          exhausted: false,
+          usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: bonus },
+          consumedBonus: true,
+        });
+      }
+      if (count >= 5) return Promise.resolve({ exhausted: true });
+      count += 1;
+      return Promise.resolve({
+        exhausted: false,
+        usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: 0 },
+        consumedBonus: false,
+      });
+    });
+
+    // First 3 calls hit bonus, count stays 0.
+    for (let i = 0; i < 3; i++) {
+      const result = await handler(validRequest, baseContext as any, fs);
+      expect(result.remainingFreeQuota).toBe(5); // count untouched
+    }
+    // Then 5 calls eat the monthly quota.
+    for (let i = 0; i < 5; i++) {
+      const result = await handler(validRequest, baseContext as any, fs);
+      expect(result.remainingFreeQuota).toBe(4 - i);
+    }
+    // 9th call: bonus gone, monthly quota gone — exhausted.
+    await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('seeds the welcome bonus into the usage doc on the first Smart call', async () => {
+    // No usage doc exists yet (welcomeBonusToSeed should be honored).
+    const fs = fakeFirestore({ usage: null });
+    // Stub the profile to carry a welcome bonus of 30.
+    fs.profileGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ tier: 'free', welcomeBonusCoins: 30 }),
+    });
+    // Override reserveFreeTierSlot to model the seeding behaviour.
+    let bonusBalance: number | null = null;
+    let count = 0;
+    fs.reserveFreeTierSlot = jest.fn().mockImplementation((_now: Date, welcomeBonusToSeed = 0) => {
+      if (bonusBalance === null) {
+        bonusBalance = welcomeBonusToSeed; // first call seeds
+      }
+      const currentBonus = bonusBalance as number;
+      if (currentBonus > 0) {
+        bonusBalance = currentBonus - 1;
+        return Promise.resolve({
+          exhausted: false,
+          usage: { monthYear: '2026-05', count, limit: 5, bonusBalance },
+          consumedBonus: true,
+        });
+      }
+      count += 1;
+      return Promise.resolve({
+        exhausted: false,
+        usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: 0 },
+        consumedBonus: false,
+      });
+    });
+
+    const result = await handler(validRequest, baseContext as any, fs);
+    expect(result.remainingFreeQuota).toBe(5); // count untouched, bonus consumed
+    expect(fs.reserveFreeTierSlot).toHaveBeenCalledWith(expect.any(Date), 30, 5); // free tier limit
+  });
+});
+
+describe('productionIO contract: reserveFreeTierSlot threads "draft" to reconcileUsage', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('calls reconcileUsage with "draft" as the feature key', async () => {
+    const fakeUsageDoc: FreeTierUsageDoc = {
+      monthYear: '2026-05',
+      count: 1,
+      limit: 5,
+      perFeature: { draft: 1 },
+    };
+
+    const spy = jest
+      .spyOn(freeTierCounter, 'reconcileUsage')
+      .mockReturnValue(fakeUsageDoc);
+
+    // Build a thin in-memory Firestore stand-in that supports the transaction
+    // pattern used by productionIO.reserveFreeTierSlot.
+    const fakeSnap = { exists: false, data: () => undefined };
+    const fakeRef = { /* opaque to productionIO; only passed to tx.get/tx.set */ };
+    const fakeTx = {
+      get: jest.fn().mockResolvedValue(fakeSnap),
+      set: jest.fn(),
+    };
+    const fakeDb = {
+      doc: jest.fn().mockReturnValue(fakeRef),
+      runTransaction: jest.fn().mockImplementation(
+        async (fn: (tx: typeof fakeTx) => Promise<unknown>) => fn(fakeTx),
+      ),
+    } as unknown as import('firebase-admin').firestore.Firestore;
+
+    const { productionIO: buildIO } = await import('../../smart/draftMessage');
+    const io = buildIO('uid-test', 'cust-1', 'order-1', fakeDb);
+
+    await io.reserveFreeTierSlot(new Date('2026-05-16T10:00:00Z'));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][1]).toBe('draft');
   });
 });
 

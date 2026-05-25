@@ -73,6 +73,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
+import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndingBanner
 import com.danzucker.stitchpad.feature.smart.presentation.SmartSectionCard
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NextBestActionCard
@@ -252,6 +253,7 @@ fun DashboardRoot(
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToDraftMessage: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -278,6 +280,7 @@ fun DashboardRoot(
             onNavigateToAddCustomerFirst = onNavigateToAddCustomerFirst,
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
+            onNavigateToUpgrade = onNavigateToUpgrade,
         )
     }
 
@@ -296,7 +299,7 @@ fun DashboardRoot(
     )
 }
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "CyclomaticComplexMethod")
 private fun handleDashboardEvent(
     event: DashboardEvent,
     scope: CoroutineScope,
@@ -314,6 +317,7 @@ private fun handleDashboardEvent(
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToDraftMessage: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
@@ -327,6 +331,7 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
+        DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
             scope,
             snackbarHostState,
@@ -459,6 +464,16 @@ private fun DashboardContent(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
     ) {
         Spacer(Modifier.height(DesignTokens.space4))
+
+        // 0. Welcome-ending warning banner — shown when the free welcome
+        //    window is within 3 days of expiring. Placed above everything
+        //    else so the high-urgency message gets immediate attention.
+        if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
+            WelcomeEndingBanner(
+                daysLeft = state.welcomeBannerDaysLeft,
+                onSeeUpgrade = { onAction(DashboardAction.OpenUpgrade) },
+            )
+        }
 
         // 1. Header
         DashboardHeader(

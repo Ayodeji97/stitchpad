@@ -56,6 +56,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
+import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -81,14 +82,23 @@ import stitchpad.composeapp.generated.resources.delivery_either
 import stitchpad.composeapp.generated.resources.delivery_pickup
 
 @Composable
-fun CustomerFormRoot(onNavigateBack: () -> Unit) {
+fun CustomerFormRoot(
+    onNavigateBack: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
+) {
     val viewModel: CustomerFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    // Sheet visibility is held local to the composable rather than in
+    // ViewModel state — the sheet is purely a presentation concern that
+    // doesn't need to survive process death (the underlying CAP_REACHED
+    // result will fire again on retry).
+    var capSheet by remember { mutableStateOf<CustomerFormEvent.ShowCapReachedSheet?>(null) }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             CustomerFormEvent.NavigateBack -> onNavigateBack()
+            is CustomerFormEvent.ShowCapReachedSheet -> capSheet = event
         }
     }
 
@@ -105,6 +115,26 @@ fun CustomerFormRoot(onNavigateBack: () -> Unit) {
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction
     )
+
+    val pending = capSheet
+    if (pending != null) {
+        CustomerCapReachedSheet(
+            activeCount = pending.activeCount,
+            customerCap = pending.customerCap,
+            onUpgradeClick = {
+                capSheet = null
+                onNavigateToUpgrade()
+            },
+            onSwapClick = {
+                // "Swap a customer" returns the tailor to the customer list,
+                // where every locked row exposes a swap CTA via SwapSheet.
+                // From there they can pick which active customer to demote.
+                capSheet = null
+                onNavigateBack()
+            },
+            onDismiss = { capSheet = null },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

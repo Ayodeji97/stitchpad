@@ -87,7 +87,9 @@ class CustomerDetailViewModelTest {
     @Test
     fun loadData_success_populatesCustomerAndMeasurements() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.storedCustomer = fakeCustomer()
+        // VM observes the customer doc now (was one-shot getCustomer pre-PR);
+        // seed via customersList so observeCustomer emits a hit.
+        customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = listOf(fakeMeasurement())
 
         val vm = createViewModel()
@@ -123,7 +125,9 @@ class CustomerDetailViewModelTest {
     @Test
     fun loadData_measurementError_setsErrorMessage() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.storedCustomer = fakeCustomer()
+        // VM observes the customer doc now (was one-shot getCustomer pre-PR);
+        // seed via customersList so observeCustomer emits a hit.
+        customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.observeError = DataError.Network.UNKNOWN
 
         val vm = createViewModel()
@@ -135,7 +139,9 @@ class CustomerDetailViewModelTest {
     @Test
     fun loadData_emptyMeasurements_populatesEmptyList() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.storedCustomer = fakeCustomer()
+        // VM observes the customer doc now (was one-shot getCustomer pre-PR);
+        // seed via customersList so observeCustomer emits a hit.
+        customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = emptyList()
 
         val vm = createViewModel()

@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
+  AtelierOnlyIntent,
   DraftMessageRequest,
   DraftMessageResponse,
   DraftContext,
@@ -8,6 +9,7 @@ import {
   FreeTierUsageDoc,
   IntentType,
   Language,
+  Tier,
 } from './types';
 
 const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
@@ -16,6 +18,22 @@ const SUPPORTED_INTENT_TYPES: readonly IntentType[] = [
   'follow_up',
   'custom_note',
 ];
+const ATELIER_ONLY_INTENTS: readonly AtelierOnlyIntent[] = ['pricing_help', 'reply_help'];
+
+const TIER_COIN_ALLOWANCE: Record<Tier, number> = {
+  free: 5,
+  pro: 50,
+  atelier: Number.MAX_SAFE_INTEGER, // unmetered — never reaches reserveFreeTierSlot anyway
+};
+
+function coinAllowanceForTier(tier: Tier): number {
+  return TIER_COIN_ALLOWANCE[tier];
+}
+
+function requiresAtelier(intentType: string): boolean {
+  return (ATELIER_ONLY_INTENTS as readonly string[]).includes(intentType);
+}
+
 const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'pcm'];
 // Mirrors NOTES_MAX_CHARS in DraftMessageScreen.kt; keep the two in sync.
 const CUSTOM_NOTES_MAX_LENGTH = 200;
@@ -28,7 +46,7 @@ function isLanguage(value: unknown): value is Language {
   return typeof value === 'string' && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
 }
 import { buildSystemPrompt, buildUserPrompt } from './promptBuilder';
-import { reconcileUsage, isExhausted } from './freeTierCounter';
+import { reconcileUsage } from './freeTierCounter';
 import { getVertexClient, VertexClient } from './vertexClient';
 
 /**
@@ -49,7 +67,7 @@ function vertex(): VertexClient {
  */
 export type FreeTierReservation =
   | { exhausted: true }
-  | { exhausted: false; usage: FreeTierUsageDoc };
+  | { exhausted: false; usage: FreeTierUsageDoc; consumedBonus: boolean };
 
 export interface DraftMessageIO {
   profileGet(): Promise<{ exists: boolean; data(): UserProfileSummary | undefined }>;
@@ -66,7 +84,7 @@ export interface DraftMessageIO {
    * draft. Accepted for V1 (small tester cohort, low Vertex flake rate);
    * a compensating decrement can be added in V1.5 if needed.
    */
-  reserveFreeTierSlot(now: Date): Promise<FreeTierReservation>;
+  reserveFreeTierSlot(now: Date, welcomeBonusToSeed?: number, tierLimit?: number): Promise<FreeTierReservation>;
   customerGet(): Promise<{ exists: boolean; data(): { firstName: string } | undefined }>;
   orderGet(): Promise<{ exists: boolean; data(): {
     customerId: string;
@@ -91,8 +109,9 @@ export interface DraftMessageIO {
  * users aren't rate-limited as free.
  */
 interface RawUserDoc {
-  subscriptionTier?: 'free' | 'premium';
-  tier?: 'free' | 'premium';
+  subscriptionTier?: Tier | 'premium';
+  /** Welcome bonus seeded at signup; lifted into the usage doc on first Smart help call. */
+  bonusCoins?: number;
 }
 
 interface RawCustomerDoc {
@@ -125,27 +144,77 @@ interface RawOrderDoc {
   archivedAt?: number | null;
 }
 
-function productionIO(uid: string, customerId: string, orderId: string, db: admin.firestore.Firestore): DraftMessageIO {
+export function productionIO(uid: string, customerId: string, orderId: string, db: admin.firestore.Firestore): DraftMessageIO {
   return {
     profileGet: () => db.doc(`users/${uid}`).get().then((snap) => ({
       exists: snap.exists,
       data: (): UserProfileSummary | undefined => {
         const raw = snap.data() as RawUserDoc | undefined;
         if (!raw) return undefined;
-        return { tier: raw.subscriptionTier ?? raw.tier ?? 'free' };
+        // subscriptionTier could be "premium" on legacy test docs or
+        // pre-V1.0 accounts. Normalize to "pro" to match the client-side
+        // SubscriptionTier.fromWire and prevent the tier-allowance lookup
+        // from returning undefined.
+        const rawTier = (raw.subscriptionTier as string | undefined) ?? 'free';
+        const tier: Tier = rawTier === 'premium' ? 'pro' : (rawTier as Tier);
+        return { tier, welcomeBonusCoins: raw.bonusCoins ?? 0 };
       },
     })),
-    reserveFreeTierSlot: async (now: Date): Promise<FreeTierReservation> => {
+    reserveFreeTierSlot: async (now: Date, welcomeBonusToSeed: number = 0, tierLimit?: number): Promise<FreeTierReservation> => {
       const ref = db.doc(`users/${uid}/usage/smart_drafts`);
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const existing = snap.exists ? (snap.data() as FreeTierUsageDoc) : null;
-        const next = reconcileUsage({ existing, now });
-        if (existing !== null && isExhausted(existing) && existing.monthYear === next.monthYear) {
+
+        // Seed bonusBalance from the user-doc welcome bonus on the FIRST call
+        // that has the opportunity to do so. Two paths:
+        //  (a) No usage doc yet (brand-new user) — original V1.0 path.
+        //  (b) Usage doc exists but `bonusLiftedAt` is absent — covers testers
+        //      whose usage doc was created BEFORE V1.0 added bonusBalance.
+        //      Without (b) the 30-coin welcome bonus is permanently stranded
+        //      on the user doc and never reaches the gating logic below.
+        const neverLifted = existing === null || existing.bonusLiftedAt === undefined;
+        const seedBonus = neverLifted ? welcomeBonusToSeed : 0;
+        const seededExisting: FreeTierUsageDoc | null = existing
+          ? { ...existing, bonusBalance: (existing.bonusBalance ?? 0) + seedBonus }
+          : (seedBonus > 0
+            ? { monthYear: '', count: 0, limit: 0, bonusBalance: seedBonus }
+            : null);
+
+        const baseline = reconcileUsage({ existing: seededExisting, now, limit: tierLimit }, 'draft');
+        const bonusAvailable = (baseline.bonusBalance ?? 0) > 0;
+        // Stamp on every write so neverLifted is permanently false after the
+        // first call that processed the bonus (regardless of whether it had
+        // anything to lift) — prevents double-lift on subsequent calls.
+        const liftedAt = existing?.bonusLiftedAt ?? now.getTime();
+
+        if (bonusAvailable) {
+          // Bonus consumed; monthly count NOT incremented. reconcileUsage's
+          // count++ is rolled back by setting count back to seededExisting.count
+          // (or 0 if new month with bonus available).
+          const next: FreeTierUsageDoc = {
+            ...baseline,
+            count: seededExisting?.monthYear === baseline.monthYear ? (seededExisting?.count ?? 0) : 0,
+            bonusBalance: (baseline.bonusBalance ?? 0) - 1,
+            bonusLiftedAt: liftedAt,
+          };
+          tx.set(ref, next);
+          return { exhausted: false, usage: next, consumedBonus: true } as const;
+        }
+
+        // No bonus available — monthly quota path. Check exhaustion by
+        // comparing the EXISTING count against the BASELINE limit (which
+        // carries the tier-derived override). Using existing.limit (the old
+        // check) breaks when a Free user at 5/5 upgrades to Pro — their
+        // existing.limit is still 5 so they would be blocked. Using
+        // baseline.limit (the new tier-derived limit, e.g. 50 for Pro) means
+        // the same user correctly gets their new quota on the next call.
+        if (existing !== null && existing.count >= baseline.limit && existing.monthYear === baseline.monthYear) {
           return { exhausted: true } as const;
         }
-        tx.set(ref, next);
-        return { exhausted: false, usage: next } as const;
+        const nextNoBonus: FreeTierUsageDoc = { ...baseline, bonusLiftedAt: liftedAt };
+        tx.set(ref, nextNoBonus);
+        return { exhausted: false, usage: nextNoBonus, consumedBonus: false } as const;
       });
     },
     customerGet: () => db.doc(`users/${uid}/customers/${customerId}`).get().then((snap) => ({
@@ -246,7 +315,7 @@ export async function draftMessageHandler(
   // Without this guard, buildUserPrompt would index its enum maps with the
   // unknown value, produce an `undefined` label, and we'd burn quota on a
   // garbage Vertex call.
-  if (!isIntentType(data.intentType)) {
+  if (!isIntentType(data.intentType) && !requiresAtelier(data.intentType)) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: unsupported intentType');
   }
   if (!isLanguage(data.language)) {
@@ -265,6 +334,28 @@ export async function draftMessageHandler(
   // 1. Tier check
   const profileSnap = await io.profileGet();
   const tier = profileSnap.exists ? profileSnap.data()?.tier ?? 'free' : 'free';
+
+  // Atelier-only intent guard. Done BEFORE customer/order validation so we
+  // don't burn round-trips on a request the caller can never make. Done
+  // BEFORE quota reservation for the same reason.
+  if (requiresAtelier(data.intentType) && tier !== 'atelier') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'atelier_required: this intent is only available on Tailor Atelier',
+    );
+  }
+
+  // Atelier-only intents are gated above for non-Atelier callers, but the
+  // actual prompt templates ship with V1.5. Until then, even Atelier users
+  // must be rejected so we don't reach buildUserPrompt with an unknown
+  // intent type. When V1.5 adds the templates, this guard goes away and
+  // the intents are moved into SUPPORTED_INTENT_TYPES.
+  if (requiresAtelier(data.intentType)) {
+    throw new functions.https.HttpsError(
+      'unimplemented',
+      'intent_not_yet_available: this Smart help will arrive in a future update',
+    );
+  }
 
   // 2. Validate customer + order BEFORE reserving the free-tier slot — a
   // stale selection or deleted order should fail loudly without burning
@@ -288,17 +379,26 @@ export async function draftMessageHandler(
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: order is not open');
   }
 
-  // 3. Reserve the free-tier slot now that inputs are known good.
+  // 3. Reserve a quota slot for non-Atelier tiers. Pro consumes coins
+  // (50/month, capped by tier-derived limit); Atelier is unlimited.
   let nextUsage: FreeTierUsageDoc | null = null;
-  if (tier === 'free') {
-    const reservation = await io.reserveFreeTierSlot(now);
+  if (tier !== 'atelier') {
+    const reservation = await io.reserveFreeTierSlot(
+      now,
+      profileSnap.data()?.welcomeBonusCoins ?? 0,
+      coinAllowanceForTier(tier),
+    );
     if (reservation.exhausted) {
-      throw new functions.https.HttpsError('permission-denied', 'free_tier_exhausted');
+      // Distinct error codes so the client can render tier-aware copy:
+      // free → "Out of free drafts, upgrade to Pro" sheet,
+      // pro  → "You've used your 50 Pro drafts this month" snackbar.
+      const code = tier === 'pro' ? 'pro_quota_exhausted' : 'free_tier_exhausted';
+      throw new functions.https.HttpsError('permission-denied', code);
     }
     nextUsage = reservation.usage;
   }
 
-  // 3. Build prompts
+  // 4. Build prompts
   const draftCtx: DraftContext = {
     customerFirstName: customer.firstName,
     garmentLabel: order.garmentLabel,
@@ -314,7 +414,7 @@ export async function draftMessageHandler(
     customNotes: data.customNotes,
   });
 
-  // 4. Call Vertex
+  // 5. Call Vertex
   let draftText: string;
   try {
     draftText = await vertex().generateText({ systemPrompt, userPrompt });
@@ -334,7 +434,7 @@ export async function draftMessageHandler(
 
   return {
     draftText,
-    remainingFreeQuota: tier === 'premium' ? null : (nextUsage!.limit - nextUsage!.count),
+    remainingFreeQuota: tier === 'atelier' ? null : (nextUsage!.limit - nextUsage!.count),
   };
 }
 

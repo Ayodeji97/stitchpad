@@ -8,7 +8,7 @@
     "build": "tsc",
     "lint": "eslint --ext .js,.ts src/",
     "test": "jest",
-    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted,functions:smartDraftMessage"
+    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted,functions:smartDraftMessage,functions:reconcileCustomerSlots"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

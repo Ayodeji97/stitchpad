@@ -12,7 +12,10 @@ import kotlinx.datetime.LocalDate
 
 data class ReportsState(
     val isLoading: Boolean = true,
-    val isPremium: Boolean = true,
+    // Default to free-tier UX so the screen never flashes premium content while
+    // EntitlementsProvider's first snapshot is in flight. The real value lands
+    // on the first combine emission.
+    val isPremium: Boolean = false,
     val selectedPeriod: ReportsPeriod = ReportsPeriod.WEEK,
     val customRange: CustomRange? = null,
     val hasAnyOrders: Boolean = false,

@@ -183,6 +183,22 @@
     <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
+    <!-- Freemium — customer slot locking + swap -->
+    <string name="customer_locked_section_title">Locked</string>
+    <string name="customer_locked_section_subtitle">Safe and searchable. Unlock anytime to take new orders.</string>
+    <string name="customer_locked_chip">Locked</string>
+    <string name="customer_locked_explainer">This customer is locked because you have more than your Free plan allows. Upgrade to Tailor Pro to view them, or swap with one of your active customers.</string>
+    <string name="customer_locked_detail_banner_title">Locked — read-only</string>
+    <string name="customer_locked_detail_banner_body">All data preserved. To start a new order, take new measurements, or edit this profile, unlock or swap.</string>
+    <string name="customer_locked_detail_unlock_cta">Unlock with Pro</string>
+    <string name="customer_locked_row_swap_cta">Swap</string>
+    <string name="customer_swap_cta">Swap with an active customer</string>
+    <string name="customer_swap_sheet_title">Swap %1$s back in</string>
+    <string name="customer_swap_sheet_subtitle">Pick one of your active customers to lock instead.</string>
+    <string name="customer_swap_confirm">Swap</string>
+    <string name="customer_swap_success">Swapped %1$s in</string>
+    <string name="customer_swap_failure">Couldn&apos;t swap. Try again in a moment.</string>
+
     <!-- Customer form screen -->
     <string name="customer_form_title_add">Add Customer</string>
     <string name="customer_form_title_edit">Edit Customer</string>
@@ -210,6 +226,21 @@
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>
     <string name="error_customer_already_exists">A customer with this name already exists</string>
+    <string name="error_customer_cap_reached">You&apos;ve reached your customer limit. Upgrade to add more.</string>
+
+    <!-- Customer cap-reached bottom sheet (replaces snackbar for CAP_REACHED) -->
+    <string name="cap_reached_sheet_eyebrow">CUSTOMER LIMIT REACHED</string>
+    <string name="cap_reached_sheet_title">Ready to grow your workshop?</string>
+    <string name="cap_reached_sheet_stat">%1$d of %2$d active customers</string>
+    <string name="cap_reached_sheet_pro_tier">Tailor Pro</string>
+    <string name="cap_reached_sheet_price">₦2,000/mo</string>
+    <string name="cap_reached_sheet_benefit_unlimited">Unlimited customers</string>
+    <string name="cap_reached_sheet_benefit_drafts">50 Smart drafts a month</string>
+    <string name="cap_reached_sheet_benefit_cancel">Cancel anytime</string>
+    <string name="cap_reached_sheet_upgrade_cta">Upgrade to Pro</string>
+    <string name="cap_reached_sheet_swap_prefix">or </string>
+    <string name="cap_reached_sheet_swap_link">swap a customer</string>
+    <string name="cap_reached_sheet_swap_suffix"> to stay on Free</string>
 
     <!-- Customer detail screen -->
     <string name="customer_detail_measurements_section">Measurements</string>
@@ -942,6 +973,7 @@
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_hero_plan_pro">Tailor Pro</string>
+    <string name="settings_hero_plan_atelier">Tailor Atelier</string>
     <string name="settings_section_business">Business</string>
     <string name="settings_section_support">Support</string>
     <string name="settings_row_invite">Invite a tailor</string>
@@ -991,15 +1023,81 @@
     <string name="plan_card_pill_almost_full">Free plan · Almost full</string>
     <string name="plan_card_pill_limit_reached">Free plan · Limit reached</string>
     <string name="plan_card_count">%1$d of %2$d customers</string>
-    <string name="plan_card_subtitle_inline">Upgrade for unlimited customers + reports</string>
-    <string name="plan_card_title_warn">%1$d customers left before your free limit</string>
+    <string name="plan_card_subtitle_inline">Unlock unlimited customers and reports</string>
+    <string name="plan_card_title_warn_one">1 customer left before your free limit</string>
+    <string name="plan_card_title_warn_other">%1$d customers left before your free limit</string>
     <string name="plan_card_subtitle_warn">Upgrade to keep adding customers, unlock reports, and back up your work.</string>
     <string name="plan_card_title_locked">You can&apos;t add new customers</string>
     <string name="plan_card_subtitle_locked">Upgrade to keep growing — your existing customers are safe and unchanged.</string>
     <string name="plan_card_cta_upgrade">Upgrade</string>
     <string name="plan_card_cta_upgrade_priced">Upgrade — ₦%1$s/mo</string>
     <string name="plan_card_cta_upgrade_now">Upgrade now</string>
-    <string name="plan_card_cta_compare">Compare plans →</string>
+    <string name="plan_card_cta_compare">Compare plans</string>
+
+    <!-- PlanCard — First Month (V1.0 freemium) -->
+    <string name="plan_card_first_month_pill_one">First month · 1 day left</string>
+    <string name="plan_card_first_month_pill_other">First month · %1$d days left</string>
+    <string name="plan_card_first_month_ai_headline">AI drafts</string>
+    <string name="plan_card_first_month_ai_progress">%1$d of %2$d used</string>
+    <string name="plan_card_first_month_minutes_saved">~%1$d minutes saved drafting messages</string>
+    <string name="plan_card_first_month_customers_no_limits">%1$d customers added · no limits this month</string>
+    <string name="plan_card_first_month_help">How First Month works →</string>
+
+    <!-- PlanCard — AI Warn (used in both First Month and Post-First-Month Free) -->
+    <string name="plan_card_pill_ai_almost_out_first_month">First month · AI almost out</string>
+    <string name="plan_card_pill_ai_almost_out_free">Free · AI almost out</string>
+    <string name="plan_card_title_ai_warn_one">1 AI draft left this month</string>
+    <string name="plan_card_title_ai_warn_other">%1$d AI drafts left this month</string>
+    <string name="plan_card_subtitle_ai_warn_first_month">You&apos;re using AI heavily. Tailor Pro gives you 500 drafts a month.</string>
+    <string name="plan_card_subtitle_ai_warn_free">Tailor Pro gives you 500 drafts a month and unlimited customers.</string>
+
+    <!-- PlanCard — AI Locked (success-framed, used in both First Month and Post-First-Month Free) -->
+    <string name="plan_card_pill_ai_used_up_first_month">First month · AI used up</string>
+    <string name="plan_card_pill_ai_used_up_free">Free · AI used up</string>
+    <string name="plan_card_title_ai_locked">You used all %1$d AI drafts this month</string>
+    <string name="plan_card_title_ai_locked_minutes">~%1$d minutes saved</string>
+    <string name="plan_card_subtitle_ai_locked">Tailor Pro gives you 500 drafts a month. Never run out.</string>
+    <string name="plan_card_ai_resets_caption">AI resets next month</string>
+
+    <!-- PlanCard — Both Locked (rare worst case post-First-Month) -->
+    <string name="plan_card_pill_maxed_out">Free · Maxed out</string>
+    <string name="plan_card_title_maxed_out">You&apos;ve hit your customer limit and used all AI drafts this month</string>
+    <string name="plan_card_subtitle_maxed_out">Tailor Pro: unlimited customers + 500 drafts a month.</string>
+
+    <!-- Founder note (Settings → About your plan) -->
+    <string name="settings_row_founders_note">About your plan</string>
+    <string name="settings_row_founders_note_subtitle">A note from the founder</string>
+    <string name="founders_note_title">A note from Daniel</string>
+    <string name="founders_note_screen_heading">Here&apos;s why we built it this way</string>
+    <string name="founders_note_paragraph_1">Your first 30 days are unlimited. Bring your whole business in. Every customer, every order, every measurement.</string>
+    <string name="founders_note_paragraph_2">After your first month, we keep your 15 most active customers handy on Free. The rest stay safe and searchable. You can view them anytime and unlock or swap whenever you need to take a new order.</string>
+    <string name="founders_note_paragraph_3">We never delete your customers. We never change your data overnight.</string>
+    <string name="founders_note_paragraph_4">The cap exists because AI calls cost us real money per draft. The 15-customer Free plan keeps the app sustainable while offering a real product to everyone, not a demo, not a trial.</string>
+    <string name="founders_note_paragraph_5">If something feels off, message us directly. We read everything.</string>
+    <string name="founders_note_signature">— Daniel, founder</string>
+    <string name="founders_note_whatsapp_cta">Message us on WhatsApp</string>
+
+    <!-- Settings PlanCard (re-landed) -->
+    <string name="plan_card_free_state">You&apos;re on Free</string>
+    <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>
+    <string name="plan_card_atelier_state">You&apos;re on Tailor Atelier</string>
+    <string name="plan_card_upgrade_cta">Upgrade</string>
+    <string name="plan_card_customer_progress">%1$d of %2$d customers</string>
+    <string name="plan_card_customer_unlimited">Unlimited customers</string>
+
+    <!-- Freemium — Upgrade screen -->
+    <string name="upgrade_screen_title">Upgrade your plan</string>
+    <string name="upgrade_pro_name">Tailor Pro</string>
+    <string name="upgrade_pro_price">₦2,000 / month</string>
+    <string name="upgrade_pro_annual">or ₦20,000 / year (save ₦4,000)</string>
+    <string name="upgrade_atelier_name">Tailor Atelier</string>
+    <string name="upgrade_atelier_price">₦4,000 / month</string>
+    <string name="upgrade_atelier_annual">or ₦40,000 / year (save ₦8,000)</string>
+    <string name="upgrade_cadence_monthly">Monthly</string>
+    <string name="upgrade_cadence_annual">Annual</string>
+    <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
+    <string name="upgrade_terms">Pay monthly with your card via Paystack. Stop anytime.</string>
+    <string name="upgrade_back_content_description">Back</string>
 
     <!-- Edit Profile -->
     <string name="edit_profile_title">Edit profile</string>
@@ -1122,10 +1220,19 @@
     <string name="smart_error_invalid_input">That order isn&apos;t available anymore.</string>
     <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again in a moment.</string>
     <string name="smart_error_unknown">Something went wrong. Please try again.</string>
+    <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
 
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>
     <string name="smart_upgrade_sheet_message">You&apos;ve used your 5 free drafts. Upgrade to draft as many as you need.</string>
     <string name="smart_upgrade_sheet_upgrade_cta">Upgrade</string>
     <string name="smart_upgrade_sheet_dismiss">Wait until next month</string>
+
+    <!-- Freemium — First Month ending warning. (Resource keys keep their welcome_* names
+         for stable developer-facing references; user-facing copy uses "first month" per
+         the V1.0 design spec.) -->
+    <string name="welcome_ending_banner_title_one">Your first month ends tomorrow</string>
+    <string name="welcome_ending_banner_title_other">Your first month ends in %1$d days</string>
+    <string name="welcome_ending_banner_body">After your first month, your 15 most active customers stay active. The rest stay safe and searchable — unlock or swap to take new orders. Upgrade to Pro to keep all of them active.</string>
+    <string name="welcome_ending_banner_cta">See Tailor Pro</string>
 </resources>

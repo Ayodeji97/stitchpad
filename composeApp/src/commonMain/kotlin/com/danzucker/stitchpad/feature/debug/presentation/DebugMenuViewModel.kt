@@ -2,11 +2,15 @@ package com.danzucker.stitchpad.feature.debug.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
+import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DebugTestAccounts
+import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
 import com.danzucker.stitchpad.core.debug.SessionActionResult
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.presentation.UiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +22,8 @@ import kotlinx.coroutines.launch
 class DebugMenuViewModel(
     private val seeder: DebugSeeder,
     private val sessionActions: DebugSessionActions,
+    private val freemiumActions: FreemiumDebugActions,
+    private val now: () -> Long,
     private val testAccountsConfigured: Boolean = DebugTestAccounts.isConfigured,
 ) : ViewModel() {
 
@@ -29,7 +35,9 @@ class DebugMenuViewModel(
     private val _events = Channel<DebugMenuEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: DebugMenuAction) {
+        if (handleFreemiumAction(action)) return
         when (action) {
             DebugMenuAction.OnBackClick -> emit(DebugMenuEvent.NavigateBack)
             DebugMenuAction.OnSeedBrandNewClick -> runSeed(DebugScenario.BrandNew) { seeder.seedBrandNew() }
@@ -37,6 +45,18 @@ class DebugMenuViewModel(
                 DebugScenario.ActiveWorkshop
             ) { seeder.seedActiveWorkshop() }
             DebugMenuAction.OnSeedAllReconnectClick -> runSeed(DebugScenario.AllReconnect) { seeder.seedAllReconnect() }
+            DebugMenuAction.OnBulkSeedClick -> _state.update { it.copy(bulkSeed = BulkSeedDialogState()) }
+            DebugMenuAction.OnBulkSeedDismiss -> _state.update { it.copy(bulkSeed = null) }
+            is DebugMenuAction.OnBulkSeedTotalChange -> _state.update {
+                it.copy(bulkSeed = it.bulkSeed?.copy(totalInput = action.value.filter(Char::isDigit)))
+            }
+            is DebugMenuAction.OnBulkSeedMeasurementsChange -> _state.update {
+                it.copy(bulkSeed = it.bulkSeed?.copy(measurementsInput = action.value.filter(Char::isDigit)))
+            }
+            is DebugMenuAction.OnBulkSeedOrdersChange -> _state.update {
+                it.copy(bulkSeed = it.bulkSeed?.copy(ordersInput = action.value.filter(Char::isDigit)))
+            }
+            DebugMenuAction.OnBulkSeedConfirm -> runBulkSeed()
             DebugMenuAction.OnClearActiveScenarioClick -> {
                 _state.update { it.copy(activeScenario = null) }
                 emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Active state cleared")))
@@ -45,14 +65,7 @@ class DebugMenuViewModel(
                 sessionActions.resetOnboardingFlags()
                 emit(DebugMenuEvent.NavigateToSplash)
             }
-            DebugMenuAction.OnSignOutClick -> runJob {
-                val r = sessionActions.signOut()
-                if (r is SessionActionResult.Success) {
-                    emit(DebugMenuEvent.NavigateToLogin)
-                } else {
-                    emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Sign-out failed")))
-                }
-            }
+            DebugMenuAction.OnSignOutClick -> runSignOut()
             DebugMenuAction.OnSwitchToFolaClick -> runJob {
                 handleSwitch(
                     sessionActions.switchAccount(
@@ -69,19 +82,159 @@ class DebugMenuViewModel(
                     )
                 )
             }
-            DebugMenuAction.OnWipeDataClick -> runJob {
-                val r = seeder.wipeAllData()
-                when (r) {
-                    SeedResult.Success -> {
-                        _state.update { it.copy(activeScenario = null) }
-                        emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Data wiped")))
-                    }
-                    is SeedResult.Failure ->
-                        emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Wipe failed: ${r.reason}")))
-                }
-            }
+            DebugMenuAction.OnWipeDataClick -> runWipe()
+            else -> Unit // freemium branch handled above
         }
     }
+
+    private fun runSignOut() = runJob {
+        val r = sessionActions.signOut()
+        if (r is SessionActionResult.Success) {
+            emit(DebugMenuEvent.NavigateToLogin)
+        } else {
+            emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Sign-out failed")))
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun runSetSmartUsage() {
+        val dialog = _state.value.smartUsage ?: return
+        if (!dialog.isValid) return
+        val count = dialog.count ?: return
+        val bonusUsed = dialog.bonusUsed ?: return
+        _state.update { it.copy(smartUsage = null) }
+        // Server's truth field is REMAINING balance, not used. Convert here so
+        // the dialog can keep its tester-friendly "drafts used" semantic
+        // (matches the count field's semantic).
+        val bonusBalance = (FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT - bonusUsed)
+            .coerceIn(0, FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT)
+        runJob {
+            val r = freemiumActions.setSmartUsage(
+                monthlyCount = count,
+                bonusBalance = bonusBalance,
+                nowMs = now(),
+            )
+            val message = when (r) {
+                DebugActionResult.Success ->
+                    UiText.DynamicString("Smart usage: count=$count, bonusUsed=$bonusUsed")
+                is DebugActionResult.Failure ->
+                    UiText.DynamicString("Set Smart usage failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun runSetWelcomeDaysLeft() {
+        val dialog = _state.value.welcomeDaysLeft ?: return
+        if (!dialog.isValid) return
+        val days = dialog.days ?: return
+        _state.update { it.copy(welcomeDaysLeft = null) }
+        runJob {
+            val r = freemiumActions.setWelcomeDaysLeft(daysLeft = days, nowMs = now())
+            val message = when (r) {
+                DebugActionResult.Success -> UiText.DynamicString("Welcome window: $days days left")
+                is DebugActionResult.Failure -> UiText.DynamicString("Set days left failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun runBulkSeed() {
+        val dialog = _state.value.bulkSeed ?: return
+        if (!dialog.isValid) return
+        val total = dialog.total ?: return
+        val measurements = dialog.measurements ?: return
+        val orders = dialog.orders ?: return
+        _state.update { it.copy(bulkSeed = null) }
+        runJob {
+            val r = seeder.seedBulkCustomers(total, measurements, orders)
+            val message = when (r) {
+                SeedResult.Success -> UiText.DynamicString("Seeded $total customers")
+                is SeedResult.Failure -> UiText.DynamicString("Bulk seed failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
+        }
+    }
+
+    private fun runWipe() = runJob {
+        val message = when (val r = seeder.wipeAllData()) {
+            SeedResult.Success -> {
+                _state.update { it.copy(activeScenario = null) }
+                UiText.DynamicString("Data wiped")
+            }
+            is SeedResult.Failure -> UiText.DynamicString("Wipe failed: ${r.reason}")
+        }
+        emit(DebugMenuEvent.ShowSnackbar(message))
+    }
+
+    @Suppress("CyclomaticComplexMethod")
+    private fun handleFreemiumAction(action: DebugMenuAction): Boolean {
+        when (action) {
+            DebugMenuAction.OnSetTierFreeClick -> runFreemium("Tier: Free") {
+                freemiumActions.setTier(SubscriptionTier.FREE)
+            }
+            DebugMenuAction.OnSetTierProClick -> runFreemium("Tier: Pro") {
+                freemiumActions.setTier(SubscriptionTier.PRO)
+            }
+            DebugMenuAction.OnSetTierAtelierClick -> runFreemium("Tier: Atelier") {
+                freemiumActions.setTier(SubscriptionTier.ATELIER)
+            }
+            DebugMenuAction.OnExpireWelcomeWindowClick -> runFreemium("Welcome window expired") {
+                freemiumActions.expireWelcomeWindow(nowMs = now())
+            }
+            DebugMenuAction.OnResetWelcomeWindowClick -> runFreemium("Welcome window reset") {
+                freemiumActions.resetWelcomeWindow()
+            }
+            DebugMenuAction.OnSetWelcomeDaysLeftClick -> _state.update {
+                it.copy(welcomeDaysLeft = WelcomeDaysLeftDialogState())
+            }
+            DebugMenuAction.OnSetWelcomeDaysLeftDismiss -> _state.update {
+                it.copy(welcomeDaysLeft = null)
+            }
+            is DebugMenuAction.OnSetWelcomeDaysLeftChange -> _state.update {
+                it.copy(welcomeDaysLeft = it.welcomeDaysLeft?.copy(daysInput = action.value.filter(Char::isDigit)))
+            }
+            DebugMenuAction.OnSetWelcomeDaysLeftConfirm -> runSetWelcomeDaysLeft()
+            DebugMenuAction.OnDrainBonusCoinsClick -> runFreemium("Bonus coins drained") {
+                freemiumActions.setBonusCoins(0)
+            }
+            DebugMenuAction.OnRefillBonusCoinsClick -> runFreemium("Bonus coins refilled") {
+                freemiumActions.setBonusCoins(FirebaseUserRepository.WELCOME_BONUS_COIN_COUNT)
+            }
+            DebugMenuAction.OnResetSmartUsageClick -> runFreemium("Smart usage reset") {
+                freemiumActions.resetSmartUsage()
+            }
+            DebugMenuAction.OnSetSmartUsageClick -> _state.update {
+                it.copy(smartUsage = SmartUsageDialogState())
+            }
+            DebugMenuAction.OnSetSmartUsageDismiss -> _state.update {
+                it.copy(smartUsage = null)
+            }
+            is DebugMenuAction.OnSetSmartUsageCountChange -> _state.update {
+                it.copy(smartUsage = it.smartUsage?.copy(countInput = action.value.filter(Char::isDigit)))
+            }
+            is DebugMenuAction.OnSetSmartUsageBonusUsedChange -> _state.update {
+                it.copy(smartUsage = it.smartUsage?.copy(bonusUsedInput = action.value.filter(Char::isDigit)))
+            }
+            DebugMenuAction.OnSetSmartUsageConfirm -> runSetSmartUsage()
+            DebugMenuAction.OnReconcileSlotsClick -> runFreemium("Slots reconciled") {
+                freemiumActions.reconcileSlots()
+            }
+            else -> return false
+        }
+        return true
+    }
+
+    private fun runFreemium(successMessage: String, block: suspend () -> DebugActionResult) =
+        runJob {
+            val message = when (val r = block()) {
+                DebugActionResult.Success -> UiText.DynamicString(successMessage)
+                is DebugActionResult.Failure -> UiText.DynamicString("Failed: ${r.reason}")
+            }
+            emit(DebugMenuEvent.ShowSnackbar(message))
+        }
 
     private fun runSeed(scenario: DebugScenario, block: suspend () -> SeedResult) = runJob {
         val r = block()

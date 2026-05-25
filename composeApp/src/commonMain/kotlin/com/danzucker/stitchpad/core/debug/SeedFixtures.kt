@@ -17,7 +17,14 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
  * reference "seed-customer-1" reliably. createdAt is supplied by the caller
  * (typically a now() function from the ViewModel) so fixtures don't bake in
  * stale times when the device clock changes.
+ *
+ * detekt: TooManyFunctions is suppressed because this is a deliberately
+ * function-heavy fixture object — each scenario (Active workshop, All-
+ * reconnect, Bulk demo) needs its own customer + order + measurement
+ * factories. Splitting into three sibling objects would add boilerplate
+ * without improving clarity.
  */
+@Suppress("TooManyFunctions")
 internal object SeedFixtures {
 
     private const val DAY_MS = 24L * 60 * 60 * 1000L
@@ -279,6 +286,77 @@ internal object SeedFixtures {
                 createdAt = now - (120 + i * 5) * DAY_MS,
             )
         }
+    }
+
+    // ── Bulk fixtures ────────────────────────────────────────────────────────
+
+    /**
+     * Generate [count] additive demo customers with numbered names so they
+     * can be visually counted in the customer list (e.g. when testing the
+     * First Month 200-customer cap or the post-First-Month 15-cap). IDs
+     * are prefixed `seed-bulk-` so they don't collide with the fixed
+     * seedActive/seedReconnect fixtures.
+     */
+    fun bulkCustomers(userId: String, now: Long, count: Int): List<Customer> {
+        return List(count) { i ->
+            val n = i + 1
+            Customer(
+                id = "seed-bulk-$n",
+                userId = userId,
+                name = "Demo Customer $n",
+                phone = "+234801234${(8000 + i).toString().padStart(4, '0')}",
+                email = null,
+                address = null,
+                deliveryPreference = DeliveryPreference.PICKUP,
+                notes = null,
+                createdAt = now,
+            )
+        }
+    }
+
+    /** A simple FEMALE measurement attached to a bulk demo customer. */
+    fun bulkMeasurementFor(customer: Customer, now: Long): Measurement = Measurement(
+        id = "seed-bulk-measurement-${customer.id.substringAfterLast('-')}",
+        customerId = customer.id,
+        gender = CustomerGender.FEMALE,
+        fields = mapOf(
+            "Bust" to 34.0,
+            "Waist" to 26.0,
+            "Hip" to 36.0,
+        ),
+        unit = MeasurementUnit.INCHES,
+        notes = null,
+        dateTaken = now,
+        createdAt = now,
+    )
+
+    /** A simple in-progress order attached to a bulk demo customer. */
+    fun bulkOrderFor(customer: Customer, index: Int, now: Long): Order {
+        val n = index + 1
+        return Order(
+            id = "seed-bulk-order-$n",
+            userId = customer.userId,
+            customerId = customer.id,
+            customerName = customer.name,
+            items = listOf(
+                OrderItem(
+                    id = "seed-bulk-item-$n",
+                    garmentType = GarmentType.KAFTAN,
+                    description = "Demo order #$n",
+                    price = 10_000.0,
+                ),
+            ),
+            status = OrderStatus.IN_PROGRESS,
+            subStatus = null,
+            priority = OrderPriority.NORMAL,
+            statusHistory = listOf(StatusChange(OrderStatus.IN_PROGRESS, now)),
+            totalPrice = 10_000.0,
+            payments = emptyList(),
+            deadline = now + 7 * DAY_MS,
+            notes = null,
+            createdAt = now,
+            updatedAt = now,
+        )
     }
 
     /** One Delivered order per all-reconnect customer, 100+ days ago. */

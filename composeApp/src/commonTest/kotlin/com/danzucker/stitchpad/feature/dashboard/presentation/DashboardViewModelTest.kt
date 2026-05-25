@@ -2,8 +2,11 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -19,6 +22,8 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -74,7 +79,8 @@ class DashboardViewModelTest {
         LocalDateTime(date, LocalTime(hour, minute)).toInstant(testTimeZone).toEpochMilliseconds()
 
     private fun TestScope.createViewModel(
-        nowMillis: () -> Long = { millisAt(today, hour = 9) }
+        nowMillis: () -> Long = { millisAt(today, hour = 9) },
+        entitlements: EntitlementsProvider = FakeEntitlementsProvider(),
     ): DashboardViewModel {
         val vm = DashboardViewModel(
             orderRepository = orderRepository,
@@ -82,6 +88,7 @@ class DashboardViewModelTest {
             authRepository = authRepository,
             weeklyGoalRepository = weeklyGoalRepository,
             smartUsageStore = smartUsageStore,
+            entitlements = entitlements,
             nowMillis = nowMillis,
             timeZone = testTimeZone
         )
@@ -89,12 +96,33 @@ class DashboardViewModelTest {
         return vm
     }
 
-    private class FakeSmartUsageStore : com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore {
-        private val flow = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
-        override val remainingFreeQuota: kotlinx.coroutines.flow.StateFlow<Int?> = flow
+    private class FakeSmartUsageStore : com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore {
+        private val flow = MutableStateFlow<Int?>(null)
+        override val remainingFreeQuota: StateFlow<Int?> = flow
         override fun update(remaining: Int?) {
             flow.value = remaining
         }
+    }
+
+    private class FakeEntitlementsProvider(
+        entitlements: UserEntitlements = defaultEntitlements(),
+    ) : EntitlementsProvider {
+        private val _flow = MutableStateFlow(entitlements)
+        override val flow: StateFlow<UserEntitlements> = _flow
+        override fun current(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
+    }
+
+    private companion object {
+        fun defaultEntitlements() = UserEntitlements(
+            tier = SubscriptionTier.FREE,
+            customerCap = Int.MAX_VALUE,
+            smartCoinAllowance = 5,
+            isInWelcomeWindow = false,
+            welcomeEndsAt = null,
+            isWithinWelcomeEndingWarning = false,
+            welcomeDaysLeft = null,
+        )
     }
 
     private fun epochMillisAt(date: LocalDate): Long =

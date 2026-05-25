@@ -12,11 +12,15 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
-import com.danzucker.stitchpad.feature.billing.data.InMemoryEntitlementsRepository
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -53,7 +57,7 @@ class ReportsViewModelTest {
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
-    private lateinit var entitlementsRepository: InMemoryEntitlementsRepository
+    private lateinit var entitlementsProvider: FakeEntitlementsProvider
 
     private val tz = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -64,7 +68,10 @@ class ReportsViewModelTest {
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
-        entitlementsRepository = InMemoryEntitlementsRepository()
+        // Default to PRO so the existing test bodies (which assume premium content
+        // is visible) keep passing. Tests that exercise the paywall path flip the
+        // tier explicitly via entitlementsProvider.setTier(SubscriptionTier.FREE).
+        entitlementsProvider = FakeEntitlementsProvider(SubscriptionTier.PRO)
     }
 
     @AfterTest
@@ -82,7 +89,7 @@ class ReportsViewModelTest {
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
-            entitlementsRepository = entitlementsRepository,
+            entitlementsProvider = entitlementsProvider,
             nowMillis = nowMillis,
             timeZone = tz
         )
@@ -267,5 +274,67 @@ class ReportsViewModelTest {
         vm.onAction(ReportsAction.OnErrorDismiss)
 
         assertNull(vm.state.value.errorMessage)
+    }
+
+    // Regression guard: until this PR, ReportsViewModel was wired to the legacy
+    // EntitlementsRepository in-memory stub (hardcoded `initialIsPremium = false`),
+    // which meant Pro and Atelier users still saw the paywall on the Reports tab.
+    // The Cursor review caught it. These two tests pin the new wiring: Pro/Atelier
+    // see premium, Free sees the paywall.
+    @Test
+    fun freeTierShowsPaywall() = runTest {
+        signIn()
+        entitlementsProvider.setTier(SubscriptionTier.FREE)
+
+        val vm = createViewModel()
+
+        assertFalse(vm.state.value.isPremium)
+    }
+
+    @Test
+    fun proTierShowsPremiumContent() = runTest {
+        signIn()
+        entitlementsProvider.setTier(SubscriptionTier.PRO)
+
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.isPremium)
+    }
+
+    @Test
+    fun atelierTierShowsPremiumContent() = runTest {
+        signIn()
+        entitlementsProvider.setTier(SubscriptionTier.ATELIER)
+
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.isPremium)
+    }
+
+    private class FakeEntitlementsProvider(initialTier: SubscriptionTier) : EntitlementsProvider {
+        private val _flow = MutableStateFlow(entitlementsFor(initialTier))
+        override val flow: StateFlow<UserEntitlements> = _flow
+        override fun current(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
+
+        fun setTier(tier: SubscriptionTier) {
+            _flow.value = entitlementsFor(tier)
+        }
+
+        private companion object {
+            fun entitlementsFor(tier: SubscriptionTier) = UserEntitlements(
+                tier = tier,
+                customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
+                smartCoinAllowance = when (tier) {
+                    SubscriptionTier.FREE -> 5
+                    SubscriptionTier.PRO -> 50
+                    SubscriptionTier.ATELIER -> 500
+                },
+                isInWelcomeWindow = false,
+                welcomeEndsAt = null,
+                isWithinWelcomeEndingWarning = false,
+                welcomeDaysLeft = null,
+            )
+        }
     }
 }

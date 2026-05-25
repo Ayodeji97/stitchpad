@@ -7,7 +7,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.danzucker.stitchpad.feature.smart.domain.model.DraftLanguage
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_language_english

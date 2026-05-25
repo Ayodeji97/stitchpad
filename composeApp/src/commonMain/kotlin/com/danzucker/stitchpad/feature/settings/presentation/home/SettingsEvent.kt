@@ -23,4 +23,6 @@ sealed interface SettingsEvent {
      */
     data class OpenWhatsApp(val phoneNumber: String, val messageRes: StringResource) : SettingsEvent
     data class ShowSnackbar(val message: UiText) : SettingsEvent
+    data object NavigateToUpgrade : SettingsEvent
+    data object NavigateToFoundersNote : SettingsEvent
 }

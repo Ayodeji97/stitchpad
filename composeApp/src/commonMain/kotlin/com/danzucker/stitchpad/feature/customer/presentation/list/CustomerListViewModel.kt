@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -11,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
+import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +29,8 @@ import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_l
 class CustomerListViewModel(
     private val customerRepository: CustomerRepository,
     private val orderRepository: OrderRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val freemiumRepository: FreemiumRepository,
 ) : ViewModel() {
 
     /** Cached count of non-delivered orders per customer id, maintained by [observeOrders]. */
@@ -35,6 +38,7 @@ class CustomerListViewModel(
 
     private var hasLoadedInitialData = false
     private var allCustomers: List<Customer> = emptyList()
+    private var allLockedCustomers: List<Customer> = emptyList()
 
     private val _state = MutableStateFlow(CustomerListState())
 
@@ -55,13 +59,15 @@ class CustomerListViewModel(
             initialValue = CustomerListState()
         )
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: CustomerListAction) {
         when (action) {
             is CustomerListAction.OnSearchQueryChange -> {
                 _state.update {
                     it.copy(
                         searchQuery = action.query,
-                        customers = filterCustomers(allCustomers, action.query, it.deliveryFilter)
+                        customers = filterCustomers(allCustomers, action.query, it.deliveryFilter),
+                        lockedCustomers = filterCustomers(allLockedCustomers, action.query, it.deliveryFilter),
                     )
                 }
             }
@@ -69,7 +75,8 @@ class CustomerListViewModel(
                 _state.update {
                     it.copy(
                         deliveryFilter = action.filter,
-                        customers = filterCustomers(allCustomers, it.searchQuery, action.filter)
+                        customers = filterCustomers(allCustomers, it.searchQuery, action.filter),
+                        lockedCustomers = filterCustomers(allLockedCustomers, it.searchQuery, action.filter),
                     )
                 }
             }
@@ -106,6 +113,32 @@ class CustomerListViewModel(
             CustomerListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+            is CustomerListAction.OpenSwapSheetFor -> {
+                _state.update { it.copy(swapSheetForId = action.lockedCustomerId) }
+            }
+            CustomerListAction.DismissSwapSheet -> {
+                _state.update { it.copy(swapSheetForId = null) }
+            }
+            is CustomerListAction.ConfirmSwap -> {
+                viewModelScope.launch {
+                    val swapResult = freemiumRepository.swapCustomerSlot(
+                        promote = action.lockedCustomerId,
+                        demote = action.activeCustomerIdToDemote,
+                    )
+                    when (swapResult) {
+                        is Result.Success -> {
+                            val firstName = _state.value.lockedCustomers
+                                .firstOrNull { it.id == action.lockedCustomerId }
+                                ?.name
+                                ?.substringBefore(" ")
+                                ?: ""
+                            _events.send(CustomerListEvent.SwapSucceeded(firstName))
+                        }
+                        is Result.Error -> _events.send(CustomerListEvent.SwapFailed)
+                    }
+                    _state.update { it.copy(swapSheetForId = null) }
+                }
+            }
         }
     }
 
@@ -118,10 +151,15 @@ class CustomerListViewModel(
             customerRepository.observeCustomers(userId).collect { result ->
                 when (result) {
                     is Result.Success -> {
-                        allCustomers = result.data
+                        val (active, locked) = result.data.partition {
+                            it.slotState == CustomerSlotState.ACTIVE
+                        }
+                        allCustomers = active
+                        allLockedCustomers = locked
                         _state.update { state ->
                             state.copy(
-                                customers = filterCustomers(result.data, state.searchQuery, state.deliveryFilter),
+                                customers = filterCustomers(active, state.searchQuery, state.deliveryFilter),
+                                lockedCustomers = filterCustomers(locked, state.searchQuery, state.deliveryFilter),
                                 hasAnyCustomers = result.data.isNotEmpty(),
                                 isLoading = false
                             )

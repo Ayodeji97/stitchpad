@@ -3,10 +3,12 @@ package com.danzucker.stitchpad.feature.customer.data
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomer
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
@@ -16,8 +18,29 @@ import kotlinx.coroutines.flow.map
 
 private const val TAG = "CustomerRepo"
 
+/**
+ * Counts the number of ACTIVE-slot customers in [dtos].
+ * LOCKED customers are excluded — they don't consume active cap.
+ *
+ * Uses [CustomerSlotState.fromWire] so the cap count matches the way the
+ * rest of the system buckets slot states: the UI mapper, the server's
+ * `normalizeSlotState` in reconcileSlots.ts, and Firestore rules all treat
+ * anything-not-`"locked"` as `ACTIVE`. An exact-equality count would skip
+ * an arbitrary-string `slotState` (e.g. `"fancy"` from a direct Firestore
+ * SDK write) here while the UI + reconcile still count it — a brief
+ * client-side cap-bypass window before reconcile fires. Cursor's PR #70
+ * review caught this as the client-side mirror of the server fix shipped
+ * in PR #69.
+ *
+ * Exposed as `internal` so it can be unit-tested directly without
+ * needing to fake a [FirebaseFirestore] instance.
+ */
+internal fun countActiveCustomers(dtos: List<CustomerDto>): Int =
+    dtos.count { CustomerSlotState.fromWire(it.slotState) == CustomerSlotState.ACTIVE }
+
 class FirebaseCustomerRepository(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val entitlements: EntitlementsProvider,
 ) : CustomerRepository {
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
@@ -81,10 +104,46 @@ class FirebaseCustomerRepository(
         }
     }
 
+    @Suppress("ReturnCount")
     override suspend fun createCustomer(
         userId: String,
         customer: Customer
     ): EmptyResult<DataError.Network> {
+        // Cap enforcement: count ACTIVE-slot customers; LOCKED ones don't count.
+        // Fetch all docs and count client-side via countActiveCustomers() — consistent
+        // with how the rest of this repo avoids nullable-field where-clauses (see
+        // the observeOrders comment about whereEqualTo(field, null) cross-platform issues).
+        //
+        // awaitHydrated (not current()) because `current()` returns the default
+        // FREE/15 placeholder before the first Firestore snapshot lands. On a cold
+        // start, a Pro/Atelier or First Month account with 15+ customers would
+        // otherwise see a spurious CAP_REACHED here. The await blocks just until
+        // the user-doc snapshot listener fires once (typically <100ms).
+        val entitlement = entitlements.awaitHydrated()
+        val activeCount = try {
+            val dtos = firestore.collection("users")
+                .document(userId)
+                .collection("customers")
+                .get()
+                .documents
+                .mapNotNull { doc -> runCatching { doc.data<CustomerDto>() }.getOrNull() }
+            countActiveCustomers(dtos)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+            // Fail closed: without a count we cannot enforce the cap, and there
+            // is no server-side create guard to fall back on (Firestore rules
+            // don't currently validate cap on writes). Allowing the create
+            // would let a burst of writes during an outage exceed the cap;
+            // surface a network error so the UI retries instead.
+            AppLogger.e(tag = TAG, throwable = e) { "Cap count failed; blocking createCustomer" }
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        if (activeCount >= entitlement.customerCap) {
+            AppLogger.i(tag = TAG) {
+                "createCustomer blocked: activeCount=$activeCount cap=${entitlement.customerCap}"
+            }
+            return Result.Error(DataError.Network.CAP_REACHED)
+        }
+
         val docRef = if (customer.id.isBlank()) {
             firestore.collection("users").document(userId).collection("customers").document
         } else {
@@ -108,11 +167,25 @@ class FirebaseCustomerRepository(
         customer: Customer
     ): EmptyResult<DataError.Network> {
         return try {
-            firestore.collection("users")
+            val docRef = firestore.collection("users")
                 .document(userId)
                 .collection("customers")
                 .document(customer.id)
-                .set(customer.toCustomerDto())
+            // Read the existing slotState + lockedAt before writing so that a
+            // form edit — which reconstructs Customer with the default ACTIVE —
+            // does NOT accidentally unlock a previously-locked customer and
+            // bypass the freemium cap. Authoritative writers of these fields:
+            //   - createCustomer (cap-gated, this file)
+            //   - reconcileCustomerSlots (Cloud Function, server-side cap)
+            //   - swapCustomerSlot (CloudFunctionsFreemiumRepository, paired
+            //     active↔locked swap; user-initiated)
+            // updateCustomer is NOT authoritative and must preserve them.
+            val existing = runCatching { docRef.get().data<CustomerDto>() }.getOrNull()
+            val dto = customer.toCustomerDto().copy(
+                slotState = existing?.slotState ?: customer.toCustomerDto().slotState,
+                lockedAt = existing?.lockedAt ?: customer.lockedAt,
+            )
+            docRef.set(dto)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {

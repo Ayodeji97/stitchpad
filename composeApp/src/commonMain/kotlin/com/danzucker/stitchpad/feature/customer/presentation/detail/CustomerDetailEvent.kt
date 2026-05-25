@@ -6,4 +6,5 @@ sealed interface CustomerDetailEvent {
     data class NavigateToAddMeasurement(val customerId: String) : CustomerDetailEvent
     data class NavigateToEditMeasurement(val customerId: String, val measurementId: String) : CustomerDetailEvent
     data class NavigateToStyleGallery(val customerId: String) : CustomerDetailEvent
+    data object NavigateToUpgrade : CustomerDetailEvent
 }

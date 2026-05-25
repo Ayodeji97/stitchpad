@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -56,8 +58,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -70,11 +74,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
+import com.danzucker.stitchpad.feature.freemium.presentation.swap.SwapSheet
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.clearFocusOnTap
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -90,8 +98,14 @@ import stitchpad.composeapp.generated.resources.customer_empty_state_title
 import stitchpad.composeapp.generated.resources.customer_fab_cd
 import stitchpad.composeapp.generated.resources.customer_filter_all
 import stitchpad.composeapp.generated.resources.customer_list_title
+import stitchpad.composeapp.generated.resources.customer_locked_chip
+import stitchpad.composeapp.generated.resources.customer_locked_row_swap_cta
+import stitchpad.composeapp.generated.resources.customer_locked_section_subtitle
+import stitchpad.composeapp.generated.resources.customer_locked_section_title
 import stitchpad.composeapp.generated.resources.customer_search_clear_cd
 import stitchpad.composeapp.generated.resources.customer_search_hint
+import stitchpad.composeapp.generated.resources.customer_swap_failure
+import stitchpad.composeapp.generated.resources.customer_swap_success
 import stitchpad.composeapp.generated.resources.delivery_delivery
 import stitchpad.composeapp.generated.resources.delivery_pickup
 
@@ -103,11 +117,20 @@ fun CustomerListRoot(
     val viewModel: CustomerListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             CustomerListEvent.NavigateToAddCustomer -> onNavigateToAddCustomer()
             is CustomerListEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+            is CustomerListEvent.SwapSucceeded -> scope.launch {
+                snackbarHostState.showSnackbar(
+                    getString(Res.string.customer_swap_success, event.promotedFirstName)
+                )
+            }
+            CustomerListEvent.SwapFailed -> scope.launch {
+                snackbarHostState.showSnackbar(getString(Res.string.customer_swap_failure))
+            }
         }
     }
 
@@ -162,6 +185,7 @@ fun CustomerListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .clearFocusOnTap()
         ) {
             CustomerSearchField(
                 query = state.searchQuery,
@@ -184,7 +208,7 @@ fun CustomerListScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
-                state.customers.isEmpty() -> {
+                state.customers.isEmpty() && state.lockedCustomers.isEmpty() -> {
                     CustomerEmptyState(modifier = Modifier.fillMaxSize())
                 }
                 else -> {
@@ -203,9 +227,78 @@ fun CustomerListScreen(
                                 modifier = Modifier.padding(start = DesignTokens.space4 + 44.dp + DesignTokens.space3)
                             )
                         }
+
+                        if (state.lockedCustomers.isNotEmpty()) {
+                            item(key = "locked_section_header") {
+                                Spacer(Modifier.height(DesignTokens.space4))
+                                Column(
+                                    modifier = Modifier.padding(
+                                        horizontal = DesignTokens.space4,
+                                        vertical = DesignTokens.space2,
+                                    ),
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(Modifier.width(DesignTokens.space2))
+                                        Text(
+                                            text = stringResource(
+                                                Res.string.customer_locked_section_title,
+                                            ),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Spacer(Modifier.width(DesignTokens.space2))
+                                        Text(
+                                            text = "· ${state.lockedCustomers.size}",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(
+                                            Res.string.customer_locked_section_subtitle,
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            items(state.lockedCustomers, key = { "locked_${it.id}" }) { customer ->
+                                LockedCustomerRow(
+                                    customer = customer,
+                                    onTap = { onAction(CustomerListAction.OnCustomerClick(customer)) },
+                                    onSwapTap = { onAction(CustomerListAction.OpenSwapSheetFor(customer.id)) },
+                                )
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    modifier = Modifier.padding(
+                                        start = DesignTokens.space4 + 44.dp + DesignTokens.space3,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    state.swapSheetForId?.let { lockedId ->
+        val lockedCustomer = state.lockedCustomers.firstOrNull { it.id == lockedId }
+        if (lockedCustomer != null) {
+            SwapSheet(
+                lockedCustomer = lockedCustomer,
+                activeCustomers = state.customers,
+                onConfirm = { demoteId -> onAction(CustomerListAction.ConfirmSwap(lockedId, demoteId)) },
+                onDismiss = { onAction(CustomerListAction.DismissSwapSheet) },
+            )
         }
     }
 
@@ -435,6 +528,58 @@ private fun CustomerEmptyState(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.weight(3f))
+    }
+}
+
+@Composable
+private fun LockedCustomerRow(
+    customer: Customer,
+    onTap: () -> Unit,
+    onSwapTap: () -> Unit,
+) {
+    // The main row tap opens the customer's read-only detail page (per V1.0 spec
+    // decision #2 — locked data is visible, not hidden). The Swap text button on the
+    // right invokes the existing SwapSheet path directly so swapping stays one tap
+    // from the list.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTap)
+            .padding(start = DesignTokens.space4, top = DesignTokens.space3, bottom = DesignTokens.space3),
+    ) {
+        CustomerAvatar(
+            name = customer.name,
+            size = 44.dp,
+            modifier = Modifier.alpha(0.38f),
+        )
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = customer.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(Res.string.customer_locked_chip),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            )
+        }
+
+        TextButton(onClick = onSwapTap) {
+            Text(
+                text = stringResource(Res.string.customer_locked_row_swap_cta),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 

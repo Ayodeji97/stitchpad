@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.PersonAddAlt
@@ -39,8 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.ProfileHeroCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowChevron
@@ -53,7 +56,6 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.settings_hero_plan_pro
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
@@ -61,6 +63,8 @@ import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_debug_menu
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
+import stitchpad.composeapp.generated.resources.settings_row_founders_note
+import stitchpad.composeapp.generated.resources.settings_row_founders_note_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_invite
 import stitchpad.composeapp.generated.resources.settings_row_invite_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units
@@ -126,11 +130,21 @@ fun SettingsScreen(
                 subtitle = state.heroSubtitle.ifBlank { state.email },
                 avatarColorIndex = state.avatarColorIndex,
                 onClick = { onAction(SettingsAction.OnProfileClick) },
-                planBadgeLabel = if (state.isPremium) {
-                    stringResource(Res.string.settings_hero_plan_pro)
-                } else {
-                    null
-                },
+                planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
+            )
+
+            Spacer(Modifier.height(DesignTokens.space3))
+
+            PlanCard(
+                tier = state.subscriptionTier,
+                customerCount = state.customerCount,
+                customerLimit = state.customerLimit,
+                aiDraftsUsed = state.aiDraftsUsed,
+                aiDraftLimit = state.aiDraftLimit,
+                isFirstMonth = state.isFirstMonth,
+                welcomeDaysLeft = state.welcomeDaysLeft,
+                onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
+                modifier = Modifier,
             )
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
@@ -220,6 +234,14 @@ fun SettingsScreen(
                     label = stringResource(Res.string.settings_row_contact),
                     subtitle = stringResource(Res.string.settings_row_contact_subtitle),
                     onClick = { onAction(SettingsAction.OnContactClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Info,
+                    label = stringResource(Res.string.settings_row_founders_note),
+                    subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
+                    onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
                     trailing = { SettingsRowChevron() },
                 )
             }
@@ -337,7 +359,9 @@ private fun SettingsScreenPreview() {
                 avatarColorIndex = 0,
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
-                isPremium = false,
+                subscriptionTier = SubscriptionTier.FREE,
+                customerCount = 8,
+                customerLimit = 15,
                 measurementUnit = MeasurementUnit.INCHES,
             ),
             onAction = {},
@@ -359,7 +383,9 @@ private fun SettingsScreenAppleProviderPreview() {
                 avatarColorIndex = 3,
                 signInProvider = SignInProvider.APPLE,
                 maskedSignInIdentifier = "folake@privaterelay.appleid.com",
-                isPremium = true,
+                subscriptionTier = SubscriptionTier.PRO,
+                customerCount = 42,
+                customerLimit = null,
                 measurementUnit = MeasurementUnit.CM,
             ),
             onAction = {},
@@ -381,7 +407,9 @@ private fun SettingsScreenDarkPreview() {
                 avatarColorIndex = 4,
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
-                isPremium = false,
+                subscriptionTier = SubscriptionTier.FREE,
+                customerCount = 13,
+                customerLimit = 15,
             ),
             onAction = {},
         )

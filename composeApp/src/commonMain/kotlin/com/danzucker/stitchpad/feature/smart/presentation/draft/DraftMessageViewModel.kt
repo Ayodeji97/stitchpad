@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.feature.smart.domain.SmartUsageStore
+import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
 import com.danzucker.stitchpad.feature.smart.domain.model.DraftMessageRequest
@@ -22,6 +22,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_no_whatsapp_helper
 import stitchpad.composeapp.generated.resources.smart_error_invalid_input
 import stitchpad.composeapp.generated.resources.smart_error_network
+import stitchpad.composeapp.generated.resources.smart_error_pro_quota_exhausted
 import stitchpad.composeapp.generated.resources.smart_error_service_unavailable
 import stitchpad.composeapp.generated.resources.smart_error_unknown
 
@@ -211,6 +212,11 @@ class DraftMessageViewModel(
         _state.update { it.copy(generationState = GenerationState.Idle) }
         when (error) {
             SmartError.FreeTierExhausted -> _events.send(DraftMessageEvent.ShowUpgradeSheet)
+            SmartError.ProQuotaExhausted -> _events.send(
+                DraftMessageEvent.ShowSnackbar(
+                    UiText.StringResourceText(Res.string.smart_error_pro_quota_exhausted)
+                )
+            )
             SmartError.InvalidInput -> {
                 _state.update { it.copy(order = null) }
                 _events.send(

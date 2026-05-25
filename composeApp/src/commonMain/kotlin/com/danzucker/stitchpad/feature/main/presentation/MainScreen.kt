@@ -34,6 +34,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRo
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
 import com.danzucker.stitchpad.feature.dashboard.presentation.AddCustomerFirstScreen
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
+import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
@@ -44,6 +45,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeE
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
+import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -58,6 +60,7 @@ import com.danzucker.stitchpad.navigation.DashboardRoute
 import com.danzucker.stitchpad.navigation.DeleteAccountRoute
 import com.danzucker.stitchpad.navigation.DraftMessageRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
+import com.danzucker.stitchpad.navigation.FoundersNoteRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
@@ -67,6 +70,7 @@ import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
+import com.danzucker.stitchpad.navigation.UpgradeRoute
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -188,12 +192,14 @@ private fun MainNavGraph(
                 },
                 onNavigateToStyleGallery = { customerId ->
                     navController.navigate(StyleGalleryRoute(customerId = customerId))
-                }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<CustomerFormRoute> {
             CustomerFormRoot(
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<MeasurementFormRoute> {
@@ -300,6 +306,9 @@ private fun MainNavGraph(
                 onNavigateToDraftMessage = {
                     navController.navigate(DraftMessageRoute)
                 },
+                onNavigateToUpgrade = {
+                    navController.navigate(UpgradeRoute)
+                },
             )
         }
         composable<AddCustomerFirstRoute> {
@@ -317,18 +326,22 @@ private fun MainNavGraph(
         composable<DraftMessageRoute> {
             DraftMessageRoot(
                 onUpgradeRequested = {
-                    navController.navigate(SettingsRoute) {
-                        launchSingleTop = true
-                    }
+                    navController.navigate(UpgradeRoute)
                 },
                 onNavigateBack = { navController.navigateUp() },
+            )
+        }
+        composable<UpgradeRoute> {
+            UpgradeRoot(
+                onBack = { navController.navigateUp() },
             )
         }
         composable<ReportsRoute> {
             ReportsRoot(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
-                }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<GoalSetupRoute> {
@@ -344,6 +357,13 @@ private fun MainNavGraph(
                 onNavigateToDeleteAccount = { navController.navigate(DeleteAccountRoute) },
                 onSignedOut = onSignedOut,
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
+            )
+        }
+        composable<FoundersNoteRoute> {
+            FoundersNoteRoot(
+                onNavigateBack = { navController.navigateUp() },
             )
         }
         composable<EditProfileRoute> {

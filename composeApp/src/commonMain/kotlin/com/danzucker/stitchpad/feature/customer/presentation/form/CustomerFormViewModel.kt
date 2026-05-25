@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.customer.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -27,7 +29,8 @@ class CustomerFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
-    private val emailValidator: PatternValidator
+    private val emailValidator: PatternValidator,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -146,8 +149,24 @@ class CustomerFormViewModel(
             _state.update { it.copy(isLoading = false) }
             when (result) {
                 is Result.Success -> _events.send(CustomerFormEvent.NavigateBack)
-                is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toCustomerUiText())
+                is Result.Error -> {
+                    if (result.error == DataError.Network.CAP_REACHED) {
+                        // Cap-reached is the only error with a dedicated upgrade-pitch
+                        // bottom sheet; everything else routes through the generic
+                        // snackbar via errorMessage. activeCount == cap here by
+                        // definition (we just failed because we're AT the cap).
+                        val cap = entitlements.current().customerCap
+                        _events.send(
+                            CustomerFormEvent.ShowCapReachedSheet(
+                                activeCount = cap,
+                                customerCap = cap,
+                            )
+                        )
+                    } else {
+                        _state.update {
+                            it.copy(errorMessage = result.error.toCustomerUiText())
+                        }
+                    }
                 }
             }
         }
