@@ -341,6 +341,7 @@ class CustomerFormViewModelTest {
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         viewModel.onAction(CustomerFormAction.OnEmailChange("ade@gmail.com"))
+        viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)  // uncheck → vanilla save-and-leave path
         viewModel.onAction(CustomerFormAction.OnSaveClick)
 
         val created = customerRepository.lastCreatedCustomer
@@ -502,5 +503,88 @@ class CustomerFormViewModelTest {
 
         viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)
         assertTrue(viewModel.state.value.addMeasurementsNext)
+    }
+
+    // --- Save routing: addMeasurementsNext ---
+
+    @Test
+    fun save_addMode_checkboxChecked_emitsNavigateToNewCustomerMeasurement() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        // addMeasurementsNext defaults to true
+        viewModel.onAction(CustomerFormAction.OnSaveClick)
+
+        val event = viewModel.events.first()
+        assertIs<CustomerFormEvent.NavigateToNewCustomerMeasurement>(event)
+        // The id emitted in the event must match the id passed to createCustomer
+        val createdId = customerRepository.lastCreatedCustomer?.id
+        assertNotNull(createdId)
+        assertTrue(createdId.isNotBlank())
+        assertEquals(createdId, event.customerId)
+    }
+
+    @Test
+    fun save_addMode_checkboxUnchecked_emitsNavigateBack() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)  // → false
+        viewModel.onAction(CustomerFormAction.OnSaveClick)
+
+        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
+    }
+
+    @Test
+    fun save_editMode_checkboxChecked_stillEmitsNavigateBack() = runTest {
+        // Edit mode wins regardless of addMeasurementsNext value.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.storedCustomer = Customer(
+            id = "customer-123",
+            userId = "test-uid",
+            name = "Old Name",
+            phone = "+2340000000000",
+        )
+        val viewModel = createViewModel(customerId = "customer-123")
+        viewModel.onAction(CustomerFormAction.OnNameChange("New Name"))
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        // addMeasurementsNext is true by default; edit mode must still NavigateBack
+        viewModel.onAction(CustomerFormAction.OnSaveClick)
+
+        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
+    }
+
+    @Test
+    fun save_addMode_passesNonBlankIdToRepository() = runTest {
+        // Independent of routing — the id is minted client-side so the screen
+        // can forward the new customer's id to the measurement form.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        viewModel.onAction(CustomerFormAction.OnSaveClick)
+
+        val created = customerRepository.lastCreatedCustomer
+        assertNotNull(created)
+        assertTrue(created.id.isNotBlank())
+    }
+
+    @Test
+    fun save_capReached_emitsShowCapReachedSheet_andNoCustomerCreated() = runTest {
+        // Cap-reached must still take precedence over the new addMeasurementsNext
+        // routing — no navigation to the measurement form, and the create call
+        // is short-circuited by the repository so no customer is persisted.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.shouldReturnError = DataError.Network.CAP_REACHED
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        // addMeasurementsNext is true by default
+        viewModel.onAction(CustomerFormAction.OnSaveClick)
+
+        assertIs<CustomerFormEvent.ShowCapReachedSheet>(viewModel.events.first())
+        assertNull(customerRepository.lastCreatedCustomer)
     }
 }

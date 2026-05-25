@@ -99,6 +99,9 @@ fun CustomerFormRoot(
         when (event) {
             CustomerFormEvent.NavigateBack -> onNavigateBack()
             is CustomerFormEvent.ShowCapReachedSheet -> capSheet = event
+            // Task 3 will wire real chained navigation to the measurement form.
+            // For now, treat it as a plain navigate-back so the build compiles.
+            is CustomerFormEvent.NavigateToNewCustomerMeasurement -> onNavigateBack()
         }
     }
 
