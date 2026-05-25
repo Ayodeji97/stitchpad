@@ -18,5 +18,13 @@ data class MeasurementFormState(
     val isEditMode: Boolean = false,
     val errorMessage: UiText? = null,
     val originalCreatedAt: Long = 0L,
-    val originalDateTaken: Long = 0L
-)
+    val originalDateTaken: Long = 0L,
+) {
+    /**
+     * PTSP-6: Save is gated until at least one figure is entered.
+     * Edit-mode entries pre-populate `fields` from the existing measurement,
+     * so the gate naturally allows resaves of an existing record.
+     */
+    val canSave: Boolean
+        get() = gender != null && fields.values.any { it.isNotBlank() } && !isLoading
+}

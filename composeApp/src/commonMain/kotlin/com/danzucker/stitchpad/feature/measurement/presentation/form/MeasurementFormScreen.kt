@@ -132,7 +132,7 @@ fun MeasurementFormScreen(
         stringResource(Res.string.measurement_add_title)
     }
     val unitSuffix = if (state.unit == MeasurementUnit.INCHES) "in" else "cm"
-    val canSave = state.gender != null && !state.isLoading
+    val canSave = state.canSave
     val focusManager = LocalFocusManager.current
 
     val pagerState = rememberPagerState(pageCount = { state.sections.size })
