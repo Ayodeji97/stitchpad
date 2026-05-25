@@ -325,11 +325,13 @@ class CustomerFormViewModelTest {
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         // email left blank — should be treated as optional
+        viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)  // vanilla save-and-leave path
         viewModel.onAction(CustomerFormAction.OnSaveClick)
 
         assertNull(viewModel.state.value.emailError)
         assertNotNull(customerRepository.lastCreatedCustomer)
         assertNull(customerRepository.lastCreatedCustomer?.email)  // blank → stored as null
+        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
     }
 
     // --- Save: create mode ---
