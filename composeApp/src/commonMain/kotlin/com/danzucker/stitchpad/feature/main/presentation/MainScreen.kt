@@ -200,6 +200,15 @@ private fun MainNavGraph(
             CustomerFormRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToCustomerWithMeasurement = { newId ->
+                    // Chain: pop the form, push customer detail, then push the
+                    // measurement form. Back from the measurement form lands
+                    // on detail; back from detail lands on the list.
+                    navController.navigate(CustomerDetailRoute(customerId = newId)) {
+                        popUpTo<CustomerFormRoute> { inclusive = true }
+                    }
+                    navController.navigate(MeasurementFormRoute(customerId = newId))
+                },
             )
         }
         composable<MeasurementFormRoute> {

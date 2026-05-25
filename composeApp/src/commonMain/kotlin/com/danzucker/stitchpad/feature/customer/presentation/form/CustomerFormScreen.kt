@@ -90,6 +90,7 @@ import stitchpad.composeapp.generated.resources.delivery_pickup
 fun CustomerFormRoot(
     onNavigateBack: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToCustomerWithMeasurement: (customerId: String) -> Unit,
 ) {
     val viewModel: CustomerFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -104,9 +105,8 @@ fun CustomerFormRoot(
         when (event) {
             CustomerFormEvent.NavigateBack -> onNavigateBack()
             is CustomerFormEvent.ShowCapReachedSheet -> capSheet = event
-            // Task 3 will wire real chained navigation to the measurement form.
-            // For now, treat it as a plain navigate-back so the build compiles.
-            is CustomerFormEvent.NavigateToNewCustomerMeasurement -> onNavigateBack()
+            is CustomerFormEvent.NavigateToNewCustomerMeasurement ->
+                onNavigateToCustomerWithMeasurement(event.customerId)
         }
     }
 
