@@ -13,4 +13,22 @@ sealed interface CustomerListAction {
     data class OpenSwapSheetFor(val lockedCustomerId: String) : CustomerListAction
     data object DismissSwapSheet : CustomerListAction
     data class ConfirmSwap(val lockedCustomerId: String, val activeCustomerIdToDemote: String) : CustomerListAction
+
+    /** Tapped the ⋮ overflow icon on an active customer row. */
+    data class OnOverflowClick(val customer: Customer) : CustomerListAction
+
+    /** Sheet dismissed by swipe-down, backdrop tap, or system back. */
+    data object DismissActionsSheet : CustomerListAction
+
+    /** Tapped the sheet header (avatar + name + phone + chevron). Routes to detail. */
+    data class OnViewCustomerFromSheet(val customerId: String) : CustomerListAction
+
+    /** Tapped "Edit" in the actions sheet. Routes directly to the customer form (edit mode). */
+    data class OnEditCustomerFromRow(val customerId: String) : CustomerListAction
+
+    /** Tapped "New measurement" in the actions sheet. Routes directly to the measurement form. */
+    data class OnAddMeasurementFromRow(val customerId: String) : CustomerListAction
+
+    /** Tapped "New order" in the actions sheet. Routes to the order form with customer pre-selected. */
+    data class OnNewOrderFromRow(val customerId: String) : CustomerListAction
 }

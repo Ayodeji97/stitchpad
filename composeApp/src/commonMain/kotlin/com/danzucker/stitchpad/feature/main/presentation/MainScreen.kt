@@ -175,7 +175,16 @@ private fun MainNavGraph(
                 },
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
-                }
+                },
+                onNavigateToEditCustomer = { customerId ->
+                    navController.navigate(CustomerFormRoute(customerId = customerId))
+                },
+                onNavigateToAddMeasurement = { customerId ->
+                    navController.navigate(MeasurementFormRoute(customerId = customerId))
+                },
+                onNavigateToOrderForm = { customerId ->
+                    navController.navigate(OrderFormRoute(customerId = customerId))
+                },
             )
         }
         composable<CustomerDetailRoute> {

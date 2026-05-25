@@ -185,6 +185,14 @@
     <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
+    <!-- Customer row actions sheet (PTSP-15) -->
+    <string name="customer_actions_edit">Edit</string>
+    <string name="customer_actions_new_measurement">New measurement</string>
+    <string name="customer_actions_new_order">New order</string>
+    <string name="customer_actions_delete">Delete</string>
+    <string name="cd_customer_overflow">More actions for %1$s</string>
+    <string name="cd_customer_actions_view">View %1$s’s details</string>
+
     <!-- Freemium — customer slot locking + swap -->
     <string name="customer_locked_section_title">Locked</string>
     <string name="customer_locked_section_subtitle">Safe and searchable. Unlock anytime to take new orders.</string>

@@ -48,6 +48,7 @@ class OrderFormViewModel(
 
     private val orderId: String? = savedStateHandle["orderId"]
     private val seedFromOrderId: String? = savedStateHandle["seedFromOrderId"]
+    private val initialCustomerId: String? = savedStateHandle["customerId"]
     private var userId: String? = null
 
     // Preserved across edit: carry original metadata so save() doesn't overwrite them.
@@ -56,9 +57,12 @@ class OrderFormViewModel(
     private var loadedStatusHistory: List<StatusChange> = emptyList()
     private var loadedPayments: List<Payment> = emptyList()
 
-    // On edit, loadOrder may finish before observeCustomers emits. Record the target
-    // customer id and resolve it reactively whenever either event wins the race.
-    private var pendingCustomerId: String? = null
+    // On edit (orderId != null), loadOrder may finish before observeCustomers emits.
+    // On create-with-pre-selected-customer (initialCustomerId != null, from
+    // PTSP-15's "New order" sheet action), we already know the target. Either way
+    // we record the target id and resolve it reactively whenever the customer list
+    // emits — the existing resolvePendingCustomer() does the matching.
+    private var pendingCustomerId: String? = initialCustomerId
 
     // Track the per-customer style/measurement collectors so we can cancel them when the
     // user switches customers. Without this, the previous customer's flows keep emitting
