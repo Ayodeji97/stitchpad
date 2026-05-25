@@ -110,6 +110,7 @@ class DashboardViewModelTest {
         private val _flow = MutableStateFlow(entitlements)
         override val flow: StateFlow<UserEntitlements> = _flow
         override fun current(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
     }
 
     private companion object {

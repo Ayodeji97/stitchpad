@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -68,6 +69,13 @@ internal class UserDocEntitlementsProvider(
     private val _flow = MutableStateFlow(defaultEntitlements())
     override val flow: StateFlow<UserEntitlements> = _flow.asStateFlow()
 
+    // Tracks whether the current signed-in user's Firestore snapshot has been
+    // applied. Resets to false on sign-out (uid == null) so the next sign-in
+    // re-awaits a fresh snapshot. createCustomer + any other write-time cap
+    // gates use [awaitHydrated] to avoid blocking a Pro/Atelier account with
+    // 15+ customers on the default FREE/15 placeholder before Firestore emits.
+    private val _hydrated = MutableStateFlow(false)
+
     /**
      * Emits Unit immediately, then once every hour. Combined with the
      * Firestore snapshot flow so that [EntitlementsCalculator.calculate]
@@ -103,10 +111,12 @@ internal class UserDocEntitlementsProvider(
 
             combine(snapshotFlow, recomputeTicker) { data, _ -> data }
                 .collectLatest { data ->
-                    _flow.value = if (data == null) {
-                        defaultEntitlements()
+                    if (data == null) {
+                        _flow.value = defaultEntitlements()
+                        _hydrated.value = false
                     } else {
-                        computeFromData(data)
+                        _flow.value = computeFromData(data)
+                        _hydrated.value = true
                     }
                 }
         }
@@ -125,6 +135,11 @@ internal class UserDocEntitlementsProvider(
     }
 
     override fun current(): UserEntitlements = _flow.value
+
+    override suspend fun awaitHydrated(): UserEntitlements {
+        _hydrated.first { it }
+        return _flow.value
+    }
 
     private fun defaultEntitlements() = EntitlementsCalculator.calculate(
         tier = SubscriptionTier.FREE,

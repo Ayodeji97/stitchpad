@@ -102,7 +102,13 @@ class FirebaseCustomerRepository(
         // Fetch all docs and count client-side via countActiveCustomers() — consistent
         // with how the rest of this repo avoids nullable-field where-clauses (see
         // the observeOrders comment about whereEqualTo(field, null) cross-platform issues).
-        val entitlement = entitlements.current()
+        //
+        // awaitHydrated (not current()) because `current()` returns the default
+        // FREE/15 placeholder before the first Firestore snapshot lands. On a cold
+        // start, a Pro/Atelier or First Month account with 15+ customers would
+        // otherwise see a spurious CAP_REACHED here. The await blocks just until
+        // the user-doc snapshot listener fires once (typically <100ms).
+        val entitlement = entitlements.awaitHydrated()
         val activeCount = try {
             val dtos = firestore.collection("users")
                 .document(userId)

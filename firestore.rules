@@ -119,5 +119,19 @@ service cloud.firestore {
         allow write: if false;
       }
     }
+
+    // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────
+    // FirestoreDeletionFeedbackRepository writes anonymous-shaped feedback
+    // (reason, additionalNotes, plan, daysActive, platform, appVersion,
+    // locale, createdAtEpochMs) here right before the user deletes their
+    // account. Any authenticated user can create; nobody can read, update,
+    // or delete from a client. Admin SDK / Firebase Console bypass rules
+    // for analytics consumption.
+    //
+    // Without this rule, the delete-account flow silently drops feedback
+    // (rules default to deny), masking signal we need from churn.
+    match /account_deletion_feedback/{docId} {
+      allow create: if request.auth != null;
+    }
   }
 }

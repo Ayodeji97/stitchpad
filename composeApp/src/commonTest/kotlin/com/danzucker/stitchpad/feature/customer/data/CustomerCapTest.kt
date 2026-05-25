@@ -108,6 +108,7 @@ class CustomerCapTest {
         private val _flow = MutableStateFlow(entitlements)
         override val flow: StateFlow<UserEntitlements> = _flow
         override fun current(): UserEntitlements = entitlements
+        override suspend fun awaitHydrated(): UserEntitlements = entitlements
     }
 
     private fun makeEntitlements(customerCap: Int): UserEntitlements =
