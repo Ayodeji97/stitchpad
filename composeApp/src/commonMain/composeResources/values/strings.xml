@@ -589,7 +589,13 @@
     <string name="dashboard_welcome_title">Welcome to StitchPad</string>
     <string name="dashboard_welcome_subtitle">Add your first customer to start tracking orders, measurements, and styles.</string>
     <string name="dashboard_welcome_cta">Add first customer</string>
-    <string name="dashboard_fab_cd">New order</string>
+    <!-- Dashboard speed-dial FAB labels (PTSP-1) -->
+    <string name="dashboard_quick_action_customer">Add customer</string>
+    <string name="dashboard_quick_action_order">Add order</string>
+    <string name="dashboard_fab_new_customer_cd">Add a new customer</string>
+    <string name="dashboard_fab_new_order_cd">Add a new order</string>
+    <string name="dashboard_fab_close_cd">Close quick actions</string>
+    <string name="dashboard_fab_quick_actions_cd">Open quick actions</string>
     <!-- Dashboard tile grid -->
     <string name="dashboard_tile_overdue">Overdue</string>
     <string name="dashboard_tile_due_today">Due today</string>

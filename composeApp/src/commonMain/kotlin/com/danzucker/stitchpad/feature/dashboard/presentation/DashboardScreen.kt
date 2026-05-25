@@ -3,6 +3,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,8 +38,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -77,12 +83,14 @@ import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndi
 import com.danzucker.stitchpad.feature.smart.presentation.SmartSectionCard
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NextBestActionCard
-import com.danzucker.stitchpad.ui.components.StitchPadFab
+import com.danzucker.stitchpad.ui.components.SpeedDialAction
+import com.danzucker.stitchpad.ui.components.StitchPadSpeedDialFab
 import com.danzucker.stitchpad.ui.components.WeeklyGoalsCard
 import com.danzucker.stitchpad.ui.components.WeeklyGoalsCardState
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.BackHandler
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -94,7 +102,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
-import stitchpad.composeapp.generated.resources.dashboard_fab_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_new_customer_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_new_order_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
@@ -123,6 +134,8 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_quiet_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
+import stitchpad.composeapp.generated.resources.dashboard_quick_action_customer
+import stitchpad.composeapp.generated.resources.dashboard_quick_action_order
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_collect_overdue
@@ -399,35 +412,89 @@ fun DashboardScreen(
     // first state emission resolves.
     val showFab = state.uiState != DashboardUiState.BrandNew &&
         state.uiState != DashboardUiState.Loading
+    var isFabExpanded by rememberSaveable { mutableStateOf(false) }
+    val collapseFab: () -> Unit = { isFabExpanded = false }
+
+    // Android system back should dismiss an expanded speed-dial before falling
+    // through to the app's normal back behavior. iOS no-ops this (native swipe
+    // dismiss handles it). Per the codebase's multiplatform util.
+    BackHandler(enabled = isFabExpanded, onBack = collapseFab)
+
+    val customerLabel = stringResource(Res.string.dashboard_quick_action_customer)
+    val customerCd = stringResource(Res.string.dashboard_fab_new_customer_cd)
+    val orderLabel = stringResource(Res.string.dashboard_quick_action_order)
+    val orderCd = stringResource(Res.string.dashboard_fab_new_order_cd)
+    val speedDialActions = listOf(
+        SpeedDialAction(
+            label = customerLabel,
+            icon = Icons.Default.Person,
+            contentDescription = customerCd,
+            onClick = {
+                collapseFab()
+                onAction(DashboardAction.OnNewCustomerClick)
+            },
+        ),
+        SpeedDialAction(
+            label = orderLabel,
+            icon = Icons.Default.Add,
+            contentDescription = orderCd,
+            onClick = {
+                collapseFab()
+                onAction(DashboardAction.OnNewOrderClick)
+            },
+        ),
+    )
+
+    val closeCd = stringResource(Res.string.dashboard_fab_close_cd)
+    val quickActionsCd = stringResource(Res.string.dashboard_fab_quick_actions_cd)
     Scaffold(
         floatingActionButton = {
             if (showFab) {
-                StitchPadFab(
-                    onClick = { onAction(DashboardAction.OnNewOrderClick) },
-                    contentDescription = stringResource(Res.string.dashboard_fab_cd)
+                StitchPadSpeedDialFab(
+                    isExpanded = isFabExpanded,
+                    onToggle = { isFabExpanded = !isFabExpanded },
+                    actions = speedDialActions,
+                    closeContentDescription = closeCd,
+                    addContentDescription = quickActionsCd,
                 )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
-        val contentModifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-        when (state.uiState) {
-            DashboardUiState.Loading -> LoadingState(modifier = contentModifier)
-            DashboardUiState.BrandNew,
-            DashboardUiState.FirstCustomer,
-            DashboardUiState.QuietDay,
-            DashboardUiState.PipelineSteady,
-            DashboardUiState.NbaActive,
-            DashboardUiState.BusyDay,
-            DashboardUiState.ReadyForPickup -> DashboardContent(
-                state = state,
-                onAction = onAction,
-                modifier = contentModifier,
-                bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            val contentModifier = Modifier.fillMaxSize()
+            when (state.uiState) {
+                DashboardUiState.Loading -> LoadingState(modifier = contentModifier)
+                DashboardUiState.BrandNew,
+                DashboardUiState.FirstCustomer,
+                DashboardUiState.QuietDay,
+                DashboardUiState.PipelineSteady,
+                DashboardUiState.NbaActive,
+                DashboardUiState.BusyDay,
+                DashboardUiState.ReadyForPickup -> DashboardContent(
+                    state = state,
+                    onAction = onAction,
+                    modifier = contentModifier,
+                    bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
+                )
+            }
+
+            // Backdrop scrim — sits inside the Scaffold content lambda. Scaffold draws its
+            // FAB slot on top of content, so the FAB remains tappable above the scrim.
+            // The scrim dims the dashboard content without obstructing the FAB or snackbar.
+            if (isFabExpanded && showFab) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                        .clickable(onClick = collapseFab),
+                )
+            }
         }
     }
 }
