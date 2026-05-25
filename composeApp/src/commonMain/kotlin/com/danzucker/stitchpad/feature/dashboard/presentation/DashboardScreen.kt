@@ -90,6 +90,7 @@ import com.danzucker.stitchpad.ui.components.WeeklyGoalsCardState
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.BackHandler
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -413,6 +414,11 @@ fun DashboardScreen(
         state.uiState != DashboardUiState.Loading
     var isFabExpanded by rememberSaveable { mutableStateOf(false) }
     val collapseFab: () -> Unit = { isFabExpanded = false }
+
+    // Android system back should dismiss an expanded speed-dial before falling
+    // through to the app's normal back behavior. iOS no-ops this (native swipe
+    // dismiss handles it). Per the codebase's multiplatform util.
+    BackHandler(enabled = isFabExpanded, onBack = collapseFab)
 
     val customerLabel = stringResource(Res.string.dashboard_quick_action_customer)
     val customerCd = stringResource(Res.string.dashboard_fab_new_customer_cd)
