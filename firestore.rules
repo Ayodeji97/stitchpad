@@ -51,6 +51,11 @@ service cloud.firestore {
       // Initial profile create: enforce safe defaults for every financially
       // meaningful field. Matches `FirebaseUserRepository.buildInitialUserDoc()`.
       // Anything the client invents beyond these caps gets rejected.
+      //
+      // welcomeBonusAppliedAt must equal request.time (the server-resolved
+      // value that FieldValue.serverTimestamp materializes into). Without this
+      // a malicious client could set it to a future timestamp at signup and
+      // permanently extend their First Month welcome window.
       allow create: if isOwner(uid)
         && (!('subscriptionTier' in request.resource.data) ||
             request.resource.data.subscriptionTier == 'free')
@@ -61,7 +66,9 @@ service cloud.firestore {
         && (!('customerCount' in request.resource.data) ||
             request.resource.data.customerCount == 0)
         && (!('bonusCoins' in request.resource.data) ||
-            request.resource.data.bonusCoins == 30);
+            request.resource.data.bonusCoins == 30)
+        && (!('welcomeBonusAppliedAt' in request.resource.data) ||
+            request.resource.data.welcomeBonusAppliedAt == request.time);
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these

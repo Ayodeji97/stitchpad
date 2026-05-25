@@ -144,7 +144,9 @@ class DefaultDebugSeederTest {
     }
 
     @Test
-    fun `seedBulkCustomers creates N customers, M measurements, O orders`() = runTest {
+    // Backtick-quoted test names with commas break the Kotlin/Native compiler
+    // (`Name contains illegal characters: ","`). JVM accepts them, iOS doesn't.
+    fun `seedBulkCustomers creates N customers with M measurements and O orders`() = runTest {
         val result = createSeeder().seedBulkCustomers(
             count = 30,
             withMeasurementsCount = 5,

@@ -14,18 +14,21 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val freemiumModule = module {
+    // App-lifetime scope for the ReconcileCoordinator's auth + entitlements
+    // collector AND the fire-and-forget swap commit in
+    // CloudFunctionsFreemiumRepository. SupervisorJob so a transient failure
+    // in one consumer doesn't kill the others. Defined BEFORE the repository
+    // single because the repository now depends on it.
+    single<CoroutineScope>(qualifier = named("freemiumAppScope")) {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
     single<FreemiumRepository> {
         CloudFunctionsFreemiumRepository(
             auth = get(),
             firestore = get(),
             functions = get(),
+            appScope = get(qualifier = named("freemiumAppScope")),
         )
-    }
-    // App-lifetime scope for the ReconcileCoordinator's auth + entitlements
-    // collector. SupervisorJob so a transient failure doesn't kill the
-    // collector; private to the freemium feature (only consumer for now).
-    single<CoroutineScope>(qualifier = named("freemiumAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
     single {
         // Bridge GitLive's FirebaseAuth.authStateChanged into the testable
