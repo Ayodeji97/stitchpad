@@ -1,10 +1,8 @@
 package com.danzucker.stitchpad.feature.customer.presentation.list
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,8 +32,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,7 +91,6 @@ import stitchpad.composeapp.generated.resources.customer_delete_title
 import stitchpad.composeapp.generated.resources.customer_empty_state_subtitle
 import stitchpad.composeapp.generated.resources.customer_empty_state_title
 import stitchpad.composeapp.generated.resources.customer_fab_cd
-import stitchpad.composeapp.generated.resources.customer_filter_all
 import stitchpad.composeapp.generated.resources.customer_list_title
 import stitchpad.composeapp.generated.resources.customer_locked_chip
 import stitchpad.composeapp.generated.resources.customer_locked_row_swap_cta
@@ -106,8 +100,6 @@ import stitchpad.composeapp.generated.resources.customer_search_clear_cd
 import stitchpad.composeapp.generated.resources.customer_search_hint
 import stitchpad.composeapp.generated.resources.customer_swap_failure
 import stitchpad.composeapp.generated.resources.customer_swap_success
-import stitchpad.composeapp.generated.resources.delivery_delivery
-import stitchpad.composeapp.generated.resources.delivery_pickup
 
 @Composable
 fun CustomerListRoot(
@@ -194,13 +186,6 @@ fun CustomerListScreen(
                     .fillMaxWidth()
                     .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space2)
             )
-
-            if (state.hasAnyCustomers) {
-                DeliveryFilterChips(
-                    selected = state.deliveryFilter,
-                    onSelected = { onAction(CustomerListAction.OnDeliveryFilterChange(it)) }
-                )
-            }
 
             when {
                 state.isLoading -> {
@@ -381,56 +366,6 @@ fun CustomerListScreen(
                 },
                 shape = RoundedCornerShape(DesignTokens.radiusXl),
                 containerColor = MaterialTheme.colorScheme.surface
-            )
-        }
-    }
-}
-
-@Composable
-private fun DeliveryFilterChips(
-    selected: DeliveryPreference?,
-    onSelected: (DeliveryPreference?) -> Unit
-) {
-    val allLabel = stringResource(Res.string.customer_filter_all)
-    val pickupLabel = stringResource(Res.string.delivery_pickup)
-    val deliveryLabel = stringResource(Res.string.delivery_delivery)
-
-    val options: List<Pair<DeliveryPreference?, String>> = listOf(
-        null to allLabel,
-        DeliveryPreference.PICKUP to pickupLabel,
-        DeliveryPreference.DELIVERY to deliveryLabel
-    )
-
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(start = DesignTokens.space4, end = DesignTokens.space4, bottom = DesignTokens.space2)
-    ) {
-        options.forEach { (pref, label) ->
-            val isSelected = selected == pref
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSelected(pref) },
-                label = {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color.Transparent,
-                    selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    containerColor = Color.Transparent,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = if (isSelected) {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                } else {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                }
             )
         }
     }
