@@ -83,6 +83,7 @@ import kotlin.time.ExperimentalTime
 @Composable
 fun ReportsRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToUpgrade: () -> Unit,
     viewModel: ReportsViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -94,6 +95,7 @@ fun ReportsRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is ReportsEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+            ReportsEvent.NavigateToUpgrade -> onNavigateToUpgrade()
             is ReportsEvent.LaunchWhatsAppReminder -> {
                 scope.launch {
                     val message = getString(
@@ -216,10 +218,7 @@ fun ReportsScreen(
                         )
                     )
                     !state.isPremium -> ReportsPaywallCard(
-                        onUpgradeClick = {
-                            // Real billing not wired yet — debug-only path will land
-                            // alongside the Settings toggle. Tapping does nothing for now.
-                        }
+                        onUpgradeClick = { onAction(ReportsAction.OnUpgradeClick) }
                     )
                     !state.hasAnyOrders -> ReportsEmptyState()
                     else -> ReportsContent(

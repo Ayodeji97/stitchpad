@@ -10,5 +10,6 @@ sealed interface ReportsAction {
     data class OnTopCustomerClick(val customerId: String) : ReportsAction
     data class OnDebtorClick(val customerId: String) : ReportsAction
     data class OnSendReminderClick(val customerId: String) : ReportsAction
+    data object OnUpgradeClick : ReportsAction
     data object OnErrorDismiss : ReportsAction
 }

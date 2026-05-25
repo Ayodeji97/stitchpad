@@ -340,7 +340,8 @@ private fun MainNavGraph(
             ReportsRoot(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
-                }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<GoalSetupRoute> {

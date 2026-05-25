@@ -87,6 +87,7 @@ class ReportsViewModel(
                 ReportsEvent.NavigateToCustomerDetail(action.customerId)
             )
             is ReportsAction.OnSendReminderClick -> handleSendReminder(action.customerId)
+            ReportsAction.OnUpgradeClick -> emitEvent(ReportsEvent.NavigateToUpgrade)
             ReportsAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }
