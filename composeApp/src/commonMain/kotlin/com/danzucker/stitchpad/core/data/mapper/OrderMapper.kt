@@ -124,6 +124,8 @@ fun OrderItemDto.toOrderItem(): OrderItem = OrderItem(
     fabricPhotoUrl = fabricPhotoUrl,
     fabricPhotoStoragePath = fabricPhotoStoragePath,
     fabricName = fabricName,
+    stylePhotoUrl = stylePhotoUrl,
+    stylePhotoStoragePath = stylePhotoStoragePath,
 )
 
 private fun parseGarmentType(value: String): GarmentType = when (value) {
@@ -142,6 +144,8 @@ fun OrderItem.toOrderItemDto(): OrderItemDto = OrderItemDto(
     fabricPhotoUrl = fabricPhotoUrl,
     fabricPhotoStoragePath = fabricPhotoStoragePath,
     fabricName = fabricName,
+    stylePhotoUrl = stylePhotoUrl,
+    stylePhotoStoragePath = stylePhotoStoragePath,
 )
 
 fun StatusChangeDto.toStatusChange(): StatusChange = StatusChange(
