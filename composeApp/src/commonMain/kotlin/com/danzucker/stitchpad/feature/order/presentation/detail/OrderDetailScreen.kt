@@ -736,7 +736,7 @@ private fun OrderDetailContent(
     ) {
         item {
             OrderHeroCard(
-                stylePhotoUrl = state.style?.photoUrl,
+                stylePhotoUrl = state.style?.photoUrl ?: state.order?.items?.firstOrNull()?.stylePhotoUrl,
                 garmentTypeIcon = Icons.Default.Checkroom,
                 garmentName = garmentName,
                 customerName = order.customerName,

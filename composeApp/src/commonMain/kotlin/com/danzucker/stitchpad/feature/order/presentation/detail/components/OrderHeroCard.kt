@@ -35,6 +35,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +61,7 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.CtaPair
 import com.danzucker.stitchpad.feature.order.presentation.detail.PrimaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.SecondaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.resolvePrimaryCta
+import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -114,6 +119,7 @@ fun OrderHeroCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
+    var fullScreenImage: String? by remember { mutableStateOf<String?>(null) }
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
@@ -128,6 +134,7 @@ fun OrderHeroCard(
                 garmentTypeIcon = garmentTypeIcon,
                 garmentName = garmentName,
                 onAddStyleClick = onAddStyleClick,
+                onPhotoClick = { fullScreenImage = it },
             )
 
             // ── Text content + CTAs ───────────────────────────────────────────
@@ -163,6 +170,11 @@ fun OrderHeroCard(
             }
         }
     }
+    FullScreenImageViewer(
+        model = fullScreenImage,
+        contentDescription = null,
+        onDismiss = { fullScreenImage = null },
+    )
 }
 
 @Composable
@@ -171,6 +183,7 @@ private fun HeroImage(
     garmentTypeIcon: ImageVector,
     garmentName: String,
     onAddStyleClick: () -> Unit,
+    onPhotoClick: (String) -> Unit,
 ) {
     val photoUrl = stylePhotoUrl
     val captionText = if (stylePhotoUrl != null) {
@@ -204,7 +217,9 @@ private fun HeroImage(
                         LoadingDots()
                     }
                 },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onPhotoClick(photoUrl) },
             )
         } else {
             // Empty state — placeholder icon + Add style CTA
