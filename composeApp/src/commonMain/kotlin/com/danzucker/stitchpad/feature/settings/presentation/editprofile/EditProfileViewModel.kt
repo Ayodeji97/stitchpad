@@ -13,6 +13,7 @@ import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.branding.presentation.toUiText
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -309,6 +310,16 @@ class EditProfileViewModel(
     private fun onLogoRemoveConfirm() {
         _state.update { it.copy(showRemoveLogoDialog = false) }
         viewModelScope.launch {
+            // Cancel + await any in-flight upload first. Without this, a user who tapped
+            // Change (upload mid-flight) and then confirmed Remove would race: this path
+            // clears Firestore + Storage, then the still-running upload coroutine sets
+            // LogoUploadState.Uploaded and calls updateBrandLogo(url, path), resurrecting
+            // a logo the user just removed (and pointing Firestore at a deleted object).
+            // The repository methods rethrow CancellationException, so the upload's
+            // failure branch won't run after cancel.
+            logoUploadJob?.cancelAndJoin()
+            logoUploadJob = null
+
             val uid = authRepository.getCurrentUser()?.id ?: return@launch
             val pathToDelete = _state.value.let {
                 it.originalLogoStoragePath ?: (it.logo as? LogoUploadState.Uploaded)?.path
