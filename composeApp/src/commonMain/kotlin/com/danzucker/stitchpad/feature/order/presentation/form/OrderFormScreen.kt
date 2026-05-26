@@ -91,6 +91,7 @@ import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
@@ -1562,8 +1563,8 @@ private fun DepositReconciliationDialog(
                 Text(
                     text = stringResource(
                         Res.string.order_form_deposit_dialog_body,
-                        prompt.oldAmount.toLong().toThousandsString(),
-                        prompt.newAmount.toLong().toThousandsString(),
+                        formatPrice(prompt.oldAmount),
+                        formatPrice(prompt.newAmount),
                     ),
                 )
                 if (prompt.nonDepositTotal > 0.0) {
@@ -1571,7 +1572,7 @@ private fun DepositReconciliationDialog(
                     Text(
                         text = stringResource(
                             Res.string.order_form_deposit_dialog_body_with_other_payments,
-                            prompt.nonDepositTotal.toLong().toThousandsString(),
+                            formatPrice(prompt.nonDepositTotal),
                         ),
                     )
                 }
@@ -1591,22 +1592,6 @@ private fun DepositReconciliationDialog(
             }
         },
     )
-}
-
-private fun Long.toThousandsString(): String {
-    if (this == 0L) return "0"
-    val negative = this < 0L
-    val digits = kotlin.math.abs(this).toString()
-    val withSeparators = buildString {
-        digits.forEachIndexed { index, char ->
-            val positionFromRight = digits.length - index
-            append(char)
-            if (positionFromRight > 1 && positionFromRight % 3 == 1) {
-                append(',')
-            }
-        }
-    }
-    return if (negative) "-$withSeparators" else withSeparators
 }
 
 @Suppress("UnusedPrivateMember")
