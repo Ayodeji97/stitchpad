@@ -50,14 +50,24 @@ class MeasurementFormStateTest {
     }
 
     @Test
-    fun canSave_isTrue_whenFieldIsZero() {
-        // Per spec §8 deferred items, strict `>0` validation is out of scope.
-        // "0" parses to 0.0 (non-null) so it currently counts as a figure.
+    fun canSave_isFalse_whenOnlyFieldIsZero() {
+        // The VM's save() drops fields whose parsed value is not > 0.0 via
+        // `.filter { it.value > 0.0 }`. The gate must match — a 0-only state
+        // would otherwise enable Save and silently persist an empty measurement.
         val state = MeasurementFormState(
             gender = CustomerGender.FEMALE,
             fields = mapOf("chest" to "0"),
         )
-        assertTrue(state.canSave)
+        assertFalse(state.canSave)
+    }
+
+    @Test
+    fun canSave_isFalse_whenOnlyFieldIsZeroPointZero() {
+        val state = MeasurementFormState(
+            gender = CustomerGender.FEMALE,
+            fields = mapOf("chest" to "0.0"),
+        )
+        assertFalse(state.canSave)
     }
 
     @Test
