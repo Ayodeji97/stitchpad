@@ -198,6 +198,7 @@ class SettingsViewModel(
         return SettingsState(
             isLoading = false,
             businessName = business,
+            businessLogoUrl = firestoreUser?.businessLogoUrl,
             email = authUser.email,
             whatsappNumber = firestoreUser?.whatsappNumber,
             avatarColorIndex = firestoreUser?.avatarColorIndex ?: authUser.avatarColorIndex,

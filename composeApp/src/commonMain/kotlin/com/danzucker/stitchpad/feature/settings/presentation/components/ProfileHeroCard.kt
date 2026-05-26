@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -22,13 +21,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
@@ -62,14 +60,13 @@ internal fun avatarBrush(colorIndex: Int): Brush =
 @Composable
 fun ProfileHeroCard(
     businessName: String,
+    logoUrl: String?,
     subtitle: String,
     avatarColorIndex: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     planBadgeLabel: String? = null,
 ) {
-    val initial = businessName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-    val avatarBrushBg = avatarBrush(avatarColorIndex)
     // Flat warm tint instead of a linear gradient — the gradient's diagonal seam
     // was visually distracting on real device sizes. surfaceContainerHighest gives
     // a clean theme-aware lift over the screen background in dark mode; primary50
@@ -124,20 +121,11 @@ fun ProfileHeroCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(avatarBrushBg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = initial,
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                BrandLogo(
+                    logoUrl = logoUrl,
+                    fallbackInitials = businessName,
+                    size = 56.dp,
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = businessName,
@@ -220,12 +208,14 @@ private fun ProfileHeroCardPreview() {
             ) {
                 ProfileHeroCard(
                     businessName = "Folake's Atelier",
+                    logoUrl = null,
                     subtitle = "+234 803 555 0142 · folake@stitchpad.app",
                     avatarColorIndex = 0,
                     onClick = {},
                 )
                 ProfileHeroCard(
                     businessName = "Bola Couture",
+                    logoUrl = null,
                     subtitle = "+234 802 999 1234",
                     avatarColorIndex = 3,
                     onClick = {},
@@ -243,6 +233,7 @@ private fun ProfileHeroCardDarkPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             ProfileHeroCard(
                 businessName = "Folake's Atelier",
+                logoUrl = null,
                 subtitle = "+234 803 555 0142 · folake@stitchpad.app",
                 avatarColorIndex = 4,
                 onClick = {},
