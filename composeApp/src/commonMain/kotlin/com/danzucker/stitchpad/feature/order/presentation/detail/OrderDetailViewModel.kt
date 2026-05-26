@@ -387,13 +387,18 @@ class OrderDetailViewModel(
     private fun loadUser() {
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser() ?: return@launch
-            // Resolve the Firestore user doc, not just the Auth user — the Auth user only
-            // carries uid/email/displayName, with businessName, whatsappNumber, phoneNumber,
-            // and businessLogoUrl all hardcoded to null. The receipt header (business name,
-            // phone, logo) reads from this state, so without the Firestore read the receipt
-            // falls back to the StitchPad fallback name and never shows the user's logo.
+            // Resolve the Firestore user doc — the Auth user has businessName,
+            // whatsappNumber, phoneNumber, and businessLogoUrl hardcoded to null, so
+            // without this read the receipt header would fall back to the generic
+            // business name and never show the uploaded logo. Merge identity (email,
+            // displayName) from Auth when the Firestore doc lacks them (the user doc
+            // doesn't redundantly store those fields).
             val firestoreUser = userRepository.observeUser(authUser.id).first()
-            _state.update { it.copy(user = firestoreUser ?: authUser) }
+            val user = firestoreUser?.copy(
+                email = firestoreUser.email.ifBlank { authUser.email },
+                displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
+            ) ?: authUser
+            _state.update { it.copy(user = user) }
         }
     }
 

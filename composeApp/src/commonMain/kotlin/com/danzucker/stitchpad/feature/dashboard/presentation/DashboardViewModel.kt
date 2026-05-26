@@ -276,7 +276,16 @@ class DashboardViewModel(
             ) { firestoreUser, ordersResult, customersResult, goalResult ->
                 UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult)
             }.collect { (firestoreUser, ordersResult, customersResult, goalResult) ->
-                val user = firestoreUser ?: authUser
+                // The Firestore user doc doesn't redundantly store email or displayName
+                // (createUserProfile/buildInitialUserDoc only persist business/profile
+                // fields), so a wholesale replacement would blank Auth identity for new
+                // signups whose snapshot has arrived. Merge: Auth identity wins when
+                // Firestore lacks the field, Firestore-only fields (businessName, logo,
+                // contact) win when present.
+                val user = firestoreUser?.copy(
+                    email = firestoreUser.email.ifBlank { authUser.email },
+                    displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
+                ) ?: authUser
                 // Apple Sign-In only returns fullName on the very first auth per Apple ID
                 // per app (Apple's privacy model). Re-auths and failed-first-attempts come
                 // back with no name, so displayName ends up blank. Fall back to the email's
