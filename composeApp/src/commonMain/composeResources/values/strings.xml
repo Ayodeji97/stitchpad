@@ -980,8 +980,28 @@
     <string name="workshop_logo_label">Business logo</string>
     <string name="workshop_logo_optional">(optional)</string>
     <string name="workshop_logo_upload_title">Upload logo</string>
-    <string name="workshop_logo_upload_sub">PNG, JPG or SVG · Max 2MB</string>
+    <string name="workshop_logo_upload_sub">PNG or JPG · Max 2MB</string>
     <string name="workshop_logo_coming_soon">Logo upload coming soon</string>
+
+    <!-- PTSP-21 brand logo upload -->
+    <string name="workshop_logo_uploading">Uploading logo…</string>
+    <string name="workshop_logo_upload_failed">Couldn&apos;t upload logo. Retry?</string>
+    <string name="workshop_logo_too_large">Logo must be 2MB or smaller</string>
+    <string name="workshop_logo_invalid_format">Use a PNG or JPG image</string>
+    <string name="workshop_logo_finishing">Finishing logo upload…</string>
+    <string name="workshop_logo_uploaded">Logo uploaded</string>
+    <string name="workshop_logo_retry">Retry</string>
+
+    <string name="edit_profile_logo_title">Business logo</string>
+    <string name="edit_profile_logo_change">Change logo</string>
+    <string name="edit_profile_logo_remove">Remove</string>
+    <string name="edit_profile_logo_remove_confirm_title">Remove business logo?</string>
+    <string name="edit_profile_logo_remove_confirm_body">Your logo will no longer appear on the dashboard or receipts.</string>
+    <string name="edit_profile_logo_remove_confirm_cta">Remove</string>
+    <string name="edit_profile_logo_updated">Logo updated</string>
+    <string name="edit_profile_logo_removed">Logo removed</string>
+
+    <string name="brand_logo_content_description">Business logo</string>
     <string name="workshop_brand_tagline">TAILORED FOR YOU</string>
     <string name="brand_name">STITCHPAD</string>
 
