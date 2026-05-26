@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -46,15 +47,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
+import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.danzucker.stitchpad.util.clearFocusOnTap
+import com.preat.peekaboo.image.picker.SelectionMode
+import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -63,8 +69,11 @@ import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
 import stitchpad.composeapp.generated.resources.workshop_continue_button
+import stitchpad.composeapp.generated.resources.workshop_logo_finishing
 import stitchpad.composeapp.generated.resources.workshop_logo_label
 import stitchpad.composeapp.generated.resources.workshop_logo_optional
+import stitchpad.composeapp.generated.resources.workshop_logo_retry
+import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_sub
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_title
 import stitchpad.composeapp.generated.resources.workshop_skip
@@ -109,10 +118,22 @@ fun WorkshopSetupRoot(
         }
     }
 
+    val pickerScope = rememberCoroutineScope()
+    val logoPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let {
+                viewModel.onAction(WorkshopSetupAction.OnLogoPicked(it))
+            }
+        }
+    )
+
     WorkshopSetupScreen(
         state = state,
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
+        onLaunchPicker = { logoPicker.launch() },
     )
 }
 
@@ -121,6 +142,7 @@ fun WorkshopSetupScreen(
     state: WorkshopSetupState,
     snackbarHostState: SnackbarHostState,
     onAction: (WorkshopSetupAction) -> Unit,
+    onLaunchPicker: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -303,24 +325,14 @@ fun WorkshopSetupScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = stringResource(Res.string.workshop_logo_label),
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFF5F2ED),
-                            ),
+                            style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF5F2ED)),
                         )
                         Text(
                             text = stringResource(Res.string.workshop_logo_optional),
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                color = Color(0xFFA8A49D),
-                            ),
+                            style = TextStyle(fontSize = 13.sp, color = Color(0xFFA8A49D)),
                         )
                     }
 
@@ -330,45 +342,24 @@ fun WorkshopSetupScreen(
                             .height(108.dp)
                             .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
                             .background(Color(0xFF1F1D1A), RoundedCornerShape(10.dp))
-                            .clickable { /* T14: wire image picker → OnLogoPicked */ },
+                            .clickable {
+                                val logo = state.logo
+                                if (logo is LogoUploadState.Failed) {
+                                    onAction(WorkshopSetupAction.OnLogoRetry)
+                                } else {
+                                    onLaunchPicker()
+                                }
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(
-                                        LocalStitchPadColors.current.brandAccent.copy(alpha = 0.15f),
-                                        CircleShape,
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.PhotoCamera,
-                                    contentDescription = null,
-                                    tint = LocalStitchPadColors.current.brandAccent,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                            Text(
-                                text = stringResource(Res.string.workshop_logo_upload_title),
-                                style = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFF5F2ED),
-                                ),
-                            )
-                            Text(
-                                text = stringResource(Res.string.workshop_logo_upload_sub),
-                                style = TextStyle(
-                                    fontSize = 11.5.sp,
-                                    color = Color(0xFFA8A49D),
-                                ),
-                            )
-                        }
+                        WorkshopLogoTileContent(state.logo)
+                    }
+
+                    if (state.isAwaitingLogo) {
+                        Text(
+                            text = stringResource(Res.string.workshop_logo_finishing),
+                            style = TextStyle(fontSize = 12.sp, color = Color(0xFFA8A49D)),
+                        )
                     }
                 }
 
@@ -424,6 +415,81 @@ fun WorkshopSetupScreen(
     }
 }
 
+@Composable
+private fun WorkshopLogoTileContent(
+    logo: LogoUploadState,
+) {
+    when (logo) {
+        LogoUploadState.Empty -> {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(LocalStitchPadColors.current.brandAccent.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PhotoCamera,
+                        contentDescription = null,
+                        tint = LocalStitchPadColors.current.brandAccent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.workshop_logo_upload_title),
+                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF5F2ED)),
+                )
+                Text(
+                    text = stringResource(Res.string.workshop_logo_upload_sub),
+                    style = TextStyle(fontSize = 11.5.sp, color = Color(0xFFA8A49D)),
+                )
+            }
+        }
+        is LogoUploadState.Uploading -> {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                SubcomposeAsyncImage(
+                    model = logo.previewBytes,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                    loading = { LoadingDots() },
+                )
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center,
+                ) { LoadingDots(color = Color.White) }
+            }
+        }
+        is LogoUploadState.Uploaded -> {
+            SubcomposeAsyncImage(
+                model = logo.url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                loading = { LoadingDots() },
+            )
+        }
+        is LogoUploadState.Failed -> {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.workshop_logo_upload_failed),
+                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF5F2ED)),
+                )
+                Text(
+                    text = stringResource(Res.string.workshop_logo_retry),
+                    style = TextStyle(fontSize = 11.5.sp, color = LocalStitchPadColors.current.brandAccent),
+                )
+            }
+        }
+    }
+}
+
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
@@ -433,6 +499,7 @@ private fun WorkshopSetupScreenPreview() {
             state = WorkshopSetupState(),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
+            onLaunchPicker = {},
         )
     }
 }
@@ -449,6 +516,7 @@ private fun WorkshopSetupScreenFilledPreview() {
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
+            onLaunchPicker = {},
         )
     }
 }
