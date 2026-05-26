@@ -8,6 +8,11 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
+import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
+import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.feature.branding.presentation.toUiText
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,6 +23,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.edit_profile_logo_removed
+import stitchpad.composeapp.generated.resources.edit_profile_logo_updated
 import stitchpad.composeapp.generated.resources.edit_profile_save_failed
 import stitchpad.composeapp.generated.resources.edit_profile_saved
 import stitchpad.composeapp.generated.resources.error_business_name_required
@@ -33,10 +40,12 @@ class EditProfileViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     @Suppress("UnusedPrivateMember") private val savedStateHandle: SavedStateHandle,
+    private val logoValidator: BrandLogoValidator = BrandLogoValidator(),
 ) : ViewModel() {
 
     private var hasLoaded = false
     private val _state = MutableStateFlow(EditProfileState())
+    private var logoUploadJob: Job? = null
 
     private val _events = Channel<EditProfileEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -84,6 +93,10 @@ class EditProfileViewModel(
             EditProfileAction.OnWhatsappBlur -> validateWhatsapp()
             EditProfileAction.OnSaveClick -> save()
             EditProfileAction.OnBackClick -> emit(EditProfileEvent.NavigateBack)
+            is EditProfileAction.OnLogoPicked -> onLogoPicked(action.bytes)
+            EditProfileAction.OnLogoRemoveClick -> _state.update { it.copy(showRemoveLogoDialog = true) }
+            EditProfileAction.OnLogoRemoveDismiss -> _state.update { it.copy(showRemoveLogoDialog = false) }
+            EditProfileAction.OnLogoRemoveConfirm -> onLogoRemoveConfirm()
         }
     }
 
@@ -114,6 +127,14 @@ class EditProfileViewModel(
             val displayName = firestoreUser?.displayName?.takeIf { it.isNotBlank() }
                 ?: authUser.displayName
 
+            val logoUrl = firestoreUser?.businessLogoUrl
+            val logoPath = firestoreUser?.businessLogoStoragePath
+            val logoState = if (logoUrl != null && logoPath != null) {
+                LogoUploadState.Uploaded(logoUrl, logoPath)
+            } else {
+                LogoUploadState.Empty
+            }
+
             _state.update {
                 it.copy(
                     isLoading = false,
@@ -128,6 +149,9 @@ class EditProfileViewModel(
                     originalPhoneNumber = phone,
                     originalWhatsappNumber = whatsapp,
                     originalAvatarColorIndex = color,
+                    logo = logoState,
+                    originalLogoUrl = logoUrl,
+                    originalLogoStoragePath = logoPath,
                 )
             }
         }
@@ -235,6 +259,73 @@ class EditProfileViewModel(
                     emit(EditProfileEvent.ShowSnackbar(UiText.StringResourceText(Res.string.edit_profile_save_failed)))
                 }
             }
+        }
+    }
+
+    private fun onLogoPicked(bytes: ByteArray) {
+        when (val validation = logoValidator.validate(bytes)) {
+            is Result.Error -> {
+                viewModelScope.launch {
+                    _events.send(EditProfileEvent.ShowSnackbar(validation.error.toUiText()))
+                }
+                return
+            }
+            is Result.Success -> Unit
+        }
+        logoUploadJob?.cancel()
+        _state.update { it.copy(logo = LogoUploadState.Uploading(bytes)) }
+        logoUploadJob = viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: run {
+                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                return@launch
+            }
+            when (val result = userRepository.uploadUserLogo(userId, bytes)) {
+                is Result.Success -> {
+                    val (url, path) = result.data
+                    _state.update { it.copy(logo = LogoUploadState.Uploaded(url, path)) }
+                    when (userRepository.updateBrandLogo(userId, url, path)) {
+                        is Result.Success -> emit(
+                            EditProfileEvent.ShowSnackbar(
+                                UiText.StringResourceText(Res.string.edit_profile_logo_updated)
+                            )
+                        )
+                        is Result.Error -> {
+                            // Storage write already succeeded — don't surface this to the user
+                            AppLogger.e(tag = TAG) { "updateBrandLogo after upload failed for userId=$userId" }
+                        }
+                    }
+                }
+                is Result.Error -> {
+                    _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                    _events.send(
+                        EditProfileEvent.ShowSnackbar(BrandLogoError.Network(result.error).toUiText())
+                    )
+                }
+            }
+        }
+    }
+
+    private fun onLogoRemoveConfirm() {
+        _state.update { it.copy(showRemoveLogoDialog = false) }
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUser()?.id ?: return@launch
+            val pathToDelete = _state.value.let {
+                it.originalLogoStoragePath ?: (it.logo as? LogoUploadState.Uploaded)?.path
+            }
+            userRepository.updateBrandLogo(uid, null, null)
+            pathToDelete?.let { userRepository.deleteUserLogo(it) }
+            _state.update {
+                it.copy(
+                    logo = LogoUploadState.Empty,
+                    originalLogoUrl = null,
+                    originalLogoStoragePath = null,
+                )
+            }
+            _events.send(
+                EditProfileEvent.ShowSnackbar(
+                    UiText.StringResourceText(Res.string.edit_profile_logo_removed)
+                )
+            )
         }
     }
 

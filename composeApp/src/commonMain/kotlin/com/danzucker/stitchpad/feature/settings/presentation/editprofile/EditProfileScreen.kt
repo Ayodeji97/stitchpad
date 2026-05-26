@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +38,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -55,8 +57,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
+import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
@@ -75,6 +79,13 @@ import stitchpad.composeapp.generated.resources.edit_profile_label_email
 import stitchpad.composeapp.generated.resources.edit_profile_label_phone
 import stitchpad.composeapp.generated.resources.edit_profile_label_whatsapp
 import stitchpad.composeapp.generated.resources.edit_profile_label_your_name
+import stitchpad.composeapp.generated.resources.common_cancel
+import stitchpad.composeapp.generated.resources.edit_profile_logo_change
+import stitchpad.composeapp.generated.resources.edit_profile_logo_remove
+import stitchpad.composeapp.generated.resources.edit_profile_logo_remove_confirm_body
+import stitchpad.composeapp.generated.resources.edit_profile_logo_remove_confirm_cta
+import stitchpad.composeapp.generated.resources.edit_profile_logo_remove_confirm_title
+import stitchpad.composeapp.generated.resources.edit_profile_logo_title
 import stitchpad.composeapp.generated.resources.edit_profile_save
 import stitchpad.composeapp.generated.resources.edit_profile_title
 
@@ -83,6 +94,7 @@ import stitchpad.composeapp.generated.resources.edit_profile_title
 fun EditProfileScreen(
     state: EditProfileState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onLaunchLogoPicker: () -> Unit = {},
     onAction: (EditProfileAction) -> Unit,
 ) {
     Scaffold(
@@ -148,6 +160,27 @@ fun EditProfileScreen(
             }
         },
     ) { padding ->
+        if (state.showRemoveLogoDialog) {
+            AlertDialog(
+                onDismissRequest = { onAction(EditProfileAction.OnLogoRemoveDismiss) },
+                title = { Text(stringResource(Res.string.edit_profile_logo_remove_confirm_title)) },
+                text = { Text(stringResource(Res.string.edit_profile_logo_remove_confirm_body)) },
+                confirmButton = {
+                    TextButton(onClick = { onAction(EditProfileAction.OnLogoRemoveConfirm) }) {
+                        Text(
+                            text = stringResource(Res.string.edit_profile_logo_remove_confirm_cta),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { onAction(EditProfileAction.OnLogoRemoveDismiss) }) {
+                        Text(stringResource(Res.string.common_cancel))
+                    }
+                },
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -172,6 +205,14 @@ fun EditProfileScreen(
             ColorPickerRow(
                 selectedIndex = state.avatarColorIndex,
                 onSelect = { onAction(EditProfileAction.OnAvatarColorSelect(it)) },
+            )
+            Spacer(Modifier.height(DesignTokens.space5))
+
+            BrandLogoSection(
+                logo = state.logo,
+                fallbackInitials = state.businessName,
+                onChangeClick = onLaunchLogoPicker,
+                onRemoveClick = { onAction(EditProfileAction.OnLogoRemoveClick) },
             )
             Spacer(Modifier.height(DesignTokens.space5))
 
@@ -366,6 +407,44 @@ private fun EmailReadonlyField(email: String) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun BrandLogoSection(
+    logo: LogoUploadState,
+    fallbackInitials: String,
+    onChangeClick: () -> Unit,
+    onRemoveClick: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(Res.string.edit_profile_logo_title),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            val logoUrl = (logo as? LogoUploadState.Uploaded)?.url
+            BrandLogo(logoUrl = logoUrl, fallbackInitials = fallbackInitials, size = 64.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onChangeClick) {
+                    Text(stringResource(Res.string.edit_profile_logo_change))
+                }
+                if (logo is LogoUploadState.Uploaded) {
+                    TextButton(onClick = onRemoveClick) {
+                        Text(
+                            text = stringResource(Res.string.edit_profile_logo_remove),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
         }
     }
 }

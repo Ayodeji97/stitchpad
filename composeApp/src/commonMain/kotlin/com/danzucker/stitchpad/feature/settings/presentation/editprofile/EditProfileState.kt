@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
+import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import org.jetbrains.compose.resources.StringResource
 
 private const val MAX_BUSINESS_NAME = 50
@@ -36,6 +37,12 @@ data class EditProfileState(
     val whatsappError: StringResource? = null,
 
     val isSaving: Boolean = false,
+
+    // Logo
+    val logo: LogoUploadState = LogoUploadState.Empty,
+    val originalLogoUrl: String? = null,
+    val originalLogoStoragePath: String? = null,
+    val showRemoveLogoDialog: Boolean = false,
 ) {
     val isDirty: Boolean
         get() = businessName != originalBusinessName ||

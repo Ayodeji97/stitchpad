@@ -8,6 +8,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.preat.peekaboo.image.picker.SelectionMode
+import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
@@ -40,9 +42,20 @@ fun EditProfileRoot(
         }
     }
 
+    val logoPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = scope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let {
+                viewModel.onAction(EditProfileAction.OnLogoPicked(it))
+            }
+        },
+    )
+
     EditProfileScreen(
         state = state,
         snackbarHostState = snackbarHostState,
+        onLaunchLogoPicker = { logoPicker.launch() },
         onAction = viewModel::onAction,
     )
 }
