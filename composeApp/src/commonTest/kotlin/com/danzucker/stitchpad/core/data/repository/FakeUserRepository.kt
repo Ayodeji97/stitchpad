@@ -56,4 +56,28 @@ class FakeUserRepository : UserRepository {
     }
 
     override fun observeUser(userId: String): Flow<User?> = userFlow
+
+    override suspend fun uploadUserLogo(
+        userId: String,
+        bytes: ByteArray,
+    ): Result<Pair<String, String>, DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success("https://example.com/logo.jpg" to "users/$userId/branding/logo.jpg")
+    }
+
+    override suspend fun updateBrandLogo(
+        userId: String,
+        logoUrl: String?,
+        logoStoragePath: String?,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun deleteUserLogo(
+        storagePath: String,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success(Unit)
+    }
 }
