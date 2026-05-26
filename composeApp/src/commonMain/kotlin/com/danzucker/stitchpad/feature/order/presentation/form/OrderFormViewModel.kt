@@ -378,9 +378,14 @@ class OrderFormViewModel(
         // Resolve order id BEFORE any upload so storage paths match the actual doc id.
         val actualOrderId = orderId ?: orderRepository.newOrderId(uid)
 
-        viewModelScope.launch {
-            _state.update { it.copy(isSaving = true) }
+        // Claim the saving state SYNCHRONOUSLY before launching the coroutine.
+        // Setting isSaving inside the launch body leaves a microsecond race
+        // window where a second OnSave dispatch can pass the `if (isSaving)
+        // return` guard at the top and enter save() twice — with the new
+        // save-to-gallery path that would create duplicate Style documents.
+        _state.update { it.copy(isSaving = true) }
 
+        viewModelScope.launch {
             val orderItems = mutableListOf<OrderItem>()
             for (item in formItems) {
                 val garmentType = item.garmentType!!
