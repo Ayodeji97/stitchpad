@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
+import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementSection
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -19,6 +20,10 @@ data class MeasurementFormState(
     val errorMessage: UiText? = null,
     val originalCreatedAt: Long = 0L,
     val originalDateTaken: Long = 0L,
+    // PTSP-12 additions
+    val customFields: List<CustomMeasurementField> = emptyList(),
+    val canUseCustomMeasurements: Boolean = false,
+    val customFieldSheet: CustomFieldSheet? = null,
 ) {
     /**
      * PTSP-6: Save is gated to mirror what `MeasurementFormViewModel.save()`
@@ -34,4 +39,15 @@ data class MeasurementFormState(
         get() = gender != null &&
             fields.values.any { (it.toDoubleOrNull() ?: 0.0) > 0.0 } &&
             !isLoading
+}
+
+sealed interface CustomFieldSheet {
+    /** "Add custom field" — empty form, no existing field. */
+    data object Adding : CustomFieldSheet
+
+    /** "Edit custom field" — pre-populated from an existing field. */
+    data class Editing(val field: CustomMeasurementField) : CustomFieldSheet
+
+    /** "Archive this field?" confirm dialog, holding the field to archive. */
+    data class ConfirmArchive(val field: CustomMeasurementField) : CustomFieldSheet
 }
