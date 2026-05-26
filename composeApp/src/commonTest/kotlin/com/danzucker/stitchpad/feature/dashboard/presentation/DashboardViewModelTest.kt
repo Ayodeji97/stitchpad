@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -54,6 +55,7 @@ class DashboardViewModelTest {
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var userRepository: FakeUserRepository
     private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
     private lateinit var smartUsageStore: FakeSmartUsageStore
 
@@ -66,6 +68,7 @@ class DashboardViewModelTest {
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        userRepository = FakeUserRepository()
         weeklyGoalRepository = FakeWeeklyGoalRepository()
         smartUsageStore = FakeSmartUsageStore()
     }
@@ -86,6 +89,7 @@ class DashboardViewModelTest {
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            userRepository = userRepository,
             weeklyGoalRepository = weeklyGoalRepository,
             smartUsageStore = smartUsageStore,
             entitlements = entitlements,

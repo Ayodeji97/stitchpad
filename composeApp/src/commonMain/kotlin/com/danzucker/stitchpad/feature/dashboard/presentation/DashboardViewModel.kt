@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -47,6 +49,7 @@ class DashboardViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
     private val weeklyGoalRepository: WeeklyGoalRepository,
     private val smartUsageStore: SmartUsageStore,
     private val entitlements: EntitlementsProvider,
@@ -257,10 +260,16 @@ class DashboardViewModel(
     @Suppress("LongMethod")
     private fun loadData() {
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser() ?: run {
+            val authUser = authRepository.getCurrentUser() ?: run {
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
+            // Resolve the Firestore user doc — Auth-only User has Firestore-only fields
+            // (businessName, businessLogoUrl, phoneNumber, whatsappNumber) hardcoded to
+            // null, so reading them off authRepository.getCurrentUser() would always
+            // miss the uploaded logo + workshop name. Fall back to the Auth user when
+            // the Firestore doc isn't there yet (first-signup race).
+            val user = userRepository.observeUser(authUser.id).first() ?: authUser
             // Apple Sign-In only returns fullName on the very first auth per Apple ID
             // per app (Apple's privacy model). Re-auths and failed-first-attempts come
             // back with no name, so displayName ends up blank. Fall back to the email's
