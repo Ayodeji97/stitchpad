@@ -23,6 +23,7 @@ class FakeOrderRepository : OrderRepository {
 
     var lastCreatedOrder: Order? = null
     var lastUpdatedOrder: Order? = null
+    var updateOrderCallCount: Int = 0
     var lastDeletedOrderId: String? = null
     var lastStatusUpdate: Pair<String, OrderStatus>? = null
     var lastRecordedPayment: Pair<String, Payment>? = null
@@ -74,6 +75,7 @@ class FakeOrderRepository : OrderRepository {
         order: Order
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        updateOrderCallCount++
         lastUpdatedOrder = order
         ordersFlow.value = ordersFlow.value.map { if (it.id == order.id) order else it }
         return Result.Success(Unit)

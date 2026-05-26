@@ -9,8 +9,6 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
-import com.danzucker.stitchpad.core.domain.model.PaymentMethod
-import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -18,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -200,7 +199,25 @@ class OrderFormViewModel(
             is OrderFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
-            OrderFormAction.OnSave -> save()
+            OrderFormAction.OnSave -> {
+                // Guard against double-tap on the Save button — the UI's
+                // enabled-when-not-saving flag updates a frame later than
+                // the click and doesn't block rapid taps on its own.
+                if (_state.value.isSaving) return
+                save()
+            }
+            OrderFormAction.OnConfirmDepositChange -> {
+                // Guard against (a) double-tap on the dialog Confirm button
+                // and (b) action replay when the prompt isn't set. Without
+                // this, two rapid taps would launch two save coroutines.
+                val current = _state.value
+                if (current.depositReconciliationPrompt == null || current.isSaving) return
+                _state.update { it.copy(depositReconciliationPrompt = null) }
+                executeSave()
+            }
+            OrderFormAction.OnDismissDepositPrompt -> {
+                _state.update { it.copy(depositReconciliationPrompt = null) }
+            }
             OrderFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
@@ -288,7 +305,12 @@ class OrderFormViewModel(
                             items = order.items.map { item -> item.toFormState() },
                             deadline = order.deadline,
                             priority = order.priority,
-                            depositPaid = if (order.depositPaid > 0) order.depositPaid.toLong().toString() else "",
+                            depositPaid = DepositReconciler
+                                .currentDepositSum(order.payments)
+                                .takeIf { it > 0.0 }
+                                ?.toLong()
+                                ?.toString()
+                                ?: "",
                             notes = order.notes ?: "",
                             isLoading = false
                         )
@@ -366,8 +388,7 @@ class OrderFormViewModel(
         // available" — the screen layer reads `stylePhotoUrl != null && styleId == null` to detect this.
     )
 
-    @OptIn(ExperimentalUuidApi::class)
-    @Suppress("LongMethod", "ReturnCount", "CyclomaticComplexMethod")
+    @Suppress("ReturnCount")
     private fun save() {
         // Idempotency: if a previous save is in-flight, ignore this re-entry.
         // The UI's `enabled = !isSaving` already blocks the button visually, but
@@ -377,7 +398,7 @@ class OrderFormViewModel(
         if (_state.value.isSaving) return
 
         val s = _state.value
-        val uid = userId ?: return
+        if (userId == null) return
 
         val customer = s.selectedCustomer
         if (customer == null) {
@@ -391,15 +412,52 @@ class OrderFormViewModel(
             return
         }
 
-        // Block save when any filled-in item is missing a valid positive price.
-        // Silently persisting 0.0 would undercharge and skew totals.
         val hasInvalidPrice = formItems.any { (it.price.toDoubleOrNull() ?: 0.0) <= 0.0 }
         if (hasInvalidPrice) {
             setError(Res.string.error_order_item_price_required)
             return
         }
 
-        // Resolve order id BEFORE any upload so storage paths match the actual doc id.
+        // Gate: in edit mode, if the user changed the deposit AND any payments
+        // already exist on the order, intercept the save with a confirmation
+        // prompt so the destructive replace is explicit.
+        val isEdit = orderId != null
+        if (isEdit && loadedPayments.isNotEmpty()) {
+            val typedDeposit = s.depositPaid.toDoubleOrNull() ?: 0.0
+            val currentDeposit = DepositReconciler.currentDepositSum(loadedPayments)
+            if (typedDeposit != currentDeposit) {
+                _state.update {
+                    it.copy(
+                        depositReconciliationPrompt = DepositPrompt(
+                            oldAmount = currentDeposit,
+                            newAmount = typedDeposit,
+                            nonDepositTotal = DepositReconciler.nonDepositTotal(loadedPayments),
+                        ),
+                    )
+                }
+                return
+            }
+        }
+
+        executeSave()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Suppress("LongMethod")
+    private fun executeSave() {
+        // Invariants: save() has already validated customer + items + price,
+        // so these checks are defence-in-depth for misuse via direct entry
+        // points (e.g. OnConfirmDepositChange). If they trip, surface an
+        // error rather than silently dropping the save.
+        val s = _state.value
+        val uid = userId
+        val customer = s.selectedCustomer
+        val formItems = s.items.filter { it.garmentType != null }
+        if (uid == null || customer == null || formItems.isEmpty()) {
+            setError(Res.string.error_order_customer_required)
+            return
+        }
+
         val actualOrderId = orderId ?: orderRepository.newOrderId(uid)
 
         // Claim the saving state SYNCHRONOUSLY before launching the coroutine.
@@ -414,7 +472,6 @@ class OrderFormViewModel(
             for (item in formItems) {
                 val garmentType = item.garmentType!!
                 val price = item.price.toDoubleOrNull() ?: 0.0
-
                 val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
 
                 // Style upload/create failure must abort the save — otherwise the
@@ -456,6 +513,13 @@ class OrderFormViewModel(
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
 
+            val payments = DepositReconciler.reconcileForDeposit(
+                loadedPayments = if (isEdit) loadedPayments else emptyList(),
+                newDeposit = deposit,
+                recordedAt = now,
+                newPaymentId = Uuid.random().toString(),
+            )
+
             val order = Order(
                 id = actualOrderId,
                 userId = uid,
@@ -470,26 +534,11 @@ class OrderFormViewModel(
                     listOf(StatusChange(OrderStatus.PENDING, now))
                 },
                 totalPrice = totalPrice,
-                payments = if (!isEdit && deposit > 0.0) {
-                    listOf(
-                        Payment(
-                            id = Uuid.random().toString(),
-                            amount = deposit,
-                            method = PaymentMethod.OTHER,
-                            type = PaymentType.DEPOSIT,
-                            recordedAt = now,
-                            note = null,
-                        ),
-                    )
-                } else if (isEdit) {
-                    loadedPayments
-                } else {
-                    emptyList()
-                },
+                payments = payments,
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
-                updatedAt = 0L
+                updatedAt = 0L,
             )
 
             val result = if (isEdit) {

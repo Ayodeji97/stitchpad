@@ -42,5 +42,7 @@ sealed interface OrderFormAction {
 
     // Save
     data object OnSave : OrderFormAction
+    data object OnConfirmDepositChange : OrderFormAction
+    data object OnDismissDepositPrompt : OrderFormAction
     data object OnErrorDismiss : OrderFormAction
 }
