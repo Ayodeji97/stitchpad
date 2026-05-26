@@ -75,6 +75,8 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementField
 import com.danzucker.stitchpad.core.domain.model.MeasurementSection
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.feature.measurement.presentation.form.components.AddCustomFieldSheet
+import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -88,6 +90,7 @@ import stitchpad.composeapp.generated.resources.custom_field_section_pill_first_
 import stitchpad.composeapp.generated.resources.custom_field_section_pill_locked
 import stitchpad.composeapp.generated.resources.custom_field_section_pill_pro
 import stitchpad.composeapp.generated.resources.custom_field_section_title
+import stitchpad.composeapp.generated.resources.custom_field_sheet_archive
 import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_add_note
@@ -106,7 +109,10 @@ import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 
 @Composable
-fun MeasurementFormRoot(onNavigateBack: () -> Unit) {
+fun MeasurementFormRoot(
+    onNavigateBack: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
+) {
     val viewModel: MeasurementFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -114,8 +120,7 @@ fun MeasurementFormRoot(onNavigateBack: () -> Unit) {
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             MeasurementFormEvent.NavigateBack -> onNavigateBack()
-            // TODO PTSP-12 Task 12: wire to onNavigateToUpgrade callback
-            MeasurementFormEvent.NavigateToUpgrade -> Unit
+            MeasurementFormEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
 
@@ -353,6 +358,39 @@ fun MeasurementFormScreen(
                 Spacer(Modifier.height(DesignTokens.space4))
             }
         }
+    }
+
+    when (val sheet = state.customFieldSheet) {
+        CustomFieldSheet.Adding -> AddCustomFieldSheet(
+            initial = null,
+            onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
+            onSave = { id, label, genders ->
+                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders))
+            },
+        )
+        is CustomFieldSheet.Editing -> AddCustomFieldSheet(
+            initial = sheet.field,
+            onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
+            onSave = { id, label, genders ->
+                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders))
+            },
+            bottomExtra = {
+                OutlinedButton(
+                    onClick = { onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(sheet.field.id)) },
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(Res.string.custom_field_sheet_archive))
+                }
+            },
+        )
+        is CustomFieldSheet.ConfirmArchive -> ConfirmArchiveDialog(
+            field = sheet.field,
+            onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
+            onConfirm = { id -> onAction(MeasurementFormAction.OnArchiveCustomFieldConfirm(id)) },
+        )
+        null -> Unit
     }
 }
 
