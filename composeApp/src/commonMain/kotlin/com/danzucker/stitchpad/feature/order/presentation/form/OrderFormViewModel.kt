@@ -127,7 +127,20 @@ class OrderFormViewModel(
                 it.copy(price = action.price)
             }
             is OrderFormAction.OnItemStyleChange -> updateItem(action.itemId) {
-                it.copy(styleId = action.styleId)
+                // Picking a gallery style OR clearing the gallery style replaces the
+                // whole "style" state for this item — clear any inline upload fields
+                // so the StyleSection's hasUploadUrl branch doesn't resurrect a stale
+                // one-off image. (codex review caught this on a hypothetical edit
+                // scenario where both styleId and stylePhotoUrl were simultaneously
+                // set; the UI doesn't normally reach that state but it's defensible.)
+                it.copy(
+                    styleId = action.styleId,
+                    stylePhotoBytes = null,
+                    stylePhotoUrl = null,
+                    stylePhotoStoragePath = null,
+                    styleDescription = "",
+                    saveStyleToGallery = true,
+                )
             }
             is OrderFormAction.OnItemMeasurementChange -> updateItem(action.itemId) {
                 it.copy(measurementId = action.measurementId)
