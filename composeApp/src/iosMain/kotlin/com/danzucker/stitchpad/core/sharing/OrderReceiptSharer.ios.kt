@@ -3,13 +3,18 @@ package com.danzucker.stitchpad.core.sharing
 import com.danzucker.stitchpad.core.platform.activeKeyWindow
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.useContents
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import platform.CoreGraphics.CGContextRestoreGState
+import platform.CoreGraphics.CGContextSaveGState
 import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.NSData
 import platform.Foundation.NSString
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
@@ -19,8 +24,10 @@ import platform.Foundation.writeToURL
 import platform.UIKit.NSFontAttributeName
 import platform.UIKit.NSForegroundColorAttributeName
 import platform.UIKit.UIActivityViewController
+import platform.UIKit.UIBezierPath
 import platform.UIKit.UIColor
 import platform.UIKit.UIFont
+import platform.UIKit.UIGraphicsGetCurrentContext
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
 import platform.UIKit.UIGraphicsPDFRenderer
@@ -29,6 +36,7 @@ import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIViewController
 import platform.UIKit.drawAtPoint
+import platform.UIKit.drawInRect
 import platform.UIKit.popoverPresentationController
 import platform.UIKit.sizeWithAttributes
 
@@ -79,6 +87,7 @@ actual class OrderReceiptSharer {
 
         return renderer.imageWithActions { context ->
             val ctx = context ?: return@imageWithActions
+            val logoImage = data.businessLogoBytes?.toUIImage()
 
             // Background
             darkColor("#121110").setFill()
@@ -87,6 +96,20 @@ actual class OrderReceiptSharer {
             // Header band — indigo brand (was saffron pre-rebrand)
             darkColor("#2C3E7C").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, headerHeight))
+
+            if (logoImage != null) {
+                val logoSize = 40.0
+                val logoLeft = 32.0
+                val logoTop = (headerHeight - logoSize) / 2.0
+                val logoRect = CGRectMake(logoLeft, logoTop, logoSize, logoSize)
+                val path = UIBezierPath.bezierPathWithRoundedRect(rect = logoRect, cornerRadius = 6.0)
+                UIGraphicsGetCurrentContext()?.let { gfxCtx ->
+                    CGContextSaveGState(gfxCtx)
+                    path.addClip()
+                    logoImage.drawInRect(logoRect)
+                    CGContextRestoreGState(gfxCtx)
+                }
+            }
 
             drawCentered(
                 data.businessName,
@@ -244,6 +267,7 @@ actual class OrderReceiptSharer {
         val pdfData = renderer.PDFDataWithActions { context ->
             val ctx = context ?: return@PDFDataWithActions
             ctx.beginPage()
+            val logoImage = data.businessLogoBytes?.toUIImage()
 
             var y = padding
 
@@ -272,6 +296,20 @@ actual class OrderReceiptSharer {
             borderPaint.setFill()
             platform.UIKit.UIRectFill(CGRectMake(padding, y, pageWidth - 2 * padding, 3.0))
             y += 16.0
+
+            if (logoImage != null) {
+                val logoSize = 32.0
+                val headerBlockHeight = if (data.businessPhone != null) 36.0 else 20.0
+                val logoTop = padding + (headerBlockHeight - logoSize) / 2.0
+                val logoRect = CGRectMake(padding, logoTop, logoSize, logoSize)
+                val path = UIBezierPath.bezierPathWithRoundedRect(rect = logoRect, cornerRadius = 5.0)
+                UIGraphicsGetCurrentContext()?.let { gfxCtx ->
+                    CGContextSaveGState(gfxCtx)
+                    path.addClip()
+                    logoImage.drawInRect(logoRect)
+                    CGContextRestoreGState(gfxCtx)
+                }
+            }
 
             // Document type label (RECEIPT / INVOICE)
             drawCentered(
@@ -466,6 +504,15 @@ actual class OrderReceiptSharer {
             path.fill()
             nsText.drawAtPoint(CGPointMake(bx + 6.0, y), withAttributes = attrs)
         }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun ByteArray.toUIImage(): UIImage? {
+        if (isEmpty()) return null
+        val nsData = usePinned { pinned ->
+            NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
+        }
+        return UIImage.imageWithData(nsData)
     }
 
     private fun darkColor(hex: String): UIColor {
