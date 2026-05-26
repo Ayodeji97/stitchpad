@@ -21,10 +21,14 @@ data class MeasurementFormState(
     val originalDateTaken: Long = 0L,
 ) {
     /**
-     * PTSP-6: Save is gated until at least one figure is entered.
+     * PTSP-6: Save is gated until at least one parsable figure is entered.
+     * `toDoubleOrNull()` rejects empty strings and lone `.` (which the field's
+     * input filter allows but `save()` would collapse to 0.0 and discard).
      * Edit-mode entries pre-populate `fields` from the existing measurement,
      * so the gate naturally allows resaves of an existing record.
      */
     val canSave: Boolean
-        get() = gender != null && fields.values.any { it.isNotBlank() } && !isLoading
+        get() = gender != null &&
+            fields.values.any { it.toDoubleOrNull() != null } &&
+            !isLoading
 }
