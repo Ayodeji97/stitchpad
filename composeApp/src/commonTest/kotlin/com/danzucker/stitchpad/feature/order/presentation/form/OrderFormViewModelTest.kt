@@ -251,6 +251,37 @@ class OrderFormViewModelTest {
     }
 
     @Test
+    fun save_inEditMode_withDepositUnchanged_preservesPaymentMetadataExactly() = runTest {
+        val originalDeposit = Payment(
+            id = "original-deposit-id",
+            amount = 500.0,
+            method = PaymentMethod.CASH,
+            type = PaymentType.DEPOSIT,
+            recordedAt = 12345L,
+            note = "paid cash on site",
+        )
+        seedOrder(payments = listOf(originalDeposit, progressPayment(200.0)))
+        val vm = createViewModel(orderId = "order-1")
+
+        // User edits ONLY the notes. Deposit field stays at the loaded value.
+        vm.onAction(OrderFormAction.OnNotesChange("Updated notes"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNull(vm.state.value.depositReconciliationPrompt)
+        val updated = orderRepository.lastUpdatedOrder
+        assertNotNull(updated)
+        val depositInUpdate = updated.payments.single { it.type == PaymentType.DEPOSIT }
+        // Identity-preserving fields must round-trip verbatim — without the
+        // preserve-unchanged branch in executeSave(), all of these would be
+        // overwritten with a freshly-minted DEPOSIT entry.
+        assertEquals("original-deposit-id", depositInUpdate.id)
+        assertEquals(PaymentMethod.CASH, depositInUpdate.method)
+        assertEquals(12345L, depositInUpdate.recordedAt)
+        assertEquals("paid cash on site", depositInUpdate.note)
+        assertEquals(500.0, depositInUpdate.amount)
+    }
+
+    @Test
     fun save_inEditMode_withClearedDeposit_promptsThenConfirmRemovesDepositKeepsOthers() = runTest {
         seedOrder(payments = listOf(depositPayment(500.0), progressPayment(200.0)))
         val vm = createViewModel(orderId = "order-1")

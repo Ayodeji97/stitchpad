@@ -443,7 +443,7 @@ class OrderFormViewModel(
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun executeSave() {
         // Invariants: save() has already validated customer + items + price,
         // so these checks are defence-in-depth for misuse via direct entry
@@ -513,12 +513,26 @@ class OrderFormViewModel(
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
 
-            val payments = DepositReconciler.reconcileForDeposit(
-                loadedPayments = if (isEdit) loadedPayments else emptyList(),
-                newDeposit = deposit,
-                recordedAt = now,
-                newPaymentId = Uuid.random().toString(),
-            )
+            // When editing an order without changing the deposit, preserve the
+            // existing payment list verbatim. Calling reconcileForDeposit() in
+            // this case would silently replace any DEPOSIT entry's id, method,
+            // recordedAt, and note (e.g. a payment originally recorded via
+            // "Record Payment" with method=CASH) with a fresh OTHER/now entry.
+            // Only reconcile when the typed deposit actually differs from the
+            // existing deposit sum — that's the case the dialog confirmed.
+            val payments = if (
+                isEdit &&
+                deposit == DepositReconciler.currentDepositSum(loadedPayments)
+            ) {
+                loadedPayments
+            } else {
+                DepositReconciler.reconcileForDeposit(
+                    loadedPayments = if (isEdit) loadedPayments else emptyList(),
+                    newDeposit = deposit,
+                    recordedAt = now,
+                    newPaymentId = Uuid.random().toString(),
+                )
+            }
 
             val order = Order(
                 id = actualOrderId,
