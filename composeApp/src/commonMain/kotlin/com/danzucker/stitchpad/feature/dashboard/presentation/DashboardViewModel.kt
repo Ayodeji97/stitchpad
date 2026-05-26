@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -264,31 +263,31 @@ class DashboardViewModel(
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
-            // Resolve the Firestore user doc — Auth-only User has Firestore-only fields
-            // (businessName, businessLogoUrl, phoneNumber, whatsappNumber) hardcoded to
-            // null, so reading them off authRepository.getCurrentUser() would always
-            // miss the uploaded logo + workshop name. Fall back to the Auth user when
-            // the Firestore doc isn't there yet (first-signup race).
-            val user = userRepository.observeUser(authUser.id).first() ?: authUser
-            // Apple Sign-In only returns fullName on the very first auth per Apple ID
-            // per app (Apple's privacy model). Re-auths and failed-first-attempts come
-            // back with no name, so displayName ends up blank. Fall back to the email's
-            // local-part split on common separators so the greeting + avatar show
-            // something sensible instead of "?".
-            val nameSource = user.displayName.ifBlank {
-                user.email.substringBefore('@')
-                    .replace('.', ' ').replace('_', ' ').replace('-', ' ')
-            }
-            val firstName = firstNameOf(nameSource)
-            val workshopName = user.businessName?.takeIf { it.isNotBlank() }
-
+            // Include the Firestore user doc in the combine so logo + workshop name
+            // updates from Edit Profile flow through to the dashboard live, without
+            // needing the ViewModel to be recreated. Falls back to the Auth user
+            // until the Firestore doc arrives (first-signup race) and on every
+            // subsequent emission picks the freshest Firestore snapshot.
             combine(
-                orderRepository.observeOrders(user.id),
-                customerRepository.observeCustomers(user.id),
-                weeklyGoalRepository.observeWeeklyGoal(user.id)
-            ) { ordersResult, customersResult, goalResult ->
-                Triple(ordersResult, customersResult, goalResult)
-            }.collect { (ordersResult, customersResult, goalResult) ->
+                userRepository.observeUser(authUser.id),
+                orderRepository.observeOrders(authUser.id),
+                customerRepository.observeCustomers(authUser.id),
+                weeklyGoalRepository.observeWeeklyGoal(authUser.id)
+            ) { firestoreUser, ordersResult, customersResult, goalResult ->
+                UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult)
+            }.collect { (firestoreUser, ordersResult, customersResult, goalResult) ->
+                val user = firestoreUser ?: authUser
+                // Apple Sign-In only returns fullName on the very first auth per Apple ID
+                // per app (Apple's privacy model). Re-auths and failed-first-attempts come
+                // back with no name, so displayName ends up blank. Fall back to the email's
+                // local-part split on common separators so the greeting + avatar show
+                // something sensible instead of "?".
+                val nameSource = user.displayName.ifBlank {
+                    user.email.substringBefore('@')
+                        .replace('.', ' ').replace('_', ' ').replace('-', ' ')
+                }
+                val firstName = firstNameOf(nameSource)
+                val workshopName = user.businessName?.takeIf { it.isNotBlank() }
                 val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
                 val customers = (customersResult as? Result.Success)?.data ?: emptyList()
                 val goal = (goalResult as? Result.Success)?.data
@@ -430,3 +429,11 @@ class DashboardViewModel(
         }
     }
 }
+
+/** Combine-output holder so the 4-way flow combine can destructure into the collect lambda. */
+private data class UserAndDashboardData(
+    val firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
+    val ordersResult: Result<List<Order>, com.danzucker.stitchpad.core.domain.error.DataError.Network>,
+    val customersResult: Result<List<Customer>, com.danzucker.stitchpad.core.domain.error.DataError.Network>,
+    val goalResult: Result<com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal?, com.danzucker.stitchpad.core.domain.error.DataError.Network>,
+)

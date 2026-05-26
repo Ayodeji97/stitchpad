@@ -97,15 +97,24 @@ class WorkshopSetupViewModel(
     private fun onSkip() {
         val current = _state.value.logo
         logoUploadJob?.cancel()
-        when (current) {
-            is LogoUploadState.Uploaded -> viewModelScope.launch { userRepository.deleteUserLogo(current.path) }
-            is LogoUploadState.Uploading,
-            is LogoUploadState.Failed -> viewModelScope.launch {
-                userRepository.deleteUserLogo("users/${authRepository.getCurrentUser()?.id}/branding/logo.jpg")
-            }
-            LogoUploadState.Empty -> Unit
-        }
         viewModelScope.launch {
+            // Await the Storage delete BEFORE navigating. NavigateToHome clears this
+            // onboarding ViewModel, cancelling viewModelScope — if the delete runs in
+            // a separate launch it gets cancelled mid-flight and the logo object is
+            // left orphaned in Storage. Joining keeps the cleanup tied to the screen
+            // exit; the delete returns Result.Success even on a missing object (see
+            // FirebaseUserRepository.deleteUserLogo) so a no-op path is still cheap.
+            when (current) {
+                is LogoUploadState.Uploaded -> userRepository.deleteUserLogo(current.path)
+                is LogoUploadState.Uploading,
+                is LogoUploadState.Failed -> {
+                    val uid = authRepository.getCurrentUser()?.id
+                    if (uid != null) {
+                        userRepository.deleteUserLogo("users/$uid/branding/logo.jpg")
+                    }
+                }
+                LogoUploadState.Empty -> Unit
+            }
             onboardingPreferences.setWorkshopSetupCompleted()
             _events.send(WorkshopSetupEvent.NavigateToHome)
         }
