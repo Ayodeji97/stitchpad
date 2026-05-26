@@ -144,6 +144,36 @@ class OrderFormViewModel(
             is OrderFormAction.OnItemFabricNameChange -> updateItem(action.itemId) {
                 it.copy(fabricName = action.fabricName)
             }
+            is OrderFormAction.OnItemStylePhotoPicked -> {
+                updateItem(action.itemId) {
+                    // Keep stylePhotoUrl/StoragePath intact as upload fallback: if the new
+                    // upload fails, resolveStylePhoto() preserves the existing remote.
+                    it.copy(stylePhotoBytes = action.photoBytes)
+                }
+            }
+            is OrderFormAction.OnItemStylePhotoRemoved -> {
+                updateItem(action.itemId) {
+                    it.copy(
+                        stylePhotoBytes = null,
+                        stylePhotoUrl = null,
+                        stylePhotoStoragePath = null,
+                        styleDescription = "",
+                        saveStyleToGallery = true,
+                    )
+                }
+            }
+            is OrderFormAction.OnItemStyleDescriptionChange -> {
+                updateItem(action.itemId) { it.copy(styleDescription = action.description) }
+            }
+            is OrderFormAction.OnItemSaveStyleToGalleryToggle -> {
+                updateItem(action.itemId) { it.copy(saveStyleToGallery = action.value) }
+            }
+            is OrderFormAction.OnOpenStylePickerSheet -> {
+                _state.update { it.copy(stylePickerSheetForItemId = action.itemId) }
+            }
+            OrderFormAction.OnDismissStylePickerSheet -> {
+                _state.update { it.copy(stylePickerSheetForItemId = null) }
+            }
             is OrderFormAction.OnDeadlineChange -> {
                 _state.update { it.copy(deadline = action.deadline) }
             }
@@ -304,11 +334,23 @@ class OrderFormViewModel(
         fabricPhotoUrl = fabricPhotoUrl,
         fabricPhotoStoragePath = fabricPhotoStoragePath,
         fabricName = fabricName.orEmpty(),
+        stylePhotoUrl = stylePhotoUrl,
+        stylePhotoStoragePath = stylePhotoStoragePath,
+        // Edit mode: previously-uploaded one-off images can't be edited (no description, no toggle).
+        // They render as State C-readonly per the spec. Default fields here mean "no inline editing
+        // available" — the screen layer reads `stylePhotoUrl != null && styleId == null` to detect this.
     )
 
     @OptIn(ExperimentalUuidApi::class)
     @Suppress("LongMethod", "ReturnCount", "CyclomaticComplexMethod")
     private fun save() {
+        // Idempotency: if a previous save is in-flight, ignore this re-entry.
+        // The UI's `enabled = !isSaving` already blocks the button visually, but
+        // a state update inside viewModelScope.launch doesn't propagate before a
+        // rapid double-tap can re-enter. With PTSP-9's gallery-save path, a
+        // duplicate entry creates duplicate Style entities — guard early.
+        if (_state.value.isSaving) return
+
         val s = _state.value
         val uid = userId ?: return
 
@@ -343,17 +385,20 @@ class OrderFormViewModel(
                 val price = item.price.toDoubleOrNull() ?: 0.0
 
                 val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
+                val styleResolution = resolveStylePhoto(uid, customer.id, actualOrderId, item)
 
                 OrderItem(
                     id = item.id,
                     garmentType = garmentType,
                     description = item.description.trim(),
                     price = price,
-                    styleId = item.styleId,
+                    styleId = styleResolution.styleId,
                     measurementId = item.measurementId,
                     fabricPhotoUrl = fabricUrl,
                     fabricPhotoStoragePath = fabricPath,
                     fabricName = item.fabricName.trim().ifBlank { null },
+                    stylePhotoUrl = styleResolution.photoUrl,
+                    stylePhotoStoragePath = styleResolution.photoStoragePath,
                 )
             }
 
@@ -433,6 +478,83 @@ class OrderFormViewModel(
         return when (uploadResult) {
             is Result.Success -> uploadResult.data
             is Result.Error -> item.fabricPhotoUrl to item.fabricPhotoStoragePath
+        }
+    }
+
+    /**
+     * Result holder: which of the three style states does this item resolve to after save?
+     */
+    private data class StyleResolution(
+        val styleId: String?,
+        val photoUrl: String?,
+        val photoStoragePath: String?,
+    )
+
+    /**
+     * Per-item style image handling at save time:
+     *  - No bytes & no toggle change → carry existing values (pre-PTSP-9 orders, or "no style").
+     *  - Bytes + saveStyleToGallery=true → create a Style entity; styleId points to it,
+     *    photo lives on the Style (not the OrderItem).
+     *  - Bytes + saveStyleToGallery=false → upload to Firebase Storage; photoUrl/Path live
+     *    on the OrderItem, styleId stays null.
+     *
+     * On upload/create failure, the existing remote values (if any) are preserved — same
+     * resilient-fallback pattern as uploadFabricPhotoIfNeeded.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun resolveStylePhoto(
+        userId: String,
+        customerId: String,
+        orderId: String,
+        item: OrderItemFormState,
+    ): StyleResolution {
+        val bytes = item.stylePhotoBytes
+        if (bytes == null) {
+            return StyleResolution(
+                styleId = item.styleId,
+                photoUrl = item.stylePhotoUrl,
+                photoStoragePath = item.stylePhotoStoragePath,
+            )
+        }
+
+        if (item.saveStyleToGallery) {
+            val createResult = styleRepository.createStyle(
+                userId = userId,
+                customerId = customerId,
+                description = item.styleDescription.trim(),
+                photoBytes = bytes,
+            )
+            return when (createResult) {
+                is Result.Success -> StyleResolution(
+                    styleId = createResult.data,
+                    photoUrl = null,
+                    photoStoragePath = null,
+                )
+                is Result.Error -> StyleResolution(
+                    styleId = item.styleId,
+                    photoUrl = item.stylePhotoUrl,
+                    photoStoragePath = item.stylePhotoStoragePath,
+                )
+            }
+        }
+
+        val uploadResult = orderRepository.uploadStylePhoto(
+            userId = userId,
+            orderId = orderId,
+            itemId = item.id,
+            photoBytes = bytes,
+        )
+        return when (uploadResult) {
+            is Result.Success -> StyleResolution(
+                styleId = null,
+                photoUrl = uploadResult.data.first,
+                photoStoragePath = uploadResult.data.second,
+            )
+            is Result.Error -> StyleResolution(
+                styleId = item.styleId,
+                photoUrl = item.stylePhotoUrl,
+                photoStoragePath = item.stylePhotoStoragePath,
+            )
         }
     }
 }
