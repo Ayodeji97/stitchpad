@@ -9,8 +9,10 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -19,8 +21,12 @@ private const val TAG = "UserRepo"
 private const val USERS = "users"
 
 class FirebaseUserRepository(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage,
 ) : UserRepository {
+
+    private fun logoStoragePath(userId: String): String =
+        "users/$userId/branding/logo.jpg"
 
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override suspend fun createUserProfile(
@@ -111,6 +117,57 @@ class FirebaseUserRepository(
                 AppLogger.e(tag = TAG, throwable = error) { "observeUser failed userId=$userId" }
                 emit(null)
             }
+    }
+
+    override suspend fun uploadUserLogo(
+        userId: String,
+        bytes: ByteArray,
+    ): Result<Pair<String, String>, DataError.Network> {
+        val path = logoStoragePath(userId)
+        return try {
+            storage.reference.child(path).putData(bytes.toStorageData())
+            val downloadUrl = storage.reference.child(path).getDownloadUrl()
+            Result.Success(downloadUrl to path)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "uploadUserLogo failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM")
+    override suspend fun updateBrandLogo(
+        userId: String,
+        logoUrl: String?,
+        logoStoragePath: String?,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val data = mutableMapOf<String, Any>(
+                "updatedAt" to FieldValue.serverTimestamp,
+                // Nullable URL/path: when the user removes the logo, drop the keys
+                // entirely (FieldValue.delete) so stale URLs don't survive on the doc.
+                "businessLogoUrl" to (logoUrl ?: FieldValue.delete),
+                "businessLogoStoragePath" to (logoStoragePath ?: FieldValue.delete),
+            )
+            firestore.collection(USERS).document(userId).set(data, merge = true)
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "updateBrandLogo failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun deleteUserLogo(
+        storagePath: String,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            storage.reference.child(storagePath).delete()
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // A delete on a non-existent object throws; treat as success so callers can
+            // fire-and-forget on Skip without surfacing a benign 404 to the user.
+            AppLogger.w(tag = TAG, throwable = e) { "deleteUserLogo treated as no-op path=$storagePath" }
+            Result.Success(Unit)
+        }
     }
 
     /**
