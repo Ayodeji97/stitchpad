@@ -7,5 +7,6 @@ sealed interface WorkshopSetupAction {
     data object OnWhatsAppNumberBlur : WorkshopSetupAction
     data object OnContinueClick : WorkshopSetupAction
     data object OnSkipClick : WorkshopSetupAction
-    data object OnLogoUploadClick : WorkshopSetupAction
+    data class OnLogoPicked(val bytes: ByteArray) : WorkshopSetupAction
+    data object OnLogoRetry : WorkshopSetupAction
 }
