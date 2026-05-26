@@ -128,6 +128,11 @@ class FirebaseUserRepository(
             storage.reference.child(path).putData(bytes.toStorageData())
             val downloadUrl = storage.reference.child(path).getDownloadUrl()
             Result.Success(downloadUrl to path)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Callers (ViewModels) cancel in-flight uploads when the user picks again
+            // or skips. We must not convert cancellation into a Result.Error — that
+            // would race the cancelled coroutine's failure path against the newer state.
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "uploadUserLogo failed userId=$userId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -150,6 +155,8 @@ class FirebaseUserRepository(
             )
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "updateBrandLogo failed userId=$userId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -162,6 +169,8 @@ class FirebaseUserRepository(
         return try {
             storage.reference.child(storagePath).delete()
             Result.Success(Unit)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             // A delete on a non-existent object throws; treat as success so callers can
             // fire-and-forget on Skip without surfacing a benign 404 to the user.

@@ -28,6 +28,7 @@ import stitchpad.composeapp.generated.resources.edit_profile_logo_updated
 import stitchpad.composeapp.generated.resources.edit_profile_save_failed
 import stitchpad.composeapp.generated.resources.edit_profile_saved
 import stitchpad.composeapp.generated.resources.error_business_name_required
+import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_phone_format
 import stitchpad.composeapp.generated.resources.error_whatsapp_format
 
@@ -312,20 +313,34 @@ class EditProfileViewModel(
             val pathToDelete = _state.value.let {
                 it.originalLogoStoragePath ?: (it.logo as? LogoUploadState.Uploaded)?.path
             }
-            userRepository.updateBrandLogo(uid, null, null)
-            pathToDelete?.let { userRepository.deleteUserLogo(it) }
-            _state.update {
-                it.copy(
-                    logo = LogoUploadState.Empty,
-                    originalLogoUrl = null,
-                    originalLogoStoragePath = null,
-                )
+            // Gate Storage delete + local state clear on the Firestore clear succeeding.
+            // If the Firestore write fails (offline, rules reject), we must NOT delete the
+            // Storage object — the user doc would still point at a now-missing URL and the
+            // next snapshot would resurrect a broken reference.
+            when (userRepository.updateBrandLogo(uid, null, null)) {
+                is Result.Success -> {
+                    pathToDelete?.let { userRepository.deleteUserLogo(it) }
+                    _state.update {
+                        it.copy(
+                            logo = LogoUploadState.Empty,
+                            originalLogoUrl = null,
+                            originalLogoStoragePath = null,
+                        )
+                    }
+                    _events.send(
+                        EditProfileEvent.ShowSnackbar(
+                            UiText.StringResourceText(Res.string.edit_profile_logo_removed)
+                        )
+                    )
+                }
+                is Result.Error -> {
+                    _events.send(
+                        EditProfileEvent.ShowSnackbar(
+                            UiText.StringResourceText(Res.string.error_unknown)
+                        )
+                    )
+                }
             }
-            _events.send(
-                EditProfileEvent.ShowSnackbar(
-                    UiText.StringResourceText(Res.string.edit_profile_logo_removed)
-                )
-            )
         }
     }
 
