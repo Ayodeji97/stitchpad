@@ -172,7 +172,20 @@ class MeasurementFormViewModel(
                 if (result is Result.Success) {
                     allCustomFields = result.data
                     _state.update { current ->
-                        current.copy(customFields = filterFieldsForCurrentGender(result.data, current.gender))
+                        // Preserve fields whose ids already appear as recorded values
+                        // on the loaded measurement — even if archived or opposite-
+                        // gender. Without this the observer's re-emit (e.g., after
+                        // loadMeasurement completes) would silently drop archived-
+                        // but-recorded rows from the form. See loadMeasurement for
+                        // the matching edit-mode filter.
+                        val recordedKeys = current.fields.keys
+                        val visible = result.data.filter { field ->
+                            val hasRecordedValue = field.id in recordedKeys
+                            val passesNormalFilter = !field.isArchived &&
+                                (current.gender == null || current.gender in field.genders)
+                            hasRecordedValue || passesNormalFilter
+                        }
+                        current.copy(customFields = visible)
                     }
                 }
                 // Errors on the field stream are non-fatal — keep the form
@@ -199,15 +212,23 @@ class MeasurementFormViewModel(
                     val measurement = result.data.find { it.id == id }
                     if (measurement != null) {
                         val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
+                        val recordedKeys = measurement.fields.keys
                         // Re-filter custom fields against the measurement's gender. In
                         // edit mode the observer may have emitted before gender was
                         // known (the filter treats null as wildcard); without this
                         // re-filter, opposite-gender fields can leak into the UI and
-                        // be persisted on save.
-                        val visibleCustom = filterFieldsForCurrentGender(allCustomFields, measurement.gender)
+                        // be persisted on save. ALSO surface any field the user has
+                        // already recorded a value for — even archived/opposite-gender
+                        // — so the spec promise "Values already recorded stay visible
+                        // on past measurements" holds and the value isn't silently
+                        // strand-edited via the orphan path.
+                        val visibleCustom = allCustomFields.filter { field ->
+                            val hasRecordedValue = field.id in recordedKeys
+                            val passesNormalFilter = !field.isArchived && measurement.gender in field.genders
+                            hasRecordedValue || passesNormalFilter
+                        }
                         val templateKeys = sections.flatMap { it.fields }.map { it.key }.toSet()
                         val customKeys = visibleCustom.map { it.id }.toSet()
-                        val recordedKeys = measurement.fields.keys
                         // Union: template + visible custom + anything actually
                         // recorded on the doc (orphans included so save round-
                         // trips them cleanly, even if no definition exists).

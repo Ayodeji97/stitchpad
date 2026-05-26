@@ -785,7 +785,7 @@ private fun CustomFieldsSection(
             )
         }
 
-        if (fields.isEmpty()) {
+        if (fields.isEmpty() || !canUseCustomMeasurements) {
             val captionRes = if (canUseCustomMeasurements) {
                 Res.string.custom_field_empty_caption
             } else {

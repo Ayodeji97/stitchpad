@@ -716,6 +716,39 @@ class MeasurementFormViewModelTest {
         assertEquals(listOf("custom-male"), visibleIds)
     }
 
+    @Test
+    fun loadMeasurement_archivedFieldWithRecordedValue_isStillVisible() = runTest {
+        // Spec promise: "Values already recorded stay visible on past measurements."
+        // An archived field with a recorded value must surface in the edit form so
+        // the tailor can see/correct/save the value, not silently leak via the
+        // orphan path.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(
+                id = "archived-cuff",
+                label = "Cuff",
+                genders = setOf(CustomerGender.FEMALE),
+                isArchived = true,
+            ),
+        ))
+        val measurement = Measurement(
+            id = "m1",
+            customerId = "customer-1",
+            gender = CustomerGender.FEMALE,
+            fields = mapOf("archived-cuff" to 11.0),
+            unit = MeasurementUnit.CM,
+            notes = null,
+            dateTaken = 0L,
+            createdAt = 0L,
+        )
+        measurementRepository.measurementsList = listOf(measurement)
+        val vm = createViewModel(measurementId = "m1")
+
+        val visibleIds = vm.state.value.customFields.map { it.id }
+        assertEquals(listOf("archived-cuff"), visibleIds)
+        assertEquals("11", vm.state.value.fields["archived-cuff"])
+    }
+
     private fun customField(
         id: String,
         label: String,
