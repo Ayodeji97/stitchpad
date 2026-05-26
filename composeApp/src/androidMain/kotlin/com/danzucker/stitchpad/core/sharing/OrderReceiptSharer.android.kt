@@ -108,6 +108,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         val canvas = Canvas(bitmap)
         canvas.drawColor(bgColor)
 
+        val logoBitmap: android.graphics.Bitmap? = data.businessLogoBytes?.let { bytes ->
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+
         var y = 0f
 
         // Header band
@@ -116,6 +120,17 @@ actual class OrderReceiptSharer(private val context: Context) {
             style = Paint.Style.FILL
         }
         canvas.drawRect(0f, 0f, width.toFloat(), headerHeight, headerBgPaint)
+        if (logoBitmap != null) {
+            val logoSize = 40f
+            val logoLeft = 32f
+            val logoTop = (headerHeight - logoSize) / 2f
+            val logoRect = android.graphics.RectF(logoLeft, logoTop, logoLeft + logoSize, logoTop + logoSize)
+            val clipPath = android.graphics.Path().apply { addRoundRect(logoRect, 6f, 6f, android.graphics.Path.Direction.CW) }
+            canvas.save()
+            canvas.clipPath(clipPath)
+            canvas.drawBitmap(logoBitmap, null, logoRect, null)
+            canvas.restore()
+        }
         val headerCenterY = if (data.businessPhone != null) headerHeight / 2f - 10f else headerHeight / 2f
         canvas.drawText(
             data.businessName,
@@ -301,10 +316,25 @@ actual class OrderReceiptSharer(private val context: Context) {
         // White background
         canvas.drawColor(Color.WHITE)
 
+        val logoBitmap: android.graphics.Bitmap? = data.businessLogoBytes?.let { bytes ->
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+
         var y = padding
 
         // Header (centered, with indigo brand bottom border)
         val headerBottomY = if (data.businessPhone != null) y + 50f else y + 40f
+        if (logoBitmap != null) {
+            val logoSize = 40f
+            val logoLeft = 32f
+            val logoTop = y + (headerBottomY - y - logoSize) / 2f
+            val logoRect = android.graphics.RectF(logoLeft, logoTop, logoLeft + logoSize, logoTop + logoSize)
+            val clipPath = android.graphics.Path().apply { addRoundRect(logoRect, 6f, 6f, android.graphics.Path.Direction.CW) }
+            canvas.save()
+            canvas.clipPath(clipPath)
+            canvas.drawBitmap(logoBitmap, null, logoRect, null)
+            canvas.restore()
+        }
         canvas.drawText(
             data.businessName,
             pageWidth / 2f - headerTitlePaint.measureText(data.businessName) / 2f,
