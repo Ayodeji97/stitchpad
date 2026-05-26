@@ -342,6 +342,7 @@ class DashboardViewModel(
                         uiState = uiState,
                         firstName = firstName,
                         businessName = workshopName,
+                        businessLogoUrl = user.businessLogoUrl,
                         greeting = greeting,
                         todayDate = today,
                         overdue = buckets.overdue,

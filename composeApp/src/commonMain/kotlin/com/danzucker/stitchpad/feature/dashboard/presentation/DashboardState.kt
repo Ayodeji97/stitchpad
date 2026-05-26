@@ -21,6 +21,7 @@ data class DashboardState(
     val uiState: DashboardUiState = DashboardUiState.Loading,
     val firstName: String = "",
     val businessName: String? = null,
+    val businessLogoUrl: String? = null,
     val greeting: Greeting = Greeting.MORNING,
     val todayDate: LocalDate? = null,
     val overdue: List<DashboardOrderRow> = emptyList(),

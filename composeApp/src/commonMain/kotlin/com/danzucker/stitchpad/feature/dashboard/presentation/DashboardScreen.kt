@@ -70,7 +70,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepKey
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.UserAvatar
+import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
@@ -100,6 +100,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.cd_open_settings
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
@@ -545,6 +546,7 @@ private fun DashboardContent(
         // 1. Header
         DashboardHeader(
             firstName = state.firstName,
+            businessLogoUrl = state.businessLogoUrl,
             greeting = state.greeting,
             todayDate = state.todayDate,
             onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
@@ -1150,12 +1152,14 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
 @Composable
 private fun DashboardHeader(
     firstName: String,
+    businessLogoUrl: String?,
     greeting: Greeting,
     todayDate: LocalDate?,
     onAvatarClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val name = firstName.ifBlank { "?" }
+    val openSettingsDesc = stringResource(Res.string.cd_open_settings)
     val greetingText = when (greeting) {
         Greeting.MORNING -> stringResource(Res.string.dashboard_greeting_morning, name)
         Greeting.AFTERNOON -> stringResource(Res.string.dashboard_greeting_afternoon, name)
@@ -1189,10 +1193,19 @@ private fun DashboardHeader(
                 onClick = { /* notifications screen ships later */ },
                 hasUnread = false,
             )
-            UserAvatar(
-                name = firstName,
-                onClick = onAvatarClick,
-            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable(onClick = onAvatarClick)
+                    .semantics { contentDescription = openSettingsDesc },
+                contentAlignment = Alignment.Center,
+            ) {
+                BrandLogo(
+                    logoUrl = businessLogoUrl,
+                    fallbackInitials = firstName,
+                    size = 36.dp,
+                )
+            }
         }
     }
 }
