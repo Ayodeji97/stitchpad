@@ -201,10 +201,11 @@ private fun MainNavGraph(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToCustomerWithMeasurement = { newId ->
-                    // Chain: pop the form, push customer detail, then push the
-                    // measurement form. Back from the measurement form lands
-                    // on detail; back from detail returns to whatever launched
-                    // CustomerForm (typically list or dashboard).
+                    // Chain: pop the customer form, push customer detail, then
+                    // push the measurement form. Back from measurement lands on
+                    // detail; back from detail returns to whatever was below
+                    // CustomerForm at launch (CustomerList, Dashboard, OrderDetail,
+                    // or wherever the post-AddCustomerFirst stack put us).
                     // launchSingleTop on both pushes guards against duplicate
                     // entries if the event is ever replayed (config change /
                     // re-collect of the events flow).

@@ -166,6 +166,12 @@ class MeasurementFormViewModel(
 
     @OptIn(ExperimentalUuidApi::class)
     private fun save() {
+        // Defense in depth: gate on canSave (and isLoading) at entry so any
+        // non-button invocation of OnSaveClick — accessibility activate,
+        // programmatic triggers, future call sites — can't bypass the UI gate
+        // and persist an empty/all-zero measurement. canSave already encodes
+        // gender + at-least-one-positive-field + !isLoading.
+        if (!_state.value.canSave) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val userId = authRepository.getCurrentUser()?.id ?: run {
