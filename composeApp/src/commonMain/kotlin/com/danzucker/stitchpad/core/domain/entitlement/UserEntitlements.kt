@@ -39,4 +39,10 @@ data class UserEntitlements(
      * banner copy ("N days left") and the show/hide flag never disagree.
      */
     val welcomeDaysLeft: Int?,
+    /**
+     * PTSP-12 — custom measurement fields are a paid-tier feature, granted
+     * to Pro/Atelier always and to FREE tailors during their First Month
+     * welcome window as a taste. Reverts to gated when welcome ends.
+     */
+    val canUseCustomMeasurements: Boolean,
 )
