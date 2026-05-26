@@ -3,6 +3,10 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
@@ -17,6 +21,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
+import com.danzucker.stitchpad.core.sharing.toPngBytes
 import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -45,6 +50,8 @@ class OrderDetailViewModel(
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
     private val receiptSharer: OrderReceiptSharer,
+    private val imageLoader: ImageLoader,
+    private val platformContext: PlatformContext,
 ) : ViewModel() {
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
@@ -347,7 +354,8 @@ class OrderDetailViewModel(
                     .map { it.garmentType }
                     .distinct()
                     .associate { it to garmentDisplayNameAsync(it) }
-                val receiptData = ReceiptFormatter.format(order, user, garmentNames)
+                val logoBytes = fetchLogoBytes(user.businessLogoUrl)
+                val receiptData = ReceiptFormatter.format(order, user, garmentNames, logoBytes)
                 share(receiptData)
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
@@ -355,6 +363,22 @@ class OrderDetailViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Prefetch the user's brand logo via Coil and encode it as PNG bytes.
+     * Returns null when no URL is set or decoding fails.
+     * The bytes are passed through [ReceiptData] so receipt renderers can draw
+     * them synchronously on a Canvas/CGContext without suspending.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun fetchLogoBytes(url: String?): ByteArray? {
+        if (url.isNullOrBlank()) return null
+        val request = ImageRequest.Builder(platformContext)
+            .data(url)
+            .build()
+        val result = imageLoader.execute(request) as? SuccessResult ?: return null
+        return result.image.toPngBytes()
     }
 
     private fun loadUser() {
