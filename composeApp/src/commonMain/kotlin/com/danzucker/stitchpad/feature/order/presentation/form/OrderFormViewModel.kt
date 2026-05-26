@@ -302,10 +302,21 @@ class OrderFormViewModel(
                     pendingCustomerId = source.customerId
                     _state.update {
                         it.copy(
-                            // Seeded order is brand new — no preserved metadata, no payments,
-                            // and each item gets a fresh id so storage paths don't collide.
+                            // Seeded order is brand new: each item gets a fresh id, AND we
+                            // strip the one-off style storage paths so the new order doesn't
+                            // point at the source order's Storage objects. Without this, the
+                            // duplicated order shares photo URLs under the source's path —
+                            // deleting either order would break the other's image via
+                            // FirebaseOrderRepository.deleteOrder's cleanup. styleId is
+                            // intentionally preserved (customer-gallery Styles are shared
+                            // across orders by design). NOTE: fabric photo fields have the
+                            // same pre-existing inheritance bug; out of scope here.
                             items = source.items.map { item ->
-                                item.copy(id = Uuid.random().toString()).toFormState()
+                                item.copy(
+                                    id = Uuid.random().toString(),
+                                    stylePhotoUrl = null,
+                                    stylePhotoStoragePath = null,
+                                ).toFormState()
                             },
                             deadline = source.deadline,
                             priority = source.priority,
