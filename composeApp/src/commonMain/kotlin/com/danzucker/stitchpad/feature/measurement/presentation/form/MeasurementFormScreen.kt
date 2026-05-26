@@ -297,7 +297,6 @@ fun MeasurementFormScreen(
                                 onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
                                 onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
                                 onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
-                                onArchiveRequest = { id -> onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(id)) },
                             )
                         }
                     }
@@ -746,7 +745,6 @@ private fun CustomFieldsSection(
     onAddClick: () -> Unit,
     onLockedAddClick: () -> Unit,
     onEditField: (String) -> Unit,
-    onArchiveRequest: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -822,7 +820,7 @@ private fun CustomFieldsSection(
                     MeasurementTextField(
                         value = fieldValues[field.id] ?: "",
                         onValueChange = { onFieldValueChange(field.id, it) },
-                        label = "",  // label rendered above by the long-pressable Text
+                        label = "", // label rendered above by the long-pressable Text
                         placeholder = "0",
                         suffix = unitSuffix,
                         singleLine = true,

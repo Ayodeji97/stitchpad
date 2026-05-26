@@ -75,6 +75,7 @@ class MeasurementFormViewModel(
             initialValue = MeasurementFormState(isEditMode = measurementId != null)
         )
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: MeasurementFormAction) {
         when (action) {
             is MeasurementFormAction.OnGenderChange -> onGenderChange(action.gender)
@@ -235,6 +236,7 @@ class MeasurementFormViewModel(
     }
 
     @OptIn(ExperimentalUuidApi::class)
+    @Suppress("CyclomaticComplexMethod")
     private fun save() {
         // Defense in depth: gate on canSave (and isLoading) at entry so any
         // non-button invocation of OnSaveClick — accessibility activate,
@@ -331,9 +333,11 @@ class MeasurementFormViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val now = Clock.System.now().toEpochMilliseconds()
             val isCreate = id == null
-            val existingCreatedAt = if (isCreate) now else (
+            val existingCreatedAt = if (isCreate) {
+                now
+            } else {
                 _state.value.customFields.find { it.id == id }?.createdAt ?: now
-            )
+            }
             val field = CustomMeasurementField(
                 id = id ?: Uuid.random().toString(),
                 label = trimmed,
@@ -368,7 +372,7 @@ class MeasurementFormViewModel(
             } else {
                 _state.update {
                     it.copy(
-                        customFieldSheet = null,  // close confirm; error shown via snackbar
+                        customFieldSheet = null, // close confirm; error shown via snackbar
                         errorMessage = (result as Result.Error).error.toMeasurementUiText(),
                     )
                 }

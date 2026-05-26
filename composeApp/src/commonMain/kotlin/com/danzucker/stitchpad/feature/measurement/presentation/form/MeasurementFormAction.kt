@@ -21,7 +21,7 @@ sealed interface MeasurementFormAction {
     data class OnEditCustomFieldClick(val fieldId: String) : MeasurementFormAction
     data object OnCustomFieldSheetDismiss : MeasurementFormAction
     data class OnSaveCustomField(
-        val id: String?,            // null = create, non-null = update
+        val id: String?, // null = create, non-null = update
         val label: String,
         val genders: Set<CustomerGender>,
     ) : MeasurementFormAction
