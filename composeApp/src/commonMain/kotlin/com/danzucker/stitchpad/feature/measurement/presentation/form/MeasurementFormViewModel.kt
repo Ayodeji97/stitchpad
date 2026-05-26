@@ -189,7 +189,13 @@ class MeasurementFormViewModel(
                     val measurement = result.data.find { it.id == id }
                     if (measurement != null) {
                         val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
-                        val allKeys = sections.flatMap { it.fields }.map { it.key }
+                        val templateKeys = sections.flatMap { it.fields }.map { it.key }.toSet()
+                        val customKeys = _state.value.customFields.map { it.id }.toSet()
+                        val recordedKeys = measurement.fields.keys
+                        // Union: template + visible custom + anything actually
+                        // recorded on the doc (orphans included so save round-
+                        // trips them cleanly, even if no definition exists).
+                        val allKeys = templateKeys + customKeys + recordedKeys
                         val fieldsAsString = allKeys.associateWith { key ->
                             val v = measurement.fields[key]
                             if (v != null) {
@@ -207,7 +213,7 @@ class MeasurementFormViewModel(
                                 notes = measurement.notes ?: "",
                                 originalCreatedAt = measurement.createdAt,
                                 originalDateTaken = measurement.dateTaken,
-                                isLoading = false
+                                isLoading = false,
                             )
                         }
                     } else {

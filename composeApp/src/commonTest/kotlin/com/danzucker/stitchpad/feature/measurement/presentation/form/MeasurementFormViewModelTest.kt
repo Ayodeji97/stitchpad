@@ -617,6 +617,61 @@ class MeasurementFormViewModelTest {
         assertNull(vm.state.value.customFieldSheet)
     }
 
+    // --- PTSP-12: loadMeasurement key preservation ---
+
+    @Test
+    fun loadMeasurement_withCustomFieldValues_populatesAllKeys() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(id = "custom-1", label = "Cuff", genders = setOf(CustomerGender.FEMALE)),
+        ))
+        val measurement = Measurement(
+            id = "m1",
+            customerId = "customer-1",
+            gender = CustomerGender.FEMALE,
+            fields = mapOf(
+                "bust_circumference" to 92.0,
+                "custom-1" to 12.5,
+            ),
+            unit = MeasurementUnit.CM,
+            notes = null,
+            dateTaken = 0L,
+            createdAt = 0L,
+        )
+        measurementRepository.measurementsList = listOf(measurement)
+        val vm = createViewModel(measurementId = "m1")
+
+        assertEquals("12.5", vm.state.value.fields["custom-1"])
+        assertEquals("92", vm.state.value.fields["bust_circumference"])
+    }
+
+    @Test
+    fun loadMeasurement_withOrphanKeys_preservesValuesOnRoundtrip() = runTest {
+        // A measurement stored with a custom-field key whose definition the
+        // user has archived (or that was imported from another source). The
+        // form must NOT drop the value when saving.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // No matching definition in customFieldRepository — that's the point
+        val measurement = Measurement(
+            id = "m1",
+            customerId = "customer-1",
+            gender = CustomerGender.FEMALE,
+            fields = mapOf("orphan-key-99" to 7.0),
+            unit = MeasurementUnit.CM,
+            notes = null,
+            dateTaken = 0L,
+            createdAt = 0L,
+        )
+        measurementRepository.measurementsList = listOf(measurement)
+        val vm = createViewModel(measurementId = "m1")
+        // Save without modification
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        val updated = measurementRepository.lastUpdatedMeasurement
+        assertNotNull(updated)
+        assertEquals(7.0, updated.fields["orphan-key-99"])
+    }
+
     private fun customField(
         id: String,
         label: String,
