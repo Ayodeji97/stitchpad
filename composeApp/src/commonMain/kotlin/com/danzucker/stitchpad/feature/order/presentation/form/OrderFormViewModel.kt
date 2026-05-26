@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -380,25 +381,44 @@ class OrderFormViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
 
-            val orderItems = formItems.map { item ->
+            val orderItems = mutableListOf<OrderItem>()
+            for (item in formItems) {
                 val garmentType = item.garmentType!!
                 val price = item.price.toDoubleOrNull() ?: 0.0
 
                 val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
-                val styleResolution = resolveStylePhoto(uid, customer.id, actualOrderId, item)
 
-                OrderItem(
-                    id = item.id,
-                    garmentType = garmentType,
-                    description = item.description.trim(),
-                    price = price,
-                    styleId = styleResolution.styleId,
-                    measurementId = item.measurementId,
-                    fabricPhotoUrl = fabricUrl,
-                    fabricPhotoStoragePath = fabricPath,
-                    fabricName = item.fabricName.trim().ifBlank { null },
-                    stylePhotoUrl = styleResolution.photoUrl,
-                    stylePhotoStoragePath = styleResolution.photoStoragePath,
+                // Style upload/create failure must abort the save — otherwise the
+                // order persists without the uploaded image (silent data loss).
+                val styleResolution = when (
+                    val result = resolveStylePhoto(uid, customer.id, actualOrderId, item)
+                ) {
+                    is Result.Success -> result.data
+                    is Result.Error -> {
+                        _state.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = result.error.toOrderUiText(),
+                            )
+                        }
+                        return@launch
+                    }
+                }
+
+                orderItems.add(
+                    OrderItem(
+                        id = item.id,
+                        garmentType = garmentType,
+                        description = item.description.trim(),
+                        price = price,
+                        styleId = styleResolution.styleId,
+                        measurementId = item.measurementId,
+                        fabricPhotoUrl = fabricUrl,
+                        fabricPhotoStoragePath = fabricPath,
+                        fabricName = item.fabricName.trim().ifBlank { null },
+                        stylePhotoUrl = styleResolution.photoUrl,
+                        stylePhotoStoragePath = styleResolution.photoStoragePath,
+                    ),
                 )
             }
 
@@ -498,8 +518,11 @@ class OrderFormViewModel(
      *  - Bytes + saveStyleToGallery=false → upload to Firebase Storage; photoUrl/Path live
      *    on the OrderItem, styleId stays null.
      *
-     * On upload/create failure, the existing remote values (if any) are preserved — same
-     * resilient-fallback pattern as uploadFabricPhotoIfNeeded.
+     * On upload/create failure returns Result.Error so save() can abort. Silently
+     * falling back to prior values would persist the order without the uploaded
+     * style image, which is a user-visible data-loss bug (codex review caught this
+     * in the initial implementation). The fabric flow has the same pattern as
+     * pre-existing tech debt — flagged as a follow-up cleanup, out of scope here.
      */
     @Suppress("ReturnCount")
     private suspend fun resolveStylePhoto(
@@ -507,13 +530,15 @@ class OrderFormViewModel(
         customerId: String,
         orderId: String,
         item: OrderItemFormState,
-    ): StyleResolution {
+    ): Result<StyleResolution, DataError.Network> {
         val bytes = item.stylePhotoBytes
         if (bytes == null) {
-            return StyleResolution(
-                styleId = item.styleId,
-                photoUrl = item.stylePhotoUrl,
-                photoStoragePath = item.stylePhotoStoragePath,
+            return Result.Success(
+                StyleResolution(
+                    styleId = item.styleId,
+                    photoUrl = item.stylePhotoUrl,
+                    photoStoragePath = item.stylePhotoStoragePath,
+                ),
             )
         }
 
@@ -525,16 +550,14 @@ class OrderFormViewModel(
                 photoBytes = bytes,
             )
             return when (createResult) {
-                is Result.Success -> StyleResolution(
-                    styleId = createResult.data,
-                    photoUrl = null,
-                    photoStoragePath = null,
+                is Result.Success -> Result.Success(
+                    StyleResolution(
+                        styleId = createResult.data,
+                        photoUrl = null,
+                        photoStoragePath = null,
+                    ),
                 )
-                is Result.Error -> StyleResolution(
-                    styleId = item.styleId,
-                    photoUrl = item.stylePhotoUrl,
-                    photoStoragePath = item.stylePhotoStoragePath,
-                )
+                is Result.Error -> Result.Error(createResult.error)
             }
         }
 
@@ -545,16 +568,14 @@ class OrderFormViewModel(
             photoBytes = bytes,
         )
         return when (uploadResult) {
-            is Result.Success -> StyleResolution(
-                styleId = null,
-                photoUrl = uploadResult.data.first,
-                photoStoragePath = uploadResult.data.second,
+            is Result.Success -> Result.Success(
+                StyleResolution(
+                    styleId = null,
+                    photoUrl = uploadResult.data.first,
+                    photoStoragePath = uploadResult.data.second,
+                ),
             )
-            is Result.Error -> StyleResolution(
-                styleId = item.styleId,
-                photoUrl = item.stylePhotoUrl,
-                photoStoragePath = item.stylePhotoStoragePath,
-            )
+            is Result.Error -> Result.Error(uploadResult.error)
         }
     }
 }
