@@ -275,6 +275,26 @@ fun MeasurementFormScreen(
                                 onClick = { onAction(MeasurementFormAction.OnToggleShowMore) }
                             )
                         }
+
+                        if (pageIndex == state.sections.lastIndex) {
+                            // PTSP-12: Custom fields live at the bottom of the
+                            // last default section, scrolling with the page.
+                            // Renders on every gender (filter handled by VM).
+                            CustomFieldsSection(
+                                fields = state.customFields,
+                                fieldValues = state.fields,
+                                unitSuffix = unitSuffix,
+                                canUseCustomMeasurements = state.canUseCustomMeasurements,
+                                isInWelcomeWindow = false,  // wired in Task 12
+                                onFieldValueChange = { key, value ->
+                                    onAction(MeasurementFormAction.OnFieldChange(key, value))
+                                },
+                                onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
+                                onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
+                                onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
+                                onArchiveRequest = { id -> onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(id)) },
+                            )
+                        }
                     }
                 }
             } else {
@@ -291,20 +311,6 @@ fun MeasurementFormScreen(
                         onNext = { onAction(MeasurementFormAction.OnNextSection) }
                     )
                 }
-                CustomFieldsSection(
-                    fields = state.customFields,
-                    fieldValues = state.fields,
-                    unitSuffix = unitSuffix,
-                    canUseCustomMeasurements = state.canUseCustomMeasurements,
-                    isInWelcomeWindow = false, // wired in Task 12; harmless 'false' for now
-                    onFieldValueChange = { key, value ->
-                        onAction(MeasurementFormAction.OnFieldChange(key, value))
-                    },
-                    onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
-                    onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
-                    onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
-                    onArchiveRequest = { id -> onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(id)) },
-                )
                 NotesSection(
                     isExpanded = state.isNotesExpanded,
                     notes = state.notes,
