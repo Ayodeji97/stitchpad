@@ -123,6 +123,11 @@ class CustomerFormViewModel(
 
     @OptIn(ExperimentalUuidApi::class)
     private fun save() {
+        // Re-entrancy guard: SaveButton's enabled=!isLoading propagates through
+        // StateFlow→Compose only after one recomposition (~1 frame on low-end
+        // Android), so a fast double-tap could otherwise queue two coroutines,
+        // each minting a distinct UUID and writing a duplicate customer doc.
+        if (_state.value.isLoading) return
         val nameValid = validateName()
         val phoneValid = validatePhone()
         val emailValid = validateEmail()

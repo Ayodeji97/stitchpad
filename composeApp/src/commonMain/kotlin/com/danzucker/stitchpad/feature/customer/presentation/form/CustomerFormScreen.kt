@@ -287,7 +287,8 @@ fun CustomerFormScreen(
             if (!state.isEditMode) {
                 MeasurementsToggleRow(
                     checked = state.addMeasurementsNext,
-                    onToggle = { onAction(CustomerFormAction.OnToggleAddMeasurementsNext) }
+                    onToggle = { onAction(CustomerFormAction.OnToggleAddMeasurementsNext) },
+                    enabled = !state.isLoading,
                 )
             }
 
@@ -500,6 +501,7 @@ private fun MeasurementsToggleRow(
     checked: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -507,12 +509,13 @@ private fun MeasurementsToggleRow(
             .fillMaxWidth()
             .toggleable(
                 value = checked,
+                enabled = enabled,
                 onValueChange = { onToggle() },
                 role = Role.Checkbox,
             )
             .padding(vertical = DesignTokens.space2)
     ) {
-        Checkbox(checked = checked, onCheckedChange = null)
+        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
         Spacer(Modifier.width(DesignTokens.space2))
         Text(
             text = stringResource(Res.string.customer_form_add_measurements_next),

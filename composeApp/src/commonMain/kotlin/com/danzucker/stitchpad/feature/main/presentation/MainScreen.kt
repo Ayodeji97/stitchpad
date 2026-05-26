@@ -203,11 +203,18 @@ private fun MainNavGraph(
                 onNavigateToCustomerWithMeasurement = { newId ->
                     // Chain: pop the form, push customer detail, then push the
                     // measurement form. Back from the measurement form lands
-                    // on detail; back from detail lands on the list.
+                    // on detail; back from detail returns to whatever launched
+                    // CustomerForm (typically list or dashboard).
+                    // launchSingleTop on both pushes guards against duplicate
+                    // entries if the event is ever replayed (config change /
+                    // re-collect of the events flow).
                     navController.navigate(CustomerDetailRoute(customerId = newId)) {
                         popUpTo<CustomerFormRoute> { inclusive = true }
+                        launchSingleTop = true
                     }
-                    navController.navigate(MeasurementFormRoute(customerId = newId))
+                    navController.navigate(MeasurementFormRoute(customerId = newId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
