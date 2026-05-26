@@ -373,7 +373,7 @@ fun WorkshopSetupScreen(
                 // 6. Continue button
                 Button(
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading && state.businessName.isNotBlank(),
+                    enabled = !state.isLoading && !state.isAwaitingLogo && state.businessName.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),

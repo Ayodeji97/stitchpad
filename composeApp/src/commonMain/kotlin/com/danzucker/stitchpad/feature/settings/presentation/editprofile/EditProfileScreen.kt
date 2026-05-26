@@ -210,6 +210,7 @@ fun EditProfileScreen(
 
             BrandLogoSection(
                 logo = state.logo,
+                hasExistingLogo = state.originalLogoStoragePath != null,
                 fallbackInitials = state.businessName,
                 onChangeClick = onLaunchLogoPicker,
                 onRemoveClick = { onAction(EditProfileAction.OnLogoRemoveClick) },
@@ -414,6 +415,7 @@ private fun EmailReadonlyField(email: String) {
 @Composable
 private fun BrandLogoSection(
     logo: LogoUploadState,
+    hasExistingLogo: Boolean,
     fallbackInitials: String,
     onChangeClick: () -> Unit,
     onRemoveClick: () -> Unit,
@@ -436,7 +438,13 @@ private fun BrandLogoSection(
                 TextButton(onClick = onChangeClick) {
                     Text(stringResource(Res.string.edit_profile_logo_change))
                 }
-                if (logo is LogoUploadState.Uploaded) {
+                // Show Remove whenever a logo currently exists on Firestore — either
+                // because the current upload state is Uploaded, OR because there was
+                // an originally-loaded logo that's still active (e.g. the user tapped
+                // Change, the upload failed -> state.logo = Failed, but Firestore
+                // still points at the pre-existing logo). Hiding Remove in that
+                // failure window would strand the user with a broken state.
+                if (logo is LogoUploadState.Uploaded || hasExistingLogo) {
                     TextButton(onClick = onRemoveClick) {
                         Text(
                             text = stringResource(Res.string.edit_profile_logo_remove),

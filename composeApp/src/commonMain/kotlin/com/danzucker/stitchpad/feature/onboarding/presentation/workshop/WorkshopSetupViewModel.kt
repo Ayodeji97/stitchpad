@@ -144,6 +144,11 @@ class WorkshopSetupViewModel(
     @Suppress("LongMethod")
     private fun onContinue() {
         if (!validateBusinessName() || !validateWhatsAppNumber()) return
+        // Guard against re-entry from rapid taps. The Screen's button predicate
+        // also disables visually on isLoading/isAwaitingLogo, but a slow
+        // recomposition window could let multiple taps queue actions; this is
+        // the canonical re-entry guard at the VM layer.
+        if (_state.value.isLoading || _state.value.isAwaitingLogo) return
 
         viewModelScope.launch {
             // If a logo upload is still in flight, await it so we can persist the URL.
