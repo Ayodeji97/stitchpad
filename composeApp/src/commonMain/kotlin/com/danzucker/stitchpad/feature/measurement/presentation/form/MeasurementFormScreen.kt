@@ -378,7 +378,12 @@ private fun SectionProgressRow(
             sections.forEachIndexed { index, section ->
                 val color = when {
                     index == currentIndex -> MaterialTheme.colorScheme.primary
-                    section.fields.any { f -> fields[f.key]?.isNotBlank() == true } -> MaterialTheme.colorScheme.primary
+                    // Use the same parsable-positive predicate as MeasurementFormState.canSave
+                    // so a dot only lights up for values that will actually persist; otherwise
+                    // typing "0" or "." paints the dot but Save stays disabled (visual contradiction).
+                    section.fields.any { f ->
+                        (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
+                    } -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.outlineVariant
                 }
                 Box(
