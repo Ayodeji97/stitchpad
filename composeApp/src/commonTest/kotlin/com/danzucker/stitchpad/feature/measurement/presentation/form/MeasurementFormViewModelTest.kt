@@ -54,7 +54,7 @@ class MeasurementFormViewModelTest {
         preferencesStore = FakeMeasurementPreferencesStore()
         orderRepository = FakeOrderRepository()
         customFieldRepository = FakeCustomMeasurementFieldRepository()
-        fakeEntitlements = FakeEntitlementsProvider(canUseCustomMeasurements = true)
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = true)
     }
 
     @AfterTest
@@ -84,9 +84,9 @@ class MeasurementFormViewModelTest {
     }
 
     private class FakeEntitlementsProvider(
-        private val canUseCustomMeasurements: Boolean,
+        initialCanUseCustomMeasurements: Boolean,
     ) : EntitlementsProvider {
-        private val ents = UserEntitlements(
+        private fun build(can: Boolean) = UserEntitlements(
             tier = SubscriptionTier.FREE,
             customerCap = 15,
             smartCoinAllowance = 5,
@@ -94,12 +94,16 @@ class MeasurementFormViewModelTest {
             welcomeEndsAt = null,
             isWithinWelcomeEndingWarning = false,
             welcomeDaysLeft = null,
-            canUseCustomMeasurements = canUseCustomMeasurements,
+            canUseCustomMeasurements = can,
         )
-        private val _flow = MutableStateFlow(ents)
+        private val _flow = MutableStateFlow(build(initialCanUseCustomMeasurements))
         override val flow: StateFlow<UserEntitlements> = _flow
-        override fun current(): UserEntitlements = ents
-        override suspend fun awaitHydrated(): UserEntitlements = ents
+        override fun current(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
+
+        fun setEntitled(can: Boolean) {
+            _flow.value = build(can)
+        }
     }
 
     private fun fakeMeasurement(
@@ -468,7 +472,7 @@ class MeasurementFormViewModelTest {
     @Test
     fun onAddCustomFieldClick_whenNotEntitled_emitsNavigateToUpgrade() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        fakeEntitlements = FakeEntitlementsProvider(canUseCustomMeasurements = false)
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         assertNull(vm.state.value.customFieldSheet)
@@ -513,6 +517,103 @@ class MeasurementFormViewModelTest {
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
         vm.onAction(MeasurementFormAction.OnCustomFieldSheetDismiss)
+        assertNull(vm.state.value.customFieldSheet)
+    }
+
+    // --- PTSP-12: save/update/archive ---
+
+    @Test
+    fun saveCustomField_create_callsRepoCreate_withNewUuid_andClosesSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = null,
+            label = "Sleeve cuff width",
+            genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+        ))
+        val created = customFieldRepository.lastCreatedField
+        assertNotNull(created)
+        assertTrue(created.id.isNotBlank())
+        assertEquals("Sleeve cuff width", created.label)
+        assertEquals(setOf(CustomerGender.FEMALE, CustomerGender.MALE), created.genders)
+        assertFalse(created.isArchived)
+        assertNull(vm.state.value.customFieldSheet)
+    }
+
+    @Test
+    fun saveCustomField_edit_callsRepoUpdate_preservesId_andClosesSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val existing = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
+        customFieldRepository.seedFields(listOf(existing))
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnEditCustomFieldClick("f1"))
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = "f1",
+            label = "Sleeve cuff",
+            genders = setOf(CustomerGender.FEMALE),
+        ))
+        val updated = customFieldRepository.lastUpdatedField
+        assertNotNull(updated)
+        assertEquals("f1", updated.id)
+        assertEquals("Sleeve cuff", updated.label)
+        assertNull(customFieldRepository.lastCreatedField)
+        assertNull(vm.state.value.customFieldSheet)
+    }
+
+    @Test
+    fun saveCustomField_blankLabel_doesNotCallRepo_andKeepsSheetOpen() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = null,
+            label = "   ",
+            genders = setOf(CustomerGender.FEMALE),
+        ))
+        assertNull(customFieldRepository.lastCreatedField)
+        assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
+    }
+
+    @Test
+    fun saveCustomField_emptyGenders_doesNotCallRepo_andKeepsSheetOpen() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = null,
+            label = "X",
+            genders = emptySet(),
+        ))
+        assertNull(customFieldRepository.lastCreatedField)
+        assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
+    }
+
+    @Test
+    fun saveCustomField_whenEntitlementLost_emitsUpgrade_andDoesNotCallRepo() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        // VM was created while entitled; entitlement lost (e.g., welcome ended)
+        fakeEntitlements.setEntitled(false)
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = null,
+            label = "X",
+            genders = setOf(CustomerGender.FEMALE),
+        ))
+        assertNull(customFieldRepository.lastCreatedField)
+        assertIs<MeasurementFormEvent.NavigateToUpgrade>(vm.events.first())
+    }
+
+    @Test
+    fun onArchiveCustomFieldConfirm_callsRepoArchive_andClosesSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
+        customFieldRepository.seedFields(listOf(f))
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnArchiveCustomFieldRequest("f1"))
+        assertIs<CustomFieldSheet.ConfirmArchive>(vm.state.value.customFieldSheet)
+        vm.onAction(MeasurementFormAction.OnArchiveCustomFieldConfirm("f1"))
+        assertEquals("f1", customFieldRepository.lastArchivedFieldId)
         assertNull(vm.state.value.customFieldSheet)
     }
 

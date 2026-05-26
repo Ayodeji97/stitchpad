@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -307,12 +308,63 @@ class MeasurementFormViewModel(
 
     @OptIn(ExperimentalUuidApi::class)
     private fun saveCustomField(id: String?, label: String, genders: Set<CustomerGender>) {
-        // Real impl in Task 9
-        _state.update { it.copy(customFieldSheet = null) }
+        // Defense in depth: VM-side entitlement re-check (welcome window could
+        // have elapsed since the form opened; the UI check is the first gate).
+        if (!entitlements.current().canUseCustomMeasurements) {
+            viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+            return
+        }
+        // Trim + validate. Empty label or empty gender set keeps the sheet open
+        // so the user can correct without losing what they typed.
+        val trimmed = label.trim()
+        if (trimmed.isEmpty() || genders.isEmpty()) return
+
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val now = Clock.System.now().toEpochMilliseconds()
+            val isCreate = id == null
+            val existingCreatedAt = if (isCreate) now else (
+                _state.value.customFields.find { it.id == id }?.createdAt ?: now
+            )
+            val field = CustomMeasurementField(
+                id = id ?: Uuid.random().toString(),
+                label = trimmed,
+                genders = genders,
+                isArchived = false,
+                createdAt = existingCreatedAt,
+                updatedAt = now,
+            )
+            val result = if (isCreate) {
+                customFieldRepository.createField(userId, field)
+            } else {
+                customFieldRepository.updateField(userId, field)
+            }
+            if (result is Result.Success) {
+                _state.update { it.copy(customFieldSheet = null) }
+            } else {
+                // Surface via the shared snackbar. Leave the sheet OPEN so the
+                // user can retry without re-typing.
+                _state.update {
+                    it.copy(errorMessage = (result as Result.Error).error.toMeasurementUiText())
+                }
+            }
+        }
     }
 
     private fun archiveCustomField(fieldId: String) {
-        // Real impl in Task 9
-        _state.update { it.copy(customFieldSheet = null) }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val result = customFieldRepository.archiveField(userId, fieldId)
+            if (result is Result.Success) {
+                _state.update { it.copy(customFieldSheet = null) }
+            } else {
+                _state.update {
+                    it.copy(
+                        customFieldSheet = null,  // close confirm; error shown via snackbar
+                        errorMessage = (result as Result.Error).error.toMeasurementUiText(),
+                    )
+                }
+            }
+        }
     }
 }
