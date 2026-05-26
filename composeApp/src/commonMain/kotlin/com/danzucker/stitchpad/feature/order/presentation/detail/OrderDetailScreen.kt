@@ -736,7 +736,19 @@ private fun OrderDetailContent(
     ) {
         item {
             OrderHeroCard(
-                stylePhotoUrl = state.style?.photoUrl ?: state.order?.items?.firstOrNull()?.stylePhotoUrl,
+                // Style image priority for the hero:
+                //  1. Gallery style image (state.style?.photoUrl, looked up via styleId)
+                //  2. One-off style image stored on the item (toggle-OFF uploads from PTSP-9)
+                // Gate the fallback on `styleId == null` so once a style is linked to the
+                // order (e.g. via the existing OrderDetail "link gallery style" flow), the
+                // hero shows the gallery style — not a stale one-off image that wasn't
+                // cleared when the link happened. (codex review caught this; the link
+                // flow currently doesn't clear stylePhotoUrl, so the gate here defends
+                // against the stale-image surface.)
+                stylePhotoUrl = state.style?.photoUrl
+                    ?: state.order?.items?.firstOrNull()
+                        ?.takeIf { it.styleId == null }
+                        ?.stylePhotoUrl,
                 garmentTypeIcon = Icons.Default.Checkroom,
                 garmentName = garmentName,
                 customerName = order.customerName,
