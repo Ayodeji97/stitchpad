@@ -171,6 +171,38 @@ class OrderMapperTest {
     }
 
     @Test
+    fun orderItem_roundTrips_stylePhotoUrlAndPath_throughDto() {
+        val item = OrderItem(
+            id = "item-1",
+            garmentType = GarmentType.SHIRT,
+            description = "Test",
+            price = 100.0,
+            stylePhotoUrl = "https://example.com/style.jpg",
+            stylePhotoStoragePath = "users/u1/orders/o1/styles/item-1.jpg",
+        )
+
+        val roundTripped = item.toOrderItemDto().toOrderItem()
+
+        assertEquals("https://example.com/style.jpg", roundTripped.stylePhotoUrl)
+        assertEquals("users/u1/orders/o1/styles/item-1.jpg", roundTripped.stylePhotoStoragePath)
+    }
+
+    @Test
+    fun orderItem_roundTrips_nullStylePhotoFields_throughDto() {
+        val item = OrderItem(
+            id = "item-1",
+            garmentType = GarmentType.SHIRT,
+            description = "Test",
+            price = 100.0,
+        )
+
+        val roundTripped = item.toOrderItemDto().toOrderItem()
+
+        assertNull(roundTripped.stylePhotoUrl)
+        assertNull(roundTripped.stylePhotoStoragePath)
+    }
+
+    @Test
     fun recordPaymentWritePath_legacyDepositIsPreserved() {
         // Regression for data-loss bug: a legacy doc has depositPaid=10k and
         // payments=[]. When recordPayment writes a new ₦5k progress payment,

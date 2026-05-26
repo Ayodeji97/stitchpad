@@ -26,6 +26,14 @@ sealed interface OrderFormAction {
     data class OnItemFabricPhotoRemoved(val itemId: String) : OrderFormAction
     data class OnItemFabricNameChange(val itemId: String, val fabricName: String) : OrderFormAction
 
+    // PTSP-9 style image actions
+    data class OnItemStylePhotoPicked(val itemId: String, val photoBytes: ByteArray) : OrderFormAction
+    data class OnItemStylePhotoRemoved(val itemId: String) : OrderFormAction
+    data class OnItemStyleDescriptionChange(val itemId: String, val description: String) : OrderFormAction
+    data class OnItemSaveStyleToGalleryToggle(val itemId: String, val value: Boolean) : OrderFormAction
+    data object OnDismissStylePickerSheet : OrderFormAction
+    data class OnOpenStylePickerSheet(val itemId: String) : OrderFormAction
+
     // Step 3 - Details
     data class OnDeadlineChange(val deadline: Long?) : OrderFormAction
     data class OnPriorityChange(val priority: OrderPriority) : OrderFormAction

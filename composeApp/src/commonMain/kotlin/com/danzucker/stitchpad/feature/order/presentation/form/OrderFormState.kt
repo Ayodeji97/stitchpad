@@ -20,6 +20,8 @@ data class OrderFormState(
     val items: List<OrderItemFormState> = listOf(OrderItemFormState()),
     val availableStyles: List<Style> = emptyList(),
     val availableMeasurements: List<Measurement> = emptyList(),
+    /** Item id whose Style picker sheet is currently visible. Null = no sheet. */
+    val stylePickerSheetForItemId: String? = null,
     // Step 3 - Details
     val deadline: Long? = null,
     val priority: OrderPriority = OrderPriority.NORMAL,
@@ -44,4 +46,11 @@ constructor(
     val fabricPhotoUrl: String? = null,
     val fabricPhotoStoragePath: String? = null,
     val fabricName: String = "",
+    // PTSP-9 style image
+    val stylePhotoBytes: ByteArray? = null,
+    val stylePhotoUrl: String? = null,
+    val stylePhotoStoragePath: String? = null,
+    val styleDescription: String = "",
+    /** When true (default), save() creates a new Style entity. When false, the image lives on the OrderItem only. */
+    val saveStyleToGallery: Boolean = true,
 )

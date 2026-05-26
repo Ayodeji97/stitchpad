@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +44,7 @@ import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -63,6 +69,7 @@ fun OrderGarmentDetailsCard(
     onAddFabricNameClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var fullScreenImage: String? by remember { mutableStateOf<String?>(null) }
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
@@ -92,10 +99,16 @@ fun OrderGarmentDetailsCard(
                     onAddFabricNameClick = if (showCta) onAddFabricNameClick else null,
                     priority = if (index == 0) priority else OrderPriority.NORMAL,
                     showHeader = index == 0,
+                    onFabricPhotoClick = { url -> fullScreenImage = url },
                 )
             }
         }
     }
+    FullScreenImageViewer(
+        model = fullScreenImage,
+        contentDescription = null,
+        onDismiss = { fullScreenImage = null },
+    )
 }
 
 @Composable
@@ -105,6 +118,7 @@ private fun GarmentItemRow(
     onAddFabricNameClick: (() -> Unit)?,
     priority: OrderPriority,
     showHeader: Boolean,
+    onFabricPhotoClick: (String) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -201,7 +215,10 @@ private fun GarmentItemRow(
 
         // Right column: fabric photo with caption pill, or placeholder.
         if (!item.fabricPhotoUrl.isNullOrBlank()) {
-            FabricThumbnail(photoUrl = item.fabricPhotoUrl)
+            FabricThumbnail(
+                photoUrl = item.fabricPhotoUrl,
+                onClick = { onFabricPhotoClick(item.fabricPhotoUrl) },
+            )
         } else {
             FabricPlaceholder()
         }
@@ -209,7 +226,10 @@ private fun GarmentItemRow(
 }
 
 @Composable
-private fun FabricThumbnail(photoUrl: String) {
+private fun FabricThumbnail(
+    photoUrl: String,
+    onClick: () -> Unit,
+) {
     val caption = stringResource(Res.string.order_detail_fabric_caption)
     Box(
         modifier = Modifier
@@ -217,7 +237,8 @@ private fun FabricThumbnail(photoUrl: String) {
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
-            ),
+            )
+            .clickable(onClick = onClick),
     ) {
         SubcomposeAsyncImage(
             model = photoUrl,

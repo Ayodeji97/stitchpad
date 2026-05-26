@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,13 +48,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -86,8 +90,10 @@ import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
+import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
+import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -121,7 +127,6 @@ import stitchpad.composeapp.generated.resources.order_form_item_number
 import stitchpad.composeapp.generated.resources.order_form_measurement_label
 import stitchpad.composeapp.generated.resources.order_form_next
 import stitchpad.composeapp.generated.resources.order_form_no_measurement
-import stitchpad.composeapp.generated.resources.order_form_no_style
 import stitchpad.composeapp.generated.resources.order_form_notes_label
 import stitchpad.composeapp.generated.resources.order_form_notes_placeholder
 import stitchpad.composeapp.generated.resources.order_form_photo_cancel
@@ -141,7 +146,15 @@ import stitchpad.composeapp.generated.resources.order_form_step_customer
 import stitchpad.composeapp.generated.resources.order_form_step_details
 import stitchpad.composeapp.generated.resources.order_form_step_indicator
 import stitchpad.composeapp.generated.resources.order_form_step_items
-import stitchpad.composeapp.generated.resources.order_form_style_label
+import stitchpad.composeapp.generated.resources.order_form_style_change
+import stitchpad.composeapp.generated.resources.order_form_style_description_label
+import stitchpad.composeapp.generated.resources.order_form_style_description_placeholder
+import stitchpad.composeapp.generated.resources.order_form_style_from_gallery_caption
+import stitchpad.composeapp.generated.resources.order_form_style_pick_from_gallery
+import stitchpad.composeapp.generated.resources.order_form_style_remove
+import stitchpad.composeapp.generated.resources.order_form_style_save_to_gallery
+import stitchpad.composeapp.generated.resources.order_form_style_section_title
+import stitchpad.composeapp.generated.resources.order_form_style_upload_new
 import stitchpad.composeapp.generated.resources.order_form_title_add
 import stitchpad.composeapp.generated.resources.order_form_title_edit
 import stitchpad.composeapp.generated.resources.order_priority_normal
@@ -179,6 +192,7 @@ fun OrderFormRoot(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun OrderFormScreen(
     state: OrderFormState,
@@ -265,6 +279,17 @@ fun OrderFormScreen(
                     2 -> ItemsStep(state = state, onAction = onAction)
                     3 -> DetailsStep(state = state, onAction = onAction)
                 }
+            }
+
+            state.stylePickerSheetForItemId?.let { itemId ->
+                StylePickerSheet(
+                    styles = state.availableStyles,
+                    onSelect = { style ->
+                        onAction(OrderFormAction.OnItemStyleChange(itemId, style.id))
+                        onAction(OrderFormAction.OnDismissStylePickerSheet)
+                    },
+                    onDismiss = { onAction(OrderFormAction.OnDismissStylePickerSheet) },
+                )
             }
 
             // Bottom navigation buttons
@@ -528,7 +553,7 @@ private fun ItemsStep(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("CyclomaticComplexMethod")
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 private fun OrderItemCard(
     item: OrderItemFormState,
@@ -538,6 +563,7 @@ private fun OrderItemCard(
     availableMeasurements: List<com.danzucker.stitchpad.core.domain.model.Measurement>,
     onAction: (OrderFormAction) -> Unit
 ) {
+    var fullScreenImage: Any? by remember { mutableStateOf<Any?>(null) }
     Card(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -679,55 +705,16 @@ private fun OrderItemCard(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Style picker (optional)
-            if (availableStyles.isNotEmpty()) {
-                Spacer(Modifier.height(DesignTokens.space2))
-                var styleExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = styleExpanded,
-                    onExpandedChange = { styleExpanded = it }
-                ) {
-                    val selectedStyle = availableStyles.find { it.id == item.styleId }
-                    OutlinedTextField(
-                        value = selectedStyle?.description ?: stringResource(Res.string.order_form_no_style),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(Res.string.order_form_style_label)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = styleExpanded) },
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = styleExpanded,
-                        onDismissRequest = { styleExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.order_form_no_style)) },
-                            onClick = {
-                                onAction(OrderFormAction.OnItemStyleChange(item.id, null))
-                                styleExpanded = false
-                            }
-                        )
-                        availableStyles.forEach { style ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = style.description,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                onClick = {
-                                    onAction(OrderFormAction.OnItemStyleChange(item.id, style.id))
-                                    styleExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+            // PTSP-9 Style section — replaces the prior dropdown with a unified
+            // pick-or-upload UI. Always rendered; the "Pick from gallery" button
+            // is disabled when the customer has no gallery styles.
+            Spacer(Modifier.height(DesignTokens.space3))
+            StyleSection(
+                item = item,
+                availableStyles = availableStyles,
+                onAction = onAction,
+                onPreview = { fullScreenImage = it },
+            )
 
             // Measurement picker (optional)
             if (availableMeasurements.isNotEmpty()) {
@@ -810,6 +797,9 @@ private fun OrderItemCard(
                         .height(120.dp)
                         .clip(RoundedCornerShape(DesignTokens.radiusMd))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable {
+                            fullScreenImage = item.fabricPhotoBytes ?: item.fabricPhotoUrl
+                        }
                 ) {
                     if (item.fabricPhotoBytes != null) {
                         AsyncImage(
@@ -861,6 +851,11 @@ private fun OrderItemCard(
             }
         }
     }
+    FullScreenImageViewer(
+        model = fullScreenImage,
+        contentDescription = null,
+        onDismiss = { fullScreenImage = null },
+    )
 }
 
 private enum class PhotoSource { Camera, Gallery }
@@ -1217,6 +1212,326 @@ private fun garmentGenderLabel(gender: GarmentGender): String = when (gender) {
     GarmentGender.MALE -> stringResource(Res.string.garment_gender_male)
     GarmentGender.FEMALE -> stringResource(Res.string.garment_gender_female)
     GarmentGender.UNISEX -> stringResource(Res.string.garment_gender_unisex)
+}
+
+// ── PTSP-9 Style section composables ────────────────────────────────────
+
+@Suppress("LongMethod")
+@Composable
+private fun StyleSection(
+    item: OrderItemFormState,
+    availableStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
+    onAction: (OrderFormAction) -> Unit,
+    onPreview: (Any?) -> Unit,
+) {
+    Text(
+        text = stringResource(Res.string.order_form_style_section_title),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(DesignTokens.space2))
+
+    val pickedStyle = availableStyles.find { it.id == item.styleId }
+    val hasUploadBytes = item.stylePhotoBytes != null
+    val hasUploadUrl = item.stylePhotoUrl != null && item.styleId == null
+
+    when {
+        // State C — new image uploaded inline (bytes still in memory)
+        hasUploadBytes -> {
+            StyleSectionUploaded(
+                item = item,
+                isEditable = true,
+                onAction = onAction,
+                onPreview = onPreview,
+            )
+        }
+        // State C-readonly — order being edited, image was previously uploaded one-off
+        hasUploadUrl -> {
+            StyleSectionUploaded(
+                item = item,
+                isEditable = false,
+                onAction = onAction,
+                onPreview = onPreview,
+            )
+        }
+        // State B — existing gallery style picked
+        pickedStyle != null -> {
+            StyleSectionExisting(
+                style = pickedStyle,
+                onChange = { onAction(OrderFormAction.OnOpenStylePickerSheet(item.id)) },
+                onRemove = { onAction(OrderFormAction.OnItemStyleChange(item.id, null)) },
+                onPreview = onPreview,
+            )
+        }
+        // State A — empty
+        else -> {
+            StyleSectionEmpty(
+                itemId = item.id,
+                hasGalleryStyles = availableStyles.isNotEmpty(),
+                onAction = onAction,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StyleSectionEmpty(
+    itemId: String,
+    hasGalleryStyles: Boolean,
+    onAction: (OrderFormAction) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        OutlinedButton(
+            onClick = { onAction(OrderFormAction.OnOpenStylePickerSheet(itemId)) },
+            enabled = hasGalleryStyles,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(stringResource(Res.string.order_form_style_pick_from_gallery))
+        }
+        StyleUploadButton(
+            itemId = itemId,
+            onAction = onAction,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun StyleSectionExisting(
+    style: com.danzucker.stitchpad.core.domain.model.Style,
+    onChange: () -> Unit,
+    onRemove: () -> Unit,
+    onPreview: (Any?) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(DesignTokens.space3)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                        .clickable { onPreview(style.photoUrl) },
+                ) {
+                    SubcomposeAsyncImage(
+                        model = style.photoUrl,
+                        contentDescription = null,
+                        loading = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                LoadingDots(dotSize = 5.dp)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = style.description.ifBlank { "—" },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = stringResource(Res.string.order_form_style_from_gallery_caption),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(DesignTokens.space2))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                TextButton(onClick = onChange) {
+                    Text(stringResource(Res.string.order_form_style_change))
+                }
+                TextButton(onClick = onRemove) {
+                    Text(stringResource(Res.string.order_form_style_remove))
+                }
+            }
+        }
+    }
+}
+
+@Suppress("LongMethod")
+@Composable
+private fun StyleSectionUploaded(
+    item: OrderItemFormState,
+    isEditable: Boolean,
+    onAction: (OrderFormAction) -> Unit,
+    onPreview: (Any?) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(DesignTokens.space3)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable {
+                        onPreview(item.stylePhotoBytes ?: item.stylePhotoUrl)
+                    },
+            ) {
+                val imageModel: Any? = item.stylePhotoBytes ?: item.stylePhotoUrl
+                if (imageModel != null) {
+                    SubcomposeAsyncImage(
+                        model = imageModel,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        loading = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                LoadingDots()
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+
+            if (isEditable) {
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = item.styleDescription,
+                    onValueChange = {
+                        onAction(OrderFormAction.OnItemStyleDescriptionChange(item.id, it))
+                    },
+                    label = { Text(stringResource(Res.string.order_form_style_description_label)) },
+                    placeholder = { Text(stringResource(Res.string.order_form_style_description_placeholder)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                ) {
+                    Switch(
+                        checked = item.saveStyleToGallery,
+                        onCheckedChange = {
+                            onAction(OrderFormAction.OnItemSaveStyleToGalleryToggle(item.id, it))
+                        },
+                    )
+                    Text(
+                        text = stringResource(Res.string.order_form_style_save_to_gallery),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                Spacer(Modifier.height(DesignTokens.space2))
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                StyleUploadButton(
+                    itemId = item.id,
+                    onAction = onAction,
+                    label = stringResource(Res.string.order_form_style_change),
+                )
+                TextButton(onClick = { onAction(OrderFormAction.OnItemStylePhotoRemoved(item.id)) }) {
+                    Text(stringResource(Res.string.order_form_style_remove))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StyleUploadButton(
+    itemId: String,
+    onAction: (OrderFormAction) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+) {
+    val pickerScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    var showSheet by remember { mutableStateOf(false) }
+    var pendingSource by remember { mutableStateOf<PhotoSource?>(null) }
+
+    val galleryPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let {
+                onAction(OrderFormAction.OnItemStylePhotoPicked(itemId, it))
+            }
+        }
+    )
+    val cameraLauncher = rememberImageCaptureLauncher { bytes ->
+        if (bytes != null) {
+            onAction(OrderFormAction.OnItemStylePhotoPicked(itemId, bytes))
+        }
+    }
+
+    LaunchedEffect(showSheet, pendingSource) {
+        if (!showSheet && pendingSource != null) {
+            when (pendingSource) {
+                PhotoSource.Camera -> cameraLauncher.launch()
+                PhotoSource.Gallery -> galleryPicker.launch()
+                null -> Unit
+            }
+            pendingSource = null
+        }
+    }
+
+    OutlinedButton(
+        onClick = {
+            focusManager.clearFocus()
+            showSheet = true
+        },
+        modifier = modifier,
+    ) {
+        Text(label ?: stringResource(Res.string.order_form_style_upload_new))
+    }
+
+    if (showSheet) {
+        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_photo_take)) },
+                    leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        pendingSource = PhotoSource.Camera
+                        showSheet = false
+                    },
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_photo_pick)) },
+                    leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        pendingSource = PhotoSource.Gallery
+                        showSheet = false
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Suppress("UnusedPrivateMember")

@@ -166,4 +166,16 @@ class FakeOrderRepository : OrderRepository {
             "https://fake.storage/$orderId/$itemId.jpg" to "orders/$orderId/items/$itemId.jpg"
         )
     }
+
+    override suspend fun uploadStylePhoto(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytes: ByteArray
+    ): Result<Pair<String, String>, DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success(
+            "https://fake.example/styles/$orderId/$itemId.jpg" to "users/$userId/orders/$orderId/styles/$itemId.jpg"
+        )
+    }
 }

@@ -472,7 +472,6 @@
     <string name="order_form_description_label">Description (optional)</string>
     <string name="order_form_description_placeholder">e.g. Blue senator with gold buttons</string>
     <string name="order_form_price_label">Price (₦)</string>
-    <string name="order_form_style_label">Style reference (optional)</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
     <string name="order_form_remove_item">Remove item</string>
@@ -488,7 +487,6 @@
     <string name="order_form_next">Next</string>
     <string name="order_form_previous">Previous</string>
     <string name="order_form_step_indicator">Step %1$d of %2$d</string>
-    <string name="order_form_no_style">None</string>
     <string name="order_form_no_measurement">None</string>
     <string name="order_form_fabric_name_label">Fabric name (optional)</string>
     <string name="order_form_fabric_name_placeholder">e.g. Royal Lace, Ankara</string>
@@ -498,6 +496,19 @@
     <string name="order_form_photo_pick">Pick from gallery</string>
     <string name="order_form_photo_cancel">Cancel</string>
     <string name="order_form_photo_sheet_title">Add fabric photo</string>
+
+    <!-- Order form style section (PTSP-9) -->
+    <string name="order_form_style_section_title">STYLE</string>
+    <string name="order_form_style_pick_from_gallery">Pick from gallery</string>
+    <string name="order_form_style_upload_new">Upload new</string>
+    <string name="order_form_style_description_label">Style description</string>
+    <string name="order_form_style_description_placeholder">e.g. Ankara wedding suit</string>
+    <string name="order_form_style_save_to_gallery">Save to style gallery</string>
+    <string name="order_form_style_from_gallery_caption">From your style gallery</string>
+    <string name="order_form_style_change">Change</string>
+    <string name="order_form_style_remove">Remove</string>
+    <string name="order_form_style_picker_title">Pick a style</string>
+    <string name="order_form_style_picker_empty">No saved styles yet</string>
 
     <!-- Order form validation -->
     <string name="order_form_error_no_customer">Please select a customer</string>
@@ -581,6 +592,7 @@
     <!-- Dashboard header buttons -->
     <string name="cd_notifications">Notifications</string>
     <string name="cd_open_settings">Open settings</string>
+    <string name="cd_close_image_viewer">Close image viewer</string>
 
     <!-- Dashboard -->
     <string name="dashboard_greeting_morning">Good morning, %1$s</string>
