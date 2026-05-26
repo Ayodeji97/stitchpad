@@ -199,8 +199,14 @@ class MeasurementFormViewModel(
                     val measurement = result.data.find { it.id == id }
                     if (measurement != null) {
                         val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
+                        // Re-filter custom fields against the measurement's gender. In
+                        // edit mode the observer may have emitted before gender was
+                        // known (the filter treats null as wildcard); without this
+                        // re-filter, opposite-gender fields can leak into the UI and
+                        // be persisted on save.
+                        val visibleCustom = filterFieldsForCurrentGender(allCustomFields, measurement.gender)
                         val templateKeys = sections.flatMap { it.fields }.map { it.key }.toSet()
-                        val customKeys = _state.value.customFields.map { it.id }.toSet()
+                        val customKeys = visibleCustom.map { it.id }.toSet()
                         val recordedKeys = measurement.fields.keys
                         // Union: template + visible custom + anything actually
                         // recorded on the doc (orphans included so save round-
@@ -219,6 +225,7 @@ class MeasurementFormViewModel(
                                 gender = measurement.gender,
                                 sections = sections,
                                 fields = fieldsAsString,
+                                customFields = visibleCustom,
                                 unit = measurement.unit,
                                 notes = measurement.notes ?: "",
                                 originalCreatedAt = measurement.createdAt,

@@ -688,6 +688,34 @@ class MeasurementFormViewModelTest {
         assertEquals(7.0, updated.fields["orphan-key-99"])
     }
 
+    @Test
+    fun loadMeasurement_filtersCustomFieldsByMeasurementGender_notObserverDefault() = runTest {
+        // Edit-mode race: gender starts null when the observer first emits, so the
+        // wildcard filter would pass ALL fields. loadMeasurement must re-filter
+        // against the measurement's actual gender so opposite-gender custom fields
+        // don't leak into the form and onto save.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(id = "custom-female", label = "Bra cup", genders = setOf(CustomerGender.FEMALE)),
+            customField(id = "custom-male", label = "Lapel", genders = setOf(CustomerGender.MALE)),
+        ))
+        val measurement = Measurement(
+            id = "m1",
+            customerId = "customer-1",
+            gender = CustomerGender.MALE,
+            fields = mapOf("custom-male" to 8.0),
+            unit = MeasurementUnit.CM,
+            notes = null,
+            dateTaken = 0L,
+            createdAt = 0L,
+        )
+        measurementRepository.measurementsList = listOf(measurement)
+        val vm = createViewModel(measurementId = "m1")
+
+        val visibleIds = vm.state.value.customFields.map { it.id }
+        assertEquals(listOf("custom-male"), visibleIds)
+    }
+
     private fun customField(
         id: String,
         label: String,
