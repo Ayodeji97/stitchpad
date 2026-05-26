@@ -100,6 +100,8 @@ fun MeasurementFormRoot(onNavigateBack: () -> Unit) {
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             MeasurementFormEvent.NavigateBack -> onNavigateBack()
+            // TODO PTSP-12 Task 12: wire to onNavigateToUpgrade callback
+            MeasurementFormEvent.NavigateToUpgrade -> Unit
         }
     }
 

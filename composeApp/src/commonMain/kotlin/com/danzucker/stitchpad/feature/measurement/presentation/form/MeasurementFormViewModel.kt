@@ -91,6 +91,14 @@ class MeasurementFormViewModel(
             is MeasurementFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
+            // TODO PTSP-12 Task 8: real handlers
+            MeasurementFormAction.OnAddCustomFieldClick,
+            MeasurementFormAction.OnLockedCustomFieldClick,
+            MeasurementFormAction.OnCustomFieldSheetDismiss,
+            is MeasurementFormAction.OnEditCustomFieldClick,
+            is MeasurementFormAction.OnSaveCustomField,
+            is MeasurementFormAction.OnArchiveCustomFieldRequest,
+            is MeasurementFormAction.OnArchiveCustomFieldConfirm -> Unit
             MeasurementFormAction.OnSaveClick -> save()
             MeasurementFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateBack) }
