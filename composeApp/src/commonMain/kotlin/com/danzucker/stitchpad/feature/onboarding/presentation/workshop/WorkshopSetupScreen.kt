@@ -63,7 +63,6 @@ import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
 import stitchpad.composeapp.generated.resources.workshop_continue_button
-import stitchpad.composeapp.generated.resources.workshop_logo_coming_soon
 import stitchpad.composeapp.generated.resources.workshop_logo_label
 import stitchpad.composeapp.generated.resources.workshop_logo_optional
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_sub
@@ -85,8 +84,6 @@ fun WorkshopSetupRoot(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(Res.string.workshop_logo_coming_soon)
-
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             WorkshopSetupEvent.NavigateToHome -> onNavigateToHome()
@@ -100,8 +97,14 @@ fun WorkshopSetupRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
-            WorkshopSetupEvent.ShowComingSoon -> {
-                scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+            is WorkshopSetupEvent.ShowSnackbar -> {
+                scope.launch {
+                    val message = when (val text = event.message) {
+                        is UiText.DynamicString -> text.value
+                        is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
+                    }
+                    snackbarHostState.showSnackbar(message)
+                }
             }
         }
     }
@@ -327,7 +330,7 @@ fun WorkshopSetupScreen(
                             .height(108.dp)
                             .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
                             .background(Color(0xFF1F1D1A), RoundedCornerShape(10.dp))
-                            .clickable { onAction(WorkshopSetupAction.OnLogoUploadClick) },
+                            .clickable { /* T14: wire image picker → OnLogoPicked */ },
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(
