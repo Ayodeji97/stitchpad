@@ -17,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
@@ -29,6 +30,7 @@ import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsyn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -49,6 +51,7 @@ class OrderDetailViewModel(
     private val measurementRepository: MeasurementRepository,
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
     private val receiptSharer: OrderReceiptSharer,
     private val imageLoader: ImageLoader,
     private val platformContext: PlatformContext,
@@ -383,8 +386,14 @@ class OrderDetailViewModel(
 
     private fun loadUser() {
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser()
-            _state.update { it.copy(user = user) }
+            val authUser = authRepository.getCurrentUser() ?: return@launch
+            // Resolve the Firestore user doc, not just the Auth user — the Auth user only
+            // carries uid/email/displayName, with businessName, whatsappNumber, phoneNumber,
+            // and businessLogoUrl all hardcoded to null. The receipt header (business name,
+            // phone, logo) reads from this state, so without the Firestore read the receipt
+            // falls back to the StitchPad fallback name and never shows the user's logo.
+            val firestoreUser = userRepository.observeUser(authUser.id).first()
+            _state.update { it.copy(user = firestoreUser ?: authUser) }
         }
     }
 
