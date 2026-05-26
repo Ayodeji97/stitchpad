@@ -3,11 +3,14 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
+import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -30,6 +33,8 @@ class MeasurementFormViewModel(
     private val authRepository: AuthRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val orderRepository: OrderRepository,
+    private val customFieldRepository: CustomMeasurementFieldRepository,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
@@ -47,12 +52,18 @@ class MeasurementFormViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 val unit = measurementPreferencesStore.getUnit()
-                _state.update { it.copy(unit = unit) }
+                _state.update {
+                    it.copy(
+                        unit = unit,
+                        canUseCustomMeasurements = entitlements.current().canUseCustomMeasurements,
+                    )
+                }
                 if (measurementId != null) {
                     loadMeasurement(measurementId)
                 } else {
                     onGenderChange(CustomerGender.FEMALE)
                 }
+                observeCustomFields()
             }
         }
         .stateIn(
@@ -91,14 +102,33 @@ class MeasurementFormViewModel(
             is MeasurementFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
-            // TODO PTSP-12 Task 8: real handlers
-            MeasurementFormAction.OnAddCustomFieldClick,
-            MeasurementFormAction.OnLockedCustomFieldClick,
-            MeasurementFormAction.OnCustomFieldSheetDismiss,
-            is MeasurementFormAction.OnEditCustomFieldClick,
-            is MeasurementFormAction.OnSaveCustomField,
-            is MeasurementFormAction.OnArchiveCustomFieldRequest,
-            is MeasurementFormAction.OnArchiveCustomFieldConfirm -> Unit
+            MeasurementFormAction.OnAddCustomFieldClick -> {
+                if (_state.value.canUseCustomMeasurements) {
+                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding) }
+                } else {
+                    viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+                }
+            }
+            MeasurementFormAction.OnLockedCustomFieldClick -> {
+                viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+            }
+            is MeasurementFormAction.OnEditCustomFieldClick -> {
+                val field = _state.value.customFields.find { it.id == action.fieldId }
+                if (field != null) {
+                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.Editing(field)) }
+                }
+            }
+            MeasurementFormAction.OnCustomFieldSheetDismiss -> {
+                _state.update { it.copy(customFieldSheet = null) }
+            }
+            is MeasurementFormAction.OnArchiveCustomFieldRequest -> {
+                val field = _state.value.customFields.find { it.id == action.fieldId }
+                if (field != null) {
+                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.ConfirmArchive(field)) }
+                }
+            }
+            is MeasurementFormAction.OnSaveCustomField -> saveCustomField(action.id, action.label, action.genders)
+            is MeasurementFormAction.OnArchiveCustomFieldConfirm -> archiveCustomField(action.fieldId)
             MeasurementFormAction.OnSaveClick -> save()
             MeasurementFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateBack) }
@@ -112,16 +142,39 @@ class MeasurementFormViewModel(
     private fun onGenderChange(gender: CustomerGender) {
         val sections = BodyProfileTemplate.sectionsFor(gender)
         val allKeys = sections.flatMap { it.fields }.map { it.key }
-        _state.update {
-            it.copy(
+        _state.update { current ->
+            val visibleCustom = filterFieldsForCurrentGender(current.customFields, gender)
+            current.copy(
                 gender = gender,
                 sections = sections,
                 currentSectionIndex = 0,
                 isCurrentSectionExpanded = true,
-                fields = allKeys.associateWith { "" }
+                fields = allKeys.associateWith { "" },
+                customFields = visibleCustom,
             )
         }
     }
+
+    private fun observeCustomFields() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            customFieldRepository.observeFields(userId).collect { result ->
+                if (result is Result.Success) {
+                    _state.update { current ->
+                        current.copy(customFields = filterFieldsForCurrentGender(result.data, current.gender))
+                    }
+                }
+                // Errors on the field stream are non-fatal — keep the form
+                // functional; tailors can retry by reopening the screen.
+            }
+        }
+    }
+
+    private fun filterFieldsForCurrentGender(
+        fields: List<CustomMeasurementField>,
+        gender: CustomerGender?,
+    ): List<CustomMeasurementField> =
+        fields.filter { !it.isArchived && (gender == null || gender in it.genders) }
 
     private fun loadMeasurement(id: String) {
         viewModelScope.launch {
@@ -250,5 +303,16 @@ class MeasurementFormViewModel(
             _state.update { it.copy(isLoading = false) }
             _events.send(MeasurementFormEvent.NavigateBack)
         }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun saveCustomField(id: String?, label: String, genders: Set<CustomerGender>) {
+        // Real impl in Task 9
+        _state.update { it.copy(customFieldSheet = null) }
+    }
+
+    private fun archiveCustomField(fieldId: String) {
+        // Real impl in Task 9
+        _state.update { it.copy(customFieldSheet = null) }
     }
 }
