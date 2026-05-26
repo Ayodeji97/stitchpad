@@ -29,13 +29,35 @@ data class OrderItem(
     val garmentType: GarmentType,
     val description: String,
     val price: Double,
-    val styleId: String? = null,
     val measurementId: String? = null,
-    val fabricPhotoUrl: String? = null,
-    val fabricPhotoStoragePath: String? = null,
     val fabricName: String? = null,
+    // PTSP-11 multi-image
+    val styleImages: List<StyleImageRef> = emptyList(),
+    val fabricImages: List<FabricImageRef> = emptyList(),
+    // Legacy single fields — kept on domain for the double-write path in OrderMapper.
+    // Read-time: ignored if `styleImages`/`fabricImages` are non-empty; otherwise
+    // the mapper synthesizes a 1-element list from these. Write-time: derived
+    // from the lists (first element of each) so older app versions can still
+    // render something. Removable in mid-2027.
+    val styleId: String? = null,
     val stylePhotoUrl: String? = null,
     val stylePhotoStoragePath: String? = null,
+    val fabricPhotoUrl: String? = null,
+    val fabricPhotoStoragePath: String? = null,
+)
+
+enum class StyleImageSource { LIBRARY, UPLOADED }
+
+data class StyleImageRef(
+    val source: StyleImageSource,
+    val styleId: String? = null,           // set when source == LIBRARY
+    val photoUrl: String? = null,          // set when source == UPLOADED
+    val photoStoragePath: String? = null,  // set when source == UPLOADED
+)
+
+data class FabricImageRef(
+    val photoUrl: String,
+    val photoStoragePath: String,
 )
 
 data class StatusChange(
