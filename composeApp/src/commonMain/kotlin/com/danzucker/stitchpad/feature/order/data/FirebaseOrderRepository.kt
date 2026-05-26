@@ -13,6 +13,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
@@ -37,8 +38,14 @@ class FirebaseOrderRepository(
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/fabrics/$itemId.jpg"
 
+    private fun fabricStoragePath(userId: String, orderId: String, itemId: String, index: Int): String =
+        "users/$userId/orders/$orderId/fabrics/$itemId-$index.jpg"
+
     private fun styleStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/styles/$itemId.jpg"
+
+    private fun styleStoragePath(userId: String, orderId: String, itemId: String, index: Int): String =
+        "users/$userId/orders/$orderId/styles/$itemId-$index.jpg"
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         ordersCollection(userId)
@@ -290,6 +297,21 @@ class FirebaseOrderRepository(
             if (!stylePath.isNullOrBlank()) {
                 runCatching { storage.reference.child(stylePath).delete() }
             }
+            // PTSP-11 multi-image cleanup
+            item.fabricImages.forEach { ref ->
+                val p = ref.photoStoragePath
+                if (p.isNotBlank()) {
+                    runCatching { storage.reference.child(p).delete() }
+                }
+            }
+            item.styleImages
+                .filter { it.source == "UPLOADED" }
+                .forEach { ref ->
+                    val p = ref.photoStoragePath
+                    if (!p.isNullOrBlank()) {
+                        runCatching { storage.reference.child(p).delete() }
+                    }
+                }
         }
     }
 
@@ -328,6 +350,50 @@ class FirebaseOrderRepository(
             AppLogger.e(tag = TAG, throwable = e) { "uploadStylePhoto failed itemId=$itemId" }
             Result.Error(DataError.Network.UNKNOWN)
         }
+    }
+
+    override suspend fun uploadFabricPhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        if (photoBytesList.isEmpty()) return Result.Success(emptyList())
+        val results = mutableListOf<Pair<String, String>>()
+        photoBytesList.forEachIndexed { index, bytes ->
+            val path = fabricStoragePath(userId, orderId, itemId, index)
+            try {
+                storage.reference.child(path).putData(bytes.toStorageData())
+                val downloadUrl = storage.reference.child(path).getDownloadUrl()
+                results += downloadUrl to path
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                AppLogger.e(tag = TAG, throwable = e) { "uploadFabricPhotos failed itemId=$itemId index=$index" }
+                return Result.Error(DataError.Network.UNKNOWN)
+            }
+        }
+        return Result.Success(results)
+    }
+
+    override suspend fun uploadStylePhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        if (photoBytesList.isEmpty()) return Result.Success(emptyList())
+        val results = mutableListOf<Pair<String, String>>()
+        photoBytesList.forEachIndexed { index, bytes ->
+            val path = styleStoragePath(userId, orderId, itemId, index)
+            try {
+                storage.reference.child(path).putData(bytes.toStorageData())
+                val downloadUrl = storage.reference.child(path).getDownloadUrl()
+                results += downloadUrl to path
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                AppLogger.e(tag = TAG, throwable = e) { "uploadStylePhotos failed itemId=$itemId index=$index" }
+                return Result.Error(DataError.Network.UNKNOWN)
+            }
+        }
+        return Result.Success(results)
     }
 
     suspend fun deleteFabricPhoto(storagePath: String) {
