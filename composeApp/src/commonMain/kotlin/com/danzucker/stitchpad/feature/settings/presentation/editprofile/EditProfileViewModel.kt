@@ -304,12 +304,24 @@ class EditProfileViewModel(
                             )
                         }
                         is Result.Error -> {
-                            // Storage wrote but Firestore didn't. Roll the UI back to
-                            // Failed (so the user is prompted to retry) and clean up the
-                            // orphaned Storage object. The original logo (if any) stays
-                            // on the user doc, so it'll reappear on next snapshot.
+                            // Storage wrote but Firestore didn't. Storage path is
+                            // deterministic (users/{uid}/branding/logo.jpg), so the
+                            // upload has OVERWRITTEN any prior logo's bytes already.
+                            //
+                            // - First-time upload (no previous logo): the Storage object
+                            //   is orphaned because the user doc has no reference. Delete
+                            //   it to avoid permanent waste.
+                            // - Replacement (prior logo existed): the previous logo's
+                            //   bytes are already gone — overwritten by this upload. We
+                            //   must NOT delete now, or the path would be empty while
+                            //   the user doc still points at the (token-mismatched, but
+                            //   stable) old URL. A subsequent retry will overwrite the
+                            //   path again and reconcile.
                             AppLogger.e(tag = TAG) { "updateBrandLogo after upload failed for userId=$userId" }
-                            userRepository.deleteUserLogo(path)
+                            val hadPreviousLogo = _state.value.originalLogoStoragePath != null
+                            if (!hadPreviousLogo) {
+                                userRepository.deleteUserLogo(path)
+                            }
                             _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
                             _events.send(
                                 EditProfileEvent.ShowSnackbar(
