@@ -84,6 +84,23 @@ class FirebaseStyleRepository(
         }
     }
 
+    override suspend fun createStyles(
+        userId: String,
+        customerId: String,
+        description: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<String>, DataError.Network> {
+        if (photoBytesList.isEmpty()) return Result.Success(emptyList())
+        val createdIds = mutableListOf<String>()
+        photoBytesList.forEach { bytes ->
+            when (val result = createStyle(userId, customerId, description, bytes)) {
+                is Result.Success -> createdIds += result.data
+                is Result.Error -> return Result.Error(result.error)
+            }
+        }
+        return Result.Success(createdIds)
+    }
+
     override suspend fun updateStyle(
         userId: String,
         customerId: String,
