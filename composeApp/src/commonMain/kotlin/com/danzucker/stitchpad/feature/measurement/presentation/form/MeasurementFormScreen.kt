@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -27,10 +29,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,6 +44,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -64,6 +70,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
+import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementField
 import com.danzucker.stitchpad.core.domain.model.MeasurementSection
@@ -74,6 +81,13 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.custom_field_add_button
+import stitchpad.composeapp.generated.resources.custom_field_empty_caption
+import stitchpad.composeapp.generated.resources.custom_field_locked_caption
+import stitchpad.composeapp.generated.resources.custom_field_section_pill_first_month
+import stitchpad.composeapp.generated.resources.custom_field_section_pill_locked
+import stitchpad.composeapp.generated.resources.custom_field_section_pill_pro
+import stitchpad.composeapp.generated.resources.custom_field_section_title
 import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_add_note
@@ -277,6 +291,20 @@ fun MeasurementFormScreen(
                         onNext = { onAction(MeasurementFormAction.OnNextSection) }
                     )
                 }
+                CustomFieldsSection(
+                    fields = state.customFields,
+                    fieldValues = state.fields,
+                    unitSuffix = unitSuffix,
+                    canUseCustomMeasurements = state.canUseCustomMeasurements,
+                    isInWelcomeWindow = false, // wired in Task 12; harmless 'false' for now
+                    onFieldValueChange = { key, value ->
+                        onAction(MeasurementFormAction.OnFieldChange(key, value))
+                    },
+                    onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
+                    onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
+                    onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
+                    onArchiveRequest = { id -> onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(id)) },
+                )
                 NotesSection(
                     isExpanded = state.isNotesExpanded,
                     notes = state.notes,
@@ -660,6 +688,170 @@ private fun MeasurementTextField(
 private fun genderLabel(gender: CustomerGender): String = when (gender) {
     CustomerGender.FEMALE -> stringResource(Res.string.gender_female)
     CustomerGender.MALE -> stringResource(Res.string.gender_male)
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CustomFieldsSection(
+    fields: List<CustomMeasurementField>,
+    fieldValues: Map<String, String>,
+    unitSuffix: String,
+    canUseCustomMeasurements: Boolean,
+    isInWelcomeWindow: Boolean,
+    onFieldValueChange: (String, String) -> Unit,
+    onAddClick: () -> Unit,
+    onLockedAddClick: () -> Unit,
+    onEditField: (String) -> Unit,
+    onArchiveRequest: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        ) {
+            Text(
+                text = stringResource(Res.string.custom_field_section_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            val pillRes = when {
+                canUseCustomMeasurements && isInWelcomeWindow -> Res.string.custom_field_section_pill_first_month
+                canUseCustomMeasurements -> Res.string.custom_field_section_pill_pro
+                else -> Res.string.custom_field_section_pill_locked
+            }
+            Text(
+                text = stringResource(pillRes).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (canUseCustomMeasurements) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                modifier = Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(DesignTokens.radiusFull),
+                    )
+                    .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
+            )
+        }
+
+        if (fields.isEmpty()) {
+            val captionRes = if (canUseCustomMeasurements) {
+                Res.string.custom_field_empty_caption
+            } else {
+                Res.string.custom_field_locked_caption
+            }
+            Text(
+                text = stringResource(captionRes),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            fields.forEach { field ->
+                // Long-press on the label row (NOT the text field) opens the
+                // manage sheet. The text field's own gesture detector would
+                // otherwise swallow the long-press and break text selection.
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = field.label.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = { onEditField(field.id) },
+                            ),
+                    )
+                    MeasurementTextField(
+                        value = fieldValues[field.id] ?: "",
+                        onValueChange = { onFieldValueChange(field.id, it) },
+                        label = "",  // label rendered above by the long-pressable Text
+                        placeholder = "0",
+                        suffix = unitSuffix,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    )
+                }
+            }
+        }
+
+        AddCustomFieldButton(
+            enabled = canUseCustomMeasurements,
+            onClick = if (canUseCustomMeasurements) onAddClick else onLockedAddClick,
+        )
+    }
+}
+
+@Composable
+private fun AddCustomFieldButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val border = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+    val content = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, border),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = content),
+    ) {
+        if (!enabled) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(DesignTokens.space1))
+        } else {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(DesignTokens.space1))
+        }
+        Text(
+            text = stringResource(Res.string.custom_field_add_button),
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (!enabled) {
+            Spacer(Modifier.width(DesignTokens.space2))
+            Text(
+                text = "PRO",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(DesignTokens.radiusFull),
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
+    }
 }
 
 @Suppress("UnusedPrivateMember")
