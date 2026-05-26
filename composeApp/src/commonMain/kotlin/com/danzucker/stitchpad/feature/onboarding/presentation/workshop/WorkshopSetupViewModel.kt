@@ -124,8 +124,9 @@ class WorkshopSetupViewModel(
         val raw = _state.value.whatsappNumber.trim()
         if (raw.isBlank()) return true
         val withCountry = applyImpliedNigerianCountryCode(raw)
-        return if (validateNigerianMobileE164(withCountry)) true
-        else {
+        return if (validateNigerianMobileE164(withCountry)) {
+            true
+        } else {
             _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
             false
         }
@@ -148,7 +149,11 @@ class WorkshopSetupViewModel(
             _state.update { it.copy(isLoading = true) }
             try {
                 val user = authRepository.getCurrentUser() ?: run {
-                    _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_session_expired)))
+                    _events.send(
+                        WorkshopSetupEvent.ShowError(
+                            UiText.StringResourceText(Res.string.error_session_expired)
+                        )
+                    )
                     _events.send(WorkshopSetupEvent.NavigateToLogin)
                     return@launch
                 }
@@ -169,7 +174,11 @@ class WorkshopSetupViewModel(
                 if (logo is LogoUploadState.Uploaded) {
                     val r = userRepository.updateBrandLogo(user.id, logo.url, logo.path)
                     if (r is Result.Success) {
-                        _events.send(WorkshopSetupEvent.ShowSnackbar(UiText.StringResourceText(Res.string.workshop_logo_uploaded)))
+                        _events.send(
+                            WorkshopSetupEvent.ShowSnackbar(
+                                UiText.StringResourceText(Res.string.workshop_logo_uploaded)
+                            )
+                        )
                     }
                     // A failure here doesn't block onboarding — the user has a profile.
                     // We just don't surface the success snackbar; they'll set the logo from Edit Profile.

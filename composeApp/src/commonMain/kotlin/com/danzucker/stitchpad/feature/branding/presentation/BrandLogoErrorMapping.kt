@@ -4,7 +4,6 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_no_internet
-import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.workshop_logo_invalid_format
 import stitchpad.composeapp.generated.resources.workshop_logo_too_large
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed

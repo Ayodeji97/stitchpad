@@ -66,6 +66,7 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.common_cancel
 import stitchpad.composeapp.generated.resources.edit_profile_avatar_hint
 import stitchpad.composeapp.generated.resources.edit_profile_back_cd
 import stitchpad.composeapp.generated.resources.edit_profile_color_cd
@@ -79,7 +80,6 @@ import stitchpad.composeapp.generated.resources.edit_profile_label_email
 import stitchpad.composeapp.generated.resources.edit_profile_label_phone
 import stitchpad.composeapp.generated.resources.edit_profile_label_whatsapp
 import stitchpad.composeapp.generated.resources.edit_profile_label_your_name
-import stitchpad.composeapp.generated.resources.common_cancel
 import stitchpad.composeapp.generated.resources.edit_profile_logo_change
 import stitchpad.composeapp.generated.resources.edit_profile_logo_remove
 import stitchpad.composeapp.generated.resources.edit_profile_logo_remove_confirm_body

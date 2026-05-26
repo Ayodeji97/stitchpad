@@ -57,6 +57,8 @@ internal fun avatarColor(colorIndex: Int): Color {
 internal fun avatarBrush(colorIndex: Int): Brush =
     androidx.compose.ui.graphics.SolidColor(avatarColor(colorIndex))
 
+// avatarColorIndex kept for API compat — card now uses BrandLogo; colour picker will return in a future redesign
+@Suppress("UnusedParameter")
 @Composable
 fun ProfileHeroCard(
     businessName: String,

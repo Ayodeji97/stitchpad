@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 class BrandLogoValidator(
     private val maxBytes: Int = MAX_BYTES,
 ) {
+    @Suppress("ReturnCount") // three early-return guards make the validation logic clearer than a boolean ladder
     fun validate(bytes: ByteArray): EmptyResult<BrandLogoError> {
         if (bytes.size > maxBytes) return Result.Error(BrandLogoError.TooLarge)
         if (!hasSupportedMagic(bytes)) return Result.Error(BrandLogoError.UnsupportedFormat)

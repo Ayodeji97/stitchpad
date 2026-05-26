@@ -125,7 +125,14 @@ actual class OrderReceiptSharer(private val context: Context) {
             val logoLeft = 32f
             val logoTop = (headerHeight - logoSize) / 2f
             val logoRect = android.graphics.RectF(logoLeft, logoTop, logoLeft + logoSize, logoTop + logoSize)
-            val clipPath = android.graphics.Path().apply { addRoundRect(logoRect, 6f, 6f, android.graphics.Path.Direction.CW) }
+            val clipPath = android.graphics.Path().apply {
+                addRoundRect(
+                    logoRect,
+                    6f,
+                    6f,
+                    android.graphics.Path.Direction.CW
+                )
+            }
             canvas.save()
             canvas.clipPath(clipPath)
             canvas.drawBitmap(logoBitmap, null, logoRect, null)
@@ -329,7 +336,14 @@ actual class OrderReceiptSharer(private val context: Context) {
             val logoLeft = 32f
             val logoTop = y + (headerBottomY - y - logoSize) / 2f
             val logoRect = android.graphics.RectF(logoLeft, logoTop, logoLeft + logoSize, logoTop + logoSize)
-            val clipPath = android.graphics.Path().apply { addRoundRect(logoRect, 6f, 6f, android.graphics.Path.Direction.CW) }
+            val clipPath = android.graphics.Path().apply {
+                addRoundRect(
+                    logoRect,
+                    6f,
+                    6f,
+                    android.graphics.Path.Direction.CW
+                )
+            }
             canvas.save()
             canvas.clipPath(clipPath)
             canvas.drawBitmap(logoBitmap, null, logoRect, null)
