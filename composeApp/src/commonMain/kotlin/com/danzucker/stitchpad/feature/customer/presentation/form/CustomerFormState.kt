@@ -16,5 +16,6 @@ data class CustomerFormState(
     val emailError: UiText? = null,
     val isLoading: Boolean = false,
     val isEditMode: Boolean = false,
-    val errorMessage: UiText? = null
+    val errorMessage: UiText? = null,
+    val addMeasurementsNext: Boolean = true,
 )

@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +50,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -63,6 +67,7 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.customer_form_add_measurements_next
 import stitchpad.composeapp.generated.resources.customer_form_address_label
 import stitchpad.composeapp.generated.resources.customer_form_address_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_delivery_label
@@ -85,6 +90,7 @@ import stitchpad.composeapp.generated.resources.delivery_pickup
 fun CustomerFormRoot(
     onNavigateBack: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToCustomerWithMeasurement: (customerId: String) -> Unit,
 ) {
     val viewModel: CustomerFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -99,6 +105,8 @@ fun CustomerFormRoot(
         when (event) {
             CustomerFormEvent.NavigateBack -> onNavigateBack()
             is CustomerFormEvent.ShowCapReachedSheet -> capSheet = event
+            is CustomerFormEvent.NavigateToNewCustomerMeasurement ->
+                onNavigateToCustomerWithMeasurement(event.customerId)
         }
     }
 
@@ -275,6 +283,14 @@ fun CustomerFormScreen(
             )
 
             Spacer(Modifier.height(DesignTokens.space2))
+
+            if (!state.isEditMode) {
+                MeasurementsToggleRow(
+                    checked = state.addMeasurementsNext,
+                    onToggle = { onAction(CustomerFormAction.OnToggleAddMeasurementsNext) },
+                    enabled = !state.isLoading,
+                )
+            }
 
             SaveButton(
                 isLoading = state.isLoading,
@@ -480,6 +496,35 @@ private fun SaveButton(
     }
 }
 
+@Composable
+private fun MeasurementsToggleRow(
+    checked: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                onValueChange = { onToggle() },
+                role = Role.Checkbox,
+            )
+            .padding(vertical = DesignTokens.space2)
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+        Spacer(Modifier.width(DesignTokens.space2))
+        Text(
+            text = stringResource(Res.string.customer_form_add_measurements_next),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
@@ -501,6 +546,38 @@ private fun CustomerFormScreenEditPreview() {
                 phone = "+234 801 234 5678",
                 email = "amina@gmail.com",
                 address = "15 Adeola Odeku St, Lagos"
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerFormScreenAddMeasurementsCheckedPreview() {
+    StitchPadTheme {
+        CustomerFormScreen(
+            state = CustomerFormState(
+                name = "Amina Bello",
+                phone = "+234 801 234 5678",
+                addMeasurementsNext = true,
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerFormScreenAddMeasurementsUncheckedPreview() {
+    StitchPadTheme {
+        CustomerFormScreen(
+            state = CustomerFormState(
+                name = "Amina Bello",
+                phone = "+234 801 234 5678",
+                addMeasurementsNext = false,
             ),
             onAction = {}
         )

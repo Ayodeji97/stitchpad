@@ -132,7 +132,7 @@ fun MeasurementFormScreen(
         stringResource(Res.string.measurement_add_title)
     }
     val unitSuffix = if (state.unit == MeasurementUnit.INCHES) "in" else "cm"
-    val canSave = state.gender != null && !state.isLoading
+    val canSave = state.canSave
     val focusManager = LocalFocusManager.current
 
     val pagerState = rememberPagerState(pageCount = { state.sections.size })
@@ -378,7 +378,12 @@ private fun SectionProgressRow(
             sections.forEachIndexed { index, section ->
                 val color = when {
                     index == currentIndex -> MaterialTheme.colorScheme.primary
-                    section.fields.any { f -> fields[f.key]?.isNotBlank() == true } -> MaterialTheme.colorScheme.primary
+                    // Use the same parsable-positive predicate as MeasurementFormState.canSave
+                    // so a dot only lights up for values that will actually persist; otherwise
+                    // typing "0" or "." paints the dot but Save stays disabled (visual contradiction).
+                    section.fields.any { f ->
+                        (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
+                    } -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.outlineVariant
                 }
                 Box(

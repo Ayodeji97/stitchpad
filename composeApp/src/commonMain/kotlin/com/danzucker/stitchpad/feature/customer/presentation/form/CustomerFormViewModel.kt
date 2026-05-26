@@ -24,6 +24,8 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_invalid_email
 import stitchpad.composeapp.generated.resources.error_name_required
 import stitchpad.composeapp.generated.resources.error_phone_invalid
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class CustomerFormViewModel(
     savedStateHandle: SavedStateHandle,
@@ -79,6 +81,8 @@ class CustomerFormViewModel(
             CustomerFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(CustomerFormEvent.NavigateBack) }
             }
+            CustomerFormAction.OnToggleAddMeasurementsNext ->
+                _state.update { it.copy(addMeasurementsNext = !it.addMeasurementsNext) }
             CustomerFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
@@ -117,7 +121,13 @@ class CustomerFormViewModel(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun save() {
+        // Re-entrancy guard: SaveButton's enabled=!isLoading propagates through
+        // StateFlow→Compose only after one recomposition (~1 frame on low-end
+        // Android), so a fast double-tap could otherwise queue two coroutines,
+        // each minting a distinct UUID and writing a duplicate customer doc.
+        if (_state.value.isLoading) return
         val nameValid = validateName()
         val phoneValid = validatePhone()
         val emailValid = validateEmail()
@@ -130,8 +140,9 @@ class CustomerFormViewModel(
                 return@launch
             }
             val s = _state.value
+            val newId = customerId ?: Uuid.random().toString()
             val customer = Customer(
-                id = customerId ?: "",
+                id = newId,
                 userId = userId,
                 name = s.name.trim(),
                 phone = s.phone.trim(),
@@ -148,7 +159,14 @@ class CustomerFormViewModel(
             }
             _state.update { it.copy(isLoading = false) }
             when (result) {
-                is Result.Success -> _events.send(CustomerFormEvent.NavigateBack)
+                is Result.Success -> {
+                    val event = if (!s.isEditMode && s.addMeasurementsNext) {
+                        CustomerFormEvent.NavigateToNewCustomerMeasurement(customerId = newId)
+                    } else {
+                        CustomerFormEvent.NavigateBack
+                    }
+                    _events.send(event)
+                }
                 is Result.Error -> {
                     if (result.error == DataError.Network.CAP_REACHED) {
                         // Cap-reached is the only error with a dedicated upgrade-pitch

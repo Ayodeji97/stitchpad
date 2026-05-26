@@ -374,6 +374,9 @@ class MeasurementFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
+        // Provide at least one positive field so canSave is true and save()
+        // actually reaches the repository (where the injected error fires).
+        vm.onAction(MeasurementFormAction.OnFieldChange(key = "chest", value = "38"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         assertNotNull(vm.state.value.errorMessage)
@@ -396,6 +399,9 @@ class MeasurementFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
+        // Provide at least one positive field so canSave is true and save()
+        // actually reaches the repository (where the injected error fires).
+        vm.onAction(MeasurementFormAction.OnFieldChange(key = "chest", value = "38"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
         assertNotNull(vm.state.value.errorMessage)
 

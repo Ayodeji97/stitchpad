@@ -15,4 +15,5 @@ sealed interface CustomerFormAction {
     data object OnSaveClick : CustomerFormAction
     data object OnNavigateBack : CustomerFormAction
     data object OnErrorDismiss : CustomerFormAction
+    data object OnToggleAddMeasurementsNext : CustomerFormAction
 }

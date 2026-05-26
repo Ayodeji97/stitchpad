@@ -209,6 +209,23 @@ private fun MainNavGraph(
             CustomerFormRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToCustomerWithMeasurement = { newId ->
+                    // Chain: pop the customer form, push customer detail, then
+                    // push the measurement form. Back from measurement lands on
+                    // detail; back from detail returns to whatever was below
+                    // CustomerForm at launch (CustomerList, Dashboard, OrderDetail,
+                    // or wherever the post-AddCustomerFirst stack put us).
+                    // launchSingleTop on both pushes guards against duplicate
+                    // entries if the event is ever replayed (config change /
+                    // re-collect of the events flow).
+                    navController.navigate(CustomerDetailRoute(customerId = newId)) {
+                        popUpTo<CustomerFormRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                    navController.navigate(MeasurementFormRoute(customerId = newId)) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable<MeasurementFormRoute> {

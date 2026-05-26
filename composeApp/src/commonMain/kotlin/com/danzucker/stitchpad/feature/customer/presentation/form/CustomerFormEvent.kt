@@ -13,4 +13,13 @@ sealed interface CustomerFormEvent {
         val activeCount: Int,
         val customerCap: Int,
     ) : CustomerFormEvent
+
+    /**
+     * Emitted on a successful add-mode save when the user chose
+     * "Add measurements next". Carries the newly-minted customer id so the
+     * Root can chain navigate(CustomerDetail) + navigate(MeasurementForm).
+     */
+    data class NavigateToNewCustomerMeasurement(
+        val customerId: String,
+    ) : CustomerFormEvent
 }
