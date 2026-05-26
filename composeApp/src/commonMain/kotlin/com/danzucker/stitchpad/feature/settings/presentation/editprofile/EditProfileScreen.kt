@@ -210,6 +210,7 @@ fun EditProfileScreen(
 
             BrandLogoSection(
                 logo = state.logo,
+                existingLogoUrl = state.originalLogoUrl,
                 hasExistingLogo = state.originalLogoStoragePath != null,
                 fallbackInitials = state.businessName,
                 onChangeClick = onLaunchLogoPicker,
@@ -415,6 +416,7 @@ private fun EmailReadonlyField(email: String) {
 @Composable
 private fun BrandLogoSection(
     logo: LogoUploadState,
+    existingLogoUrl: String?,
     hasExistingLogo: Boolean,
     fallbackInitials: String,
     onChangeClick: () -> Unit,
@@ -432,7 +434,10 @@ private fun BrandLogoSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            val logoUrl = (logo as? LogoUploadState.Uploaded)?.url
+            // Prefer the freshly-uploaded URL; otherwise fall back to whatever logo
+            // is currently persisted on Firestore so a slow or failed replacement
+            // doesn't visually swap the user's logo out for the initials fallback.
+            val logoUrl = (logo as? LogoUploadState.Uploaded)?.url ?: existingLogoUrl
             BrandLogo(logoUrl = logoUrl, fallbackInitials = fallbackInitials, size = 64.dp)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onChangeClick) {

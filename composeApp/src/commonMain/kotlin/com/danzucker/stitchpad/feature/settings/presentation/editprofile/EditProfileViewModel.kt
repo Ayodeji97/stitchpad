@@ -284,16 +284,38 @@ class EditProfileViewModel(
             when (val result = userRepository.uploadUserLogo(userId, bytes)) {
                 is Result.Success -> {
                     val (url, path) = result.data
-                    _state.update { it.copy(logo = LogoUploadState.Uploaded(url, path)) }
+                    // Only transition to Uploaded AFTER Firestore is updated. Otherwise
+                    // a Firestore failure (offline, rules reject) leaves the user looking
+                    // at a "Uploaded" tile that won't survive a reload — and the Storage
+                    // object becomes orphaned because nothing references it.
                     when (userRepository.updateBrandLogo(userId, url, path)) {
-                        is Result.Success -> emit(
-                            EditProfileEvent.ShowSnackbar(
-                                UiText.StringResourceText(Res.string.edit_profile_logo_updated)
+                        is Result.Success -> {
+                            _state.update {
+                                it.copy(
+                                    logo = LogoUploadState.Uploaded(url, path),
+                                    originalLogoUrl = url,
+                                    originalLogoStoragePath = path,
+                                )
+                            }
+                            emit(
+                                EditProfileEvent.ShowSnackbar(
+                                    UiText.StringResourceText(Res.string.edit_profile_logo_updated)
+                                )
                             )
-                        )
+                        }
                         is Result.Error -> {
-                            // Storage write already succeeded — don't surface this to the user
+                            // Storage wrote but Firestore didn't. Roll the UI back to
+                            // Failed (so the user is prompted to retry) and clean up the
+                            // orphaned Storage object. The original logo (if any) stays
+                            // on the user doc, so it'll reappear on next snapshot.
                             AppLogger.e(tag = TAG) { "updateBrandLogo after upload failed for userId=$userId" }
+                            userRepository.deleteUserLogo(path)
+                            _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                            _events.send(
+                                EditProfileEvent.ShowSnackbar(
+                                    UiText.StringResourceText(Res.string.error_unknown)
+                                )
+                            )
                         }
                     }
                 }
