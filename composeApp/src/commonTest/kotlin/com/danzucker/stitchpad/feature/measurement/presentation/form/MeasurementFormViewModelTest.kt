@@ -462,6 +462,22 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
+    fun onGenderChange_afterObserverFires_showsOtherGenderFieldsFromCache() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(id = "f1", label = "Bra cup", genders = setOf(CustomerGender.FEMALE)),
+            customField(id = "f2", label = "Lapel", genders = setOf(CustomerGender.MALE)),
+        ))
+        val vm = createViewModel()
+        // Default gender FEMALE → f1 visible, f2 not
+        assertEquals(listOf("f1"), vm.state.value.customFields.map { it.id })
+
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.MALE))
+        // f2 should now be visible — only passes if the unfiltered cache is consulted
+        assertEquals(listOf("f2"), vm.state.value.customFields.map { it.id })
+    }
+
+    @Test
     fun onAddCustomFieldClick_whenEntitled_opensAddingSheet() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()

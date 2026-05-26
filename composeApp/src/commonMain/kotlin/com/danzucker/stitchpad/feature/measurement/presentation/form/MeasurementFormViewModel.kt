@@ -43,6 +43,12 @@ class MeasurementFormViewModel(
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
     private var hasLoadedInitialData = false
+
+    // Unfiltered cache of all custom fields the tailor has defined. `state.customFields`
+    // holds the gender-filtered subset; switching gender re-filters from THIS list
+    // (not from the already-filtered state, which would lose other-gender fields).
+    private var allCustomFields: List<CustomMeasurementField> = emptyList()
+
     private val _state = MutableStateFlow(MeasurementFormState(isEditMode = measurementId != null))
 
     private val _events = Channel<MeasurementFormEvent>()
@@ -147,7 +153,7 @@ class MeasurementFormViewModel(
         val sections = BodyProfileTemplate.sectionsFor(gender)
         val allKeys = sections.flatMap { it.fields }.map { it.key }
         _state.update { current ->
-            val visibleCustom = filterFieldsForCurrentGender(current.customFields, gender)
+            val visibleCustom = filterFieldsForCurrentGender(allCustomFields, gender)
             current.copy(
                 gender = gender,
                 sections = sections,
@@ -164,6 +170,7 @@ class MeasurementFormViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             customFieldRepository.observeFields(userId).collect { result ->
                 if (result is Result.Success) {
+                    allCustomFields = result.data
                     _state.update { current ->
                         current.copy(customFields = filterFieldsForCurrentGender(result.data, current.gender))
                     }

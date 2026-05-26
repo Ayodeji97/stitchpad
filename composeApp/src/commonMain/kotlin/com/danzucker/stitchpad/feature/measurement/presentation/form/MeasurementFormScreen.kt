@@ -881,7 +881,7 @@ private fun AddCustomFieldButton(
         if (!enabled) {
             Spacer(Modifier.width(DesignTokens.space2))
             Text(
-                text = "PRO",
+                text = stringResource(Res.string.custom_field_section_pill_locked).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
