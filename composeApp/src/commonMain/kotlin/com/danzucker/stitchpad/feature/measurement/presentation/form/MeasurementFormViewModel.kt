@@ -53,10 +53,12 @@ class MeasurementFormViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 val unit = measurementPreferencesStore.getUnit()
+                val ents = entitlements.current()
                 _state.update {
                     it.copy(
                         unit = unit,
-                        canUseCustomMeasurements = entitlements.current().canUseCustomMeasurements,
+                        canUseCustomMeasurements = ents.canUseCustomMeasurements,
+                        isInWelcomeWindow = ents.isInWelcomeWindow,
                     )
                 }
                 if (measurementId != null) {

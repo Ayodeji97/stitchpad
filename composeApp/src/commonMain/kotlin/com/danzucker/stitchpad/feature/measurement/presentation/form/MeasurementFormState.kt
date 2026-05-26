@@ -23,6 +23,7 @@ data class MeasurementFormState(
     // PTSP-12 additions
     val customFields: List<CustomMeasurementField> = emptyList(),
     val canUseCustomMeasurements: Boolean = false,
+    val isInWelcomeWindow: Boolean = false,  // PTSP-12: drives "First Month" pill copy
     val customFieldSheet: CustomFieldSheet? = null,
 ) {
     /**

@@ -290,7 +290,7 @@ fun MeasurementFormScreen(
                                 fieldValues = state.fields,
                                 unitSuffix = unitSuffix,
                                 canUseCustomMeasurements = state.canUseCustomMeasurements,
-                                isInWelcomeWindow = false,  // wired in Task 12
+                                isInWelcomeWindow = state.isInWelcomeWindow,
                                 onFieldValueChange = { key, value ->
                                     onAction(MeasurementFormAction.OnFieldChange(key, value))
                                 },
