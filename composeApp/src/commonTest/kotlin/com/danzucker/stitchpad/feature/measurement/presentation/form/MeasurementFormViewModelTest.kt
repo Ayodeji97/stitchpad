@@ -749,6 +749,19 @@ class MeasurementFormViewModelTest {
         assertEquals("11", vm.state.value.fields["archived-cuff"])
     }
 
+    @Test
+    fun observeEntitlements_updatesStateWhenFlowEmits() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Start NOT entitled (simulates cold-start default before hydration)
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
+        val vm = createViewModel()
+        assertFalse(vm.state.value.canUseCustomMeasurements)
+
+        // Hydration lands → entitlement flips to true
+        fakeEntitlements.setEntitled(true)
+        assertTrue(vm.state.value.canUseCustomMeasurements)
+    }
+
     private fun customField(
         id: String,
         label: String,

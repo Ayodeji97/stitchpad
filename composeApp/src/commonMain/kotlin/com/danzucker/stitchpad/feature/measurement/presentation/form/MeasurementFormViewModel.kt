@@ -59,14 +59,14 @@ class MeasurementFormViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 val unit = measurementPreferencesStore.getUnit()
-                val ents = entitlements.current()
-                _state.update {
-                    it.copy(
-                        unit = unit,
-                        canUseCustomMeasurements = ents.canUseCustomMeasurements,
-                        isInWelcomeWindow = ents.isInWelcomeWindow,
-                    )
-                }
+                _state.update { it.copy(unit = unit) }
+                // Observe the entitlement flow rather than reading current()
+                // once — on cold start current() returns the default FREE /
+                // not-in-welcome snapshot before the user-doc hydrates, which
+                // would briefly show Pro users (and fresh-signup First Month
+                // users) the locked UI + upgrade sheet. Collecting the flow
+                // keeps state in sync as hydration lands.
+                observeEntitlements()
                 if (measurementId != null) {
                     loadMeasurement(measurementId)
                 } else {
@@ -162,6 +162,19 @@ class MeasurementFormViewModel(
                 fields = allKeys.associateWith { "" },
                 customFields = visibleCustom,
             )
+        }
+    }
+
+    private fun observeEntitlements() {
+        viewModelScope.launch {
+            entitlements.flow.collect { ents ->
+                _state.update {
+                    it.copy(
+                        canUseCustomMeasurements = ents.canUseCustomMeasurements,
+                        isInWelcomeWindow = ents.isInWelcomeWindow,
+                    )
+                }
+            }
         }
     }
 

@@ -785,7 +785,18 @@ private fun CustomFieldsSection(
             )
         }
 
-        if (fields.isEmpty() || !canUseCustomMeasurements) {
+        // When not entitled, still show rows whose value is recorded (non-blank)
+        // so a FREE-post-welcome tailor editing a past measurement keeps seeing
+        // previously recorded custom-field values. Spec: "Past measurements
+        // with recorded custom-field values: always visible, on every tier,
+        // forever." Creation of NEW fields stays gated by the Add button.
+        val visibleFields = if (canUseCustomMeasurements) {
+            fields
+        } else {
+            fields.filter { (fieldValues[it.id] ?: "").isNotBlank() }
+        }
+
+        if (visibleFields.isEmpty()) {
             val captionRes = if (canUseCustomMeasurements) {
                 Res.string.custom_field_empty_caption
             } else {
@@ -797,7 +808,7 @@ private fun CustomFieldsSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            fields.forEach { field ->
+            visibleFields.forEach { field ->
                 // Long-press on the label row (NOT the text field) opens the
                 // manage sheet. The text field's own gesture detector would
                 // otherwise swallow the long-press and break text selection.
