@@ -507,7 +507,7 @@
     <string name="order_form_image_count_fmt">%1$d of %2$d</string>
     <string name="order_form_image_badge_library">SAVED</string>
     <string name="order_form_image_badge_new">NEW</string>
-    <string name="order_form_image_add_tile">ADD REF</string>
+    <string name="order_form_image_add_tile">ADD</string>
     <!-- Renamed from "order_form_style_pick_from_gallery" to remove ambiguity with the phone&apos;s photo gallery -->
     <string name="order_form_style_sheet_title">Add style reference</string>
     <string name="order_form_fabric_sheet_title">Add fabric reference</string>
