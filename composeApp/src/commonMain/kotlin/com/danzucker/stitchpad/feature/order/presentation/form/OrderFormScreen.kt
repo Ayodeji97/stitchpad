@@ -380,7 +380,13 @@ fun OrderFormScreen(
                 2 -> {
                     val typed = state.items.filter { it.garmentType != null }
                     typed.isNotEmpty() &&
-                        typed.all { (it.price.toDoubleOrNull() ?: 0.0) > 0.0 }
+                        typed.all { (it.price.toDoubleOrNull() ?: 0.0) > 0.0 } &&
+                        // Mirrors the save-side hasOrphanedOther guard — items with
+                        // garmentType == OTHER must have a non-blank customGarmentName
+                        // so users can't advance to step 3 and lose that work on save.
+                        typed.all { item ->
+                            item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank()
+                        }
                 }
                 else -> true
             }
