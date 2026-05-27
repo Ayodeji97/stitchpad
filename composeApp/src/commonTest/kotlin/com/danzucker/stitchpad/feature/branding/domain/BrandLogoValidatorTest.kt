@@ -10,9 +10,9 @@ class BrandLogoValidatorTest {
     private val validator = BrandLogoValidator()
 
     @Test
-    fun `rejects bytes larger than 2MB`() {
-        // 2MB + 1 byte of valid PNG magic followed by junk
-        val tooBig = ByteArray(2 * 1024 * 1024 + 1).apply {
+    fun `rejects bytes larger than 5MB`() {
+        // 5MB + 1 byte of valid PNG magic followed by junk
+        val tooBig = ByteArray(5 * 1024 * 1024 + 1).apply {
             this[0] = 0x89.toByte(); this[1] = 0x50; this[2] = 0x4E; this[3] = 0x47
         }
         val result = validator.validate(tooBig)

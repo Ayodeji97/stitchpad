@@ -56,6 +56,10 @@ class WorkshopSetupViewModelLogoTest {
             userRepository = repo,
             authRepository = authRepo,
             onboardingPreferences = FakeOnboardingPreferences(),
+            // Identity compressor: the real one would hit Android BitmapFactory,
+            // which throws "Stub!" in non-Robolectric JVM unit tests. We're not
+            // testing image decoding here — just the VM's compress→upload wiring.
+            compressLogo = { it },
         )
     }
 
@@ -83,7 +87,10 @@ class WorkshopSetupViewModelLogoTest {
         val vm = buildVm(repo)
 
         vm.events.test {
-            vm.onAction(WorkshopSetupAction.OnLogoPicked(ByteArray(3 * 1024 * 1024)))
+            // Bigger than the validator's 5MB cap so this trips TooLarge before
+            // hitting the compressor. Anything ≤ 5MB now passes validation and
+            // would be exercised by the compress-path tests instead.
+            vm.onAction(WorkshopSetupAction.OnLogoPicked(ByteArray(6 * 1024 * 1024)))
             val event = awaitItem()
             assertIs<WorkshopSetupEvent.ShowSnackbar>(event)
         }

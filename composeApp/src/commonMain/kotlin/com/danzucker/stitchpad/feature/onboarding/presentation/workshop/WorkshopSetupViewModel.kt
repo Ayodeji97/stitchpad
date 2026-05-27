@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
+import com.danzucker.stitchpad.feature.branding.domain.defaultCompressLogo
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.branding.presentation.toUiText
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
@@ -34,6 +35,9 @@ class WorkshopSetupViewModel(
     private val authRepository: AuthRepository,
     private val onboardingPreferences: OnboardingPreferencesStore,
     private val logoValidator: BrandLogoValidator = BrandLogoValidator(),
+    // See BrandLogoCompressor.kt for why this is a function reference rather
+    // than the class — JVM unit tests substitute an identity lambda.
+    private val compressLogo: suspend (ByteArray) -> ByteArray? = ::defaultCompressLogo,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkshopSetupState())
@@ -72,13 +76,27 @@ class WorkshopSetupViewModel(
             is Result.Success -> Unit
         }
         logoUploadJob?.cancel()
+        // Show the raw picked preview immediately so the user sees their pick the
+        // instant the picker closes. Compression runs in-coroutine on Dispatchers.Default
+        // before upload, but the preview shouldn't wait on it.
         _state.update { it.copy(logo = LogoUploadState.Uploading(bytes)) }
         logoUploadJob = viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
                 return@launch
             }
-            when (val result = userRepository.uploadUserLogo(userId, bytes)) {
+            // Downscale + JPEG re-encode before upload. Null means we couldn't decode
+            // (the magic-bytes check passed but the payload is corrupt) — surface as
+            // an UnsupportedFormat snackbar, same as a non-PNG/JPG header would.
+            val compressed = compressLogo(bytes)
+            if (compressed == null) {
+                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                _events.send(
+                    WorkshopSetupEvent.ShowSnackbar(BrandLogoError.UnsupportedFormat.toUiText())
+                )
+                return@launch
+            }
+            when (val result = userRepository.uploadUserLogo(userId, compressed)) {
                 is Result.Success -> _state.update {
                     it.copy(logo = LogoUploadState.Uploaded(result.data.first, result.data.second))
                 }

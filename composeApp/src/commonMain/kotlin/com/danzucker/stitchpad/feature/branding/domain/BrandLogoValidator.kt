@@ -33,7 +33,12 @@ class BrandLogoValidator(
     }
 
     companion object {
-        const val MAX_BYTES: Int = 2 * 1024 * 1024
+        // Raw acceptance limit. The compress step (BrandLogoCompressor) downscales
+        // any picked image to a 1024 px max edge + JPEG q85 before upload, so
+        // typical uploads land in Storage at a few hundred KB regardless of input.
+        // The 5 MB cap exists only to keep someone from feeding us a 50 MB
+        // panorama before we even decode.
+        const val MAX_BYTES: Int = 5 * 1024 * 1024
         private const val MIN_MAGIC_BYTES = 4
     }
 }

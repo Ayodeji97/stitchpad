@@ -57,6 +57,9 @@ class EditProfileViewModelLogoTest {
             authRepository = authRepo,
             userRepository = repo,
             savedStateHandle = SavedStateHandle(),
+            // Identity compressor: same rationale as WorkshopSetupViewModelLogoTest —
+            // skip the Android BitmapFactory call so JVM tests stay in pure-Kotlin.
+            compressLogo = { it },
         )
     }
 
