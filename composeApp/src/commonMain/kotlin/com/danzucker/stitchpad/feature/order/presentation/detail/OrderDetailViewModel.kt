@@ -9,6 +9,8 @@ import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.domain.model.StyleImageRef
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -382,10 +384,6 @@ class OrderDetailViewModel(
                         _state.update { current ->
                             val newOrder = result.data
                             val firstItem = newOrder.items.firstOrNull()
-                            val linkedStyle = firstItem?.styleId?.let { id ->
-                                current.availableStyles.firstOrNull { it.id == id }
-                                    ?: current.style?.takeIf { it.id == id }
-                            }
                             val linkedMeasurement = firstItem?.measurementId?.let { id ->
                                 current.availableMeasurements.firstOrNull { it.id == id }
                                     ?: current.measurement?.takeIf { it.id == id }
@@ -393,7 +391,6 @@ class OrderDetailViewModel(
                             current.copy(
                                 order = newOrder,
                                 isLoading = false,
-                                style = linkedStyle,
                                 measurement = linkedMeasurement,
                             )
                         }
@@ -472,14 +469,16 @@ class OrderDetailViewModel(
         loadedStylesCustomerId = customerId
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
+            // Observe the customer's full style list and build a lookup map. The
+            // hero image resolver in OrderDetailScreen resolves the relevant styles
+            // per styleImages[].styleId at render time. Cheaper than per-style
+            // subscriptions; the gallery list is small for any tailor.
             styleRepository.observeStyles(userId, customerId).collect { res ->
                 if (res is Result.Success) {
                     _state.update { current ->
-                        val linkedId = current.order?.items?.firstOrNull()?.styleId
-                        val linked = linkedId?.let { id -> res.data.firstOrNull { it.id == id } }
                         current.copy(
                             availableStyles = res.data,
-                            style = linked,
+                            styles = res.data.associateBy { it.id },
                         )
                     }
                 }
@@ -491,8 +490,19 @@ class OrderDetailViewModel(
         _state.update { it.copy(showStylePickerSheet = false) }
         val order = _state.value.order ?: return
         val firstItem = order.items.firstOrNull() ?: return
-        if (firstItem.styleId != styleId) {
-            val updatedItems = listOf(firstItem.copy(styleId = styleId)) + order.items.drop(1)
+        // PTSP-11 — APPEND a LIBRARY ref to the first item's styleImages list.
+        // Guard against duplicates and the 3-image cap.
+        val alreadyHas = firstItem.styleImages.any {
+            it.source == StyleImageSource.LIBRARY && it.styleId == styleId
+        }
+        val atCap = firstItem.styleImages.size >= 3
+        if (!alreadyHas && !atCap) {
+            val newRef = StyleImageRef(
+                source = StyleImageSource.LIBRARY,
+                styleId = styleId,
+            )
+            val updatedItem = firstItem.copy(styleImages = firstItem.styleImages + newRef)
+            val updatedItems = listOf(updatedItem) + order.items.drop(1)
             viewModelScope.launch {
                 val userId = authRepository.getCurrentUser()?.id ?: return@launch
                 when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {

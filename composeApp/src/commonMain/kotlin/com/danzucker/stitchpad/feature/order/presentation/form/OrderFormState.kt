@@ -1,10 +1,12 @@
 package com.danzucker.stitchpad.feature.order.presentation.form
 
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.presentation.UiText
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -56,17 +58,23 @@ constructor(
     val garmentType: GarmentType? = null,
     val description: String = "",
     val price: String = "",
-    val styleId: String? = null,
     val measurementId: String? = null,
-    val fabricPhotoBytes: ByteArray? = null,
-    val fabricPhotoUrl: String? = null,
-    val fabricPhotoStoragePath: String? = null,
     val fabricName: String = "",
-    // PTSP-9 style image
-    val stylePhotoBytes: ByteArray? = null,
-    val stylePhotoUrl: String? = null,
-    val stylePhotoStoragePath: String? = null,
+    // PTSP-11 — multi-image lists
+    /** Already-saved style refs loaded from an edit. New picks/uploads append to this. */
+    val styleImageRefs: List<StyleImageRef> = emptyList(),
+    /** Newly-uploaded style bytes this session, not yet committed. */
+    val uploadedStyleBytesList: List<ByteArray> = emptyList(),
+    /** Storage paths queued for deletion on next successful save (uploaded refs the user removed). */
+    val pendingStyleStorageDeletions: List<String> = emptyList(),
+    /** Already-saved fabric refs loaded from an edit. New uploads append to this. */
+    val fabricImageRefs: List<FabricImageRef> = emptyList(),
+    /** Newly-uploaded fabric bytes this session, not yet committed. */
+    val uploadedFabricBytesList: List<ByteArray> = emptyList(),
+    /** Storage paths queued for deletion on next successful save. */
+    val pendingFabricStorageDeletions: List<String> = emptyList(),
+    /** Shared description for ALL newly-uploaded styles this session. Optional. */
     val styleDescription: String = "",
-    /** When true (default), save() creates a new Style entity. When false, the image lives on the OrderItem only. */
+    /** When true, uploaded styles become Style entities in the customer's gallery. */
     val saveStyleToGallery: Boolean = true,
 )

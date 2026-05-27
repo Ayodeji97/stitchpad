@@ -164,6 +164,7 @@ class MeasurementFormViewModel(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod")
     @OptIn(ExperimentalUuidApi::class)
     private fun save() {
         // Defense in depth: gate on canSave (and isLoading) at entry so any

@@ -58,6 +58,11 @@ fastlane/Preview.html
 fastlane/test_output/
 fastlane/README.md
 
+# Agent-specific local tooling (Codex, etc.) — not part of the repo
+AGENTS.md
+.agents/
+.claire/
+
 # Misc
 *.log
 *.tmp

@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 private const val TAG = "OrderRepo"
 
@@ -37,8 +39,22 @@ class FirebaseOrderRepository(
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/fabrics/$itemId.jpg"
 
+    /**
+     * Multi-image path scheme. Uses a unique suffix per upload (not a positional
+     * index) so that appending images to an order that already has saved images
+     * never collides with their storage paths. codex P1 — without this, editing
+     * an order with N saved images and adding one more would overwrite the
+     * existing first image at `$itemId-0.jpg`.
+     */
+    private fun fabricStoragePath(userId: String, orderId: String, itemId: String, suffix: String): String =
+        "users/$userId/orders/$orderId/fabrics/$itemId-$suffix.jpg"
+
     private fun styleStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/styles/$itemId.jpg"
+
+    /** See [fabricStoragePath] — same rationale for unique-suffix scheme. */
+    private fun styleStoragePath(userId: String, orderId: String, itemId: String, suffix: String): String =
+        "users/$userId/orders/$orderId/styles/$itemId-$suffix.jpg"
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         ordersCollection(userId)
@@ -278,17 +294,37 @@ class FirebaseOrderRepository(
     }
 
     private suspend fun deleteFabricPhotosFor(userId: String, orderId: String) {
-        val doc = ordersCollection(userId).document(orderId).get()
-        if (!doc.exists) return
-        val dto = doc.data<OrderDto>()
-        dto.items.forEach { item ->
-            val path = item.fabricPhotoStoragePath
-            if (!path.isNullOrBlank()) {
-                runCatching { storage.reference.child(path).delete() }
-            }
-            val stylePath = item.stylePhotoStoragePath
-            if (!stylePath.isNullOrBlank()) {
-                runCatching { storage.reference.child(stylePath).delete() }
+        runCatching {
+            val doc = ordersCollection(userId).document(orderId).get()
+            if (!doc.exists) return@runCatching
+            val dto = doc.data<OrderDto>()
+            dto.items.forEach { item ->
+                val path = item.fabricPhotoStoragePath
+                if (!path.isNullOrBlank()) {
+                    runCatching { storage.reference.child(path).delete() }
+                }
+                val stylePath = item.stylePhotoStoragePath
+                if (!stylePath.isNullOrBlank()) {
+                    runCatching { storage.reference.child(stylePath).delete() }
+                }
+                // PTSP-11 multi-image cleanup
+                item.fabricImages.forEach { ref ->
+                    val p = ref.photoStoragePath
+                    if (p.isNotBlank()) {
+                        runCatching { storage.reference.child(p).delete() }
+                    }
+                }
+                // Iterate ALL styleImages refs and delete any that own a storage
+                // path. LIBRARY-source refs have photoStoragePath = null (the image
+                // lives on the Style entity in the customer's gallery, with its own
+                // lifecycle), so they're naturally excluded. Avoids coupling the DTO
+                // string field to the domain enum's .name (BugBot).
+                item.styleImages.forEach { ref ->
+                    val p = ref.photoStoragePath
+                    if (!p.isNullOrBlank()) {
+                        runCatching { storage.reference.child(p).delete() }
+                    }
+                }
             }
         }
     }
@@ -330,10 +366,79 @@ class FirebaseOrderRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
+    @Suppress("ReturnCount")
+    override suspend fun uploadFabricPhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> =
+        uploadPhotos(
+            itemId = itemId,
+            photoBytesList = photoBytesList,
+            operationName = "uploadFabricPhotos",
+        ) { suffix ->
+            fabricStoragePath(userId, orderId, itemId, suffix)
+        }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Suppress("ReturnCount")
+    override suspend fun uploadStylePhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> =
+        uploadPhotos(
+            itemId = itemId,
+            photoBytesList = photoBytesList,
+            operationName = "uploadStylePhotos",
+        ) { suffix ->
+            styleStoragePath(userId, orderId, itemId, suffix)
+        }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Suppress("ReturnCount")
+    private suspend fun uploadPhotos(
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+        operationName: String,
+        storagePath: (suffix: String) -> String,
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        if (photoBytesList.isEmpty()) return Result.Success(emptyList())
+        val results = mutableListOf<Pair<String, String>>()
+        photoBytesList.forEach { bytes ->
+            // Unique suffix per upload — see fabricStoragePath() docs. Positional
+            // index would collide when editing an order that already has saved
+            // images and appending one more.
+            val suffix = Uuid.random().toString().take(8)
+            val path = storagePath(suffix)
+            try {
+                storage.reference.child(path).putData(bytes.toStorageData())
+                val downloadUrl = storage.reference.child(path).getDownloadUrl()
+                results += downloadUrl to path
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                AppLogger.e(tag = TAG, throwable = e) { "$operationName failed itemId=$itemId suffix=$suffix" }
+                return Result.Error(DataError.Network.UNKNOWN)
+            }
+        }
+        return Result.Success(results)
+    }
+
     suspend fun deleteFabricPhoto(storagePath: String) {
         runCatching { storage.reference.child(storagePath).delete() }
             .onFailure { throwable ->
                 AppLogger.w(tag = TAG, throwable = throwable) { "deleteFabricPhoto failed" }
             }
+    }
+
+    override suspend fun deleteStoragePaths(
+        paths: List<String>,
+    ): EmptyResult<DataError.Network> {
+        paths.filter { it.isNotBlank() }.forEach { path ->
+            runCatching { storage.reference.child(path).delete() }
+        }
+        return Result.Success(Unit)
     }
 }

@@ -41,13 +41,34 @@ data class OrderItemDto(
     val garmentType: String = "",
     val description: String = "",
     val price: Double = 0.0,
-    val styleId: String? = null,
     val measurementId: String? = null,
-    val fabricPhotoUrl: String? = null,
-    val fabricPhotoStoragePath: String? = null,
     val fabricName: String? = null,
+    // PTSP-11 — source of truth going forward
+    val styleImages: List<StyleImageRefDto> = emptyList(),
+    val fabricImages: List<FabricImageRefDto> = emptyList(),
+    // Legacy single fields — kept for backward read (pre-PTSP-11 docs) AND
+    // for forward double-write so older app versions can render the first image.
+    // Mapper prefers `styleImages` / `fabricImages` if non-empty; falls back to
+    // these otherwise. Removable in mid-2027.
+    val styleId: String? = null,
     val stylePhotoUrl: String? = null,
     val stylePhotoStoragePath: String? = null,
+    val fabricPhotoUrl: String? = null,
+    val fabricPhotoStoragePath: String? = null,
+)
+
+@Serializable
+data class StyleImageRefDto(
+    val source: String = "UPLOADED",
+    val styleId: String? = null,
+    val photoUrl: String? = null,
+    val photoStoragePath: String? = null,
+)
+
+@Serializable
+data class FabricImageRefDto(
+    val photoUrl: String = "",
+    val photoStoragePath: String = "",
 )
 
 @Serializable

@@ -61,4 +61,16 @@ class FakeStyleRepository : StyleRepository {
         lastDeletedStyleId = style.id
         return Result.Success(Unit)
     }
+
+    override suspend fun createStyles(
+        userId: String,
+        customerId: String,
+        description: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<String>, DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        if (photoBytesList.isEmpty()) return Result.Success(emptyList())
+        val ids = photoBytesList.indices.map { index -> "fake-style-$index" }
+        return Result.Success(ids)
+    }
 }

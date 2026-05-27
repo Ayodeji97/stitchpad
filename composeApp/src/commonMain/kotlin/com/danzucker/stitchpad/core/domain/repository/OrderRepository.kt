@@ -61,4 +61,22 @@ interface OrderRepository {
         itemId: String,
         photoBytes: ByteArray
     ): Result<Pair<String, String>, DataError.Network>
+
+    suspend fun uploadFabricPhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network>
+
+    suspend fun uploadStylePhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network>
+
+    suspend fun deleteStoragePaths(
+        paths: List<String>,
+    ): EmptyResult<DataError.Network>
 }

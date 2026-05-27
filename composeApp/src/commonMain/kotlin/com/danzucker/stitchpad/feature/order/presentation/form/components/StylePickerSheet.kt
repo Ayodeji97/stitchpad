@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -32,11 +33,14 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_form_style_picker_empty
 import stitchpad.composeapp.generated.resources.order_form_style_picker_title
+import stitchpad.composeapp.generated.resources.style_picker_already_added
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StylePickerSheet(
     styles: List<Style>,
+    alreadySelectedStyleIds: Set<String>,
+    remainingCapacity: Int,
     onSelect: (Style) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -68,7 +72,18 @@ fun StylePickerSheet(
             } else {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     items(items = styles, key = { it.id }) { style ->
-                        StylePickerRow(style = style, onClick = { onSelect(style) })
+                        val alreadyPicked = style.id in alreadySelectedStyleIds
+                        val outOfCapacity = remainingCapacity <= 0
+                        val disabled = alreadyPicked || outOfCapacity
+                        StylePickerRow(
+                            style = style,
+                            disabled = disabled,
+                            statusLabel = when {
+                                alreadyPicked -> stringResource(Res.string.style_picker_already_added)
+                                else -> null
+                            },
+                            onClick = { if (!disabled) onSelect(style) },
+                        )
                     }
                 }
             }
@@ -79,14 +94,18 @@ fun StylePickerSheet(
 @Composable
 private fun StylePickerRow(
     style: Style,
+    disabled: Boolean,
+    statusLabel: String?,
     onClick: () -> Unit,
 ) {
+    val rowAlpha = if (disabled) 0.5f else 1f
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
+            .alpha(rowAlpha)
+            .clickable(role = Role.Button, enabled = !disabled, onClick = onClick)
             .padding(
                 horizontal = DesignTokens.space4,
                 vertical = DesignTokens.space2,
@@ -95,8 +114,7 @@ private fun StylePickerRow(
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(DesignTokens.radiusMd))
-                .padding(0.dp),
+                .clip(RoundedCornerShape(DesignTokens.radiusMd)),
         ) {
             SubcomposeAsyncImage(
                 model = style.photoUrl,
@@ -121,6 +139,13 @@ private fun StylePickerRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (statusLabel != null) {
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

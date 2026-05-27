@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.order.presentation.detail.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -58,7 +62,7 @@ import stitchpad.composeapp.generated.resources.order_detail_garment_section
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
 
-private val FABRIC_THUMBNAIL_SIZE = 128.dp
+private val FABRIC_THUMBNAIL_SIZE = 64.dp
 private val FABRIC_PLACEHOLDER_SIZE = 96.dp
 
 @Composable
@@ -69,7 +73,8 @@ fun OrderGarmentDetailsCard(
     onAddFabricNameClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var fullScreenImage: String? by remember { mutableStateOf<String?>(null) }
+    var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
+    var viewerStartIndex: Int by remember { mutableIntStateOf(0) }
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
@@ -85,7 +90,7 @@ fun OrderGarmentDetailsCard(
             ),
         ) {
             // Per-item rows. The first row hosts the section header inside its
-            // left column so the fabric thumbnail spans from the top of the card
+            // left column so the fabric strip spans from the top of the card
             // body and total card height collapses by ~40dp.
             items.forEachIndexed { index, item ->
                 if (index > 0) {
@@ -99,16 +104,22 @@ fun OrderGarmentDetailsCard(
                     onAddFabricNameClick = if (showCta) onAddFabricNameClick else null,
                     priority = if (index == 0) priority else OrderPriority.NORMAL,
                     showHeader = index == 0,
-                    onFabricPhotoClick = { url -> fullScreenImage = url },
+                    onFabricStripClick = { urls, startIdx ->
+                        viewerImages = urls
+                        viewerStartIndex = startIdx
+                    },
                 )
             }
         }
     }
-    FullScreenImageViewer(
-        model = fullScreenImage,
-        contentDescription = null,
-        onDismiss = { fullScreenImage = null },
-    )
+    if (viewerImages.isNotEmpty()) {
+        FullScreenImageViewer(
+            images = viewerImages,
+            startIndex = viewerStartIndex,
+            contentDescription = null,
+            onDismiss = { viewerImages = emptyList() },
+        )
+    }
 }
 
 @Composable
@@ -118,7 +129,7 @@ private fun GarmentItemRow(
     onAddFabricNameClick: (() -> Unit)?,
     priority: OrderPriority,
     showHeader: Boolean,
-    onFabricPhotoClick: (String) -> Unit = {},
+    onFabricStripClick: (List<String>, Int) -> Unit = { _, _ -> },
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -180,7 +191,8 @@ private fun GarmentItemRow(
             // Currently OrderItem has no quantity field; OrderForm always emits qty=1.
             // The "Qty 1" text in the previous design was a placeholder for a future
             // multi-quantity feature. Drop it for now — re-add when the model gains qty.
-            val needsPhoto = item.fabricPhotoUrl.isNullOrBlank()
+            val hasFabricImages = item.fabricImages.isNotEmpty()
+            val needsPhoto = !hasFabricImages && item.fabricPhotoUrl.isNullOrBlank()
             val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
             val ctaLabel: StringResource?
             val ctaCallback: (() -> Unit)?
@@ -213,11 +225,22 @@ private fun GarmentItemRow(
             }
         }
 
-        // Right column: fabric photo with caption pill, or placeholder.
-        if (!item.fabricPhotoUrl.isNullOrBlank()) {
-            FabricThumbnail(
-                photoUrl = item.fabricPhotoUrl,
-                onClick = { onFabricPhotoClick(item.fabricPhotoUrl) },
+        // Right column: fabric strip (multi-image) or placeholder.
+        if (item.fabricImages.isNotEmpty()) {
+            FabricStrip(
+                fabricImages = item.fabricImages,
+                onImageClick = onFabricStripClick,
+            )
+        } else if (!item.fabricPhotoUrl.isNullOrBlank()) {
+            // Legacy single-field fallback during double-write window.
+            FabricStrip(
+                fabricImages = listOf(
+                    FabricImageRef(
+                        photoUrl = item.fabricPhotoUrl,
+                        photoStoragePath = item.fabricPhotoStoragePath.orEmpty(),
+                    )
+                ),
+                onImageClick = onFabricStripClick,
             )
         } else {
             FabricPlaceholder()
@@ -225,51 +248,65 @@ private fun GarmentItemRow(
     }
 }
 
+/**
+ * Horizontal scrollable strip of fabric thumbnail tiles.
+ * Tapping any tile opens the full-screen viewer at that index.
+ */
 @Composable
-private fun FabricThumbnail(
-    photoUrl: String,
-    onClick: () -> Unit,
+private fun FabricStrip(
+    fabricImages: List<FabricImageRef>,
+    onImageClick: (List<String>, Int) -> Unit,
 ) {
+    val urls = fabricImages.map { it.photoUrl }
     val caption = stringResource(Res.string.order_detail_fabric_caption)
-    Box(
-        modifier = Modifier
-            .size(FABRIC_THUMBNAIL_SIZE)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-            )
-            .clickable(onClick = onClick),
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
     ) {
-        SubcomposeAsyncImage(
-            model = photoUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            loading = {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    LoadingDots(dotSize = 6.dp)
-                }
-            },
-            modifier = Modifier
-                .size(FABRIC_THUMBNAIL_SIZE)
-                .clip(RoundedCornerShape(DesignTokens.radiusMd)),
-        )
-        Text(
-            text = caption,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 4.dp)
-                .background(
-                    color = Color.Black.copy(alpha = 0.55f),
-                    shape = RoundedCornerShape(DesignTokens.radiusFull),
+        urls.forEachIndexed { index, url ->
+            Box(
+                modifier = Modifier
+                    .size(FABRIC_THUMBNAIL_SIZE)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    )
+                    .clickable { onImageClick(urls, index) },
+            ) {
+                SubcomposeAsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            LoadingDots(dotSize = 6.dp)
+                        }
+                    },
+                    modifier = Modifier
+                        .size(FABRIC_THUMBNAIL_SIZE)
+                        .clip(RoundedCornerShape(DesignTokens.radiusMd)),
                 )
-                .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
-        )
+                if (index == 0) {
+                    Text(
+                        text = caption,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 4.dp)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.55f),
+                                shape = RoundedCornerShape(DesignTokens.radiusFull),
+                            )
+                            .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -341,8 +378,10 @@ private fun SectionIconTile(
 }
 
 /** Returns true when an item is still missing fabric photo or fabric name. */
-private fun needsFabricInfo(item: OrderItem): Boolean =
-    item.fabricPhotoUrl.isNullOrBlank() || item.fabricName.isNullOrBlank()
+private fun needsFabricInfo(item: OrderItem): Boolean {
+    val hasPhoto = item.fabricImages.isNotEmpty() || !item.fabricPhotoUrl.isNullOrBlank()
+    return !hasPhoto || item.fabricName.isNullOrBlank()
+}
 
 // region — Previews
 
