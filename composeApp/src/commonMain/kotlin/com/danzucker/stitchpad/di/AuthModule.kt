@@ -23,7 +23,12 @@ val authDataModule = module {
     // BrandLogoValidator must be bound so viewModelOf(::WorkshopSetupViewModel)
     // and viewModelOf(::EditProfileViewModel) can resolve the validator param —
     // Koin's reflection-based viewModelOf does not honour Kotlin default values.
-    singleOf(::BrandLogoValidator)
+    //
+    // Use an explicit zero-arg factory rather than singleOf — the validator's
+    // own `maxBytes: Int = MAX_BYTES` constructor param has the SAME problem
+    // we're solving for the VMs: singleOf would try to resolve Int from the
+    // graph, fail at runtime, and crash both logo-enabled screens.
+    single { BrandLogoValidator() }
 }
 
 val authPresentationModule = module {
