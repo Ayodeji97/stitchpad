@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
 import androidx.compose.foundation.background
+import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.ui.components.LoadingDots
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -434,11 +437,11 @@ private fun BrandLogoSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Prefer the freshly-uploaded URL; otherwise fall back to whatever logo
-            // is currently persisted on Firestore so a slow or failed replacement
-            // doesn't visually swap the user's logo out for the initials fallback.
-            val logoUrl = (logo as? LogoUploadState.Uploaded)?.url ?: existingLogoUrl
-            BrandLogo(logoUrl = logoUrl, fallbackInitials = fallbackInitials, size = 64.dp)
+            EditProfileLogoTile(
+                logo = logo,
+                existingLogoUrl = existingLogoUrl,
+                fallbackInitials = fallbackInitials,
+            )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onChangeClick) {
                     Text(stringResource(Res.string.edit_profile_logo_change))
@@ -458,6 +461,72 @@ private fun BrandLogoSection(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Renders the 64dp logo tile in BrandLogoSection. Mirrors WorkshopSetupScreen's
+ * tile shape: each LogoUploadState gets its own treatment so a slow or failed
+ * upload still surfaces the user's intent (preview bytes + LoadingDots overlay).
+ * Without this, Uploading/Failed states would visually fall back to the existing
+ * logo or initials, making the action appear inert on slow networks.
+ */
+@Composable
+private fun EditProfileLogoTile(
+    logo: LogoUploadState,
+    existingLogoUrl: String?,
+    fallbackInitials: String,
+) {
+    val tileShape = RoundedCornerShape(12.dp)
+    when (logo) {
+        is LogoUploadState.Uploading -> {
+            Box(
+                modifier = Modifier.size(64.dp).clip(tileShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                SubcomposeAsyncImage(
+                    model = logo.previewBytes,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = { LoadingDots() },
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center,
+                ) { LoadingDots(color = androidx.compose.ui.graphics.Color.White) }
+            }
+        }
+        is LogoUploadState.Failed -> {
+            Box(
+                modifier = Modifier.size(64.dp).clip(tileShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                SubcomposeAsyncImage(
+                    model = logo.previewBytes,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = { LoadingDots() },
+                )
+                // Dim the failed preview so the Retry copy in the snackbar
+                // is unmistakably about THIS tile.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f)),
+                )
+            }
+        }
+        else -> {
+            // Empty or Uploaded — fall through to the existing URL-based render so
+            // a confirmed Uploaded state shows the new URL, and Empty falls back to
+            // the originally-persisted logo (or initials when neither exists).
+            val logoUrl = (logo as? LogoUploadState.Uploaded)?.url ?: existingLogoUrl
+            BrandLogo(logoUrl = logoUrl, fallbackInitials = fallbackInitials, size = 64.dp)
         }
     }
 }

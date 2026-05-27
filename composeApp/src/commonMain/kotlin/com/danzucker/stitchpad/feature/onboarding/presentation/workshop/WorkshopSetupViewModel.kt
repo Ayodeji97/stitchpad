@@ -186,16 +186,22 @@ class WorkshopSetupViewModel(
 
                 val logo = s.logo
                 if (logo is LogoUploadState.Uploaded) {
-                    val r = userRepository.updateBrandLogo(user.id, logo.url, logo.path)
-                    if (r is Result.Success) {
-                        _events.send(
+                    when (userRepository.updateBrandLogo(user.id, logo.url, logo.path)) {
+                        is Result.Success -> _events.send(
                             WorkshopSetupEvent.ShowSnackbar(
                                 UiText.StringResourceText(Res.string.workshop_logo_uploaded)
                             )
                         )
+                        is Result.Error -> {
+                            // Storage upload landed but Firestore never attached the URL —
+                            // delete the orphaned object so it doesn't linger forever. The
+                            // user has no in-app way to remove it (Edit Profile only sees
+                            // originalLogoStoragePath, which is null because the user doc
+                            // never got the field). Don't block the home navigation; the
+                            // profile is set, just without the logo.
+                            userRepository.deleteUserLogo(logo.path)
+                        }
                     }
-                    // A failure here doesn't block onboarding — the user has a profile.
-                    // We just don't surface the success snackbar; they'll set the logo from Edit Profile.
                 }
 
                 onboardingPreferences.setWorkshopSetupCompleted()
