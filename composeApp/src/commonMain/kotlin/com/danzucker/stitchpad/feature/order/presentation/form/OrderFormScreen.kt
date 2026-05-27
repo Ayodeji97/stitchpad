@@ -42,6 +42,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -94,6 +95,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
@@ -105,14 +107,18 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.garment_gender_female
+import stitchpad.composeapp.generated.resources.garment_picker_custom_pill
+import stitchpad.composeapp.generated.resources.garment_picker_saved_snackbar_format
 import stitchpad.composeapp.generated.resources.garment_gender_male
 import stitchpad.composeapp.generated.resources.garment_gender_unisex
 import stitchpad.composeapp.generated.resources.order_form_add_item
@@ -180,12 +186,22 @@ fun OrderFormRoot(
     val viewModel: OrderFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             OrderFormEvent.NavigateBack -> onNavigateBack()
             OrderFormEvent.OrderSaved -> onNavigateBack()
-            is OrderFormEvent.ShowCustomSavedSnackbar -> Unit // TODO: Task 17 — wire snackbar
+            is OrderFormEvent.ShowCustomSavedSnackbar -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        getString(
+                            Res.string.garment_picker_saved_snackbar_format,
+                            event.name,
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -317,6 +333,42 @@ fun OrderFormScreen(
                         onDismiss = { onAction(OrderFormAction.OnDismissStylePickerSheet) },
                     )
                 }
+            }
+
+            if (state.activePickerItemId != null) {
+                GarmentPickerSheet(
+                    customs = state.customGarmentTypes,
+                    presets = GarmentType.entries.filter { it != GarmentType.OTHER },
+                    searchQuery = state.pickerSearchQuery,
+                    onSearchChange = { onAction(OrderFormAction.OnPickerSearchChange(it)) },
+                    onPickPreset = { type ->
+                        onAction(
+                            OrderFormAction.OnPickGarmentType(
+                                itemId = state.activePickerItemId!!,
+                                garmentType = type,
+                                customName = null,
+                            )
+                        )
+                    },
+                    onPickCustom = { custom ->
+                        onAction(
+                            OrderFormAction.OnPickGarmentType(
+                                itemId = state.activePickerItemId!!,
+                                garmentType = GarmentType.OTHER,
+                                customName = custom.name,
+                            )
+                        )
+                    },
+                    onAddCustom = { typed ->
+                        onAction(
+                            OrderFormAction.OnAddCustomGarmentType(
+                                itemId = state.activePickerItemId!!,
+                                name = typed,
+                            )
+                        )
+                    },
+                    onDismiss = { onAction(OrderFormAction.OnDismissPicker) },
+                )
             }
 
             val canAdvance = when (state.currentStep) {
@@ -683,39 +735,32 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Garment type dropdown (filtered by gender)
-            val filteredGarmentTypes = GarmentType.entries.filter { it.gender == selectedGenderFilter }
-            var garmentExpanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(
-                expanded = garmentExpanded,
-                onExpandedChange = { garmentExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = item.garmentType?.let { garmentDisplayName(it) } ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(Res.string.order_form_garment_type_label)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = garmentExpanded) },
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded = garmentExpanded,
-                    onDismissRequest = { garmentExpanded = false }
-                ) {
-                    filteredGarmentTypes.forEach { type ->
-                        DropdownMenuItem(
-                            text = { Text(garmentDisplayName(type)) },
-                            onClick = {
-                                onAction(OrderFormAction.OnItemGarmentTypeChange(item.id, type))
-                                garmentExpanded = false
-                            }
+            // Garment-type tap target — opens GarmentPickerSheet on tap
+            val displayValue = when {
+                item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank() ->
+                    item.customGarmentName
+                item.garmentType != null -> garmentDisplayName(item.garmentType)
+                else -> ""
+            }
+            OutlinedTextField(
+                value = displayValue ?: "",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(Res.string.order_form_garment_type_label)) },
+                trailingIcon = {
+                    if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(stringResource(Res.string.garment_picker_custom_pill)) },
+                            modifier = Modifier.padding(end = 8.dp),
                         )
                     }
-                }
-            }
+                },
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAction(OrderFormAction.OnOpenGarmentPicker(item.id)) },
+            )
 
             Spacer(Modifier.height(DesignTokens.space2))
 
