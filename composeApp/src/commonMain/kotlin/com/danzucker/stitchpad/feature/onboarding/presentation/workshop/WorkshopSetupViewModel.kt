@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.branding.presentation.toUiText
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -96,14 +97,20 @@ class WorkshopSetupViewModel(
 
     private fun onSkip() {
         val current = _state.value.logo
-        logoUploadJob?.cancel()
         viewModelScope.launch {
-            // Await the Storage delete BEFORE navigating. NavigateToHome clears this
-            // onboarding ViewModel, cancelling viewModelScope — if the delete runs in
-            // a separate launch it gets cancelled mid-flight and the logo object is
-            // left orphaned in Storage. Joining keeps the cleanup tied to the screen
-            // exit; the delete returns Result.Success even on a missing object (see
-            // FirebaseUserRepository.deleteUserLogo) so a no-op path is still cheap.
+            // CancelAndJoin (not bare cancel) so any in-flight putData is definitively
+            // stopped BEFORE we delete the path. A bare cancel + immediate delete races:
+            // the upload can complete after the delete runs, leaving an orphan object
+            // even though the user skipped. Repository methods rethrow
+            // CancellationException so cancellation propagates cleanly.
+            //
+            // Awaiting the delete keeps the cleanup tied to the screen exit too —
+            // NavigateToHome clears this ViewModel + cancels viewModelScope, so
+            // running cleanup in a separate launch would itself get cancelled. The
+            // delete returns Result.Success even on a missing object (see
+            // FirebaseUserRepository.deleteUserLogo) so a no-op path stays cheap.
+            logoUploadJob?.cancelAndJoin()
+            logoUploadJob = null
             when (current) {
                 is LogoUploadState.Uploaded -> userRepository.deleteUserLogo(current.path)
                 is LogoUploadState.Uploading,
