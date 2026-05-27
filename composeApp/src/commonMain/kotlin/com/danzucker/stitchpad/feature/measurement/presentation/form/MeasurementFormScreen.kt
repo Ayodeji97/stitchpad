@@ -795,7 +795,7 @@ private fun CustomFieldsSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3),
+            .padding(vertical = DesignTokens.space3),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
