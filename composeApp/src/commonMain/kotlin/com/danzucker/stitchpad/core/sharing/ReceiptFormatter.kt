@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.core.sharing
 
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.User
@@ -37,32 +38,7 @@ object ReceiptFormatter {
             } ${d.year}"
         }
 
-        val groupedItems = order.items
-            // Group by the display key so custom garment names (garmentType == OTHER with
-            // a non-blank customGarmentName) appear as their own line items rather than
-            // being collapsed into the generic "Other" bucket.
-            .groupBy { item ->
-                if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
-                    "custom:${item.customGarmentName}"
-                } else {
-                    item.garmentType.name
-                }
-            }
-            .map { (_, items) ->
-                val first = items.first()
-                val garmentName = if (first.garmentType == GarmentType.OTHER &&
-                    !first.customGarmentName.isNullOrBlank()
-                ) {
-                    first.customGarmentName!!
-                } else {
-                    garmentNames[first.garmentType] ?: first.garmentType.name
-                }
-                ReceiptItem(
-                    quantity = items.size,
-                    garmentName = garmentName,
-                    formattedPrice = "\u20A6${formatPrice(items.sumOf { it.price })}"
-                )
-            }
+        val groupedItems = groupReceiptItems(order.items, garmentNames)
 
         val shortId = order.id
             .take(ORDER_ID_PREFIX_LENGTH)
@@ -104,6 +80,39 @@ object ReceiptFormatter {
             businessLogoBytes = businessLogoBytes,
         )
     }
+
+    /**
+     * Group order items into receipt line items. Custom garments
+     * (garmentType == OTHER with a non-blank customGarmentName) get their own
+     * line item per distinct name, so the customer sees the tailor's actual
+     * label (e.g. "Iro and Buba") instead of a generic "Other" bucket.
+     */
+    private fun groupReceiptItems(
+        items: List<OrderItem>,
+        garmentNames: Map<GarmentType, String>,
+    ): List<ReceiptItem> = items
+        .groupBy { item ->
+            if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
+                "custom:${item.customGarmentName}"
+            } else {
+                item.garmentType.name
+            }
+        }
+        .map { (_, group) ->
+            val first = group.first()
+            val garmentName = if (first.garmentType == GarmentType.OTHER &&
+                !first.customGarmentName.isNullOrBlank()
+            ) {
+                first.customGarmentName!!
+            } else {
+                garmentNames[first.garmentType] ?: first.garmentType.name
+            }
+            ReceiptItem(
+                quantity = group.size,
+                garmentName = garmentName,
+                formattedPrice = "₦${formatPrice(group.sumOf { it.price })}",
+            )
+        }
 
     private fun statusToLabel(status: OrderStatus): String = when (status) {
         OrderStatus.PENDING -> "Pending"

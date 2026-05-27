@@ -522,13 +522,14 @@ private fun garmentSummary(order: Order): String {
     val count = order.items.size
     // Single-item orders with a custom garment name (e.g. "Iro/Buba") should display
     // the tailor-typed name rather than the generic "1 other item" string.
-    if (count == 1 &&
+    val isSingleCustom = count == 1 &&
         firstItem.garmentType == GarmentType.OTHER &&
         !firstItem.customGarmentName.isNullOrBlank()
-    ) {
-        return "1 ${firstItem.customGarmentName}"
+    return if (isSingleCustom) {
+        "1 ${firstItem.customGarmentName}"
+    } else {
+        stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
     }
-    return stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
 }
 
 @Composable

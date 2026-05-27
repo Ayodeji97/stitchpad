@@ -85,7 +85,7 @@ class FirebaseCustomGarmentTypeRepository(
                 val caseInsensitiveMatch = allDocs.firstOrNull {
                     it.name.equals(trimmed, ignoreCase = true)
                 }
-                docId = caseInsensitiveMatch?.id ?: "${baseId}-${now}"
+                docId = caseInsensitiveMatch?.id ?: "$baseId-$now"
             }
             val docRef = col.document(docId)
             val resolved = firestore.runTransaction {
