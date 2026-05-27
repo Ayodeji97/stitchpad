@@ -52,7 +52,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -68,6 +67,7 @@ import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -305,7 +305,7 @@ private fun AvatarBlock(
             fontWeight = FontWeight.Bold,
             style = TextStyle(
                 lineHeight = 36.sp,
-                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                platformStyle = platformTextStyleNoFontPadding(),
             ),
         )
     }

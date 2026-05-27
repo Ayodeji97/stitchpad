@@ -25,13 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.ui.components.BrandLogo
+import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
@@ -162,7 +162,7 @@ fun ProfileHeroCard(
                             fontWeight = FontWeight.Bold,
                             style = TextStyle(
                                 lineHeight = 22.sp,
-                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                platformStyle = platformTextStyleNoFontPadding(),
                             ),
                         )
                     }
