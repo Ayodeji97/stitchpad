@@ -127,6 +127,7 @@ fun SettingsScreen(
 
             ProfileHeroCard(
                 businessName = state.businessName.ifBlank { "—" },
+                logoUrl = state.businessLogoUrl,
                 subtitle = state.heroSubtitle.ifBlank { state.email },
                 avatarColorIndex = state.avatarColorIndex,
                 onClick = { onAction(SettingsAction.OnProfileClick) },

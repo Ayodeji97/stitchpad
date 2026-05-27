@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.di
 
+import coil3.imageLoader
 import com.danzucker.stitchpad.BuildConfig
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
@@ -19,6 +20,12 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 
 actual val platformModule: Module = module {
+    // Expose the Coil singleton ImageLoader so ViewModels can prefetch images
+    // (e.g. brand logo bytes for receipt rendering) without a Compose context.
+    // PlatformContext is a typealias for android.content.Context on Android, so
+    // get<PlatformContext>() resolves via the androidContext(app) binding registered
+    // in StitchPadApplication — registering it again here would recurse infinitely.
+    single { androidContext().imageLoader }
     single { OnboardingPreferences(androidContext()) } bind OnboardingPreferencesStore::class
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class

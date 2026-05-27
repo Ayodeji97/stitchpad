@@ -8,6 +8,13 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
+import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
+import com.danzucker.stitchpad.feature.branding.domain.defaultCompressLogo
+import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.feature.branding.presentation.toUiText
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,10 +25,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.edit_profile_logo_removed
+import stitchpad.composeapp.generated.resources.edit_profile_logo_updated
 import stitchpad.composeapp.generated.resources.edit_profile_save_failed
 import stitchpad.composeapp.generated.resources.edit_profile_saved
 import stitchpad.composeapp.generated.resources.error_business_name_required
 import stitchpad.composeapp.generated.resources.error_phone_format
+import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_whatsapp_format
 
 private const val TAG = "EditProfileVM"
@@ -33,10 +43,15 @@ class EditProfileViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     @Suppress("UnusedPrivateMember") private val savedStateHandle: SavedStateHandle,
+    private val logoValidator: BrandLogoValidator = BrandLogoValidator(),
+    // See BrandLogoCompressor.kt for why this is a function reference rather
+    // than the class — JVM unit tests substitute an identity lambda.
+    private val compressLogo: suspend (ByteArray) -> ByteArray? = ::defaultCompressLogo,
 ) : ViewModel() {
 
     private var hasLoaded = false
     private val _state = MutableStateFlow(EditProfileState())
+    private var logoUploadJob: Job? = null
 
     private val _events = Channel<EditProfileEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -84,6 +99,10 @@ class EditProfileViewModel(
             EditProfileAction.OnWhatsappBlur -> validateWhatsapp()
             EditProfileAction.OnSaveClick -> save()
             EditProfileAction.OnBackClick -> emit(EditProfileEvent.NavigateBack)
+            is EditProfileAction.OnLogoPicked -> onLogoPicked(action.bytes)
+            EditProfileAction.OnLogoRemoveClick -> _state.update { it.copy(showRemoveLogoDialog = true) }
+            EditProfileAction.OnLogoRemoveDismiss -> _state.update { it.copy(showRemoveLogoDialog = false) }
+            EditProfileAction.OnLogoRemoveConfirm -> onLogoRemoveConfirm()
         }
     }
 
@@ -114,6 +133,14 @@ class EditProfileViewModel(
             val displayName = firestoreUser?.displayName?.takeIf { it.isNotBlank() }
                 ?: authUser.displayName
 
+            val logoUrl = firestoreUser?.businessLogoUrl
+            val logoPath = firestoreUser?.businessLogoStoragePath
+            val logoState = if (logoUrl != null && logoPath != null) {
+                LogoUploadState.Uploaded(logoUrl, logoPath)
+            } else {
+                LogoUploadState.Empty
+            }
+
             _state.update {
                 it.copy(
                     isLoading = false,
@@ -128,6 +155,9 @@ class EditProfileViewModel(
                     originalPhoneNumber = phone,
                     originalWhatsappNumber = whatsapp,
                     originalAvatarColorIndex = color,
+                    logo = logoState,
+                    originalLogoUrl = logoUrl,
+                    originalLogoStoragePath = logoPath,
                 )
             }
         }
@@ -233,6 +263,146 @@ class EditProfileViewModel(
                     _state.update { it.copy(isSaving = false) }
                     AppLogger.e(tag = TAG) { "updateProfile failed error=${result.error}" }
                     emit(EditProfileEvent.ShowSnackbar(UiText.StringResourceText(Res.string.edit_profile_save_failed)))
+                }
+            }
+        }
+    }
+
+    // Long because the upload path now has 3 stages (validate, compress,
+    // upload-then-Firestore-then-rollback) each with their own error branch.
+    // Splitting into helpers would scatter the state-transition contract.
+    @Suppress("LongMethod")
+    private fun onLogoPicked(bytes: ByteArray) {
+        when (val validation = logoValidator.validate(bytes)) {
+            is Result.Error -> {
+                viewModelScope.launch {
+                    _events.send(EditProfileEvent.ShowSnackbar(validation.error.toUiText()))
+                }
+                return
+            }
+            is Result.Success -> Unit
+        }
+        logoUploadJob?.cancel()
+        // Show the raw picked preview immediately; compress before the upload runs.
+        _state.update { it.copy(logo = LogoUploadState.Uploading(bytes)) }
+        logoUploadJob = viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: run {
+                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                return@launch
+            }
+            // Downscale + JPEG re-encode before upload. Null = decode failed despite
+            // the magic-bytes check passing → surface as UnsupportedFormat.
+            val compressed = compressLogo(bytes)
+            if (compressed == null) {
+                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                _events.send(
+                    EditProfileEvent.ShowSnackbar(BrandLogoError.UnsupportedFormat.toUiText())
+                )
+                return@launch
+            }
+            when (val result = userRepository.uploadUserLogo(userId, compressed)) {
+                is Result.Success -> {
+                    val (url, path) = result.data
+                    // Only transition to Uploaded AFTER Firestore is updated. Otherwise
+                    // a Firestore failure (offline, rules reject) leaves the user looking
+                    // at a "Uploaded" tile that won't survive a reload — and the Storage
+                    // object becomes orphaned because nothing references it.
+                    when (userRepository.updateBrandLogo(userId, url, path)) {
+                        is Result.Success -> {
+                            _state.update {
+                                it.copy(
+                                    logo = LogoUploadState.Uploaded(url, path),
+                                    originalLogoUrl = url,
+                                    originalLogoStoragePath = path,
+                                )
+                            }
+                            emit(
+                                EditProfileEvent.ShowSnackbar(
+                                    UiText.StringResourceText(Res.string.edit_profile_logo_updated)
+                                )
+                            )
+                        }
+                        is Result.Error -> {
+                            // Storage wrote but Firestore didn't. Storage path is
+                            // deterministic (users/{uid}/branding/logo.jpg), so the
+                            // upload has OVERWRITTEN any prior logo's bytes already.
+                            //
+                            // - First-time upload (no previous logo): the Storage object
+                            //   is orphaned because the user doc has no reference. Delete
+                            //   it to avoid permanent waste.
+                            // - Replacement (prior logo existed): the previous logo's
+                            //   bytes are already gone — overwritten by this upload. We
+                            //   must NOT delete now, or the path would be empty while
+                            //   the user doc still points at the (token-mismatched, but
+                            //   stable) old URL. A subsequent retry will overwrite the
+                            //   path again and reconcile.
+                            AppLogger.e(tag = TAG) { "updateBrandLogo after upload failed for userId=$userId" }
+                            val hadPreviousLogo = _state.value.originalLogoStoragePath != null
+                            if (!hadPreviousLogo) {
+                                userRepository.deleteUserLogo(path)
+                            }
+                            _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                            _events.send(
+                                EditProfileEvent.ShowSnackbar(
+                                    UiText.StringResourceText(Res.string.error_unknown)
+                                )
+                            )
+                        }
+                    }
+                }
+                is Result.Error -> {
+                    _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                    _events.send(
+                        EditProfileEvent.ShowSnackbar(BrandLogoError.Network(result.error).toUiText())
+                    )
+                }
+            }
+        }
+    }
+
+    private fun onLogoRemoveConfirm() {
+        _state.update { it.copy(showRemoveLogoDialog = false) }
+        viewModelScope.launch {
+            // Cancel + await any in-flight upload first. Without this, a user who tapped
+            // Change (upload mid-flight) and then confirmed Remove would race: this path
+            // clears Firestore + Storage, then the still-running upload coroutine sets
+            // LogoUploadState.Uploaded and calls updateBrandLogo(url, path), resurrecting
+            // a logo the user just removed (and pointing Firestore at a deleted object).
+            // The repository methods rethrow CancellationException, so the upload's
+            // failure branch won't run after cancel.
+            logoUploadJob?.cancelAndJoin()
+            logoUploadJob = null
+
+            val uid = authRepository.getCurrentUser()?.id ?: return@launch
+            val pathToDelete = _state.value.let {
+                it.originalLogoStoragePath ?: (it.logo as? LogoUploadState.Uploaded)?.path
+            }
+            // Gate Storage delete + local state clear on the Firestore clear succeeding.
+            // If the Firestore write fails (offline, rules reject), we must NOT delete the
+            // Storage object — the user doc would still point at a now-missing URL and the
+            // next snapshot would resurrect a broken reference.
+            when (userRepository.updateBrandLogo(uid, null, null)) {
+                is Result.Success -> {
+                    pathToDelete?.let { userRepository.deleteUserLogo(it) }
+                    _state.update {
+                        it.copy(
+                            logo = LogoUploadState.Empty,
+                            originalLogoUrl = null,
+                            originalLogoStoragePath = null,
+                        )
+                    }
+                    _events.send(
+                        EditProfileEvent.ShowSnackbar(
+                            UiText.StringResourceText(Res.string.edit_profile_logo_removed)
+                        )
+                    )
+                }
+                is Result.Error -> {
+                    _events.send(
+                        EditProfileEvent.ShowSnackbar(
+                            UiText.StringResourceText(Res.string.error_unknown)
+                        )
+                    )
                 }
             }
         }

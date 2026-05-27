@@ -22,5 +22,12 @@ data class ReceiptData(
     val deadlineFormatted: String?,
     val priorityLabel: String?,
     val orderIdShort: String,
-    val attribution: String?
+    val attribution: String?,
+    /**
+     * Pre-decoded PNG bytes of the user's brand logo, or `null` if none set.
+     * Pre-decoded because both renderers draw synchronously and can't await Coil.
+     * Fetched via [coil3.ImageLoader.execute] then converted to PNG bytes at the
+     * share-trigger call site (see [com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailViewModel]).
+     */
+    val businessLogoBytes: ByteArray?,
 )

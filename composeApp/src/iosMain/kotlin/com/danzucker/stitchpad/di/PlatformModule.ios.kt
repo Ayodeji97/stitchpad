@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.di
 
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
@@ -26,6 +28,10 @@ var iosNativeGoogleSignInLauncher: NativeGoogleSignInLauncher? = null
 var iosNativeAppleSignInLauncher: NativeAppleSignInLauncher? = null
 
 actual val platformModule: Module = module {
+    // Expose the Coil singleton ImageLoader and PlatformContext so ViewModels can
+    // prefetch images (e.g. brand logo bytes for receipt rendering) without a Compose context.
+    single<PlatformContext> { PlatformContext.INSTANCE }
+    single { SingletonImageLoader.get(PlatformContext.INSTANCE) }
     single { OnboardingPreferences() } bind OnboardingPreferencesStore::class
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { ThemePreferences() } bind ThemePreferencesStore::class

@@ -12,6 +12,7 @@ import stitchpad.composeapp.generated.resources.settings_hero_plan_pro
 data class SettingsState(
     val isLoading: Boolean = true,
     val businessName: String = "",
+    val businessLogoUrl: String? = null,
     val email: String = "",
     val whatsappNumber: String? = null,
     val avatarColorIndex: Int = 0,

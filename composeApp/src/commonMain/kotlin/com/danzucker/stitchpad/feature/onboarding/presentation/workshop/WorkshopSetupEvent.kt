@@ -6,5 +6,5 @@ sealed interface WorkshopSetupEvent {
     data object NavigateToHome : WorkshopSetupEvent
     data object NavigateToLogin : WorkshopSetupEvent
     data class ShowError(val message: UiText) : WorkshopSetupEvent
-    data object ShowComingSoon : WorkshopSetupEvent
+    data class ShowSnackbar(val message: UiText) : WorkshopSetupEvent
 }

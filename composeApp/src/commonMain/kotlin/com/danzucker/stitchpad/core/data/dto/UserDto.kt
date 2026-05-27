@@ -32,4 +32,8 @@ data class UserDto(
     val avatarColorIndex: Int = 0,
     /** Welcome bonus AI coins remaining. See User.bonusCoins for full context. */
     val bonusCoins: Int? = null,
+    @SerialName("businessLogoUrl")
+    val businessLogoUrl: String? = null,
+    @SerialName("businessLogoStoragePath")
+    val businessLogoStoragePath: String? = null,
 )

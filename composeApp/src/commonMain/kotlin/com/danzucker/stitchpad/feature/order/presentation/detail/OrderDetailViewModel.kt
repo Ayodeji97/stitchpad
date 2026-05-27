@@ -3,6 +3,10 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
@@ -15,10 +19,12 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
+import com.danzucker.stitchpad.core.sharing.toPngBytes
 import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -27,6 +33,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -38,7 +45,11 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Suppress("TooManyFunctions")
+// Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
+// and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
+// A refactor to bundle repositories into a single dependency would obscure the
+// per-layer wiring; staying explicit + suppressing here keeps the seams visible.
+@Suppress("TooManyFunctions", "LongParameterList")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
@@ -46,7 +57,10 @@ class OrderDetailViewModel(
     private val measurementRepository: MeasurementRepository,
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
     private val receiptSharer: OrderReceiptSharer,
+    private val imageLoader: ImageLoader,
+    private val platformContext: PlatformContext,
 ) : ViewModel() {
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
@@ -349,7 +363,8 @@ class OrderDetailViewModel(
                     .map { it.garmentType }
                     .distinct()
                     .associate { it to garmentDisplayNameAsync(it) }
-                val receiptData = ReceiptFormatter.format(order, user, garmentNames)
+                val logoBytes = fetchLogoBytes(user.businessLogoUrl)
+                val receiptData = ReceiptFormatter.format(order, user, garmentNames, logoBytes)
                 share(receiptData)
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
@@ -359,9 +374,36 @@ class OrderDetailViewModel(
         }
     }
 
+    /**
+     * Prefetch the user's brand logo via Coil and encode it as PNG bytes.
+     * Returns null when no URL is set or decoding fails.
+     * The bytes are passed through [ReceiptData] so receipt renderers can draw
+     * them synchronously on a Canvas/CGContext without suspending.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun fetchLogoBytes(url: String?): ByteArray? {
+        if (url.isNullOrBlank()) return null
+        val request = ImageRequest.Builder(platformContext)
+            .data(url)
+            .build()
+        val result = imageLoader.execute(request) as? SuccessResult ?: return null
+        return result.image.toPngBytes()
+    }
+
     private fun loadUser() {
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser()
+            val authUser = authRepository.getCurrentUser() ?: return@launch
+            // Resolve the Firestore user doc — the Auth user has businessName,
+            // whatsappNumber, phoneNumber, and businessLogoUrl hardcoded to null, so
+            // without this read the receipt header would fall back to the generic
+            // business name and never show the uploaded logo. Merge identity (email,
+            // displayName) from Auth when the Firestore doc lacks them (the user doc
+            // doesn't redundantly store those fields).
+            val firestoreUser = userRepository.observeUser(authUser.id).first()
+            val user = firestoreUser?.copy(
+                email = firestoreUser.email.ifBlank { authUser.email },
+                displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
+            ) ?: authUser
             _state.update { it.copy(user = user) }
         }
     }

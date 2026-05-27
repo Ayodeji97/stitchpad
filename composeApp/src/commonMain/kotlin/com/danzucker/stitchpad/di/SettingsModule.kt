@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.changepassword.Chan
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountViewModel
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileViewModel
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -20,7 +21,12 @@ val settingsDataModule = module {
 
 val settingsPresentationModule = module {
     viewModelOf(::SettingsViewModel)
-    viewModelOf(::EditProfileViewModel)
+    // Explicit factory (not viewModelOf) because the VM takes a
+    // `suspend (ByteArray) -> ByteArray?` compressor function with a default —
+    // viewModelOf would try to resolve that lambda type from the graph. Letting
+    // Kotlin's default kick in routes to BrandLogoCompressor (production) or
+    // an identity lambda (tests pass it explicitly).
+    viewModel { EditProfileViewModel(get(), get(), get(), get()) }
     viewModelOf(::ChangeEmailViewModel)
     viewModelOf(::ChangePasswordViewModel)
     viewModelOf(::DeleteAccountViewModel)
