@@ -65,9 +65,9 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGr
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
-import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
