@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.customer.presentation.detail
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.data.repository.FakeCustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -35,6 +36,7 @@ class CustomerDetailViewModelTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var customFieldRepository: FakeCustomMeasurementFieldRepository
 
     @BeforeTest
     fun setUp() {
@@ -42,6 +44,7 @@ class CustomerDetailViewModelTest {
         customerRepository = FakeCustomerRepository()
         measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository()
+        customFieldRepository = FakeCustomMeasurementFieldRepository()
     }
 
     @AfterTest
@@ -57,6 +60,7 @@ class CustomerDetailViewModelTest {
             customerRepository = customerRepository,
             measurementRepository = measurementRepository,
             authRepository = authRepository,
+            customFieldRepository = customFieldRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

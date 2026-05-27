@@ -199,9 +199,8 @@ class MeasurementFormViewModel(
                         // loadMeasurement completes) would silently drop archived-
                         // but-recorded rows from the form. See loadMeasurement for
                         // the matching edit-mode filter.
-                        val recordedKeys = current.fields.keys
                         val visible = result.data.filter { field ->
-                            val hasRecordedValue = field.id in recordedKeys
+                            val hasRecordedValue = current.fields[field.id]?.isNotBlank() == true
                             val passesNormalFilter = !field.isArchived &&
                                 (current.gender == null || current.gender in field.genders)
                             hasRecordedValue || passesNormalFilter

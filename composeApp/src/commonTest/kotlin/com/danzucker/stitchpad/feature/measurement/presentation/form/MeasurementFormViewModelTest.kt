@@ -478,6 +478,29 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
+    fun observeCustomFields_archivedFieldWithEmptyCreateValue_isHidden() = runTest {
+        // Low bug: create mode may have an empty string entry for a custom
+        // field after gender filtering. If another device archives that field,
+        // the observer must not treat the empty key as recorded data.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val field = customField(
+            id = "f-both",
+            label = "Cuff",
+            genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+        )
+        customFieldRepository.seedFields(listOf(field))
+        val vm = createViewModel()
+
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.MALE))
+        assertEquals("", vm.state.value.fields["f-both"])
+        assertEquals(listOf("f-both"), vm.state.value.customFields.map { it.id })
+
+        customFieldRepository.seedFields(listOf(field.copy(isArchived = true)))
+
+        assertEquals(emptyList(), vm.state.value.customFields.map { it.id })
+    }
+
+    @Test
     fun onAddCustomFieldClick_whenEntitled_opensAddingSheet() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -23,7 +24,8 @@ class CustomerDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val customFieldRepository: CustomMeasurementFieldRepository,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
@@ -89,7 +91,22 @@ class CustomerDetailViewModel(
                 return@launch
             }
             launch { observeCustomer(userId) }
+            launch { observeCustomFieldLabels(userId) }
             observeMeasurements(userId)
+        }
+    }
+
+    // PTSP-12: keep a UUID → label map of the tailor's custom fields so the
+    // measurement preview row can render custom-keyed values with their human
+    // labels. Includes archived fields — past measurements with recorded
+    // values still need labels per the "we never delete your data" promise.
+    // Errors are silent: the preview just falls back to the marquee row.
+    private suspend fun observeCustomFieldLabels(userId: String) {
+        customFieldRepository.observeFields(userId).collect { result ->
+            if (result is Result.Success) {
+                val labels = result.data.associate { it.id to it.label }
+                _state.update { it.copy(customFieldLabels = labels) }
+            }
         }
     }
 
