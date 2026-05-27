@@ -50,9 +50,9 @@ enum class StyleImageSource { LIBRARY, UPLOADED }
 
 data class StyleImageRef(
     val source: StyleImageSource,
-    val styleId: String? = null,           // set when source == LIBRARY
-    val photoUrl: String? = null,          // set when source == UPLOADED
-    val photoStoragePath: String? = null,  // set when source == UPLOADED
+    val styleId: String? = null, // set when source == LIBRARY
+    val photoUrl: String? = null, // set when source == UPLOADED
+    val photoStoragePath: String? = null, // set when source == UPLOADED
 )
 
 data class FabricImageRef(

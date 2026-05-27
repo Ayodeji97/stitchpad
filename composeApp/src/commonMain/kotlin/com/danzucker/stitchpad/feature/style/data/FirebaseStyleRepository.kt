@@ -84,6 +84,7 @@ class FirebaseStyleRepository(
         }
     }
 
+    @Suppress("ReturnCount")
     override suspend fun createStyles(
         userId: String,
         customerId: String,

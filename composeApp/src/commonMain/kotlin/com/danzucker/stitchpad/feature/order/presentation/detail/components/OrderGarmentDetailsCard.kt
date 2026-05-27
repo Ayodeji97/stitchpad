@@ -104,11 +104,13 @@ fun OrderGarmentDetailsCard(
             }
         }
     }
-    FullScreenImageViewer(
-        model = fullScreenImage,
-        contentDescription = null,
-        onDismiss = { fullScreenImage = null },
-    )
+    fullScreenImage?.let { img ->
+        FullScreenImageViewer(
+            images = listOf(img),
+            contentDescription = null,
+            onDismiss = { fullScreenImage = null },
+        )
+    }
 }
 
 @Composable

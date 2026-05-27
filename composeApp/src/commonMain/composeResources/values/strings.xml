@@ -497,16 +497,21 @@
     <string name="order_form_photo_cancel">Cancel</string>
     <string name="order_form_photo_sheet_title">Add fabric photo</string>
 
-    <!-- Order form style section (PTSP-9) -->
-    <string name="order_form_style_section_title">STYLE</string>
-    <string name="order_form_style_pick_from_gallery">Pick from gallery</string>
+    <!-- Order form image sections (PTSP-11) -->
+    <string name="order_form_style_section_title">Style references</string>
+    <string name="order_form_fabric_section_title">Fabric references</string>
+    <string name="order_form_image_count_fmt">%1$d of %2$d</string>
+    <string name="order_form_image_badge_library">LIBRARY</string>
+    <string name="order_form_image_badge_new">NEW</string>
+    <string name="order_form_image_add_tile">ADD</string>
+    <!-- Renamed from "order_form_style_pick_from_gallery" to remove ambiguity with the phone&apos;s photo gallery -->
+    <string name="order_form_style_pick_from_saved">Choose from saved</string>
     <string name="order_form_style_upload_new">Upload new</string>
-    <string name="order_form_style_description_label">Style description</string>
+    <string name="order_form_fabric_upload_new">Upload fabric photo</string>
+    <string name="order_form_style_description_label">Style description (optional)</string>
     <string name="order_form_style_description_placeholder">e.g. Ankara wedding suit</string>
-    <string name="order_form_style_save_to_gallery">Save to style gallery</string>
-    <string name="order_form_style_from_gallery_caption">From your style gallery</string>
-    <string name="order_form_style_change">Change</string>
-    <string name="order_form_style_remove">Remove</string>
+    <string name="order_form_style_save_to_gallery">Save uploaded styles to my library</string>
+    <string name="style_picker_already_added">Already added</string>
     <string name="order_form_style_picker_title">Pick a style</string>
     <string name="order_form_style_picker_empty">No saved styles yet</string>
 

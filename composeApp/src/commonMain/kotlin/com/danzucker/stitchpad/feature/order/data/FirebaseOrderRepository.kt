@@ -305,7 +305,7 @@ class FirebaseOrderRepository(
                 }
             }
             item.styleImages
-                .filter { it.source == "UPLOADED" }
+                .filter { it.source == StyleImageSource.UPLOADED.name }
                 .forEach { ref ->
                     val p = ref.photoStoragePath
                     if (!p.isNullOrBlank()) {
@@ -352,6 +352,7 @@ class FirebaseOrderRepository(
         }
     }
 
+    @Suppress("ReturnCount")
     override suspend fun uploadFabricPhotos(
         userId: String,
         orderId: String,
@@ -374,6 +375,7 @@ class FirebaseOrderRepository(
         return Result.Success(results)
     }
 
+    @Suppress("ReturnCount")
     override suspend fun uploadStylePhotos(
         userId: String,
         orderId: String,
