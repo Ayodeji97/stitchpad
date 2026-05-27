@@ -100,7 +100,7 @@ class GarmentPickerFilterTest {
     }
 
     @Test
-    fun `blank query (whitespace only) treated as empty`() {
+    fun `blank query whitespace-only treated as empty`() {
         val result = filterGarmentOptions(
             query = "   ",
             customs = customs,
