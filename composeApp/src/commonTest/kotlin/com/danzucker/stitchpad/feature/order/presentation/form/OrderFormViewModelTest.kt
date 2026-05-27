@@ -357,7 +357,7 @@ class OrderFormViewModelTest {
     }
 
     @Test
-    fun `OnPickGarmentType preset updates item and closes picker, no touch call`() = runTest {
+    fun `OnPickGarmentType preset updates item and closes picker — no touch call`() = runTest {
         val vm = createViewModel()
         val itemId = vm.state.value.items.first().id
         vm.onAction(OrderFormAction.OnOpenGarmentPicker(itemId))
@@ -410,7 +410,7 @@ class OrderFormViewModelTest {
     }
 
     @Test
-    fun `OnAddCustomGarmentType upserts, updates item, emits snackbar`() = runTest {
+    fun `OnAddCustomGarmentType upserts and updates item and emits snackbar`() = runTest {
         val userId = "user-1"
         val vm = createViewModel()
         val itemId = vm.state.value.items.first().id

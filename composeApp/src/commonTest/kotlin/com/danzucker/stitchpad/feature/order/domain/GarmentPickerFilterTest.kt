@@ -17,7 +17,7 @@ class GarmentPickerFilterTest {
     private fun resolvePreset(type: GarmentType): String = type.name.lowercase()
 
     @Test
-    fun `empty query returns all customs and all presets, addCta hidden`() {
+    fun `empty query returns all customs and all presets — addCta hidden`() {
         val result = filterGarmentOptions(
             query = "",
             customs = customs,
@@ -31,7 +31,7 @@ class GarmentPickerFilterTest {
     }
 
     @Test
-    fun `query matches custom case-insensitively, addCta hidden`() {
+    fun `query matches custom case-insensitively — addCta hidden`() {
         val result = filterGarmentOptions(
             query = "IRO",
             customs = customs,
