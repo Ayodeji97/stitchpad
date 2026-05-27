@@ -241,12 +241,20 @@ class MeasurementFormViewModel(
                         // but-recorded rows from the form. See loadMeasurement for
                         // the matching edit-mode filter.
                         val visible = result.data.filter { field ->
-                            val hasRecordedValue = current.fields[field.id]?.isNotBlank() == true
+                            val hasRecordedValue = current.isEditMode &&
+                                current.fields[field.id]?.isNotBlank() == true
                             val passesNormalFilter = !field.isArchived &&
                                 (current.gender == null || current.gender in field.genders)
                             hasRecordedValue || passesNormalFilter
                         }
-                        current.copy(customFields = visible)
+                        val fields = if (current.isEditMode) {
+                            current.fields
+                        } else {
+                            val visibleIds = visible.map { it.id }.toSet()
+                            val customFieldIds = result.data.map { it.id }.toSet()
+                            current.fields.filterKeys { key -> key !in customFieldIds || key in visibleIds }
+                        }
+                        current.copy(customFields = visible, fields = fields)
                     }
                 }
                 // Errors on the field stream are non-fatal — keep the form
