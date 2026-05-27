@@ -274,6 +274,8 @@ class OrderFormViewModel(
                 _state.update { it.copy(activePickerItemId = null, pickerSearchQuery = "") }
             }
             is OrderFormAction.OnPickGarmentType -> {
+                // Snapshot before mutating — eliminates a race with the customGarmentTypes flow collector.
+                val customTypes = _state.value.customGarmentTypes
                 updateItem(action.itemId) {
                     it.copy(
                         garmentType = action.garmentType,
@@ -286,7 +288,7 @@ class OrderFormViewModel(
                 if (action.garmentType == GarmentType.OTHER && action.customName != null) {
                     val uid = userId
                     if (uid != null) {
-                        val match = _state.value.customGarmentTypes
+                        val match = customTypes
                             .firstOrNull { it.name.equals(action.customName, ignoreCase = true) }
                         if (match != null) {
                             viewModelScope.launch {
@@ -521,6 +523,14 @@ class OrderFormViewModel(
             return
         }
 
+        val hasOrphanedOther = s.items.any { item ->
+            item.garmentType == GarmentType.OTHER && item.customGarmentName.isNullOrBlank()
+        }
+        if (hasOrphanedOther) {
+            setError(Res.string.error_order_items_required)
+            return
+        }
+
         val formItems = s.items.filter { item ->
             item.garmentType != null &&
                 (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())
@@ -570,6 +580,13 @@ class OrderFormViewModel(
         val s = _state.value
         val uid = userId
         val customer = s.selectedCustomer
+        val hasOrphanedOther = s.items.any { item ->
+            item.garmentType == GarmentType.OTHER && item.customGarmentName.isNullOrBlank()
+        }
+        if (hasOrphanedOther) {
+            setError(Res.string.error_order_items_required)
+            return
+        }
         val formItems = s.items.filter { item ->
             item.garmentType != null &&
                 (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())

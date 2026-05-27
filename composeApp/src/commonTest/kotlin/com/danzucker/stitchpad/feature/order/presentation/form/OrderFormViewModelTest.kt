@@ -395,6 +395,21 @@ class OrderFormViewModelTest {
     }
 
     @Test
+    fun `save with OTHER item and blank customGarmentName sets error and does not persist`() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val itemId = vm.state.value.items.first().id
+        // Set garmentType = OTHER with no custom name (simulates half-completed picker entry)
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(itemId, GarmentType.OTHER))
+        vm.onAction(OrderFormAction.OnItemPriceChange(itemId, "5000"))
+
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertNull(orderRepository.lastCreatedOrder)
+    }
+
+    @Test
     fun `OnAddCustomGarmentType upserts, updates item, emits snackbar`() = runTest {
         val userId = "user-1"
         val vm = createViewModel()
