@@ -57,18 +57,33 @@ class FirebaseCustomGarmentTypeRepository(
             // contain '/' or consist solely of '.'; replace those with '-'.
             val baseId = sanitizeDocId(trimmed)
             // Two names that differ only by punctuation (e.g. "Iro/Buba" vs "Iro.Buba")
-            // can map to the same sanitized ID. Check if the stored name matches; if not,
-            // fall back to a unique, timestamp-suffixed ID so each distinct name gets its
-            // own document and the user doesn't inadvertently pick the wrong custom garment.
-            val existingSnap = collection(userId).document(baseId).get()
-            val docId = if (existingSnap.exists &&
-                existingSnap.data<CustomGarmentTypeDto>().name.lowercase() != trimmed.lowercase()
-            ) {
-                "${baseId}-${now}"
+            // can map to the same sanitized ID. To avoid creating duplicate rows on
+            // repeated upserts of the colliding name, we:
+            //   1. Try the base ID first — if the stored name matches (case-insensitive),
+            //      treat it as a normal dedup hit and fall through.
+            //   2. On a mismatch, scan the collection for an existing doc whose name
+            //      matches the typed value — reuse it if found (idempotent re-add).
+            //   3. Only then create a new timestamp-suffixed document.
+            val col = collection(userId)
+            val baseSnap = col.document(baseId).get()
+            val docId: String
+            if (!baseSnap.exists) {
+                // Happy path — no collision, use the deterministic id.
+                docId = baseId
+            } else if (baseSnap.data<CustomGarmentTypeDto>().name.lowercase() == trimmed.lowercase()) {
+                // Same name — normal dedup, reuse the existing doc.
+                docId = baseId
             } else {
-                baseId
+                // Collision — scan for an existing doc with the exact same typed name.
+                val existing = col
+                    .where { "name" equalTo trimmed }
+                    .limit(1)
+                    .get()
+                    .documents
+                    .firstOrNull()
+                docId = existing?.id ?: "${baseId}-${now}"
             }
-            val docRef = collection(userId).document(docId)
+            val docRef = col.document(docId)
             val resolved = firestore.runTransaction {
                 val snap = get(docRef)
                 if (snap.exists) {
