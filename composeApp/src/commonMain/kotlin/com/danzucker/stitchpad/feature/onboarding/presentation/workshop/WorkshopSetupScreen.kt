@@ -343,12 +343,12 @@ fun WorkshopSetupScreen(
                             .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
                             .background(Color(0xFF1F1D1A), RoundedCornerShape(10.dp))
                             .clickable {
-                                when (val logo = state.logo) {
+                                when (state.logo) {
                                     is LogoUploadState.Failed ->
                                         onAction(WorkshopSetupAction.OnLogoRetry)
-                                    LogoUploadState.Empty -> onLaunchPicker()
-                                    is LogoUploadState.Uploading,
-                                    is LogoUploadState.Uploaded -> Unit
+                                    LogoUploadState.Empty,
+                                    is LogoUploadState.Uploaded -> onLaunchPicker()
+                                    is LogoUploadState.Uploading -> Unit
                                 }
                             },
                         contentAlignment = Alignment.Center,

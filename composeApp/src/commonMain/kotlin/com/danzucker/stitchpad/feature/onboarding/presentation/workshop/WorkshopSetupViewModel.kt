@@ -48,6 +48,7 @@ class WorkshopSetupViewModel(
     val events = _events.receiveAsFlow()
 
     private var logoUploadJob: Job? = null
+    private var continueJob: Job? = null
 
     fun onAction(action: WorkshopSetupAction) {
         when (action) {
@@ -117,6 +118,13 @@ class WorkshopSetupViewModel(
     private fun onSkip() {
         val current = _state.value.logo
         viewModelScope.launch {
+            // Cancel a pending Continue first. Otherwise its pending.join() would
+            // resume normally when the upload job is cancelled below, and the rest
+            // of Continue (createUserProfile / updateBrandLogo) would run after
+            // Skip has already cleaned up — persisting state the user opted out of.
+            continueJob?.cancelAndJoin()
+            continueJob = null
+
             // CancelAndJoin (not bare cancel) so any in-flight putData is definitively
             // stopped BEFORE we delete the path. A bare cancel + immediate delete races:
             // the upload can complete after the delete runs, leaving an orphan object
@@ -176,18 +184,21 @@ class WorkshopSetupViewModel(
         // the canonical re-entry guard at the VM layer.
         if (_state.value.isLoading || _state.value.isAwaitingLogo) return
 
-        viewModelScope.launch {
-            // If a logo upload is still in flight, await it so we can persist the URL.
-            val pending = logoUploadJob
-            if (pending != null && pending.isActive) {
-                _state.update { it.copy(isAwaitingLogo = true) }
-                pending.join()
-                _state.update { it.copy(isAwaitingLogo = false) }
-            }
-
-            val s = _state.value
-            _state.update { it.copy(isLoading = true) }
+        continueJob = viewModelScope.launch {
             try {
+                // If a logo upload is still in flight, await it so we can persist the URL.
+                // Skip cancels this job via continueJob.cancelAndJoin() — pending.join()
+                // is the cancellation suspension point, so cancellation here unwinds via
+                // the finally below and the post-await work never runs.
+                val pending = logoUploadJob
+                if (pending != null && pending.isActive) {
+                    _state.update { it.copy(isAwaitingLogo = true) }
+                    pending.join()
+                    _state.update { it.copy(isAwaitingLogo = false) }
+                }
+
+                val s = _state.value
+                _state.update { it.copy(isLoading = true) }
                 val user = authRepository.getCurrentUser() ?: run {
                     _events.send(
                         WorkshopSetupEvent.ShowError(
@@ -238,7 +249,7 @@ class WorkshopSetupViewModel(
                 onboardingPreferences.setWorkshopSetupCompleted()
                 _events.send(WorkshopSetupEvent.NavigateToHome)
             } finally {
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy(isLoading = false, isAwaitingLogo = false) }
             }
         }
     }

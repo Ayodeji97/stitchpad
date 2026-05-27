@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -19,6 +20,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -133,5 +135,65 @@ class WorkshopSetupViewModelLogoTest {
         vm.onAction(WorkshopSetupAction.OnContinueClick)
 
         assertEquals("https://x" to "users/u1/branding/logo.jpg", repo.lastBrandLogoUpdate)
+    }
+
+    @Test
+    fun `Skip while Continue awaits upload cancels Continue and persists nothing`() = runTest {
+        // Gate the compressor so the upload sits in flight indefinitely. This lets
+        // Continue enter its pending.join() phase (isAwaitingLogo=true) before
+        // Skip runs — exactly the race the bugfix targets.
+        val gate = CompletableDeferred<Unit>()
+        val repo = FakeUserRepository().apply {
+            uploadLogoResult = Result.Success("https://x" to "users/u1/branding/logo.jpg")
+        }
+        val authRepo = FakeAuthRepository().apply {
+            currentUser = User(
+                id = "u1",
+                email = "u@x",
+                displayName = "U",
+                businessName = null,
+                phoneNumber = null,
+                whatsappNumber = null,
+                avatarColorIndex = 0,
+            )
+        }
+        val vm = WorkshopSetupViewModel(
+            userRepository = repo,
+            authRepository = authRepo,
+            onboardingPreferences = FakeOnboardingPreferences(),
+            compressLogo = { gate.await(); it },
+        )
+
+        vm.onAction(WorkshopSetupAction.OnBusinessNameChange("Esther"))
+        vm.onAction(WorkshopSetupAction.OnLogoPicked(validPngBytes()))
+        vm.onAction(WorkshopSetupAction.OnContinueClick)
+        assertTrue(vm.state.value.isAwaitingLogo, "Continue should be awaiting the gated upload")
+
+        vm.onAction(WorkshopSetupAction.OnSkipClick)
+
+        // Continue was cancelled mid-await; no profile write, no logo URL persisted.
+        assertNull(repo.lastUserId, "createUserProfile must not run after Skip")
+        assertNull(repo.lastBrandLogoUpdate, "updateBrandLogo must not run after Skip")
+        assertEquals(false, vm.state.value.isAwaitingLogo)
+    }
+
+    @Test
+    fun `picking a new logo while Uploaded re-uploads via the same flow`() = runTest {
+        val repo = FakeUserRepository().apply {
+            uploadLogoResult = Result.Success("https://x/v1.jpg" to "users/u1/branding/logo.jpg")
+        }
+        val vm = buildVm(repo)
+
+        vm.state.test {
+            assertEquals(LogoUploadState.Empty, awaitItem().logo)
+
+            vm.onAction(WorkshopSetupAction.OnLogoPicked(validPngBytes()))
+            assertIs<LogoUploadState.Uploading>(awaitItem().logo)
+            assertIs<LogoUploadState.Uploaded>(awaitItem().logo)
+
+            vm.onAction(WorkshopSetupAction.OnLogoPicked(validPngBytes()))
+            assertIs<LogoUploadState.Uploading>(awaitItem().logo)
+            assertIs<LogoUploadState.Uploaded>(awaitItem().logo)
+        }
     }
 }
