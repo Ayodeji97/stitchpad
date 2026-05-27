@@ -137,7 +137,12 @@ class MeasurementFormViewModel(
                     _state.update { it.copy(customFieldSheet = CustomFieldSheet.ConfirmArchive(field)) }
                 }
             }
-            is MeasurementFormAction.OnSaveCustomField -> saveCustomField(action.id, action.label, action.genders)
+            is MeasurementFormAction.OnSaveCustomField -> saveCustomField(
+                id = action.id,
+                label = action.label,
+                genders = action.genders,
+                initialValue = action.initialValue,
+            )
             is MeasurementFormAction.OnArchiveCustomFieldConfirm -> archiveCustomField(action.fieldId)
             MeasurementFormAction.OnSaveClick -> save()
             MeasurementFormAction.OnNavigateBack -> {
@@ -372,7 +377,12 @@ class MeasurementFormViewModel(
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    private fun saveCustomField(id: String?, label: String, genders: Set<CustomerGender>) {
+    private fun saveCustomField(
+        id: String?,
+        label: String,
+        genders: Set<CustomerGender>,
+        initialValue: String,
+    ) {
         // Defense in depth: VM-side entitlement re-check (welcome window could
         // have elapsed since the form opened; the UI check is the first gate).
         if (!entitlements.current().canUseCustomMeasurements) {
@@ -411,7 +421,18 @@ class MeasurementFormViewModel(
                 customFieldRepository.updateField(userId, field)
             }
             if (result is Result.Success) {
-                _state.update { it.copy(customFieldSheet = null) }
+                _state.update { current ->
+                    val valueToApply = initialValue.trim()
+                    val updatedFields = if (isCreate && valueToApply.isNotBlank()) {
+                        current.fields + (field.id to valueToApply)
+                    } else {
+                        current.fields
+                    }
+                    current.copy(
+                        fields = updatedFields,
+                        customFieldSheet = null,
+                    )
+                }
             } else {
                 // Surface via the shared snackbar. Leave the sheet OPEN so the
                 // user can retry without re-typing.
@@ -435,7 +456,13 @@ class MeasurementFormViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = customFieldRepository.archiveField(userId, fieldId)
             if (result is Result.Success) {
-                _state.update { it.copy(customFieldSheet = null) }
+                _state.update { current ->
+                    current.copy(
+                        fields = current.fields - fieldId,
+                        customFields = current.customFields.filterNot { it.id == fieldId },
+                        customFieldSheet = null,
+                    )
+                }
             } else {
                 _state.update {
                     it.copy(

@@ -24,6 +24,7 @@ sealed interface MeasurementFormAction {
         val id: String?, // null = create, non-null = update
         val label: String,
         val genders: Set<CustomerGender>,
+        val initialValue: String = "",
     ) : MeasurementFormAction
     data class OnArchiveCustomFieldRequest(val fieldId: String) : MeasurementFormAction
     data class OnArchiveCustomFieldConfirm(val fieldId: String) : MeasurementFormAction

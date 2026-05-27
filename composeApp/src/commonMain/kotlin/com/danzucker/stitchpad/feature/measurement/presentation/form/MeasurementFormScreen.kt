@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
@@ -85,11 +86,13 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.custom_field_add_button
+import stitchpad.composeapp.generated.resources.custom_field_delete_content_description
 import stitchpad.composeapp.generated.resources.custom_field_empty_caption
 import stitchpad.composeapp.generated.resources.custom_field_locked_caption
 import stitchpad.composeapp.generated.resources.custom_field_section_pill_first_month
 import stitchpad.composeapp.generated.resources.custom_field_section_pill_locked
 import stitchpad.composeapp.generated.resources.custom_field_section_pill_pro
+import stitchpad.composeapp.generated.resources.custom_field_section_subtitle
 import stitchpad.composeapp.generated.resources.custom_field_section_title
 import stitchpad.composeapp.generated.resources.custom_field_sheet_archive
 import stitchpad.composeapp.generated.resources.gender_female
@@ -299,6 +302,11 @@ fun MeasurementFormScreen(
                                 onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
                                 onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
                                 onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
+                                onDeleteField = { id ->
+                                    onAction(
+                                        MeasurementFormAction.OnArchiveCustomFieldRequest(id)
+                                    )
+                                },
                             )
                         }
                     }
@@ -364,16 +372,18 @@ fun MeasurementFormScreen(
     when (val sheet = state.customFieldSheet) {
         CustomFieldSheet.Adding -> AddCustomFieldSheet(
             initial = null,
+            unitSuffix = unitSuffix,
             onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
-            onSave = { id, label, genders ->
-                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders))
+            onSave = { id, label, genders, initialValue ->
+                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders, initialValue))
             },
         )
         is CustomFieldSheet.Editing -> AddCustomFieldSheet(
             initial = sheet.field,
+            unitSuffix = unitSuffix,
             onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
-            onSave = { id, label, genders ->
-                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders))
+            onSave = { id, label, genders, initialValue ->
+                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders, initialValue))
             },
             bottomExtra = {
                 OutlinedButton(
@@ -667,13 +677,15 @@ private fun MeasurementTextField(
     val interactionSource = remember { MutableInteractionSource() }
 
     Column(modifier = modifier) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = DesignTokens.space1)
-        )
+        if (label.isNotBlank()) {
+            Text(
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = DesignTokens.space1)
+            )
+        }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -749,6 +761,7 @@ private fun CustomFieldsSection(
     onAddClick: () -> Unit,
     onLockedAddClick: () -> Unit,
     onEditField: (String) -> Unit,
+    onDeleteField: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -757,42 +770,49 @@ private fun CustomFieldsSection(
             .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        ) {
-            Text(
-                text = stringResource(Res.string.custom_field_section_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            // "First Month" pill is only correct for trial-only access — i.e.,
-            // FREE tier inside the welcome window. Pro/Atelier users inside
-            // their first 30 days have permanent access; showing them
-            // "FIRST MONTH" implies their access is temporary when it isn't.
-            val isTrialAccess = canUseCustomMeasurements &&
-                isInWelcomeWindow &&
-                tier == SubscriptionTier.FREE
-            val pillRes = when {
-                isTrialAccess -> Res.string.custom_field_section_pill_first_month
-                canUseCustomMeasurements -> Res.string.custom_field_section_pill_pro
-                else -> Res.string.custom_field_section_pill_locked
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+            ) {
+                Text(
+                    text = stringResource(Res.string.custom_field_section_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                // "First Month" pill is only correct for trial-only access — i.e.,
+                // FREE tier inside the welcome window. Pro/Atelier users inside
+                // their first 30 days have permanent access; showing them
+                // "FIRST MONTH" implies their access is temporary when it isn't.
+                val isTrialAccess = canUseCustomMeasurements &&
+                    isInWelcomeWindow &&
+                    tier == SubscriptionTier.FREE
+                val pillRes = when {
+                    isTrialAccess -> Res.string.custom_field_section_pill_first_month
+                    canUseCustomMeasurements -> Res.string.custom_field_section_pill_pro
+                    else -> Res.string.custom_field_section_pill_locked
+                }
+                Text(
+                    text = stringResource(pillRes).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (canUseCustomMeasurements) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(DesignTokens.radiusFull),
+                        )
+                        .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
+                )
             }
             Text(
-                text = stringResource(pillRes).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = if (canUseCustomMeasurements) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(DesignTokens.radiusFull),
-                    )
-                    .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
+                text = stringResource(Res.string.custom_field_section_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -824,21 +844,39 @@ private fun CustomFieldsSection(
                 // manage sheet. The text field's own gesture detector would
                 // otherwise swallow the long-press and break text selection.
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        text = field.label.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .combinedClickable(
-                                onClick = {},
-                                onLongClick = { onEditField(field.id) },
-                            ),
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = field.label.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .combinedClickable(
+                                    onClick = { onEditField(field.id) },
+                                    onLongClick = { onEditField(field.id) },
+                                ),
+                        )
+                        IconButton(
+                            onClick = { onDeleteField(field.id) },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(
+                                    Res.string.custom_field_delete_content_description,
+                                ),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
                     MeasurementTextField(
                         value = fieldValues[field.id] ?: "",
                         // Mirror MeasurementFieldInput's numeric-only filter so custom

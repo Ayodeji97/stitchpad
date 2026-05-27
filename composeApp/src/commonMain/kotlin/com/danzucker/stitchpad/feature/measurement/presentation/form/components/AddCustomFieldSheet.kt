@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -24,6 +25,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -41,18 +44,23 @@ import stitchpad.composeapp.generated.resources.custom_field_sheet_label
 import stitchpad.composeapp.generated.resources.custom_field_sheet_label_placeholder
 import stitchpad.composeapp.generated.resources.custom_field_sheet_save
 import stitchpad.composeapp.generated.resources.custom_field_sheet_save_changes
+import stitchpad.composeapp.generated.resources.custom_field_sheet_save_with_value
+import stitchpad.composeapp.generated.resources.custom_field_sheet_value
+import stitchpad.composeapp.generated.resources.custom_field_sheet_value_placeholder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCustomFieldSheet(
     initial: CustomMeasurementField?,
+    unitSuffix: String,
     onDismiss: () -> Unit,
-    onSave: (id: String?, label: String, genders: Set<CustomerGender>) -> Unit,
+    onSave: (id: String?, label: String, genders: Set<CustomerGender>, initialValue: String) -> Unit,
     modifier: Modifier = Modifier,
     bottomExtra: @Composable (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var label by remember { mutableStateOf(initial?.label ?: "") }
+    var initialValue by remember { mutableStateOf("") }
     var selected by remember {
         mutableStateOf(initial?.genders ?: setOf(CustomerGender.FEMALE, CustomerGender.MALE))
     }
@@ -62,7 +70,9 @@ fun AddCustomFieldSheet(
     } else {
         Res.string.custom_field_sheet_edit_title
     }
-    val saveRes = if (initial == null) {
+    val saveRes = if (initial == null && initialValue.isNotBlank()) {
+        Res.string.custom_field_sheet_save_with_value
+    } else if (initial == null) {
         Res.string.custom_field_sheet_save
     } else {
         Res.string.custom_field_sheet_save_changes
@@ -100,6 +110,25 @@ fun AddCustomFieldSheet(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            if (initial == null) {
+                OutlinedTextField(
+                    value = initialValue,
+                    onValueChange = { newValue ->
+                        val filtered = newValue.filter { it.isDigit() || it == '.' }
+                        val dotCount = filtered.count { it == '.' }
+                        if (dotCount <= 1) {
+                            initialValue = filtered
+                        }
+                    },
+                    label = { Text(stringResource(Res.string.custom_field_sheet_value)) },
+                    placeholder = { Text(stringResource(Res.string.custom_field_sheet_value_placeholder)) },
+                    suffix = { Text(unitSuffix) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             Text(
                 text = stringResource(Res.string.custom_field_sheet_genders_label).uppercase(),
@@ -141,7 +170,7 @@ fun AddCustomFieldSheet(
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(Res.string.custom_field_sheet_cancel)) }
                 Button(
-                    onClick = { onSave(initial?.id, label, selected) },
+                    onClick = { onSave(initial?.id, label, selected, initialValue) },
                     enabled = label.isNotBlank() && selected.isNotEmpty(),
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -172,6 +201,7 @@ private fun GenderChip(
                 text = label,
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
             )
         },
         modifier = modifier,
