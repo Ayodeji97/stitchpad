@@ -216,8 +216,14 @@ class MeasurementFormViewModel(
     private fun observeEntitlements() {
         viewModelScope.launch {
             entitlements.flow.collect { ents ->
-                _state.update {
-                    it.copy(
+                _state.update { current ->
+                    val fields = if (!current.isEditMode && !ents.canUseCustomMeasurements) {
+                        current.fields.filterKeys { key -> !isCustomOrOrphanKey(key) }
+                    } else {
+                        current.fields
+                    }
+                    current.copy(
+                        fields = fields,
                         canUseCustomMeasurements = ents.canUseCustomMeasurements,
                         isInWelcomeWindow = ents.isInWelcomeWindow,
                         tier = ents.tier,
@@ -382,6 +388,10 @@ class MeasurementFormViewModel(
                 .filterKeys { key ->
                     !isCreate || s.canUseCustomMeasurements || !isCustomOrOrphanKey(key)
                 }
+            if (parsedFields.isEmpty()) {
+                _state.update { it.copy(isLoading = false) }
+                return@launch
+            }
 
             // Pre-generate the id for create flow so we can link it to the order
             // before observeOrder re-emits. For edit flow we keep the existing id.

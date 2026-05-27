@@ -388,6 +388,26 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
+    fun save_createMode_whenEntitlementExpiresWithOnlyCustomDraft_doesNotCreateEmptyMeasurement() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(
+                id = "f-both",
+                label = "Cuff",
+                genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+            ),
+        ))
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("f-both", "13"))
+
+        fakeEntitlements.setEntitled(false)
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        assertFalse(vm.state.value.canSave)
+        assertNull(measurementRepository.lastCreatedMeasurement)
+    }
+
+    @Test
     fun save_createMode_trimsBlanksNotes_storesNullWhenBlank() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
