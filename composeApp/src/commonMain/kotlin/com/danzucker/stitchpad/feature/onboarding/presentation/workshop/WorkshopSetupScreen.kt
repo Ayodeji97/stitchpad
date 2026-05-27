@@ -93,28 +93,21 @@ fun WorkshopSetupRoot(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val showMessage: (UiText) -> Unit = { text ->
+        scope.launch {
+            val message = when (text) {
+                is UiText.DynamicString -> text.value
+                is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             WorkshopSetupEvent.NavigateToHome -> onNavigateToHome()
             WorkshopSetupEvent.NavigateToLogin -> onNavigateToLogin()
-            is WorkshopSetupEvent.ShowError -> {
-                scope.launch {
-                    val message = when (val text = event.message) {
-                        is UiText.DynamicString -> text.value
-                        is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
-                    }
-                    snackbarHostState.showSnackbar(message)
-                }
-            }
-            is WorkshopSetupEvent.ShowSnackbar -> {
-                scope.launch {
-                    val message = when (val text = event.message) {
-                        is UiText.DynamicString -> text.value
-                        is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
-                    }
-                    snackbarHostState.showSnackbar(message)
-                }
-            }
+            is WorkshopSetupEvent.ShowError -> showMessage(event.message)
+            is WorkshopSetupEvent.ShowSnackbar -> showMessage(event.message)
         }
     }
 
@@ -350,11 +343,12 @@ fun WorkshopSetupScreen(
                             .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
                             .background(Color(0xFF1F1D1A), RoundedCornerShape(10.dp))
                             .clickable {
-                                val logo = state.logo
-                                if (logo is LogoUploadState.Failed) {
-                                    onAction(WorkshopSetupAction.OnLogoRetry)
-                                } else {
-                                    onLaunchPicker()
+                                when (val logo = state.logo) {
+                                    is LogoUploadState.Failed ->
+                                        onAction(WorkshopSetupAction.OnLogoRetry)
+                                    LogoUploadState.Empty -> onLaunchPicker()
+                                    is LogoUploadState.Uploading,
+                                    is LogoUploadState.Uploaded -> Unit
                                 }
                             },
                         contentAlignment = Alignment.Center,
@@ -462,7 +456,8 @@ private fun WorkshopLogoTileContent(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
-                    loading = { LoadingDots() },
+                    // Dim overlay + centered dots sit on top; Coil's loading slot stays empty so we don't show two spinners.
+                    loading = { Box(Modifier.fillMaxSize()) },
                 )
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)),

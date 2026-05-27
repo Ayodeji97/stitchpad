@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -70,7 +72,13 @@ fun ProfileHeroCard(
     modifier: Modifier = Modifier,
     planBadgeLabel: String? = null,
 ) {
-    val initial = businessName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val initials = businessName.trim()
+        .split(" ")
+        .filter { it.isNotEmpty() }
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
     val avatarBrushBg = avatarBrush(avatarColorIndex)
     // Flat warm tint instead of a linear gradient — the gradient's diagonal seam
     // was visually distracting on real device sizes. surfaceContainerHighest gives
@@ -148,10 +156,14 @@ fun ProfileHeroCard(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = initial,
+                            text = initials,
                             color = Color.White,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
+                            style = TextStyle(
+                                lineHeight = 22.sp,
+                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                            ),
                         )
                     }
                 }

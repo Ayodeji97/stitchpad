@@ -7,7 +7,7 @@ package com.danzucker.stitchpad.feature.branding.presentation
  * `Uploaded.url` is the resolved Firebase Storage download URL — safe to feed Coil.
  * `Uploaded.path` is the Storage path, needed for delete on Skip / Remove.
  *
- * `Failed` carries the picked bytes so the user can retry without re-opening the picker.
+ * `Failed` carries the **original** picked bytes so the user can retry without re-opening the picker.
  */
 sealed interface LogoUploadState {
     data object Empty : LogoUploadState

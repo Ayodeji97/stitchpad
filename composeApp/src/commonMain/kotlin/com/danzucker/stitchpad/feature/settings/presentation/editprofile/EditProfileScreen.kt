@@ -52,6 +52,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -282,7 +284,13 @@ private fun AvatarBlock(
     businessName: String,
     avatarColorIndex: Int,
 ) {
-    val initial = businessName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val initials = businessName.trim()
+        .split(" ")
+        .filter { it.isNotEmpty() }
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
     Box(
         modifier = Modifier
             .size(88.dp)
@@ -291,10 +299,14 @@ private fun AvatarBlock(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = initial,
+            text = initials,
             color = Color.White,
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
+            style = TextStyle(
+                lineHeight = 36.sp,
+                platformStyle = PlatformTextStyle(includeFontPadding = false),
+            ),
         )
     }
 }
@@ -490,7 +502,8 @@ private fun EditProfileLogoTile(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
-                    loading = { LoadingDots() },
+                    // Overlay shows LoadingDots; Coil's loading slot stays empty to avoid duplicate spinners.
+                    loading = { Box(Modifier.fillMaxSize()) },
                 )
                 Box(
                     modifier = Modifier

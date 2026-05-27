@@ -28,6 +28,7 @@ import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
+import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed
 import stitchpad.composeapp.generated.resources.workshop_logo_uploaded
 
 class WorkshopSetupViewModel(
@@ -224,6 +225,11 @@ class WorkshopSetupViewModel(
                             // originalLogoStoragePath, which is null because the user doc
                             // never got the field). Don't block the home navigation; the
                             // profile is set, just without the logo.
+                            _events.send(
+                                WorkshopSetupEvent.ShowSnackbar(
+                                    UiText.StringResourceText(Res.string.workshop_logo_upload_failed)
+                                )
+                            )
                             userRepository.deleteUserLogo(logo.path)
                         }
                     }

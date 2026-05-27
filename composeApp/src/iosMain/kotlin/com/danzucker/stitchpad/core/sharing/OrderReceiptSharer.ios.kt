@@ -271,7 +271,21 @@ actual class OrderReceiptSharer {
 
             var y = padding
 
-            // Header
+            // Header — match Android light PDF: logo first, then text paints on top.
+            val headerBottomY = if (data.businessPhone != null) y + 50.0 else y + 40.0
+            if (logoImage != null) {
+                val logoSize = 40.0
+                val logoLeft = 32.0
+                val logoTop = y + (headerBottomY - y - logoSize) / 2.0
+                val logoRect = CGRectMake(logoLeft, logoTop, logoSize, logoSize)
+                val path = UIBezierPath.bezierPathWithRoundedRect(rect = logoRect, cornerRadius = 6.0)
+                UIGraphicsGetCurrentContext()?.let { gfxCtx ->
+                    CGContextSaveGState(gfxCtx)
+                    path.addClip()
+                    logoImage.drawInRect(logoRect)
+                    CGContextRestoreGState(gfxCtx)
+                }
+            }
             drawCentered(
                 data.businessName,
                 y = y,
@@ -290,26 +304,12 @@ actual class OrderReceiptSharer {
                 )
                 y += 16.0
             }
-            y += 4.0
+            y = headerBottomY + 4.0
             // Indigo brand border (was saffron pre-rebrand)
             val borderPaint = darkColor("#2C3E7C")
             borderPaint.setFill()
             platform.UIKit.UIRectFill(CGRectMake(padding, y, pageWidth - 2 * padding, 3.0))
             y += 16.0
-
-            if (logoImage != null) {
-                val logoSize = 32.0
-                val headerBlockHeight = if (data.businessPhone != null) 36.0 else 20.0
-                val logoTop = padding + (headerBlockHeight - logoSize) / 2.0
-                val logoRect = CGRectMake(padding, logoTop, logoSize, logoSize)
-                val path = UIBezierPath.bezierPathWithRoundedRect(rect = logoRect, cornerRadius = 5.0)
-                UIGraphicsGetCurrentContext()?.let { gfxCtx ->
-                    CGContextSaveGState(gfxCtx)
-                    path.addClip()
-                    logoImage.drawInRect(logoRect)
-                    CGContextRestoreGState(gfxCtx)
-                }
-            }
 
             // Document type label (RECEIPT / INVOICE)
             drawCentered(

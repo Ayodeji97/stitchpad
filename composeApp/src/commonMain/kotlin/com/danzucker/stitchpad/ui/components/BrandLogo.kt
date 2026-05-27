@@ -15,7 +15,10 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,7 +46,13 @@ fun BrandLogo(
     val description = stringResource(Res.string.brand_logo_content_description)
     val bgColor = MaterialTheme.colorScheme.primaryContainer
     val textColor = MaterialTheme.colorScheme.onPrimaryContainer
-    val initial = fallbackInitials.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val initials = fallbackInitials.trim()
+        .split(" ")
+        .filter { it.isNotEmpty() }
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
 
     Box(
         modifier = modifier
@@ -61,22 +70,28 @@ fun BrandLogo(
                 modifier = Modifier.size(size),
                 loading = { LoadingDots(dotSize = (size.value / 8f).dp.coerceAtLeast(4.dp)) },
                 error = {
-                    InitialsFallback(initial, textColor, size)
+                    InitialsFallback(initials, textColor, size)
                 },
             )
         } else {
-            InitialsFallback(initial, textColor, size)
+            InitialsFallback(initials, textColor, size)
         }
     }
 }
 
 @Composable
-private fun InitialsFallback(initial: String, textColor: Color, size: Dp) {
+private fun InitialsFallback(initials: String, textColor: Color, size: Dp) {
+    val fontSize = (size.value * 0.4f).sp
     Text(
-        text = initial,
+        text = initials,
         color = textColor,
-        fontSize = (size.value * 0.4f).sp,
+        fontSize = fontSize,
         fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        style = TextStyle(
+            lineHeight = fontSize,
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+        ),
     )
 }
 

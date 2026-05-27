@@ -980,7 +980,7 @@
     <string name="workshop_logo_label">Business logo</string>
     <string name="workshop_logo_optional">(optional)</string>
     <string name="workshop_logo_upload_title">Upload logo</string>
-    <string name="workshop_logo_upload_sub">PNG or JPG · Max 5MB</string>
+    <string name="workshop_logo_upload_sub">PNG or JPG · Resized automatically for upload</string>
     <string name="workshop_logo_coming_soon">Logo upload coming soon</string>
 
     <!-- PTSP-21 brand logo upload -->

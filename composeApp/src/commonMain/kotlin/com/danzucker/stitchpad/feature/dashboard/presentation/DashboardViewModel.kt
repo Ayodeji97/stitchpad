@@ -272,7 +272,7 @@ class DashboardViewModel(
             // until the Firestore doc arrives (first-signup race) and on every
             // subsequent emission picks the freshest Firestore snapshot.
             combine(
-                userRepository.observeUser(authUser.id),
+                userRepository.observeUser(authUser.id).onStart { emit(null) },
                 orderRepository.observeOrders(authUser.id),
                 customerRepository.observeCustomers(authUser.id),
                 weeklyGoalRepository.observeWeeklyGoal(authUser.id)
