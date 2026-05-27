@@ -319,7 +319,19 @@ class OrderFormViewModel(
                             )
                             _events.send(OrderFormEvent.ShowCustomSavedSnackbar(result.data.name))
                         }
-                        is Result.Error -> Unit // V1: silent on error
+                        is Result.Error -> {
+                            // Persistence failed (e.g., offline) — apply locally so the user
+                            // can still save the order. customGarmentName is stored on
+                            // OrderItem and survives even if the customGarmentTypes
+                            // subcollection didn't get updated.
+                            onAction(
+                                OrderFormAction.OnPickGarmentType(
+                                    itemId = action.itemId,
+                                    garmentType = GarmentType.OTHER,
+                                    customName = action.name.trim(),
+                                )
+                            )
+                        }
                     }
                 }
             }
