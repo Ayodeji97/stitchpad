@@ -27,10 +27,26 @@ data class OrderFormState(
     val priority: OrderPriority = OrderPriority.NORMAL,
     val depositPaid: String = "",
     val notes: String = "",
+    val depositReconciliationPrompt: DepositPrompt? = null,
     // General
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: UiText? = null
+)
+
+/**
+ * State driving the AlertDialog that gates a deposit-changing save when
+ * the order already has at least one recorded payment. Non-null means
+ * the dialog is visible; [oldAmount] and [newAmount] are integer-naira
+ * doubles surfaced in the dialog body.
+ *
+ * The dialog itself is rendered by `OrderFormScreen.kt` — wired in a
+ * separate UI commit per the PTSP-14 plan.
+ */
+data class DepositPrompt(
+    val oldAmount: Double,
+    val newAmount: Double,
+    val nonDepositTotal: Double,
 )
 
 data class OrderItemFormState

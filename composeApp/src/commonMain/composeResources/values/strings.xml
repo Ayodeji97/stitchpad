@@ -555,7 +555,11 @@
 
     <!-- Order form -->
     <string name="order_form_item_number">Item %1$d</string>
-    <string name="order_form_deposit_edit_locked_hint">Use Record Payment on the order details screen to update.</string>
+    <string name="order_form_deposit_dialog_title">Update deposit?</string>
+    <string name="order_form_deposit_dialog_body">Deposit will change from ₦%1$s to ₦%2$s.</string>
+    <string name="order_form_deposit_dialog_body_with_other_payments">Recorded progress/final payments (₦%1$s) won&apos;t change.</string>
+    <string name="order_form_deposit_dialog_confirm">Update</string>
+    <string name="order_form_deposit_dialog_cancel">Cancel</string>
     <string name="common_ok">OK</string>
     <string name="common_cancel">Cancel</string>
 
