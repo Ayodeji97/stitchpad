@@ -778,6 +778,16 @@ class MeasurementFormViewModelTest {
         assertTrue(vm.state.value.canUseCustomMeasurements)
     }
 
+    @Test
+    fun observeEntitlements_seedsTierIntoState() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // FakeEntitlementsProvider hardcodes tier = FREE; verify it lands in state
+        // so the "First Month" pill can correctly distinguish trial-only (FREE +
+        // welcome) from permanent (Pro/Atelier) access in CustomFieldsSection.
+        val vm = createViewModel()
+        assertEquals(SubscriptionTier.FREE, vm.state.value.tier)
+    }
+
     private fun customField(
         id: String,
         label: String,

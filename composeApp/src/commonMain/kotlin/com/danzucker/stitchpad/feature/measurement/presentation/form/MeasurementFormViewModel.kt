@@ -172,6 +172,7 @@ class MeasurementFormViewModel(
                     it.copy(
                         canUseCustomMeasurements = ents.canUseCustomMeasurements,
                         isInWelcomeWindow = ents.isInWelcomeWindow,
+                        tier = ents.tier,
                     )
                 }
             }

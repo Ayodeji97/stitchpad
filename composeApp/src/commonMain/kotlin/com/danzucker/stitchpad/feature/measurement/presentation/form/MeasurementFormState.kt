@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementSection
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.presentation.UiText
 
 data class MeasurementFormState(
@@ -24,6 +25,10 @@ data class MeasurementFormState(
     val customFields: List<CustomMeasurementField> = emptyList(),
     val canUseCustomMeasurements: Boolean = false,
     val isInWelcomeWindow: Boolean = false, // PTSP-12: drives "First Month" pill copy
+    // PTSP-12: pill distinguishes trial (FREE+welcome) from permanent (Pro/Atelier).
+    // Without tier, Pro/Atelier users inside their first 30 days would see
+    // "FIRST MONTH" — implying temporary access for what is actually permanent.
+    val tier: SubscriptionTier = SubscriptionTier.FREE,
     val customFieldSheet: CustomFieldSheet? = null,
 ) {
     /**

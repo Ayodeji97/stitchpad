@@ -75,6 +75,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementField
 import com.danzucker.stitchpad.core.domain.model.MeasurementSection
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.AddCustomFieldSheet
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -291,6 +292,7 @@ fun MeasurementFormScreen(
                                 unitSuffix = unitSuffix,
                                 canUseCustomMeasurements = state.canUseCustomMeasurements,
                                 isInWelcomeWindow = state.isInWelcomeWindow,
+                                tier = state.tier,
                                 onFieldValueChange = { key, value ->
                                     onAction(MeasurementFormAction.OnFieldChange(key, value))
                                 },
@@ -733,6 +735,7 @@ private fun genderLabel(gender: CustomerGender): String = when (gender) {
     CustomerGender.MALE -> stringResource(Res.string.gender_male)
 }
 
+@Suppress("CyclomaticComplexMethod")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CustomFieldsSection(
@@ -741,6 +744,7 @@ private fun CustomFieldsSection(
     unitSuffix: String,
     canUseCustomMeasurements: Boolean,
     isInWelcomeWindow: Boolean,
+    tier: SubscriptionTier,
     onFieldValueChange: (String, String) -> Unit,
     onAddClick: () -> Unit,
     onLockedAddClick: () -> Unit,
@@ -762,8 +766,15 @@ private fun CustomFieldsSection(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            // "First Month" pill is only correct for trial-only access — i.e.,
+            // FREE tier inside the welcome window. Pro/Atelier users inside
+            // their first 30 days have permanent access; showing them
+            // "FIRST MONTH" implies their access is temporary when it isn't.
+            val isTrialAccess = canUseCustomMeasurements &&
+                isInWelcomeWindow &&
+                tier == SubscriptionTier.FREE
             val pillRes = when {
-                canUseCustomMeasurements && isInWelcomeWindow -> Res.string.custom_field_section_pill_first_month
+                isTrialAccess -> Res.string.custom_field_section_pill_first_month
                 canUseCustomMeasurements -> Res.string.custom_field_section_pill_pro
                 else -> Res.string.custom_field_section_pill_locked
             }
@@ -830,7 +841,14 @@ private fun CustomFieldsSection(
                     )
                     MeasurementTextField(
                         value = fieldValues[field.id] ?: "",
-                        onValueChange = { onFieldValueChange(field.id, it) },
+                        // Mirror MeasurementFieldInput's numeric-only filter so custom
+                        // fields can't accept paste / hardware-keyboard input that
+                        // silently parses to 0.0 and disappears on save.
+                        onValueChange = { newVal ->
+                            val filtered = newVal.filter { it.isDigit() || it == '.' }
+                            val dotCount = filtered.count { it == '.' }
+                            if (dotCount <= 1) onFieldValueChange(field.id, filtered)
+                        },
                         label = "", // label rendered above by the long-pressable Text
                         placeholder = "0",
                         suffix = unitSuffix,
