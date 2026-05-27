@@ -37,11 +37,28 @@ object ReceiptFormatter {
         }
 
         val groupedItems = order.items
-            .groupBy { it.garmentType }
-            .map { (type, items) ->
+            // Group by the display key so custom garment names (garmentType == OTHER with
+            // a non-blank customGarmentName) appear as their own line items rather than
+            // being collapsed into the generic "Other" bucket.
+            .groupBy { item ->
+                if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
+                    "custom:${item.customGarmentName}"
+                } else {
+                    item.garmentType.name
+                }
+            }
+            .map { (_, items) ->
+                val first = items.first()
+                val garmentName = if (first.garmentType == GarmentType.OTHER &&
+                    !first.customGarmentName.isNullOrBlank()
+                ) {
+                    first.customGarmentName!!
+                } else {
+                    garmentNames[first.garmentType] ?: first.garmentType.name
+                }
                 ReceiptItem(
                     quantity = items.size,
-                    garmentName = garmentNames[type] ?: type.name,
+                    garmentName = garmentName,
                     formattedPrice = "\u20A6${formatPrice(items.sumOf { it.price })}"
                 )
             }
