@@ -13,6 +13,8 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -46,7 +48,8 @@ class OrderFormViewModel(
     private val customerRepository: CustomerRepository,
     private val styleRepository: StyleRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val customGarmentTypeRepository: CustomGarmentTypeRepository,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -262,19 +265,54 @@ class OrderFormViewModel(
                 _state.update { it.copy(errorMessage = null) }
             }
             is OrderFormAction.OnOpenGarmentPicker -> {
-                // TODO: Task 13 — open garment picker sheet
-            }
-            is OrderFormAction.OnPickGarmentType -> {
-                // TODO: Task 13 — pick garment type and update item
-            }
-            is OrderFormAction.OnAddCustomGarmentType -> {
-                // TODO: Task 13 — add custom garment and pick it
+                _state.update { it.copy(activePickerItemId = action.itemId, pickerSearchQuery = "") }
             }
             is OrderFormAction.OnPickerSearchChange -> {
-                // TODO: Task 13 — update picker search query
+                _state.update { it.copy(pickerSearchQuery = action.query) }
             }
             OrderFormAction.OnDismissPicker -> {
-                // TODO: Task 13 — dismiss picker sheet
+                _state.update { it.copy(activePickerItemId = null, pickerSearchQuery = "") }
+            }
+            is OrderFormAction.OnPickGarmentType -> {
+                updateItem(action.itemId) {
+                    it.copy(
+                        garmentType = action.garmentType,
+                        customGarmentName = action.customName,
+                    )
+                }
+                _state.update { it.copy(activePickerItemId = null, pickerSearchQuery = "") }
+
+                // Fire-and-forget touch on existing customs (sort-order maintenance).
+                if (action.garmentType == GarmentType.OTHER && action.customName != null) {
+                    val uid = userId
+                    if (uid != null) {
+                        val match = _state.value.customGarmentTypes
+                            .firstOrNull { it.name.equals(action.customName, ignoreCase = true) }
+                        if (match != null) {
+                            viewModelScope.launch {
+                                customGarmentTypeRepository.touch(uid, match.id)
+                            }
+                        }
+                    }
+                }
+            }
+            is OrderFormAction.OnAddCustomGarmentType -> {
+                val uid = userId ?: return
+                viewModelScope.launch {
+                    when (val result = customGarmentTypeRepository.upsert(uid, action.name)) {
+                        is Result.Success -> {
+                            onAction(
+                                OrderFormAction.OnPickGarmentType(
+                                    itemId = action.itemId,
+                                    garmentType = GarmentType.OTHER,
+                                    customName = result.data.name,
+                                )
+                            )
+                            _events.send(OrderFormEvent.ShowCustomSavedSnackbar(result.data.name))
+                        }
+                        is Result.Error -> Unit  // V1: silent on error
+                    }
+                }
             }
         }
     }
@@ -291,10 +329,23 @@ class OrderFormViewModel(
         viewModelScope.launch {
             userId = authRepository.getCurrentUser()?.id ?: return@launch
             observeCustomers()
+            observeCustomGarmentTypes()
             if (orderId != null) {
                 loadOrder(orderId)
             } else if (seedFromOrderId != null) {
                 loadOrderForSeed(seedFromOrderId)
+            }
+        }
+    }
+
+    private fun observeCustomGarmentTypes() {
+        val uid = userId ?: return
+        viewModelScope.launch {
+            customGarmentTypeRepository.observe(uid).collect { result ->
+                when (result) {
+                    is Result.Success -> _state.update { it.copy(customGarmentTypes = result.data) }
+                    is Result.Error -> Unit  // silent: picker just shows zero customs
+                }
             }
         }
     }
@@ -435,6 +486,7 @@ class OrderFormViewModel(
     private fun OrderItem.toFormState() = OrderItemFormState(
         id = id,
         garmentType = garmentType,
+        customGarmentName = customGarmentName,
         description = description,
         price = if (price > 0) price.toLong().toString() else "",
         measurementId = measurementId,
@@ -469,7 +521,10 @@ class OrderFormViewModel(
             return
         }
 
-        val formItems = s.items.filter { it.garmentType != null }
+        val formItems = s.items.filter { item ->
+            item.garmentType != null &&
+                (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())
+        }
         if (formItems.isEmpty()) {
             setError(Res.string.error_order_items_required)
             return
@@ -515,7 +570,10 @@ class OrderFormViewModel(
         val s = _state.value
         val uid = userId
         val customer = s.selectedCustomer
-        val formItems = s.items.filter { it.garmentType != null }
+        val formItems = s.items.filter { item ->
+            item.garmentType != null &&
+                (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())
+        }
         if (uid == null || customer == null || formItems.isEmpty()) {
             setError(Res.string.error_order_customer_required)
             return
@@ -552,6 +610,7 @@ class OrderFormViewModel(
                     OrderItem(
                         id = item.id,
                         garmentType = garmentType,
+                        customGarmentName = item.customGarmentName,
                         description = item.description.trim(),
                         price = price,
                         measurementId = item.measurementId,
