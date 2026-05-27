@@ -80,6 +80,7 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Orde
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.RecordPaymentDialogV2
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
+import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -733,7 +734,12 @@ private fun OrderDetailContent(
     }
 
     val firstItem = order.items.firstOrNull()
-    val garmentName = firstItem?.let { garmentDisplayName(it.garmentType) }.orEmpty()
+    val garmentName = if (firstItem != null) {
+        val enumLabel = garmentDisplayName(firstItem.garmentType)
+        firstItem.displayGarmentName { enumLabel }
+    } else {
+        ""
+    }
     val primaryFieldLabels = firstItem?.garmentType?.fieldLabels?.take(3).orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
 
