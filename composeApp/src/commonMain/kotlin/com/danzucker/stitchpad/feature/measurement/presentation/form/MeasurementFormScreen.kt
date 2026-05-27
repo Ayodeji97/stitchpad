@@ -294,6 +294,7 @@ fun MeasurementFormScreen(
                                 fieldValues = state.fields,
                                 unitSuffix = unitSuffix,
                                 canUseCustomMeasurements = state.canUseCustomMeasurements,
+                                isEditMode = state.isEditMode,
                                 isInWelcomeWindow = state.isInWelcomeWindow,
                                 tier = state.tier,
                                 onFieldValueChange = { key, value ->
@@ -781,6 +782,7 @@ private fun CustomFieldsSection(
     fieldValues: Map<String, String>,
     unitSuffix: String,
     canUseCustomMeasurements: Boolean,
+    isEditMode: Boolean,
     isInWelcomeWindow: Boolean,
     tier: SubscriptionTier,
     onFieldValueChange: (String, String) -> Unit,
@@ -849,8 +851,10 @@ private fun CustomFieldsSection(
         // forever." Creation of NEW fields stays gated by the Add button.
         val visibleFields = if (canUseCustomMeasurements) {
             fields
-        } else {
+        } else if (isEditMode) {
             fields.filter { (fieldValues[it.id] ?: "").isNotBlank() }
+        } else {
+            emptyList()
         }
 
         if (visibleFields.isEmpty()) {

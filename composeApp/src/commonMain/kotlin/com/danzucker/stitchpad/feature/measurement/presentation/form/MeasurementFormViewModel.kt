@@ -375,13 +375,16 @@ class MeasurementFormViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
+            val isCreate = measurementId == null
             val parsedFields = s.fields
                 .mapValues { it.value.toDoubleOrNull() ?: 0.0 }
                 .filter { it.value > 0.0 }
+                .filterKeys { key ->
+                    !isCreate || s.canUseCustomMeasurements || !isCustomOrOrphanKey(key)
+                }
 
             // Pre-generate the id for create flow so we can link it to the order
             // before observeOrder re-emits. For edit flow we keep the existing id.
-            val isCreate = measurementId == null
             val effectiveId = measurementId ?: Uuid.random().toString()
 
             val measurement = Measurement(

@@ -365,6 +365,29 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
+    fun save_createMode_whenNotEntitled_dropsCustomDraftValues() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
+        customFieldRepository.seedFields(listOf(
+            customField(
+                id = "f-both",
+                label = "Cuff",
+                genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+            ),
+        ))
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "90"))
+        vm.onAction(MeasurementFormAction.OnFieldChange("f-both", "13"))
+
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        val saved = measurementRepository.lastCreatedMeasurement
+        assertNotNull(saved)
+        assertEquals(90.0, saved.fields["bust_circumference"])
+        assertFalse(saved.fields.containsKey("f-both"))
+    }
+
+    @Test
     fun save_createMode_trimsBlanksNotes_storesNullWhenBlank() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
