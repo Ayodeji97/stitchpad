@@ -79,5 +79,9 @@ enum class GarmentType(val fieldLabels: List<String>, val gender: GarmentGender)
     CORPORATE_TROUSER(
         listOf("Waist", "Hip", "Thigh", "Knee", "Inseam", "Length"),
         GarmentGender.UNISEX
-    )
+    ),
+    OTHER(
+        fieldLabels = emptyList(),
+        gender = GarmentGender.UNISEX,
+    ),
 }

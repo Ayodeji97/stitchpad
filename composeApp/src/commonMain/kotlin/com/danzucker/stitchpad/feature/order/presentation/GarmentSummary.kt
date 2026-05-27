@@ -19,6 +19,7 @@ import stitchpad.composeapp.generated.resources.order_summary_one_shirt
 import stitchpad.composeapp.generated.resources.order_summary_one_suit
 import stitchpad.composeapp.generated.resources.order_summary_one_trouser
 import stitchpad.composeapp.generated.resources.order_summary_one_two_piece
+import stitchpad.composeapp.generated.resources.order_summary_one_other
 import stitchpad.composeapp.generated.resources.order_summary_one_vintage
 import stitchpad.composeapp.generated.resources.order_summary_other_agbada
 import stitchpad.composeapp.generated.resources.order_summary_other_asoebi
@@ -35,6 +36,7 @@ import stitchpad.composeapp.generated.resources.order_summary_other_senator
 import stitchpad.composeapp.generated.resources.order_summary_other_shirt
 import stitchpad.composeapp.generated.resources.order_summary_other_suit
 import stitchpad.composeapp.generated.resources.order_summary_other_trouser
+import stitchpad.composeapp.generated.resources.order_summary_other_other
 import stitchpad.composeapp.generated.resources.order_summary_other_two_piece
 import stitchpad.composeapp.generated.resources.order_summary_other_vintage
 
@@ -112,6 +114,10 @@ private fun garmentSummaryPair(type: GarmentType): GarmentSummaryResPair = when 
     GarmentType.CORPORATE_TROUSER -> GarmentSummaryResPair(
         Res.string.order_summary_one_corporate_trouser,
         Res.string.order_summary_other_corporate_trouser
+    )
+    GarmentType.OTHER -> GarmentSummaryResPair(
+        Res.string.order_summary_one_other,
+        Res.string.order_summary_other_other
     )
 }
 

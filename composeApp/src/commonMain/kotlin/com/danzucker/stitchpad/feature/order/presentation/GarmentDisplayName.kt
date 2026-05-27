@@ -22,6 +22,7 @@ import stitchpad.composeapp.generated.resources.garment_type_shirt
 import stitchpad.composeapp.generated.resources.garment_type_suit
 import stitchpad.composeapp.generated.resources.garment_type_trouser
 import stitchpad.composeapp.generated.resources.garment_type_two_piece
+import stitchpad.composeapp.generated.resources.garment_type_other
 import stitchpad.composeapp.generated.resources.garment_type_vintage
 
 @Suppress("CyclomaticComplexMethod")
@@ -43,6 +44,7 @@ private fun garmentNameResource(type: GarmentType): StringResource = when (type)
     GarmentType.TROUSER -> Res.string.garment_type_trouser
     GarmentType.SHIRT -> Res.string.garment_type_shirt
     GarmentType.CORPORATE_TROUSER -> Res.string.garment_type_corporate_trouser
+    GarmentType.OTHER -> Res.string.garment_type_other
 }
 
 @Composable
