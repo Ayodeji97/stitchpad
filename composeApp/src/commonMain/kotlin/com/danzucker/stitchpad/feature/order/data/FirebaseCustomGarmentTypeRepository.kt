@@ -52,9 +52,10 @@ class FirebaseCustomGarmentTypeRepository(
         if (trimmed.isEmpty()) return Result.Error(DataError.Network.UNKNOWN)
         return try {
             val now = Clock.System.now().toEpochMilliseconds()
-            // Deterministic doc ID from the normalised name — concurrent calls
-            // converge on the same document so no duplicate entries are created.
-            val docId = trimmed.lowercase()
+            // Deterministic doc ID from the sanitised name — concurrent calls converge on
+            // the same document so no duplicates are created.  Firestore rejects paths that
+            // contain '/' or consist solely of '.'; replace those with '-'.
+            val docId = sanitizeDocId(trimmed)
             val docRef = collection(userId).document(docId)
             val resolved = firestore.runTransaction {
                 val snap = get(docRef)
@@ -79,6 +80,20 @@ class FirebaseCustomGarmentTypeRepository(
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
+
+    /**
+     * Converts a tailor-typed garment name into a valid Firestore document ID.
+     * Firestore rejects paths containing '/' and treats '.' or '..' as special.
+     * We replace those characters with '-' so names like "Iro/Buba" are stored
+     * deterministically without silently failing. The original [name] field in
+     * the document retains the user's exact capitalisation.
+     */
+    private fun sanitizeDocId(name: String): String =
+        name.lowercase()
+            .replace(Regex("[/.]"), "-")
+            .replace(Regex("-+"), "-")
+            .trim('-')
+            .ifEmpty { "garment-${Clock.System.now().toEpochMilliseconds()}" }
 
     override suspend fun touch(
         userId: String,
