@@ -460,8 +460,13 @@ class MeasurementFormViewModel(
             val result = customFieldRepository.archiveField(userId, fieldId)
             if (result is Result.Success) {
                 _state.update { current ->
+                    val updatedFields = if (current.isEditMode) {
+                        current.fields
+                    } else {
+                        current.fields - fieldId
+                    }
                     current.copy(
-                        fields = current.fields - fieldId,
+                        fields = updatedFields,
                         customFields = current.customFields.filterNot { it.id == fieldId },
                         customFieldSheet = null,
                     )

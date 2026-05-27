@@ -689,6 +689,23 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
+    fun onArchiveCustomFieldConfirm_inEditMode_preservesRecordedFieldValue() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
+        customFieldRepository.seedFields(listOf(f))
+        measurementRepository.measurementsList = listOf(
+            fakeMeasurement(id = "meas-1").copy(fields = mapOf("f1" to 12.5))
+        )
+        val vm = createViewModel(measurementId = "meas-1")
+
+        vm.onAction(MeasurementFormAction.OnArchiveCustomFieldConfirm("f1"))
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        assertEquals("12.5", vm.state.value.fields["f1"])
+        assertEquals(12.5, measurementRepository.lastUpdatedMeasurement?.fields?.get("f1"))
+    }
+
+    @Test
     fun archiveCustomField_whenNotEntitled_emitsUpgrade_andDoesNotCallRepo() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
