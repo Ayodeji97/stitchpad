@@ -160,11 +160,14 @@ class MeasurementFormViewModel(
         _state.update { current ->
             val visibleCustom = filterFieldsForCurrentGender(allCustomFields, gender)
             val customKeys = visibleCustom.map { it.id }
-            // Preserve existing values for any key that survives the gender
-            // switch (custom fields visible in both genders, or template keys
-            // present in both). Without this, typed custom values are silently
-            // dropped on gender change (Bugbot Medium).
-            val allKeys = templateKeys + customKeys
+            val preservedRecordedCustomKeys = if (current.isEditMode) {
+                current.fields.keys.filter { key ->
+                    current.fields[key].orEmpty().isNotBlank() && isCustomOrOrphanKey(key)
+                }
+            } else {
+                emptyList()
+            }
+            val allKeys = templateKeys + customKeys + preservedRecordedCustomKeys
             val newFields = allKeys.associateWith { key -> current.fields[key] ?: "" }
             current.copy(
                 gender = gender,
@@ -224,6 +227,16 @@ class MeasurementFormViewModel(
         gender: CustomerGender?,
     ): List<CustomMeasurementField> =
         fields.filter { !it.isArchived && (gender == null || gender in it.genders) }
+
+    private fun isCustomOrOrphanKey(key: String): Boolean {
+        val customFieldIds = allCustomFields.map { it.id }.toSet()
+        val templateKeys = CustomerGender.entries
+            .flatMap { gender -> BodyProfileTemplate.sectionsFor(gender) }
+            .flatMap { section -> section.fields }
+            .map { field -> field.key }
+            .toSet()
+        return key in customFieldIds || key !in templateKeys
+    }
 
     private fun loadMeasurement(id: String) {
         viewModelScope.launch {

@@ -905,6 +905,42 @@ class MeasurementFormViewModelTest {
         assertEquals("13", vm.state.value.fields["f-both"])
     }
 
+    @Test
+    fun onGenderChange_editMode_preservesRecordedCustomAndOrphanValuesOnSave() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(
+                id = "archived-cuff",
+                label = "Cuff",
+                genders = setOf(CustomerGender.FEMALE),
+                isArchived = true,
+            ),
+        ))
+        val measurement = Measurement(
+            id = "m1",
+            customerId = "customer-1",
+            gender = CustomerGender.FEMALE,
+            fields = mapOf(
+                "archived-cuff" to 11.0,
+                "orphan-key-99" to 7.0,
+            ),
+            unit = MeasurementUnit.CM,
+            notes = null,
+            dateTaken = 0L,
+            createdAt = 0L,
+        )
+        measurementRepository.measurementsList = listOf(measurement)
+        val vm = createViewModel(measurementId = "m1")
+
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.MALE))
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        val updated = measurementRepository.lastUpdatedMeasurement
+        assertNotNull(updated)
+        assertEquals(11.0, updated.fields["archived-cuff"])
+        assertEquals(7.0, updated.fields["orphan-key-99"])
+    }
+
     private fun customField(
         id: String,
         label: String,
