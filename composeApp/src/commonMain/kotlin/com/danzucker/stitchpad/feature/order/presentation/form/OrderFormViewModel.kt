@@ -261,6 +261,21 @@ class OrderFormViewModel(
             OrderFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+            is OrderFormAction.OnOpenGarmentPicker -> {
+                // TODO: Task 13 — open garment picker sheet
+            }
+            is OrderFormAction.OnPickGarmentType -> {
+                // TODO: Task 13 — pick garment type and update item
+            }
+            is OrderFormAction.OnAddCustomGarmentType -> {
+                // TODO: Task 13 — add custom garment and pick it
+            }
+            is OrderFormAction.OnPickerSearchChange -> {
+                // TODO: Task 13 — update picker search query
+            }
+            OrderFormAction.OnDismissPicker -> {
+                // TODO: Task 13 — dismiss picker sheet
+            }
         }
     }
 

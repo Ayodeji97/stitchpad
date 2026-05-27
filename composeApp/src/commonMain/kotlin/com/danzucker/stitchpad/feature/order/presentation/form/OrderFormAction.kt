@@ -18,6 +18,35 @@ sealed interface OrderFormAction {
     data object OnAddItem : OrderFormAction
     data class OnRemoveItem(val itemId: String) : OrderFormAction
     data class OnItemGarmentTypeChange(val itemId: String, val type: GarmentType?) : OrderFormAction
+
+    /** Open the garment picker for a specific item row. */
+    data class OnOpenGarmentPicker(val itemId: String) : OrderFormAction
+
+    /**
+     * Pick a garment value (preset OR existing custom) from the picker.
+     *
+     * @param customName Non-null only when [garmentType] is [GarmentType.OTHER].
+     *   Stored on the OrderItem; drives display everywhere.
+     */
+    data class OnPickGarmentType(
+        val itemId: String,
+        val garmentType: GarmentType,
+        val customName: String? = null,
+    ) : OrderFormAction
+
+    /**
+     * Add a brand-new custom garment value AND pick it for the current item.
+     * The ViewModel calls [CustomGarmentTypeRepository.upsert] then internally
+     * dispatches [OnPickGarmentType] with the resolved name.
+     */
+    data class OnAddCustomGarmentType(val itemId: String, val name: String) : OrderFormAction
+
+    /** Update the search query in the open picker. */
+    data class OnPickerSearchChange(val query: String) : OrderFormAction
+
+    /** Dismiss the picker without selecting anything. */
+    data object OnDismissPicker : OrderFormAction
+
     data class OnItemDescriptionChange(val itemId: String, val description: String) : OrderFormAction
     data class OnItemPriceChange(val itemId: String, val price: String) : OrderFormAction
     data class OnItemMeasurementChange(val itemId: String, val measurementId: String?) : OrderFormAction
