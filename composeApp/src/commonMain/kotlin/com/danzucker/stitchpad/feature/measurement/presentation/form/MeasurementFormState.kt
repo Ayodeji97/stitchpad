@@ -49,11 +49,28 @@ data class MeasurementFormState(
 
 sealed interface CustomFieldSheet {
     /** "Add custom field" — empty form, no existing field. */
-    data object Adding : CustomFieldSheet
+    data class Adding(val draft: CustomFieldDraft = CustomFieldDraft()) : CustomFieldSheet
 
     /** "Edit custom field" — pre-populated from an existing field. */
-    data class Editing(val field: CustomMeasurementField) : CustomFieldSheet
+    data class Editing(
+        val field: CustomMeasurementField,
+        val draft: CustomFieldDraft = CustomFieldDraft.from(field),
+    ) : CustomFieldSheet
 
     /** "Archive this field?" confirm dialog, holding the field to archive. */
     data class ConfirmArchive(val field: CustomMeasurementField) : CustomFieldSheet
+}
+
+data class CustomFieldDraft(
+    val label: String = "",
+    val initialValue: String = "",
+    val genders: Set<CustomerGender> = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+) {
+    companion object {
+        fun from(field: CustomMeasurementField): CustomFieldDraft =
+            CustomFieldDraft(
+                label = field.label,
+                genders = field.genders,
+            )
+    }
 }

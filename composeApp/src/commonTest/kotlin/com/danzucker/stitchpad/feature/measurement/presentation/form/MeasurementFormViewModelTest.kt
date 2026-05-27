@@ -599,6 +599,42 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
+    fun saveCustomField_create_withInitialValueForOtherGender_doesNotSeedHiddenField() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        assertEquals(CustomerGender.FEMALE, vm.state.value.gender)
+
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = null,
+            label = "Lapel",
+            genders = setOf(CustomerGender.MALE),
+            initialValue = "4",
+        ))
+
+        val created = customFieldRepository.lastCreatedField
+        assertNotNull(created)
+        assertNull(vm.state.value.fields[created.id])
+        assertFalse(vm.state.value.canSave)
+    }
+
+    @Test
+    fun customFieldDraft_updatesStayInViewModelState() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+        vm.onAction(MeasurementFormAction.OnCustomFieldDraftLabelChange("Back fir"))
+        vm.onAction(MeasurementFormAction.OnCustomFieldDraftInitialValueChange("4"))
+        vm.onAction(MeasurementFormAction.OnCustomFieldDraftGendersChange(setOf(CustomerGender.MALE)))
+
+        val sheet = vm.state.value.customFieldSheet
+        assertIs<CustomFieldSheet.Adding>(sheet)
+        assertEquals("Back fir", sheet.draft.label)
+        assertEquals("4", sheet.draft.initialValue)
+        assertEquals(setOf(CustomerGender.MALE), sheet.draft.genders)
+    }
+
+    @Test
     fun saveCustomField_edit_callsRepoUpdate_preservesId_andClosesSheet() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val existing = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))

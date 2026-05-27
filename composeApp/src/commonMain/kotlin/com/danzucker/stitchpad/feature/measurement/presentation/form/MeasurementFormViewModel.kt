@@ -114,7 +114,7 @@ class MeasurementFormViewModel(
             }
             MeasurementFormAction.OnAddCustomFieldClick -> {
                 if (_state.value.canUseCustomMeasurements) {
-                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding) }
+                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding()) }
                 } else {
                     viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
                 }
@@ -130,6 +130,15 @@ class MeasurementFormViewModel(
             }
             MeasurementFormAction.OnCustomFieldSheetDismiss -> {
                 _state.update { it.copy(customFieldSheet = null) }
+            }
+            is MeasurementFormAction.OnCustomFieldDraftLabelChange -> {
+                updateCustomFieldDraft { it.copy(label = action.label) }
+            }
+            is MeasurementFormAction.OnCustomFieldDraftInitialValueChange -> {
+                updateCustomFieldDraft { it.copy(initialValue = action.value) }
+            }
+            is MeasurementFormAction.OnCustomFieldDraftGendersChange -> {
+                updateCustomFieldDraft { it.copy(genders = action.genders) }
             }
             is MeasurementFormAction.OnArchiveCustomFieldRequest -> {
                 val field = _state.value.customFields.find { it.id == action.fieldId }
@@ -151,6 +160,18 @@ class MeasurementFormViewModel(
             MeasurementFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+        }
+    }
+
+    private fun updateCustomFieldDraft(transform: (CustomFieldDraft) -> CustomFieldDraft) {
+        _state.update { current ->
+            val sheet = when (val active = current.customFieldSheet) {
+                is CustomFieldSheet.Adding -> active.copy(draft = transform(active.draft))
+                is CustomFieldSheet.Editing -> active.copy(draft = transform(active.draft))
+                is CustomFieldSheet.ConfirmArchive,
+                null -> active
+            }
+            current.copy(customFieldSheet = sheet)
         }
     }
 
@@ -439,7 +460,13 @@ class MeasurementFormViewModel(
             if (result is Result.Success) {
                 _state.update { current ->
                     val valueToApply = initialValue.trim()
-                    val updatedFields = if (isCreate && valueToApply.isNotBlank()) {
+                    val shouldSeedInitialValue = shouldSeedInitialCustomValue(
+                        isCreate = isCreate,
+                        value = valueToApply,
+                        currentGender = current.gender,
+                        field = field,
+                    )
+                    val updatedFields = if (shouldSeedInitialValue) {
                         current.fields + (field.id to valueToApply)
                     } else {
                         current.fields
@@ -458,6 +485,16 @@ class MeasurementFormViewModel(
             }
         }
     }
+
+    private fun shouldSeedInitialCustomValue(
+        isCreate: Boolean,
+        value: String,
+        currentGender: CustomerGender?,
+        field: CustomMeasurementField,
+    ): Boolean =
+        isCreate &&
+            value.isNotBlank() &&
+            currentGender?.let { it in field.genders } == true
 
     private fun archiveCustomField(fieldId: String) {
         // Defense in depth: VM-side entitlement re-check (welcome window could

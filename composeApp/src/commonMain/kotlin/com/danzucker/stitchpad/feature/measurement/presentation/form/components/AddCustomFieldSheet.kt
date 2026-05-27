@@ -19,16 +19,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
+import com.danzucker.stitchpad.feature.measurement.presentation.form.CustomFieldDraft
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -52,25 +49,24 @@ import stitchpad.composeapp.generated.resources.custom_field_sheet_value_placeho
 @Composable
 fun AddCustomFieldSheet(
     initial: CustomMeasurementField?,
+    draft: CustomFieldDraft,
     unitSuffix: String,
     onDismiss: () -> Unit,
-    onSave: (id: String?, label: String, genders: Set<CustomerGender>, initialValue: String) -> Unit,
+    onLabelChange: (String) -> Unit,
+    onInitialValueChange: (String) -> Unit,
+    onGendersChange: (Set<CustomerGender>) -> Unit,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier,
     bottomExtra: @Composable (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var label by remember { mutableStateOf(initial?.label ?: "") }
-    var initialValue by remember { mutableStateOf("") }
-    var selected by remember {
-        mutableStateOf(initial?.genders ?: setOf(CustomerGender.FEMALE, CustomerGender.MALE))
-    }
 
     val titleRes = if (initial == null) {
         Res.string.custom_field_sheet_add_title
     } else {
         Res.string.custom_field_sheet_edit_title
     }
-    val saveRes = if (initial == null && initialValue.isNotBlank()) {
+    val saveRes = if (initial == null && draft.initialValue.isNotBlank()) {
         Res.string.custom_field_sheet_save_with_value
     } else if (initial == null) {
         Res.string.custom_field_sheet_save
@@ -103,8 +99,8 @@ fun AddCustomFieldSheet(
             }
 
             OutlinedTextField(
-                value = label,
-                onValueChange = { if (it.length <= MAX_LABEL_LENGTH) label = it },
+                value = draft.label,
+                onValueChange = { if (it.length <= MAX_LABEL_LENGTH) onLabelChange(it) },
                 label = { Text(stringResource(Res.string.custom_field_sheet_label)) },
                 placeholder = { Text(stringResource(Res.string.custom_field_sheet_label_placeholder)) },
                 singleLine = true,
@@ -113,12 +109,12 @@ fun AddCustomFieldSheet(
 
             if (initial == null) {
                 OutlinedTextField(
-                    value = initialValue,
+                    value = draft.initialValue,
                     onValueChange = { newValue ->
                         val filtered = newValue.filter { it.isDigit() || it == '.' }
                         val dotCount = filtered.count { it == '.' }
                         if (dotCount <= 1) {
-                            initialValue = filtered
+                            onInitialValueChange(filtered)
                         }
                     },
                     label = { Text(stringResource(Res.string.custom_field_sheet_value)) },
@@ -142,20 +138,20 @@ fun AddCustomFieldSheet(
             ) {
                 GenderChip(
                     label = stringResource(Res.string.custom_field_sheet_gender_female),
-                    selected = selected == setOf(CustomerGender.FEMALE),
-                    onClick = { selected = setOf(CustomerGender.FEMALE) },
+                    selected = draft.genders == setOf(CustomerGender.FEMALE),
+                    onClick = { onGendersChange(setOf(CustomerGender.FEMALE)) },
                     modifier = Modifier.weight(1f),
                 )
                 GenderChip(
                     label = stringResource(Res.string.custom_field_sheet_gender_male),
-                    selected = selected == setOf(CustomerGender.MALE),
-                    onClick = { selected = setOf(CustomerGender.MALE) },
+                    selected = draft.genders == setOf(CustomerGender.MALE),
+                    onClick = { onGendersChange(setOf(CustomerGender.MALE)) },
                     modifier = Modifier.weight(1f),
                 )
                 GenderChip(
                     label = stringResource(Res.string.custom_field_sheet_gender_both),
-                    selected = selected == setOf(CustomerGender.FEMALE, CustomerGender.MALE),
-                    onClick = { selected = setOf(CustomerGender.FEMALE, CustomerGender.MALE) },
+                    selected = draft.genders == setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+                    onClick = { onGendersChange(setOf(CustomerGender.FEMALE, CustomerGender.MALE)) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -170,8 +166,8 @@ fun AddCustomFieldSheet(
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(Res.string.custom_field_sheet_cancel)) }
                 Button(
-                    onClick = { onSave(initial?.id, label, selected, initialValue) },
-                    enabled = label.isNotBlank() && selected.isNotEmpty(),
+                    onClick = onSave,
+                    enabled = draft.label.isNotBlank() && draft.genders.isNotEmpty(),
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(DesignTokens.radiusMd),
                 ) { Text(stringResource(saveRes)) }

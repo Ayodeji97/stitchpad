@@ -370,20 +370,46 @@ fun MeasurementFormScreen(
     }
 
     when (val sheet = state.customFieldSheet) {
-        CustomFieldSheet.Adding -> AddCustomFieldSheet(
+        is CustomFieldSheet.Adding -> AddCustomFieldSheet(
             initial = null,
+            draft = sheet.draft,
             unitSuffix = unitSuffix,
             onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
-            onSave = { id, label, genders, initialValue ->
-                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders, initialValue))
+            onLabelChange = { onAction(MeasurementFormAction.OnCustomFieldDraftLabelChange(it)) },
+            onInitialValueChange = {
+                onAction(MeasurementFormAction.OnCustomFieldDraftInitialValueChange(it))
+            },
+            onGendersChange = { onAction(MeasurementFormAction.OnCustomFieldDraftGendersChange(it)) },
+            onSave = {
+                onAction(
+                    MeasurementFormAction.OnSaveCustomField(
+                        id = null,
+                        label = sheet.draft.label,
+                        genders = sheet.draft.genders,
+                        initialValue = sheet.draft.initialValue,
+                    )
+                )
             },
         )
         is CustomFieldSheet.Editing -> AddCustomFieldSheet(
             initial = sheet.field,
+            draft = sheet.draft,
             unitSuffix = unitSuffix,
             onDismiss = { onAction(MeasurementFormAction.OnCustomFieldSheetDismiss) },
-            onSave = { id, label, genders, initialValue ->
-                onAction(MeasurementFormAction.OnSaveCustomField(id, label, genders, initialValue))
+            onLabelChange = { onAction(MeasurementFormAction.OnCustomFieldDraftLabelChange(it)) },
+            onInitialValueChange = {
+                onAction(MeasurementFormAction.OnCustomFieldDraftInitialValueChange(it))
+            },
+            onGendersChange = { onAction(MeasurementFormAction.OnCustomFieldDraftGendersChange(it)) },
+            onSave = {
+                onAction(
+                    MeasurementFormAction.OnSaveCustomField(
+                        id = sheet.field.id,
+                        label = sheet.draft.label,
+                        genders = sheet.draft.genders,
+                        initialValue = sheet.draft.initialValue,
+                    )
+                )
             },
             bottomExtra = {
                 OutlinedButton(
