@@ -370,6 +370,36 @@
     <string name="error_measurement_not_found">Measurement not found</string>
     <string name="error_measurement_unknown">Could not save measurement. Please try again.</string>
 
+    <!-- PTSP-12 — custom measurement fields -->
+    <string name="custom_field_section_title">Custom</string>
+    <string name="custom_field_section_pill_pro">Your fields</string>
+    <string name="custom_field_section_pill_locked">Pro</string>
+    <string name="custom_field_section_pill_first_month">First Month</string>
+    <string name="custom_field_section_subtitle">Add your own measurements to this customer’s form.</string>
+    <string name="custom_field_empty_caption">Add measurements that aren’t on the default list — like cuff width, lapel, or gown sweep. They’ll appear here for every customer.</string>
+    <string name="custom_field_locked_caption">Define measurements that don’t appear on the default list. Available on Pro.</string>
+    <string name="custom_field_add_button">Add custom field</string>
+    <string name="custom_field_sheet_add_title">Add custom field</string>
+    <string name="custom_field_sheet_add_subtitle">Define a measurement you’d like to track for your customers.</string>
+    <string name="custom_field_sheet_edit_title">Edit field</string>
+    <string name="custom_field_sheet_label">Field name</string>
+    <string name="custom_field_sheet_label_placeholder">e.g. Sleeve cuff width</string>
+    <string name="custom_field_sheet_value">Value</string>
+    <string name="custom_field_sheet_value_placeholder">0</string>
+    <string name="custom_field_sheet_genders_label">Show on</string>
+    <string name="custom_field_sheet_gender_female">Female</string>
+    <string name="custom_field_sheet_gender_male">Male</string>
+    <string name="custom_field_sheet_gender_both">Both</string>
+    <string name="custom_field_sheet_save">Save</string>
+    <string name="custom_field_sheet_save_with_value">Save field &amp; value</string>
+    <string name="custom_field_sheet_save_changes">Save changes</string>
+    <string name="custom_field_sheet_cancel">Cancel</string>
+    <string name="custom_field_delete_content_description">Delete custom field</string>
+    <string name="custom_field_sheet_archive">Delete custom field</string>
+    <string name="custom_field_archive_dialog_title">Delete this field?</string>
+    <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>
+    <string name="custom_field_archive_dialog_confirm">Delete</string>
+
     <!-- Settings -->
     <string name="settings_measurement_unit_label">Measurement unit</string>
 
@@ -468,9 +498,9 @@
     <string name="order_form_step_details">Details</string>
     <string name="order_form_select_customer">Select a customer</string>
     <string name="order_form_search_customers">Search customers…</string>
-    <string name="order_form_garment_type_label">Garment type</string>
-    <string name="order_form_description_label">Description (optional)</string>
-    <string name="order_form_description_placeholder">e.g. Blue senator with gold buttons</string>
+    <string name="order_form_garment_type_label">What are you making?</string>
+    <string name="order_form_description_label">Design notes (optional)</string>
+    <string name="order_form_description_placeholder">e.g. cream agbada, gold embroidery, long sleeves</string>
     <string name="order_form_price_label">Price (₦)</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
@@ -485,6 +515,8 @@
     <string name="order_form_create_button">Create Order</string>
     <string name="order_form_save_button">Save Changes</string>
     <string name="order_form_next">Next</string>
+    <string name="order_form_next_blocked_customer">Select a customer to continue.</string>
+    <string name="order_form_next_blocked_item">Choose what you&apos;re making and enter a price to continue.</string>
     <string name="order_form_previous">Previous</string>
     <string name="order_form_step_indicator">Step %1$d of %2$d</string>
     <string name="order_form_no_measurement">None</string>
@@ -493,20 +525,30 @@
     <string name="order_form_fabric_photo_label">Fabric photo (optional)</string>
     <string name="order_form_snap_fabric">Snap fabric photo</string>
     <string name="order_form_photo_take">Take photo</string>
-    <string name="order_form_photo_pick">Pick from gallery</string>
+    <string name="order_form_photo_pick">Pick from phone gallery</string>
+    <string name="order_form_photo_take_support">Capture a new reference now</string>
+    <string name="order_form_photo_pick_support">Upload from this device</string>
     <string name="order_form_photo_cancel">Cancel</string>
     <string name="order_form_photo_sheet_title">Add fabric photo</string>
 
-    <!-- Order form style section (PTSP-9) -->
-    <string name="order_form_style_section_title">STYLE</string>
-    <string name="order_form_style_pick_from_gallery">Pick from gallery</string>
+    <!-- Order form image sections (PTSP-11) -->
+    <string name="order_form_style_section_title">Style references</string>
+    <string name="order_form_fabric_section_title">Fabric references</string>
+    <string name="order_form_image_count_fmt">%1$d of %2$d</string>
+    <string name="order_form_image_badge_library">SAVED</string>
+    <string name="order_form_image_badge_new">NEW</string>
+    <string name="order_form_image_add_tile">ADD</string>
+    <!-- Renamed from "order_form_style_pick_from_gallery" to remove ambiguity with the phone&apos;s photo gallery -->
+    <string name="order_form_style_sheet_title">Add style reference</string>
+    <string name="order_form_fabric_sheet_title">Add fabric reference</string>
+    <string name="order_form_style_pick_from_saved">Choose saved style</string>
+    <string name="order_form_style_pick_from_saved_support">Use one from this customer</string>
     <string name="order_form_style_upload_new">Upload new</string>
-    <string name="order_form_style_description_label">Style description</string>
+    <string name="order_form_fabric_upload_new">Upload fabric photo</string>
+    <string name="order_form_style_description_label">Style description (optional)</string>
     <string name="order_form_style_description_placeholder">e.g. Ankara wedding suit</string>
-    <string name="order_form_style_save_to_gallery">Save to style gallery</string>
-    <string name="order_form_style_from_gallery_caption">From your style gallery</string>
-    <string name="order_form_style_change">Change</string>
-    <string name="order_form_style_remove">Remove</string>
+    <string name="order_form_style_save_to_gallery">Save new style photos to saved styles</string>
+    <string name="style_picker_already_added">Already added</string>
     <string name="order_form_style_picker_title">Pick a style</string>
     <string name="order_form_style_picker_empty">No saved styles yet</string>
 
@@ -555,7 +597,11 @@
 
     <!-- Order form -->
     <string name="order_form_item_number">Item %1$d</string>
-    <string name="order_form_deposit_edit_locked_hint">Use Record Payment on the order details screen to update.</string>
+    <string name="order_form_deposit_dialog_title">Update deposit?</string>
+    <string name="order_form_deposit_dialog_body">Deposit will change from ₦%1$s to ₦%2$s.</string>
+    <string name="order_form_deposit_dialog_body_with_other_payments">Recorded progress/final payments (₦%1$s) won&apos;t change.</string>
+    <string name="order_form_deposit_dialog_confirm">Update</string>
+    <string name="order_form_deposit_dialog_cancel">Cancel</string>
     <string name="common_ok">OK</string>
     <string name="common_cancel">Cancel</string>
 
@@ -564,7 +610,7 @@
     <string name="error_order_unknown">Could not save order. Please try again.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
-    <string name="error_order_items_required">Add at least one item with a garment type.</string>
+    <string name="error_order_items_required">Pick what you&apos;re making to save this order.</string>
 
     <!-- Receipt sharing -->
     <string name="share_receipt_title">Share Receipt</string>

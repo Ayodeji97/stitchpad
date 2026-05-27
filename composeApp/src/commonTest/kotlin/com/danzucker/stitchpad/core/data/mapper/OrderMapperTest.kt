@@ -3,11 +3,14 @@ package com.danzucker.stitchpad.core.data.mapper
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderItemDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.domain.model.StyleImageRef
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -172,19 +175,30 @@ class OrderMapperTest {
 
     @Test
     fun orderItem_roundTrips_stylePhotoUrlAndPath_throughDto() {
+        // PTSP-11: style images are now stored as a list; an UPLOADED ref round-trips
+        // through the new styleImages list, not the legacy single-field path.
         val item = OrderItem(
             id = "item-1",
             garmentType = GarmentType.SHIRT,
             description = "Test",
             price = 100.0,
-            stylePhotoUrl = "https://example.com/style.jpg",
-            stylePhotoStoragePath = "users/u1/orders/o1/styles/item-1.jpg",
+            styleImages = listOf(
+                StyleImageRef(
+                    source = StyleImageSource.UPLOADED,
+                    photoUrl = "https://example.com/style.jpg",
+                    photoStoragePath = "users/u1/orders/o1/styles/item-1.jpg",
+                ),
+            ),
         )
 
         val roundTripped = item.toOrderItemDto().toOrderItem()
 
-        assertEquals("https://example.com/style.jpg", roundTripped.stylePhotoUrl)
-        assertEquals("users/u1/orders/o1/styles/item-1.jpg", roundTripped.stylePhotoStoragePath)
+        assertEquals(1, roundTripped.styleImages.size)
+        assertEquals(StyleImageSource.UPLOADED, roundTripped.styleImages[0].source)
+        assertEquals("https://example.com/style.jpg", roundTripped.styleImages[0].photoUrl)
+        assertEquals("users/u1/orders/o1/styles/item-1.jpg", roundTripped.styleImages[0].photoStoragePath)
+        // Legacy double-write: stylePhotoUrl on DTO should be populated from the list
+        assertEquals("https://example.com/style.jpg", roundTripped.toOrderItemDto().stylePhotoUrl)
     }
 
     @Test
@@ -200,6 +214,148 @@ class OrderMapperTest {
 
         assertNull(roundTripped.stylePhotoUrl)
         assertNull(roundTripped.stylePhotoStoragePath)
+        assertTrue(roundTripped.styleImages.isEmpty())
+    }
+
+    @Test
+    fun `OrderItem round-trips empty styleImages and fabricImages through DTO`() {
+        val item = OrderItem(
+            id = "i1",
+            garmentType = GarmentType.SHIRT,
+            description = "Test",
+            price = 100.0,
+        )
+
+        val roundTripped = item.toOrderItemDto().toOrderItem()
+
+        assertTrue(roundTripped.styleImages.isEmpty())
+        assertTrue(roundTripped.fabricImages.isEmpty())
+    }
+
+    @Test
+    fun `OrderItem round-trips multi-image styleImages through DTO`() {
+        val item = OrderItem(
+            id = "i1",
+            garmentType = GarmentType.SHIRT,
+            description = "Test",
+            price = 100.0,
+            styleImages = listOf(
+                StyleImageRef(source = StyleImageSource.LIBRARY, styleId = "s1"),
+                StyleImageRef(
+                    source = StyleImageSource.UPLOADED,
+                    photoUrl = "https://example.com/u.jpg",
+                    photoStoragePath = "users/u1/orders/o1/styles/i1-1.jpg",
+                ),
+            ),
+        )
+
+        val roundTripped = item.toOrderItemDto().toOrderItem()
+
+        assertEquals(2, roundTripped.styleImages.size)
+        assertEquals(StyleImageSource.LIBRARY, roundTripped.styleImages[0].source)
+        assertEquals("s1", roundTripped.styleImages[0].styleId)
+        assertEquals(StyleImageSource.UPLOADED, roundTripped.styleImages[1].source)
+        assertEquals("https://example.com/u.jpg", roundTripped.styleImages[1].photoUrl)
+    }
+
+    @Test
+    fun `OrderItem round-trips multi-image fabricImages through DTO`() {
+        val item = OrderItem(
+            id = "i1",
+            garmentType = GarmentType.SHIRT,
+            description = "Test",
+            price = 100.0,
+            fabricImages = listOf(
+                FabricImageRef("https://example.com/f1.jpg", "users/u1/orders/o1/fabrics/i1-0.jpg"),
+                FabricImageRef("https://example.com/f2.jpg", "users/u1/orders/o1/fabrics/i1-1.jpg"),
+            ),
+        )
+
+        val roundTripped = item.toOrderItemDto().toOrderItem()
+
+        assertEquals(2, roundTripped.fabricImages.size)
+        assertEquals("https://example.com/f1.jpg", roundTripped.fabricImages[0].photoUrl)
+    }
+
+    @Test
+    fun `legacy styleId in DTO migrates to a single LIBRARY StyleImageRef`() {
+        // Simulate a pre-PTSP-11 Firestore doc: only legacy single fields populated.
+        val dto = OrderItemDto(
+            id = "i1",
+            garmentType = "SHIRT",
+            description = "Test",
+            price = 100.0,
+            styleId = "legacy-style-1",
+        )
+
+        val item = dto.toOrderItem()
+
+        assertEquals(1, item.styleImages.size)
+        assertEquals(StyleImageSource.LIBRARY, item.styleImages[0].source)
+        assertEquals("legacy-style-1", item.styleImages[0].styleId)
+    }
+
+    @Test
+    fun `legacy stylePhotoUrl in DTO migrates to a single UPLOADED StyleImageRef`() {
+        val dto = OrderItemDto(
+            id = "i1",
+            garmentType = "SHIRT",
+            description = "Test",
+            price = 100.0,
+            stylePhotoUrl = "https://example.com/legacy.jpg",
+            stylePhotoStoragePath = "users/u1/orders/o1/styles/i1.jpg",
+        )
+
+        val item = dto.toOrderItem()
+
+        assertEquals(1, item.styleImages.size)
+        assertEquals(StyleImageSource.UPLOADED, item.styleImages[0].source)
+        assertEquals("https://example.com/legacy.jpg", item.styleImages[0].photoUrl)
+    }
+
+    @Test
+    fun `legacy fabricPhotoUrl in DTO migrates to a single FabricImageRef`() {
+        val dto = OrderItemDto(
+            id = "i1",
+            garmentType = "SHIRT",
+            description = "Test",
+            price = 100.0,
+            fabricPhotoUrl = "https://example.com/fabric.jpg",
+            fabricPhotoStoragePath = "users/u1/orders/o1/fabrics/i1.jpg",
+        )
+
+        val item = dto.toOrderItem()
+
+        assertEquals(1, item.fabricImages.size)
+        assertEquals("https://example.com/fabric.jpg", item.fabricImages[0].photoUrl)
+    }
+
+    @Test
+    fun `OrderItem double-writes legacy fields from multi-image lists`() {
+        val item = OrderItem(
+            id = "i1",
+            garmentType = GarmentType.SHIRT,
+            description = "Test",
+            price = 100.0,
+            styleImages = listOf(
+                StyleImageRef(source = StyleImageSource.LIBRARY, styleId = "s1"),
+                StyleImageRef(
+                    source = StyleImageSource.UPLOADED,
+                    photoUrl = "https://example.com/u.jpg",
+                    photoStoragePath = "p1",
+                ),
+            ),
+            fabricImages = listOf(
+                FabricImageRef("https://example.com/f.jpg", "fp1"),
+            ),
+        )
+
+        val dto = item.toOrderItemDto()
+
+        // Legacy single fields should be derived from the lists for backward read
+        assertEquals("s1", dto.styleId)
+        assertEquals("https://example.com/u.jpg", dto.stylePhotoUrl)
+        assertEquals("https://example.com/f.jpg", dto.fabricPhotoUrl)
     }
 
     @Test

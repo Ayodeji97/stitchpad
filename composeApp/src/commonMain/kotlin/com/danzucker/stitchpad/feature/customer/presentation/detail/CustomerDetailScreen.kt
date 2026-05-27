@@ -243,10 +243,14 @@ fun CustomerDetailScreen(
                                 // Locked customers: row is fully inert (no tap, no swipe) and
                                 // visually muted so the affordance matches the behavior. Only
                                 // the "Unlock with Pro" CTA below stays interactive.
-                                ReadOnlyMeasurementItem(measurement = measurement)
+                                ReadOnlyMeasurementItem(
+                                    measurement = measurement,
+                                    customFieldLabels = state.customFieldLabels,
+                                )
                             } else {
                                 SwipeableMeasurementItem(
                                     measurement = measurement,
+                                    customFieldLabels = state.customFieldLabels,
                                     onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
                                     onDelete = { onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement)) },
                                 )
@@ -417,8 +421,9 @@ private fun MeasurementsEmptyState(modifier: Modifier = Modifier) {
 @Composable
 private fun SwipeableMeasurementItem(
     measurement: Measurement,
+    customFieldLabels: Map<String, String>,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -455,13 +460,20 @@ private fun SwipeableMeasurementItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            MeasurementListItem(measurement = measurement, onClick = onClick)
+            MeasurementListItem(
+                measurement = measurement,
+                customFieldLabels = customFieldLabels,
+                onClick = onClick,
+            )
         }
     }
 }
 
 @Composable
-private fun ReadOnlyMeasurementItem(measurement: Measurement) {
+private fun ReadOnlyMeasurementItem(
+    measurement: Measurement,
+    customFieldLabels: Map<String, String>,
+) {
     // Used when the customer is locked: no swipe-to-delete wrapper AND no click handler.
     // Per V1.0 design spec decision #2, locked customers are fully visible read-only —
     // every surface on the detail page is inert except the "Unlock with Pro" CTA.
@@ -472,7 +484,11 @@ private fun ReadOnlyMeasurementItem(measurement: Measurement) {
             .fillMaxWidth()
             .alpha(LOCKED_CONTENT_ALPHA),
     ) {
-        MeasurementListItem(measurement = measurement, onClick = null)
+        MeasurementListItem(
+            measurement = measurement,
+            customFieldLabels = customFieldLabels,
+            onClick = null,
+        )
     }
 }
 
@@ -579,7 +595,11 @@ private fun StylesSectionRow(onClick: (() -> Unit)?) {
 }
 
 @Composable
-private fun MeasurementListItem(measurement: Measurement, onClick: (() -> Unit)?) {
+private fun MeasurementListItem(
+    measurement: Measurement,
+    customFieldLabels: Map<String, String>,
+    onClick: (() -> Unit)?,
+) {
     val profileTitle = if (measurement.gender == CustomerGender.FEMALE) {
         stringResource(Res.string.measurement_female_profile)
     } else {
@@ -626,14 +646,28 @@ private fun MeasurementListItem(measurement: Measurement, onClick: (() -> Unit)?
                 } else {
                     listOf("chest" to "Chest", "trouser_waist" to "Waist")
                 }
-                val preview = previewKeys
+                val templatePreview = previewKeys
                     .mapNotNull { (key, label) ->
                         measurement.fields[key]?.let { "$label: ${formatMeasurementValue(it)}" }
                     }
                     .joinToString("  ")
-                if (preview.isNotBlank()) {
+
+                // PTSP-12: also surface any custom-field values recorded on
+                // this measurement (UUID keys → resolved labels via the
+                // tailor's custom-field definitions). Includes archived
+                // definitions so past values keep rendering after archive.
+                val templateKeySet = previewKeys.map { it.first }.toSet()
+                val customPreview = measurement.fields
+                    .filter { (key, _) -> key !in templateKeySet && key in customFieldLabels }
+                    .map { (key, value) -> "${customFieldLabels[key]}: ${formatMeasurementValue(value)}" }
+                    .joinToString("  ")
+
+                val combined = listOf(templatePreview, customPreview)
+                    .filter { it.isNotBlank() }
+                    .joinToString("  ")
+                if (combined.isNotBlank()) {
                     Text(
-                        text = preview,
+                        text = combined,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

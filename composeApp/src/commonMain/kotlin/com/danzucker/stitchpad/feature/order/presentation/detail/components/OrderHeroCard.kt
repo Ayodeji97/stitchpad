@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -95,7 +97,7 @@ import stitchpad.composeapp.generated.resources.order_status_ready
 @Suppress("LongParameterList", "LongMethod")
 @Composable
 fun OrderHeroCard(
-    stylePhotoUrl: String?,
+    styleImageUrls: List<String>,
     garmentTypeIcon: ImageVector,
     garmentName: String,
     customerName: String,
@@ -119,7 +121,8 @@ fun OrderHeroCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
-    var fullScreenImage: String? by remember { mutableStateOf<String?>(null) }
+    var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
+    var viewerStartIndex: Int by remember { mutableStateOf(0) }
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
@@ -130,11 +133,14 @@ fun OrderHeroCard(
         Column {
             // ── Full-width hero image ─────────────────────────────────────────
             HeroImage(
-                stylePhotoUrl = stylePhotoUrl,
+                styleImageUrls = styleImageUrls,
                 garmentTypeIcon = garmentTypeIcon,
                 garmentName = garmentName,
                 onAddStyleClick = onAddStyleClick,
-                onPhotoClick = { fullScreenImage = it },
+                onPhotoClick = { urls, index ->
+                    viewerImages = urls
+                    viewerStartIndex = index
+                },
             )
 
             // ── Text content + CTAs ───────────────────────────────────────────
@@ -170,101 +176,166 @@ fun OrderHeroCard(
             }
         }
     }
-    FullScreenImageViewer(
-        model = fullScreenImage,
-        contentDescription = null,
-        onDismiss = { fullScreenImage = null },
-    )
+    if (viewerImages.isNotEmpty()) {
+        FullScreenImageViewer(
+            images = viewerImages,
+            startIndex = viewerStartIndex,
+            contentDescription = null,
+            onDismiss = {
+                viewerImages = emptyList()
+                viewerStartIndex = 0
+            },
+        )
+    }
 }
 
+@Suppress("LongMethod")
 @Composable
 private fun HeroImage(
-    stylePhotoUrl: String?,
+    styleImageUrls: List<String>,
     garmentTypeIcon: ImageVector,
     garmentName: String,
     onAddStyleClick: () -> Unit,
-    onPhotoClick: (String) -> Unit,
+    onPhotoClick: (List<String>, Int) -> Unit,
 ) {
-    val photoUrl = stylePhotoUrl
-    val captionText = if (stylePhotoUrl != null) {
-        stringResource(Res.string.order_detail_style_caption)
-    } else {
-        null
-    }
+    val baseModifier = Modifier
+        .fillMaxWidth()
+        .height(190.dp)
+        .clip(
+            RoundedCornerShape(
+                topStart = DesignTokens.radiusLg,
+                topEnd = DesignTokens.radiusLg,
+            ),
+        )
+        .background(MaterialTheme.colorScheme.surfaceVariant)
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(190.dp)
-            .clip(
-                RoundedCornerShape(
-                    topStart = DesignTokens.radiusLg,
-                    topEnd = DesignTokens.radiusLg,
-                ),
-            )
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        if (photoUrl != null) {
-            SubcomposeAsyncImage(
-                model = photoUrl,
-                contentDescription = garmentName,
-                contentScale = ContentScale.Crop,
-                loading = {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        LoadingDots()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { onPhotoClick(photoUrl) },
-            )
-        } else {
+    when {
+        styleImageUrls.isEmpty() -> {
             // Empty state — placeholder icon + Add style CTA
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                modifier = baseModifier,
                 contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = garmentTypeIcon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(56.dp),
-                    )
-                    TextButton(onClick = onAddStyleClick) {
-                        Text(
-                            text = stringResource(Res.string.order_detail_add_style),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                    ) {
+                        Icon(
+                            imageVector = garmentTypeIcon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(56.dp),
                         )
+                        TextButton(onClick = onAddStyleClick) {
+                            Text(
+                                text = stringResource(Res.string.order_detail_add_style),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }
         }
-
-        if (captionText != null) {
-            Text(
-                text = captionText,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(DesignTokens.space2)
-                    .background(
-                        color = Color.Black.copy(alpha = 0.55f),
-                        shape = RoundedCornerShape(DesignTokens.radiusFull),
+        styleImageUrls.size == 1 -> {
+            // Single image — render once, no pager
+            Box(modifier = baseModifier.clickable { onPhotoClick(styleImageUrls, 0) }) {
+                SubcomposeAsyncImage(
+                    model = styleImageUrls[0],
+                    contentDescription = garmentName,
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize(),
+                        ) { LoadingDots() }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // Style caption
+                Text(
+                    text = stringResource(Res.string.order_detail_style_caption),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(DesignTokens.space2)
+                        .background(
+                            color = Color.Black.copy(alpha = 0.55f),
+                            shape = RoundedCornerShape(DesignTokens.radiusFull),
+                        )
+                        .padding(horizontal = DesignTokens.space3, vertical = 4.dp),
+                )
+            }
+        }
+        else -> {
+            // Carousel with dots + counter
+            val pagerState = rememberPagerState(pageCount = { styleImageUrls.size })
+            Box(modifier = baseModifier) {
+                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                    SubcomposeAsyncImage(
+                        model = styleImageUrls[page],
+                        contentDescription = garmentName,
+                        contentScale = ContentScale.Crop,
+                        loading = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize(),
+                            ) { LoadingDots() }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // Use the lambda `page` param, not pagerState.currentPage. During a swipe
+                            // adjacent pages are pre-composed and currentPage may still point at the
+                            // previous settled page while the user taps the incoming page (BugBot).
+                            .clickable { onPhotoClick(styleImageUrls, page) },
                     )
-                    .padding(horizontal = DesignTokens.space3, vertical = 4.dp),
-            )
+                }
+                // Counter pill (top-right)
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${styleImageUrls.size}",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp)
+                        .background(
+                            Color.Black.copy(alpha = 0.6f),
+                            RoundedCornerShape(999.dp),
+                        )
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+                // Dots (bottom-center)
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    repeat(styleImageUrls.size) { i ->
+                        val active = i == pagerState.currentPage
+                        Box(
+                            modifier = Modifier
+                                .size(
+                                    width = if (active) 22.dp else 7.dp,
+                                    height = 7.dp,
+                                )
+                                .background(
+                                    color = if (active) Color.White else Color.White.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(4.dp),
+                                ),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -681,7 +752,7 @@ private fun secondaryCtaLabel(cta: SecondaryCta): String = when (cta) {
 private fun OrderHeroCardInProgressLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            stylePhotoUrl = null,
+            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Vintage Buba",
             customerName = "Adewale Paul",
@@ -713,7 +784,7 @@ private fun OrderHeroCardInProgressLightPreview() {
 private fun OrderHeroCardReadyLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            stylePhotoUrl = "https://example.com/style.jpg",
+            styleImageUrls = listOf("https://example.com/style.jpg"),
             garmentTypeIcon = Icons.Default.Inventory2,
             garmentName = "Senator Outfit",
             customerName = "Chukwuemeka Nwosu",
@@ -745,7 +816,7 @@ private fun OrderHeroCardReadyLightPreview() {
 private fun OrderHeroCardFittingLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            stylePhotoUrl = null,
+            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.Person,
             garmentName = "Agbada Set",
             customerName = "Tunde Bakare",
@@ -777,7 +848,7 @@ private fun OrderHeroCardFittingLightPreview() {
 private fun OrderHeroCardOverdueLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            stylePhotoUrl = null,
+            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Kaftan",
             customerName = "Blessing Okafor",
@@ -809,7 +880,7 @@ private fun OrderHeroCardOverdueLightPreview() {
 private fun OrderHeroCardDeliveredDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         OrderHeroCard(
-            stylePhotoUrl = null,
+            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.CheckCircle,
             garmentName = "Bridal Gown",
             customerName = "Amaka Eze",
@@ -841,7 +912,7 @@ private fun OrderHeroCardDeliveredDarkPreview() {
 private fun OrderHeroCardEmptyAddStylePreview() {
     StitchPadTheme {
         OrderHeroCard(
-            stylePhotoUrl = null,
+            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Agbada",
             customerName = "Gose Wale",

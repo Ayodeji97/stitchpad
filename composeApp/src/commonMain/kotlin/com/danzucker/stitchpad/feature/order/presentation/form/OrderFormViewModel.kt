@@ -5,19 +5,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
-import com.danzucker.stitchpad.core.domain.model.PaymentMethod
-import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.model.StyleImageRef
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -126,67 +128,104 @@ class OrderFormViewModel(
             is OrderFormAction.OnItemPriceChange -> updateItem(action.itemId) {
                 it.copy(price = action.price)
             }
-            is OrderFormAction.OnItemStyleChange -> updateItem(action.itemId) {
-                // Picking a gallery style OR clearing the gallery style replaces the
-                // whole "style" state for this item — clear any inline upload fields
-                // so the StyleSection's hasUploadUrl branch doesn't resurrect a stale
-                // one-off image. (codex review caught this on a hypothetical edit
-                // scenario where both styleId and stylePhotoUrl were simultaneously
-                // set; the UI doesn't normally reach that state but it's defensible.)
-                it.copy(
-                    styleId = action.styleId,
-                    stylePhotoBytes = null,
-                    stylePhotoUrl = null,
-                    stylePhotoStoragePath = null,
-                    styleDescription = "",
-                    saveStyleToGallery = true,
-                )
-            }
             is OrderFormAction.OnItemMeasurementChange -> updateItem(action.itemId) {
                 it.copy(measurementId = action.measurementId)
-            }
-            is OrderFormAction.OnItemFabricPhotoPicked -> updateItem(action.itemId) {
-                // Keep fabricPhotoUrl/StoragePath intact as upload fallback: if the new
-                // upload fails, uploadFabricPhotoIfNeeded() preserves the existing remote
-                // photo instead of silently losing it. The UI prefers bytes over URL, so
-                // the new image is shown immediately regardless.
-                it.copy(fabricPhotoBytes = action.photoBytes)
-            }
-            is OrderFormAction.OnItemFabricPhotoRemoved -> updateItem(action.itemId) {
-                it.copy(fabricPhotoBytes = null, fabricPhotoUrl = null, fabricPhotoStoragePath = null)
             }
             is OrderFormAction.OnItemFabricNameChange -> updateItem(action.itemId) {
                 it.copy(fabricName = action.fabricName)
             }
-            is OrderFormAction.OnItemStylePhotoPicked -> {
-                updateItem(action.itemId) {
-                    // Keep stylePhotoUrl/StoragePath intact as upload fallback: if the new
-                    // upload fails, resolveStylePhoto() preserves the existing remote.
-                    it.copy(stylePhotoBytes = action.photoBytes)
+            is OrderFormAction.OnItemPickSavedStyle -> updateItem(action.itemId) {
+                // Append a LIBRARY ref. Capacity check: stylePickerSheet already
+                // marks already-picked as disabled, so the user shouldn't be able
+                // to over-pick — but defend with a guard anyway.
+                val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
+                if (total >= 3) return@updateItem it
+                val alreadyHasStyle = it.styleImageRefs.any { ref ->
+                    ref.source == StyleImageSource.LIBRARY && ref.styleId == action.styleId
+                }
+                if (alreadyHasStyle) {
+                    return@updateItem it // already picked
+                }
+                it.copy(
+                    styleImageRefs = it.styleImageRefs + StyleImageRef(
+                        source = StyleImageSource.LIBRARY,
+                        styleId = action.styleId,
+                    ),
+                )
+            }
+            is OrderFormAction.OnItemAddStylePhoto -> updateItem(action.itemId) {
+                val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
+                if (total >= 3) return@updateItem it
+                it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + action.photoBytes)
+            }
+            is OrderFormAction.OnItemRemoveStyleImage -> updateItem(action.itemId) {
+                // The combined list is: styleImageRefs FIRST, then uploadedStyleBytesList.
+                // index addresses that combined position.
+                val savedCount = it.styleImageRefs.size
+                when {
+                    action.index < savedCount -> {
+                        val removed = it.styleImageRefs[action.index]
+                        val deletionsAdd = if (removed.source == StyleImageSource.UPLOADED &&
+                            !removed.photoStoragePath.isNullOrBlank()
+                        ) {
+                            it.pendingStyleStorageDeletions + removed.photoStoragePath
+                        } else {
+                            it.pendingStyleStorageDeletions
+                        }
+                        it.copy(
+                            styleImageRefs = it.styleImageRefs.toMutableList()
+                                .also { list -> list.removeAt(action.index) },
+                            pendingStyleStorageDeletions = deletionsAdd,
+                        )
+                    }
+                    else -> {
+                        val byteIndex = action.index - savedCount
+                        if (byteIndex !in it.uploadedStyleBytesList.indices) return@updateItem it
+                        it.copy(
+                            uploadedStyleBytesList = it.uploadedStyleBytesList.toMutableList()
+                                .also { list -> list.removeAt(byteIndex) },
+                        )
+                    }
                 }
             }
-            is OrderFormAction.OnItemStylePhotoRemoved -> {
-                updateItem(action.itemId) {
-                    it.copy(
-                        stylePhotoBytes = null,
-                        stylePhotoUrl = null,
-                        stylePhotoStoragePath = null,
-                        styleDescription = "",
-                        saveStyleToGallery = true,
-                    )
-                }
+            is OrderFormAction.OnItemStyleDescriptionChange -> updateItem(action.itemId) {
+                it.copy(styleDescription = action.description)
             }
-            is OrderFormAction.OnItemStyleDescriptionChange -> {
-                updateItem(action.itemId) { it.copy(styleDescription = action.description) }
-            }
-            is OrderFormAction.OnItemSaveStyleToGalleryToggle -> {
-                updateItem(action.itemId) { it.copy(saveStyleToGallery = action.value) }
+            is OrderFormAction.OnItemSaveStyleToGalleryToggle -> updateItem(action.itemId) {
+                it.copy(saveStyleToGallery = action.value)
             }
             is OrderFormAction.OnOpenStylePickerSheet -> {
                 _state.update { it.copy(stylePickerSheetForItemId = action.itemId) }
             }
             OrderFormAction.OnDismissStylePickerSheet -> {
                 _state.update { it.copy(stylePickerSheetForItemId = null) }
+            }
+            is OrderFormAction.OnItemAddFabricPhoto -> updateItem(action.itemId) {
+                val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
+                if (total >= 3) return@updateItem it
+                it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + action.photoBytes)
+            }
+            is OrderFormAction.OnItemRemoveFabricImage -> updateItem(action.itemId) {
+                val savedCount = it.fabricImageRefs.size
+                when {
+                    action.index < savedCount -> {
+                        val removed = it.fabricImageRefs[action.index]
+                        it.copy(
+                            fabricImageRefs = it.fabricImageRefs.toMutableList()
+                                .also { list -> list.removeAt(action.index) },
+                            pendingFabricStorageDeletions =
+                            it.pendingFabricStorageDeletions + removed.photoStoragePath,
+                        )
+                    }
+                    else -> {
+                        val byteIndex = action.index - savedCount
+                        if (byteIndex !in it.uploadedFabricBytesList.indices) return@updateItem it
+                        it.copy(
+                            uploadedFabricBytesList = it.uploadedFabricBytesList.toMutableList()
+                                .also { list -> list.removeAt(byteIndex) },
+                        )
+                    }
+                }
             }
             is OrderFormAction.OnDeadlineChange -> {
                 _state.update { it.copy(deadline = action.deadline) }
@@ -200,7 +239,25 @@ class OrderFormViewModel(
             is OrderFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
-            OrderFormAction.OnSave -> save()
+            OrderFormAction.OnSave -> {
+                // Guard against double-tap on the Save button — the UI's
+                // enabled-when-not-saving flag updates a frame later than
+                // the click and doesn't block rapid taps on its own.
+                if (_state.value.isSaving) return
+                save()
+            }
+            OrderFormAction.OnConfirmDepositChange -> {
+                // Guard against (a) double-tap on the dialog Confirm button
+                // and (b) action replay when the prompt isn't set. Without
+                // this, two rapid taps would launch two save coroutines.
+                val current = _state.value
+                if (current.depositReconciliationPrompt == null || current.isSaving) return
+                _state.update { it.copy(depositReconciliationPrompt = null) }
+                executeSave()
+            }
+            OrderFormAction.OnDismissDepositPrompt -> {
+                _state.update { it.copy(depositReconciliationPrompt = null) }
+            }
             OrderFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
@@ -288,7 +345,12 @@ class OrderFormViewModel(
                             items = order.items.map { item -> item.toFormState() },
                             deadline = order.deadline,
                             priority = order.priority,
-                            depositPaid = if (order.depositPaid > 0) order.depositPaid.toLong().toString() else "",
+                            depositPaid = DepositReconciler
+                                .currentDepositSum(order.payments)
+                                .takeIf { it > 0.0 }
+                                ?.toLong()
+                                ?.toString()
+                                ?: "",
                             notes = order.notes ?: "",
                             isLoading = false
                         )
@@ -316,17 +378,23 @@ class OrderFormViewModel(
                     _state.update {
                         it.copy(
                             // Seeded order is brand new: each item gets a fresh id, AND we
-                            // strip the one-off style storage paths so the new order doesn't
-                            // point at the source order's Storage objects. Without this, the
-                            // duplicated order shares photo URLs under the source's path —
-                            // deleting either order would break the other's image via
-                            // FirebaseOrderRepository.deleteOrder's cleanup. styleId is
-                            // intentionally preserved (customer-gallery Styles are shared
-                            // across orders by design). NOTE: fabric photo fields have the
-                            // same pre-existing inheritance bug; out of scope here.
+                            // strip the one-off uploaded storage paths (both style + fabric)
+                            // so the new order doesn't point at the source order's Storage
+                            // objects. Without this, deleting either order would break the
+                            // other's image via FirebaseOrderRepository.deleteOrder's
+                            // cleanup. Library-source style refs are preserved
+                            // (customer-gallery Styles are shared across orders by design).
                             items = source.items.map { item ->
                                 item.copy(
                                     id = Uuid.random().toString(),
+                                    // Drop ALL fabric refs (always uploaded → all point at source order)
+                                    fabricImages = emptyList(),
+                                    fabricPhotoUrl = null,
+                                    fabricPhotoStoragePath = null,
+                                    // Keep LIBRARY style refs; drop UPLOADED style refs
+                                    styleImages = item.styleImages.filter {
+                                        it.source == StyleImageSource.LIBRARY
+                                    },
                                     stylePhotoUrl = null,
                                     stylePhotoStoragePath = null,
                                 ).toFormState()
@@ -354,20 +422,21 @@ class OrderFormViewModel(
         garmentType = garmentType,
         description = description,
         price = if (price > 0) price.toLong().toString() else "",
-        styleId = styleId,
         measurementId = measurementId,
-        fabricPhotoUrl = fabricPhotoUrl,
-        fabricPhotoStoragePath = fabricPhotoStoragePath,
         fabricName = fabricName.orEmpty(),
-        stylePhotoUrl = stylePhotoUrl,
-        stylePhotoStoragePath = stylePhotoStoragePath,
-        // Edit mode: previously-uploaded one-off images can't be edited (no description, no toggle).
-        // They render as State C-readonly per the spec. Default fields here mean "no inline editing
-        // available" — the screen layer reads `stylePhotoUrl != null && styleId == null` to detect this.
+        // PTSP-11 — load the lists; uploadedBytesList stays empty until the user
+        // uploads new this session. Description + toggle reset to defaults.
+        styleImageRefs = styleImages,
+        fabricImageRefs = fabricImages,
+        uploadedStyleBytesList = emptyList(),
+        uploadedFabricBytesList = emptyList(),
+        pendingStyleStorageDeletions = emptyList(),
+        pendingFabricStorageDeletions = emptyList(),
+        styleDescription = "",
+        saveStyleToGallery = true,
     )
 
-    @OptIn(ExperimentalUuidApi::class)
-    @Suppress("LongMethod", "ReturnCount", "CyclomaticComplexMethod")
+    @Suppress("ReturnCount")
     private fun save() {
         // Idempotency: if a previous save is in-flight, ignore this re-entry.
         // The UI's `enabled = !isSaving` already blocks the button visually, but
@@ -377,7 +446,7 @@ class OrderFormViewModel(
         if (_state.value.isSaving) return
 
         val s = _state.value
-        val uid = userId ?: return
+        if (userId == null) return
 
         val customer = s.selectedCustomer
         if (customer == null) {
@@ -391,15 +460,52 @@ class OrderFormViewModel(
             return
         }
 
-        // Block save when any filled-in item is missing a valid positive price.
-        // Silently persisting 0.0 would undercharge and skew totals.
         val hasInvalidPrice = formItems.any { (it.price.toDoubleOrNull() ?: 0.0) <= 0.0 }
         if (hasInvalidPrice) {
             setError(Res.string.error_order_item_price_required)
             return
         }
 
-        // Resolve order id BEFORE any upload so storage paths match the actual doc id.
+        // Gate: in edit mode, if the user changed the deposit AND any payments
+        // already exist on the order, intercept the save with a confirmation
+        // prompt so the destructive replace is explicit.
+        val isEdit = orderId != null
+        if (isEdit && loadedPayments.isNotEmpty()) {
+            val typedDeposit = s.depositPaid.toDoubleOrNull() ?: 0.0
+            val currentDeposit = DepositReconciler.currentDepositSum(loadedPayments)
+            if (typedDeposit != currentDeposit) {
+                _state.update {
+                    it.copy(
+                        depositReconciliationPrompt = DepositPrompt(
+                            oldAmount = currentDeposit,
+                            newAmount = typedDeposit,
+                            nonDepositTotal = DepositReconciler.nonDepositTotal(loadedPayments),
+                        ),
+                    )
+                }
+                return
+            }
+        }
+
+        executeSave()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
+    private fun executeSave() {
+        // Invariants: save() has already validated customer + items + price,
+        // so these checks are defence-in-depth for misuse via direct entry
+        // points (e.g. OnConfirmDepositChange). If they trip, surface an
+        // error rather than silently dropping the save.
+        val s = _state.value
+        val uid = userId
+        val customer = s.selectedCustomer
+        val formItems = s.items.filter { it.garmentType != null }
+        if (uid == null || customer == null || formItems.isEmpty()) {
+            setError(Res.string.error_order_customer_required)
+            return
+        }
+
         val actualOrderId = orderId ?: orderRepository.newOrderId(uid)
 
         // Claim the saving state SYNCHRONOUSLY before launching the coroutine.
@@ -415,20 +521,13 @@ class OrderFormViewModel(
                 val garmentType = item.garmentType!!
                 val price = item.price.toDoubleOrNull() ?: 0.0
 
-                val (fabricUrl, fabricPath) = uploadFabricPhotoIfNeeded(uid, actualOrderId, item)
-
-                // Style upload/create failure must abort the save — otherwise the
-                // order persists without the uploaded image (silent data loss).
-                val styleResolution = when (
-                    val result = resolveStylePhoto(uid, customer.id, actualOrderId, item)
+                val resolution = when (
+                    val r = resolveItemImages(uid, customer.id, actualOrderId, item)
                 ) {
-                    is Result.Success -> result.data
+                    is Result.Success -> r.data
                     is Result.Error -> {
                         _state.update {
-                            it.copy(
-                                isSaving = false,
-                                errorMessage = result.error.toOrderUiText(),
-                            )
+                            it.copy(isSaving = false, errorMessage = r.error.toOrderUiText())
                         }
                         return@launch
                     }
@@ -440,13 +539,12 @@ class OrderFormViewModel(
                         garmentType = garmentType,
                         description = item.description.trim(),
                         price = price,
-                        styleId = styleResolution.styleId,
                         measurementId = item.measurementId,
-                        fabricPhotoUrl = fabricUrl,
-                        fabricPhotoStoragePath = fabricPath,
                         fabricName = item.fabricName.trim().ifBlank { null },
-                        stylePhotoUrl = styleResolution.photoUrl,
-                        stylePhotoStoragePath = styleResolution.photoStoragePath,
+                        styleImages = resolution.styleImages,
+                        fabricImages = resolution.fabricImages,
+                        // Legacy single fields — populated by the mapper from the lists on write.
+                        // Leave null on the domain object; mapper handles double-write.
                     ),
                 )
             }
@@ -455,6 +553,27 @@ class OrderFormViewModel(
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
+
+            // When editing an order without changing the deposit, preserve the
+            // existing payment list verbatim. Calling reconcileForDeposit() in
+            // this case would silently replace any DEPOSIT entry's id, method,
+            // recordedAt, and note (e.g. a payment originally recorded via
+            // "Record Payment" with method=CASH) with a fresh OTHER/now entry.
+            // Only reconcile when the typed deposit actually differs from the
+            // existing deposit sum — that's the case the dialog confirmed.
+            val payments = if (
+                isEdit &&
+                deposit == DepositReconciler.currentDepositSum(loadedPayments)
+            ) {
+                loadedPayments
+            } else {
+                DepositReconciler.reconcileForDeposit(
+                    loadedPayments = if (isEdit) loadedPayments else emptyList(),
+                    newDeposit = deposit,
+                    recordedAt = now,
+                    newPaymentId = Uuid.random().toString(),
+                )
+            }
 
             val order = Order(
                 id = actualOrderId,
@@ -470,26 +589,11 @@ class OrderFormViewModel(
                     listOf(StatusChange(OrderStatus.PENDING, now))
                 },
                 totalPrice = totalPrice,
-                payments = if (!isEdit && deposit > 0.0) {
-                    listOf(
-                        Payment(
-                            id = Uuid.random().toString(),
-                            amount = deposit,
-                            method = PaymentMethod.OTHER,
-                            type = PaymentType.DEPOSIT,
-                            recordedAt = now,
-                            note = null,
-                        ),
-                    )
-                } else if (isEdit) {
-                    loadedPayments
-                } else {
-                    emptyList()
-                },
+                payments = payments,
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
-                updatedAt = 0L
+                updatedAt = 0L,
             )
 
             val result = if (isEdit) {
@@ -497,11 +601,14 @@ class OrderFormViewModel(
             } else {
                 orderRepository.createOrder(uid, order)
             }
-            _state.update { it.copy(isSaving = false) }
             when (result) {
-                is Result.Success -> _events.send(OrderFormEvent.OrderSaved)
+                is Result.Success -> {
+                    cleanUpPendingStorageDeletions(formItems)
+                    _state.update { it.copy(isSaving = false) }
+                    _events.send(OrderFormEvent.OrderSaved)
+                }
                 is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toOrderUiText())
+                    it.copy(isSaving = false, errorMessage = result.error.toOrderUiText())
                 }
             }
         }
@@ -511,100 +618,98 @@ class OrderFormViewModel(
         _state.update { it.copy(errorMessage = UiText.StringResourceText(resource)) }
     }
 
-    private suspend fun uploadFabricPhotoIfNeeded(
-        uid: String,
-        orderId: String,
-        item: OrderItemFormState
-    ): Pair<String?, String?> {
-        val bytes = item.fabricPhotoBytes
-            ?: return item.fabricPhotoUrl to item.fabricPhotoStoragePath
-        val uploadResult = orderRepository.uploadFabricPhoto(
-            userId = uid,
-            orderId = orderId,
-            itemId = item.id,
-            photoBytes = bytes
-        )
-        return when (uploadResult) {
-            is Result.Success -> uploadResult.data
-            is Result.Error -> item.fabricPhotoUrl to item.fabricPhotoStoragePath
-        }
-    }
-
     /**
-     * Result holder: which of the three style states does this item resolve to after save?
+     * Result holder for per-item multi-image resolution at save time.
      */
-    private data class StyleResolution(
-        val styleId: String?,
-        val photoUrl: String?,
-        val photoStoragePath: String?,
+    private data class ItemImageResolution(
+        val styleImages: List<StyleImageRef>,
+        val fabricImages: List<FabricImageRef>,
     )
 
     /**
-     * Per-item style image handling at save time:
-     *  - No bytes & no toggle change → carry existing values (pre-PTSP-9 orders, or "no style").
-     *  - Bytes + saveStyleToGallery=true → create a Style entity; styleId points to it,
-     *    photo lives on the Style (not the OrderItem).
-     *  - Bytes + saveStyleToGallery=false → upload to Firebase Storage; photoUrl/Path live
-     *    on the OrderItem, styleId stays null.
-     *
-     * On upload/create failure returns Result.Error so save() can abort. Silently
-     * falling back to prior values would persist the order without the uploaded
-     * style image, which is a user-visible data-loss bug (codex review caught this
-     * in the initial implementation). The fabric flow has the same pattern as
-     * pre-existing tech debt — flagged as a follow-up cleanup, out of scope here.
+     * Per-item batch resolution at save time:
+     *  - Existing saved refs (styleImageRefs / fabricImageRefs) pass through unchanged
+     *  - New uploaded bytes:
+     *      • Fabric → upload to Firebase Storage as FabricImageRef
+     *      • Style + toggle ON  → batch-create Style entities, refs become LIBRARY
+     *      • Style + toggle OFF → upload to Firebase Storage, refs become UPLOADED
+     *  - On ANY failure → Result.Error so save() aborts (no silent data loss)
      */
     @Suppress("ReturnCount")
-    private suspend fun resolveStylePhoto(
+    private suspend fun resolveItemImages(
         userId: String,
         customerId: String,
         orderId: String,
         item: OrderItemFormState,
-    ): Result<StyleResolution, DataError.Network> {
-        val bytes = item.stylePhotoBytes
-        if (bytes == null) {
-            return Result.Success(
-                StyleResolution(
-                    styleId = item.styleId,
-                    photoUrl = item.stylePhotoUrl,
-                    photoStoragePath = item.stylePhotoStoragePath,
-                ),
-            )
-        }
-
-        if (item.saveStyleToGallery) {
-            val createResult = styleRepository.createStyle(
-                userId = userId,
-                customerId = customerId,
-                description = item.styleDescription.trim(),
-                photoBytes = bytes,
-            )
-            return when (createResult) {
-                is Result.Success -> Result.Success(
-                    StyleResolution(
-                        styleId = createResult.data,
-                        photoUrl = null,
-                        photoStoragePath = null,
-                    ),
-                )
-                is Result.Error -> Result.Error(createResult.error)
-            }
-        }
-
-        val uploadResult = orderRepository.uploadStylePhoto(
+    ): Result<ItemImageResolution, DataError.Network> {
+        // 1) Fabric: existing refs + uploaded bytes -> Firebase Storage
+        val fabricUploadResult = orderRepository.uploadFabricPhotos(
             userId = userId,
             orderId = orderId,
             itemId = item.id,
-            photoBytes = bytes,
+            photoBytesList = item.uploadedFabricBytesList,
         )
-        return when (uploadResult) {
-            is Result.Success -> Result.Success(
-                StyleResolution(
-                    styleId = null,
-                    photoUrl = uploadResult.data.first,
-                    photoStoragePath = uploadResult.data.second,
-                ),
+        val uploadedFabric = when (fabricUploadResult) {
+            is Result.Success -> fabricUploadResult.data.map { (url, path) -> FabricImageRef(url, path) }
+            is Result.Error -> return Result.Error(fabricUploadResult.error)
+        }
+        val finalFabricImages = item.fabricImageRefs + uploadedFabric
+
+        // 2) Style: existing refs pass through; uploaded bytes branch on toggle
+        val uploadedStyleRefs: List<StyleImageRef> = if (item.uploadedStyleBytesList.isEmpty()) {
+            emptyList()
+        } else if (item.saveStyleToGallery) {
+            val createResult = styleRepository.createStyles(
+                userId = userId,
+                customerId = customerId,
+                description = item.styleDescription.trim(),
+                photoBytesList = item.uploadedStyleBytesList,
             )
-            is Result.Error -> Result.Error(uploadResult.error)
+            when (createResult) {
+                is Result.Success -> createResult.data.map { styleId ->
+                    StyleImageRef(source = StyleImageSource.LIBRARY, styleId = styleId)
+                }
+                is Result.Error -> return Result.Error(createResult.error)
+            }
+        } else {
+            val uploadResult = orderRepository.uploadStylePhotos(
+                userId = userId,
+                orderId = orderId,
+                itemId = item.id,
+                photoBytesList = item.uploadedStyleBytesList,
+            )
+            when (uploadResult) {
+                is Result.Success -> uploadResult.data.map { (url, path) ->
+                    StyleImageRef(
+                        source = StyleImageSource.UPLOADED,
+                        photoUrl = url,
+                        photoStoragePath = path,
+                    )
+                }
+                is Result.Error -> return Result.Error(uploadResult.error)
+            }
+        }
+        val finalStyleImages = item.styleImageRefs + uploadedStyleRefs
+
+        return Result.Success(
+            ItemImageResolution(
+                styleImages = finalStyleImages,
+                fabricImages = finalFabricImages,
+            ),
+        )
+    }
+
+    /**
+     * Best-effort cleanup of orphaned storage objects the user removed during
+     * this edit session. Runs after a successful save. Failures are silent —
+     * the order saved fine; the orphan is a Storage-side concern.
+     */
+    private suspend fun cleanUpPendingStorageDeletions(items: List<OrderItemFormState>) {
+        val allPaths = items.flatMap { item ->
+            item.pendingStyleStorageDeletions + item.pendingFabricStorageDeletions
+        }.filter { it.isNotBlank() }
+        if (allPaths.isNotEmpty()) {
+            orderRepository.deleteStoragePaths(allPaths)
         }
     }
 }

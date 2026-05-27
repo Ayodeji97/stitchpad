@@ -19,6 +19,13 @@ interface StyleRepository {
         photoBytes: ByteArray
     ): Result<String, DataError.Network>
 
+    suspend fun createStyles(
+        userId: String,
+        customerId: String,
+        description: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<String>, DataError.Network>
+
     suspend fun updateStyle(
         userId: String,
         customerId: String,

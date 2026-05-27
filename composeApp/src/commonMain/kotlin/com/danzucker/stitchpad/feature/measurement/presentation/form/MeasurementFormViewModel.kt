@@ -3,11 +3,14 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
+import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -30,6 +34,8 @@ class MeasurementFormViewModel(
     private val authRepository: AuthRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val orderRepository: OrderRepository,
+    private val customFieldRepository: CustomMeasurementFieldRepository,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
@@ -37,6 +43,12 @@ class MeasurementFormViewModel(
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
     private var hasLoadedInitialData = false
+
+    // Unfiltered cache of all custom fields the tailor has defined. `state.customFields`
+    // holds the gender-filtered subset; switching gender re-filters from THIS list
+    // (not from the already-filtered state, which would lose other-gender fields).
+    private var allCustomFields: List<CustomMeasurementField> = emptyList()
+
     private val _state = MutableStateFlow(MeasurementFormState(isEditMode = measurementId != null))
 
     private val _events = Channel<MeasurementFormEvent>()
@@ -48,11 +60,19 @@ class MeasurementFormViewModel(
                 hasLoadedInitialData = true
                 val unit = measurementPreferencesStore.getUnit()
                 _state.update { it.copy(unit = unit) }
+                // Observe the entitlement flow rather than reading current()
+                // once — on cold start current() returns the default FREE /
+                // not-in-welcome snapshot before the user-doc hydrates, which
+                // would briefly show Pro users (and fresh-signup First Month
+                // users) the locked UI + upgrade sheet. Collecting the flow
+                // keeps state in sync as hydration lands.
+                observeEntitlements()
                 if (measurementId != null) {
                     loadMeasurement(measurementId)
                 } else {
                     onGenderChange(CustomerGender.FEMALE)
                 }
+                observeCustomFields()
             }
         }
         .stateIn(
@@ -61,6 +81,7 @@ class MeasurementFormViewModel(
             initialValue = MeasurementFormState(isEditMode = measurementId != null)
         )
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: MeasurementFormAction) {
         when (action) {
             is MeasurementFormAction.OnGenderChange -> onGenderChange(action.gender)
@@ -91,6 +112,43 @@ class MeasurementFormViewModel(
             is MeasurementFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
+            MeasurementFormAction.OnAddCustomFieldClick -> {
+                openCustomFieldSheetWhenEntitled()
+            }
+            MeasurementFormAction.OnLockedCustomFieldClick -> {
+                openCustomFieldSheetWhenEntitled()
+            }
+            is MeasurementFormAction.OnEditCustomFieldClick -> {
+                val field = _state.value.customFields.find { it.id == action.fieldId }
+                if (field != null) {
+                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.Editing(field)) }
+                }
+            }
+            MeasurementFormAction.OnCustomFieldSheetDismiss -> {
+                _state.update { it.copy(customFieldSheet = null) }
+            }
+            is MeasurementFormAction.OnCustomFieldDraftLabelChange -> {
+                updateCustomFieldDraft { it.copy(label = action.label) }
+            }
+            is MeasurementFormAction.OnCustomFieldDraftInitialValueChange -> {
+                updateCustomFieldDraft { it.copy(initialValue = action.value) }
+            }
+            is MeasurementFormAction.OnCustomFieldDraftGendersChange -> {
+                updateCustomFieldDraft { it.copy(genders = action.genders) }
+            }
+            is MeasurementFormAction.OnArchiveCustomFieldRequest -> {
+                val field = _state.value.customFields.find { it.id == action.fieldId }
+                if (field != null) {
+                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.ConfirmArchive(field)) }
+                }
+            }
+            is MeasurementFormAction.OnSaveCustomField -> saveCustomField(
+                id = action.id,
+                label = action.label,
+                genders = action.genders,
+                initialValue = action.initialValue,
+            )
+            is MeasurementFormAction.OnArchiveCustomFieldConfirm -> archiveCustomField(action.fieldId)
             MeasurementFormAction.OnSaveClick -> save()
             MeasurementFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateBack) }
@@ -101,18 +159,136 @@ class MeasurementFormViewModel(
         }
     }
 
+    private fun openCustomFieldSheetWhenEntitled() {
+        viewModelScope.launch {
+            val canUseCustomMeasurements = entitlements.awaitHydrated().canUseCustomMeasurements
+            if (canUseCustomMeasurements) {
+                _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding()) }
+            } else {
+                _events.send(MeasurementFormEvent.NavigateToUpgrade)
+            }
+        }
+    }
+
+    private fun updateCustomFieldDraft(transform: (CustomFieldDraft) -> CustomFieldDraft) {
+        _state.update { current ->
+            val sheet = when (val active = current.customFieldSheet) {
+                is CustomFieldSheet.Adding -> active.copy(draft = transform(active.draft))
+                is CustomFieldSheet.Editing -> active.copy(draft = transform(active.draft))
+                is CustomFieldSheet.ConfirmArchive,
+                null -> active
+            }
+            current.copy(customFieldSheet = sheet)
+        }
+    }
+
     private fun onGenderChange(gender: CustomerGender) {
         val sections = BodyProfileTemplate.sectionsFor(gender)
-        val allKeys = sections.flatMap { it.fields }.map { it.key }
-        _state.update {
-            it.copy(
+        val templateKeys = sections.flatMap { it.fields }.map { it.key }
+        _state.update { current ->
+            val visibleCustom = customFieldsForGender(
+                fields = allCustomFields,
+                gender = gender,
+                recordedValues = current.fields,
+                preserveRecorded = current.isEditMode,
+            )
+            val customKeys = visibleCustom.map { it.id }
+            val preservedRecordedCustomKeys = if (current.isEditMode) {
+                current.fields.keys.filter { key ->
+                    current.fields[key].orEmpty().isNotBlank() && isCustomOrOrphanKey(key)
+                }
+            } else {
+                emptyList()
+            }
+            val allKeys = templateKeys + customKeys + preservedRecordedCustomKeys
+            val newFields = allKeys.associateWith { key -> current.fields[key] ?: "" }
+            current.copy(
                 gender = gender,
                 sections = sections,
                 currentSectionIndex = 0,
                 isCurrentSectionExpanded = true,
-                fields = allKeys.associateWith { "" }
+                fields = newFields,
+                customFields = visibleCustom,
             )
         }
+    }
+
+    private fun observeEntitlements() {
+        viewModelScope.launch {
+            entitlements.flow.collect { ents ->
+                _state.update { current ->
+                    val fields = if (!current.isEditMode && !ents.canUseCustomMeasurements) {
+                        current.fields.filterKeys { key -> !isCustomOrOrphanKey(key) }
+                    } else {
+                        current.fields
+                    }
+                    current.copy(
+                        fields = fields,
+                        canUseCustomMeasurements = ents.canUseCustomMeasurements,
+                        isInWelcomeWindow = ents.isInWelcomeWindow,
+                        tier = ents.tier,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun observeCustomFields() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            customFieldRepository.observeFields(userId).collect { result ->
+                if (result is Result.Success) {
+                    allCustomFields = result.data
+                    _state.update { current ->
+                        // Preserve fields whose ids already appear as recorded values
+                        // on the loaded measurement — even if archived or opposite-
+                        // gender. Without this the observer's re-emit (e.g., after
+                        // loadMeasurement completes) would silently drop archived-
+                        // but-recorded rows from the form. See loadMeasurement for
+                        // the matching edit-mode filter.
+                        val visible = result.data.filter { field ->
+                            val hasRecordedValue = current.isEditMode &&
+                                current.fields[field.id]?.isNotBlank() == true
+                            val passesNormalFilter = !field.isArchived &&
+                                (current.gender == null || current.gender in field.genders)
+                            hasRecordedValue || passesNormalFilter
+                        }
+                        val fields = if (current.isEditMode) {
+                            current.fields
+                        } else {
+                            val visibleIds = visible.map { it.id }.toSet()
+                            val customFieldIds = result.data.map { it.id }.toSet()
+                            current.fields.filterKeys { key -> key !in customFieldIds || key in visibleIds }
+                        }
+                        current.copy(customFields = visible, fields = fields)
+                    }
+                }
+                // Errors on the field stream are non-fatal — keep the form
+                // functional; tailors can retry by reopening the screen.
+            }
+        }
+    }
+
+    private fun customFieldsForGender(
+        fields: List<CustomMeasurementField>,
+        gender: CustomerGender?,
+        recordedValues: Map<String, String>,
+        preserveRecorded: Boolean,
+    ): List<CustomMeasurementField> =
+        fields.filter { field ->
+            val hasRecordedValue = preserveRecorded && recordedValues[field.id]?.isNotBlank() == true
+            val passesNormalFilter = !field.isArchived && (gender == null || gender in field.genders)
+            hasRecordedValue || passesNormalFilter
+        }
+
+    private fun isCustomOrOrphanKey(key: String): Boolean {
+        val customFieldIds = allCustomFields.map { it.id }.toSet()
+        val templateKeys = CustomerGender.entries
+            .flatMap { gender -> BodyProfileTemplate.sectionsFor(gender) }
+            .flatMap { section -> section.fields }
+            .map { field -> field.key }
+            .toSet()
+        return key in customFieldIds || key !in templateKeys
     }
 
     private fun loadMeasurement(id: String) {
@@ -127,7 +303,27 @@ class MeasurementFormViewModel(
                     val measurement = result.data.find { it.id == id }
                     if (measurement != null) {
                         val sections = BodyProfileTemplate.sectionsFor(measurement.gender)
-                        val allKeys = sections.flatMap { it.fields }.map { it.key }
+                        val recordedKeys = measurement.fields.keys
+                        // Re-filter custom fields against the measurement's gender. In
+                        // edit mode the observer may have emitted before gender was
+                        // known (the filter treats null as wildcard); without this
+                        // re-filter, opposite-gender fields can leak into the UI and
+                        // be persisted on save. ALSO surface any field the user has
+                        // already recorded a value for — even archived/opposite-gender
+                        // — so the spec promise "Values already recorded stay visible
+                        // on past measurements" holds and the value isn't silently
+                        // strand-edited via the orphan path.
+                        val visibleCustom = allCustomFields.filter { field ->
+                            val hasRecordedValue = field.id in recordedKeys
+                            val passesNormalFilter = !field.isArchived && measurement.gender in field.genders
+                            hasRecordedValue || passesNormalFilter
+                        }
+                        val templateKeys = sections.flatMap { it.fields }.map { it.key }.toSet()
+                        val customKeys = visibleCustom.map { it.id }.toSet()
+                        // Union: template + visible custom + anything actually
+                        // recorded on the doc (orphans included so save round-
+                        // trips them cleanly, even if no definition exists).
+                        val allKeys = templateKeys + customKeys + recordedKeys
                         val fieldsAsString = allKeys.associateWith { key ->
                             val v = measurement.fields[key]
                             if (v != null) {
@@ -141,11 +337,12 @@ class MeasurementFormViewModel(
                                 gender = measurement.gender,
                                 sections = sections,
                                 fields = fieldsAsString,
+                                customFields = visibleCustom,
                                 unit = measurement.unit,
                                 notes = measurement.notes ?: "",
                                 originalCreatedAt = measurement.createdAt,
                                 originalDateTaken = measurement.dateTaken,
-                                isLoading = false
+                                isLoading = false,
                             )
                         }
                     } else {
@@ -188,13 +385,20 @@ class MeasurementFormViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
+            val isCreate = measurementId == null
             val parsedFields = s.fields
                 .mapValues { it.value.toDoubleOrNull() ?: 0.0 }
                 .filter { it.value > 0.0 }
+                .filterKeys { key ->
+                    !isCreate || s.canUseCustomMeasurements || !isCustomOrOrphanKey(key)
+                }
+            if (parsedFields.isEmpty()) {
+                _state.update { it.copy(isLoading = false) }
+                return@launch
+            }
 
             // Pre-generate the id for create flow so we can link it to the order
             // before observeOrder re-emits. For edit flow we keep the existing id.
-            val isCreate = measurementId == null
             val effectiveId = measurementId ?: Uuid.random().toString()
 
             val measurement = Measurement(
@@ -219,33 +423,155 @@ class MeasurementFormViewModel(
                 return@launch
             }
 
-            // If the form was opened from an order's "link measurement" picker,
-            // attach this measurement id to the order's first item. Failure to link
-            // is logged via the order error path but does NOT block the save —
-            // the measurement is already persisted; the user can retry the link
-            // from the order details screen.
-            val linkOrderId = linkToOrderId
-            if (isCreate && linkOrderId != null) {
-                when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
-                    is Result.Success -> {
-                        val order = orderResult.data
-                        val firstItem = order.items.firstOrNull()
-                        if (firstItem != null) {
-                            val updatedItems = listOf(firstItem.copy(measurementId = effectiveId)) +
-                                order.items.drop(1)
-                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
-                            // Ignore failure — order's observeOrder Flow re-emits when network
-                            // recovers; user sees the unlinked state and can retry. We deliberately
-                            // do not surface a separate error toast here, since the measurement save
-                            // itself succeeded and that's the primary user intent.
-                        }
-                    }
-                    is Result.Error -> Unit // same rationale as above
-                }
+            if (isCreate) {
+                linkMeasurementToOrderIfRequested(userId, effectiveId)
             }
 
             _state.update { it.copy(isLoading = false) }
             _events.send(MeasurementFormEvent.NavigateBack)
+        }
+    }
+
+    /**
+     * If the form was opened from an order's "link measurement" picker,
+     * attach the just-persisted measurement to the order's first item.
+     *
+     * Failure to link is silent: the measurement is already persisted, the
+     * order's `observeOrder` flow re-emits on network recovery, and the user
+     * can retry the link from the order details screen. We deliberately do
+     * not surface a separate error toast — the measurement save itself
+     * succeeded and that's the primary user intent.
+     */
+    private suspend fun linkMeasurementToOrderIfRequested(
+        userId: String,
+        measurementId: String,
+    ) {
+        val linkOrderId = linkToOrderId ?: return
+        val order = (orderRepository.getOrder(userId, linkOrderId) as? Result.Success)?.data
+        val firstItem = order?.items?.firstOrNull()
+        if (order != null && firstItem != null) {
+            val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) +
+                order.items.drop(1)
+            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun saveCustomField(
+        id: String?,
+        label: String,
+        genders: Set<CustomerGender>,
+        initialValue: String,
+    ) {
+        // Defense in depth: VM-side entitlement re-check (welcome window could
+        // have elapsed since the form opened; the UI check is the first gate).
+        if (!entitlements.current().canUseCustomMeasurements) {
+            viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+            return
+        }
+        // Trim + validate. Empty label or empty gender set keeps the sheet open
+        // so the user can correct without losing what they typed.
+        val trimmed = label.trim()
+        if (trimmed.isEmpty() || genders.isEmpty()) return
+
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val now = Clock.System.now().toEpochMilliseconds()
+            val isCreate = id == null
+            // Look up the whole existing field once so we preserve BOTH
+            // createdAt AND isArchived on edit. Use the unfiltered cache
+            // (`allCustomFields`) — `state.customFields` is the gender+archive
+            // filtered subset, so archived fields surfaced in edit mode aren't
+            // present there. Hardcoding isArchived = false would silently
+            // un-archive an archived field (Bugbot HIGH).
+            val existingField = id?.let { fieldId ->
+                allCustomFields.find { it.id == fieldId }
+            }
+            val field = CustomMeasurementField(
+                id = id ?: Uuid.random().toString(),
+                label = trimmed,
+                genders = genders,
+                isArchived = existingField?.isArchived ?: false,
+                createdAt = existingField?.createdAt ?: now,
+                updatedAt = now,
+            )
+            val result = if (isCreate) {
+                customFieldRepository.createField(userId, field)
+            } else {
+                customFieldRepository.updateField(userId, field)
+            }
+            if (result is Result.Success) {
+                _state.update { current ->
+                    val valueToApply = initialValue.trim()
+                    val shouldSeedInitialValue = shouldSeedInitialCustomValue(
+                        isCreate = isCreate,
+                        value = valueToApply,
+                        currentGender = current.gender,
+                        field = field,
+                    )
+                    val updatedFields = if (shouldSeedInitialValue) {
+                        current.fields + (field.id to valueToApply)
+                    } else {
+                        current.fields
+                    }
+                    current.copy(
+                        fields = updatedFields,
+                        customFieldSheet = null,
+                    )
+                }
+            } else {
+                // Surface via the shared snackbar. Leave the sheet OPEN so the
+                // user can retry without re-typing.
+                _state.update {
+                    it.copy(errorMessage = (result as Result.Error).error.toMeasurementUiText())
+                }
+            }
+        }
+    }
+
+    private fun shouldSeedInitialCustomValue(
+        isCreate: Boolean,
+        value: String,
+        currentGender: CustomerGender?,
+        field: CustomMeasurementField,
+    ): Boolean =
+        isCreate &&
+            value.isNotBlank() &&
+            currentGender?.let { it in field.genders } == true
+
+    private fun archiveCustomField(fieldId: String) {
+        // Defense in depth: VM-side entitlement re-check (welcome window could
+        // have elapsed since the form opened; the Edit sheet may still be
+        // reachable on a recorded row in edit mode even after the entitlement
+        // is lost). Mirrors the saveCustomField pattern.
+        if (!entitlements.current().canUseCustomMeasurements) {
+            viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+            return
+        }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val result = customFieldRepository.archiveField(userId, fieldId)
+            if (result is Result.Success) {
+                _state.update { current ->
+                    val updatedFields = if (current.isEditMode) {
+                        current.fields
+                    } else {
+                        current.fields - fieldId
+                    }
+                    current.copy(
+                        fields = updatedFields,
+                        customFields = current.customFields.filterNot { it.id == fieldId },
+                        customFieldSheet = null,
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        customFieldSheet = null, // close confirm; error shown via snackbar
+                        errorMessage = (result as Result.Error).error.toMeasurementUiText(),
+                    )
+                }
+            }
         }
     }
 }

@@ -16,7 +16,7 @@ data class OrderDetailState(
     val user: User? = null,
     val customer: Customer? = null,
     val measurement: Measurement? = null,
-    val style: Style? = null,
+    val styles: Map<String, Style> = emptyMap(),
     val isLoading: Boolean = true,
 
     val showMeasurementPickerSheet: Boolean = false,

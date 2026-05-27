@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PTSP-11 — Order detail with multi-image</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #121110;
+      --surf: #1E1C1A;
+      --surf2: #2A2825;
+      --surf3: #36332F;
+      --bdr: #3A3731;
+      --bdr-strong: #4D4943;
+      --txt: #E5E3DF;
+      --txt2: #A8A49D;
+      --txt3: #7D7970;
+      --primary: #E8A800;
+      --primary-soft: rgba(232, 168, 0, 0.14);
+
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px;
+      --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px;
+
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: var(--font-body); background: #0a0908; color: var(--txt); -webkit-font-smoothing: antialiased; }
+    body { padding: 32px 24px 96px; }
+
+    .page-header {
+      max-width: 1200px;
+      margin: 0 auto 32px;
+    }
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      letter-spacing: -0.01em;
+    }
+    .page-header p {
+      font-size: 14px;
+      color: var(--txt2);
+      margin: 0;
+      max-width: 760px;
+      line-height: 1.5;
+    }
+
+    .variants {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 380px));
+      gap: 28px;
+      justify-content: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    @media (max-width: 1300px) {
+      .variants { grid-template-columns: repeat(2, minmax(0, 400px)); max-width: 900px; }
+    }
+
+    .variant {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .variant-label {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .variant-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+    .variant-sub {
+      font-size: 12px;
+      color: var(--txt2);
+      margin: 0 0 16px;
+      text-align: center;
+      max-width: 340px;
+      line-height: 1.5;
+    }
+
+    /* ── Phone frame ─────────────────────────────────────── */
+    .phone {
+      width: 360px;
+      height: 740px;
+      background: var(--bg);
+      border: 8px solid #1a1815;
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+      display: flex;
+      flex-direction: column;
+    }
+    .notch {
+      width: 110px;
+      height: 26px;
+      background: #1a1815;
+      border-radius: 0 0 18px 18px;
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    .statusbar {
+      height: 38px;
+      flex-shrink: 0;
+      padding: 0 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .statusbar .icons {
+      display: flex;
+      gap: 5px;
+      font-size: 12px;
+    }
+    .appbar {
+      flex-shrink: 0;
+      padding: 8px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      justify-content: space-between;
+    }
+    .appbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .appbar .ico { font-size: 22px; }
+    .appbar .title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .scroll::-webkit-scrollbar { display: none; }
+
+    /* Hero card (existing OrderHeroCard) */
+    .hero-card {
+      margin: 0 16px 14px;
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .hero-image {
+      width: 100%;
+      height: 180px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    .hero-tag {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .hero-body {
+      padding: 14px;
+    }
+    .hero-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .hero-customer {
+      font-size: 13px;
+      color: var(--txt2);
+      margin: 4px 0 12px;
+    }
+    .hero-meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--bdr);
+    }
+    .meta-pair {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .meta-label {
+      font-size: 10px;
+      color: var(--txt3);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .meta-val {
+      font-size: 14px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+    .status-pill {
+      align-self: center;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .cta-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .cta-primary {
+      flex: 1;
+      background: var(--primary);
+      color: #1a1815;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px;
+      border-radius: var(--r-md);
+      text-align: center;
+    }
+    .cta-secondary {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--bdr-strong);
+      color: var(--txt);
+      font-weight: 600;
+      font-size: 13px;
+      padding: 10px;
+      border-radius: var(--r-md);
+      text-align: center;
+    }
+
+    /* Garment card (existing OrderGarmentDetailsCard) */
+    .garment-card {
+      margin: 0 16px 14px;
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r-lg);
+      padding: 14px;
+    }
+    .garment-row {
+      display: flex;
+      gap: 12px;
+    }
+    .garment-text { flex: 1; }
+    .garment-title {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--txt3);
+      margin: 0 0 6px;
+      font-weight: 600;
+    }
+    .garment-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+    .garment-info {
+      font-size: 12px;
+      color: var(--txt2);
+      line-height: 1.5;
+    }
+    .garment-info b { color: var(--txt); font-weight: 600; }
+
+    /* Section title */
+    .section-title {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--txt2);
+      font-weight: 600;
+      margin: 14px 0 8px;
+    }
+
+    /* Sample image fills */
+    .img-style-1 { background-image: linear-gradient(150deg, #4A3A30 0%, #6E5848 50%, #2A1F18 100%); }
+    .img-style-2 { background-image: linear-gradient(135deg, #3A2E50 0%, #5D4878 50%, #251A38 100%); }
+    .img-style-3 { background-image: linear-gradient(160deg, #2E4A3A 0%, #486E58 50%, #1A2E22 100%); }
+    .img-fabric-1 { background-image: linear-gradient(135deg, #8B6F47 0%, #C49966 50%, #6B4F2A 100%); }
+    .img-fabric-2 { background-image: linear-gradient(160deg, #2C3E50 0%, #4A6B8A 50%, #1A2530 100%); }
+
+    /* ──────────────────────────────────────────────────────
+       VARIANT A — Hero stays single; small strip below
+       ────────────────────────────────────────────────────── */
+    .a-thumb-strip {
+      display: flex;
+      gap: 6px;
+      padding: 10px 14px 4px;
+      background: var(--surf);
+      border-top: 1px solid var(--bdr);
+    }
+    .a-strip-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 9px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .a-strip-thumb.active {
+      box-shadow: 0 0 0 2px var(--primary);
+    }
+    .a-strip-thumb-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 7px;
+      padding: 1px 3px;
+      border-radius: 3px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .a-strip-count {
+      align-self: center;
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--txt3);
+      letter-spacing: 0.04em;
+    }
+
+    /* Fabric strip (shared) */
+    .fabric-strip {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .fabric-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 10px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .fabric-thumb-cap {
+      position: absolute;
+      bottom: 3px;
+      left: 3px;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font-size: 7px;
+      padding: 1px 3px;
+      border-radius: 3px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ──────────────────────────────────────────────────────
+       VARIANT B — Carousel-style hero (swipeable)
+       ────────────────────────────────────────────────────── */
+    .b-hero-carousel {
+      position: relative;
+    }
+    .b-dot-row {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      z-index: 2;
+    }
+    .b-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+    }
+    .b-dot.active {
+      background: #fff;
+      width: 22px;
+      border-radius: 4px;
+    }
+    .b-counter {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ──────────────────────────────────────────────────────
+       VARIANT C — Mosaic hero (1 big + 2 small)
+       ────────────────────────────────────────────────────── */
+    .c-mosaic {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 3px;
+      height: 200px;
+    }
+    .c-mosaic .big {
+      grid-row: 1 / span 2;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    .c-mosaic .small {
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    .c-mosaic .more-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>PTSP-11 — Order detail screen with multi-image</h1>
+  <p>How should the detail screen present 2–3 style + 2 fabric images per item? Three options, all showing the same order with the same content state. Section 5 of the brainstorm proposed <strong style="color:var(--primary)">Variant A</strong> (hero = first image, small thumb strip below). B and C show what's possible if you want a richer photo-forward feel.</p>
+</div>
+
+<div class="variants">
+
+  <!-- ─────────── VARIANT A — Hero + thumb strip ─────────── -->
+  <div class="variant">
+    <div class="variant-label">Variant A</div>
+    <h2 class="variant-title">Hero + thumb strip below</h2>
+    <p class="variant-sub">First image stays the big hero (160dp). Below it, a small strip shows the other style thumbs (52dp). Fabric strip lives in the garment card. Tap any thumb → fullscreen viewer.</p>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="icons"><span class="material-icons-round" style="font-size:14px">signal_cellular_alt</span><span class="material-icons-round" style="font-size:14px">wifi</span><span class="material-icons-round" style="font-size:14px">battery_full</span></span>
+      </div>
+      <div class="appbar">
+        <div class="appbar-left">
+          <span class="material-icons-round ico">arrow_back</span>
+          <span class="title">Order #042</span>
+        </div>
+        <span class="material-icons-round ico" style="color:var(--txt2)">more_vert</span>
+      </div>
+
+      <div class="scroll">
+        <div class="hero-card">
+          <div class="hero-image img-style-1">
+            <span class="hero-tag">Style reference 1 of 3</span>
+          </div>
+          <div class="a-thumb-strip">
+            <div class="a-strip-thumb img-style-1 active"></div>
+            <div class="a-strip-thumb img-style-2">
+              <span class="a-strip-thumb-badge">LIB</span>
+            </div>
+            <div class="a-strip-thumb img-style-3"></div>
+            <span class="a-strip-count">3 of 3</span>
+          </div>
+          <div class="hero-body">
+            <h3 class="hero-name">Kaftan — Demo order #3</h3>
+            <p class="hero-customer">Amina Bello · +234 801 234 5678</p>
+            <span class="status-pill">In progress</span>
+            <div class="hero-meta-row" style="margin-top:14px">
+              <div class="meta-pair">
+                <span class="meta-label">Total</span>
+                <span class="meta-val">₦10,000</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-label">Due</span>
+                <span class="meta-val">May 30</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-label">Balance</span>
+                <span class="meta-val">₦5,000</span>
+              </div>
+            </div>
+            <div class="cta-row">
+              <div class="cta-secondary">Record payment</div>
+              <div class="cta-primary">Mark ready</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="garment-card">
+          <p class="garment-title">Item 1</p>
+          <h3 class="garment-name">Kaftan · Male</h3>
+          <p class="garment-info">
+            Description: <b>Demo order #3</b><br>
+            Fabric: <b>Royal Lace</b>
+          </p>
+          <p class="section-title">Fabric references · 2 of 3</p>
+          <div class="fabric-strip">
+            <div class="fabric-thumb img-fabric-1">
+              <span class="fabric-thumb-cap">Fabric</span>
+            </div>
+            <div class="fabric-thumb img-fabric-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── VARIANT B — Carousel hero ─────────── -->
+  <div class="variant">
+    <div class="variant-label">Variant B</div>
+    <h2 class="variant-title">Swipeable carousel hero</h2>
+    <p class="variant-sub">Hero is a swipeable photo carousel — same 180dp height as today, but with dots + a counter (1 / 3). Each style image gets equal prominence. No separate thumb strip needed.</p>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="icons"><span class="material-icons-round" style="font-size:14px">signal_cellular_alt</span><span class="material-icons-round" style="font-size:14px">wifi</span><span class="material-icons-round" style="font-size:14px">battery_full</span></span>
+      </div>
+      <div class="appbar">
+        <div class="appbar-left">
+          <span class="material-icons-round ico">arrow_back</span>
+          <span class="title">Order #042</span>
+        </div>
+        <span class="material-icons-round ico" style="color:var(--txt2)">more_vert</span>
+      </div>
+
+      <div class="scroll">
+        <div class="hero-card">
+          <div class="hero-image img-style-1 b-hero-carousel">
+            <span class="hero-tag">Style references</span>
+            <span class="b-counter">1 / 3</span>
+            <div class="b-dot-row">
+              <span class="b-dot active"></span>
+              <span class="b-dot"></span>
+              <span class="b-dot"></span>
+            </div>
+          </div>
+          <div class="hero-body">
+            <h3 class="hero-name">Kaftan — Demo order #3</h3>
+            <p class="hero-customer">Amina Bello · +234 801 234 5678</p>
+            <span class="status-pill">In progress</span>
+            <div class="hero-meta-row" style="margin-top:14px">
+              <div class="meta-pair">
+                <span class="meta-label">Total</span>
+                <span class="meta-val">₦10,000</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-label">Due</span>
+                <span class="meta-val">May 30</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-label">Balance</span>
+                <span class="meta-val">₦5,000</span>
+              </div>
+            </div>
+            <div class="cta-row">
+              <div class="cta-secondary">Record payment</div>
+              <div class="cta-primary">Mark ready</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="garment-card">
+          <p class="garment-title">Item 1</p>
+          <h3 class="garment-name">Kaftan · Male</h3>
+          <p class="garment-info">
+            Description: <b>Demo order #3</b><br>
+            Fabric: <b>Royal Lace</b>
+          </p>
+          <p class="section-title">Fabric references · 2 of 3</p>
+          <div class="fabric-strip">
+            <div class="fabric-thumb img-fabric-1">
+              <span class="fabric-thumb-cap">Fabric</span>
+            </div>
+            <div class="fabric-thumb img-fabric-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── VARIANT C — Mosaic hero ─────────── -->
+  <div class="variant">
+    <div class="variant-label">Variant C</div>
+    <h2 class="variant-title">Mosaic hero (1 big + 2 small)</h2>
+    <p class="variant-sub">All 3 style images visible at once in a 2/3 + 1/3 mosaic. Most photo-forward. With 2 images, the second image fills the right side; with 1, falls back to the full-width hero.</p>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="icons"><span class="material-icons-round" style="font-size:14px">signal_cellular_alt</span><span class="material-icons-round" style="font-size:14px">wifi</span><span class="material-icons-round" style="font-size:14px">battery_full</span></span>
+      </div>
+      <div class="appbar">
+        <div class="appbar-left">
+          <span class="material-icons-round ico">arrow_back</span>
+          <span class="title">Order #042</span>
+        </div>
+        <span class="material-icons-round ico" style="color:var(--txt2)">more_vert</span>
+      </div>
+
+      <div class="scroll">
+        <div class="hero-card">
+          <div class="c-mosaic">
+            <div class="big img-style-1">
+              <span class="hero-tag">Style references</span>
+            </div>
+            <div class="small img-style-2"></div>
+            <div class="small img-style-3"></div>
+          </div>
+          <div class="hero-body">
+            <h3 class="hero-name">Kaftan — Demo order #3</h3>
+            <p class="hero-customer">Amina Bello · +234 801 234 5678</p>
+            <span class="status-pill">In progress</span>
+            <div class="hero-meta-row" style="margin-top:14px">
+              <div class="meta-pair">
+                <span class="meta-label">Total</span>
+                <span class="meta-val">₦10,000</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-label">Due</span>
+                <span class="meta-val">May 30</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-label">Balance</span>
+                <span class="meta-val">₦5,000</span>
+              </div>
+            </div>
+            <div class="cta-row">
+              <div class="cta-secondary">Record payment</div>
+              <div class="cta-primary">Mark ready</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="garment-card">
+          <p class="garment-title">Item 1</p>
+          <h3 class="garment-name">Kaftan · Male</h3>
+          <p class="garment-info">
+            Description: <b>Demo order #3</b><br>
+            Fabric: <b>Royal Lace</b>
+          </p>
+          <p class="section-title">Fabric references · 2 of 3</p>
+          <div class="fabric-strip">
+            <div class="fabric-thumb img-fabric-1">
+              <span class="fabric-thumb-cap">Fabric</span>
+            </div>
+            <div class="fabric-thumb img-fabric-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

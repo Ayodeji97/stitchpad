@@ -12,6 +12,12 @@ data class CustomerDetailState(
     val showDeleteDialog: Boolean = false,
     val measurementToDelete: Measurement? = null,
     val errorMessage: UiText? = null,
+    /**
+     * PTSP-12: UUID → label map for the tailor's custom measurement fields,
+     * INCLUDING archived ones. Used by the measurement preview row so custom
+     * values render with their human label instead of disappearing.
+     */
+    val customFieldLabels: Map<String, String> = emptyMap(),
 ) {
     /**
      * True when the loaded customer is in the LOCKED slot state. Drives the read-only

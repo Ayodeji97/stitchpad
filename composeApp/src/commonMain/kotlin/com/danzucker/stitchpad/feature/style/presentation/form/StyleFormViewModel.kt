@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.StyleImageRef
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -169,9 +171,23 @@ class StyleFormViewModel(
                         val order = orderResult.data
                         val firstItem = order.items.firstOrNull()
                         if (firstItem != null) {
-                            val updatedItems = listOf(firstItem.copy(styleId = newStyleId)) +
-                                order.items.drop(1)
-                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                            // PTSP-11 — APPEND a LIBRARY ref to the first item's styleImages
+                            // list. Guard against duplicates and the 3-image cap.
+                            val alreadyHas = firstItem.styleImages.any {
+                                it.source == StyleImageSource.LIBRARY && it.styleId == newStyleId
+                            }
+                            val atCap = firstItem.styleImages.size >= 3
+                            if (!alreadyHas && !atCap) {
+                                val newRef = StyleImageRef(
+                                    source = StyleImageSource.LIBRARY,
+                                    styleId = newStyleId,
+                                )
+                                val updatedItem = firstItem.copy(
+                                    styleImages = firstItem.styleImages + newRef,
+                                )
+                                val updatedItems = listOf(updatedItem) + order.items.drop(1)
+                                orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                            }
                         }
                     }
                     is Result.Error -> Unit

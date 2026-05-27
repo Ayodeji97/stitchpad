@@ -1,9 +1,12 @@
 package com.danzucker.stitchpad.core.data.mapper
 
+import com.danzucker.stitchpad.core.data.dto.FabricImageRefDto
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderItemDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
+import com.danzucker.stitchpad.core.data.dto.StyleImageRefDto
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -14,6 +17,8 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.model.StyleImageRef
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import kotlin.time.Clock
 
 /** Returns a `payments` list that already absorbs any legacy `depositPaid`.
@@ -114,18 +119,65 @@ fun Payment.toPaymentDto(): PaymentDto = PaymentDto(
     note = note,
 )
 
-fun OrderItemDto.toOrderItem(): OrderItem = OrderItem(
-    id = id,
-    garmentType = parseGarmentType(garmentType),
-    description = description,
-    price = price,
+fun OrderItemDto.toOrderItem(): OrderItem {
+    // Source of truth: the new lists. If empty (pre-PTSP-11 docs), synthesize
+    // a 1-element list from the legacy single fields so the rest of the app
+    // sees a uniform shape.
+    val resolvedStyleImages: List<StyleImageRef> = when {
+        styleImages.isNotEmpty() -> styleImages.map { it.toStyleImageRef() }
+        !styleId.isNullOrBlank() -> listOf(
+            StyleImageRef(source = StyleImageSource.LIBRARY, styleId = styleId),
+        )
+        !stylePhotoUrl.isNullOrBlank() -> listOf(
+            StyleImageRef(
+                source = StyleImageSource.UPLOADED,
+                photoUrl = stylePhotoUrl,
+                photoStoragePath = stylePhotoStoragePath,
+            ),
+        )
+        else -> emptyList()
+    }
+    val resolvedFabricImages: List<FabricImageRef> = when {
+        fabricImages.isNotEmpty() -> fabricImages.map { it.toFabricImageRef() }
+        !fabricPhotoUrl.isNullOrBlank() -> listOf(
+            FabricImageRef(
+                photoUrl = fabricPhotoUrl,
+                photoStoragePath = fabricPhotoStoragePath.orEmpty(),
+            ),
+        )
+        else -> emptyList()
+    }
+    return OrderItem(
+        id = id,
+        garmentType = parseGarmentType(garmentType),
+        description = description,
+        price = price,
+        measurementId = measurementId,
+        fabricName = fabricName,
+        styleImages = resolvedStyleImages,
+        fabricImages = resolvedFabricImages,
+        // Carry legacy fields forward verbatim so the domain object can be
+        // re-written without losing any data — useful in case the document
+        // is round-tripped without modification.
+        styleId = styleId,
+        stylePhotoUrl = stylePhotoUrl,
+        stylePhotoStoragePath = stylePhotoStoragePath,
+        fabricPhotoUrl = fabricPhotoUrl,
+        fabricPhotoStoragePath = fabricPhotoStoragePath,
+    )
+}
+
+private fun StyleImageRefDto.toStyleImageRef(): StyleImageRef = StyleImageRef(
+    source = runCatching { StyleImageSource.valueOf(source) }
+        .getOrDefault(StyleImageSource.UPLOADED),
     styleId = styleId,
-    measurementId = measurementId,
-    fabricPhotoUrl = fabricPhotoUrl,
-    fabricPhotoStoragePath = fabricPhotoStoragePath,
-    fabricName = fabricName,
-    stylePhotoUrl = stylePhotoUrl,
-    stylePhotoStoragePath = stylePhotoStoragePath,
+    photoUrl = photoUrl,
+    photoStoragePath = photoStoragePath,
+)
+
+private fun FabricImageRefDto.toFabricImageRef(): FabricImageRef = FabricImageRef(
+    photoUrl = photoUrl,
+    photoStoragePath = photoStoragePath,
 )
 
 private fun parseGarmentType(value: String): GarmentType = when (value) {
@@ -134,18 +186,40 @@ private fun parseGarmentType(value: String): GarmentType = when (value) {
     else -> runCatching { GarmentType.valueOf(value) }.getOrDefault(GarmentType.SHIRT)
 }
 
-fun OrderItem.toOrderItemDto(): OrderItemDto = OrderItemDto(
-    id = id,
-    garmentType = garmentType.name,
-    description = description,
-    price = price,
+fun OrderItem.toOrderItemDto(): OrderItemDto {
+    // Double-write: write the new lists AND derive the legacy fields from the
+    // first element of each (so pre-PTSP-11 app versions still see one image).
+    val firstLibraryStyle = styleImages.firstOrNull { it.source == StyleImageSource.LIBRARY }
+    val firstUploadedStyle = styleImages.firstOrNull { it.source == StyleImageSource.UPLOADED }
+    val firstFabric = fabricImages.firstOrNull()
+    return OrderItemDto(
+        id = id,
+        garmentType = garmentType.name,
+        description = description,
+        price = price,
+        measurementId = measurementId,
+        fabricName = fabricName,
+        styleImages = styleImages.map { it.toStyleImageRefDto() },
+        fabricImages = fabricImages.map { it.toFabricImageRefDto() },
+        // Legacy double-write
+        styleId = firstLibraryStyle?.styleId,
+        stylePhotoUrl = firstUploadedStyle?.photoUrl,
+        stylePhotoStoragePath = firstUploadedStyle?.photoStoragePath,
+        fabricPhotoUrl = firstFabric?.photoUrl,
+        fabricPhotoStoragePath = firstFabric?.photoStoragePath,
+    )
+}
+
+private fun StyleImageRef.toStyleImageRefDto(): StyleImageRefDto = StyleImageRefDto(
+    source = source.name,
     styleId = styleId,
-    measurementId = measurementId,
-    fabricPhotoUrl = fabricPhotoUrl,
-    fabricPhotoStoragePath = fabricPhotoStoragePath,
-    fabricName = fabricName,
-    stylePhotoUrl = stylePhotoUrl,
-    stylePhotoStoragePath = stylePhotoStoragePath,
+    photoUrl = photoUrl,
+    photoStoragePath = photoStoragePath,
+)
+
+private fun FabricImageRef.toFabricImageRefDto(): FabricImageRefDto = FabricImageRefDto(
+    photoUrl = photoUrl,
+    photoStoragePath = photoStoragePath,
 )
 
 fun StatusChangeDto.toStatusChange(): StatusChange = StatusChange(

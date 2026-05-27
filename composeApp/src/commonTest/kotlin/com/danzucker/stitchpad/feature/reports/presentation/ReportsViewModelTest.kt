@@ -334,6 +334,7 @@ class ReportsViewModelTest {
                 welcomeEndsAt = null,
                 isWithinWelcomeEndingWarning = false,
                 welcomeDaysLeft = null,
+                canUseCustomMeasurements = false,
             )
         }
     }

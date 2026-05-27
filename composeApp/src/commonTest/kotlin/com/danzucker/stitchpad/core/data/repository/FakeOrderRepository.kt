@@ -23,6 +23,7 @@ class FakeOrderRepository : OrderRepository {
 
     var lastCreatedOrder: Order? = null
     var lastUpdatedOrder: Order? = null
+    var updateOrderCallCount: Int = 0
     var lastDeletedOrderId: String? = null
     var lastStatusUpdate: Pair<String, OrderStatus>? = null
     var lastRecordedPayment: Pair<String, Payment>? = null
@@ -74,6 +75,7 @@ class FakeOrderRepository : OrderRepository {
         order: Order
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        updateOrderCallCount++
         lastUpdatedOrder = order
         ordersFlow.value = ordersFlow.value.map { if (it.id == order.id) order else it }
         return Result.Success(Unit)
@@ -178,4 +180,34 @@ class FakeOrderRepository : OrderRepository {
             "https://fake.example/styles/$orderId/$itemId.jpg" to "users/$userId/orders/$orderId/styles/$itemId.jpg"
         )
     }
+
+    override suspend fun uploadFabricPhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        val pairs = photoBytesList.mapIndexed { index, _ ->
+            "https://fake.storage/$orderId/$itemId-$index.jpg" to "users/$userId/orders/$orderId/fabrics/$itemId-$index.jpg"
+        }
+        return Result.Success(pairs)
+    }
+
+    override suspend fun uploadStylePhotos(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        val pairs = photoBytesList.mapIndexed { index, _ ->
+            "https://fake.example/styles/$orderId/$itemId-$index.jpg" to "users/$userId/orders/$orderId/styles/$itemId-$index.jpg"
+        }
+        return Result.Success(pairs)
+    }
+
+    override suspend fun deleteStoragePaths(
+        paths: List<String>,
+    ): EmptyResult<DataError.Network> = Result.Success(Unit)
 }
