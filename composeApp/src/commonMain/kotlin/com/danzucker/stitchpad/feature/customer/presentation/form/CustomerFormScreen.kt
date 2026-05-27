@@ -262,25 +262,27 @@ fun CustomerFormScreen(
                 )
             )
 
-            DeliveryPreferenceSelector(
-                selected = state.deliveryPreference,
-                label = stringResource(Res.string.customer_form_delivery_label),
-                onSelected = { onAction(CustomerFormAction.OnDeliveryPreferenceChange(it)) }
-            )
-
-            StitchPadField(
-                value = state.notes,
-                onValueChange = { if (it.length <= 300) onAction(CustomerFormAction.OnNotesChange(it)) },
-                label = stringResource(Res.string.customer_form_notes_label),
-                placeholder = stringResource(Res.string.customer_form_notes_placeholder),
-                singleLine = false,
-                minLines = 3,
-                maxLines = 5,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    keyboardType = KeyboardType.Text
+            if (state.isEditMode) {
+                DeliveryPreferenceSelector(
+                    selected = state.deliveryPreference,
+                    label = stringResource(Res.string.customer_form_delivery_label),
+                    onSelected = { onAction(CustomerFormAction.OnDeliveryPreferenceChange(it)) }
                 )
-            )
+
+                StitchPadField(
+                    value = state.notes,
+                    onValueChange = { if (it.length <= 300) onAction(CustomerFormAction.OnNotesChange(it)) },
+                    label = stringResource(Res.string.customer_form_notes_label),
+                    placeholder = stringResource(Res.string.customer_form_notes_placeholder),
+                    singleLine = false,
+                    minLines = 3,
+                    maxLines = 5,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        keyboardType = KeyboardType.Text
+                    )
+                )
+            }
 
             Spacer(Modifier.height(DesignTokens.space2))
 
