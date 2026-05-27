@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
+import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -123,7 +124,13 @@ class OrderFormViewModel(
                 _state.update { it.copy(items = it.items.filter { item -> item.id != action.itemId }) }
             }
             is OrderFormAction.OnItemGarmentTypeChange -> updateItem(action.itemId) {
-                it.copy(garmentType = action.type)
+                it.copy(
+                    garmentType = action.type,
+                    customGarmentName = null, // clear when garment changes via legacy path
+                )
+            }
+            is OrderFormAction.OnItemGenderFilterChange -> updateItem(action.itemId) {
+                it.copy(genderFilter = action.gender)
             }
             is OrderFormAction.OnItemDescriptionChange -> updateItem(action.itemId) {
                 it.copy(description = action.description)
@@ -489,6 +496,7 @@ class OrderFormViewModel(
         id = id,
         garmentType = garmentType,
         customGarmentName = customGarmentName,
+        genderFilter = garmentType?.gender ?: GarmentGender.MALE,
         description = description,
         price = if (price > 0) price.toLong().toString() else "",
         measurementId = measurementId,

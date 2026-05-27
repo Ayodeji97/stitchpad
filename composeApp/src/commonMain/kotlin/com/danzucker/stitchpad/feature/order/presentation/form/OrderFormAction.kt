@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.form
 
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 
@@ -18,6 +19,7 @@ sealed interface OrderFormAction {
     data object OnAddItem : OrderFormAction
     data class OnRemoveItem(val itemId: String) : OrderFormAction
     data class OnItemGarmentTypeChange(val itemId: String, val type: GarmentType?) : OrderFormAction
+    data class OnItemGenderFilterChange(val itemId: String, val gender: GarmentGender) : OrderFormAction
 
     /** Open the garment picker for a specific item row. */
     data class OnOpenGarmentPicker(val itemId: String) : OrderFormAction

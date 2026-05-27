@@ -336,9 +336,13 @@ fun OrderFormScreen(
             }
 
             if (state.activePickerItemId != null) {
+                // Use the lifted genderFilter from the active item's state so the picker
+                // shows only garments matching the gender chip the user has selected.
+                val activeItem = state.items.firstOrNull { it.id == state.activePickerItemId }
+                val activeGenderFilter = activeItem?.genderFilter ?: GarmentGender.MALE
                 GarmentPickerSheet(
                     customs = state.customGarmentTypes,
-                    presets = GarmentType.entries.filter { it != GarmentType.OTHER },
+                    presets = GarmentType.entries.filter { it != GarmentType.OTHER && it.gender == activeGenderFilter },
                     searchQuery = state.pickerSearchQuery,
                     onSearchChange = { onAction(OrderFormAction.OnPickerSearchChange(it)) },
                     onPickPreset = { type ->
@@ -690,22 +694,19 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Gender filter chips. Keyed by item.id via the outer key(item.id) so remember
-            // stays tied to this item on add/remove. Initial value follows the item's existing
-            // selection so editing a saved Female garment shows the Female chip preselected.
-            var selectedGenderFilter by remember {
-                mutableStateOf(item.garmentType?.gender ?: GarmentGender.MALE)
-            }
+            // Gender filter chips. Selection is lifted into OrderItemFormState so the
+            // picker can be opened with the correct gender filter, regardless of whether
+            // a garment has already been chosen.
             Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
                 GarmentGender.entries.forEach { gender ->
-                    val isSelected = selectedGenderFilter == gender
+                    val isSelected = item.genderFilter == gender
                     val label = garmentGenderLabel(gender)
                     FilterChip(
                         selected = isSelected,
                         onClick = {
-                            selectedGenderFilter = gender
+                            onAction(OrderFormAction.OnItemGenderFilterChange(item.id, gender))
                             // If the previously selected garment doesn't belong to the new
-                            // gender, clear it so the dropdown label matches what's in-list.
+                            // gender, clear it so the field label matches what's in-list.
                             val current = item.garmentType
                             if (current != null && current.gender != gender) {
                                 onAction(OrderFormAction.OnItemGarmentTypeChange(item.id, null))
@@ -742,25 +743,32 @@ private fun OrderItemCard(
                 item.garmentType != null -> garmentDisplayName(item.garmentType)
                 else -> ""
             }
-            OutlinedTextField(
-                value = displayValue ?: "",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(stringResource(Res.string.order_form_garment_type_label)) },
-                trailingIcon = {
-                    if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(stringResource(Res.string.garment_picker_custom_pill)) },
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                    }
-                },
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAction(OrderFormAction.OnOpenGarmentPicker(item.id)) },
-            )
+            Box {
+                OutlinedTextField(
+                    value = displayValue ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(Res.string.order_form_garment_type_label)) },
+                    trailingIcon = {
+                        if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
+                            AssistChip(
+                                onClick = { onAction(OrderFormAction.OnOpenGarmentPicker(item.id)) },
+                                label = { Text(stringResource(Res.string.garment_picker_custom_pill)) },
+                                modifier = Modifier.padding(end = 8.dp),
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Transparent overlay so taps aren't swallowed by the read-only BasicTextField
+                // focus handler — see M3 BasicTextField pointer-event consumption.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { onAction(OrderFormAction.OnOpenGarmentPicker(item.id)) }
+                )
+            }
 
             Spacer(Modifier.height(DesignTokens.space2))
 
