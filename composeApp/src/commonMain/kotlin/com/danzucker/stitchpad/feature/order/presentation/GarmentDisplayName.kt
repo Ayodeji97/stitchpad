@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.presentation
 
 import androidx.compose.runtime.Composable
 import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
@@ -49,6 +50,21 @@ private fun garmentNameResource(type: GarmentType): StringResource = when (type)
 
 @Composable
 fun garmentDisplayName(type: GarmentType): String = stringResource(garmentNameResource(type))
+
+/**
+ * Compose-side helper for resolving an order item's display name with custom-garment
+ * support. Use this from `@Composable` call sites instead of the pure-domain
+ * [com.danzucker.stitchpad.core.domain.model.displayGarmentName] which requires a
+ * caller-supplied resolver (forcing call sites to pre-resolve in composable scope
+ * and pass a captured constant — fragile if the helper's contract ever broadens).
+ */
+@Composable
+fun garmentDisplayName(item: OrderItem): String =
+    if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
+        item.customGarmentName
+    } else {
+        garmentDisplayName(item.garmentType)
+    }
 
 /**
  * Non-Composable resolver for contexts without a Compose scope (e.g. receipt rendering,

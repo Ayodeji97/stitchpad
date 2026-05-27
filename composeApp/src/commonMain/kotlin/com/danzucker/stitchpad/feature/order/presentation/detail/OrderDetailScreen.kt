@@ -62,7 +62,6 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
-import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
@@ -734,12 +733,7 @@ private fun OrderDetailContent(
     }
 
     val firstItem = order.items.firstOrNull()
-    val garmentName = if (firstItem != null) {
-        val enumLabel = garmentDisplayName(firstItem.garmentType)
-        firstItem.displayGarmentName { enumLabel }
-    } else {
-        ""
-    }
+    val garmentName = firstItem?.let { garmentDisplayName(it) }.orEmpty()
     val primaryFieldLabels = firstItem?.garmentType?.fieldLabels?.take(3).orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
 
