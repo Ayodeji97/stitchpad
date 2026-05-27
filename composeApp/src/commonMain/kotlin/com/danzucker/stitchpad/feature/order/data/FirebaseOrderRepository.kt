@@ -285,33 +285,35 @@ class FirebaseOrderRepository(
     }
 
     private suspend fun deleteFabricPhotosFor(userId: String, orderId: String) {
-        val doc = ordersCollection(userId).document(orderId).get()
-        if (!doc.exists) return
-        val dto = doc.data<OrderDto>()
-        dto.items.forEach { item ->
-            val path = item.fabricPhotoStoragePath
-            if (!path.isNullOrBlank()) {
-                runCatching { storage.reference.child(path).delete() }
-            }
-            val stylePath = item.stylePhotoStoragePath
-            if (!stylePath.isNullOrBlank()) {
-                runCatching { storage.reference.child(stylePath).delete() }
-            }
-            // PTSP-11 multi-image cleanup
-            item.fabricImages.forEach { ref ->
-                val p = ref.photoStoragePath
-                if (p.isNotBlank()) {
-                    runCatching { storage.reference.child(p).delete() }
+        runCatching {
+            val doc = ordersCollection(userId).document(orderId).get()
+            if (!doc.exists) return@runCatching
+            val dto = doc.data<OrderDto>()
+            dto.items.forEach { item ->
+                val path = item.fabricPhotoStoragePath
+                if (!path.isNullOrBlank()) {
+                    runCatching { storage.reference.child(path).delete() }
                 }
-            }
-            item.styleImages
-                .filter { it.source == StyleImageSource.UPLOADED.name }
-                .forEach { ref ->
+                val stylePath = item.stylePhotoStoragePath
+                if (!stylePath.isNullOrBlank()) {
+                    runCatching { storage.reference.child(stylePath).delete() }
+                }
+                // PTSP-11 multi-image cleanup
+                item.fabricImages.forEach { ref ->
                     val p = ref.photoStoragePath
-                    if (!p.isNullOrBlank()) {
+                    if (p.isNotBlank()) {
                         runCatching { storage.reference.child(p).delete() }
                     }
                 }
+                item.styleImages
+                    .filter { it.source == StyleImageSource.UPLOADED.name }
+                    .forEach { ref ->
+                        val p = ref.photoStoragePath
+                        if (!p.isNullOrBlank()) {
+                            runCatching { storage.reference.child(p).delete() }
+                        }
+                    }
+            }
         }
     }
 

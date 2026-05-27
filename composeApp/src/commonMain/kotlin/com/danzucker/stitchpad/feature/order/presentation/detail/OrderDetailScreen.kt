@@ -423,9 +423,16 @@ fun OrderDetailScreen(
 
     // Style picker sheet — lets user link an existing style or create a new one
     if (state.showStylePickerSheet && state.order != null) {
+        val firstItemStyleImages = state.order.items.firstOrNull()?.styleImages.orEmpty()
+        val alreadySelectedStyleIds = firstItemStyleImages
+            .filter { it.source == StyleImageSource.LIBRARY }
+            .mapNotNull { it.styleId }
+            .toSet()
+        val remainingCapacity = 3 - firstItemStyleImages.size // MAX_IMAGES_PER_CATEGORY = 3
         StylePickerSheet(
             styles = state.availableStyles,
-            selectedStyleId = state.order.items.firstOrNull()?.styleId,
+            alreadySelectedStyleIds = alreadySelectedStyleIds,
+            remainingCapacity = remainingCapacity,
             onSelectStyle = { onAction(OrderDetailAction.OnSelectStyle(it)) },
             onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewStyleClick) },
             onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },

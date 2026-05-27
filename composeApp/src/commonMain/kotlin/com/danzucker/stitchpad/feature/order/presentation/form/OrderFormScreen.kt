@@ -993,6 +993,7 @@ private fun garmentGenderLabel(gender: GarmentGender): String = when (gender) {
 
 private const val MAX_IMAGES_PER_CATEGORY = 3
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod")
 @Composable
 private fun StyleImageSection(
@@ -1007,6 +1008,37 @@ private fun StyleImageSection(
     val capacityRemaining = MAX_IMAGES_PER_CATEGORY - total
     val hasUploaded = newCount > 0
     val hasGalleryStyles = availableStyles.isNotEmpty()
+
+    // Sheet state lifted here so both the strip AddImageTile and the "Upload new"
+    // chip open the same camera/gallery chooser — mirrors FabricImageSection pattern.
+    val pickerScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    var showStyleSheet by remember { mutableStateOf(false) }
+    var pendingStyleSource by remember { mutableStateOf<PhotoSource?>(null) }
+
+    val styleGalleryPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let {
+                onAction(OrderFormAction.OnItemAddStylePhoto(item.id, it))
+            }
+        },
+    )
+    val styleCameraLauncher = rememberImageCaptureLauncher { bytes ->
+        if (bytes != null) onAction(OrderFormAction.OnItemAddStylePhoto(item.id, bytes))
+    }
+
+    LaunchedEffect(showStyleSheet, pendingStyleSource) {
+        if (!showStyleSheet && pendingStyleSource != null) {
+            when (pendingStyleSource) {
+                PhotoSource.Camera -> styleCameraLauncher.launch()
+                PhotoSource.Gallery -> styleGalleryPicker.launch()
+                null -> Unit
+            }
+            pendingStyleSource = null
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Header
@@ -1034,14 +1066,18 @@ private fun StyleImageSection(
         }
         Spacer(Modifier.height(DesignTokens.space2))
 
-        // Image strip — saved refs first, then session uploads, then +tile if room
+        // Image strip — saved refs first, then session uploads, then +tile if room.
+        // +tile opens the camera/gallery chooser (not the library picker).
         StyleImageStrip(
             item = item,
             availableStyles = availableStyles,
             onRemove = { index -> onAction(OrderFormAction.OnItemRemoveStyleImage(item.id, index)) },
             onPreview = onPreview,
             onAddClick = if (capacityRemaining > 0) {
-                { onAction(OrderFormAction.OnOpenStylePickerSheet(item.id)) }
+                {
+                    focusManager.clearFocus()
+                    showStyleSheet = true
+                }
             } else {
                 null
             },
@@ -1053,6 +1089,10 @@ private fun StyleImageSection(
             StyleActionChips(
                 itemId = item.id,
                 showSavedChip = hasGalleryStyles,
+                onUploadClick = {
+                    focusManager.clearFocus()
+                    showStyleSheet = true
+                },
                 onAction = onAction,
             )
         }
@@ -1085,6 +1125,30 @@ private fun StyleImageSection(
                     text = stringResource(Res.string.order_form_style_save_to_gallery),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+
+    // Single camera/gallery sheet for both the strip +tile and the "Upload new" chip
+    if (showStyleSheet) {
+        ModalBottomSheet(onDismissRequest = { showStyleSheet = false }) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_photo_take)) },
+                    leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        pendingStyleSource = PhotoSource.Camera
+                        showStyleSheet = false
+                    },
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_photo_pick)) },
+                    leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        pendingStyleSource = PhotoSource.Gallery
+                        showStyleSheet = false
+                    },
                 )
             }
         }
@@ -1150,6 +1214,7 @@ private fun StyleImageStrip(
 private fun StyleActionChips(
     itemId: String,
     showSavedChip: Boolean,
+    onUploadClick: () -> Unit,
     onAction: (OrderFormAction) -> Unit,
 ) {
     Row(
@@ -1173,8 +1238,7 @@ private fun StyleActionChips(
             }
         }
         StyleUploadChip(
-            itemId = itemId,
-            onAction = onAction,
+            onClick = onUploadClick,
             modifier = if (showSavedChip) Modifier.weight(1f) else Modifier.fillMaxWidth(),
         )
     }
@@ -1443,47 +1507,13 @@ private fun AddImageTile(onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StyleUploadChip(
-    itemId: String,
-    onAction: (OrderFormAction) -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pickerScope = rememberCoroutineScope()
-    val focusManager = LocalFocusManager.current
-    var showSheet by remember { mutableStateOf(false) }
-    var pendingSource by remember { mutableStateOf<PhotoSource?>(null) }
-
-    val galleryPicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let {
-                onAction(OrderFormAction.OnItemAddStylePhoto(itemId, it))
-            }
-        },
-    )
-    val cameraLauncher = rememberImageCaptureLauncher { bytes ->
-        if (bytes != null) onAction(OrderFormAction.OnItemAddStylePhoto(itemId, bytes))
-    }
-
-    LaunchedEffect(showSheet, pendingSource) {
-        if (!showSheet && pendingSource != null) {
-            when (pendingSource) {
-                PhotoSource.Camera -> cameraLauncher.launch()
-                PhotoSource.Gallery -> galleryPicker.launch()
-                null -> Unit
-            }
-            pendingSource = null
-        }
-    }
-
     OutlinedButton(
-        onClick = {
-            focusManager.clearFocus()
-            showSheet = true
-        },
+        onClick = onClick,
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         modifier = modifier,
     ) {
@@ -1495,29 +1525,6 @@ private fun StyleUploadChip(
         )
         Spacer(Modifier.width(DesignTokens.space1))
         Text(stringResource(Res.string.order_form_style_upload_new))
-    }
-
-    if (showSheet) {
-        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
-            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(Res.string.order_form_photo_take)) },
-                    leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        pendingSource = PhotoSource.Camera
-                        showSheet = false
-                    },
-                )
-                ListItem(
-                    headlineContent = { Text(stringResource(Res.string.order_form_photo_pick)) },
-                    leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        pendingSource = PhotoSource.Gallery
-                        showSheet = false
-                    },
-                )
-            }
-        }
     }
 }
 
