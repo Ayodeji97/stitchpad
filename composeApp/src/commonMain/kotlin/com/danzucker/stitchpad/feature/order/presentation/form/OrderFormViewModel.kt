@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -13,7 +14,6 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
-import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -41,7 +41,7 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
 class OrderFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
@@ -95,7 +95,7 @@ class OrderFormViewModel(
             initialValue = OrderFormState(isEditMode = orderId != null)
         )
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "NestedBlockDepth")
     fun onAction(action: OrderFormAction) {
         when (action) {
             OrderFormAction.OnNextStep -> {
@@ -312,7 +312,7 @@ class OrderFormViewModel(
                             )
                             _events.send(OrderFormEvent.ShowCustomSavedSnackbar(result.data.name))
                         }
-                        is Result.Error -> Unit  // V1: silent on error
+                        is Result.Error -> Unit // V1: silent on error
                     }
                 }
             }
@@ -346,7 +346,7 @@ class OrderFormViewModel(
             customGarmentTypeRepository.observe(uid).collect { result ->
                 when (result) {
                     is Result.Success -> _state.update { it.copy(customGarmentTypes = result.data) }
-                    is Result.Error -> Unit  // silent: picker just shows zero customs
+                    is Result.Error -> Unit // silent: picker just shows zero customs
                 }
             }
         }
@@ -505,7 +505,7 @@ class OrderFormViewModel(
         saveStyleToGallery = true,
     )
 
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod")
     private fun save() {
         // Idempotency: if a previous save is in-flight, ignore this re-entry.
         // The UI's `enabled = !isSaving` already blocks the button visually, but

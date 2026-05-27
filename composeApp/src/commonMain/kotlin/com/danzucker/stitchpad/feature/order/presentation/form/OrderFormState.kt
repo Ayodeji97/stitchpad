@@ -1,7 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.form
 
-import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Measurement
@@ -61,7 +61,7 @@ data class OrderItemFormState
 constructor(
     val id: String = Uuid.random().toString(),
     val garmentType: GarmentType? = null,
-    val customGarmentName: String? = null,   // set only when garmentType == OTHER
+    val customGarmentName: String? = null, // set only when garmentType == OTHER
     val description: String = "",
     val price: String = "",
     val measurementId: String? = null,

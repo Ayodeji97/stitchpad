@@ -9,7 +9,7 @@ package com.danzucker.stitchpad.core.domain.model
  */
 data class CustomGarmentType(
     val id: String,
-    val name: String,         // stored as the tailor typed it (preserves casing)
-    val createdAt: Long,      // epoch ms
-    val lastUsedAt: Long,     // epoch ms, updated on every pick
+    val name: String, // stored as the tailor typed it (preserves casing)
+    val createdAt: Long, // epoch ms
+    val lastUsedAt: Long, // epoch ms, updated on every pick
 )

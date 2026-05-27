@@ -36,13 +36,13 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -117,10 +117,10 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.garment_gender_female
-import stitchpad.composeapp.generated.resources.garment_picker_custom_pill
-import stitchpad.composeapp.generated.resources.garment_picker_saved_snackbar_format
 import stitchpad.composeapp.generated.resources.garment_gender_male
 import stitchpad.composeapp.generated.resources.garment_gender_unisex
+import stitchpad.composeapp.generated.resources.garment_picker_custom_pill
+import stitchpad.composeapp.generated.resources.garment_picker_saved_snackbar_format
 import stitchpad.composeapp.generated.resources.order_form_add_item
 import stitchpad.composeapp.generated.resources.order_form_create_button
 import stitchpad.composeapp.generated.resources.order_form_deadline_label

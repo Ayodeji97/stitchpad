@@ -567,7 +567,9 @@ private fun OrderListScreenFilledPreview() {
                 orders = listOf(
                     Order(
                         id = "1", userId = "u", customerId = "c1", customerName = "Fola Sunday",
-                        items = listOf(OrderItem(id = "i1", garmentType = GarmentType.CORSET, description = "", price = 40_000.0)),
+                        items = listOf(
+                            OrderItem(id = "i1", garmentType = GarmentType.CORSET, description = "", price = 40_000.0)
+                        ),
                         status = OrderStatus.PENDING, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
                         totalPrice = 40_000.0,
@@ -575,7 +577,9 @@ private fun OrderListScreenFilledPreview() {
                     ),
                     Order(
                         id = "2", userId = "u", customerId = "c2", customerName = "Aina Paul",
-                        items = listOf(OrderItem(id = "i2", garmentType = GarmentType.SUIT, description = "", price = 20_000.0)),
+                        items = listOf(
+                            OrderItem(id = "i2", garmentType = GarmentType.SUIT, description = "", price = 20_000.0)
+                        ),
                         status = OrderStatus.PENDING, priority = OrderPriority.URGENT,
                         statusHistory = emptyList(),
                         totalPrice = 20_000.0,
@@ -592,7 +596,9 @@ private fun OrderListScreenFilledPreview() {
                     ),
                     Order(
                         id = "3", userId = "u", customerId = "c3", customerName = "Dayyo Au",
-                        items = listOf(OrderItem(id = "i3", garmentType = GarmentType.SUIT, description = "", price = 4_000.0)),
+                        items = listOf(
+                            OrderItem(id = "i3", garmentType = GarmentType.SUIT, description = "", price = 4_000.0)
+                        ),
                         status = OrderStatus.READY, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
                         totalPrice = 4_000.0,

@@ -14,12 +14,12 @@ import stitchpad.composeapp.generated.resources.order_summary_one_corset
 import stitchpad.composeapp.generated.resources.order_summary_one_danshiki
 import stitchpad.composeapp.generated.resources.order_summary_one_dress
 import stitchpad.composeapp.generated.resources.order_summary_one_kaftan
+import stitchpad.composeapp.generated.resources.order_summary_one_other
 import stitchpad.composeapp.generated.resources.order_summary_one_senator
 import stitchpad.composeapp.generated.resources.order_summary_one_shirt
 import stitchpad.composeapp.generated.resources.order_summary_one_suit
 import stitchpad.composeapp.generated.resources.order_summary_one_trouser
 import stitchpad.composeapp.generated.resources.order_summary_one_two_piece
-import stitchpad.composeapp.generated.resources.order_summary_one_other
 import stitchpad.composeapp.generated.resources.order_summary_one_vintage
 import stitchpad.composeapp.generated.resources.order_summary_other_agbada
 import stitchpad.composeapp.generated.resources.order_summary_other_asoebi
@@ -32,11 +32,11 @@ import stitchpad.composeapp.generated.resources.order_summary_other_corset
 import stitchpad.composeapp.generated.resources.order_summary_other_danshiki
 import stitchpad.composeapp.generated.resources.order_summary_other_dress
 import stitchpad.composeapp.generated.resources.order_summary_other_kaftan
+import stitchpad.composeapp.generated.resources.order_summary_other_other
 import stitchpad.composeapp.generated.resources.order_summary_other_senator
 import stitchpad.composeapp.generated.resources.order_summary_other_shirt
 import stitchpad.composeapp.generated.resources.order_summary_other_suit
 import stitchpad.composeapp.generated.resources.order_summary_other_trouser
-import stitchpad.composeapp.generated.resources.order_summary_other_other
 import stitchpad.composeapp.generated.resources.order_summary_other_two_piece
 import stitchpad.composeapp.generated.resources.order_summary_other_vintage
 

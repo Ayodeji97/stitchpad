@@ -62,6 +62,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
@@ -80,7 +81,6 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Orde
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.RecordPaymentDialogV2
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
-import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens

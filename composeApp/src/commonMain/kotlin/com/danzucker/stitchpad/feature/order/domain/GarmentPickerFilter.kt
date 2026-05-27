@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName", "Filename") // file holds both the result type and the filter function
+
 package com.danzucker.stitchpad.feature.order.domain
 
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType

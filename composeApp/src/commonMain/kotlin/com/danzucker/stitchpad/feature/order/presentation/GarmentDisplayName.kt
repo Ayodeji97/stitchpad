@@ -17,12 +17,12 @@ import stitchpad.composeapp.generated.resources.garment_type_corset
 import stitchpad.composeapp.generated.resources.garment_type_danshiki
 import stitchpad.composeapp.generated.resources.garment_type_dress
 import stitchpad.composeapp.generated.resources.garment_type_kaftan
+import stitchpad.composeapp.generated.resources.garment_type_other
 import stitchpad.composeapp.generated.resources.garment_type_senator
 import stitchpad.composeapp.generated.resources.garment_type_shirt
 import stitchpad.composeapp.generated.resources.garment_type_suit
 import stitchpad.composeapp.generated.resources.garment_type_trouser
 import stitchpad.composeapp.generated.resources.garment_type_two_piece
-import stitchpad.composeapp.generated.resources.garment_type_other
 import stitchpad.composeapp.generated.resources.garment_type_vintage
 
 @Suppress("CyclomaticComplexMethod")
