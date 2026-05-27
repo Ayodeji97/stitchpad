@@ -74,14 +74,18 @@ class FirebaseCustomGarmentTypeRepository(
                 // Same name — normal dedup, reuse the existing doc.
                 docId = baseId
             } else {
-                // Collision — scan for an existing doc with the exact same typed name.
-                val existing = col
-                    .where { "name" equalTo trimmed }
-                    .limit(1)
-                    .get()
-                    .documents
-                    .firstOrNull()
-                docId = existing?.id ?: "${baseId}-${now}"
+                // Collision — scan the whole subcollection for a case-insensitive name
+                // match. The dataset is small (~10-30 docs per user) so the full read is
+                // negligible. A Firestore where-query with `equalTo trimmed` is
+                // case-sensitive and would miss "Iro/Buba" when "iro/buba" is already
+                // stored, so we do the comparison in Kotlin instead.
+                val allDocs = col.get().documents.mapNotNull {
+                    runCatching { it.data<CustomGarmentTypeDto>() }.getOrNull()
+                }
+                val caseInsensitiveMatch = allDocs.firstOrNull {
+                    it.name.equals(trimmed, ignoreCase = true)
+                }
+                docId = caseInsensitiveMatch?.id ?: "${baseId}-${now}"
             }
             val docRef = col.document(docId)
             val resolved = firestore.runTransaction {
