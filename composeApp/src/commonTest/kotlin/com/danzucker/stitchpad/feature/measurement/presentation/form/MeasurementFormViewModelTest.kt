@@ -963,7 +963,7 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun onGenderChange_editMode_preservesRecordedCustomAndOrphanValuesOnSave() = runTest {
+    fun onGenderChange_editMode_preservesRecordedArchivedCustomRowAndOrphanValuesOnSave() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(
@@ -990,6 +990,11 @@ class MeasurementFormViewModelTest {
         val vm = createViewModel(measurementId = "m1")
 
         vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.MALE))
+
+        val customFieldsAfterGenderChange = vm.state.value.customFields
+        assertTrue(customFieldsAfterGenderChange.any { it.id == "archived-cuff" })
+        assertEquals("11", vm.state.value.fields["archived-cuff"])
+
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         val updated = measurementRepository.lastUpdatedMeasurement

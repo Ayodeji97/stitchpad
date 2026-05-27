@@ -186,7 +186,12 @@ class MeasurementFormViewModel(
         val sections = BodyProfileTemplate.sectionsFor(gender)
         val templateKeys = sections.flatMap { it.fields }.map { it.key }
         _state.update { current ->
-            val visibleCustom = filterFieldsForCurrentGender(allCustomFields, gender)
+            val visibleCustom = customFieldsForGender(
+                fields = allCustomFields,
+                gender = gender,
+                recordedValues = current.fields,
+                preserveRecorded = current.isEditMode,
+            )
             val customKeys = visibleCustom.map { it.id }
             val preservedRecordedCustomKeys = if (current.isEditMode) {
                 current.fields.keys.filter { key ->
@@ -250,11 +255,17 @@ class MeasurementFormViewModel(
         }
     }
 
-    private fun filterFieldsForCurrentGender(
+    private fun customFieldsForGender(
         fields: List<CustomMeasurementField>,
         gender: CustomerGender?,
+        recordedValues: Map<String, String>,
+        preserveRecorded: Boolean,
     ): List<CustomMeasurementField> =
-        fields.filter { !it.isArchived && (gender == null || gender in it.genders) }
+        fields.filter { field ->
+            val hasRecordedValue = preserveRecorded && recordedValues[field.id]?.isNotBlank() == true
+            val passesNormalFilter = !field.isArchived && (gender == null || gender in field.genders)
+            hasRecordedValue || passesNormalFilter
+        }
 
     private fun isCustomOrOrphanKey(key: String): Boolean {
         val customFieldIds = allCustomFields.map { it.id }.toSet()
