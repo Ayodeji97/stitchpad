@@ -204,4 +204,8 @@ class FakeOrderRepository : OrderRepository {
         }
         return Result.Success(pairs)
     }
+
+    override suspend fun deleteStoragePaths(
+        paths: List<String>,
+    ): EmptyResult<DataError.Network> = Result.Success(Unit)
 }

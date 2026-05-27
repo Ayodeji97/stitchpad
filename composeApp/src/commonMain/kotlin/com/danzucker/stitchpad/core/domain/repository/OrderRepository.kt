@@ -75,4 +75,8 @@ interface OrderRepository {
         itemId: String,
         photoBytesList: List<ByteArray>,
     ): Result<List<Pair<String, String>>, DataError.Network>
+
+    suspend fun deleteStoragePaths(
+        paths: List<String>,
+    ): EmptyResult<DataError.Network>
 }

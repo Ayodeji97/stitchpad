@@ -1184,6 +1184,7 @@ private fun StyleActionChips(
 // PTSP-11 — Fabric section (Variant B+ inline, mirrors style minus library + toggle)
 // ────────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod")
 @Composable
 private fun FabricImageSection(
@@ -1193,6 +1194,37 @@ private fun FabricImageSection(
 ) {
     val total = item.fabricImageRefs.size + item.uploadedFabricBytesList.size
     val capacityRemaining = MAX_IMAGES_PER_CATEGORY - total
+
+    // Sheet state lifted here so both the strip AddImageTile and the chip below
+    // open the same sheet — mirrors StyleImageSection / StyleUploadChip pattern.
+    val pickerScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    var showFabricSheet by remember { mutableStateOf(false) }
+    var pendingFabricSource by remember { mutableStateOf<PhotoSource?>(null) }
+
+    val fabricGalleryPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let {
+                onAction(OrderFormAction.OnItemAddFabricPhoto(item.id, it))
+            }
+        },
+    )
+    val fabricCameraLauncher = rememberImageCaptureLauncher { bytes ->
+        if (bytes != null) onAction(OrderFormAction.OnItemAddFabricPhoto(item.id, bytes))
+    }
+
+    LaunchedEffect(showFabricSheet, pendingFabricSource) {
+        if (!showFabricSheet && pendingFabricSource != null) {
+            when (pendingFabricSource) {
+                PhotoSource.Camera -> fabricCameraLauncher.launch()
+                PhotoSource.Gallery -> fabricGalleryPicker.launch()
+                null -> Unit
+            }
+            pendingFabricSource = null
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -1219,7 +1251,7 @@ private fun FabricImageSection(
         }
         Spacer(Modifier.height(DesignTokens.space2))
 
-        // Fabric image strip
+        // Fabric image strip — same structure as StyleImageStrip
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1243,19 +1275,35 @@ private fun FabricImageSection(
                     onTap = { onPreview(bytes) },
                 )
             }
+            // Add tile in the strip (mirrors AddImageTile usage in StyleImageStrip)
             if (capacityRemaining > 0) {
-                FabricAddTile(itemId = item.id, onAction = onAction)
+                AddImageTile(onClick = {
+                    focusManager.clearFocus()
+                    showFabricSheet = true
+                })
             }
         }
 
-        // Single upload chip below the strip (no "Choose from saved" — no fabric gallery)
+        // Upload chip below the strip (no "Choose from saved" — no fabric gallery)
         if (capacityRemaining > 0) {
             Spacer(Modifier.height(DesignTokens.space3))
-            FabricUploadChip(
-                itemId = item.id,
-                onAction = onAction,
+            OutlinedButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    showFabricSheet = true
+                },
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
                 modifier = Modifier.fillMaxWidth(),
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoCamera,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(DesignTokens.space1))
+                Text(stringResource(Res.string.order_form_fabric_upload_new))
+            }
         }
 
         Spacer(Modifier.height(DesignTokens.space3))
@@ -1268,6 +1316,30 @@ private fun FabricImageSection(
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+
+    // Single sheet for both the strip tile and the chip below
+    if (showFabricSheet) {
+        ModalBottomSheet(onDismissRequest = { showFabricSheet = false }) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_photo_take)) },
+                    leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        pendingFabricSource = PhotoSource.Camera
+                        showFabricSheet = false
+                    },
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_photo_pick)) },
+                    leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        pendingFabricSource = PhotoSource.Gallery
+                        showFabricSheet = false
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -1447,96 +1519,6 @@ private fun StyleUploadChip(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FabricUploadChip(
-    itemId: String,
-    onAction: (OrderFormAction) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val pickerScope = rememberCoroutineScope()
-    val focusManager = LocalFocusManager.current
-    var showSheet by remember { mutableStateOf(false) }
-    var pendingSource by remember { mutableStateOf<PhotoSource?>(null) }
-
-    val galleryPicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let {
-                onAction(OrderFormAction.OnItemAddFabricPhoto(itemId, it))
-            }
-        },
-    )
-    val cameraLauncher = rememberImageCaptureLauncher { bytes ->
-        if (bytes != null) onAction(OrderFormAction.OnItemAddFabricPhoto(itemId, bytes))
-    }
-
-    LaunchedEffect(showSheet, pendingSource) {
-        if (!showSheet && pendingSource != null) {
-            when (pendingSource) {
-                PhotoSource.Camera -> cameraLauncher.launch()
-                PhotoSource.Gallery -> galleryPicker.launch()
-                null -> Unit
-            }
-            pendingSource = null
-        }
-    }
-
-    OutlinedButton(
-        onClick = {
-            focusManager.clearFocus()
-            showSheet = true
-        },
-        shape = RoundedCornerShape(DesignTokens.radiusMd),
-        modifier = modifier,
-    ) {
-        Icon(
-            imageVector = Icons.Default.PhotoCamera,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(DesignTokens.space1))
-        Text(stringResource(Res.string.order_form_fabric_upload_new))
-    }
-
-    if (showSheet) {
-        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
-            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(Res.string.order_form_photo_take)) },
-                    leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        pendingSource = PhotoSource.Camera
-                        showSheet = false
-                    },
-                )
-                ListItem(
-                    headlineContent = { Text(stringResource(Res.string.order_form_photo_pick)) },
-                    leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        pendingSource = PhotoSource.Gallery
-                        showSheet = false
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FabricAddTile(itemId: String, onAction: (OrderFormAction) -> Unit) {
-    // Reuses the upload chip's logic but renders as the small +tile in the strip.
-    // For simplicity, this delegates to the same AddImageTile widget but size-constrained.
-    // V1 acceptable; can refine to a true tile widget in a follow-up.
-    FabricUploadChip(
-        itemId = itemId,
-        onAction = onAction,
-        modifier = Modifier.size(width = 82.dp, height = 100.dp),
-    )
 }
 
 @Suppress("UnusedPrivateMember")

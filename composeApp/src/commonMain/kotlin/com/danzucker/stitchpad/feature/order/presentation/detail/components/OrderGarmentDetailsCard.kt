@@ -62,7 +62,7 @@ import stitchpad.composeapp.generated.resources.order_detail_garment_section
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
 
-private val FABRIC_THUMBNAIL_SIZE = 128.dp
+private val FABRIC_THUMBNAIL_SIZE = 64.dp
 private val FABRIC_PLACEHOLDER_SIZE = 96.dp
 
 @Composable
@@ -289,20 +289,22 @@ private fun FabricStrip(
                         .size(FABRIC_THUMBNAIL_SIZE)
                         .clip(RoundedCornerShape(DesignTokens.radiusMd)),
                 )
-                Text(
-                    text = caption,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 4.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(DesignTokens.radiusFull),
-                        )
-                        .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
-                )
+                if (index == 0) {
+                    Text(
+                        text = caption,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 4.dp)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.55f),
+                                shape = RoundedCornerShape(DesignTokens.radiusFull),
+                            )
+                            .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+                    )
+                }
             }
         }
     }

@@ -404,4 +404,13 @@ class FirebaseOrderRepository(
                 AppLogger.w(tag = TAG, throwable = throwable) { "deleteFabricPhoto failed" }
             }
     }
+
+    override suspend fun deleteStoragePaths(
+        paths: List<String>,
+    ): EmptyResult<DataError.Network> {
+        paths.filter { it.isNotBlank() }.forEach { path ->
+            runCatching { storage.reference.child(path).delete() }
+        }
+        return Result.Success(Unit)
+    }
 }

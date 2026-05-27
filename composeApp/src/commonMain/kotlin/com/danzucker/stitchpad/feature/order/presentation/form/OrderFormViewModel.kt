@@ -640,21 +640,12 @@ class OrderFormViewModel(
      * this edit session. Runs after a successful save. Failures are silent —
      * the order saved fine; the orphan is a Storage-side concern.
      */
-    @Suppress("UnusedParameter")
     private suspend fun cleanUpPendingStorageDeletions(items: List<OrderItemFormState>) {
-        items.forEach { item ->
-            (item.pendingStyleStorageDeletions + item.pendingFabricStorageDeletions)
-                .filter { it.isNotBlank() }
-                .forEach { _ ->
-                    // FirebaseOrderRepository exposes a public-style `deleteFabricPhoto` we
-                    // could call, but to keep this generic we use the storage reference
-                    // directly via the existing repository. Since the repository surface
-                    // doesn't expose raw storage delete, log this as a no-op for V1 —
-                    // the orphan exists for the lifetime of the order. Acceptable per
-                    // spec §9 "accepted limitation".
-                    // (Implementation note: if we add OrderRepository.deletePhoto(path)
-                    // in a follow-up, call it here.)
-                }
+        val allPaths = items.flatMap { item ->
+            item.pendingStyleStorageDeletions + item.pendingFabricStorageDeletions
+        }.filter { it.isNotBlank() }
+        if (allPaths.isNotEmpty()) {
+            orderRepository.deleteStoragePaths(allPaths)
         }
     }
 }
