@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
+import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -412,7 +413,7 @@ class DashboardViewModel(
                 hasOrder = hasOrder,
                 hasDueDate = hasDueDate,
                 hasDeposit = hasDeposit,
-                garmentLabel = firstOrder?.items?.firstOrNull()?.garmentType?.simpleLabel().orEmpty(),
+                garmentLabel = firstOrder?.items?.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty(),
                 totalAmount = firstOrder?.totalPrice ?: 0.0,
             )
         } else {
