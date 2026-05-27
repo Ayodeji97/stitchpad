@@ -30,8 +30,8 @@ import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsyn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -43,7 +43,11 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Suppress("TooManyFunctions")
+// Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
+// and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
+// A refactor to bundle repositories into a single dependency would obscure the
+// per-layer wiring; staying explicit + suppressing here keeps the seams visible.
+@Suppress("TooManyFunctions", "LongParameterList")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,

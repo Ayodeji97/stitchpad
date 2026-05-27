@@ -29,8 +29,8 @@ import stitchpad.composeapp.generated.resources.edit_profile_logo_updated
 import stitchpad.composeapp.generated.resources.edit_profile_save_failed
 import stitchpad.composeapp.generated.resources.edit_profile_saved
 import stitchpad.composeapp.generated.resources.error_business_name_required
-import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_phone_format
+import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_whatsapp_format
 
 private const val TAG = "EditProfileVM"

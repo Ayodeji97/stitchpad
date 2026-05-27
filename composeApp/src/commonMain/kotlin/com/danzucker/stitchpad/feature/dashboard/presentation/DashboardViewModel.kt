@@ -3,9 +3,11 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
@@ -21,6 +23,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerRead
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
+import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -275,16 +278,19 @@ class DashboardViewModel(
                 weeklyGoalRepository.observeWeeklyGoal(authUser.id)
             ) { firestoreUser, ordersResult, customersResult, goalResult ->
                 UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult)
-            }.collect { (firestoreUser, ordersResult, customersResult, goalResult) ->
+            }.collect { combined ->
+                val ordersResult = combined.ordersResult
+                val customersResult = combined.customersResult
+                val goalResult = combined.goalResult
                 // The Firestore user doc doesn't redundantly store email or displayName
                 // (createUserProfile/buildInitialUserDoc only persist business/profile
                 // fields), so a wholesale replacement would blank Auth identity for new
                 // signups whose snapshot has arrived. Merge: Auth identity wins when
                 // Firestore lacks the field, Firestore-only fields (businessName, logo,
                 // contact) win when present.
-                val user = firestoreUser?.copy(
-                    email = firestoreUser.email.ifBlank { authUser.email },
-                    displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
+                val user = combined.firestoreUser?.copy(
+                    email = combined.firestoreUser.email.ifBlank { authUser.email },
+                    displayName = combined.firestoreUser.displayName.ifBlank { authUser.displayName },
                 ) ?: authUser
                 // Apple Sign-In only returns fullName on the very first auth per Apple ID
                 // per app (Apple's privacy model). Re-auths and failed-first-attempts come
@@ -439,10 +445,10 @@ class DashboardViewModel(
     }
 }
 
-/** Combine-output holder so the 4-way flow combine can destructure into the collect lambda. */
+/** Combine-output holder so the 4-way flow combine has a typed payload for the collect lambda. */
 private data class UserAndDashboardData(
-    val firestoreUser: com.danzucker.stitchpad.core.domain.model.User?,
-    val ordersResult: Result<List<Order>, com.danzucker.stitchpad.core.domain.error.DataError.Network>,
-    val customersResult: Result<List<Customer>, com.danzucker.stitchpad.core.domain.error.DataError.Network>,
-    val goalResult: Result<com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal?, com.danzucker.stitchpad.core.domain.error.DataError.Network>,
+    val firestoreUser: User?,
+    val ordersResult: Result<List<Order>, DataError.Network>,
+    val customersResult: Result<List<Customer>, DataError.Network>,
+    val goalResult: Result<WeeklyGoal?, DataError.Network>,
 )

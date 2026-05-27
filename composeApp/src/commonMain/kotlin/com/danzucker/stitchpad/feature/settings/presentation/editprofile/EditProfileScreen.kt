@@ -1,8 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
 import androidx.compose.foundation.background
-import coil3.compose.SubcomposeAsyncImage
-import com.danzucker.stitchpad.ui.components.LoadingDots
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,9 +46,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -60,10 +58,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
+import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap

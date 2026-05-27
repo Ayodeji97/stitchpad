@@ -164,7 +164,12 @@ class MeasurementFormViewModel(
         }
     }
 
+    // Complexity sits exactly at detekt's threshold (15). Pre-existing; surfaced
+    // by gating after PTSP-21 wired in unrelated dependencies. A real refactor
+    // (extract validation, persistence, navigation arms) is worth doing but
+    // outside the brand-logo PR scope.
     @OptIn(ExperimentalUuidApi::class)
+    @Suppress("CyclomaticComplexMethod")
     private fun save() {
         // Defense in depth: gate on canSave (and isLoading) at entry so any
         // non-button invocation of OnSaveClick — accessibility activate,
