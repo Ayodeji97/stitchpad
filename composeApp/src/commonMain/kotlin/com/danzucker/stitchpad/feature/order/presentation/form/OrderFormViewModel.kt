@@ -601,14 +601,14 @@ class OrderFormViewModel(
             } else {
                 orderRepository.createOrder(uid, order)
             }
-            _state.update { it.copy(isSaving = false) }
             when (result) {
                 is Result.Success -> {
                     cleanUpPendingStorageDeletions(formItems)
+                    _state.update { it.copy(isSaving = false) }
                     _events.send(OrderFormEvent.OrderSaved)
                 }
                 is Result.Error -> _state.update {
-                    it.copy(errorMessage = result.error.toOrderUiText())
+                    it.copy(isSaving = false, errorMessage = result.error.toOrderUiText())
                 }
             }
         }

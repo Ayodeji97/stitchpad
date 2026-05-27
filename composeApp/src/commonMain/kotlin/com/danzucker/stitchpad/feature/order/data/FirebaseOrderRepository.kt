@@ -373,26 +373,14 @@ class FirebaseOrderRepository(
         orderId: String,
         itemId: String,
         photoBytesList: List<ByteArray>,
-    ): Result<List<Pair<String, String>>, DataError.Network> {
-        if (photoBytesList.isEmpty()) return Result.Success(emptyList())
-        val results = mutableListOf<Pair<String, String>>()
-        photoBytesList.forEach { bytes ->
-            // Unique suffix per upload — see fabricStoragePath() docs. Positional
-            // index would collide when editing an order that already has saved
-            // images and appending one more.
-            val suffix = Uuid.random().toString().take(8)
-            val path = fabricStoragePath(userId, orderId, itemId, suffix)
-            try {
-                storage.reference.child(path).putData(bytes.toStorageData())
-                val downloadUrl = storage.reference.child(path).getDownloadUrl()
-                results += downloadUrl to path
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                AppLogger.e(tag = TAG, throwable = e) { "uploadFabricPhotos failed itemId=$itemId suffix=$suffix" }
-                return Result.Error(DataError.Network.UNKNOWN)
-            }
+    ): Result<List<Pair<String, String>>, DataError.Network> =
+        uploadPhotos(
+            itemId = itemId,
+            photoBytesList = photoBytesList,
+            operationName = "uploadFabricPhotos",
+        ) { suffix ->
+            fabricStoragePath(userId, orderId, itemId, suffix)
         }
-        return Result.Success(results)
-    }
 
     @OptIn(ExperimentalUuidApi::class)
     @Suppress("ReturnCount")
@@ -401,18 +389,37 @@ class FirebaseOrderRepository(
         orderId: String,
         itemId: String,
         photoBytesList: List<ByteArray>,
+    ): Result<List<Pair<String, String>>, DataError.Network> =
+        uploadPhotos(
+            itemId = itemId,
+            photoBytesList = photoBytesList,
+            operationName = "uploadStylePhotos",
+        ) { suffix ->
+            styleStoragePath(userId, orderId, itemId, suffix)
+        }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Suppress("ReturnCount")
+    private suspend fun uploadPhotos(
+        itemId: String,
+        photoBytesList: List<ByteArray>,
+        operationName: String,
+        storagePath: (suffix: String) -> String,
     ): Result<List<Pair<String, String>>, DataError.Network> {
         if (photoBytesList.isEmpty()) return Result.Success(emptyList())
         val results = mutableListOf<Pair<String, String>>()
         photoBytesList.forEach { bytes ->
+            // Unique suffix per upload — see fabricStoragePath() docs. Positional
+            // index would collide when editing an order that already has saved
+            // images and appending one more.
             val suffix = Uuid.random().toString().take(8)
-            val path = styleStoragePath(userId, orderId, itemId, suffix)
+            val path = storagePath(suffix)
             try {
                 storage.reference.child(path).putData(bytes.toStorageData())
                 val downloadUrl = storage.reference.child(path).getDownloadUrl()
                 results += downloadUrl to path
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                AppLogger.e(tag = TAG, throwable = e) { "uploadStylePhotos failed itemId=$itemId suffix=$suffix" }
+                AppLogger.e(tag = TAG, throwable = e) { "$operationName failed itemId=$itemId suffix=$suffix" }
                 return Result.Error(DataError.Network.UNKNOWN)
             }
         }
