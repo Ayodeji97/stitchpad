@@ -185,6 +185,7 @@ fun OrderFormRoot(
         when (event) {
             OrderFormEvent.NavigateBack -> onNavigateBack()
             OrderFormEvent.OrderSaved -> onNavigateBack()
+            is OrderFormEvent.ShowCustomSavedSnackbar -> Unit // TODO: Task 17 — wire snackbar
         }
     }
 
