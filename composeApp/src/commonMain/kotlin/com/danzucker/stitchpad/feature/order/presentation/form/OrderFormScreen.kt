@@ -707,8 +707,12 @@ private fun OrderItemCard(
                             onAction(OrderFormAction.OnItemGenderFilterChange(item.id, gender))
                             // If the previously selected garment doesn't belong to the new
                             // gender, clear it so the field label matches what's in-list.
+                            // Don't clear custom-garment selections on gender chip change.
+                            // OTHER.gender is UNISEX so the naive incompatibility check always
+                            // returns true for MALE/FEMALE chips — but the user's custom name
+                            // has no gender meaning. Leave it alone.
                             val current = item.garmentType
-                            if (current != null && current.gender != gender) {
+                            if (current != null && current != GarmentType.OTHER && current.gender != gender) {
                                 onAction(OrderFormAction.OnItemGarmentTypeChange(item.id, null))
                             }
                         },
