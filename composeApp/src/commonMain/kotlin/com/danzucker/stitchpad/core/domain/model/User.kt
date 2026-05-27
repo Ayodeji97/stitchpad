@@ -19,4 +19,8 @@ data class User(
      * back to `WELCOME_BONUS_COIN_COUNT` (30) for those.
      */
     val bonusCoins: Int? = null,
+    /** Resolved Firebase Storage download URL for the user's brand logo. Null = no logo set. */
+    val businessLogoUrl: String? = null,
+    /** Firebase Storage path for the logo. Used for deletion and replacement. Null = no logo set. */
+    val businessLogoStoragePath: String? = null,
 )

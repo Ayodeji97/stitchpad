@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.days
 
 class EntitlementsCalculatorTest {
 
@@ -162,5 +163,64 @@ class EntitlementsCalculatorTest {
             timeZone = tz,
         )
         assertFalse(e.isWithinWelcomeEndingWarning)
+    }
+
+    // --- canUseCustomMeasurements ---
+
+    @Test
+    fun canUseCustomMeasurements_isTrue_forPro() {
+        val result = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.PRO,
+            welcomeBonusAppliedAt = null,
+            now = Instant.fromEpochMilliseconds(1_748_275_200_000L),
+            timeZone = TimeZone.of("Africa/Lagos"),
+        )
+        assertTrue(result.canUseCustomMeasurements)
+    }
+
+    @Test
+    fun canUseCustomMeasurements_isTrue_forAtelier() {
+        val result = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.ATELIER,
+            welcomeBonusAppliedAt = null,
+            now = Instant.fromEpochMilliseconds(1_748_275_200_000L),
+            timeZone = TimeZone.of("Africa/Lagos"),
+        )
+        assertTrue(result.canUseCustomMeasurements)
+    }
+
+    @Test
+    fun canUseCustomMeasurements_isTrue_forFreeInsideWelcomeWindow() {
+        val signup = Instant.fromEpochMilliseconds(1_748_275_200_000L)
+        val result = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.FREE,
+            welcomeBonusAppliedAt = signup,
+            now = signup.plus(5.days),
+            timeZone = TimeZone.of("Africa/Lagos"),
+        )
+        assertTrue(result.canUseCustomMeasurements)
+    }
+
+    @Test
+    fun canUseCustomMeasurements_isFalse_forFreePostWelcome() {
+        val signup = Instant.fromEpochMilliseconds(1_748_275_200_000L)
+        val result = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.FREE,
+            welcomeBonusAppliedAt = signup,
+            now = signup.plus(40.days),  // welcome window has ended
+            timeZone = TimeZone.of("Africa/Lagos"),
+        )
+        assertFalse(result.canUseCustomMeasurements)
+    }
+
+    @Test
+    fun canUseCustomMeasurements_isFalse_forFreeWithNoWelcome() {
+        val result = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.FREE,
+            welcomeBonusAppliedAt = null,
+            now = Instant.fromEpochMilliseconds(1_748_275_200_000L),
+            timeZone = TimeZone.of("Africa/Lagos"),
+        )
+        assertFalse(result.canUseCustomMeasurements)
     }
 }

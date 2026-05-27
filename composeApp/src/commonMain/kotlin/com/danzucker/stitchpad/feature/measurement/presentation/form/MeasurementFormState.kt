@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
+import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementSection
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.presentation.UiText
 
 data class MeasurementFormState(
@@ -19,6 +21,15 @@ data class MeasurementFormState(
     val errorMessage: UiText? = null,
     val originalCreatedAt: Long = 0L,
     val originalDateTaken: Long = 0L,
+    // PTSP-12 additions
+    val customFields: List<CustomMeasurementField> = emptyList(),
+    val canUseCustomMeasurements: Boolean = false,
+    val isInWelcomeWindow: Boolean = false, // PTSP-12: drives "First Month" pill copy
+    // PTSP-12: pill distinguishes trial (FREE+welcome) from permanent (Pro/Atelier).
+    // Without tier, Pro/Atelier users inside their first 30 days would see
+    // "FIRST MONTH" — implying temporary access for what is actually permanent.
+    val tier: SubscriptionTier = SubscriptionTier.FREE,
+    val customFieldSheet: CustomFieldSheet? = null,
 ) {
     /**
      * PTSP-6: Save is gated to mirror what `MeasurementFormViewModel.save()`
@@ -34,4 +45,32 @@ data class MeasurementFormState(
         get() = gender != null &&
             fields.values.any { (it.toDoubleOrNull() ?: 0.0) > 0.0 } &&
             !isLoading
+}
+
+sealed interface CustomFieldSheet {
+    /** "Add custom field" — empty form, no existing field. */
+    data class Adding(val draft: CustomFieldDraft = CustomFieldDraft()) : CustomFieldSheet
+
+    /** "Edit custom field" — pre-populated from an existing field. */
+    data class Editing(
+        val field: CustomMeasurementField,
+        val draft: CustomFieldDraft = CustomFieldDraft.from(field),
+    ) : CustomFieldSheet
+
+    /** "Archive this field?" confirm dialog, holding the field to archive. */
+    data class ConfirmArchive(val field: CustomMeasurementField) : CustomFieldSheet
+}
+
+data class CustomFieldDraft(
+    val label: String = "",
+    val initialValue: String = "",
+    val genders: Set<CustomerGender> = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+) {
+    companion object {
+        fun from(field: CustomMeasurementField): CustomFieldDraft =
+            CustomFieldDraft(
+                label = field.label,
+                genders = field.genders,
+            )
+    }
 }

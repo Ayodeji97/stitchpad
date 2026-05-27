@@ -25,10 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.danzucker.stitchpad.ui.components.BrandLogo
+import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
@@ -62,13 +65,20 @@ internal fun avatarBrush(colorIndex: Int): Brush =
 @Composable
 fun ProfileHeroCard(
     businessName: String,
+    logoUrl: String?,
     subtitle: String,
     avatarColorIndex: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     planBadgeLabel: String? = null,
 ) {
-    val initial = businessName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val initials = businessName.trim()
+        .split(" ")
+        .filter { it.isNotEmpty() }
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
     val avatarBrushBg = avatarBrush(avatarColorIndex)
     // Flat warm tint instead of a linear gradient — the gradient's diagonal seam
     // was visually distracting on real device sizes. surfaceContainerHighest gives
@@ -124,19 +134,38 @@ fun ProfileHeroCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(avatarBrushBg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = initial,
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
+                if (logoUrl != null) {
+                    // User uploaded a brand logo: it takes priority over the picked
+                    // avatar color. Coil + LoadingDots + initials fallback baked in.
+                    BrandLogo(
+                        logoUrl = logoUrl,
+                        fallbackInitials = businessName,
+                        size = 56.dp,
                     )
+                } else {
+                    // No logo: keep the original color-indexed initials circle so
+                    // the avatar-color picker in Edit Profile is still reflected on
+                    // the Settings hero. Without this conditional, BrandLogo's
+                    // initials fallback ignores avatarColorIndex and always tints
+                    // with primaryContainer.
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(avatarBrushBg),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = initials,
+                            color = Color.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            style = TextStyle(
+                                lineHeight = 22.sp,
+                                platformStyle = platformTextStyleNoFontPadding(),
+                            ),
+                        )
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -220,12 +249,14 @@ private fun ProfileHeroCardPreview() {
             ) {
                 ProfileHeroCard(
                     businessName = "Folake's Atelier",
+                    logoUrl = null,
                     subtitle = "+234 803 555 0142 · folake@stitchpad.app",
                     avatarColorIndex = 0,
                     onClick = {},
                 )
                 ProfileHeroCard(
                     businessName = "Bola Couture",
+                    logoUrl = null,
                     subtitle = "+234 802 999 1234",
                     avatarColorIndex = 3,
                     onClick = {},
@@ -243,6 +274,7 @@ private fun ProfileHeroCardDarkPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             ProfileHeroCard(
                 businessName = "Folake's Atelier",
+                logoUrl = null,
                 subtitle = "+234 803 555 0142 · folake@stitchpad.app",
                 avatarColorIndex = 4,
                 onClick = {},

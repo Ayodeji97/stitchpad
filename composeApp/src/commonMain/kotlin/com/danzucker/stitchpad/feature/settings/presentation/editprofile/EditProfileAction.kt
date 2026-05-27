@@ -11,4 +11,10 @@ sealed interface EditProfileAction {
     data object OnWhatsappBlur : EditProfileAction
     data object OnSaveClick : EditProfileAction
     data object OnBackClick : EditProfileAction
+
+    // Logo
+    data class OnLogoPicked(val bytes: ByteArray) : EditProfileAction
+    data object OnLogoRemoveClick : EditProfileAction
+    data object OnLogoRemoveConfirm : EditProfileAction
+    data object OnLogoRemoveDismiss : EditProfileAction
 }

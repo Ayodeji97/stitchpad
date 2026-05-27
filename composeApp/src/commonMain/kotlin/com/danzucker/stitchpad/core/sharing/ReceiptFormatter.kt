@@ -18,7 +18,8 @@ object ReceiptFormatter {
     fun format(
         order: Order,
         user: User,
-        garmentNames: Map<GarmentType, String>
+        garmentNames: Map<GarmentType, String>,
+        businessLogoBytes: ByteArray? = null,
     ): ReceiptData {
         val createdDate = Instant.fromEpochMilliseconds(order.createdAt)
             .toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -99,7 +100,8 @@ object ReceiptFormatter {
                 OrderPriority.RUSH -> "RUSH"
             },
             orderIdShort = "ORD-$shortId",
-            attribution = attribution
+            attribution = attribution,
+            businessLogoBytes = businessLogoBytes,
         )
     }
 

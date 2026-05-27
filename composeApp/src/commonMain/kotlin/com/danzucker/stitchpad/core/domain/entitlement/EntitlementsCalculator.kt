@@ -91,6 +91,10 @@ object EntitlementsCalculator {
             SubscriptionTier.ATELIER -> ATELIER_COIN_ALLOWANCE
         }
 
+        val canUseCustomMeasurements = tier == SubscriptionTier.PRO ||
+            tier == SubscriptionTier.ATELIER ||
+            isInWelcomeWindow
+
         return UserEntitlements(
             tier = tier,
             customerCap = customerCap,
@@ -99,6 +103,7 @@ object EntitlementsCalculator {
             welcomeEndsAt = welcomeEndsAt,
             isWithinWelcomeEndingWarning = isWithinWelcomeEndingWarning,
             welcomeDaysLeft = welcomeDaysLeft,
+            canUseCustomMeasurements = canUseCustomMeasurements,
         )
     }
 }

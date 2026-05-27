@@ -10,6 +10,7 @@ val dashboardPresentationModule = module {
             orderRepository = get(),
             customerRepository = get(),
             authRepository = get(),
+            userRepository = get(),
             weeklyGoalRepository = get(),
             smartUsageStore = get(),
             entitlements = get(),
