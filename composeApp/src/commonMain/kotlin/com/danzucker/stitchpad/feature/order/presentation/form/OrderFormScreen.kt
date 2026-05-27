@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -92,6 +93,7 @@ import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
@@ -116,7 +118,11 @@ import stitchpad.composeapp.generated.resources.garment_gender_unisex
 import stitchpad.composeapp.generated.resources.order_form_add_item
 import stitchpad.composeapp.generated.resources.order_form_create_button
 import stitchpad.composeapp.generated.resources.order_form_deadline_label
-import stitchpad.composeapp.generated.resources.order_form_deposit_edit_locked_hint
+import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_body
+import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_body_with_other_payments
+import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_cancel
+import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_confirm
+import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_title
 import stitchpad.composeapp.generated.resources.order_form_deposit_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_placeholder
 import stitchpad.composeapp.generated.resources.order_form_description_label
@@ -980,12 +986,6 @@ private fun DetailsStep(
                 val digits = raw.filter { it.isDigit() }
                 onAction(OrderFormAction.OnDepositChange(digits))
             },
-            readOnly = state.isEditMode,
-            supportingText = if (state.isEditMode) {
-                { Text(stringResource(Res.string.order_form_deposit_edit_locked_hint)) }
-            } else {
-                null
-            },
             visualTransformation = ThousandsSeparatorTransformation,
             label = { Text(stringResource(Res.string.order_form_deposit_label)) },
             placeholder = { Text(stringResource(Res.string.order_form_deposit_placeholder)) },
@@ -1025,6 +1025,14 @@ private fun DetailsStep(
                 onAction(OrderFormAction.OnDeadlineChange(millis))
                 showDatePicker = false
             }
+        )
+    }
+
+    state.depositReconciliationPrompt?.let { prompt ->
+        DepositReconciliationDialog(
+            prompt = prompt,
+            onConfirm = { onAction(OrderFormAction.OnConfirmDepositChange) },
+            onDismiss = { onAction(OrderFormAction.OnDismissDepositPrompt) },
         )
     }
 }
@@ -1538,6 +1546,58 @@ private fun AddImageTile(onClick: () -> Unit) {
             )
         }
     }
+}
+
+// ── PTSP-14 Deposit reconciliation dialog ────────────────────────────────
+
+@Composable
+private fun DepositReconciliationDialog(
+    prompt: DepositPrompt,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.order_form_deposit_dialog_title),
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(
+                        Res.string.order_form_deposit_dialog_body,
+                        formatPrice(prompt.oldAmount),
+                        formatPrice(prompt.newAmount),
+                    ),
+                )
+                if (prompt.nonDepositTotal > 0.0) {
+                    Spacer(Modifier.height(DesignTokens.space2))
+                    Text(
+                        text = stringResource(
+                            Res.string.order_form_deposit_dialog_body_with_other_payments,
+                            formatPrice(prompt.nonDepositTotal),
+                        ),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(Res.string.order_form_deposit_dialog_confirm),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.order_form_deposit_dialog_cancel))
+            }
+        },
+    )
 }
 
 @Suppress("UnusedPrivateMember")

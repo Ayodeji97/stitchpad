@@ -215,33 +215,36 @@ class MeasurementFormViewModel(
                 return@launch
             }
 
-            // If the form was opened from an order's "link measurement" picker,
-            // attach this measurement id to the order's first item. Failure to link
-            // is logged via the order error path but does NOT block the save —
-            // the measurement is already persisted; the user can retry the link
-            // from the order details screen.
-            val linkOrderId = linkToOrderId
-            if (isCreate && linkOrderId != null) {
-                when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
-                    is Result.Success -> {
-                        val order = orderResult.data
-                        val firstItem = order.items.firstOrNull()
-                        if (firstItem != null) {
-                            val updatedItems = listOf(firstItem.copy(measurementId = effectiveId)) +
-                                order.items.drop(1)
-                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
-                            // Ignore failure — order's observeOrder Flow re-emits when network
-                            // recovers; user sees the unlinked state and can retry. We deliberately
-                            // do not surface a separate error toast here, since the measurement save
-                            // itself succeeded and that's the primary user intent.
-                        }
-                    }
-                    is Result.Error -> Unit // same rationale as above
-                }
+            if (isCreate) {
+                linkMeasurementToOrderIfRequested(userId, effectiveId)
             }
 
             _state.update { it.copy(isLoading = false) }
             _events.send(MeasurementFormEvent.NavigateBack)
+        }
+    }
+
+    /**
+     * If the form was opened from an order's "link measurement" picker,
+     * attach the just-persisted measurement to the order's first item.
+     *
+     * Failure to link is silent: the measurement is already persisted, the
+     * order's `observeOrder` flow re-emits on network recovery, and the user
+     * can retry the link from the order details screen. We deliberately do
+     * not surface a separate error toast — the measurement save itself
+     * succeeded and that's the primary user intent.
+     */
+    private suspend fun linkMeasurementToOrderIfRequested(
+        userId: String,
+        measurementId: String,
+    ) {
+        val linkOrderId = linkToOrderId ?: return
+        val order = (orderRepository.getOrder(userId, linkOrderId) as? Result.Success)?.data
+        val firstItem = order?.items?.firstOrNull()
+        if (order != null && firstItem != null) {
+            val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) +
+                order.items.drop(1)
+            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
         }
     }
 }

@@ -292,7 +292,10 @@ private fun HeroImage(
                         },
                         modifier = Modifier
                             .fillMaxSize()
-                            .clickable { onPhotoClick(styleImageUrls, pagerState.currentPage) },
+                            // Use the lambda `page` param, not pagerState.currentPage. During a swipe
+                            // adjacent pages are pre-composed and currentPage may still point at the
+                            // previous settled page while the user taps the incoming page (BugBot).
+                            .clickable { onPhotoClick(styleImageUrls, page) },
                     )
                 }
                 // Counter pill (top-right)

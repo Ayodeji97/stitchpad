@@ -13,7 +13,6 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
-import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
@@ -315,14 +314,17 @@ class FirebaseOrderRepository(
                         runCatching { storage.reference.child(p).delete() }
                     }
                 }
-                item.styleImages
-                    .filter { it.source == StyleImageSource.UPLOADED.name }
-                    .forEach { ref ->
-                        val p = ref.photoStoragePath
-                        if (!p.isNullOrBlank()) {
-                            runCatching { storage.reference.child(p).delete() }
-                        }
+                // Iterate ALL styleImages refs and delete any that own a storage
+                // path. LIBRARY-source refs have photoStoragePath = null (the image
+                // lives on the Style entity in the customer's gallery, with its own
+                // lifecycle), so they're naturally excluded. Avoids coupling the DTO
+                // string field to the domain enum's .name (BugBot).
+                item.styleImages.forEach { ref ->
+                    val p = ref.photoStoragePath
+                    if (!p.isNullOrBlank()) {
+                        runCatching { storage.reference.child(p).delete() }
                     }
+                }
             }
         }
     }
