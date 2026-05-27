@@ -97,6 +97,7 @@ class CustomerFormViewModelTest {
             welcomeEndsAt = null,
             isWithinWelcomeEndingWarning = false,
             welcomeDaysLeft = null,
+            canUseCustomMeasurements = false,
         )
         private val _flow = MutableStateFlow(entitlements)
         override val flow: StateFlow<UserEntitlements> = _flow

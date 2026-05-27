@@ -370,6 +370,36 @@
     <string name="error_measurement_not_found">Measurement not found</string>
     <string name="error_measurement_unknown">Could not save measurement. Please try again.</string>
 
+    <!-- PTSP-12 — custom measurement fields -->
+    <string name="custom_field_section_title">Custom</string>
+    <string name="custom_field_section_pill_pro">Your fields</string>
+    <string name="custom_field_section_pill_locked">Pro</string>
+    <string name="custom_field_section_pill_first_month">First Month</string>
+    <string name="custom_field_section_subtitle">Add your own measurements to this customer’s form.</string>
+    <string name="custom_field_empty_caption">Add measurements that aren’t on the default list — like cuff width, lapel, or gown sweep. They’ll appear here for every customer.</string>
+    <string name="custom_field_locked_caption">Define measurements that don’t appear on the default list. Available on Pro.</string>
+    <string name="custom_field_add_button">Add custom field</string>
+    <string name="custom_field_sheet_add_title">Add custom field</string>
+    <string name="custom_field_sheet_add_subtitle">Define a measurement you’d like to track for your customers.</string>
+    <string name="custom_field_sheet_edit_title">Edit field</string>
+    <string name="custom_field_sheet_label">Field name</string>
+    <string name="custom_field_sheet_label_placeholder">e.g. Sleeve cuff width</string>
+    <string name="custom_field_sheet_value">Value</string>
+    <string name="custom_field_sheet_value_placeholder">0</string>
+    <string name="custom_field_sheet_genders_label">Show on</string>
+    <string name="custom_field_sheet_gender_female">Female</string>
+    <string name="custom_field_sheet_gender_male">Male</string>
+    <string name="custom_field_sheet_gender_both">Both</string>
+    <string name="custom_field_sheet_save">Save</string>
+    <string name="custom_field_sheet_save_with_value">Save field &amp; value</string>
+    <string name="custom_field_sheet_save_changes">Save changes</string>
+    <string name="custom_field_sheet_cancel">Cancel</string>
+    <string name="custom_field_delete_content_description">Delete custom field</string>
+    <string name="custom_field_sheet_archive">Delete custom field</string>
+    <string name="custom_field_archive_dialog_title">Delete this field?</string>
+    <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>
+    <string name="custom_field_archive_dialog_confirm">Delete</string>
+
     <!-- Settings -->
     <string name="settings_measurement_unit_label">Measurement unit</string>
 

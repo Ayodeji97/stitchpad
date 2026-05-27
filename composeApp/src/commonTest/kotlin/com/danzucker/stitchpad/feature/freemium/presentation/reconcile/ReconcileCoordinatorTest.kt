@@ -178,6 +178,7 @@ class ReconcileCoordinatorTest {
                 welcomeEndsAt = Instant.fromEpochMilliseconds(0),
                 isWithinWelcomeEndingWarning = false,
                 welcomeDaysLeft = 23,
+                canUseCustomMeasurements = false,
             ),
         )
         val repo = FakeFreemiumRepository()

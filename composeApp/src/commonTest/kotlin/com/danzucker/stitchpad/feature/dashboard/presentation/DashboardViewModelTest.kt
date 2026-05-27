@@ -122,6 +122,7 @@ class DashboardViewModelTest {
             welcomeEndsAt = null,
             isWithinWelcomeEndingWarning = false,
             welcomeDaysLeft = null,
+            canUseCustomMeasurements = false,
         )
     }
 
