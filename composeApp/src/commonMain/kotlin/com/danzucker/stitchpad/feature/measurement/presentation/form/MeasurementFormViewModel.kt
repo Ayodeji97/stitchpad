@@ -151,15 +151,22 @@ class MeasurementFormViewModel(
 
     private fun onGenderChange(gender: CustomerGender) {
         val sections = BodyProfileTemplate.sectionsFor(gender)
-        val allKeys = sections.flatMap { it.fields }.map { it.key }
+        val templateKeys = sections.flatMap { it.fields }.map { it.key }
         _state.update { current ->
             val visibleCustom = filterFieldsForCurrentGender(allCustomFields, gender)
+            val customKeys = visibleCustom.map { it.id }
+            // Preserve existing values for any key that survives the gender
+            // switch (custom fields visible in both genders, or template keys
+            // present in both). Without this, typed custom values are silently
+            // dropped on gender change (Bugbot Medium).
+            val allKeys = templateKeys + customKeys
+            val newFields = allKeys.associateWith { key -> current.fields[key] ?: "" }
             current.copy(
                 gender = gender,
                 sections = sections,
                 currentSectionIndex = 0,
                 isCurrentSectionExpanded = true,
-                fields = allKeys.associateWith { "" },
+                fields = newFields,
                 customFields = visibleCustom,
             )
         }
@@ -382,17 +389,21 @@ class MeasurementFormViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val now = Clock.System.now().toEpochMilliseconds()
             val isCreate = id == null
-            val existingCreatedAt = if (isCreate) {
-                now
-            } else {
-                _state.value.customFields.find { it.id == id }?.createdAt ?: now
+            // Look up the whole existing field once so we preserve BOTH
+            // createdAt AND isArchived on edit. Use the unfiltered cache
+            // (`allCustomFields`) — `state.customFields` is the gender+archive
+            // filtered subset, so archived fields surfaced in edit mode aren't
+            // present there. Hardcoding isArchived = false would silently
+            // un-archive an archived field (Bugbot HIGH).
+            val existingField = id?.let { fieldId ->
+                allCustomFields.find { it.id == fieldId }
             }
             val field = CustomMeasurementField(
                 id = id ?: Uuid.random().toString(),
                 label = trimmed,
                 genders = genders,
-                isArchived = false,
-                createdAt = existingCreatedAt,
+                isArchived = existingField?.isArchived ?: false,
+                createdAt = existingField?.createdAt ?: now,
                 updatedAt = now,
             )
             val result = if (isCreate) {

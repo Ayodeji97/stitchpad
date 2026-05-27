@@ -788,6 +788,51 @@ class MeasurementFormViewModelTest {
         assertEquals(SubscriptionTier.FREE, vm.state.value.tier)
     }
 
+    @Test
+    fun saveCustomField_edit_preservesIsArchivedFromExistingField() = runTest {
+        // HIGH bug: editing an archived field's label/genders MUST keep the
+        // archive flag — otherwise the field silently un-archives, contradicting
+        // the soft-archive contract.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val archived = customField(
+            id = "f1",
+            label = "Old",
+            genders = setOf(CustomerGender.FEMALE),
+            isArchived = true,
+        )
+        customFieldRepository.seedFields(listOf(archived))
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnSaveCustomField(
+            id = "f1",
+            label = "Old (renamed)",
+            genders = setOf(CustomerGender.FEMALE),
+        ))
+        val updated = customFieldRepository.lastUpdatedField
+        assertNotNull(updated)
+        assertTrue(updated.isArchived)
+        assertEquals("Old (renamed)", updated.label)
+    }
+
+    @Test
+    fun onGenderChange_preservesCustomFieldValuesForFieldsVisibleInBothGenders() = runTest {
+        // Medium bug: switching gender used to wipe typed values for custom
+        // fields because the field-map reset only included template keys.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customFieldRepository.seedFields(listOf(
+            customField(
+                id = "f-both",
+                label = "Cuff",
+                genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+            ),
+        ))
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("f-both", "13"))
+        assertEquals("13", vm.state.value.fields["f-both"])
+
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.MALE))
+        assertEquals("13", vm.state.value.fields["f-both"])
+    }
+
     private fun customField(
         id: String,
         label: String,
