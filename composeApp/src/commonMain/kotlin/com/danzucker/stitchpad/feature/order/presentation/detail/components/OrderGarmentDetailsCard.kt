@@ -59,6 +59,7 @@ import stitchpad.composeapp.generated.resources.order_detail_add_fabric
 import stitchpad.composeapp.generated.resources.order_detail_add_fabric_name
 import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
+import stitchpad.composeapp.generated.resources.order_detail_quantity
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
 
@@ -178,6 +179,12 @@ private fun GarmentItemRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Spacer(Modifier.height(DesignTokens.space2))
+            Text(
+                text = stringResource(Res.string.order_detail_quantity, item.quantity),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (item.description.isNotBlank()) {
                 Spacer(Modifier.height(DesignTokens.space2))
                 Text(
@@ -188,9 +195,6 @@ private fun GarmentItemRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            // Currently OrderItem has no quantity field; OrderForm always emits qty=1.
-            // The "Qty 1" text in the previous design was a placeholder for a future
-            // multi-quantity feature. Drop it for now — re-add when the model gains qty.
             val hasFabricImages = item.fabricImages.isNotEmpty()
             val needsPhoto = !hasFabricImages && item.fabricPhotoUrl.isNullOrBlank()
             val needsName = !needsPhoto && item.fabricName.isNullOrBlank()

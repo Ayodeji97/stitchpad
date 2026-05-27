@@ -140,6 +140,28 @@ class OrderMapperTest {
     }
 
     @Test
+    fun quantity_roundTrips_dtoToItemAndBack() {
+        val dto = OrderItemDto(
+            id = "item-quantity",
+            garmentType = "AGBADA",
+            description = "Family asoebi",
+            price = 30_000.0,
+            quantity = 4,
+        )
+
+        val item = dto.toOrderItem()
+
+        assertEquals(4, item.quantity)
+        assertEquals(4, item.toOrderItemDto().quantity)
+    }
+
+    @Test
+    fun quantity_defaultsToOneForLegacyOrInvalidDtos() {
+        assertEquals(1, OrderItemDto(quantity = 0).toOrderItem().quantity)
+        assertEquals(1, OrderItemDto(quantity = -3).toOrderItem().quantity)
+    }
+
+    @Test
     fun migrateLegacyDeposit_synthesisesPaymentWhenListEmptyAndDepositPositive() {
         val migrated = migrateLegacyDeposit(
             payments = emptyList(),

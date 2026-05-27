@@ -152,6 +152,7 @@ import stitchpad.composeapp.generated.resources.order_form_pick_date
 import stitchpad.composeapp.generated.resources.order_form_previous
 import stitchpad.composeapp.generated.resources.order_form_price_label
 import stitchpad.composeapp.generated.resources.order_form_priority_label
+import stitchpad.composeapp.generated.resources.order_form_quantity_label
 import stitchpad.composeapp.generated.resources.order_form_remove_item
 import stitchpad.composeapp.generated.resources.order_form_save_button
 import stitchpad.composeapp.generated.resources.order_form_search_customers
@@ -323,6 +324,7 @@ fun OrderFormScreen(
                 2 -> {
                     val typed = state.items.filter { it.garmentType != null }
                     typed.isNotEmpty() &&
+                        typed.all { (it.quantity.toIntOrNull() ?: 0) > 0 } &&
                         typed.all { (it.price.toDoubleOrNull() ?: 0.0) > 0.0 }
                 }
                 else -> true
@@ -731,6 +733,22 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
+            // Quantity
+            OutlinedTextField(
+                value = item.quantity,
+                onValueChange = { raw ->
+                    val digits = raw.filter { it.isDigit() }.take(MAX_QUANTITY_DIGITS)
+                    onAction(OrderFormAction.OnItemQuantityChange(item.id, digits))
+                },
+                label = { Text(stringResource(Res.string.order_form_quantity_label)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(DesignTokens.space2))
+
             // Price
             OutlinedTextField(
                 value = item.price,
@@ -1049,6 +1067,7 @@ private fun garmentGenderLabel(gender: GarmentGender): String = when (gender) {
 // ────────────────────────────────────────────────────────────────────────
 
 private const val MAX_IMAGES_PER_CATEGORY = 3
+private const val MAX_QUANTITY_DIGITS = 3
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod")

@@ -29,6 +29,7 @@ data class OrderItem(
     val garmentType: GarmentType,
     val description: String,
     val price: Double,
+    val quantity: Int = 1,
     val measurementId: String? = null,
     val fabricName: String? = null,
     // PTSP-11 multi-image

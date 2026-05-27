@@ -519,7 +519,7 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
 @Composable
 private fun garmentSummary(order: Order): String {
     val firstItem = order.items.firstOrNull() ?: return ""
-    val count = order.items.size
+    val count = order.items.sumOf { it.quantity }
     return stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
 }
 

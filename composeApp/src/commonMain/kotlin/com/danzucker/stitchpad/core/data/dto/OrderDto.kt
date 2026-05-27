@@ -41,6 +41,7 @@ data class OrderItemDto(
     val garmentType: String = "",
     val description: String = "",
     val price: Double = 0.0,
+    val quantity: Int = 1,
     val measurementId: String? = null,
     val fabricName: String? = null,
     // PTSP-11 — source of truth going forward

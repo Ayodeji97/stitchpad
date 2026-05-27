@@ -40,9 +40,9 @@ object ReceiptFormatter {
             .groupBy { it.garmentType }
             .map { (type, items) ->
                 ReceiptItem(
-                    quantity = items.size,
+                    quantity = items.sumOf { it.quantity },
                     garmentName = garmentNames[type] ?: type.name,
-                    formattedPrice = "\u20A6${formatPrice(items.sumOf { it.price })}"
+                    formattedPrice = "\u20A6${formatPrice(items.sumOf { it.price * it.quantity })}"
                 )
             }
 

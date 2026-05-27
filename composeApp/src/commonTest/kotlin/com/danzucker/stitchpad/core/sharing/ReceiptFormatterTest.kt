@@ -108,15 +108,15 @@ class ReceiptFormatterTest {
     fun itemsGroupedByGarmentType() {
         val orderWithDuplicates = testOrder.copy(
             items = listOf(
-                OrderItem("i1", GarmentType.TROUSER, "T1", 5000.0),
-                OrderItem("i2", GarmentType.TROUSER, "T2", 7000.0)
+                OrderItem("i1", GarmentType.TROUSER, "T1", 5000.0, quantity = 2),
+                OrderItem("i2", GarmentType.TROUSER, "T2", 7000.0, quantity = 3)
             )
         )
         val names = mapOf(GarmentType.TROUSER to "Trouser")
         val result = ReceiptFormatter.format(orderWithDuplicates, testUser, names)
         assertEquals(1, result.items.size)
-        assertEquals(2, result.items[0].quantity)
-        assertEquals("\u20A612,000", result.items[0].formattedPrice)
+        assertEquals(5, result.items[0].quantity)
+        assertEquals("\u20A631,000", result.items[0].formattedPrice)
     }
 
     @Test

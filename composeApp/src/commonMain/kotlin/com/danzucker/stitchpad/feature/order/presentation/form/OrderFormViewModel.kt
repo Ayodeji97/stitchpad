@@ -25,7 +25,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -34,6 +33,7 @@ import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
+import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -124,6 +124,9 @@ class OrderFormViewModel(
             }
             is OrderFormAction.OnItemDescriptionChange -> updateItem(action.itemId) {
                 it.copy(description = action.description)
+            }
+            is OrderFormAction.OnItemQuantityChange -> updateItem(action.itemId) {
+                it.copy(quantity = action.quantity)
             }
             is OrderFormAction.OnItemPriceChange -> updateItem(action.itemId) {
                 it.copy(price = action.price)
@@ -421,6 +424,7 @@ class OrderFormViewModel(
         id = id,
         garmentType = garmentType,
         description = description,
+        quantity = quantity.coerceAtLeast(1).toString(),
         price = if (price > 0) price.toLong().toString() else "",
         measurementId = measurementId,
         fabricName = fabricName.orEmpty(),
@@ -457,6 +461,12 @@ class OrderFormViewModel(
         val formItems = s.items.filter { it.garmentType != null }
         if (formItems.isEmpty()) {
             setError(Res.string.error_order_items_required)
+            return
+        }
+
+        val hasInvalidQuantity = formItems.any { (it.quantity.toIntOrNull() ?: 0) <= 0 }
+        if (hasInvalidQuantity) {
+            setError(Res.string.error_order_item_quantity_required)
             return
         }
 
@@ -520,6 +530,7 @@ class OrderFormViewModel(
             for (item in formItems) {
                 val garmentType = item.garmentType!!
                 val price = item.price.toDoubleOrNull() ?: 0.0
+                val quantity = item.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1
 
                 val resolution = when (
                     val r = resolveItemImages(uid, customer.id, actualOrderId, item)
@@ -539,6 +550,7 @@ class OrderFormViewModel(
                         garmentType = garmentType,
                         description = item.description.trim(),
                         price = price,
+                        quantity = quantity,
                         measurementId = item.measurementId,
                         fabricName = item.fabricName.trim().ifBlank { null },
                         styleImages = resolution.styleImages,
@@ -549,7 +561,7 @@ class OrderFormViewModel(
                 )
             }
 
-            val totalPrice = orderItems.sumOf { it.price }
+            val totalPrice = orderItems.sumOf { it.price * it.quantity }
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null

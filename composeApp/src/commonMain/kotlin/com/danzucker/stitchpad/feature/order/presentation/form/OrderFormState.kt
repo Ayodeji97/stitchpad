@@ -57,6 +57,7 @@ constructor(
     val id: String = Uuid.random().toString(),
     val garmentType: GarmentType? = null,
     val description: String = "",
+    val quantity: String = "1",
     val price: String = "",
     val measurementId: String? = null,
     val fabricName: String = "",
