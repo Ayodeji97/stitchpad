@@ -508,7 +508,16 @@ class OrderFormViewModel(
         id = id,
         garmentType = garmentType,
         customGarmentName = customGarmentName,
-        genderFilter = garmentType?.gender ?: GarmentGender.MALE,
+        genderFilter = when {
+            garmentType == null -> GarmentGender.MALE
+            garmentType == GarmentType.OTHER -> {
+                // Custom garments have no enum gender. UNISEX restricts the picker to
+                // 3 presets which is wrong; default to MALE so the user can see options.
+                // V1.5: persist genderFilter on the order so it round-trips correctly.
+                GarmentGender.MALE
+            }
+            else -> garmentType.gender
+        },
         description = description,
         price = if (price > 0) price.toLong().toString() else "",
         measurementId = measurementId,
