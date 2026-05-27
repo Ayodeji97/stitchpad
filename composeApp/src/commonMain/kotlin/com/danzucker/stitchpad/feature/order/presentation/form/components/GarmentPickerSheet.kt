@@ -98,12 +98,17 @@ private fun GarmentPickerSheetContent(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
         )
 
-        // Resolve all preset labels inside the @Composable scope, then pass a plain lambda.
-        val presetLabels: Map<GarmentType, String> = presets.associateWith { garmentDisplayName(it) }
+        // Dedupe needs every preset (including ones hidden by the gender chip),
+        // so the user can't type the name of a UNISEX preset (Trouser, Shirt, etc.)
+        // while MALE/FEMALE is active and accidentally create a duplicate custom.
+        // Build labels for all non-OTHER presets, not just the gender-filtered subset.
+        val allPresets: List<GarmentType> = GarmentType.entries.filter { it != GarmentType.OTHER }
+        val presetLabels: Map<GarmentType, String> = allPresets.associateWith { garmentDisplayName(it) }
         val filterResult = filterGarmentOptions(
             query = searchQuery,
             customs = customs,
             presets = presets,
+            allPresets = allPresets,
             resolvePresetLabel = { presetLabels[it] ?: it.name },
         )
 
