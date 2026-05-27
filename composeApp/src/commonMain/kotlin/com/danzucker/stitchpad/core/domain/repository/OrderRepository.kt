@@ -54,4 +54,11 @@ interface OrderRepository {
         itemId: String,
         photoBytes: ByteArray
     ): Result<Pair<String, String>, DataError.Network>
+
+    suspend fun uploadStylePhoto(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytes: ByteArray
+    ): Result<Pair<String, String>, DataError.Network>
 }

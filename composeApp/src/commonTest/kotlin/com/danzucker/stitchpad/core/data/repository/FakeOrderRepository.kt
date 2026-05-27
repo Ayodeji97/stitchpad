@@ -23,6 +23,7 @@ class FakeOrderRepository : OrderRepository {
 
     var lastCreatedOrder: Order? = null
     var lastUpdatedOrder: Order? = null
+    var updateOrderCallCount: Int = 0
     var lastDeletedOrderId: String? = null
     var lastStatusUpdate: Pair<String, OrderStatus>? = null
     var lastRecordedPayment: Pair<String, Payment>? = null
@@ -74,6 +75,7 @@ class FakeOrderRepository : OrderRepository {
         order: Order
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        updateOrderCallCount++
         lastUpdatedOrder = order
         ordersFlow.value = ordersFlow.value.map { if (it.id == order.id) order else it }
         return Result.Success(Unit)
@@ -164,6 +166,18 @@ class FakeOrderRepository : OrderRepository {
         shouldReturnError?.let { return Result.Error(it) }
         return Result.Success(
             "https://fake.storage/$orderId/$itemId.jpg" to "orders/$orderId/items/$itemId.jpg"
+        )
+    }
+
+    override suspend fun uploadStylePhoto(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytes: ByteArray
+    ): Result<Pair<String, String>, DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success(
+            "https://fake.example/styles/$orderId/$itemId.jpg" to "users/$userId/orders/$orderId/styles/$itemId.jpg"
         )
     }
 }

@@ -34,6 +34,8 @@ data class OrderItem(
     val fabricPhotoUrl: String? = null,
     val fabricPhotoStoragePath: String? = null,
     val fabricName: String? = null,
+    val stylePhotoUrl: String? = null,
+    val stylePhotoStoragePath: String? = null,
 )
 
 data class StatusChange(

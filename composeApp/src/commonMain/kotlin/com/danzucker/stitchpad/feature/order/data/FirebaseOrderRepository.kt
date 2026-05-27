@@ -37,6 +37,9 @@ class FirebaseOrderRepository(
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/fabrics/$itemId.jpg"
 
+    private fun styleStoragePath(userId: String, orderId: String, itemId: String): String =
+        "users/$userId/orders/$orderId/styles/$itemId.jpg"
+
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         ordersCollection(userId)
             .snapshots()
@@ -283,6 +286,10 @@ class FirebaseOrderRepository(
             if (!path.isNullOrBlank()) {
                 runCatching { storage.reference.child(path).delete() }
             }
+            val stylePath = item.stylePhotoStoragePath
+            if (!stylePath.isNullOrBlank()) {
+                runCatching { storage.reference.child(stylePath).delete() }
+            }
         }
     }
 
@@ -302,6 +309,23 @@ class FirebaseOrderRepository(
             Result.Success(downloadUrl to path)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "uploadFabricPhoto failed itemId=$itemId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun uploadStylePhoto(
+        userId: String,
+        orderId: String,
+        itemId: String,
+        photoBytes: ByteArray
+    ): Result<Pair<String, String>, DataError.Network> {
+        val path = styleStoragePath(userId, orderId, itemId)
+        return try {
+            storage.reference.child(path).putData(photoBytes.toStorageData())
+            val downloadUrl = storage.reference.child(path).getDownloadUrl()
+            Result.Success(downloadUrl to path)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "uploadStylePhoto failed itemId=$itemId" }
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
