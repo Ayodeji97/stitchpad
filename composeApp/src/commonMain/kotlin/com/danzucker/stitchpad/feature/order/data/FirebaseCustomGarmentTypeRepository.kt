@@ -55,7 +55,19 @@ class FirebaseCustomGarmentTypeRepository(
             // Deterministic doc ID from the sanitised name — concurrent calls converge on
             // the same document so no duplicates are created.  Firestore rejects paths that
             // contain '/' or consist solely of '.'; replace those with '-'.
-            val docId = sanitizeDocId(trimmed)
+            val baseId = sanitizeDocId(trimmed)
+            // Two names that differ only by punctuation (e.g. "Iro/Buba" vs "Iro.Buba")
+            // can map to the same sanitized ID. Check if the stored name matches; if not,
+            // fall back to a unique, timestamp-suffixed ID so each distinct name gets its
+            // own document and the user doesn't inadvertently pick the wrong custom garment.
+            val existingSnap = collection(userId).document(baseId).get()
+            val docId = if (existingSnap.exists &&
+                existingSnap.data<CustomGarmentTypeDto>().name.lowercase() != trimmed.lowercase()
+            ) {
+                "${baseId}-${now}"
+            } else {
+                baseId
+            }
             val docRef = collection(userId).document(docId)
             val resolved = firestore.runTransaction {
                 val snap = get(docRef)
