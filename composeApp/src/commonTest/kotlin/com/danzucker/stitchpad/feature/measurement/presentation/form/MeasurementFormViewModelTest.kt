@@ -97,12 +97,19 @@ class MeasurementFormViewModelTest {
             canUseCustomMeasurements = can,
         )
         private val _flow = MutableStateFlow(build(initialCanUseCustomMeasurements))
+        private var awaitedEntitlements = build(initialCanUseCustomMeasurements)
         override val flow: StateFlow<UserEntitlements> = _flow
         override fun current(): UserEntitlements = _flow.value
-        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = awaitedEntitlements
 
         fun setEntitled(can: Boolean) {
-            _flow.value = build(can)
+            val entitlements = build(can)
+            _flow.value = entitlements
+            awaitedEntitlements = entitlements
+        }
+
+        fun setAwaitedEntitled(can: Boolean) {
+            awaitedEntitlements = build(can)
         }
     }
 
@@ -519,8 +526,22 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun onLockedCustomFieldClick_emitsNavigateToUpgrade() = runTest {
+    fun onAddCustomFieldClick_awaitsHydratedEntitlementBeforeRouting() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false).also {
+            it.setAwaitedEntitled(true)
+        }
+        val vm = createViewModel()
+
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+
+        assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
+    }
+
+    @Test
+    fun onLockedCustomFieldClick_whenHydratedNotEntitled_emitsNavigateToUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnLockedCustomFieldClick)
         assertIs<MeasurementFormEvent.NavigateToUpgrade>(vm.events.first())

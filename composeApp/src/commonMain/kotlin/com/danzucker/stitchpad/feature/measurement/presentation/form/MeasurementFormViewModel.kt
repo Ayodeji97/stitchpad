@@ -113,14 +113,10 @@ class MeasurementFormViewModel(
                 _state.update { it.copy(notes = action.notes) }
             }
             MeasurementFormAction.OnAddCustomFieldClick -> {
-                if (_state.value.canUseCustomMeasurements) {
-                    _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding()) }
-                } else {
-                    viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
-                }
+                openCustomFieldSheetWhenEntitled()
             }
             MeasurementFormAction.OnLockedCustomFieldClick -> {
-                viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+                openCustomFieldSheetWhenEntitled()
             }
             is MeasurementFormAction.OnEditCustomFieldClick -> {
                 val field = _state.value.customFields.find { it.id == action.fieldId }
@@ -159,6 +155,17 @@ class MeasurementFormViewModel(
             }
             MeasurementFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+        }
+    }
+
+    private fun openCustomFieldSheetWhenEntitled() {
+        viewModelScope.launch {
+            val canUseCustomMeasurements = entitlements.awaitHydrated().canUseCustomMeasurements
+            if (canUseCustomMeasurements) {
+                _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding()) }
+            } else {
+                _events.send(MeasurementFormEvent.NavigateToUpgrade)
             }
         }
     }
