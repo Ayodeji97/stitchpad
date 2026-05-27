@@ -580,7 +580,7 @@
     <string name="error_order_unknown">Could not save order. Please try again.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
-    <string name="error_order_items_required">Add at least one item before saving.</string>
+    <string name="error_order_items_required">Add an item and choose what you&apos;re making before saving.</string>
 
     <!-- Receipt sharing -->
     <string name="share_receipt_title">Share Receipt</string>
