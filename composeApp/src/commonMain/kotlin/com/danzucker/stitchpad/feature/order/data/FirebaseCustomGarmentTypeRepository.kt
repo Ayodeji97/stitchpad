@@ -52,26 +52,26 @@ class FirebaseCustomGarmentTypeRepository(
         if (trimmed.isEmpty()) return Result.Error(DataError.Network.UNKNOWN)
         return try {
             val now = Clock.System.now().toEpochMilliseconds()
-            val existing = collection(userId).get().documents
-                .mapNotNull {
-                    runCatching { it.data<CustomGarmentTypeDto>() }.getOrNull()
+            // Deterministic doc ID from the normalised name — concurrent calls
+            // converge on the same document so no duplicate entries are created.
+            val docId = trimmed.lowercase()
+            val docRef = collection(userId).document(docId)
+            val resolved = firestore.runTransaction {
+                val snap = get(docRef)
+                if (snap.exists) {
+                    val existing = snap.data<CustomGarmentTypeDto>()
+                    update(docRef, "lastUsedAt" to now)
+                    existing.copy(lastUsedAt = now).toCustomGarmentType()
+                } else {
+                    val newDoc = CustomGarmentTypeDto(
+                        id = docId,
+                        name = trimmed,
+                        createdAt = now,
+                        lastUsedAt = now,
+                    )
+                    set(docRef, newDoc)
+                    newDoc.toCustomGarmentType()
                 }
-                .firstOrNull { it.name.equals(trimmed, ignoreCase = true) }
-
-            val resolved = if (existing != null) {
-                val updated = existing.copy(lastUsedAt = now)
-                collection(userId).document(existing.id).set(updated)
-                updated.toCustomGarmentType()
-            } else {
-                val docRef = collection(userId).document
-                val newDoc = CustomGarmentTypeDto(
-                    id = docRef.id,
-                    name = trimmed,
-                    createdAt = now,
-                    lastUsedAt = now,
-                )
-                docRef.set(newDoc)
-                newDoc.toCustomGarmentType()
             }
             Result.Success(resolved)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
