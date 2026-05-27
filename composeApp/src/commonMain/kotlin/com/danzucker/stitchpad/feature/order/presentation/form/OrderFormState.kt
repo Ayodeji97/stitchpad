@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.form
 
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Measurement
@@ -24,6 +25,10 @@ data class OrderFormState(
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Item id whose Style picker sheet is currently visible. Null = no sheet. */
     val stylePickerSheetForItemId: String? = null,
+    // Garment picker (PTSP-XX)
+    val customGarmentTypes: List<CustomGarmentType> = emptyList(),
+    val activePickerItemId: String? = null,
+    val pickerSearchQuery: String = "",
     // Step 3 - Details
     val deadline: Long? = null,
     val priority: OrderPriority = OrderPriority.NORMAL,
@@ -56,6 +61,7 @@ data class OrderItemFormState
 constructor(
     val id: String = Uuid.random().toString(),
     val garmentType: GarmentType? = null,
+    val customGarmentName: String? = null,   // set only when garmentType == OTHER
     val description: String = "",
     val price: String = "",
     val measurementId: String? = null,
