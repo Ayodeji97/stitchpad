@@ -31,7 +31,7 @@ class GarmentPickerFilterTest {
     }
 
     @Test
-    fun `query matches custom case-insensitively — addCta hidden`() {
+    fun `query matches custom case-insensitively — addCta shown because no exact match`() {
         val result = filterGarmentOptions(
             query = "IRO",
             customs = customs,
@@ -41,11 +41,12 @@ class GarmentPickerFilterTest {
 
         assertEquals(listOf(customs[0]), result.matchingCustoms)
         assertTrue(result.matchingPresets.isEmpty())
-        assertFalse(result.showAddCustomCta)
+        // "IRO" is a substring of "Iro and Buba" but not an exact match — CTA should appear.
+        assertTrue(result.showAddCustomCta)
     }
 
     @Test
-    fun `query matches preset substring case-insensitively`() {
+    fun `query matches preset substring case-insensitively — addCta shown because no exact match`() {
         val result = filterGarmentOptions(
             query = "kaf",
             customs = customs,
@@ -55,7 +56,8 @@ class GarmentPickerFilterTest {
 
         assertTrue(result.matchingCustoms.isEmpty())
         assertEquals(listOf(GarmentType.KAFTAN), result.matchingPresets)
-        assertFalse(result.showAddCustomCta)
+        // "kaf" is a substring of "kaftan" but not an exact match — CTA should appear.
+        assertTrue(result.showAddCustomCta)
     }
 
     @Test
@@ -97,6 +99,20 @@ class GarmentPickerFilterTest {
         assertTrue(result.matchingCustoms.isEmpty())
         assertEquals(listOf(GarmentType.AGBADA), result.matchingPresets)
         assertFalse(result.showAddCustomCta)
+    }
+
+    @Test
+    fun `query that is a substring of an existing custom but not exact match still shows add CTA`() {
+        val result = filterGarmentOptions(
+            query = "Iro",
+            customs = customs,
+            presets = presets,
+            resolvePresetLabel = ::resolvePreset,
+        )
+
+        // Substring match against "Iro and Buba" — but Iro itself isn't an exact match.
+        assertEquals(listOf(customs[0]), result.matchingCustoms)
+        assertTrue(result.showAddCustomCta)
     }
 
     @Test

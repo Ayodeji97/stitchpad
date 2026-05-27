@@ -29,7 +29,9 @@ data class GarmentPickerFilterResult(
  * Behavior:
  * - Empty or blank query: return all customs + all presets, no Add CTA.
  * - Non-blank query: case-insensitive substring filter against each list.
- *   Add CTA appears only if BOTH lists are empty after filtering.
+ *   Add CTA appears unless the query is an EXACT case-insensitive match of an
+ *   existing option (preset or custom). Substring matches alone don't suppress
+ *   the CTA — a user typing "Iro" can still add it even if "Iro and Buba" exists.
  */
 fun filterGarmentOptions(
     query: String,
@@ -43,6 +45,11 @@ fun filterGarmentOptions(
     }
     val matchingCustoms = customs.filter { it.name.lowercase().contains(normalized) }
     val matchingPresets = presets.filter { resolvePresetLabel(it).lowercase().contains(normalized) }
-    val showAddCustomCta = matchingCustoms.isEmpty() && matchingPresets.isEmpty()
+    // Add CTA is hidden ONLY on EXACT case-insensitive equality with an existing
+    // option (preset or custom). Substring matches alone shouldn't suppress it —
+    // a user typing "Iro" can still add it as new even if "Iro and Buba" exists.
+    val exactMatch = customs.any { it.name.equals(query.trim(), ignoreCase = true) } ||
+        presets.any { resolvePresetLabel(it).equals(query.trim(), ignoreCase = true) }
+    val showAddCustomCta = !exactMatch
     return GarmentPickerFilterResult(matchingCustoms, matchingPresets, showAddCustomCta)
 }
