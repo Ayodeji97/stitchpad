@@ -633,6 +633,22 @@ class MeasurementFormViewModelTest {
         assertNull(vm.state.value.customFieldSheet)
     }
 
+    @Test
+    fun archiveCustomField_whenNotEntitled_emitsUpgrade_andDoesNotCallRepo() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
+        customFieldRepository.seedFields(listOf(f))
+        val vm = createViewModel()
+        // Open the confirm sheet first so the action is reachable
+        vm.onAction(MeasurementFormAction.OnArchiveCustomFieldRequest("f1"))
+        // Entitlement is lost mid-edit
+        fakeEntitlements.setEntitled(false)
+        vm.onAction(MeasurementFormAction.OnArchiveCustomFieldConfirm("f1"))
+
+        assertNull(customFieldRepository.lastArchivedFieldId)
+        assertIs<MeasurementFormEvent.NavigateToUpgrade>(vm.events.first())
+    }
+
     // --- PTSP-12: loadMeasurement key preservation ---
 
     @Test

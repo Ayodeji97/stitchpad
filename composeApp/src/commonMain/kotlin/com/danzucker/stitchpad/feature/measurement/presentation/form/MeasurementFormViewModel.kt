@@ -412,6 +412,14 @@ class MeasurementFormViewModel(
     }
 
     private fun archiveCustomField(fieldId: String) {
+        // Defense in depth: VM-side entitlement re-check (welcome window could
+        // have elapsed since the form opened; the Edit sheet may still be
+        // reachable on a recorded row in edit mode even after the entitlement
+        // is lost). Mirrors the saveCustomField pattern.
+        if (!entitlements.current().canUseCustomMeasurements) {
+            viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateToUpgrade) }
+            return
+        }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = customFieldRepository.archiveField(userId, fieldId)
