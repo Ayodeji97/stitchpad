@@ -1080,7 +1080,7 @@
 
     <!-- Payment details (PTSP-16) — shown on Workshop onboarding and Edit Profile, surfaced on invoices -->
     <string name="bank_details_section_title">Payment details</string>
-    <string name="bank_details_section_subtitle">Shown on every invoice so customers can pay you direct.</string>
+    <string name="bank_details_section_subtitle">Customers can pay you direct. Shows on every invoice.</string>
     <string name="bank_details_optional">Optional</string>
     <string name="bank_details_expand">Add bank details</string>
     <string name="bank_details_collapse">Hide bank details</string>
