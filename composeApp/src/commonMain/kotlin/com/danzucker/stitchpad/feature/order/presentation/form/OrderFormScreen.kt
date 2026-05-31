@@ -335,10 +335,11 @@ fun OrderFormScreen(
                 }
             }
 
-            if (state.activePickerItemId != null) {
+            val activePickerItemId = state.activePickerItemId
+            if (activePickerItemId != null) {
                 // Use the lifted genderFilter from the active item's state so the picker
                 // shows only garments matching the gender chip the user has selected.
-                val activeItem = state.items.firstOrNull { it.id == state.activePickerItemId }
+                val activeItem = state.items.firstOrNull { it.id == activePickerItemId }
                 val activeGenderFilter = activeItem?.genderFilter ?: GarmentGender.MALE
                 GarmentPickerSheet(
                     customs = state.customGarmentTypes,
@@ -348,7 +349,7 @@ fun OrderFormScreen(
                     onPickPreset = { type ->
                         onAction(
                             OrderFormAction.OnPickGarmentType(
-                                itemId = state.activePickerItemId!!,
+                                itemId = activePickerItemId,
                                 garmentType = type,
                                 customName = null,
                             )
@@ -357,7 +358,7 @@ fun OrderFormScreen(
                     onPickCustom = { custom ->
                         onAction(
                             OrderFormAction.OnPickGarmentType(
-                                itemId = state.activePickerItemId!!,
+                                itemId = activePickerItemId,
                                 garmentType = GarmentType.OTHER,
                                 customName = custom.name,
                             )
@@ -366,7 +367,7 @@ fun OrderFormScreen(
                     onAddCustom = { typed ->
                         onAction(
                             OrderFormAction.OnAddCustomGarmentType(
-                                itemId = state.activePickerItemId!!,
+                                itemId = activePickerItemId,
                                 name = typed,
                             )
                         )

@@ -100,6 +100,7 @@ import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
+import stitchpad.composeapp.generated.resources.order_summary_one_custom_format
 import kotlin.time.Clock
 
 @Composable
@@ -526,7 +527,7 @@ private fun garmentSummary(order: Order): String {
         firstItem.garmentType == GarmentType.OTHER &&
         !firstItem.customGarmentName.isNullOrBlank()
     return if (isSingleCustom) {
-        "1 ${firstItem.customGarmentName}"
+        stringResource(Res.string.order_summary_one_custom_format, firstItem.customGarmentName ?: "")
     } else {
         stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
     }

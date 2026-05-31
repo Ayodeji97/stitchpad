@@ -312,6 +312,7 @@
     <string name="order_summary_other_corporate_trouser">%1$d corporate trousers</string>
     <string name="order_summary_one_other">%1$d other item</string>
     <string name="order_summary_other_other">%1$d other items</string>
+    <string name="order_summary_one_custom_format">1 %1$s</string>
 
     <!-- Garment gender labels -->
     <string name="garment_gender_male">Male</string>
