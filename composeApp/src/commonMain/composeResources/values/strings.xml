@@ -220,16 +220,8 @@
     <string name="customer_form_email_placeholder">e.g. amina@gmail.com</string>
     <string name="customer_form_address_label">Address (optional)</string>
     <string name="customer_form_address_placeholder">15 Adeola Odeku St, Lagos…</string>
-    <string name="customer_form_delivery_label">Delivery preference</string>
-    <string name="customer_form_notes_label">Notes (optional)</string>
-    <string name="customer_form_notes_placeholder">Prefers ankara fabric, usually picks up Saturdays…</string>
     <string name="customer_form_add_measurements_next">Add measurements next</string>
     <string name="customer_form_save_button">Save Customer</string>
-
-    <!-- Delivery preference options -->
-    <string name="delivery_pickup">Pickup</string>
-    <string name="delivery_delivery">Delivery</string>
-    <string name="delivery_either">Either</string>
 
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>

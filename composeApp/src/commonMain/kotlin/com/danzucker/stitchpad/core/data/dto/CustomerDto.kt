@@ -9,8 +9,6 @@ data class CustomerDto(
     val phone: String = "",
     val email: String? = null,
     val address: String? = null,
-    val deliveryPreference: String = "PICKUP",
-    val notes: String? = null,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
     /** "active" | "locked" — see CustomerSlotState. Missing on legacy docs → ACTIVE. */
