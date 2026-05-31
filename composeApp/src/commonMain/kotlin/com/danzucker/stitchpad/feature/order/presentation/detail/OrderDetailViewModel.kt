@@ -188,13 +188,19 @@ class OrderDetailViewModel(
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
                 shareReceipt { receiptSharer.shareReceiptAsImage(it) }
+                _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {
                 _state.update { it.copy(showShareSheet = false) }
                 shareReceipt { receiptSharer.shareReceiptAsPdf(it) }
+                _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnDismissShareSheet ->
-                _state.update { it.copy(showShareSheet = false) }
+                _state.update { it.copy(showShareSheet = false, documentTypeChoice = null) }
+            is OrderDetailAction.OnDocumentTypeChoice ->
+                _state.update { it.copy(documentTypeChoice = action.choice) }
+            OrderDetailAction.OnShareReceiptFromSnackbar ->
+                _state.update { it.copy(showShareSheet = true, documentTypeChoice = null) }
 
             // Record payment
             OrderDetailAction.OnRecordPaymentClick -> {
@@ -357,6 +363,7 @@ class OrderDetailViewModel(
     private fun shareReceipt(share: suspend (ReceiptData) -> Unit) {
         val order = _state.value.order ?: return
         val user = _state.value.user ?: return
+        val choice = _state.value.documentTypeChoice
         viewModelScope.launch {
             try {
                 val garmentNames = order.items
@@ -364,7 +371,13 @@ class OrderDetailViewModel(
                     .distinct()
                     .associate { it to garmentDisplayNameAsync(it) }
                 val logoBytes = fetchLogoBytes(user.businessLogoUrl)
-                val receiptData = ReceiptFormatter.format(order, user, garmentNames, logoBytes)
+                val receiptData = ReceiptFormatter.format(
+                    order = order,
+                    user = user,
+                    garmentNames = garmentNames,
+                    businessLogoBytes = logoBytes,
+                    forceDocumentType = choice,
+                )
                 share(receiptData)
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {

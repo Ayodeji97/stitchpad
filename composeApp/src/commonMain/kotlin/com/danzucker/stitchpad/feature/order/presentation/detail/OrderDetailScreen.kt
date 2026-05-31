@@ -35,6 +35,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -64,6 +66,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
+import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
@@ -131,6 +134,7 @@ import stitchpad.composeapp.generated.resources.order_detail_share
 import stitchpad.composeapp.generated.resources.order_detail_title
 import stitchpad.composeapp.generated.resources.order_detail_was_due_label
 import stitchpad.composeapp.generated.resources.order_detail_whatsapp_launch_failed
+import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_share_action
 import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_success
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
@@ -140,6 +144,9 @@ import stitchpad.composeapp.generated.resources.share_as_image_description
 import stitchpad.composeapp.generated.resources.share_as_image_title
 import stitchpad.composeapp.generated.resources.share_as_pdf_description
 import stitchpad.composeapp.generated.resources.share_as_pdf_title
+import stitchpad.composeapp.generated.resources.share_doc_type_deposit_receipt
+import stitchpad.composeapp.generated.resources.share_doc_type_invoice
+import stitchpad.composeapp.generated.resources.share_doc_type_picker_label
 import stitchpad.composeapp.generated.resources.share_receipt_title
 import kotlin.time.Clock
 
@@ -165,6 +172,7 @@ fun OrderDetailRoot(
     val measurementsListState = rememberLazyListState()
 
     val paymentRecordedMessage = stringResource(Res.string.order_record_payment_snackbar_success)
+    val paymentRecordedShareAction = stringResource(Res.string.order_record_payment_snackbar_share_action)
     val orderArchivedMessage = stringResource(Res.string.order_archived_snackbar)
     val notesSavedMessage = stringResource(Res.string.order_detail_notes_saved_toast)
     val whatsAppFailedMessage = stringResource(Res.string.order_detail_whatsapp_launch_failed)
@@ -182,7 +190,15 @@ fun OrderDetailRoot(
                 onNavigateBack()
             }
             OrderDetailEvent.PaymentRecorded -> {
-                snackbarScope.launch { snackbarHostState.showSnackbar(paymentRecordedMessage) }
+                snackbarScope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = paymentRecordedMessage,
+                        actionLabel = paymentRecordedShareAction,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.onAction(OrderDetailAction.OnShareReceiptFromSnackbar)
+                    }
+                }
             }
             OrderDetailEvent.NotesSaved -> {
                 snackbarScope.launch { snackbarHostState.showSnackbar(notesSavedMessage) }
@@ -475,7 +491,20 @@ fun OrderDetailScreen(
 
     // Share receipt bottom sheet
     if (state.showShareSheet) {
+        // Compute the natural doc type from the order so the sheet can show
+        // both chips when partial-paid (Invoice vs Deposit Receipt), or hide
+        // the picker entirely on no-payments / fully-paid orders.
+        val naturalDocType = state.order?.let { o ->
+            when {
+                o.payments.isEmpty() -> ReceiptDocumentType.INVOICE
+                o.balanceRemaining <= 0.0 -> ReceiptDocumentType.RECEIPT
+                else -> ReceiptDocumentType.DEPOSIT_RECEIPT
+            }
+        }
         ShareReceiptBottomSheet(
+            naturalDocType = naturalDocType,
+            chosenDocType = state.documentTypeChoice,
+            onDocTypeChoice = { onAction(OrderDetailAction.OnDocumentTypeChoice(it)) },
             onShareAsImage = { onAction(OrderDetailAction.OnShareAsImageClick) },
             onShareAsPdf = { onAction(OrderDetailAction.OnShareAsPdfClick) },
             onDismiss = { onAction(OrderDetailAction.OnDismissShareSheet) }
@@ -583,10 +612,18 @@ private fun FabricNameDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShareReceiptBottomSheet(
+    naturalDocType: ReceiptDocumentType?,
+    chosenDocType: ReceiptDocumentType?,
+    onDocTypeChoice: (ReceiptDocumentType) -> Unit,
     onShareAsImage: () -> Unit,
     onShareAsPdf: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
+    // Picker shows only when both Invoice and Deposit Receipt are meaningful —
+    // i.e. the order has at least one payment but still has balance remaining.
+    // No-payments → Invoice only; fully-paid → Receipt only.
+    val showPicker = naturalDocType == ReceiptDocumentType.DEPOSIT_RECEIPT
+    val effectiveChoice = chosenDocType ?: ReceiptDocumentType.DEPOSIT_RECEIPT
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
@@ -607,6 +644,28 @@ private fun ShareReceiptBottomSheet(
                 modifier = Modifier.padding(bottom = DesignTokens.space4)
             )
 
+            if (showPicker) {
+                Text(
+                    text = stringResource(Res.string.share_doc_type_picker_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = DesignTokens.space2),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                    DocTypeChip(
+                        label = stringResource(Res.string.share_doc_type_invoice),
+                        selected = effectiveChoice == ReceiptDocumentType.INVOICE,
+                        onClick = { onDocTypeChoice(ReceiptDocumentType.INVOICE) },
+                    )
+                    DocTypeChip(
+                        label = stringResource(Res.string.share_doc_type_deposit_receipt),
+                        selected = effectiveChoice == ReceiptDocumentType.DEPOSIT_RECEIPT,
+                        onClick = { onDocTypeChoice(ReceiptDocumentType.DEPOSIT_RECEIPT) },
+                    )
+                }
+                Spacer(Modifier.height(DesignTokens.space4))
+            }
+
             ShareOption(
                 icon = "🖼️",
                 title = stringResource(Res.string.share_as_image_title),
@@ -623,6 +682,40 @@ private fun ShareReceiptBottomSheet(
                 onClick = onShareAsPdf
             )
         }
+    }
+}
+
+@Composable
+private fun DocTypeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val container = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val content = if (selected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
+        color = container,
+        contentColor = content,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.padding(
+                horizontal = DesignTokens.space3,
+                vertical = DesignTokens.space2,
+            ),
+        )
     }
 }
 

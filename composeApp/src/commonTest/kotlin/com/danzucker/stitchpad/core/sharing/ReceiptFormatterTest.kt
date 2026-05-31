@@ -188,9 +188,19 @@ class ReceiptFormatterTest {
     }
 
     @Test
-    fun unpaidOrderUsesInvoiceLabel() {
-        val result = formatResult()
+    fun orderWithNoPaymentsUsesInvoiceLabel() {
+        val unpaid = testOrder.copy(payments = emptyList())
+        val result = ReceiptFormatter.format(unpaid, testUser, garmentNames)
         assertEquals("INVOICE", result.documentTypeLabel)
+        assertEquals(ReceiptDocumentType.INVOICE, result.documentType)
+    }
+
+    @Test
+    fun partialPaidOrderUsesDepositReceiptLabel() {
+        // testOrder has a 30k deposit on a 70k order — partial paid.
+        val result = formatResult()
+        assertEquals("DEPOSIT RECEIPT", result.documentTypeLabel)
+        assertEquals(ReceiptDocumentType.DEPOSIT_RECEIPT, result.documentType)
     }
 
     @Test
@@ -198,6 +208,7 @@ class ReceiptFormatterTest {
         val paidOrder = testOrder.copy(payments = listOf(depositPayment(amount = testOrder.totalPrice)))
         val result = ReceiptFormatter.format(paidOrder, testUser, garmentNames)
         assertEquals("RECEIPT", result.documentTypeLabel)
+        assertEquals(ReceiptDocumentType.RECEIPT, result.documentType)
     }
 
     @Test
@@ -211,5 +222,108 @@ class ReceiptFormatterTest {
         val userNoName = testUser.copy(businessName = null)
         val result = ReceiptFormatter.format(testOrder, userNoName, garmentNames)
         assertNull(result.attribution)
+    }
+
+    // --- Payment rows ---
+
+    @Test
+    fun paymentRowsAreEmptyWhenNoPayments() {
+        val unpaid = testOrder.copy(payments = emptyList())
+        val result = ReceiptFormatter.format(unpaid, testUser, garmentNames)
+        assertTrue(result.paymentRows.isEmpty())
+    }
+
+    @Test
+    fun paymentRowsSortedByRecordedAtAscending() {
+        val later = Payment(
+            id = "p2",
+            amount = 10_000.0,
+            method = PaymentMethod.TRANSFER,
+            type = PaymentType.PROGRESS,
+            recordedAt = 2_000L,
+        )
+        val earlier = Payment(
+            id = "p1",
+            amount = 30_000.0,
+            method = PaymentMethod.CASH,
+            type = PaymentType.DEPOSIT,
+            recordedAt = 1_000L,
+        )
+        val o = testOrder.copy(payments = listOf(later, earlier))
+        val result = ReceiptFormatter.format(o, testUser, garmentNames)
+        assertEquals(2, result.paymentRows.size)
+        // Earlier comes first.
+        assertEquals("Deposit", result.paymentRows[0].typeLabel)
+        assertEquals("Cash", result.paymentRows[0].methodLabel)
+        assertEquals("₦30,000", result.paymentRows[0].formattedAmount)
+        assertEquals("Progress", result.paymentRows[1].typeLabel)
+        assertEquals("Transfer", result.paymentRows[1].methodLabel)
+    }
+
+    // --- Bank block visibility ---
+
+    private val userWithBank = testUser.copy(
+        bankName = "GTBank",
+        bankAccountName = "Ade Adesola Enterprises",
+        bankAccountNumber = "0123456789",
+    )
+
+    @Test
+    fun bankBlockHiddenWhenUserHasNoBankDetails() {
+        val result = formatResult()
+        assertNull(result.bankBlock)
+    }
+
+    @Test
+    fun bankBlockShownWhenAllThreeBankFieldsSet() {
+        val result = ReceiptFormatter.format(testOrder, userWithBank, garmentNames)
+        val bank = requireNotNull(result.bankBlock)
+        assertEquals("GTBank", bank.bankName)
+        assertEquals("Ade Adesola Enterprises", bank.accountName)
+        assertEquals("0123456789", bank.accountNumber)
+    }
+
+    @Test
+    fun bankBlockHiddenOnFullyPaidReceiptEvenWhenBankSet() {
+        val paid = testOrder.copy(payments = listOf(depositPayment(amount = testOrder.totalPrice)))
+        val result = ReceiptFormatter.format(paid, userWithBank, garmentNames)
+        assertNull(result.bankBlock)
+    }
+
+    @Test
+    fun bankBlockRequiresAllThreeFields() {
+        val onlyBankName = testUser.copy(bankName = "GTBank")
+        assertNull(ReceiptFormatter.format(testOrder, onlyBankName, garmentNames).bankBlock)
+
+        val missingAccountNumber = testUser.copy(
+            bankName = "GTBank",
+            bankAccountName = "Ade",
+            bankAccountNumber = null,
+        )
+        assertNull(ReceiptFormatter.format(testOrder, missingAccountNumber, garmentNames).bankBlock)
+    }
+
+    // --- Document-type override ---
+
+    @Test
+    fun forceInvoiceOnPartialPaidOrderRelabelsAsInvoice() {
+        val result = ReceiptFormatter.format(
+            testOrder, testUser, garmentNames,
+            forceDocumentType = ReceiptDocumentType.INVOICE,
+        )
+        assertEquals(ReceiptDocumentType.INVOICE, result.documentType)
+        assertEquals("INVOICE", result.documentTypeLabel)
+    }
+
+    @Test
+    fun forceInvoiceOnFullyPaidOrderIsIgnored() {
+        val paid = testOrder.copy(payments = listOf(depositPayment(amount = testOrder.totalPrice)))
+        val result = ReceiptFormatter.format(
+            paid, testUser, garmentNames,
+            forceDocumentType = ReceiptDocumentType.INVOICE,
+        )
+        // Override must not relabel a paid document — totals say "balance ₦0".
+        assertEquals(ReceiptDocumentType.RECEIPT, result.documentType)
+        assertEquals("RECEIPT", result.documentTypeLabel)
     }
 }
