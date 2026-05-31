@@ -58,6 +58,13 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
+    fun sendsVerificationEmailOnEntry() = runTest {
+        buildViewModel()
+        runCurrent()
+        assertEquals(1, authRepository.emailVerificationSentCount)
+    }
+
+    @Test
     fun resumedWhenAlreadyVerifiedNavigatesToNext() = runTest {
         authRepository.isEmailVerifiedValue = true
         val vm = buildViewModel()
@@ -105,6 +112,7 @@ class EmailVerificationViewModelTest {
     @Test
     fun resendSendsEmailAndStartsCooldown() = runTest {
         val vm = buildViewModel()
+        authRepository.emailVerificationSentCount = 0 // ignore the on-entry send
         vm.events.test {
             vm.onAction(EmailVerificationAction.OnResendClick)
             assertIs<EmailVerificationEvent.ShowMessage>(awaitItem())
@@ -117,6 +125,7 @@ class EmailVerificationViewModelTest {
     @Test
     fun resendIgnoredWhileOnCooldown() = runTest {
         val vm = buildViewModel()
+        authRepository.emailVerificationSentCount = 0 // ignore the on-entry send
         vm.onAction(EmailVerificationAction.OnResendClick)
         runCurrent()
         // Second tap while cooldown is active must be a no-op.

@@ -41,6 +41,11 @@ class EmailVerificationViewModel(
         viewModelScope.launch {
             val email = authRepository.getCurrentUser()?.email.orEmpty()
             _state.update { it.copy(email = email) }
+            // Send a fresh link on every entry to this route (signup, login, or
+            // splash re-entry) so the on-screen "we sent a link" copy is always
+            // accurate and the user never has to rely on an expired link.
+            // Best-effort — failures are silent here; Resend is the retry path.
+            authRepository.sendEmailVerification()
         }
     }
 
