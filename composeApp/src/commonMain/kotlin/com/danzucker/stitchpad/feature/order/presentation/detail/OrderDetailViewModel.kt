@@ -707,7 +707,20 @@ class OrderDetailViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val res = orderRepository.recordPayment(userId, orderId, payment)) {
-                is Result.Success -> _events.send(OrderDetailEvent.PaymentRecorded)
+                is Result.Success -> {
+                    // Optimistically reflect the new payment in local state BEFORE emitting
+                    // PaymentRecorded. Otherwise the snackbar's "Share receipt" action can
+                    // race the observeOrder snapshot and format a receipt against a stale
+                    // order — wrong doc type (INVOICE instead of DEPOSIT_RECEIPT) or
+                    // missing the just-recorded payment row. observeOrder will overwrite
+                    // with the server-authoritative version once the snapshot lands; the
+                    // optimistic value will match by then.
+                    _state.update { current ->
+                        val existing = current.order ?: return@update current
+                        current.copy(order = existing.copy(payments = existing.payments + payment))
+                    }
+                    _events.send(OrderDetailEvent.PaymentRecorded)
+                }
                 is Result.Error ->
                     _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
             }

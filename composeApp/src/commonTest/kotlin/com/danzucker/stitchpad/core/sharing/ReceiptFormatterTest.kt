@@ -326,4 +326,63 @@ class ReceiptFormatterTest {
         assertEquals(ReceiptDocumentType.RECEIPT, result.documentType)
         assertEquals("RECEIPT", result.documentTypeLabel)
     }
+
+    @Test
+    fun forceReceiptOnPartialPaidOrderIsIgnored() {
+        // Forcing RECEIPT on a partial-paid order would mislabel the document
+        // as fully paid while balanceFormatted still reports a positive figure.
+        val result = ReceiptFormatter.format(
+            testOrder, testUser, garmentNames,
+            forceDocumentType = ReceiptDocumentType.RECEIPT,
+        )
+        assertEquals(ReceiptDocumentType.DEPOSIT_RECEIPT, result.documentType)
+        assertEquals("DEPOSIT RECEIPT", result.documentTypeLabel)
+    }
+
+    @Test
+    fun forceReceiptOnUnpaidOrderIsIgnored() {
+        val unpaid = testOrder.copy(payments = emptyList())
+        val result = ReceiptFormatter.format(
+            unpaid, testUser, garmentNames,
+            forceDocumentType = ReceiptDocumentType.RECEIPT,
+        )
+        assertEquals(ReceiptDocumentType.INVOICE, result.documentType)
+        assertEquals("INVOICE", result.documentTypeLabel)
+    }
+
+    @Test
+    fun forceDepositReceiptOnUnpaidOrderIsIgnored() {
+        // A Deposit Receipt requires at least one payment. The override can't
+        // synthesize one — silently fall back to the natural INVOICE.
+        val unpaid = testOrder.copy(payments = emptyList())
+        val result = ReceiptFormatter.format(
+            unpaid, testUser, garmentNames,
+            forceDocumentType = ReceiptDocumentType.DEPOSIT_RECEIPT,
+        )
+        assertEquals(ReceiptDocumentType.INVOICE, result.documentType)
+    }
+
+    @Test
+    fun fullyPaidFlagDerivesFromBalanceNotFromOverride() {
+        // Forcing INVOICE framing on a partial-paid order must NOT mark the
+        // receipt as fully paid — the bank block visibility and any
+        // downstream renderer logic depends on the real outstanding balance.
+        val result = ReceiptFormatter.format(
+            testOrder, testUser, garmentNames,
+            forceDocumentType = ReceiptDocumentType.INVOICE,
+        )
+        assertFalse(result.isFullyPaid)
+    }
+
+    @Test
+    fun bankBlockShownWhenInvoiceOverrideAppliedToPartialPaid() {
+        // The override re-frames the label; the bank block still needs to show
+        // because there is still balance to collect.
+        val result = ReceiptFormatter.format(
+            testOrder, userWithBank, garmentNames,
+            forceDocumentType = ReceiptDocumentType.INVOICE,
+        )
+        val bank = requireNotNull(result.bankBlock)
+        assertEquals("GTBank", bank.bankName)
+    }
 }
