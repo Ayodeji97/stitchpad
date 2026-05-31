@@ -25,6 +25,11 @@ end
 before_all do |lane, options|
   next if lane == :smoke # skip for the lane-parse smoke test below
 
+  if ENV["SKIP_PREFLIGHT"] == "true"
+    UI.important "SKIP_PREFLIGHT=true — skipping detekt + :composeApp:allTests"
+    next
+  end
+
   UI.message "Running shared preflight (detekt + :composeApp:allTests)…"
   sh "cd .. && ./gradlew detekt :composeApp:allTests --console=plain"
 end
@@ -106,7 +111,7 @@ platform :ios do
     key_path = ENV.fetch("APP_STORE_CONNECT_API_KEY_PATH")
     UI.user_error!("ASC API key not found at #{key_path}") unless File.exist?(key_path)
 
-    app_store_connect_api_key(
+    api_key = app_store_connect_api_key(
       key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
       issuer_id: ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID"),
       key_filepath: key_path,
@@ -151,33 +156,64 @@ platform :ios do
 
     # Archive + export signed IPA. Build number passed via xcargs so no files
     # are dirtied per lane run.
+    # Paths anchored to __dir__ (fastlane/) so they resolve correctly regardless
+    # of which CWD fastlane / gym runs from. Plain "../" was unreliable across
+    # fastlane versions because gym resolved it relative to project root, not fastlane/.
+    # Pass ASC API key auth flags via xcargs so xcodebuild can fetch/create
+    # the Apple Distribution certificate automatically. gym doesn't propagate
+    # the api_key set by app_store_connect_api_key to xcodebuild's exportArchive
+    # step (fastlane 2.234.0), so we plumb it through manually here.
+    key_id = ENV.fetch("APP_STORE_CONNECT_API_KEY_ID")
+    issuer_id = ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID")
+    auth_args = "-allowProvisioningUpdates " \
+                "-authenticationKeyPath #{key_path} " \
+                "-authenticationKeyID #{key_id} " \
+                "-authenticationKeyIssuerID #{issuer_id}"
+
     gym(
-      project: "../iosApp/iosApp.xcodeproj",
+      project: File.expand_path("../iosApp/iosApp.xcodeproj", __dir__),
       scheme: "iosApp",
       configuration: "Release",
-      output_directory: "../build/ios-archives",
+      output_directory: File.expand_path("../build/ios-archives", __dir__),
       output_name: "StitchPad-#{marketing}-#{current}.ipa",
-      xcargs: "CURRENT_PROJECT_VERSION=#{current}",
+      xcargs: "CURRENT_PROJECT_VERSION=#{current} #{auth_args}",
       clean: true,
       include_bitcode: false,
-      include_symbols: true
+      include_symbols: true,
+      export_method: "app-store",
+      export_options: {
+        method: "app-store",
+        signingStyle: "automatic",
+        teamID: "7DUJFVWF7W"
+      }
     )
 
-    # Upload to TestFlight external group.
-    # NOTE: `skip_waiting_for_build_processing: false` is REQUIRED here.
-    # pilot's distribute step calls "Add Build to Beta Group" on the App
-    # Store Connect API, which only accepts builds in "Processed" state.
-    # If we skipped the wait, the upload would succeed but the build would
-    # never reach the pilot-tailors-ios group — silent breakage. The 15–45
-    # min wait is the cost of having the lane fully deliver the build.
-    pilot(
-      app_identifier: bundle_identifier,
-      ipa: "../build/ios-archives/StitchPad-#{marketing}-#{current}.ipa",
-      distribute_external: true,
-      groups: ["pilot-tailors-ios"],
-      changelog: release_notes,
-      skip_waiting_for_build_processing: false
-    )
+    # Upload to TestFlight.
+    # First-run mode (FIRST_TESTFLIGHT_UPLOAD=true): upload only, no external
+    # group attach. Required because the pilot-tailors-ios group can't be
+    # created in ASC until the first build has uploaded — chicken-and-egg.
+    # Steady-state: omit the env var; lane distributes to the external group
+    # and waits for processing (the wait is required because
+    # "Add Build to Beta Group" only accepts builds in "Processed" state).
+    ipa_path = File.expand_path("../build/ios-archives/StitchPad-#{marketing}-#{current}.ipa", __dir__)
+    if ENV["FIRST_TESTFLIGHT_UPLOAD"] == "true"
+      UI.important "FIRST_TESTFLIGHT_UPLOAD=true — uploading without external group attach"
+      pilot(
+        app_identifier: bundle_identifier,
+        ipa: ipa_path,
+        changelog: release_notes,
+        skip_waiting_for_build_processing: true
+      )
+    else
+      pilot(
+        app_identifier: bundle_identifier,
+        ipa: ipa_path,
+        distribute_external: true,
+        groups: ["pilot-tailors-ios"],
+        changelog: release_notes,
+        skip_waiting_for_build_processing: false
+      )
+    end
 
     UI.success "Uploaded build #{current} of #{marketing} to TestFlight " \
                "external group pilot-tailors-ios."
