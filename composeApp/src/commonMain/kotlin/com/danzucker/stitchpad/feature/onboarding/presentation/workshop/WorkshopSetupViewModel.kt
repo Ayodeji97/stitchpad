@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
 import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
 import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
@@ -301,11 +302,11 @@ class WorkshopSetupViewModel(
     }
 
     private fun onConfirmCodeChange(value: String) {
-        val digits = value.filter { it.isDigit() }.take(CONFIRM_CODE_LENGTH)
+        val digits = value.filter { it.isDigit() }.take(WHATSAPP_CONFIRM_CODE_LENGTH)
         _state.update {
             it.copy(whatsappConfirm = it.whatsappConfirm.copy(input = digits, error = null))
         }
-        if (digits.length == CONFIRM_CODE_LENGTH) submitConfirmCode()
+        if (digits.length == WHATSAPP_CONFIRM_CODE_LENGTH) submitConfirmCode()
     }
 
     private fun submitConfirmCode() {
@@ -424,7 +425,6 @@ class WorkshopSetupViewModel(
     private companion object {
         const val MAX_WHATSAPP_DIGITS = 13
         const val MIN_BUSINESS_NAME_LEN = 2
-        const val CONFIRM_CODE_LENGTH = 4
 
         fun capWhatsAppDigits(raw: String): String = buildString {
             var digits = 0

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
@@ -17,6 +18,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -149,6 +151,37 @@ class EditProfileViewModelWhatsappTest {
         runCurrent()
 
         assertNotNull(vm.state.value.whatsappError)
+        collectJob.cancel()
+    }
+
+    @Test
+    fun `dismissConfirm_afterConfirmClick_clearsPromptAndLeavesConfirmedFalse`() = runTest {
+        val repo = FakeUserRepository()
+        val vm = buildVm(
+            repo = repo,
+            existingUser = userWith(whatsapp = "+2348031234567", confirmed = false),
+            confirmCodeGenerator = { "1234" },
+        )
+        val collectJob = backgroundScope.launch { vm.state.collect {} }
+        runCurrent()
+
+        vm.events.test {
+            vm.onAction(EditProfileAction.OnConfirmWhatsAppClick)
+            runCurrent()
+            assertIs<EditProfileEvent.LaunchWhatsAppConfirm>(awaitItem())
+        }
+
+        assertTrue(vm.state.value.whatsappConfirm.promptVisible)
+
+        vm.onAction(EditProfileAction.OnDismissConfirm)
+        runCurrent()
+
+        val confirm = vm.state.value.whatsappConfirm
+        assertFalse(confirm.promptVisible)
+        assertEquals("", confirm.input)
+        assertNull(confirm.code)
+        assertNull(confirm.error)
+        assertFalse(confirm.confirmed)
         collectJob.cancel()
     }
 }

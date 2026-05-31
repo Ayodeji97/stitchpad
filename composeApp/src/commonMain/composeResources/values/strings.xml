@@ -1082,6 +1082,7 @@
     <string name="whatsapp_confirm_input_label">Enter the 4-digit code</string>
     <string name="whatsapp_confirm_message">StitchPad confirmation code: %1$s — you can delete this message.</string>
     <string name="whatsapp_confirm_error_mismatch">That code doesn&apos;t match. Check WhatsApp and try again.</string>
+    <string name="whatsapp_confirm_cancel">Cancel</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 
     <!-- Payment details (PTSP-16) — shown on Workshop onboarding and Edit Profile, surfaced on invoices -->

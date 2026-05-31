@@ -313,4 +313,25 @@ class WorkshopSetupViewModelTest {
         assertIs<WorkshopSetupEvent.NavigateToHome>(event)
         assertEquals(false, fakeUserRepository.lastWhatsappConfirmed)
     }
+
+    @Test
+    fun dismissConfirm_afterConfirmClick_clearsPromptAndLeavesConfirmedFalse() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+            assertIs<WorkshopSetupEvent.LaunchWhatsAppConfirm>(awaitItem())
+        }
+
+        assertTrue(viewModel.state.value.whatsappConfirm.promptVisible)
+
+        viewModel.onAction(WorkshopSetupAction.OnDismissConfirm)
+
+        val confirm = viewModel.state.value.whatsappConfirm
+        assertFalse(confirm.promptVisible)
+        assertEquals("", confirm.input)
+        assertNull(confirm.code)
+        assertNull(confirm.error)
+        assertFalse(confirm.confirmed)
+    }
 }

@@ -275,6 +275,7 @@ fun EditProfileScreen(
                 numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
                 onConfirmClick = { onAction(EditProfileAction.OnConfirmWhatsAppClick) },
                 onCodeChange = { onAction(EditProfileAction.OnConfirmCodeChange(it)) },
+                onDismiss = { onAction(EditProfileAction.OnDismissConfirm) },
                 debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
             )
             Spacer(Modifier.height(DesignTokens.space3))

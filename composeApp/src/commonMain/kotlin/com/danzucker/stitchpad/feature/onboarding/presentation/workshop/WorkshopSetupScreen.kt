@@ -343,6 +343,7 @@ fun WorkshopSetupScreen(
                         numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
                         onConfirmClick = { onAction(WorkshopSetupAction.OnConfirmWhatsAppClick) },
                         onCodeChange = { onAction(WorkshopSetupAction.OnConfirmCodeChange(it)) },
+                        onDismiss = { onAction(WorkshopSetupAction.OnDismissConfirm) },
                         debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
                     )
                 }

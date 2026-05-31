@@ -25,6 +25,7 @@ import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_cancel
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_cta
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_input_label
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_instructions
@@ -43,6 +44,7 @@ fun WhatsAppConfirmRow(
     numberValid: Boolean,
     onConfirmClick: () -> Unit,
     onCodeChange: (String) -> Unit,
+    onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
     debugCode: String? = null,
 ) {
@@ -86,6 +88,9 @@ fun WhatsAppConfirmRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                     )
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(Res.string.whatsapp_confirm_cancel))
                 }
             }
             else -> TextButton(onClick = onConfirmClick) {

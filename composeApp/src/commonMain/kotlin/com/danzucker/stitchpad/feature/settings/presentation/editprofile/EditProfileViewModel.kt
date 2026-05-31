@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
+import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
 import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
 import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
@@ -48,7 +49,6 @@ private const val TAG = "EditProfileVM"
 private const val MIN_PHONE_DIGITS = 7
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_BUSINESS_NAME_LEN = 2
-private const val CONFIRM_CODE_LENGTH = 4
 
 @Suppress("TooManyFunctions")
 class EditProfileViewModel(
@@ -299,11 +299,11 @@ class EditProfileViewModel(
     }
 
     private fun onConfirmCodeChange(value: String) {
-        val digits = value.filter { it.isDigit() }.take(CONFIRM_CODE_LENGTH)
+        val digits = value.filter { it.isDigit() }.take(WHATSAPP_CONFIRM_CODE_LENGTH)
         _state.update {
             it.copy(whatsappConfirm = it.whatsappConfirm.copy(input = digits, error = null))
         }
-        if (digits.length == CONFIRM_CODE_LENGTH) submitConfirmCode()
+        if (digits.length == WHATSAPP_CONFIRM_CODE_LENGTH) submitConfirmCode()
     }
 
     private fun submitConfirmCode() {

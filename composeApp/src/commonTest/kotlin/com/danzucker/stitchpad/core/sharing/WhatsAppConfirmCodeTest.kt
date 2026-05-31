@@ -10,7 +10,7 @@ class WhatsAppConfirmCodeTest {
     fun defaultWhatsAppConfirmCode_isAlwaysFourDigits() {
         repeat(500) {
             val code = defaultWhatsAppConfirmCode()
-            assertEquals(4, code.length)
+            assertEquals(WHATSAPP_CONFIRM_CODE_LENGTH, code.length)
             assertTrue(code.all { it.isDigit() })
         }
     }
