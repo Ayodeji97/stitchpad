@@ -248,7 +248,9 @@ fun CustomerFormScreen(
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
+                    // Address is now the last text input on both create + edit
+                    // (delivery selector + notes field removed in PTSP-5).
+                    imeAction = ImeAction.Done
                 )
             )
 
