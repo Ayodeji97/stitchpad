@@ -7,12 +7,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 
 @Composable
 fun EditProfileRoot(
@@ -22,6 +26,7 @@ fun EditProfileRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -39,7 +44,10 @@ fun EditProfileRoot(
                     onNavigateBack()
                 }
             }
-            is EditProfileEvent.LaunchWhatsAppConfirm -> Unit // TODO Task 10
+            is EditProfileEvent.LaunchWhatsAppConfirm -> scope.launch {
+                val message = getString(Res.string.whatsapp_confirm_message, event.code)
+                whatsAppLauncher.launch(event.phoneE164, message)
+            }
         }
     }
 

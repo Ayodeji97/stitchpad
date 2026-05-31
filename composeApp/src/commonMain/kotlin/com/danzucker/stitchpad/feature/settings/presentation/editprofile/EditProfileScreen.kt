@@ -65,6 +65,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGr
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -266,6 +267,13 @@ fun EditProfileScreen(
                 error = state.whatsappError?.let { stringResource(it) },
                 keyboardType = KeyboardType.Phone,
                 imeAction = ImeAction.Next,
+            )
+
+            WhatsAppConfirmRow(
+                state = state.whatsappConfirm,
+                numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
+                onConfirmClick = { onAction(EditProfileAction.OnConfirmWhatsAppClick) },
+                onCodeChange = { onAction(EditProfileAction.OnConfirmCodeChange(it)) },
             )
             Spacer(Modifier.height(DesignTokens.space3))
 
