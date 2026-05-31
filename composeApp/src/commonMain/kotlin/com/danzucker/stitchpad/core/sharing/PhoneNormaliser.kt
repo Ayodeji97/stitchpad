@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.core.sharing
 
 private const val NIGERIAN_TRUNK_PREFIX = "0"
 private const val NIGERIAN_COUNTRY_CODE = "234"
-private const val EXPECTED_NIGERIAN_E164_LENGTH = 13
 private const val NIGERIAN_SUBSCRIBER_LENGTH = 10
 
 /**
@@ -58,13 +57,21 @@ fun buildWhatsAppUrl(phone: String, message: String): String {
     return "https://wa.me/$normalised?text=$encoded"
 }
 
+// Nigerian mobile NSN leading shape: first digit 7/8/9, second digit 0/1,
+// then 8 more digits. Covers operator blocks 70x/71x/80x/81x/90x/91x
+// (MTN/Glo/Airtel/9mobile/etc.) and rejects landlines, 20x, and +234 000…
+// It is deliberately broad (does not enumerate every assigned block) — the
+// "Confirm on WhatsApp" round-trip is the backstop for well-formed fakes,
+// since they will not be reachable on WhatsApp.
+private val NIGERIAN_MOBILE_E164 = Regex("^234[789][01]\\d{8}$")
+
 /**
  * Returns true iff [raw] normalises to a Nigerian mobile number in E.164 form
- * (13 digits total: country code 234 + 10-digit subscriber number).
+ * (234 + a 10-digit subscriber number whose leading pair matches `[789][01]`).
  */
 fun validateNigerianMobileE164(raw: String): Boolean {
     val normalised = normaliseNigerianPhone(raw)
-    return normalised.length == EXPECTED_NIGERIAN_E164_LENGTH && normalised.startsWith(NIGERIAN_COUNTRY_CODE)
+    return NIGERIAN_MOBILE_E164.matches(normalised)
 }
 
 // RFC 3986 unreserved is ASCII-only: A-Z a-z 0-9 - _ . ~. Anything else gets
