@@ -1,11 +1,13 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import org.jetbrains.compose.resources.StringResource
 
 data class WorkshopSetupState(
     val businessName: String = "",
     val whatsappNumber: String = "",
+    val whatsappConfirm: WhatsAppConfirmUiState = WhatsAppConfirmUiState(),
     val isLoading: Boolean = false,
     val businessNameError: StringResource? = null,
     val whatsappError: StringResource? = null,

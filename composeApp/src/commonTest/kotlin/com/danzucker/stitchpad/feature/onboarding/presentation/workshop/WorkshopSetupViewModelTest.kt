@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.User
@@ -22,7 +23,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkshopSetupViewModelTest {
@@ -39,7 +42,10 @@ class WorkshopSetupViewModelTest {
         fakeAuth = FakeAuthRepository()
         onboardingPreferences = FakeOnboardingPreferences()
         fakeAuth.shouldReturnError = null
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(
+            fakeUserRepository, fakeAuth, onboardingPreferences,
+            confirmCodeGenerator = { "1234" },
+        )
     }
 
     @AfterTest
@@ -87,7 +93,10 @@ class WorkshopSetupViewModelTest {
     fun continueWithDataWritesToRepositoryAndNavigates() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
 
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(
+            fakeUserRepository, fakeAuth, onboardingPreferences,
+            confirmCodeGenerator = { "1234" },
+        )
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -112,7 +121,10 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithOnlyBusinessNameWritesProfileWithNullWhatsApp() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(
+            fakeUserRepository, fakeAuth, onboardingPreferences,
+            confirmCodeGenerator = { "1234" },
+        )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -126,7 +138,10 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithBusinessNameAndInvalidWhatsAppSetsWhatsAppError() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(
+            fakeUserRepository, fakeAuth, onboardingPreferences,
+            confirmCodeGenerator = { "1234" },
+        )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803"))
@@ -141,7 +156,10 @@ class WorkshopSetupViewModelTest {
     fun continueWithRepositoryErrorEmitsShowError() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeUserRepository.shouldReturnError = DataError.Network.UNKNOWN
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(
+            fakeUserRepository, fakeAuth, onboardingPreferences,
+            confirmCodeGenerator = { "1234" },
+        )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
@@ -201,5 +219,57 @@ class WorkshopSetupViewModelTest {
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
         runCurrent()
         assertEquals("+2348031234567", fakeUserRepository.lastWhatsAppNumber)
+    }
+
+    @Test
+    fun confirmFlow_correctCode_marksConfirmedAndEmitsLaunch() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+            val event = awaitItem()
+            assertIs<WorkshopSetupEvent.LaunchWhatsAppConfirm>(event)
+            assertEquals("+2348031234567", event.phoneE164)
+            assertEquals("1234", event.code)
+        }
+
+        assertTrue(viewModel.state.value.whatsappConfirm.promptVisible)
+
+        viewModel.onAction(WorkshopSetupAction.OnConfirmCodeChange("1234"))
+        val confirm = viewModel.state.value.whatsappConfirm
+        assertTrue(confirm.confirmed)
+        assertFalse(confirm.promptVisible)
+        assertNull(confirm.error)
+    }
+
+    @Test
+    fun confirmFlow_wrongCode_setsErrorNotConfirmed() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+        viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+        viewModel.onAction(WorkshopSetupAction.OnConfirmCodeChange("9999"))
+
+        val confirm = viewModel.state.value.whatsappConfirm
+        assertFalse(confirm.confirmed)
+        assertNotNull(confirm.error)
+    }
+
+    @Test
+    fun editingNumber_resetsConfirmed() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+        viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+        viewModel.onAction(WorkshopSetupAction.OnConfirmCodeChange("1234"))
+        assertTrue(viewModel.state.value.whatsappConfirm.confirmed)
+
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234568"))
+        assertFalse(viewModel.state.value.whatsappConfirm.confirmed)
+    }
+
+    @Test
+    fun confirmClick_invalidNumber_setsWhatsappErrorAndNoPrompt() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("123"))
+        viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+
+        assertNotNull(viewModel.state.value.whatsappError)
+        assertFalse(viewModel.state.value.whatsappConfirm.promptVisible)
     }
 }

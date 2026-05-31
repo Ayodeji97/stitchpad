@@ -122,6 +122,8 @@ fun WorkshopSetupRoot(
             WorkshopSetupEvent.NavigateToLogin -> onNavigateToLogin()
             is WorkshopSetupEvent.ShowError -> showMessage(event.message)
             is WorkshopSetupEvent.ShowSnackbar -> showMessage(event.message)
+            // Handled in Task 9 — WhatsApp confirm bottom sheet wiring
+            is WorkshopSetupEvent.LaunchWhatsAppConfirm -> Unit
         }
     }
 

@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
+import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
 import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
 import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -32,6 +33,7 @@ import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_error_mismatch
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed
 import stitchpad.composeapp.generated.resources.workshop_logo_uploaded
 
@@ -43,6 +45,7 @@ class WorkshopSetupViewModel(
     // See BrandLogoCompressor.kt for why this is a function reference rather
     // than the class — JVM unit tests substitute an identity lambda.
     private val compressLogo: suspend (ByteArray) -> ByteArray? = ::defaultCompressLogo,
+    private val confirmCodeGenerator: () -> String = ::defaultWhatsAppConfirmCode,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkshopSetupState())
@@ -66,7 +69,16 @@ class WorkshopSetupViewModel(
             is WorkshopSetupAction.OnBusinessNameChange ->
                 _state.update { it.copy(businessName = action.name, businessNameError = null) }
             is WorkshopSetupAction.OnWhatsAppNumberChange ->
-                _state.update { it.copy(whatsappNumber = capWhatsAppDigits(action.raw), whatsappError = null) }
+                _state.update {
+                    it.copy(
+                        whatsappNumber = capWhatsAppDigits(action.raw),
+                        whatsappError = null,
+                        whatsappConfirm = it.whatsappConfirm.copy(
+                            confirmed = false, promptVisible = false,
+                            code = null, input = "", error = null,
+                        ),
+                    )
+                }
             WorkshopSetupAction.OnBusinessNameBlur ->
                 if (_state.value.businessName.isNotBlank()) validateBusinessName()
             WorkshopSetupAction.OnWhatsAppNumberBlur ->
@@ -75,6 +87,15 @@ class WorkshopSetupViewModel(
             WorkshopSetupAction.OnSkipClick -> onSkip()
             is WorkshopSetupAction.OnLogoPicked -> onLogoPicked(action.bytes)
             WorkshopSetupAction.OnLogoRetry -> onLogoRetry()
+            WorkshopSetupAction.OnConfirmWhatsAppClick -> onConfirmWhatsAppClick()
+            is WorkshopSetupAction.OnConfirmCodeChange -> onConfirmCodeChange(action.value)
+            WorkshopSetupAction.OnDismissConfirm -> _state.update {
+                it.copy(
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        promptVisible = false, input = "", error = null,
+                    )
+                )
+            }
             WorkshopSetupAction.OnTogglePaymentDetails -> _state.update {
                 it.copy(isPaymentDetailsExpanded = !it.isPaymentDetailsExpanded)
             }
@@ -249,6 +270,57 @@ class WorkshopSetupViewModel(
         }
     }
 
+    private fun onConfirmWhatsAppClick() {
+        val raw = _state.value.whatsappNumber.trim()
+        val withCountry = applyImpliedNigerianCountryCode(raw)
+        if (!validateNigerianMobileE164(withCountry)) {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
+            return
+        }
+        val code = confirmCodeGenerator()
+        val phoneE164 = "+" + normaliseNigerianPhone(withCountry)
+        _state.update {
+            it.copy(
+                whatsappConfirm = it.whatsappConfirm.copy(
+                    code = code, input = "", promptVisible = true, error = null,
+                )
+            )
+        }
+        viewModelScope.launch {
+            _events.send(WorkshopSetupEvent.LaunchWhatsAppConfirm(phoneE164, code))
+        }
+    }
+
+    private fun onConfirmCodeChange(value: String) {
+        val digits = value.filter { it.isDigit() }.take(CONFIRM_CODE_LENGTH)
+        _state.update {
+            it.copy(whatsappConfirm = it.whatsappConfirm.copy(input = digits, error = null))
+        }
+        if (digits.length == CONFIRM_CODE_LENGTH) submitConfirmCode()
+    }
+
+    private fun submitConfirmCode() {
+        val confirm = _state.value.whatsappConfirm
+        if (confirm.code != null && confirm.input == confirm.code) {
+            _state.update {
+                it.copy(
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        confirmed = true, promptVisible = false,
+                        code = null, input = "", error = null,
+                    )
+                )
+            }
+        } else {
+            _state.update {
+                it.copy(
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        error = Res.string.whatsapp_confirm_error_mismatch,
+                    )
+                )
+            }
+        }
+    }
+
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun onContinue() {
         if (!validateBusinessName() || !validateWhatsAppNumber() || !validateBankFields()) return
@@ -297,6 +369,7 @@ class WorkshopSetupViewModel(
                     bankName = bankNameSave,
                     bankAccountName = bankAccountNameSave,
                     bankAccountNumber = bankAccountNumberSave,
+                    whatsappConfirmed = s.whatsappConfirm.confirmed && whatsappE164 != null,
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))
@@ -339,6 +412,7 @@ class WorkshopSetupViewModel(
     private companion object {
         const val MAX_WHATSAPP_DIGITS = 13
         const val MIN_BUSINESS_NAME_LEN = 2
+        const val CONFIRM_CODE_LENGTH = 4
 
         fun capWhatsAppDigits(raw: String): String = buildString {
             var digits = 0
