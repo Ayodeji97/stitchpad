@@ -96,8 +96,11 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
         if (data.bankBlock != null) {
-            // header + 3 rows + divider gaps + post-section breathing room
-            estimatedHeight += 28f + 36f + 3 * 26f + 32f
+            // Mirrors the y-advances in the draw block exactly: pre-divider (16)
+            // + post-divider (24) + 3 inter-row advances of 26 + trailing (32).
+            // Android crops to content height before encoding, so a mismatch is
+            // cosmetic here; keeping it aligned with iOS for consistency.
+            estimatedHeight += 16f + 24f + 3 * 26f + 32f
         }
         estimatedHeight += 30f // gap
         estimatedHeight += 20f // divider

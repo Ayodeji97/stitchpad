@@ -77,8 +77,13 @@ actual class OrderReceiptSharer {
         estimatedHeight += 30.0 + data.items.size * lineSpacing + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
         if (data.bankBlock != null) {
-            // header + 3 rows + divider gaps + post-section breathing room
-            estimatedHeight += 28.0 + 36.0 + 3 * 26.0 + 32.0
+            // Mirrors the y-advances in the draw block exactly: pre-divider gap
+            // (16) + post-divider gap (24) + 3 inter-row advances of 26 between
+            // header / Bank / Account name / Account number + trailing space (32).
+            // The estimate must match the draw exactly — the iOS image renderer
+            // allocates the bitmap at this height with NO post-crop step, so
+            // over-estimating bleeds dark background below the last content.
+            estimatedHeight += 16.0 + 24.0 + 3 * 26.0 + 32.0
         }
         estimatedHeight += 60.0 // status
         if (data.priorityLabel != null) estimatedHeight += 30.0
