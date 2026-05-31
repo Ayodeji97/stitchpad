@@ -4,6 +4,7 @@
 # Load fastlane/.env (gitignored) into ENV. Optional — vars can also come
 # from the shell environment (e.g. when invoked from CI in Phase 2).
 require "dotenv"
+require "shellwords"
 Dotenv.load(File.join(__dir__, ".env")) if File.exist?(File.join(__dir__, ".env"))
 
 # --- Shared helpers ---
@@ -169,10 +170,13 @@ platform :ios do
     # step (fastlane 2.234.0), so we plumb it through manually here.
     key_id = ENV.fetch("APP_STORE_CONNECT_API_KEY_ID")
     issuer_id = ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID")
+    # Shell-escape key_path so an account home with spaces (e.g. "/Users/Jane Doe/...")
+    # doesn't fragment into multiple xcodebuild arguments. key_id and issuer_id are
+    # ASC-issued alphanumeric strings, but we escape them too for defense-in-depth.
     auth_args = "-allowProvisioningUpdates " \
-                "-authenticationKeyPath #{key_path} " \
-                "-authenticationKeyID #{key_id} " \
-                "-authenticationKeyIssuerID #{issuer_id}"
+                "-authenticationKeyPath #{Shellwords.escape(key_path)} " \
+                "-authenticationKeyID #{Shellwords.escape(key_id)} " \
+                "-authenticationKeyIssuerID #{Shellwords.escape(issuer_id)}"
 
     gym(
       project: File.expand_path("../iosApp/iosApp.xcodeproj", __dir__),
@@ -184,9 +188,10 @@ platform :ios do
       clean: true,
       include_bitcode: false,
       include_symbols: true,
+      # export_method drives the plist's `method`; do NOT also set `method` inside
+      # export_options or gym can emit duplicate keys and silently fall back to "".
       export_method: "app-store",
       export_options: {
-        method: "app-store",
         signingStyle: "automatic",
         teamID: "7DUJFVWF7W"
       }
