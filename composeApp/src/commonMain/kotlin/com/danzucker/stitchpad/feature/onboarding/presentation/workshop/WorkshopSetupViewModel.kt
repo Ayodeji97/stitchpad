@@ -50,6 +50,12 @@ class WorkshopSetupViewModel(
     private var logoUploadJob: Job? = null
     private var continueJob: Job? = null
 
+    // Bumped each time a logo is picked. Job.cancel() is cooperative — an
+    // already-running coroutine can land its _state.update synchronously after
+    // cancel() but before its next suspension point checks the flag. The local
+    // generation snapshot blocks stale-job writes from clobbering the newer pick.
+    private var logoUploadGeneration = 0
+
     fun onAction(action: WorkshopSetupAction) {
         when (action) {
             is WorkshopSetupAction.OnBusinessNameChange ->
@@ -78,13 +84,16 @@ class WorkshopSetupViewModel(
             is Result.Success -> Unit
         }
         logoUploadJob?.cancel()
+        val myGeneration = ++logoUploadGeneration
         // Show the raw picked preview immediately so the user sees their pick the
         // instant the picker closes. Compression runs in-coroutine on Dispatchers.Default
         // before upload, but the preview shouldn't wait on it.
         _state.update { it.copy(logo = LogoUploadState.Uploading(bytes)) }
         logoUploadJob = viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
-                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                if (myGeneration == logoUploadGeneration) {
+                    _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                }
                 return@launch
             }
             // Downscale + JPEG re-encode before upload. Null means we couldn't decode
@@ -92,19 +101,24 @@ class WorkshopSetupViewModel(
             // an UnsupportedFormat snackbar, same as a non-PNG/JPG header would.
             val compressed = compressLogo(bytes)
             if (compressed == null) {
-                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
-                _events.send(
-                    WorkshopSetupEvent.ShowSnackbar(BrandLogoError.UnsupportedFormat.toUiText())
-                )
+                if (myGeneration == logoUploadGeneration) {
+                    _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                    _events.send(
+                        WorkshopSetupEvent.ShowSnackbar(BrandLogoError.UnsupportedFormat.toUiText())
+                    )
+                }
                 return@launch
             }
-            when (val result = userRepository.uploadUserLogo(userId, compressed)) {
-                is Result.Success -> _state.update {
-                    it.copy(logo = LogoUploadState.Uploaded(result.data.first, result.data.second))
-                }
-                is Result.Error -> {
-                    _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
-                    _events.send(WorkshopSetupEvent.ShowSnackbar(BrandLogoError.Network(result.error).toUiText()))
+            val result = userRepository.uploadUserLogo(userId, compressed)
+            if (myGeneration == logoUploadGeneration) {
+                when (result) {
+                    is Result.Success -> _state.update {
+                        it.copy(logo = LogoUploadState.Uploaded(result.data.first, result.data.second))
+                    }
+                    is Result.Error -> {
+                        _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                        _events.send(WorkshopSetupEvent.ShowSnackbar(BrandLogoError.Network(result.error).toUiText()))
+                    }
                 }
             }
         }
