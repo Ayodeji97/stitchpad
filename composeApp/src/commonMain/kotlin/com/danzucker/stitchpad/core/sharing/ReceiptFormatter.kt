@@ -92,8 +92,12 @@ object ReceiptFormatter {
         garmentNames: Map<GarmentType, String>,
     ): List<ReceiptItem> = items
         .groupBy { item ->
-            if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
-                "custom:${item.customGarmentName}"
+            // Normalize to the case-insensitive contract the upsert path uses
+            // (FirebaseCustomGarmentTypeRepository / GarmentPickerFilter). Two items
+            // with the same name but differing casing must collapse into one line.
+            val customName = item.customGarmentName
+            if (item.garmentType == GarmentType.OTHER && !customName.isNullOrBlank()) {
+                "custom:${customName.trim().lowercase()}"
             } else {
                 item.garmentType.name
             }
