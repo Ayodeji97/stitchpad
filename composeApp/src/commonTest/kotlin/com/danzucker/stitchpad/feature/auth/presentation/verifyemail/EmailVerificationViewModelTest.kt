@@ -91,6 +91,18 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
+    fun manualCheckWhenReloadFailsShowsError() = runTest {
+        authRepository.shouldReturnError = AuthError.NETWORK_ERROR
+        val vm = buildViewModel()
+        vm.events.test {
+            vm.onAction(EmailVerificationAction.OnCheckVerificationClick)
+            assertIs<EmailVerificationEvent.ShowError>(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(vm.state.value.isChecking)
+    }
+
+    @Test
     fun resendSendsEmailAndStartsCooldown() = runTest {
         val vm = buildViewModel()
         vm.events.test {

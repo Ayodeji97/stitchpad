@@ -64,21 +64,37 @@ class EmailVerificationViewModel(
     private fun checkNow() {
         viewModelScope.launch {
             _state.update { it.copy(isChecking = true) }
-            val verified = checkVerified()
+            val reload = authRepository.reloadUser()
             _state.update { it.copy(isChecking = false) }
-            if (!verified) {
-                _events.send(
-                    EmailVerificationEvent.ShowMessage(
-                        UiText.StringResourceText(Res.string.email_verify_not_yet_message)
-                    )
+            when (reload) {
+                // On an explicit user-triggered check, a failed reload is a real
+                // error (offline / invalidated session) — surface it instead of
+                // misreporting "not verified yet" off the stale cached value.
+                is Result.Error -> _events.send(
+                    EmailVerificationEvent.ShowError(reload.error.toUiText())
                 )
+                is Result.Success -> if (!emitIfVerified()) {
+                    _events.send(
+                        EmailVerificationEvent.ShowMessage(
+                            UiText.StringResourceText(Res.string.email_verify_not_yet_message)
+                        )
+                    )
+                }
             }
         }
     }
 
-    /** Reloads from the server and, if verified, emits [EmailVerificationEvent.NavigateToNext]. */
+    /**
+     * Reloads from the server and, if verified, emits NavigateToNext. Reload
+     * failures are swallowed here — used by the background poll and on-resume
+     * check, where a transient error should just be retried, not surfaced.
+     */
     private suspend fun checkVerified(): Boolean {
         authRepository.reloadUser()
+        return emitIfVerified()
+    }
+
+    private suspend fun emitIfVerified(): Boolean {
         return if (authRepository.isEmailVerified()) {
             pollingJob?.cancel()
             _events.send(EmailVerificationEvent.NavigateToNext)
