@@ -20,11 +20,6 @@ object ReceiptFormatter {
     private const val FALLBACK_BUSINESS_NAME = "StitchPad"
     private const val ORDER_ID_PREFIX_LENGTH = 4
 
-    private const val PRO_LOGO_WIDTH_FRACTION = 0.50f
-    private const val PRO_LOGO_ALPHA = 0.08f
-    private const val ATELIER_LOGO_WIDTH_FRACTION = 0.60f
-    private const val ATELIER_LOGO_ALPHA = 0.10f
-
     /**
      * Build a [ReceiptData] from an order + user.
      *
@@ -76,7 +71,7 @@ object ReceiptFormatter {
         val bankBlock = if (fullyPaid) null else user.toBankBlock()
 
         val attribution = attributionFor(tier)
-        val watermark = watermarkFor(tier, businessLogoBytes)
+        val watermark = watermarkFor(tier)
 
         return ReceiptData(
             businessName = user.businessName ?: FALLBACK_BUSINESS_NAME,
@@ -115,21 +110,16 @@ object ReceiptFormatter {
         SubscriptionTier.ATELIER -> ReceiptAttribution.None
     }
 
-    // Free always shows StitchPad's wordmark watermark (free distribution).
-    // Pro/Atelier surface the tailor's own logo IF one was uploaded; otherwise
-    // we render a clean document with no background watermark (paid users
-    // should never see a StitchPad mark).
-    private fun watermarkFor(
-        tier: SubscriptionTier,
-        logoBytes: ByteArray?,
-    ): WatermarkSpec = when (tier) {
+    // Free always shows the StitchPad wordmark watermark (free distribution).
+    // Paid tiers render the document clean — no StitchPad mark and no user-logo
+    // watermark either. The earlier user-logo-as-watermark idea was rolled back
+    // after design review: a photographic logo at low alpha visually competes
+    // with the document content (see PR #96 review). The tailor's brand still
+    // appears in the header band; that's enough.
+    private fun watermarkFor(tier: SubscriptionTier): WatermarkSpec = when (tier) {
         SubscriptionTier.FREE -> WatermarkSpec.StitchPadDiagonal
-        SubscriptionTier.PRO -> logoBytes?.let {
-            WatermarkSpec.UserLogo(PRO_LOGO_WIDTH_FRACTION, PRO_LOGO_ALPHA)
-        } ?: WatermarkSpec.None
-        SubscriptionTier.ATELIER -> logoBytes?.let {
-            WatermarkSpec.UserLogo(ATELIER_LOGO_WIDTH_FRACTION, ATELIER_LOGO_ALPHA)
-        } ?: WatermarkSpec.None
+        SubscriptionTier.PRO,
+        SubscriptionTier.ATELIER -> WatermarkSpec.None
     }
 
     /**

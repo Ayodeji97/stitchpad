@@ -13,7 +13,6 @@ import com.danzucker.stitchpad.core.domain.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -438,45 +437,38 @@ class ReceiptFormatterTest {
     }
 
     @Test
-    fun proTierWithLogoUsesUserLogoWatermark() {
-        val result = ReceiptFormatter.format(
+    fun proTierUsesNoWatermarkRegardlessOfLogo() {
+        // Paid tiers ship a clean document. The user-logo-as-watermark idea was
+        // rolled back after design review — a photographic logo at low alpha
+        // visually competes with content. Paid users still get their logo in
+        // the header band; that's enough.
+        val withLogo = ReceiptFormatter.format(
             testOrder, testUser, garmentNames,
             businessLogoBytes = logoBytes,
             tier = SubscriptionTier.PRO,
         )
-        assertIs<WatermarkSpec.UserLogo>(result.watermark)
-    }
+        assertEquals(WatermarkSpec.None, withLogo.watermark)
 
-    @Test
-    fun proTierWithoutLogoUsesNoWatermark() {
-        // Paid users without a logo see a clean document — never the StitchPad mark.
-        val result = ReceiptFormatter.format(
+        val withoutLogo = ReceiptFormatter.format(
             testOrder, testUser, garmentNames,
             tier = SubscriptionTier.PRO,
         )
-        assertEquals(WatermarkSpec.None, result.watermark)
+        assertEquals(WatermarkSpec.None, withoutLogo.watermark)
     }
 
     @Test
-    fun atelierTierWithLogoUsesUserLogoWatermarkAtHigherIntensity() {
-        val result = ReceiptFormatter.format(
+    fun atelierTierUsesNoWatermarkRegardlessOfLogo() {
+        val withLogo = ReceiptFormatter.format(
             testOrder, testUser, garmentNames,
             businessLogoBytes = logoBytes,
             tier = SubscriptionTier.ATELIER,
         )
-        val wm = result.watermark
-        assertIs<WatermarkSpec.UserLogo>(wm)
-        // Atelier renders the user logo larger + higher alpha than Pro.
-        assertTrue(wm.widthFraction > 0.50f)
-        assertTrue(wm.alpha > 0.08f)
-    }
+        assertEquals(WatermarkSpec.None, withLogo.watermark)
 
-    @Test
-    fun atelierTierWithoutLogoUsesNoWatermark() {
-        val result = ReceiptFormatter.format(
+        val withoutLogo = ReceiptFormatter.format(
             testOrder, testUser, garmentNames,
             tier = SubscriptionTier.ATELIER,
         )
-        assertEquals(WatermarkSpec.None, result.watermark)
+        assertEquals(WatermarkSpec.None, withoutLogo.watermark)
     }
 }

@@ -105,7 +105,6 @@ actual class OrderReceiptSharer {
             // Tier watermark — drawn FIRST so all subsequent content layers on top.
             drawWatermark(
                 spec = data.watermark,
-                logoImage = logoImage,
                 canvasWidth = width,
                 canvasHeight = estimatedHeight,
                 inkHex = "#A8A49D",
@@ -313,7 +312,6 @@ actual class OrderReceiptSharer {
             // Tier watermark — drawn FIRST so all subsequent content layers on top.
             drawWatermark(
                 spec = data.watermark,
-                logoImage = logoImage,
                 canvasWidth = pageWidth,
                 canvasHeight = pageHeight,
                 inkHex = "#7D7970",
@@ -598,13 +596,11 @@ actual class OrderReceiptSharer {
      * Draws the tier-keyed background watermark before any content. Caller is
      * responsible for invoking this immediately after the canvas background
      * fill so the watermark sits at the lowest z-order. Mirrors the Android
-     * implementation byte-for-byte at the spec level so both platforms produce
-     * comparable receipts.
+     * implementation at the spec level so both platforms produce comparable
+     * receipts. None branch ships a clean document (paid tiers).
      */
-    @Suppress("ReturnCount")
     private fun drawWatermark(
         spec: WatermarkSpec,
-        logoImage: UIImage?,
         canvasWidth: Double,
         canvasHeight: Double,
         inkHex: String,
@@ -619,12 +615,17 @@ actual class OrderReceiptSharer {
                 platform.CoreGraphics.CGContextTranslateCTM(ctx, cx, cy)
                 platform.CoreGraphics.CGContextRotateCTM(ctx, -kotlin.math.PI / 6.0) // -30°
                 platform.CoreGraphics.CGContextTranslateCTM(ctx, -cx, -cy)
-                val font = UIFont.boldSystemFontOfSize(canvasWidth * 0.12)
+                val fontSize = canvasWidth * 0.12
+                val font = UIFont.boldSystemFontOfSize(fontSize)
                 val color = darkColor(inkHex).colorWithAlphaComponent(WATERMARK_TEXT_ALPHA_IOS)
+                // Kern matches Android's letterSpacing = 0.08f (which scales by EM).
+                // 0.08 * fontSize is the equivalent absolute per-character spacing.
+                val kern = fontSize * WATERMARK_KERN_EM
                 val text = "STITCHPAD"
                 val attrs = mapOf<Any?, Any?>(
                     NSFontAttributeName to font,
                     NSForegroundColorAttributeName to color,
+                    platform.UIKit.NSKernAttributeName to kern,
                 )
                 val nsText = NSString.create(string = text)
                 val size = nsText.sizeWithAttributes(attrs)
@@ -634,17 +635,6 @@ actual class OrderReceiptSharer {
                         withAttributes = attrs,
                     )
                 }
-                CGContextRestoreGState(ctx)
-            }
-            is WatermarkSpec.UserLogo -> {
-                if (logoImage == null) return
-                val ctx = UIGraphicsGetCurrentContext() ?: return
-                val logoSize = canvasWidth * spec.widthFraction
-                val left = (canvasWidth - logoSize) / 2.0
-                val top = (canvasHeight - logoSize) / 2.0
-                CGContextSaveGState(ctx)
-                platform.CoreGraphics.CGContextSetAlpha(ctx, spec.alpha.toDouble())
-                logoImage.drawInRect(CGRectMake(left, top, logoSize, logoSize))
                 CGContextRestoreGState(ctx)
             }
         }
@@ -711,6 +701,7 @@ actual class OrderReceiptSharer {
     private companion object {
         const val SHARE_PRESENT_DELAY_MS = 450L
         const val WATERMARK_TEXT_ALPHA_IOS = 0.07
+        const val WATERMARK_KERN_EM = 0.08
     }
 
     // endregion

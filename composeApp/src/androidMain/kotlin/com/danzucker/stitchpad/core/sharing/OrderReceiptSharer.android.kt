@@ -126,7 +126,6 @@ actual class OrderReceiptSharer(private val context: Context) {
         drawWatermark(
             canvas = canvas,
             spec = data.watermark,
-            logoBitmap = logoBitmap,
             canvasWidth = width.toFloat(),
             canvasHeight = height.toFloat(),
             inkColor = Color.parseColor("#A8A49D"),
@@ -374,7 +373,6 @@ actual class OrderReceiptSharer(private val context: Context) {
         drawWatermark(
             canvas = canvas,
             spec = data.watermark,
-            logoBitmap = logoBitmap,
             canvasWidth = pageWidth.toFloat(),
             canvasHeight = pageHeight.toFloat(),
             inkColor = Color.parseColor("#7D7970"),
@@ -597,13 +595,11 @@ actual class OrderReceiptSharer(private val context: Context) {
      *
      * StitchPadDiagonal: a single large "STITCHPAD" wordmark, rotated -30°,
      * centered. inkColor is theme-aware (light gray on dark, dark gray on light).
-     * UserLogo: the tailor's own logo, centered, sized by `widthFraction`.
-     * None: no-op.
+     * None: no-op (paid tiers ship a clean document).
      */
     private fun drawWatermark(
         canvas: Canvas,
         spec: WatermarkSpec,
-        logoBitmap: android.graphics.Bitmap?,
         canvasWidth: Float,
         canvasHeight: Float,
         inkColor: Int,
@@ -624,19 +620,6 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.rotate(-30f, canvasWidth / 2f, canvasHeight / 2f)
                 canvas.drawText("STITCHPAD", canvasWidth / 2f, canvasHeight / 2f, wmPaint)
                 canvas.restore()
-            }
-            is WatermarkSpec.UserLogo -> {
-                if (logoBitmap == null) return
-                val logoSize = canvasWidth * spec.widthFraction
-                val left = (canvasWidth - logoSize) / 2f
-                val top = (canvasHeight - logoSize) / 2f
-                val rect = RectF(left, top, left + logoSize, top + logoSize)
-                val wmPaint = Paint().apply {
-                    isAntiAlias = true
-                    isFilterBitmap = true
-                    alpha = (255 * spec.alpha).toInt().coerceIn(0, 255)
-                }
-                canvas.drawBitmap(logoBitmap, null, rect, wmPaint)
             }
         }
     }

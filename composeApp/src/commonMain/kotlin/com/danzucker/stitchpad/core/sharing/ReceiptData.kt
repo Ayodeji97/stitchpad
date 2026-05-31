@@ -51,18 +51,17 @@ enum class ReceiptDocumentType { INVOICE, DEPOSIT_RECEIPT, RECEIPT }
 
 /**
  * Background watermark spec, selected by tier:
- *  - Free → [StitchPadDiagonal]: repeating "STITCHPAD" wordmark at low alpha.
- *    Every Free invoice carries the StitchPad mark — free distribution.
- *  - Pro / Atelier with a logo set → [UserLogo]: the tailor's own logo as a
- *    centered low-alpha background. Removes the StitchPad mark and lets
- *    the tailor's brand sit subtly behind every document they share.
- *  - Pro / Atelier without a logo → [None]: clean document, no mark.
+ *  - Free → [StitchPadDiagonal]: "STITCHPAD" wordmark at low alpha. Every
+ *    Free invoice carries the StitchPad mark — free distribution.
+ *  - Pro / Atelier → [None]: clean document, no watermark. Paid tiers
+ *    never carry the StitchPad mark and never get a user-logo watermark
+ *    either (a tailor's photo logo at low alpha visually competes with
+ *    document content; see design review on PR #96).
  *
  * Renderers draw this BEFORE any content so it sits at the lowest z-order.
  */
 sealed interface WatermarkSpec {
     data object StitchPadDiagonal : WatermarkSpec
-    data class UserLogo(val widthFraction: Float, val alpha: Float) : WatermarkSpec
     data object None : WatermarkSpec
 }
 
