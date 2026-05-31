@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpViewModel
+import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerificationViewModel
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupViewModel
 import org.koin.core.module.dsl.singleOf
@@ -36,6 +37,7 @@ val authPresentationModule = module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::SignUpViewModel)
     viewModelOf(::ForgotPasswordViewModel)
+    viewModelOf(::EmailVerificationViewModel)
     // Explicit factory (not viewModelOf) because the VM takes a
     // `suspend (ByteArray) -> ByteArray?` compressor function with a default —
     // Koin's reflection-based viewModelOf would try to resolve that lambda type

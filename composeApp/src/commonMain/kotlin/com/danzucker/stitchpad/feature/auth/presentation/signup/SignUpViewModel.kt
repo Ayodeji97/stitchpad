@@ -196,7 +196,12 @@ class SignUpViewModel(
                     _state.value.displayName
                 )
                 when (result) {
-                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Success -> {
+                        // Fire the verification email; the verify screen offers a
+                        // resend if this best-effort send fails (e.g. offline).
+                        authRepository.sendEmailVerification()
+                        _events.send(SignUpEvent.NavigateToEmailVerification)
+                    }
                     is Result.Error -> _events.send(SignUpEvent.ShowError(result.error.toUiText()))
                 }
             } finally {

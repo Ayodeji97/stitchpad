@@ -156,6 +156,34 @@ class FirebaseAuthRepository(
         }
     }
 
+    override suspend fun sendEmailVerification(): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return try {
+            user.sendEmailVerification()
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "sendEmailVerification failed error=$error" }
+            Result.Error(error)
+        }
+    }
+
+    override suspend fun reloadUser(): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return try {
+            user.reload()
+            Result.Success(Unit)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "reloadUser failed error=$error" }
+            Result.Error(error)
+        }
+    }
+
+    override suspend fun isEmailVerified(): Boolean {
+        return firebaseAuth.currentUser?.isEmailVerified ?: false
+    }
+
     override suspend fun signOut(): Result<Unit, AuthError> {
         return try {
             firebaseAuth.signOut()

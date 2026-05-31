@@ -90,6 +90,17 @@
     <string name="forgot_password_success_message">We've sent a password reset link to %1$s</string>
     <string name="login_forgot_password">Forgot password?</string>
 
+    <!-- Email verification screen -->
+    <string name="email_verify_title">Verify your email</string>
+    <string name="email_verify_subtitle">We've sent a verification link to %1$s. Tap it to continue, then come back here.</string>
+    <string name="email_verify_check_button">I've verified my email</string>
+    <string name="email_verify_resend_button">Resend email</string>
+    <string name="email_verify_resend_cooldown">Resend in %1$ds</string>
+    <string name="email_verify_change_email">Use a different email</string>
+    <string name="email_verify_skip_debug">Skip verification (debug)</string>
+    <string name="email_verify_sent_message">Verification email sent</string>
+    <string name="email_verify_not_yet_message">Not verified yet. Tap the link in your inbox, then try again.</string>
+
     <!-- Home placeholder -->
     <string name="home_placeholder_title">Welcome to StitchPad!</string>
     <string name="home_sign_out">Sign Out</string>

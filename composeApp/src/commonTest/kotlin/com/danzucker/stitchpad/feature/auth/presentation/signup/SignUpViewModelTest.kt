@@ -198,12 +198,13 @@ class SignUpViewModelTest {
     // --- Async flows ---
 
     @Test
-    fun successfulSignUpEmitsNavigateToHome() = runTest {
+    fun successfulSignUpSendsVerificationAndEmitsNavigateToEmailVerification() = runTest {
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
         val event = viewModel.events.first()
-        assertIs<SignUpEvent.NavigateToHome>(event)
+        assertIs<SignUpEvent.NavigateToEmailVerification>(event)
+        assertEquals(1, authRepository.emailVerificationSentCount)
     }
 
     @Test
