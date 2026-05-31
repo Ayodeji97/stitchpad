@@ -100,7 +100,15 @@ object ReceiptFormatter {
         )
     }
 
-    private fun resolveDocumentType(order: Order): ReceiptDocumentType = when {
+    /**
+     * Single source of truth for mapping an [Order] to its natural
+     * [ReceiptDocumentType]. The share sheet reads this to decide whether to
+     * show the Invoice / Deposit Receipt chips; the formatter reads it to
+     * choose the label and downstream rendering. Any future change to the
+     * classification (e.g. PR B2/B3 adding new states) must land here so
+     * both call sites stay in lockstep.
+     */
+    fun resolveDocumentType(order: Order): ReceiptDocumentType = when {
         order.payments.isEmpty() -> ReceiptDocumentType.INVOICE
         order.balanceRemaining <= 0.0 -> ReceiptDocumentType.RECEIPT
         else -> ReceiptDocumentType.DEPOSIT_RECEIPT

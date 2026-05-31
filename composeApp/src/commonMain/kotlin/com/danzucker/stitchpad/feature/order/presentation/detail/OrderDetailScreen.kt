@@ -67,6 +67,7 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
+import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
@@ -491,16 +492,10 @@ fun OrderDetailScreen(
 
     // Share receipt bottom sheet
     if (state.showShareSheet) {
-        // Compute the natural doc type from the order so the sheet can show
-        // both chips when partial-paid (Invoice vs Deposit Receipt), or hide
-        // the picker entirely on no-payments / fully-paid orders.
-        val naturalDocType = state.order?.let { o ->
-            when {
-                o.payments.isEmpty() -> ReceiptDocumentType.INVOICE
-                o.balanceRemaining <= 0.0 -> ReceiptDocumentType.RECEIPT
-                else -> ReceiptDocumentType.DEPOSIT_RECEIPT
-            }
-        }
+        // Share sheet uses the formatter's classifier so the chip picker can't
+        // drift from what the formatter actually produces — both read from
+        // ReceiptFormatter.resolveDocumentType (single source of truth).
+        val naturalDocType = state.order?.let { ReceiptFormatter.resolveDocumentType(it) }
         ShareReceiptBottomSheet(
             naturalDocType = naturalDocType,
             chosenDocType = state.documentTypeChoice,
