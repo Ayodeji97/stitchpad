@@ -17,6 +17,9 @@ class FakeUserRepository : UserRepository {
     var lastPhone: String? = null
     var lastDisplayName: String? = null
     var lastAvatarColorIndex: Int? = null
+    var lastBankName: String? = null
+    var lastBankAccountName: String? = null
+    var lastBankAccountNumber: String? = null
     val userFlow = MutableStateFlow<User?>(null)
 
     /** Paths passed to [deleteUserLogo], in call order. */
@@ -35,11 +38,17 @@ class FakeUserRepository : UserRepository {
         userId: String,
         businessName: String?,
         whatsappNumber: String?,
+        bankName: String?,
+        bankAccountName: String?,
+        bankAccountNumber: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUserId = userId
         lastBusinessName = businessName
         lastWhatsAppNumber = whatsappNumber
+        lastBankName = bankName
+        lastBankAccountName = bankAccountName
+        lastBankAccountNumber = bankAccountNumber
         return Result.Success(Unit)
     }
 
@@ -55,7 +64,10 @@ class FakeUserRepository : UserRepository {
         displayName: String?,
         phoneNumber: String?,
         whatsappNumber: String?,
-        avatarColorIndex: Int?
+        avatarColorIndex: Int?,
+        bankName: String?,
+        bankAccountName: String?,
+        bankAccountNumber: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUserId = userId
@@ -64,6 +76,9 @@ class FakeUserRepository : UserRepository {
         lastPhone = phoneNumber
         lastWhatsAppNumber = whatsappNumber
         lastAvatarColorIndex = avatarColorIndex
+        lastBankName = bankName
+        lastBankAccountName = bankAccountName
+        lastBankAccountNumber = bankAccountNumber
         return Result.Success(Unit)
     }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -29,6 +30,9 @@ import stitchpad.composeapp.generated.resources.edit_profile_logo_removed
 import stitchpad.composeapp.generated.resources.edit_profile_logo_updated
 import stitchpad.composeapp.generated.resources.edit_profile_save_failed
 import stitchpad.composeapp.generated.resources.edit_profile_saved
+import stitchpad.composeapp.generated.resources.error_bank_account_name_required
+import stitchpad.composeapp.generated.resources.error_bank_account_number_invalid
+import stitchpad.composeapp.generated.resources.error_bank_name_required
 import stitchpad.composeapp.generated.resources.error_business_name_required
 import stitchpad.composeapp.generated.resources.error_phone_format
 import stitchpad.composeapp.generated.resources.error_unknown
@@ -109,6 +113,26 @@ class EditProfileViewModel(
             EditProfileAction.OnLogoRemoveClick -> _state.update { it.copy(showRemoveLogoDialog = true) }
             EditProfileAction.OnLogoRemoveDismiss -> _state.update { it.copy(showRemoveLogoDialog = false) }
             EditProfileAction.OnLogoRemoveConfirm -> onLogoRemoveConfirm()
+            is EditProfileAction.OnBankNameChange -> _state.update {
+                it.copy(
+                    bankName = action.value.take(it.maxBankNameLength),
+                    bankNameError = null,
+                )
+            }
+            is EditProfileAction.OnBankAccountNameChange -> _state.update {
+                it.copy(
+                    bankAccountName = action.value.take(it.maxBankAccountNameLength),
+                    bankAccountNameError = null,
+                )
+            }
+            is EditProfileAction.OnBankAccountNumberChange -> _state.update {
+                val digitsOnly = action.value.filter { c -> c.isDigit() }
+                    .take(it.bankAccountNumberLength)
+                it.copy(bankAccountNumber = digitsOnly, bankAccountNumberError = null)
+            }
+            EditProfileAction.OnBankNameBlur -> validateBankFields()
+            EditProfileAction.OnBankAccountNameBlur -> validateBankFields()
+            EditProfileAction.OnBankAccountNumberBlur -> validateBankFields()
         }
     }
 
@@ -147,6 +171,10 @@ class EditProfileViewModel(
                 LogoUploadState.Empty
             }
 
+            val bankName = firestoreUser?.bankName.orEmpty()
+            val bankAccountName = firestoreUser?.bankAccountName.orEmpty()
+            val bankAccountNumber = firestoreUser?.bankAccountNumber.orEmpty()
+
             _state.update {
                 it.copy(
                     isLoading = false,
@@ -156,11 +184,17 @@ class EditProfileViewModel(
                     phoneNumber = phone,
                     whatsappNumber = whatsapp,
                     avatarColorIndex = color,
+                    bankName = bankName,
+                    bankAccountName = bankAccountName,
+                    bankAccountNumber = bankAccountNumber,
                     originalBusinessName = business,
                     originalDisplayName = displayName,
                     originalPhoneNumber = phone,
                     originalWhatsappNumber = whatsapp,
                     originalAvatarColorIndex = color,
+                    originalBankName = bankName,
+                    originalBankAccountName = bankAccountName,
+                    originalBankAccountNumber = bankAccountNumber,
                     logo = logoState,
                     originalLogoUrl = logoUrl,
                     originalLogoStoragePath = logoPath,
@@ -208,6 +242,39 @@ class EditProfileViewModel(
         }
     }
 
+    /**
+     * Bank fields are a logical group. Either all three are blank (no bank
+     * details on the user doc) or all three must be valid. Validation surfaces
+     * an error against any partially-filled field so the form points the user
+     * at what's missing. Rules live in [BankDetailsValidator] so this VM and
+     * the workshop setup VM never drift on length / NUBAN regex.
+     */
+    private fun validateBankFields(): Boolean {
+        val s = _state.value
+        if (!s.hasAnyBankInput) {
+            _state.update {
+                it.copy(
+                    bankNameError = null,
+                    bankAccountNameError = null,
+                    bankAccountNumberError = null,
+                )
+            }
+            return true
+        }
+        val r = BankDetailsValidator.validate(s.bankName, s.bankAccountName, s.bankAccountNumber)
+        val nameErr = if (r.isBankNameValid) null else Res.string.error_bank_name_required
+        val accountNameErr = if (r.isAccountNameValid) null else Res.string.error_bank_account_name_required
+        val accountNumberErr = if (r.isAccountNumberValid) null else Res.string.error_bank_account_number_invalid
+        _state.update {
+            it.copy(
+                bankNameError = nameErr,
+                bankAccountNameError = accountNameErr,
+                bankAccountNumberError = accountNumberErr,
+            )
+        }
+        return r.isValid
+    }
+
     /** WhatsApp is optional — blank is allowed; validate only when filled. */
     private fun validateWhatsapp(): Boolean {
         val digits = _state.value.whatsappNumber.filter { it.isDigit() }
@@ -228,10 +295,13 @@ class EditProfileViewModel(
     }
 
     private fun save() {
-        val nameOk = validateBusinessName()
-        val phoneOk = validatePhone()
-        val whatsappOk = validateWhatsapp()
-        if (!nameOk || !phoneOk || !whatsappOk) return
+        val allValid = listOf(
+            validateBusinessName(),
+            validatePhone(),
+            validateWhatsapp(),
+            validateBankFields(),
+        ).all { it }
+        if (!allValid) return
 
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser()
@@ -241,6 +311,14 @@ class EditProfileViewModel(
             }
             _state.update { it.copy(isSaving = true) }
             val current = _state.value
+            // Group save: all blank → all clear; any set → all three set (validation above
+            // guarantees validity when hasAnyBankInput is true). Null on the repository call
+            // maps to FieldValue.delete so the Firestore document drops cleared keys.
+            val bankNameSave = current.bankName.trim().takeIf { current.hasAnyBankInput }
+            val bankAccountNameSave =
+                current.bankAccountName.trim().takeIf { current.hasAnyBankInput }
+            val bankAccountNumberSave =
+                current.bankAccountNumber.trim().takeIf { current.hasAnyBankInput }
             val result = userRepository.updateProfile(
                 userId = authUser.id,
                 businessName = current.businessName.trim(),
@@ -248,6 +326,9 @@ class EditProfileViewModel(
                 phoneNumber = current.phoneNumber.trim().ifBlank { null },
                 whatsappNumber = current.whatsappNumber.trim().ifBlank { null },
                 avatarColorIndex = current.avatarColorIndex,
+                bankName = bankNameSave,
+                bankAccountName = bankAccountNameSave,
+                bankAccountNumber = bankAccountNumberSave,
             )
             when (result) {
                 is Result.Success -> {

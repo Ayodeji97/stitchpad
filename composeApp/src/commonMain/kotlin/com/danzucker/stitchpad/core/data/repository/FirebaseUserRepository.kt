@@ -33,6 +33,9 @@ class FirebaseUserRepository(
         userId: String,
         businessName: String?,
         whatsappNumber: String?,
+        bankName: String?,
+        bankAccountName: String?,
+        bankAccountNumber: String?,
     ): EmptyResult<DataError.Network> {
         return try {
             val document = firestore.collection(USERS).document(userId)
@@ -47,6 +50,9 @@ class FirebaseUserRepository(
             }
             businessName?.let { data["businessName"] = it }
             whatsappNumber?.let { data["whatsapp"] = it }
+            bankName?.let { data["bankName"] = it }
+            bankAccountName?.let { data["bankAccountName"] = it }
+            bankAccountNumber?.let { data["bankAccountNumber"] = it }
             document.set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
@@ -72,7 +78,10 @@ class FirebaseUserRepository(
         displayName: String?,
         phoneNumber: String?,
         whatsappNumber: String?,
-        avatarColorIndex: Int?
+        avatarColorIndex: Int?,
+        bankName: String?,
+        bankAccountName: String?,
+        bankAccountNumber: String?,
     ): EmptyResult<DataError.Network> {
         return try {
             val data = mutableMapOf<String, Any>(
@@ -97,6 +106,13 @@ class FirebaseUserRepository(
             // see the old value because UserMapper falls back to the legacy
             // slot when `whatsapp` is null.
             data["whatsappNumber"] = FieldValue.delete
+            // Bank fields are a logical group (all set or all cleared). Validation
+            // in EditProfileViewModel enforces this; here we just honor whatever
+            // came in and use FieldValue.delete for nulls so cleared values
+            // actually drop from the document.
+            data["bankName"] = bankName ?: FieldValue.delete
+            data["bankAccountName"] = bankAccountName ?: FieldValue.delete
+            data["bankAccountNumber"] = bankAccountNumber ?: FieldValue.delete
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {

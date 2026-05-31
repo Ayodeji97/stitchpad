@@ -14,6 +14,9 @@ fun UserDto.toUser(): User = User(
     bonusCoins = bonusCoins,
     businessLogoUrl = businessLogoUrl,
     businessLogoStoragePath = businessLogoStoragePath,
+    bankName = bankName,
+    bankAccountName = bankAccountName,
+    bankAccountNumber = bankAccountNumber,
 )
 
 fun User.toUserDto(): UserDto = UserDto(
@@ -27,4 +30,7 @@ fun User.toUserDto(): UserDto = UserDto(
     bonusCoins = bonusCoins,
     businessLogoUrl = businessLogoUrl,
     businessLogoStoragePath = businessLogoStoragePath,
+    bankName = bankName,
+    bankAccountName = bankAccountName,
+    bankAccountNumber = bankAccountNumber,
 )

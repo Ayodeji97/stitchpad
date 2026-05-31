@@ -17,4 +17,12 @@ sealed interface EditProfileAction {
     data object OnLogoRemoveClick : EditProfileAction
     data object OnLogoRemoveConfirm : EditProfileAction
     data object OnLogoRemoveDismiss : EditProfileAction
+
+    // Bank details (PTSP-16)
+    data class OnBankNameChange(val value: String) : EditProfileAction
+    data class OnBankAccountNameChange(val value: String) : EditProfileAction
+    data class OnBankAccountNumberChange(val value: String) : EditProfileAction
+    data object OnBankNameBlur : EditProfileAction
+    data object OnBankAccountNameBlur : EditProfileAction
+    data object OnBankAccountNumberBlur : EditProfileAction
 }

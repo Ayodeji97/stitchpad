@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
 import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
@@ -24,6 +25,9 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_bank_account_name_required
+import stitchpad.composeapp.generated.resources.error_bank_account_number_invalid
+import stitchpad.composeapp.generated.resources.error_bank_name_required
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
@@ -56,6 +60,7 @@ class WorkshopSetupViewModel(
     // generation snapshot blocks stale-job writes from clobbering the newer pick.
     private var logoUploadGeneration = 0
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: WorkshopSetupAction) {
         when (action) {
             is WorkshopSetupAction.OnBusinessNameChange ->
@@ -70,7 +75,62 @@ class WorkshopSetupViewModel(
             WorkshopSetupAction.OnSkipClick -> onSkip()
             is WorkshopSetupAction.OnLogoPicked -> onLogoPicked(action.bytes)
             WorkshopSetupAction.OnLogoRetry -> onLogoRetry()
+            WorkshopSetupAction.OnTogglePaymentDetails -> _state.update {
+                it.copy(isPaymentDetailsExpanded = !it.isPaymentDetailsExpanded)
+            }
+            is WorkshopSetupAction.OnBankNameChange -> _state.update {
+                it.copy(
+                    bankName = action.value.take(BankDetailsValidator.MAX_BANK_NAME_LEN),
+                    bankNameError = null,
+                )
+            }
+            is WorkshopSetupAction.OnBankAccountNameChange -> _state.update {
+                it.copy(
+                    bankAccountName = action.value.take(BankDetailsValidator.MAX_ACCOUNT_NAME_LEN),
+                    bankAccountNameError = null,
+                )
+            }
+            is WorkshopSetupAction.OnBankAccountNumberChange -> _state.update {
+                val digits = action.value
+                    .filter { c -> c.isDigit() }
+                    .take(BankDetailsValidator.ACCOUNT_NUMBER_LEN)
+                it.copy(bankAccountNumber = digits, bankAccountNumberError = null)
+            }
+            WorkshopSetupAction.OnBankNameBlur,
+            WorkshopSetupAction.OnBankAccountNameBlur,
+            WorkshopSetupAction.OnBankAccountNumberBlur -> validateBankFields()
         }
+    }
+
+    /**
+     * Bank trio validation. Either all blank (group skipped) or all three valid.
+     * Returns true when the form may proceed. Rules live in [BankDetailsValidator]
+     * so this VM and the edit-profile VM never drift on length / NUBAN regex.
+     */
+    private fun validateBankFields(): Boolean {
+        val s = _state.value
+        if (!s.hasAnyBankInput) {
+            _state.update {
+                it.copy(
+                    bankNameError = null,
+                    bankAccountNameError = null,
+                    bankAccountNumberError = null,
+                )
+            }
+            return true
+        }
+        val r = BankDetailsValidator.validate(s.bankName, s.bankAccountName, s.bankAccountNumber)
+        val nameErr = if (r.isBankNameValid) null else Res.string.error_bank_name_required
+        val accountNameErr = if (r.isAccountNameValid) null else Res.string.error_bank_account_name_required
+        val accountNumberErr = if (r.isAccountNumberValid) null else Res.string.error_bank_account_number_invalid
+        _state.update {
+            it.copy(
+                bankNameError = nameErr,
+                bankAccountNameError = accountNameErr,
+                bankAccountNumberError = accountNumberErr,
+            )
+        }
+        return r.isValid
     }
 
     private fun onLogoPicked(bytes: ByteArray) {
@@ -189,9 +249,9 @@ class WorkshopSetupViewModel(
         }
     }
 
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun onContinue() {
-        if (!validateBusinessName() || !validateWhatsAppNumber()) return
+        if (!validateBusinessName() || !validateWhatsAppNumber() || !validateBankFields()) return
         // Guard against re-entry from rapid taps. The Screen's button predicate
         // also disables visually on isLoading/isAwaitingLogo, but a slow
         // recomposition window could let multiple taps queue actions; this is
@@ -225,10 +285,18 @@ class WorkshopSetupViewModel(
                 val whatsappE164 = s.whatsappNumber.trim().takeIf { it.isNotBlank() }
                     ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
 
+                // Group save: any field set → trust validation and pass the trio.
+                // Otherwise pass nulls so the user doc doesn't gain blank bank fields.
+                val bankNameSave = s.bankName.trim().takeIf { s.hasAnyBankInput }
+                val bankAccountNameSave = s.bankAccountName.trim().takeIf { s.hasAnyBankInput }
+                val bankAccountNumberSave = s.bankAccountNumber.trim().takeIf { s.hasAnyBankInput }
                 val profileResult = userRepository.createUserProfile(
                     userId = user.id,
                     businessName = s.businessName.trim().ifBlank { null },
                     whatsappNumber = whatsappE164,
+                    bankName = bankNameSave,
+                    bankAccountName = bankAccountNameSave,
+                    bankAccountNumber = bankAccountNumberSave,
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))

@@ -1078,6 +1078,21 @@
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 
+    <!-- Payment details (PTSP-16) — shown on Workshop onboarding and Edit Profile, surfaced on invoices -->
+    <string name="bank_details_section_title">Payment details</string>
+    <string name="bank_details_section_subtitle">Customers can pay you direct. Shows on every invoice.</string>
+    <string name="bank_details_optional">Optional</string>
+    <string name="bank_details_expand">Add bank details</string>
+    <string name="bank_details_collapse">Hide bank details</string>
+    <string name="bank_details_bank_label">Bank</string>
+    <string name="bank_details_bank_placeholder">e.g. GTBank</string>
+    <string name="bank_details_account_name_label">Account name</string>
+    <string name="bank_details_account_name_placeholder">As shown on your bank statement</string>
+    <string name="bank_details_account_number_label">Account number</string>
+    <string name="bank_details_account_number_placeholder">10-digit account number</string>
+    <string name="error_bank_name_required">Add your bank to show these details on invoices</string>
+    <string name="error_bank_account_name_required">Add the account holder name</string>
+    <string name="error_bank_account_number_invalid">Account number must be exactly 10 digits</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>

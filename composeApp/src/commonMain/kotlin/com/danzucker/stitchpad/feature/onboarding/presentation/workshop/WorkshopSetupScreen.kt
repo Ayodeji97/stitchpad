@@ -17,7 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Storefront
@@ -65,6 +70,15 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.bank_details_account_name_label
+import stitchpad.composeapp.generated.resources.bank_details_account_name_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_account_number_label
+import stitchpad.composeapp.generated.resources.bank_details_account_number_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_bank_label
+import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_optional
+import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
+import stitchpad.composeapp.generated.resources.bank_details_section_title
 import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
@@ -313,6 +327,9 @@ fun WorkshopSetupScreen(
                     }
                 }
 
+                // 4d. Payment details (PTSP-16) — collapsed group between WhatsApp and Logo.
+                WorkshopPaymentDetailsSection(state = state, onAction = onAction)
+
                 // 5. Logo upload tile
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -486,6 +503,119 @@ private fun WorkshopLogoTileContent(
                 Text(
                     text = stringResource(Res.string.workshop_logo_retry),
                     style = TextStyle(fontSize = 11.5.sp, color = LocalStitchPadColors.current.brandAccent),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkshopPaymentDetailsSection(
+    state: WorkshopSetupState,
+    onAction: (WorkshopSetupAction) -> Unit,
+) {
+    val expanded = state.isPaymentDetailsExpanded
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(12.dp))
+            .background(Color(0xFF1F1D1A)),
+    ) {
+        // Header row — tap to expand/collapse
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onAction(WorkshopSetupAction.OnTogglePaymentDetails) }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(LocalStitchPadColors.current.brandAccent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AccountBalance,
+                    contentDescription = null,
+                    tint = LocalStitchPadColors.current.brandAccent,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.bank_details_section_title),
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFF5F2ED),
+                        ),
+                    )
+                    Text(
+                        text = stringResource(Res.string.bank_details_optional),
+                        style = TextStyle(fontSize = 13.sp, color = Color(0xFFA8A49D)),
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.bank_details_section_subtitle),
+                    style = TextStyle(
+                        fontSize = 11.5.sp,
+                        color = Color(0xFFA8A49D),
+                        lineHeight = 16.sp,
+                    ),
+                )
+            }
+            Icon(
+                imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = Color(0xFFA8A49D),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                AuthTextField(
+                    label = stringResource(Res.string.bank_details_bank_label),
+                    value = state.bankName,
+                    onValueChange = { onAction(WorkshopSetupAction.OnBankNameChange(it)) },
+                    leadingIcon = Icons.Outlined.AccountBalance,
+                    placeholder = stringResource(Res.string.bank_details_bank_placeholder),
+                    errorText = state.bankNameError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBankNameBlur) },
+                    imeAction = ImeAction.Next,
+                )
+                AuthTextField(
+                    label = stringResource(Res.string.bank_details_account_name_label),
+                    value = state.bankAccountName,
+                    onValueChange = { onAction(WorkshopSetupAction.OnBankAccountNameChange(it)) },
+                    leadingIcon = Icons.Outlined.Person,
+                    placeholder = stringResource(Res.string.bank_details_account_name_placeholder),
+                    errorText = state.bankAccountNameError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBankAccountNameBlur) },
+                    imeAction = ImeAction.Next,
+                )
+                AuthTextField(
+                    label = stringResource(Res.string.bank_details_account_number_label),
+                    value = state.bankAccountNumber,
+                    onValueChange = { onAction(WorkshopSetupAction.OnBankAccountNumberChange(it)) },
+                    leadingIcon = Icons.Outlined.Badge,
+                    placeholder = stringResource(Res.string.bank_details_account_number_placeholder),
+                    errorText = state.bankAccountNumberError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBankAccountNumberBlur) },
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
                 )
             }
         }

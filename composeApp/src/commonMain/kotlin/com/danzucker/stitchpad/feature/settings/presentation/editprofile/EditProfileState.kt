@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
+import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import org.jetbrains.compose.resources.StringResource
 
@@ -23,6 +24,9 @@ data class EditProfileState(
     val phoneNumber: String = "",
     val whatsappNumber: String = "",
     val avatarColorIndex: Int = 0,
+    val bankName: String = "",
+    val bankAccountName: String = "",
+    val bankAccountNumber: String = "",
 
     // Original values, used to compute isDirty
     val originalBusinessName: String = "",
@@ -30,11 +34,17 @@ data class EditProfileState(
     val originalPhoneNumber: String = "",
     val originalWhatsappNumber: String = "",
     val originalAvatarColorIndex: Int = 0,
+    val originalBankName: String = "",
+    val originalBankAccountName: String = "",
+    val originalBankAccountNumber: String = "",
 
     // Validation
     val businessNameError: StringResource? = null,
     val phoneError: StringResource? = null,
     val whatsappError: StringResource? = null,
+    val bankNameError: StringResource? = null,
+    val bankAccountNameError: StringResource? = null,
+    val bankAccountNumberError: StringResource? = null,
 
     val isSaving: Boolean = false,
 
@@ -49,15 +59,36 @@ data class EditProfileState(
             displayName != originalDisplayName ||
             phoneNumber != originalPhoneNumber ||
             whatsappNumber != originalWhatsappNumber ||
-            avatarColorIndex != originalAvatarColorIndex
+            avatarColorIndex != originalAvatarColorIndex ||
+            bankName != originalBankName ||
+            bankAccountName != originalBankAccountName ||
+            bankAccountNumber != originalBankAccountNumber
 
     val hasErrors: Boolean
-        get() = businessNameError != null || phoneError != null || whatsappError != null
+        get() = businessNameError != null ||
+            phoneError != null ||
+            whatsappError != null ||
+            bankNameError != null ||
+            bankAccountNameError != null ||
+            bankAccountNumberError != null
 
     val businessNameCount: Int get() = businessName.length
     val maxBusinessNameLength: Int get() = MAX_BUSINESS_NAME
     val maxDisplayNameLength: Int get() = MAX_DISPLAY_NAME
     val maxPhoneDigits: Int get() = MAX_PHONE_DIGITS
+    val maxBankNameLength: Int get() = BankDetailsValidator.MAX_BANK_NAME_LEN
+    val maxBankAccountNameLength: Int get() = BankDetailsValidator.MAX_ACCOUNT_NAME_LEN
+    val bankAccountNumberLength: Int get() = BankDetailsValidator.ACCOUNT_NUMBER_LEN
+
+    /**
+     * True when at least one of the three bank fields has content. The form
+     * treats the trio as a group — if any is set on save, all three must be
+     * valid; if all three are blank we clear bank details on the user doc.
+     */
+    val hasAnyBankInput: Boolean
+        get() = bankName.isNotBlank() ||
+            bankAccountName.isNotBlank() ||
+            bankAccountNumber.isNotBlank()
 
     /**
      * Save enables only with: dirty form, no validation errors, business name

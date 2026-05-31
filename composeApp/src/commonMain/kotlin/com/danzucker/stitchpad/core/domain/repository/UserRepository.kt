@@ -11,17 +11,24 @@ interface UserRepository {
         userId: String,
         businessName: String?,
         whatsappNumber: String?,
+        bankName: String? = null,
+        bankAccountName: String? = null,
+        bankAccountNumber: String? = null,
     ): EmptyResult<DataError.Network>
 
     suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network>
 
+    @Suppress("LongParameterList")
     suspend fun updateProfile(
         userId: String,
         businessName: String?,
         displayName: String?,
         phoneNumber: String?,
         whatsappNumber: String?,
-        avatarColorIndex: Int?
+        avatarColorIndex: Int?,
+        bankName: String? = null,
+        bankAccountName: String? = null,
+        bankAccountNumber: String? = null,
     ): EmptyResult<DataError.Network>
 
     fun observeUser(userId: String): Flow<User?>
