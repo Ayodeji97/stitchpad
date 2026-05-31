@@ -1076,6 +1076,12 @@
     <string name="workshop_whatsapp_optional">Optional</string>
     <string name="workshop_whatsapp_placeholder">801 234 5678</string>
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
+    <string name="whatsapp_confirm_cta">Confirm on WhatsApp</string>
+    <string name="whatsapp_confirmed_badge">WhatsApp confirmed</string>
+    <string name="whatsapp_confirm_instructions">Open WhatsApp, read the 4-digit code in the message we drafted, then enter it below. You don&apos;t need to send the message.</string>
+    <string name="whatsapp_confirm_input_label">Enter the 4-digit code</string>
+    <string name="whatsapp_confirm_message">StitchPad confirmation code: %1$s — you can delete this message.</string>
+    <string name="whatsapp_confirm_error_mismatch">That code doesn&apos;t match. Check WhatsApp and try again.</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 
     <!-- Payment details (PTSP-16) — shown on Workshop onboarding and Edit Profile, surfaced on invoices -->
