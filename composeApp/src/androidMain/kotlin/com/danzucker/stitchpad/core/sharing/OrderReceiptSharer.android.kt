@@ -96,8 +96,8 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
         if (data.bankBlock != null) {
-            // header + 3 rows + divider gaps
-            estimatedHeight += 28f + 36f + 3 * 26f + 16f
+            // header + 3 rows + divider gaps + post-section breathing room
+            estimatedHeight += 28f + 36f + 3 * 26f + 32f
         }
         estimatedHeight += 30f // gap
         estimatedHeight += 20f // divider
@@ -244,7 +244,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             y += 26f
             canvas.drawText("Account number", padding, y, bodyPaint)
             canvas.drawText(bank.accountNumber, valueX, y, bodyBoldPaint)
-            y += 18f
+            y += 32f
         }
 
         // Status & Deadline divider
@@ -492,7 +492,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             y += 20f
             canvas.drawText("Account number", padding, y, bodyPaintPdf)
             canvas.drawText(bankPdf.accountNumber, valueX, y, bodyBoldPdf)
-            y += 12f
+            y += 24f
         }
 
         // Status divider

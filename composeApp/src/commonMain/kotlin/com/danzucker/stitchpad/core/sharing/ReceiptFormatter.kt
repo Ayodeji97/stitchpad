@@ -71,10 +71,10 @@ object ReceiptFormatter {
         val attribution = if (user.businessName != null) ATTRIBUTION else null
 
         return ReceiptData(
-            businessName = "✂️ ${user.businessName ?: FALLBACK_BUSINESS_NAME}",
+            businessName = user.businessName ?: FALLBACK_BUSINESS_NAME,
             // Prefer WhatsApp (V1 primary contact). Fall back to the legacy `phone`
             // slot for users onboarded before the WhatsApp field existed.
-            businessPhone = (user.whatsappNumber ?: user.phoneNumber)?.let { "📞 $it" },
+            businessPhone = user.whatsappNumber ?: user.phoneNumber,
             documentType = docType,
             documentTypeLabel = docType.label(),
             customerName = order.customerName,

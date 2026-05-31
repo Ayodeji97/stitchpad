@@ -73,22 +73,22 @@ class ReceiptFormatterTest {
     private fun formatResult() = ReceiptFormatter.format(testOrder, testUser, garmentNames)
 
     @Test
-    fun formatsBusinessNameWithScissorsEmoji() {
+    fun formatsBusinessName() {
         val result = formatResult()
-        assertEquals("\u2702\uFE0F Ade's Tailoring", result.businessName)
+        assertEquals("Ade's Tailoring", result.businessName)
     }
 
     @Test
-    fun formatsPhoneWithEmoji() {
+    fun formatsPhone() {
         val result = formatResult()
-        assertEquals("\uD83D\uDCDE 08012345678", result.businessPhone)
+        assertEquals("08012345678", result.businessPhone)
     }
 
     @Test
     fun nullBusinessNameFallsBackToStitchPad() {
         val userNoName = testUser.copy(businessName = null)
         val result = ReceiptFormatter.format(testOrder, userNoName, garmentNames)
-        assertEquals("\u2702\uFE0F StitchPad", result.businessName)
+        assertEquals("StitchPad", result.businessName)
     }
 
     @Test

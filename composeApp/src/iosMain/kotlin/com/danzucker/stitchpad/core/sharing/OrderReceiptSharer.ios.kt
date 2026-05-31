@@ -77,8 +77,8 @@ actual class OrderReceiptSharer {
         estimatedHeight += 30.0 + data.items.size * lineSpacing + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
         if (data.bankBlock != null) {
-            // header + 3 rows + divider gaps
-            estimatedHeight += 28.0 + 36.0 + 3 * 26.0 + 16.0
+            // header + 3 rows + divider gaps + post-section breathing room
+            estimatedHeight += 28.0 + 36.0 + 3 * 26.0 + 32.0
         }
         estimatedHeight += 60.0 // status
         if (data.priorityLabel != null) estimatedHeight += 30.0
@@ -214,7 +214,7 @@ actual class OrderReceiptSharer {
                 y += 26.0
                 drawText("Account number", padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawText(bank.accountNumber, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
-                y += 18.0
+                y += 32.0
             }
 
             drawDivider(padding, y, width - padding, darkColor("#3A3731"))
@@ -421,7 +421,7 @@ actual class OrderReceiptSharer {
                 y += 20.0
                 drawText("Account number", padding, y, regularFont(11.0), darkColor("#7D7970"))
                 drawText(bankPdf.accountNumber, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
-                y += 12.0
+                y += 24.0
             }
 
             drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
