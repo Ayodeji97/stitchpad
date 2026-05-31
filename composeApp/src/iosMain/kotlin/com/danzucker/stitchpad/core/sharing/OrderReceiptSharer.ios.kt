@@ -88,7 +88,7 @@ actual class OrderReceiptSharer {
         estimatedHeight += 60.0 // status
         if (data.priorityLabel != null) estimatedHeight += 30.0
         estimatedHeight += 50.0 // footer
-        if (data.attribution != null) estimatedHeight += 22.0
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 22.0
 
         val size = CGSizeMake(width, estimatedHeight)
         val format = UIGraphicsImageRendererFormat().apply { opaque = true }
@@ -101,6 +101,15 @@ actual class OrderReceiptSharer {
             // Background
             darkColor("#121110").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, estimatedHeight))
+
+            // Tier watermark — drawn FIRST so all subsequent content layers on top.
+            drawWatermark(
+                spec = data.watermark,
+                logoImage = logoImage,
+                canvasWidth = width,
+                canvasHeight = estimatedHeight,
+                inkHex = "#A8A49D",
+            )
 
             // Header band — indigo brand (was saffron pre-rebrand)
             darkColor("#2C3E7C").setFill()
@@ -271,10 +280,11 @@ actual class OrderReceiptSharer {
                 font = regularFont(11.0),
                 color = darkColor("#3A3731")
             )
-            if (data.attribution != null) {
+            val attributionText = attributionText(data.attribution)
+            if (attributionText != null) {
                 y += 16.0
                 drawCentered(
-                    data.attribution,
+                    attributionText,
                     y = y,
                     width = width,
                     font = regularFont(10.0),
@@ -299,6 +309,15 @@ actual class OrderReceiptSharer {
             val ctx = context ?: return@PDFDataWithActions
             ctx.beginPage()
             val logoImage = data.businessLogoBytes?.toUIImage()
+
+            // Tier watermark — drawn FIRST so all subsequent content layers on top.
+            drawWatermark(
+                spec = data.watermark,
+                logoImage = logoImage,
+                canvasWidth = pageWidth,
+                canvasHeight = pageHeight,
+                inkHex = "#7D7970",
+            )
 
             var y = padding
 
@@ -478,10 +497,11 @@ actual class OrderReceiptSharer {
                 font = regularFont(9.0),
                 color = darkColor("#A8A49D")
             )
-            if (data.attribution != null) {
+            val attributionTextPdf = attributionText(data.attribution)
+            if (attributionTextPdf != null) {
                 y += 14.0
                 drawCentered(
-                    data.attribution,
+                    attributionTextPdf,
                     y = y,
                     width = pageWidth,
                     font = regularFont(8.0),
@@ -574,6 +594,69 @@ actual class OrderReceiptSharer {
         return UIColor.colorWithRed(r, green = g, blue = b, alpha = 1.0)
     }
 
+    /**
+     * Draws the tier-keyed background watermark before any content. Caller is
+     * responsible for invoking this immediately after the canvas background
+     * fill so the watermark sits at the lowest z-order. Mirrors the Android
+     * implementation byte-for-byte at the spec level so both platforms produce
+     * comparable receipts.
+     */
+    @Suppress("ReturnCount")
+    private fun drawWatermark(
+        spec: WatermarkSpec,
+        logoImage: UIImage?,
+        canvasWidth: Double,
+        canvasHeight: Double,
+        inkHex: String,
+    ) {
+        when (spec) {
+            WatermarkSpec.None -> Unit
+            WatermarkSpec.StitchPadDiagonal -> {
+                val ctx = UIGraphicsGetCurrentContext() ?: return
+                val cx = canvasWidth / 2.0
+                val cy = canvasHeight / 2.0
+                CGContextSaveGState(ctx)
+                platform.CoreGraphics.CGContextTranslateCTM(ctx, cx, cy)
+                platform.CoreGraphics.CGContextRotateCTM(ctx, -kotlin.math.PI / 6.0) // -30°
+                platform.CoreGraphics.CGContextTranslateCTM(ctx, -cx, -cy)
+                val font = UIFont.boldSystemFontOfSize(canvasWidth * 0.12)
+                val color = darkColor(inkHex).colorWithAlphaComponent(WATERMARK_TEXT_ALPHA_IOS)
+                val text = "STITCHPAD"
+                val attrs = mapOf<Any?, Any?>(
+                    NSFontAttributeName to font,
+                    NSForegroundColorAttributeName to color,
+                )
+                val nsText = NSString.create(string = text)
+                val size = nsText.sizeWithAttributes(attrs)
+                size.useContents {
+                    nsText.drawAtPoint(
+                        CGPointMake(cx - this.width / 2.0, cy - this.height / 2.0),
+                        withAttributes = attrs,
+                    )
+                }
+                CGContextRestoreGState(ctx)
+            }
+            is WatermarkSpec.UserLogo -> {
+                if (logoImage == null) return
+                val ctx = UIGraphicsGetCurrentContext() ?: return
+                val logoSize = canvasWidth * spec.widthFraction
+                val left = (canvasWidth - logoSize) / 2.0
+                val top = (canvasHeight - logoSize) / 2.0
+                CGContextSaveGState(ctx)
+                platform.CoreGraphics.CGContextSetAlpha(ctx, spec.alpha.toDouble())
+                logoImage.drawInRect(CGRectMake(left, top, logoSize, logoSize))
+                CGContextRestoreGState(ctx)
+            }
+        }
+    }
+
+    /** Tier-keyed footer attribution text. Returns null for Atelier white-label. */
+    private fun attributionText(attribution: ReceiptAttribution): String? = when (attribution) {
+        ReceiptAttribution.Full -> "Generated by StitchPad · stitchpad.app"
+        ReceiptAttribution.Compact -> "Generated by StitchPad"
+        ReceiptAttribution.None -> null
+    }
+
     private fun regularFont(size: Double) = UIFont.systemFontOfSize(size)
     private fun boldFont(size: Double) = UIFont.boldSystemFontOfSize(size)
     private fun labelFont(size: Double = 10.0) = UIFont.boldSystemFontOfSize(size)
@@ -627,6 +710,7 @@ actual class OrderReceiptSharer {
 
     private companion object {
         const val SHARE_PRESENT_DELAY_MS = 450L
+        const val WATERMARK_TEXT_ALPHA_IOS = 0.07
     }
 
     // endregion

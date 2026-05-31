@@ -7,6 +7,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
@@ -61,6 +62,7 @@ class OrderDetailViewModel(
     private val receiptSharer: OrderReceiptSharer,
     private val imageLoader: ImageLoader,
     private val platformContext: PlatformContext,
+    private val entitlementsProvider: EntitlementsProvider,
 ) : ViewModel() {
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
@@ -371,9 +373,16 @@ class OrderDetailViewModel(
                     .distinct()
                     .associate { it to garmentDisplayNameAsync(it) }
                 val logoBytes = fetchLogoBytes(user.businessLogoUrl)
+                // awaitHydrated() instead of current() so a Pro/Atelier user opening
+                // the app and immediately sharing doesn't see their receipt branded
+                // with the StitchPad watermark while the entitlements flow is still
+                // racing the Firestore snapshot. Paid users should never carry the
+                // StitchPad mark, even for one share.
+                val tier = entitlementsProvider.awaitHydrated().tier
                 val receiptData = ReceiptFormatter.format(
                     order = order,
                     user = user,
+                    tier = tier,
                     garmentNames = garmentNames,
                     businessLogoBytes = logoBytes,
                     forceDocumentType = choice,

@@ -15,6 +15,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
+private const val WATERMARK_TEXT_ALPHA = 18 // ~7% on a 0–255 scale
+
 actual class OrderReceiptSharer(private val context: Context) {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
@@ -107,7 +109,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 50f // status + deadline row
         if (data.priorityLabel != null) estimatedHeight += 30f
         estimatedHeight += 50f // footer
-        if (data.attribution != null) estimatedHeight += 24f
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 24f
         estimatedHeight += padding * 2
 
         val height = estimatedHeight.toInt().coerceAtLeast(500)
@@ -118,6 +120,17 @@ actual class OrderReceiptSharer(private val context: Context) {
         val logoBitmap: android.graphics.Bitmap? = data.businessLogoBytes?.let { bytes ->
             android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         }
+
+        // Tier watermark — drawn FIRST so all subsequent content layers on top.
+        // Dark theme: use a light gray that reads at low alpha on dark bg.
+        drawWatermark(
+            canvas = canvas,
+            spec = data.watermark,
+            logoBitmap = logoBitmap,
+            canvasWidth = width.toFloat(),
+            canvasHeight = height.toFloat(),
+            inkColor = Color.parseColor("#A8A49D"),
+        )
 
         var y = 0f
 
@@ -291,9 +304,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, width - padding, y, linePaint)
         y += 20f
         canvas.drawText("Order #${data.orderIdShort}", width / 2f, y, footerPaint)
-        if (data.attribution != null) {
+        val attributionText = attributionText(data.attribution)
+        if (attributionText != null) {
             y += 18f
-            canvas.drawText(data.attribution, width / 2f, y, footerPaint)
+            canvas.drawText(attributionText, width / 2f, y, footerPaint)
         }
 
         // Crop to actual content height
@@ -355,6 +369,16 @@ actual class OrderReceiptSharer(private val context: Context) {
         val logoBitmap: android.graphics.Bitmap? = data.businessLogoBytes?.let { bytes ->
             android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         }
+
+        // Tier watermark — drawn FIRST so all subsequent content layers on top.
+        drawWatermark(
+            canvas = canvas,
+            spec = data.watermark,
+            logoBitmap = logoBitmap,
+            canvasWidth = pageWidth.toFloat(),
+            canvasHeight = pageHeight.toFloat(),
+            inkColor = Color.parseColor("#7D7970"),
+        )
 
         var y = padding
 
@@ -537,9 +561,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
         y += 16f
         canvas.drawText("Order #${data.orderIdShort}", pageWidth / 2f, y, footerPdf)
-        if (data.attribution != null) {
+        val attributionTextPdf = attributionText(data.attribution)
+        if (attributionTextPdf != null) {
             y += 14f
-            canvas.drawText(data.attribution, pageWidth / 2f, y, footerPdf)
+            canvas.drawText(attributionTextPdf, pageWidth / 2f, y, footerPdf)
         }
 
         doc.finishPage(page)
@@ -563,6 +588,65 @@ actual class OrderReceiptSharer(private val context: Context) {
         textSize = size
         isAntiAlias = true
         if (bold) typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    /**
+     * Draws the tier-keyed background watermark before any content. Caller is
+     * responsible for invoking this immediately after the canvas background
+     * fill so the watermark sits at the lowest z-order.
+     *
+     * StitchPadDiagonal: a single large "STITCHPAD" wordmark, rotated -30°,
+     * centered. inkColor is theme-aware (light gray on dark, dark gray on light).
+     * UserLogo: the tailor's own logo, centered, sized by `widthFraction`.
+     * None: no-op.
+     */
+    private fun drawWatermark(
+        canvas: Canvas,
+        spec: WatermarkSpec,
+        logoBitmap: android.graphics.Bitmap?,
+        canvasWidth: Float,
+        canvasHeight: Float,
+        inkColor: Int,
+    ) {
+        when (spec) {
+            WatermarkSpec.None -> Unit
+            WatermarkSpec.StitchPadDiagonal -> {
+                val wmPaint = Paint().apply {
+                    color = inkColor
+                    textSize = canvasWidth * 0.12f
+                    isAntiAlias = true
+                    alpha = WATERMARK_TEXT_ALPHA
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    textAlign = Paint.Align.CENTER
+                    letterSpacing = 0.08f
+                }
+                canvas.save()
+                canvas.rotate(-30f, canvasWidth / 2f, canvasHeight / 2f)
+                canvas.drawText("STITCHPAD", canvasWidth / 2f, canvasHeight / 2f, wmPaint)
+                canvas.restore()
+            }
+            is WatermarkSpec.UserLogo -> {
+                if (logoBitmap == null) return
+                val logoSize = canvasWidth * spec.widthFraction
+                val left = (canvasWidth - logoSize) / 2f
+                val top = (canvasHeight - logoSize) / 2f
+                val rect = RectF(left, top, left + logoSize, top + logoSize)
+                val wmPaint = Paint().apply {
+                    isAntiAlias = true
+                    isFilterBitmap = true
+                    alpha = (255 * spec.alpha).toInt().coerceIn(0, 255)
+                }
+                canvas.drawBitmap(logoBitmap, null, rect, wmPaint)
+            }
+        }
+    }
+
+    /** Resolves the tier-keyed footer attribution text. Returns null for the
+     *  Atelier white-label case (no footer line). */
+    private fun attributionText(attribution: ReceiptAttribution): String? = when (attribution) {
+        ReceiptAttribution.Full -> "Generated by StitchPad · stitchpad.app"
+        ReceiptAttribution.Compact -> "Generated by StitchPad"
+        ReceiptAttribution.None -> null
     }
 
     private fun saveBitmapToCache(bitmap: Bitmap, prefix: String): File {
