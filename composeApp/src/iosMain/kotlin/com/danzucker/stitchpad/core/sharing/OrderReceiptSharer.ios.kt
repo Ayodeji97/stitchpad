@@ -76,6 +76,15 @@ actual class OrderReceiptSharer {
         estimatedHeight += 60.0 + 20.0 // customer row
         estimatedHeight += 30.0 + data.items.size * lineSpacing + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
+        if (data.bankBlock != null) {
+            // Mirrors the y-advances in the draw block exactly: pre-divider gap
+            // (16) + post-divider gap (24) + 3 inter-row advances of 26 between
+            // header / Bank / Account name / Account number + trailing space (32).
+            // The estimate must match the draw exactly — the iOS image renderer
+            // allocates the bitmap at this height with NO post-crop step, so
+            // over-estimating bleeds dark background below the last content.
+            estimatedHeight += 16.0 + 24.0 + 3 * 26.0 + 32.0
+        }
         estimatedHeight += 60.0 // status
         if (data.priorityLabel != null) estimatedHeight += 30.0
         estimatedHeight += 50.0 // footer
@@ -190,6 +199,28 @@ actual class OrderReceiptSharer {
                 drawTextRight("${data.balanceFormatted} DUE", width - padding, y, boldFont(14.0), darkColor("#E8A800"))
             }
             y += 26.0
+
+            // PAY VIA TRANSFER — bank block. Formatter nulls bankBlock on
+            // fully-paid Receipts (no balance to collect) and on users without
+            // bank details, so this never renders without a real call to action.
+            val bank = data.bankBlock
+            if (bank != null) {
+                y += 16.0
+                drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+                y += 24.0
+                drawText("PAY VIA TRANSFER", padding, y, labelFont(), darkColor("#7D7970"))
+                y += 26.0
+                val valueX = padding + 140.0
+                drawText("Bank", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(bank.bankName, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                y += 26.0
+                drawText("Account name", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(bank.accountName, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                y += 26.0
+                drawText("Account number", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(bank.accountNumber, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                y += 32.0
+            }
 
             drawDivider(padding, y, width - padding, darkColor("#3A3731"))
             y += 18.0
@@ -377,6 +408,26 @@ actual class OrderReceiptSharer {
                 )
             }
             y += 20.0
+
+            // PAY VIA TRANSFER — light PDF variant
+            val bankPdf = data.bankBlock
+            if (bankPdf != null) {
+                y += 12.0
+                drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
+                y += 18.0
+                drawText("PAY VIA TRANSFER", padding, y, labelFont(8.0), darkColor("#7D7970"))
+                y += 20.0
+                val valueX = padding + 104.0
+                drawText("Bank", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(bankPdf.bankName, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
+                y += 20.0
+                drawText("Account name", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(bankPdf.accountName, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
+                y += 20.0
+                drawText("Account number", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(bankPdf.accountNumber, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
+                y += 24.0
+            }
 
             drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
             y += 14.0

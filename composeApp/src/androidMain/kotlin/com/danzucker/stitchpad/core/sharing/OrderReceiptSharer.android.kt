@@ -95,6 +95,13 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
+        if (data.bankBlock != null) {
+            // Mirrors the y-advances in the draw block exactly: pre-divider (16)
+            // + post-divider (24) + 3 inter-row advances of 26 + trailing (32).
+            // Android crops to content height before encoding, so a mismatch is
+            // cosmetic here; keeping it aligned with iOS for consistency.
+            estimatedHeight += 16f + 24f + 3 * 26f + 32f
+        }
         estimatedHeight += 30f // gap
         estimatedHeight += 20f // divider
         estimatedHeight += 50f // status + deadline row
@@ -220,6 +227,28 @@ actual class OrderReceiptSharer(private val context: Context) {
             canvas.drawText(dueText, rx + 7f, y, balancePaint)
         }
         y += 28f
+
+        // PAY VIA TRANSFER — bank block. Formatter nulls bankBlock on fully-paid
+        // Receipts (nothing to collect) and on users without bank details, so this
+        // never renders without a real call to action.
+        val bank = data.bankBlock
+        if (bank != null) {
+            y += 16f
+            canvas.drawLine(padding, y, width - padding, y, linePaint)
+            y += 24f
+            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaint)
+            y += 26f
+            val valueX = padding + 140f
+            canvas.drawText("Bank", padding, y, bodyPaint)
+            canvas.drawText(bank.bankName, valueX, y, bodyBoldPaint)
+            y += 26f
+            canvas.drawText("Account name", padding, y, bodyPaint)
+            canvas.drawText(bank.accountName, valueX, y, bodyBoldPaint)
+            y += 26f
+            canvas.drawText("Account number", padding, y, bodyPaint)
+            canvas.drawText(bank.accountNumber, valueX, y, bodyBoldPaint)
+            y += 32f
+        }
 
         // Status & Deadline divider
         canvas.drawLine(padding, y, width - padding, y, linePaint)
@@ -448,6 +477,26 @@ actual class OrderReceiptSharer(private val context: Context) {
             canvas.drawText(dueText, rx + 6f, y, balancePdf)
         }
         y += 22f
+
+        // PAY VIA TRANSFER — light PDF variant
+        val bankPdf = data.bankBlock
+        if (bankPdf != null) {
+            y += 12f
+            canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
+            y += 18f
+            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaintPdf)
+            y += 20f
+            val valueX = padding + 104f
+            canvas.drawText("Bank", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.bankName, valueX, y, bodyBoldPdf)
+            y += 20f
+            canvas.drawText("Account name", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.accountName, valueX, y, bodyBoldPdf)
+            y += 20f
+            canvas.drawText("Account number", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.accountNumber, valueX, y, bodyBoldPdf)
+            y += 24f
+        }
 
         // Status divider
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
