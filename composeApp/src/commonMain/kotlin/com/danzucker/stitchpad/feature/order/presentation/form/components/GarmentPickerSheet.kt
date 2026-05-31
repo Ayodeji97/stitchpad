@@ -1,5 +1,11 @@
 package com.danzucker.stitchpad.feature.order.presentation.form.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,10 +23,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
@@ -31,10 +49,12 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.garment_picker_add_custom_format
 import stitchpad.composeapp.generated.resources.garment_picker_add_custom_subtext
+import stitchpad.composeapp.generated.resources.garment_picker_add_new_cta
+import stitchpad.composeapp.generated.resources.garment_picker_add_new_hint
 import stitchpad.composeapp.generated.resources.garment_picker_no_matches_format
 import stitchpad.composeapp.generated.resources.garment_picker_search_placeholder
+import stitchpad.composeapp.generated.resources.garment_picker_section_common_types
 import stitchpad.composeapp.generated.resources.garment_picker_section_my_types
-import stitchpad.composeapp.generated.resources.garment_picker_section_presets
 import stitchpad.composeapp.generated.resources.garment_picker_subtitle
 import stitchpad.composeapp.generated.resources.garment_picker_title
 
@@ -52,6 +72,7 @@ fun GarmentPickerSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         GarmentPickerSheetContent(
@@ -76,6 +97,18 @@ private fun GarmentPickerSheetContent(
     onPickCustom: (CustomGarmentType) -> Unit,
     onAddCustom: (String) -> Unit,
 ) {
+    val searchFocusRequester = remember { FocusRequester() }
+    // Local TextFieldValue keeps the cursor position stable across recompositions when
+    // the VM-owned searchQuery state updates on every keystroke. Bind text only to the VM.
+    var searchFieldValue by remember {
+        mutableStateOf(TextFieldValue(searchQuery, TextRange(searchQuery.length)))
+    }
+    LaunchedEffect(searchQuery) {
+        if (searchFieldValue.text != searchQuery) {
+            searchFieldValue = TextFieldValue(searchQuery, TextRange(searchQuery.length))
+        }
+    }
+
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
         Text(
             text = stringResource(Res.string.garment_picker_title),
@@ -89,13 +122,24 @@ private fun GarmentPickerSheetContent(
         )
 
         OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchChange,
+            value = searchFieldValue,
+            onValueChange = { newValue ->
+                searchFieldValue = newValue
+                if (newValue.text != searchQuery) {
+                    onSearchChange(newValue.text)
+                }
+            },
             placeholder = { Text(stringResource(Res.string.garment_picker_search_placeholder)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                cursorColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(searchFocusRequester)
+                .padding(bottom = 12.dp),
         )
 
         // Dedupe needs every preset (including ones hidden by the gender chip),
@@ -112,18 +156,25 @@ private fun GarmentPickerSheetContent(
             resolvePresetLabel = { presetLabels[it] ?: it.name },
         )
 
+        AnimatedVisibility(
+            visible = filterResult.showAddCustomCta,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            AddTypedTextCta(
+                typedText = searchQuery.trim(),
+                onClick = { onAddCustom(searchQuery.trim()) },
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+        }
+
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .padding(bottom = 12.dp),
         ) {
-            if (filterResult.showAddCustomCta) {
-                item {
-                    AddCustomRow(
-                        typedText = searchQuery.trim(),
-                        onClick = { onAddCustom(searchQuery.trim()) },
-                    )
-                }
-            }
             if (filterResult.matchingCustoms.isNotEmpty()) {
                 item {
                     SectionHeader(
@@ -140,7 +191,7 @@ private fun GarmentPickerSheetContent(
             }
             item {
                 SectionHeader(
-                    title = stringResource(Res.string.garment_picker_section_presets),
+                    title = stringResource(Res.string.garment_picker_section_common_types),
                     count = filterResult.matchingPresets.size,
                 )
             }
@@ -163,6 +214,45 @@ private fun GarmentPickerSheetContent(
                         onClick = { onPickPreset(preset) },
                     )
                 }
+            }
+        }
+
+        AddNewGarmentFooter(onClick = { searchFocusRequester.requestFocus() })
+    }
+}
+
+@Composable
+private fun AddNewGarmentFooter(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.10f),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 12.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.garment_picker_add_new_cta),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(Res.string.garment_picker_add_new_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -208,30 +298,39 @@ private fun PickerRow(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AddCustomRow(typedText: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun AddTypedTextCta(
+    typedText: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 12.dp),
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(Res.string.garment_picker_add_custom_format, typedText),
-                style = MaterialTheme.typography.bodyLarge,
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(end = 12.dp),
             )
-            Text(
-                text = stringResource(Res.string.garment_picker_add_custom_subtext),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.garment_picker_add_custom_format, typedText),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = stringResource(Res.string.garment_picker_add_custom_subtext),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                )
+            }
         }
     }
 }

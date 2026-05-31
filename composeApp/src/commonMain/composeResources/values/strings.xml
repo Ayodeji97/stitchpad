@@ -507,15 +507,17 @@
 
     <!-- Garment picker sheet -->
     <string name="garment_picker_title">What are you making?</string>
-    <string name="garment_picker_subtitle">Pick from the list — or type to add your own.</string>
+    <string name="garment_picker_subtitle">Pick from the list, or add a new one.</string>
     <string name="garment_picker_search_placeholder">Search or add new…</string>
     <string name="garment_picker_section_my_types">My garment types</string>
-    <string name="garment_picker_section_presets">Preset types</string>
+    <string name="garment_picker_section_common_types">Common types</string>
     <string name="garment_picker_add_custom_format">Add &quot;%1$s&quot; as a new garment type</string>
     <string name="garment_picker_add_custom_subtext">Saved for next time</string>
-    <string name="garment_picker_no_matches_format">No preset matches &quot;%1$s&quot; — that&apos;s OK, add it as your own.</string>
+    <string name="garment_picker_no_matches_format">No common type matches &quot;%1$s&quot; — that&apos;s OK, add it as your own.</string>
     <string name="garment_picker_custom_pill">Custom</string>
     <string name="garment_picker_saved_snackbar_format">Saved &quot;%1$s&quot; to your garment types.</string>
+    <string name="garment_picker_add_new_cta">Add a new garment type</string>
+    <string name="garment_picker_add_new_hint">Save to your list for next time</string>
 
     <string name="order_form_price_label">Price (₦)</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
