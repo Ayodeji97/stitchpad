@@ -25,4 +25,9 @@ sealed interface EditProfileAction {
     data object OnBankNameBlur : EditProfileAction
     data object OnBankAccountNameBlur : EditProfileAction
     data object OnBankAccountNumberBlur : EditProfileAction
+
+    // WhatsApp confirm
+    data object OnConfirmWhatsAppClick : EditProfileAction
+    data class OnConfirmCodeChange(val value: String) : EditProfileAction
+    data object OnDismissConfirm : EditProfileAction
 }

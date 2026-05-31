@@ -121,4 +121,31 @@ class PhoneNormaliserTest {
     fun `validateNigerianMobileE164 rejects empty`() {
         assertFalse(validateNigerianMobileE164(""))
     }
+
+    @Test
+    fun validateNigerianMobileE164_acceptsRealMobilePrefixes() {
+        listOf(
+            "08031234567",   // MTN 80
+            "0703 123 4567", // MTN 70
+            "08101234567",   // MTN 81
+            "09031234567",   // 90
+            "09161234567",   // 91
+            "07051234567",   // Glo 70
+            "+2348141234567",
+            "2348171234567",
+        ).forEach { assertTrue(validateNigerianMobileE164(it)) }
+    }
+
+    @Test
+    fun validateNigerianMobileE164_rejectsNonMobileAndGarbage() {
+        listOf(
+            "23400000000000",  // leading 0 after 234 -> not [789]
+            "+234 200 000 0000", // 20x is not a mobile lead
+            "08231234567",     // second digit 2 -> not [01]
+            "0123456789",      // landline-ish, no 234 mobile shape
+            "0803123",         // too short
+            "080312345678",    // too long (11 subscriber digits)
+            "",
+        ).forEach { assertFalse(validateNigerianMobileE164(it)) }
+    }
 }

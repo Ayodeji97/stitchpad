@@ -31,4 +31,10 @@ data class User(
     val bankName: String? = null,
     val bankAccountName: String? = null,
     val bankAccountNumber: String? = null,
+    /**
+     * True once the tailor passed the "Confirm on WhatsApp" round-trip for the
+     * current [whatsappNumber]. Proves WhatsApp *reachability*, not ownership.
+     * Resets to false whenever the number is edited.
+     */
+    val whatsappConfirmed: Boolean = false,
 )

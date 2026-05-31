@@ -14,6 +14,7 @@ interface UserRepository {
         bankName: String? = null,
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
+        whatsappConfirmed: Boolean = false,
     ): EmptyResult<DataError.Network>
 
     suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network>
@@ -29,6 +30,7 @@ interface UserRepository {
         bankName: String? = null,
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
+        whatsappConfirmed: Boolean = false,
     ): EmptyResult<DataError.Network>
 
     fun observeUser(userId: String): Flow<User?>

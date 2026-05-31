@@ -8,6 +8,12 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
+import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
+import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
+import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
+import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
+import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
@@ -37,12 +43,14 @@ import stitchpad.composeapp.generated.resources.error_business_name_required
 import stitchpad.composeapp.generated.resources.error_phone_format
 import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_whatsapp_format
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_error_mismatch
 
 private const val TAG = "EditProfileVM"
 private const val MIN_PHONE_DIGITS = 7
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_BUSINESS_NAME_LEN = 2
 
+@Suppress("TooManyFunctions")
 class EditProfileViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -51,6 +59,7 @@ class EditProfileViewModel(
     // See BrandLogoCompressor.kt for why this is a function reference rather
     // than the class — JVM unit tests substitute an identity lambda.
     private val compressLogo: suspend (ByteArray) -> ByteArray? = ::defaultCompressLogo,
+    private val confirmCodeGenerator: () -> String = ::defaultWhatsAppConfirmCode,
 ) : ViewModel() {
 
     private var hasLoaded = false
@@ -79,7 +88,7 @@ class EditProfileViewModel(
             initialValue = EditProfileState(),
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: EditProfileAction) {
         when (action) {
             is EditProfileAction.OnBusinessNameChange -> _state.update {
@@ -99,7 +108,17 @@ class EditProfileViewModel(
             is EditProfileAction.OnWhatsappChange -> _state.update {
                 val filtered = action.value.filter { c -> c.isDigit() || c in "+- ()" }
                     .take(MAX_PHONE_DIGITS + 5)
-                it.copy(whatsappNumber = filtered, whatsappError = null)
+                it.copy(
+                    whatsappNumber = filtered,
+                    whatsappError = null,
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        confirmed = false,
+                        promptVisible = false,
+                        code = null,
+                        input = "",
+                        error = null,
+                    ),
+                )
             }
             is EditProfileAction.OnAvatarColorSelect -> _state.update {
                 it.copy(avatarColorIndex = action.index.coerceIn(0, 5))
@@ -133,6 +152,18 @@ class EditProfileViewModel(
             EditProfileAction.OnBankNameBlur -> validateBankFields()
             EditProfileAction.OnBankAccountNameBlur -> validateBankFields()
             EditProfileAction.OnBankAccountNumberBlur -> validateBankFields()
+            EditProfileAction.OnConfirmWhatsAppClick -> onConfirmWhatsAppClick()
+            is EditProfileAction.OnConfirmCodeChange -> onConfirmCodeChange(action.value)
+            EditProfileAction.OnDismissConfirm -> _state.update {
+                it.copy(
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        promptVisible = false,
+                        input = "",
+                        error = null,
+                        code = null,
+                    )
+                )
+            }
         }
     }
 
@@ -156,6 +187,7 @@ class EditProfileViewModel(
             // a future onboarding update will write directly to `whatsapp`.
             val phone = firestoreUser?.phoneNumber.orEmpty()
             val whatsapp = firestoreUser?.whatsappNumber.orEmpty()
+            val whatsappConfirmed = firestoreUser?.whatsappConfirmed ?: false
             val color = firestoreUser?.avatarColorIndex ?: authUser.avatarColorIndex
             // Prefer the Firestore value once the user has saved a display
             // name through this screen; fall back to Firebase Auth's
@@ -198,6 +230,8 @@ class EditProfileViewModel(
                     logo = logoState,
                     originalLogoUrl = logoUrl,
                     originalLogoStoragePath = logoPath,
+                    whatsappConfirm = WhatsAppConfirmUiState(confirmed = whatsappConfirmed),
+                    originalWhatsappConfirmed = whatsappConfirmed,
                 )
             }
         }
@@ -242,6 +276,61 @@ class EditProfileViewModel(
         }
     }
 
+    private fun onConfirmWhatsAppClick() {
+        val raw = _state.value.whatsappNumber.trim()
+        val withCountry = applyImpliedNigerianCountryCode(raw)
+        if (!validateNigerianMobileE164(withCountry)) {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
+            return
+        }
+        val code = confirmCodeGenerator()
+        val phoneE164 = "+" + normaliseNigerianPhone(withCountry)
+        _state.update {
+            it.copy(
+                whatsappConfirm = it.whatsappConfirm.copy(
+                    code = code,
+                    input = "",
+                    promptVisible = true,
+                    error = null,
+                )
+            )
+        }
+        emit(EditProfileEvent.LaunchWhatsAppConfirm(phoneE164, code))
+    }
+
+    private fun onConfirmCodeChange(value: String) {
+        val digits = value.filter { it.isDigit() }.take(WHATSAPP_CONFIRM_CODE_LENGTH)
+        _state.update {
+            it.copy(whatsappConfirm = it.whatsappConfirm.copy(input = digits, error = null))
+        }
+        if (digits.length == WHATSAPP_CONFIRM_CODE_LENGTH) submitConfirmCode()
+    }
+
+    private fun submitConfirmCode() {
+        val confirm = _state.value.whatsappConfirm
+        if (confirm.code != null && confirm.input == confirm.code) {
+            _state.update {
+                it.copy(
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        confirmed = true,
+                        promptVisible = false,
+                        code = null,
+                        input = "",
+                        error = null,
+                    )
+                )
+            }
+        } else {
+            _state.update {
+                it.copy(
+                    whatsappConfirm = it.whatsappConfirm.copy(
+                        error = Res.string.whatsapp_confirm_error_mismatch,
+                    )
+                )
+            }
+        }
+    }
+
     /**
      * Bank fields are a logical group. Either all three are blank (no bank
      * details on the user doc) or all three must be valid. Validation surfaces
@@ -277,20 +366,18 @@ class EditProfileViewModel(
 
     /** WhatsApp is optional — blank is allowed; validate only when filled. */
     private fun validateWhatsapp(): Boolean {
-        val digits = _state.value.whatsappNumber.filter { it.isDigit() }
-        return when {
-            digits.isEmpty() -> {
-                _state.update { it.copy(whatsappError = null) }
-                true
-            }
-            digits.length !in MIN_PHONE_DIGITS..MAX_PHONE_DIGITS -> {
-                _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
-                false
-            }
-            else -> {
-                _state.update { it.copy(whatsappError = null) }
-                true
-            }
+        val raw = _state.value.whatsappNumber.trim()
+        if (raw.isBlank()) {
+            _state.update { it.copy(whatsappError = null) }
+            return true
+        }
+        val withCountry = applyImpliedNigerianCountryCode(raw)
+        return if (validateNigerianMobileE164(withCountry)) {
+            _state.update { it.copy(whatsappError = null) }
+            true
+        } else {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
+            false
         }
     }
 
@@ -319,16 +406,23 @@ class EditProfileViewModel(
                 current.bankAccountName.trim().takeIf { current.hasAnyBankInput }
             val bankAccountNumberSave =
                 current.bankAccountNumber.trim().takeIf { current.hasAnyBankInput }
+            // Persist the normalised E.164 form (mirrors WorkshopSetupViewModel.onContinue)
+            // so downstream wa.me links resolve correctly even when the user typed a bare
+            // subscriber number like "8031234567". The confirmation flag only rides along
+            // with a real number — a blank/cleared field can never persist confirmed=true.
+            val whatsappE164 = current.whatsappNumber.trim().takeIf { it.isNotBlank() }
+                ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
             val result = userRepository.updateProfile(
                 userId = authUser.id,
                 businessName = current.businessName.trim(),
                 displayName = current.displayName.trim().ifBlank { null },
                 phoneNumber = current.phoneNumber.trim().ifBlank { null },
-                whatsappNumber = current.whatsappNumber.trim().ifBlank { null },
+                whatsappNumber = whatsappE164,
                 avatarColorIndex = current.avatarColorIndex,
                 bankName = bankNameSave,
                 bankAccountName = bankAccountNameSave,
                 bankAccountNumber = bankAccountNumberSave,
+                whatsappConfirmed = current.whatsappConfirm.confirmed && whatsappE164 != null,
             )
             when (result) {
                 is Result.Success -> {

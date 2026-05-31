@@ -17,6 +17,7 @@ fun UserDto.toUser(): User = User(
     bankName = bankName,
     bankAccountName = bankAccountName,
     bankAccountNumber = bankAccountNumber,
+    whatsappConfirmed = whatsappConfirmed,
 )
 
 fun User.toUserDto(): UserDto = UserDto(
@@ -33,4 +34,5 @@ fun User.toUserDto(): UserDto = UserDto(
     bankName = bankName,
     bankAccountName = bankAccountName,
     bankAccountNumber = bankAccountNumber,
+    whatsappConfirmed = whatsappConfirmed,
 )

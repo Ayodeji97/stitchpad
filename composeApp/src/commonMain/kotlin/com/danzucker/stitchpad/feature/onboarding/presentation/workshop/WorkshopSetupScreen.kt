@@ -53,12 +53,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -67,7 +70,9 @@ import com.danzucker.stitchpad.util.clearFocusOnTap
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.bank_details_account_name_label
@@ -79,6 +84,7 @@ import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
 import stitchpad.composeapp.generated.resources.bank_details_optional
 import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
 import stitchpad.composeapp.generated.resources.bank_details_section_title
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
@@ -107,6 +113,7 @@ fun WorkshopSetupRoot(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
     val showMessage: (UiText) -> Unit = { text ->
         scope.launch {
             val message = when (text) {
@@ -122,6 +129,10 @@ fun WorkshopSetupRoot(
             WorkshopSetupEvent.NavigateToLogin -> onNavigateToLogin()
             is WorkshopSetupEvent.ShowError -> showMessage(event.message)
             is WorkshopSetupEvent.ShowSnackbar -> showMessage(event.message)
+            is WorkshopSetupEvent.LaunchWhatsAppConfirm -> scope.launch {
+                val message = getString(Res.string.whatsapp_confirm_message, event.code)
+                whatsAppLauncher.launch(event.phoneE164, message)
+            }
         }
     }
 
@@ -325,9 +336,19 @@ fun WorkshopSetupScreen(
                             ),
                         )
                     }
+
+                    // 4d. WhatsApp number confirm row
+                    WhatsAppConfirmRow(
+                        state = state.whatsappConfirm,
+                        numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
+                        onConfirmClick = { onAction(WorkshopSetupAction.OnConfirmWhatsAppClick) },
+                        onCodeChange = { onAction(WorkshopSetupAction.OnConfirmCodeChange(it)) },
+                        onDismiss = { onAction(WorkshopSetupAction.OnDismissConfirm) },
+                        debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
+                    )
                 }
 
-                // 4d. Payment details (PTSP-16) — collapsed group between WhatsApp and Logo.
+                // 4e. Payment details (PTSP-16) — collapsed group between WhatsApp and Logo.
                 WorkshopPaymentDetailsSection(state = state, onAction = onAction)
 
                 // 5. Logo upload tile

@@ -20,6 +20,7 @@ class FakeUserRepository : UserRepository {
     var lastBankName: String? = null
     var lastBankAccountName: String? = null
     var lastBankAccountNumber: String? = null
+    var lastWhatsappConfirmed: Boolean? = null
     val userFlow = MutableStateFlow<User?>(null)
 
     /** Paths passed to [deleteUserLogo], in call order. */
@@ -41,6 +42,7 @@ class FakeUserRepository : UserRepository {
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
+        whatsappConfirmed: Boolean,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUserId = userId
@@ -49,6 +51,7 @@ class FakeUserRepository : UserRepository {
         lastBankName = bankName
         lastBankAccountName = bankAccountName
         lastBankAccountNumber = bankAccountNumber
+        lastWhatsappConfirmed = whatsappConfirmed
         return Result.Success(Unit)
     }
 
@@ -68,6 +71,7 @@ class FakeUserRepository : UserRepository {
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
+        whatsappConfirmed: Boolean,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastUserId = userId
@@ -79,6 +83,7 @@ class FakeUserRepository : UserRepository {
         lastBankName = bankName
         lastBankAccountName = bankAccountName
         lastBankAccountNumber = bankAccountNumber
+        lastWhatsappConfirmed = whatsappConfirmed
         return Result.Success(Unit)
     }
 

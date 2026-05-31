@@ -7,4 +7,5 @@ sealed interface WorkshopSetupEvent {
     data object NavigateToLogin : WorkshopSetupEvent
     data class ShowError(val message: UiText) : WorkshopSetupEvent
     data class ShowSnackbar(val message: UiText) : WorkshopSetupEvent
+    data class LaunchWhatsAppConfirm(val phoneE164: String, val code: String) : WorkshopSetupEvent
 }

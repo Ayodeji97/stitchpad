@@ -60,11 +60,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -266,6 +268,15 @@ fun EditProfileScreen(
                 error = state.whatsappError?.let { stringResource(it) },
                 keyboardType = KeyboardType.Phone,
                 imeAction = ImeAction.Next,
+            )
+
+            WhatsAppConfirmRow(
+                state = state.whatsappConfirm,
+                numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
+                onConfirmClick = { onAction(EditProfileAction.OnConfirmWhatsAppClick) },
+                onCodeChange = { onAction(EditProfileAction.OnConfirmCodeChange(it)) },
+                onDismiss = { onAction(EditProfileAction.OnDismissConfirm) },
+                debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
             )
             Spacer(Modifier.height(DesignTokens.space3))
 

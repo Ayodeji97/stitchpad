@@ -36,6 +36,7 @@ class FirebaseUserRepository(
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
+        whatsappConfirmed: Boolean,
     ): EmptyResult<DataError.Network> {
         return try {
             val document = firestore.collection(USERS).document(userId)
@@ -50,6 +51,9 @@ class FirebaseUserRepository(
             }
             businessName?.let { data["businessName"] = it }
             whatsappNumber?.let { data["whatsapp"] = it }
+            // Boolean (not null-guarded): always reflects the current confirm state.
+            // The form layer sends false when there is no number or it was edited.
+            data["whatsappConfirmed"] = whatsappConfirmed
             bankName?.let { data["bankName"] = it }
             bankAccountName?.let { data["bankAccountName"] = it }
             bankAccountNumber?.let { data["bankAccountNumber"] = it }
@@ -82,6 +86,7 @@ class FirebaseUserRepository(
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
+        whatsappConfirmed: Boolean,
     ): EmptyResult<DataError.Network> {
         return try {
             val data = mutableMapOf<String, Any>(
@@ -101,6 +106,7 @@ class FirebaseUserRepository(
             // Distinct slots; not aliases of each other.
             data["phone"] = phoneNumber ?: FieldValue.delete
             data["whatsapp"] = whatsappNumber ?: FieldValue.delete
+            data["whatsappConfirmed"] = whatsappConfirmed
             // Always clear the legacy `whatsappNumber` field on save. Without
             // this, a migrated user clearing the WhatsApp input would still
             // see the old value because UserMapper falls back to the legacy
