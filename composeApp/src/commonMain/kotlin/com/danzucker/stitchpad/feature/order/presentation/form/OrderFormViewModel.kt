@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
+import com.danzucker.stitchpad.core.domain.model.GarmentGender
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -13,6 +15,7 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -39,14 +42,15 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
 class OrderFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val styleRepository: StyleRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val customGarmentTypeRepository: CustomGarmentTypeRepository,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -92,7 +96,7 @@ class OrderFormViewModel(
             initialValue = OrderFormState(isEditMode = orderId != null)
         )
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "NestedBlockDepth")
     fun onAction(action: OrderFormAction) {
         when (action) {
             OrderFormAction.OnNextStep -> {
@@ -120,7 +124,13 @@ class OrderFormViewModel(
                 _state.update { it.copy(items = it.items.filter { item -> item.id != action.itemId }) }
             }
             is OrderFormAction.OnItemGarmentTypeChange -> updateItem(action.itemId) {
-                it.copy(garmentType = action.type)
+                it.copy(
+                    garmentType = action.type,
+                    customGarmentName = null, // clear when garment changes via legacy path
+                )
+            }
+            is OrderFormAction.OnItemGenderFilterChange -> updateItem(action.itemId) {
+                it.copy(genderFilter = action.gender)
             }
             is OrderFormAction.OnItemDescriptionChange -> updateItem(action.itemId) {
                 it.copy(description = action.description)
@@ -261,6 +271,70 @@ class OrderFormViewModel(
             OrderFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+            is OrderFormAction.OnOpenGarmentPicker -> {
+                _state.update { it.copy(activePickerItemId = action.itemId, pickerSearchQuery = "") }
+            }
+            is OrderFormAction.OnPickerSearchChange -> {
+                _state.update { it.copy(pickerSearchQuery = action.query) }
+            }
+            OrderFormAction.OnDismissPicker -> {
+                _state.update { it.copy(activePickerItemId = null, pickerSearchQuery = "") }
+            }
+            is OrderFormAction.OnPickGarmentType -> {
+                // Snapshot before mutating — eliminates a race with the customGarmentTypes flow collector.
+                val customTypes = _state.value.customGarmentTypes
+                updateItem(action.itemId) {
+                    it.copy(
+                        garmentType = action.garmentType,
+                        customGarmentName = action.customName,
+                    )
+                }
+                _state.update { it.copy(activePickerItemId = null, pickerSearchQuery = "") }
+
+                // Fire-and-forget touch on existing customs (sort-order maintenance).
+                if (action.garmentType == GarmentType.OTHER && action.customName != null) {
+                    val uid = userId
+                    if (uid != null) {
+                        val match = customTypes
+                            .firstOrNull { it.name.equals(action.customName, ignoreCase = true) }
+                        if (match != null) {
+                            viewModelScope.launch {
+                                customGarmentTypeRepository.touch(uid, match.id)
+                            }
+                        }
+                    }
+                }
+            }
+            is OrderFormAction.OnAddCustomGarmentType -> {
+                val uid = userId ?: return
+                viewModelScope.launch {
+                    when (val result = customGarmentTypeRepository.upsert(uid, action.name)) {
+                        is Result.Success -> {
+                            onAction(
+                                OrderFormAction.OnPickGarmentType(
+                                    itemId = action.itemId,
+                                    garmentType = GarmentType.OTHER,
+                                    customName = result.data.name,
+                                )
+                            )
+                            _events.send(OrderFormEvent.ShowCustomSavedSnackbar(result.data.name))
+                        }
+                        is Result.Error -> {
+                            // Persistence failed (e.g., offline) — apply locally so the user
+                            // can still save the order. customGarmentName is stored on
+                            // OrderItem and survives even if the customGarmentTypes
+                            // subcollection didn't get updated.
+                            onAction(
+                                OrderFormAction.OnPickGarmentType(
+                                    itemId = action.itemId,
+                                    garmentType = GarmentType.OTHER,
+                                    customName = action.name.trim(),
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -276,10 +350,23 @@ class OrderFormViewModel(
         viewModelScope.launch {
             userId = authRepository.getCurrentUser()?.id ?: return@launch
             observeCustomers()
+            observeCustomGarmentTypes()
             if (orderId != null) {
                 loadOrder(orderId)
             } else if (seedFromOrderId != null) {
                 loadOrderForSeed(seedFromOrderId)
+            }
+        }
+    }
+
+    private fun observeCustomGarmentTypes() {
+        val uid = userId ?: return
+        viewModelScope.launch {
+            customGarmentTypeRepository.observe(uid).collect { result ->
+                when (result) {
+                    is Result.Success -> _state.update { it.copy(customGarmentTypes = result.data) }
+                    is Result.Error -> Unit // silent: picker just shows zero customs
+                }
             }
         }
     }
@@ -420,6 +507,17 @@ class OrderFormViewModel(
     private fun OrderItem.toFormState() = OrderItemFormState(
         id = id,
         garmentType = garmentType,
+        customGarmentName = customGarmentName,
+        genderFilter = when {
+            garmentType == null -> GarmentGender.MALE
+            garmentType == GarmentType.OTHER -> {
+                // Custom garments have no enum gender. UNISEX restricts the picker to
+                // 3 presets which is wrong; default to MALE so the user can see options.
+                // V1.5: persist genderFilter on the order so it round-trips correctly.
+                GarmentGender.MALE
+            }
+            else -> garmentType.gender
+        },
         description = description,
         price = if (price > 0) price.toLong().toString() else "",
         measurementId = measurementId,
@@ -436,7 +534,7 @@ class OrderFormViewModel(
         saveStyleToGallery = true,
     )
 
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod")
     private fun save() {
         // Idempotency: if a previous save is in-flight, ignore this re-entry.
         // The UI's `enabled = !isSaving` already blocks the button visually, but
@@ -454,7 +552,18 @@ class OrderFormViewModel(
             return
         }
 
-        val formItems = s.items.filter { it.garmentType != null }
+        val hasOrphanedOther = s.items.any { item ->
+            item.garmentType == GarmentType.OTHER && item.customGarmentName.isNullOrBlank()
+        }
+        if (hasOrphanedOther) {
+            setError(Res.string.error_order_items_required)
+            return
+        }
+
+        val formItems = s.items.filter { item ->
+            item.garmentType != null &&
+                (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())
+        }
         if (formItems.isEmpty()) {
             setError(Res.string.error_order_items_required)
             return
@@ -500,7 +609,17 @@ class OrderFormViewModel(
         val s = _state.value
         val uid = userId
         val customer = s.selectedCustomer
-        val formItems = s.items.filter { it.garmentType != null }
+        val hasOrphanedOther = s.items.any { item ->
+            item.garmentType == GarmentType.OTHER && item.customGarmentName.isNullOrBlank()
+        }
+        if (hasOrphanedOther) {
+            setError(Res.string.error_order_items_required)
+            return
+        }
+        val formItems = s.items.filter { item ->
+            item.garmentType != null &&
+                (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())
+        }
         if (uid == null || customer == null || formItems.isEmpty()) {
             setError(Res.string.error_order_customer_required)
             return
@@ -537,6 +656,7 @@ class OrderFormViewModel(
                     OrderItem(
                         id = item.id,
                         garmentType = garmentType,
+                        customGarmentName = item.customGarmentName,
                         description = item.description.trim(),
                         price = price,
                         measurementId = item.measurementId,

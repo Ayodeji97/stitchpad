@@ -124,6 +124,14 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      // ── Custom garment types subcollection ───────────────────────────────
+      // Stores tailor-defined garment names (e.g. "Iro/Buba"). Client reads
+      // these in the garment picker and writes on upsert / touch. No
+      // financially meaningful fields — full read/write for the owner.
+      match /customGarmentTypes/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
       // ── Goals subcollection ──────────────────────────────────────────────
       match /goals/{goalId} {
         allow read, write: if isOwner(uid);

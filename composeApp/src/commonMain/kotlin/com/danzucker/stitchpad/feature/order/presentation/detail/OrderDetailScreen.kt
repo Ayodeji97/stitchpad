@@ -733,7 +733,7 @@ private fun OrderDetailContent(
     }
 
     val firstItem = order.items.firstOrNull()
-    val garmentName = firstItem?.let { garmentDisplayName(it.garmentType) }.orEmpty()
+    val garmentName = firstItem?.let { garmentDisplayName(it) }.orEmpty()
     val primaryFieldLabels = firstItem?.garmentType?.fieldLabels?.take(3).orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
 

@@ -39,6 +39,7 @@ data class PaymentDto(
 data class OrderItemDto(
     val id: String = "",
     val garmentType: String = "",
+    val customGarmentName: String? = null, // set only when garmentType == OTHER
     val description: String = "",
     val price: Double = 0.0,
     val measurementId: String? = null,

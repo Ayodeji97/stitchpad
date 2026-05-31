@@ -158,8 +158,9 @@ private fun GarmentItemRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
             ) {
+                val garmentLabel = garmentDisplayName(item)
                 Text(
-                    text = garmentDisplayName(item.garmentType),
+                    text = garmentLabel,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,

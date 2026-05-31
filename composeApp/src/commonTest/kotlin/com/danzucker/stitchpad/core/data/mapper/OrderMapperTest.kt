@@ -359,6 +359,37 @@ class OrderMapperTest {
     }
 
     @Test
+    fun `OrderItem round-trips customGarmentName when garmentType is OTHER`() {
+        val item = OrderItem(
+            id = "item-1",
+            garmentType = GarmentType.OTHER,
+            customGarmentName = "Iro and Buba",
+            description = "",
+            price = 5000.0,
+        )
+
+        val roundTripped = item.toOrderItemDto().toOrderItem()
+
+        assertEquals("Iro and Buba", roundTripped.customGarmentName)
+        assertEquals(GarmentType.OTHER, roundTripped.garmentType)
+    }
+
+    @Test
+    fun `OrderItem customGarmentName is null when garmentType is a preset`() {
+        val dto = OrderItemDto(
+            id = "item-1",
+            garmentType = "AGBADA",
+            description = "",
+            price = 5000.0,
+            customGarmentName = null,
+        )
+
+        val mapped = dto.toOrderItem()
+
+        assertNull(mapped.customGarmentName)
+    }
+
+    @Test
     fun recordPaymentWritePath_legacyDepositIsPreserved() {
         // Regression for data-loss bug: a legacy doc has depositPaid=10k and
         // payments=[]. When recordPayment writes a new ₦5k progress payment,

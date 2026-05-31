@@ -100,6 +100,7 @@ import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
+import stitchpad.composeapp.generated.resources.order_summary_one_custom_format
 import kotlin.time.Clock
 
 @Composable
@@ -520,7 +521,16 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
 private fun garmentSummary(order: Order): String {
     val firstItem = order.items.firstOrNull() ?: return ""
     val count = order.items.size
-    return stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
+    // Single-item orders with a custom garment name (e.g. "Iro/Buba") should display
+    // the tailor-typed name rather than the generic "1 other item" string.
+    val isSingleCustom = count == 1 &&
+        firstItem.garmentType == GarmentType.OTHER &&
+        !firstItem.customGarmentName.isNullOrBlank()
+    return if (isSingleCustom) {
+        stringResource(Res.string.order_summary_one_custom_format, firstItem.customGarmentName ?: "")
+    } else {
+        stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
+    }
 }
 
 @Composable
@@ -567,7 +577,9 @@ private fun OrderListScreenFilledPreview() {
                 orders = listOf(
                     Order(
                         id = "1", userId = "u", customerId = "c1", customerName = "Fola Sunday",
-                        items = listOf(OrderItem("i1", GarmentType.CORSET, "", 40_000.0)),
+                        items = listOf(
+                            OrderItem(id = "i1", garmentType = GarmentType.CORSET, description = "", price = 40_000.0)
+                        ),
                         status = OrderStatus.PENDING, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
                         totalPrice = 40_000.0,
@@ -575,7 +587,9 @@ private fun OrderListScreenFilledPreview() {
                     ),
                     Order(
                         id = "2", userId = "u", customerId = "c2", customerName = "Aina Paul",
-                        items = listOf(OrderItem("i2", GarmentType.SUIT, "", 20_000.0)),
+                        items = listOf(
+                            OrderItem(id = "i2", garmentType = GarmentType.SUIT, description = "", price = 20_000.0)
+                        ),
                         status = OrderStatus.PENDING, priority = OrderPriority.URGENT,
                         statusHistory = emptyList(),
                         totalPrice = 20_000.0,
@@ -592,7 +606,9 @@ private fun OrderListScreenFilledPreview() {
                     ),
                     Order(
                         id = "3", userId = "u", customerId = "c3", customerName = "Dayyo Au",
-                        items = listOf(OrderItem("i3", GarmentType.SUIT, "", 4_000.0)),
+                        items = listOf(
+                            OrderItem(id = "i3", garmentType = GarmentType.SUIT, description = "", price = 4_000.0)
+                        ),
                         status = OrderStatus.READY, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
                         totalPrice = 4_000.0,

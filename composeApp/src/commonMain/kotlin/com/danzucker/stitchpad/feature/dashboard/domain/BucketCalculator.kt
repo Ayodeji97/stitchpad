@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.dashboard.domain
 
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
@@ -87,7 +88,7 @@ object BucketCalculator {
 }
 
 private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
-    val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
+    val garment = items.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty()
     val deadlineDate = deadline?.toLocalDate(tz)
     val daysLate = deadlineDate
         ?.takeIf { it < today }
@@ -101,7 +102,7 @@ private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
 }
 
 private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
-    val garment = items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
+    val garment = items.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty()
     val deadlineDate = deadline?.toLocalDate(tz)
     val daysUntil = deadlineDate
         ?.takeIf { it > today }

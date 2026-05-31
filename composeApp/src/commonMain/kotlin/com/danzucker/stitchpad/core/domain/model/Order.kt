@@ -27,6 +27,7 @@ enum class OrderSubStatus {
 data class OrderItem(
     val id: String,
     val garmentType: GarmentType,
+    val customGarmentName: String? = null, // set only when garmentType == OTHER
     val description: String,
     val price: Double,
     val measurementId: String? = null,

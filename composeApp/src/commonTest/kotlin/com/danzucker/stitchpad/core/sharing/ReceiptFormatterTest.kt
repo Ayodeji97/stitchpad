@@ -108,8 +108,8 @@ class ReceiptFormatterTest {
     fun itemsGroupedByGarmentType() {
         val orderWithDuplicates = testOrder.copy(
             items = listOf(
-                OrderItem("i1", GarmentType.TROUSER, "T1", 5000.0),
-                OrderItem("i2", GarmentType.TROUSER, "T2", 7000.0)
+                OrderItem(id = "i1", garmentType = GarmentType.TROUSER, description = "T1", price = 5000.0),
+                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 7000.0)
             )
         )
         val names = mapOf(GarmentType.TROUSER to "Trouser")

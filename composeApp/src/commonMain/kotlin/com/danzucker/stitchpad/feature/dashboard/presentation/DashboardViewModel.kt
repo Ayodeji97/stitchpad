@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
@@ -436,7 +437,7 @@ class DashboardViewModel(
                 hasOrder = hasOrder,
                 hasDueDate = hasDueDate,
                 hasDeposit = hasDeposit,
-                garmentLabel = firstOrder?.items?.firstOrNull()?.garmentType?.simpleLabel().orEmpty(),
+                garmentLabel = firstOrder?.items?.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty(),
                 totalAmount = firstOrder?.totalPrice ?: 0.0,
             )
         } else {

@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.dashboard.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
@@ -47,7 +48,7 @@ object NbaCalculator {
             if (order.status == OrderStatus.DELIVERED) return@forEach
             val customer = customersById[order.customerId] ?: return@forEach
             if (customer.phone.isBlank()) return@forEach
-            val garment = order.items.firstOrNull()?.garmentType?.simpleLabel().orEmpty()
+            val garment = order.items.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty()
             val deadlineDate = order.deadline?.toLocalDate(timeZone)
             val daysUntilDeadline = deadlineDate?.let { today.daysUntil(it) }
             // Computed once per order — only READY / IN_PROGRESS branches consume it. Avoids the
