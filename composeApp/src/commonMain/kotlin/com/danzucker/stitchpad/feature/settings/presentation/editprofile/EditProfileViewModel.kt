@@ -406,17 +406,23 @@ class EditProfileViewModel(
                 current.bankAccountName.trim().takeIf { current.hasAnyBankInput }
             val bankAccountNumberSave =
                 current.bankAccountNumber.trim().takeIf { current.hasAnyBankInput }
+            // Persist the normalised E.164 form (mirrors WorkshopSetupViewModel.onContinue)
+            // so downstream wa.me links resolve correctly even when the user typed a bare
+            // subscriber number like "8031234567". The confirmation flag only rides along
+            // with a real number — a blank/cleared field can never persist confirmed=true.
+            val whatsappE164 = current.whatsappNumber.trim().takeIf { it.isNotBlank() }
+                ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
             val result = userRepository.updateProfile(
                 userId = authUser.id,
                 businessName = current.businessName.trim(),
                 displayName = current.displayName.trim().ifBlank { null },
                 phoneNumber = current.phoneNumber.trim().ifBlank { null },
-                whatsappNumber = current.whatsappNumber.trim().ifBlank { null },
+                whatsappNumber = whatsappE164,
                 avatarColorIndex = current.avatarColorIndex,
                 bankName = bankNameSave,
                 bankAccountName = bankAccountNameSave,
                 bankAccountNumber = bankAccountNumberSave,
-                whatsappConfirmed = current.whatsappConfirm.confirmed,
+                whatsappConfirmed = current.whatsappConfirm.confirmed && whatsappE164 != null,
             )
             when (result) {
                 is Result.Success -> {

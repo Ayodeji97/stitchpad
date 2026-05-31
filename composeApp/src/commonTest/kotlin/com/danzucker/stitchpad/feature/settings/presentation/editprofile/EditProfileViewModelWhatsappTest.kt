@@ -155,6 +155,29 @@ class EditProfileViewModelWhatsappTest {
     }
 
     @Test
+    fun `save_normalisesBareNumberToE164_andPersistsConfirmed`() = runTest {
+        // Codex P2 regression guard: a bare subscriber number must be saved in E.164
+        // form (mirrors Workshop Setup) so downstream wa.me links are correct — not the
+        // raw "8031234567" the user typed.
+        val repo = FakeUserRepository()
+        val vm = buildVm(repo = repo, existingUser = userWith(whatsapp = ""), confirmCodeGenerator = { "1234" })
+        val collectJob = backgroundScope.launch { vm.state.collect {} }
+        runCurrent()
+
+        vm.onAction(EditProfileAction.OnWhatsappChange("8031234567"))
+        vm.onAction(EditProfileAction.OnConfirmWhatsAppClick)
+        runCurrent()
+        vm.onAction(EditProfileAction.OnConfirmCodeChange("1234"))
+        runCurrent()
+        vm.onAction(EditProfileAction.OnSaveClick)
+        runCurrent()
+
+        assertEquals("+2348031234567", repo.lastWhatsAppNumber)
+        assertEquals(true, repo.lastWhatsappConfirmed)
+        collectJob.cancel()
+    }
+
+    @Test
     fun `dismissConfirm_afterConfirmClick_clearsPromptAndLeavesConfirmedFalse`() = runTest {
         val repo = FakeUserRepository()
         val vm = buildVm(
