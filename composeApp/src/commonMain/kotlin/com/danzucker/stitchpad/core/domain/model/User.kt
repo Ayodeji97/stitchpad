@@ -23,4 +23,12 @@ data class User(
     val businessLogoUrl: String? = null,
     /** Firebase Storage path for the logo. Used for deletion and replacement. Null = no logo set. */
     val businessLogoStoragePath: String? = null,
+    /**
+     * Bank details surfaced on Invoice and Deposit Receipt documents so customers
+     * can pay via direct transfer. The three fields are a logical group — they are
+     * either all set or all null. Validation in the form layer enforces this.
+     */
+    val bankName: String? = null,
+    val bankAccountName: String? = null,
+    val bankAccountNumber: String? = null,
 )

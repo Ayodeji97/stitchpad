@@ -9,4 +9,13 @@ sealed interface WorkshopSetupAction {
     data object OnSkipClick : WorkshopSetupAction
     data class OnLogoPicked(val bytes: ByteArray) : WorkshopSetupAction
     data object OnLogoRetry : WorkshopSetupAction
+
+    // Payment details (PTSP-16)
+    data object OnTogglePaymentDetails : WorkshopSetupAction
+    data class OnBankNameChange(val value: String) : WorkshopSetupAction
+    data class OnBankAccountNameChange(val value: String) : WorkshopSetupAction
+    data class OnBankAccountNumberChange(val value: String) : WorkshopSetupAction
+    data object OnBankNameBlur : WorkshopSetupAction
+    data object OnBankAccountNameBlur : WorkshopSetupAction
+    data object OnBankAccountNumberBlur : WorkshopSetupAction
 }

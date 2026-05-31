@@ -71,6 +71,14 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.bank_details_account_name_label
+import stitchpad.composeapp.generated.resources.bank_details_account_name_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_account_number_label
+import stitchpad.composeapp.generated.resources.bank_details_account_number_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_bank_label
+import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
+import stitchpad.composeapp.generated.resources.bank_details_section_title
 import stitchpad.composeapp.generated.resources.common_cancel
 import stitchpad.composeapp.generated.resources.edit_profile_avatar_hint
 import stitchpad.composeapp.generated.resources.edit_profile_back_cd
@@ -269,9 +277,12 @@ fun EditProfileScreen(
                 helper = stringResource(Res.string.edit_profile_helper_phone),
                 error = state.phoneError?.let { stringResource(it) },
                 keyboardType = KeyboardType.Phone,
-                imeAction = ImeAction.Done,
+                imeAction = ImeAction.Next,
             )
-            Spacer(Modifier.height(DesignTokens.space3))
+            Spacer(Modifier.height(DesignTokens.space4))
+
+            BankDetailsSection(state = state, onAction = onAction)
+            Spacer(Modifier.height(DesignTokens.space4))
 
             EmailReadonlyField(email = state.email)
             Spacer(Modifier.height(DesignTokens.space5))
@@ -390,6 +401,59 @@ private fun ProfileTextField(
         ),
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+@Composable
+private fun BankDetailsSection(
+    state: EditProfileState,
+    onAction: (EditProfileAction) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
+        Text(
+            text = stringResource(Res.string.bank_details_section_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = stringResource(Res.string.bank_details_section_subtitle),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        ProfileTextField(
+            value = state.bankName,
+            onValueChange = { onAction(EditProfileAction.OnBankNameChange(it)) },
+            onBlur = { onAction(EditProfileAction.OnBankNameBlur) },
+            label = stringResource(Res.string.bank_details_bank_label),
+            helper = stringResource(Res.string.bank_details_bank_placeholder),
+            error = state.bankNameError?.let { stringResource(it) },
+            imeAction = ImeAction.Next,
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        ProfileTextField(
+            value = state.bankAccountName,
+            onValueChange = { onAction(EditProfileAction.OnBankAccountNameChange(it)) },
+            onBlur = { onAction(EditProfileAction.OnBankAccountNameBlur) },
+            label = stringResource(Res.string.bank_details_account_name_label),
+            helper = stringResource(Res.string.bank_details_account_name_placeholder),
+            error = state.bankAccountNameError?.let { stringResource(it) },
+            imeAction = ImeAction.Next,
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        ProfileTextField(
+            value = state.bankAccountNumber,
+            onValueChange = { onAction(EditProfileAction.OnBankAccountNumberChange(it)) },
+            onBlur = { onAction(EditProfileAction.OnBankAccountNumberBlur) },
+            label = stringResource(Res.string.bank_details_account_number_label),
+            helper = stringResource(Res.string.bank_details_account_number_placeholder),
+            error = state.bankAccountNumberError?.let { stringResource(it) },
+            keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Done,
+        )
+    }
 }
 
 @Composable
