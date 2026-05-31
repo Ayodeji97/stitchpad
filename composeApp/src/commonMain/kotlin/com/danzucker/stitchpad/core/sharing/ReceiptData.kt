@@ -7,12 +7,15 @@ data class ReceiptItem(
 )
 
 /**
- * One row in the PAYMENTS section of a Deposit Receipt or Receipt.
- * Pre-formatted by [ReceiptFormatter] so renderers stay locale-free.
+ * Pre-formatted payment record. Populated by [ReceiptFormatter] for any
+ * order with at least one [Payment]; available to callers that want the
+ * payment history (e.g. an in-app audit-trail view).
  *
- * The native renderers do not yet draw this section — PR B2 will. Until
- * then it ships unused on ReceiptData so the formatter contract can
- * land independently of the canvas rewrite.
+ * The native receipt renderers intentionally do NOT draw a PAYMENTS
+ * section on the shared document — design review decided the customer-
+ * facing receipt should communicate payment state through the totals
+ * block (Total / Deposit Paid / Balance) rather than a per-payment list.
+ * Audit-trail use cases live on the in-app order detail screen instead.
  */
 data class PaymentRow(
     val dateFormatted: String,
