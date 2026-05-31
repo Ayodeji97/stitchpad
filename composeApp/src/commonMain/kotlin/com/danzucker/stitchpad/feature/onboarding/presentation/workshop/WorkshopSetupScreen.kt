@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
@@ -342,6 +343,7 @@ fun WorkshopSetupScreen(
                         numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
                         onConfirmClick = { onAction(WorkshopSetupAction.OnConfirmWhatsAppClick) },
                         onCodeChange = { onAction(WorkshopSetupAction.OnConfirmCodeChange(it)) },
+                        debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
                     )
                 }
 

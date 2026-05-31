@@ -60,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
@@ -274,6 +275,7 @@ fun EditProfileScreen(
                 numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
                 onConfirmClick = { onAction(EditProfileAction.OnConfirmWhatsAppClick) },
                 onCodeChange = { onAction(EditProfileAction.OnConfirmCodeChange(it)) },
+                debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
             )
             Spacer(Modifier.height(DesignTokens.space3))
 

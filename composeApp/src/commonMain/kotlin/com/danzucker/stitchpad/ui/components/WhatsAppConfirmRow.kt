@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -44,6 +45,7 @@ fun WhatsAppConfirmRow(
     onConfirmClick: () -> Unit,
     onCodeChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    debugCode: String? = null,
 ) {
     if (!numberValid && !state.confirmed) return
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -79,6 +81,13 @@ fun WhatsAppConfirmRow(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                debugCode?.let {
+                    Text(
+                        text = "DEBUG code: $it",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             else -> TextButton(onClick = onConfirmClick) {
                 Text(stringResource(Res.string.whatsapp_confirm_cta))
@@ -130,6 +139,23 @@ private fun WhatsAppConfirmRowConfirmedPreview() {
                 numberValid = true,
                 onConfirmClick = {},
                 onCodeChange = {},
+            )
+        }
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun WhatsAppConfirmRowDebugCodePreview() {
+    StitchPadTheme {
+        Surface(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            WhatsAppConfirmRow(
+                state = WhatsAppConfirmUiState(promptVisible = true, code = "4827", input = ""),
+                numberValid = true,
+                onConfirmClick = {},
+                onCodeChange = {},
+                debugCode = "4827",
             )
         }
     }
