@@ -32,7 +32,9 @@ import stitchpad.composeapp.generated.resources.whatsapp_confirmed_badge
 
 /**
  * Stateless "Confirm on WhatsApp" affordance rendered under the WhatsApp field
- * on both Workshop Setup and Edit Profile. Only shown when [numberValid] is true.
+ * on both Workshop Setup and Edit Profile. Renders when [numberValid] is true, or
+ * when a prior confirmation badge is retained ([WhatsAppConfirmUiState.confirmed]);
+ * otherwise it draws nothing.
  * Proves WhatsApp reachability, not ownership — copy says "WhatsApp confirmed".
  */
 @Composable
