@@ -4,7 +4,9 @@ import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class UserMapperTest {
 
@@ -130,5 +132,20 @@ class UserMapperTest {
         val roundTripped = original.toUserDto().toUser()
 
         assertEquals(original, roundTripped)
+    }
+
+    @Test
+    fun whatsappConfirmed_roundTripsBothDirections() {
+        val dto = UserDto(id = "u1", whatsappNumber = "+2348031234567", whatsappConfirmed = true)
+        val user = dto.toUser()
+        assertTrue(user.whatsappConfirmed)
+
+        val backToDto = user.toUserDto()
+        assertTrue(backToDto.whatsappConfirmed)
+    }
+
+    @Test
+    fun whatsappConfirmed_defaultsFalseWhenAbsent() {
+        assertFalse(UserDto(id = "u2").toUser().whatsappConfirmed)
     }
 }
