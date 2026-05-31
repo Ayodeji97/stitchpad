@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
 import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
@@ -79,18 +80,20 @@ class WorkshopSetupViewModel(
             }
             is WorkshopSetupAction.OnBankNameChange -> _state.update {
                 it.copy(
-                    bankName = action.value.take(MAX_BANK_NAME),
+                    bankName = action.value.take(BankDetailsValidator.MAX_BANK_NAME_LEN),
                     bankNameError = null,
                 )
             }
             is WorkshopSetupAction.OnBankAccountNameChange -> _state.update {
                 it.copy(
-                    bankAccountName = action.value.take(MAX_BANK_ACCOUNT_NAME),
+                    bankAccountName = action.value.take(BankDetailsValidator.MAX_ACCOUNT_NAME_LEN),
                     bankAccountNameError = null,
                 )
             }
             is WorkshopSetupAction.OnBankAccountNumberChange -> _state.update {
-                val digits = action.value.filter { c -> c.isDigit() }.take(BANK_ACCOUNT_NUMBER_LEN)
+                val digits = action.value
+                    .filter { c -> c.isDigit() }
+                    .take(BankDetailsValidator.ACCOUNT_NUMBER_LEN)
                 it.copy(bankAccountNumber = digits, bankAccountNumberError = null)
             }
             WorkshopSetupAction.OnBankNameBlur,
@@ -101,7 +104,8 @@ class WorkshopSetupViewModel(
 
     /**
      * Bank trio validation. Either all blank (group skipped) or all three valid.
-     * Returns true when the form may proceed.
+     * Returns true when the form may proceed. Rules live in [BankDetailsValidator]
+     * so this VM and the edit-profile VM never drift on length / NUBAN regex.
      */
     private fun validateBankFields(): Boolean {
         val s = _state.value
@@ -115,17 +119,18 @@ class WorkshopSetupViewModel(
             }
             return true
         }
-        val nameOk = s.bankName.trim().length >= MIN_BANK_NAME_LEN
-        val accountNameOk = s.bankAccountName.trim().length >= MIN_BANK_ACCOUNT_NAME_LEN
-        val accountNumberOk = BANK_ACCOUNT_NUMBER_REGEX.matches(s.bankAccountNumber.trim())
+        val r = BankDetailsValidator.validate(s.bankName, s.bankAccountName, s.bankAccountNumber)
+        val nameErr = if (r.isBankNameValid) null else Res.string.error_bank_name_required
+        val accountNameErr = if (r.isAccountNameValid) null else Res.string.error_bank_account_name_required
+        val accountNumberErr = if (r.isAccountNumberValid) null else Res.string.error_bank_account_number_invalid
         _state.update {
             it.copy(
-                bankNameError = if (nameOk) null else Res.string.error_bank_name_required,
-                bankAccountNameError = if (accountNameOk) null else Res.string.error_bank_account_name_required,
-                bankAccountNumberError = if (accountNumberOk) null else Res.string.error_bank_account_number_invalid,
+                bankNameError = nameErr,
+                bankAccountNameError = accountNameErr,
+                bankAccountNumberError = accountNumberErr,
             )
         }
-        return nameOk && accountNameOk && accountNumberOk
+        return r.isValid
     }
 
     private fun onLogoPicked(bytes: ByteArray) {
@@ -334,12 +339,6 @@ class WorkshopSetupViewModel(
     private companion object {
         const val MAX_WHATSAPP_DIGITS = 13
         const val MIN_BUSINESS_NAME_LEN = 2
-        const val MAX_BANK_NAME = 40
-        const val MAX_BANK_ACCOUNT_NAME = 60
-        const val MIN_BANK_NAME_LEN = 2
-        const val MIN_BANK_ACCOUNT_NAME_LEN = 2
-        const val BANK_ACCOUNT_NUMBER_LEN = 10
-        val BANK_ACCOUNT_NUMBER_REGEX = Regex("^\\d{10}$")
 
         fun capWhatsAppDigits(raw: String): String = buildString {
             var digits = 0

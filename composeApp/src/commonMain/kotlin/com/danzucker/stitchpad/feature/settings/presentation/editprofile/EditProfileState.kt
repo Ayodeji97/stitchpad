@@ -1,14 +1,12 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
+import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import org.jetbrains.compose.resources.StringResource
 
 private const val MAX_BUSINESS_NAME = 50
 private const val MAX_DISPLAY_NAME = 50
 private const val MAX_PHONE_DIGITS = 15
-private const val MAX_BANK_NAME = 40
-private const val MAX_BANK_ACCOUNT_NAME = 60
-private const val BANK_ACCOUNT_NUMBER_LENGTH = 10
 
 /**
  * Edit-profile draft. The form has two distinct phone-like inputs:
@@ -62,9 +60,9 @@ data class EditProfileState(
             phoneNumber != originalPhoneNumber ||
             whatsappNumber != originalWhatsappNumber ||
             avatarColorIndex != originalAvatarColorIndex ||
-            bankName.trim() != originalBankName ||
-            bankAccountName.trim() != originalBankAccountName ||
-            bankAccountNumber.trim() != originalBankAccountNumber
+            bankName != originalBankName ||
+            bankAccountName != originalBankAccountName ||
+            bankAccountNumber != originalBankAccountNumber
 
     val hasErrors: Boolean
         get() = businessNameError != null ||
@@ -78,9 +76,9 @@ data class EditProfileState(
     val maxBusinessNameLength: Int get() = MAX_BUSINESS_NAME
     val maxDisplayNameLength: Int get() = MAX_DISPLAY_NAME
     val maxPhoneDigits: Int get() = MAX_PHONE_DIGITS
-    val maxBankNameLength: Int get() = MAX_BANK_NAME
-    val maxBankAccountNameLength: Int get() = MAX_BANK_ACCOUNT_NAME
-    val bankAccountNumberLength: Int get() = BANK_ACCOUNT_NUMBER_LENGTH
+    val maxBankNameLength: Int get() = BankDetailsValidator.MAX_BANK_NAME_LEN
+    val maxBankAccountNameLength: Int get() = BankDetailsValidator.MAX_ACCOUNT_NAME_LEN
+    val bankAccountNumberLength: Int get() = BankDetailsValidator.ACCOUNT_NUMBER_LEN
 
     /**
      * True when at least one of the three bank fields has content. The form

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -41,9 +42,6 @@ private const val TAG = "EditProfileVM"
 private const val MIN_PHONE_DIGITS = 7
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_BUSINESS_NAME_LEN = 2
-private const val MIN_BANK_NAME_LEN = 2
-private const val MIN_BANK_ACCOUNT_NAME_LEN = 2
-private val BANK_ACCOUNT_NUMBER_REGEX = Regex("^\\d{10}$")
 
 class EditProfileViewModel(
     private val authRepository: AuthRepository,
@@ -248,7 +246,8 @@ class EditProfileViewModel(
      * Bank fields are a logical group. Either all three are blank (no bank
      * details on the user doc) or all three must be valid. Validation surfaces
      * an error against any partially-filled field so the form points the user
-     * at what's missing.
+     * at what's missing. Rules live in [BankDetailsValidator] so this VM and
+     * the workshop setup VM never drift on length / NUBAN regex.
      */
     private fun validateBankFields(): Boolean {
         val s = _state.value
@@ -262,17 +261,18 @@ class EditProfileViewModel(
             }
             return true
         }
-        val nameOk = s.bankName.trim().length >= MIN_BANK_NAME_LEN
-        val accountNameOk = s.bankAccountName.trim().length >= MIN_BANK_ACCOUNT_NAME_LEN
-        val accountNumberOk = BANK_ACCOUNT_NUMBER_REGEX.matches(s.bankAccountNumber.trim())
+        val r = BankDetailsValidator.validate(s.bankName, s.bankAccountName, s.bankAccountNumber)
+        val nameErr = if (r.isBankNameValid) null else Res.string.error_bank_name_required
+        val accountNameErr = if (r.isAccountNameValid) null else Res.string.error_bank_account_name_required
+        val accountNumberErr = if (r.isAccountNumberValid) null else Res.string.error_bank_account_number_invalid
         _state.update {
             it.copy(
-                bankNameError = if (nameOk) null else Res.string.error_bank_name_required,
-                bankAccountNameError = if (accountNameOk) null else Res.string.error_bank_account_name_required,
-                bankAccountNumberError = if (accountNumberOk) null else Res.string.error_bank_account_number_invalid,
+                bankNameError = nameErr,
+                bankAccountNameError = accountNameErr,
+                bankAccountNumberError = accountNumberErr,
             )
         }
-        return nameOk && accountNameOk && accountNumberOk
+        return r.isValid
     }
 
     /** WhatsApp is optional — blank is allowed; validate only when filled. */
