@@ -123,10 +123,11 @@ class GarmentPickerFilterTest {
     }
 
     @Test
-    fun `dedupe scans allPresets so hidden gender-filtered presets still suppress add CTA`() {
+    fun `exact match on hidden gender-filtered preset is surfaced and suppresses add CTA`() {
         // Simulate the UI's gender filter: MALE chip active narrows `presets` to AGBADA + SENATOR,
-        // hiding the UNISEX preset KAFTAN. `allPresets` keeps KAFTAN for dedupe purposes so a
-        // user typing "kaftan" doesn't accidentally create a custom that mirrors the hidden preset.
+        // hiding the UNISEX preset KAFTAN. `allPresets` keeps KAFTAN for dedupe purposes.
+        // Typing "kaftan" exactly should surface the hidden preset (so the user has a row to pick)
+        // AND keep the Add CTA suppressed (no duplicate-of-preset customs).
         val genderFilteredPresets = listOf(GarmentType.AGBADA, GarmentType.SENATOR)
 
         val result = filterGarmentOptions(
@@ -137,9 +138,29 @@ class GarmentPickerFilterTest {
             resolvePresetLabel = ::resolvePreset,
         )
 
-        // KAFTAN isn't in the visible list — but the Add CTA is still hidden.
-        assertTrue(result.matchingPresets.isEmpty())
+        // KAFTAN now appears in the visible list, and the Add CTA is hidden.
+        assertEquals(listOf(GarmentType.KAFTAN), result.matchingPresets)
         assertFalse(result.showAddCustomCta)
+    }
+
+    @Test
+    fun `substring match on hidden gender-filtered preset is NOT surfaced`() {
+        // Only EXACT matches against hidden presets are surfaced — substring matches stay hidden
+        // to avoid noisy cross-gender rows when the user is still typing or browsing.
+        val genderFilteredPresets = listOf(GarmentType.AGBADA, GarmentType.SENATOR)
+
+        val result = filterGarmentOptions(
+            query = "kaf",
+            customs = customs,
+            presets = genderFilteredPresets,
+            allPresets = presets,
+            resolvePresetLabel = ::resolvePreset,
+        )
+
+        // KAFTAN is hidden by the gender filter; "kaf" is a substring not an exact match,
+        // so it stays hidden. Nothing matches, so the Add CTA appears.
+        assertTrue(result.matchingPresets.isEmpty())
+        assertTrue(result.showAddCustomCta)
     }
 
     @Test

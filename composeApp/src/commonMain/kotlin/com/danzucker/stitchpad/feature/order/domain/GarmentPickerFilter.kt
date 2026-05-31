@@ -54,12 +54,23 @@ fun filterGarmentOptions(
         return GarmentPickerFilterResult(customs, presets, showAddCustomCta = false)
     }
     val matchingCustoms = customs.filter { it.name.lowercase().contains(normalized) }
-    val matchingPresets = presets.filter { resolvePresetLabel(it).lowercase().contains(normalized) }
+    val visibleMatchingPresets = presets.filter { resolvePresetLabel(it).lowercase().contains(normalized) }
+    // If the user's exact query matches a preset that the current gender filter
+    // hides (e.g. typing "Trouser" while MALE is selected — Trouser is UNISEX),
+    // surface that preset anyway so they have a row to pick. Without this, the
+    // dedupe below would suppress the Add CTA AND the row wouldn't be visible,
+    // leaving the user stuck. Only surface on EXACT match to avoid noisy
+    // cross-gender rows on substring searches.
+    val trimmed = query.trim()
+    val crossGenderExactMatch = allPresets.firstOrNull { preset ->
+        preset !in presets && resolvePresetLabel(preset).equals(trimmed, ignoreCase = true)
+    }
+    val matchingPresets = visibleMatchingPresets + listOfNotNull(crossGenderExactMatch)
     // Dedupe scans `allPresets` (not the gender-filtered `presets`) so that a
     // user typing the name of a preset hidden by the current gender filter still
     // gets the "Add" CTA suppressed — no duplicate-of-preset customs.
-    val exactMatch = customs.any { it.name.equals(query.trim(), ignoreCase = true) } ||
-        allPresets.any { resolvePresetLabel(it).equals(query.trim(), ignoreCase = true) }
+    val exactMatch = customs.any { it.name.equals(trimmed, ignoreCase = true) } ||
+        allPresets.any { resolvePresetLabel(it).equals(trimmed, ignoreCase = true) }
     val showAddCustomCta = !exactMatch
     return GarmentPickerFilterResult(matchingCustoms, matchingPresets, showAddCustomCta)
 }
