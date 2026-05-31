@@ -7,8 +7,6 @@ data class Customer(
     val phone: String,
     val email: String? = null,
     val address: String? = null,
-    val deliveryPreference: DeliveryPreference = DeliveryPreference.PICKUP,
-    val notes: String? = null,
     val createdAt: Long = 0L,
     val slotState: CustomerSlotState = CustomerSlotState.ACTIVE,
     val lockedAt: Long? = null,

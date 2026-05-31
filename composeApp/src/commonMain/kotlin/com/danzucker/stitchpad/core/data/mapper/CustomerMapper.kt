@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.core.data.mapper
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import kotlin.time.Clock
 
 fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
@@ -13,9 +12,6 @@ fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
     phone = phone,
     email = email,
     address = address,
-    deliveryPreference = runCatching { DeliveryPreference.valueOf(deliveryPreference) }
-        .getOrDefault(DeliveryPreference.PICKUP),
-    notes = notes,
     createdAt = createdAt,
     slotState = CustomerSlotState.fromWire(slotState),
     lockedAt = lockedAt,
@@ -29,8 +25,6 @@ fun Customer.toCustomerDto(): CustomerDto {
         phone = phone,
         email = email,
         address = address,
-        deliveryPreference = deliveryPreference.name,
-        notes = notes,
         createdAt = if (createdAt == 0L) now else createdAt,
         updatedAt = now,
         slotState = slotState.wireValue,

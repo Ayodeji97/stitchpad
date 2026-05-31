@@ -30,9 +30,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -59,7 +56,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -70,21 +66,15 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.customer_form_add_measurements_next
 import stitchpad.composeapp.generated.resources.customer_form_address_label
 import stitchpad.composeapp.generated.resources.customer_form_address_placeholder
-import stitchpad.composeapp.generated.resources.customer_form_delivery_label
 import stitchpad.composeapp.generated.resources.customer_form_email_label
 import stitchpad.composeapp.generated.resources.customer_form_email_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_name_label
 import stitchpad.composeapp.generated.resources.customer_form_name_placeholder
-import stitchpad.composeapp.generated.resources.customer_form_notes_label
-import stitchpad.composeapp.generated.resources.customer_form_notes_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_phone_label
 import stitchpad.composeapp.generated.resources.customer_form_phone_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_save_button
 import stitchpad.composeapp.generated.resources.customer_form_title_add
 import stitchpad.composeapp.generated.resources.customer_form_title_edit
-import stitchpad.composeapp.generated.resources.delivery_delivery
-import stitchpad.composeapp.generated.resources.delivery_either
-import stitchpad.composeapp.generated.resources.delivery_pickup
 
 @Composable
 fun CustomerFormRoot(
@@ -258,31 +248,11 @@ fun CustomerFormScreen(
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
+                    // Address is now the last text input on both create + edit
+                    // (delivery selector + notes field removed in PTSP-5).
+                    imeAction = ImeAction.Done
                 )
             )
-
-            if (state.isEditMode) {
-                DeliveryPreferenceSelector(
-                    selected = state.deliveryPreference,
-                    label = stringResource(Res.string.customer_form_delivery_label),
-                    onSelected = { onAction(CustomerFormAction.OnDeliveryPreferenceChange(it)) }
-                )
-
-                StitchPadField(
-                    value = state.notes,
-                    onValueChange = { if (it.length <= 300) onAction(CustomerFormAction.OnNotesChange(it)) },
-                    label = stringResource(Res.string.customer_form_notes_label),
-                    placeholder = stringResource(Res.string.customer_form_notes_placeholder),
-                    singleLine = false,
-                    minLines = 3,
-                    maxLines = 5,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        keyboardType = KeyboardType.Text
-                    )
-                )
-            }
 
             Spacer(Modifier.height(DesignTokens.space2))
 
@@ -402,57 +372,6 @@ private fun StitchPadField(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = DesignTokens.space1, start = DesignTokens.space1)
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DeliveryPreferenceSelector(
-    selected: DeliveryPreference,
-    label: String,
-    onSelected: (DeliveryPreference) -> Unit
-) {
-    val pickupLabel = stringResource(Res.string.delivery_pickup)
-    val deliveryLabel = stringResource(Res.string.delivery_delivery)
-    val eitherLabel = stringResource(Res.string.delivery_either)
-
-    fun DeliveryPreference.displayLabel() = when (this) {
-        DeliveryPreference.PICKUP -> pickupLabel
-        DeliveryPreference.DELIVERY -> deliveryLabel
-        DeliveryPreference.EITHER -> eitherLabel
-    }
-
-    Column {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = DesignTokens.space1)
-        )
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            DeliveryPreference.entries.forEachIndexed { index, preference ->
-                SegmentedButton(
-                    selected = selected == preference,
-                    onClick = { onSelected(preference) },
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = DeliveryPreference.entries.size
-                    ),
-                    label = {
-                        Text(
-                            text = preference.displayLabel(),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected == preference) {
-                                FontWeight.SemiBold
-                            } else {
-                                FontWeight.Normal
-                            }
-                        )
-                    }
-                )
-            }
         }
     }
 }

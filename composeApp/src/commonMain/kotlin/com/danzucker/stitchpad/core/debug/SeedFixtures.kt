@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.core.debug
 
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -36,8 +35,6 @@ internal object SeedFixtures {
         val phone: String,
         val email: String?,
         val address: String?,
-        val deliveryPreference: DeliveryPreference,
-        val notes: String?,
     )
 
     /**
@@ -45,70 +42,14 @@ internal object SeedFixtures {
      * can be called safely on customers.take(4). Positions 5–8 are male.
      */
     private val CUSTOMER_FIXTURES = listOf(
-        CustomerFixture(
-            "Adaeze Okafor",
-            "+2348012345601",
-            "adaeze@example.ng",
-            "12 Awolowo Way, Ikeja",
-            DeliveryPreference.PICKUP,
-            null
-        ),
-        CustomerFixture(
-            "Folake Adebayo",
-            "+2348012345602",
-            null,
-            null,
-            DeliveryPreference.PICKUP,
-            "Prefers WhatsApp"
-        ),
-        CustomerFixture(
-            "Ngozi Iwu",
-            "+2348012345603",
-            null,
-            null,
-            DeliveryPreference.PICKUP,
-            null
-        ),
-        CustomerFixture(
-            "Hauwa Bello",
-            "+2348012345604",
-            null,
-            null,
-            DeliveryPreference.PICKUP,
-            null
-        ),
-        CustomerFixture(
-            "Chinedu Eze",
-            "+2348012345605",
-            null,
-            "5 Marina, Lagos Island",
-            DeliveryPreference.DELIVERY,
-            null
-        ),
-        CustomerFixture(
-            "Tunde Bakare",
-            "+2348012345606",
-            "tunde@example.ng",
-            null,
-            DeliveryPreference.PICKUP,
-            null
-        ),
-        CustomerFixture(
-            "Oluwaseun Adesina",
-            "+2348012345607",
-            null,
-            "27 Allen Avenue, Ikeja",
-            DeliveryPreference.DELIVERY,
-            null
-        ),
-        CustomerFixture(
-            "Femi Akinola",
-            "+2348012345608",
-            "femi@example.ng",
-            null,
-            DeliveryPreference.PICKUP,
-            null
-        ),
+        CustomerFixture("Adaeze Okafor", "+2348012345601", "adaeze@example.ng", "12 Awolowo Way, Ikeja"),
+        CustomerFixture("Folake Adebayo", "+2348012345602", null, null),
+        CustomerFixture("Ngozi Iwu", "+2348012345603", null, null),
+        CustomerFixture("Hauwa Bello", "+2348012345604", null, null),
+        CustomerFixture("Chinedu Eze", "+2348012345605", null, "5 Marina, Lagos Island"),
+        CustomerFixture("Tunde Bakare", "+2348012345606", "tunde@example.ng", null),
+        CustomerFixture("Oluwaseun Adesina", "+2348012345607", null, "27 Allen Avenue, Ikeja"),
+        CustomerFixture("Femi Akinola", "+2348012345608", "femi@example.ng", null),
     )
 
     /** Eight customers with Nigerian-style names + phones. */
@@ -121,8 +62,6 @@ internal object SeedFixtures {
                 phone = f.phone,
                 email = f.email,
                 address = f.address,
-                deliveryPreference = f.deliveryPreference,
-                notes = f.notes,
                 createdAt = now,
             )
         }
@@ -281,8 +220,6 @@ internal object SeedFixtures {
                 phone = "+234801234${(7000 + i).toString().padStart(4, '0')}",
                 email = null,
                 address = null,
-                deliveryPreference = DeliveryPreference.PICKUP,
-                notes = null,
                 createdAt = now - (120 + i * 5) * DAY_MS,
             )
         }
@@ -307,8 +244,6 @@ internal object SeedFixtures {
                 phone = "+234801234${(8000 + i).toString().padStart(4, '0')}",
                 email = null,
                 address = null,
-                deliveryPreference = DeliveryPreference.PICKUP,
-                notes = null,
                 createdAt = now,
             )
         }
