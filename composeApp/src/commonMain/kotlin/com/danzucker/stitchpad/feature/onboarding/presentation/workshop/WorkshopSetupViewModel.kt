@@ -92,7 +92,7 @@ class WorkshopSetupViewModel(
             WorkshopSetupAction.OnDismissConfirm -> _state.update {
                 it.copy(
                     whatsappConfirm = it.whatsappConfirm.copy(
-                        promptVisible = false, input = "", error = null,
+                        promptVisible = false, input = "", error = null, code = null,
                     )
                 )
             }

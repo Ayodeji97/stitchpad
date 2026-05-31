@@ -272,4 +272,45 @@ class WorkshopSetupViewModelTest {
         assertNotNull(viewModel.state.value.whatsappError)
         assertFalse(viewModel.state.value.whatsappConfirm.promptVisible)
     }
+
+    @Test
+    fun confirmThenContinue_persistsWhatsappConfirmedTrue() = runTest {
+        fakeAuth.currentUser = User(
+            id = "u1", email = "x@y.z", displayName = "Tester",
+            businessName = null, phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0,
+        )
+
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+
+        viewModel.events.test {
+            // OnConfirmWhatsAppClick sends LaunchWhatsAppConfirm — consume it
+            viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+            assertIs<WorkshopSetupEvent.LaunchWhatsAppConfirm>(awaitItem())
+
+            viewModel.onAction(WorkshopSetupAction.OnConfirmCodeChange("1234"))
+            viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
+            viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+        }
+
+        assertEquals(true, fakeUserRepository.lastWhatsappConfirmed)
+    }
+
+    @Test
+    fun unconfirmedNumber_persistsWhatsappConfirmedFalse() = runTest {
+        fakeAuth.currentUser = User(
+            id = "u1", email = "x@y.z", displayName = "Tester",
+            businessName = null, phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0,
+        )
+
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+        // Deliberately skip OnConfirmWhatsAppClick / OnConfirmCodeChange — number not confirmed
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        val event = viewModel.events.first()
+        assertIs<WorkshopSetupEvent.NavigateToHome>(event)
+        assertEquals(false, fakeUserRepository.lastWhatsappConfirmed)
+    }
 }
