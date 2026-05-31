@@ -86,7 +86,7 @@ const LAGOS_MONTH_YEAR_FMT = new Intl.DateTimeFormat('en-CA', {
   month: '2-digit',
 });
 
-function formatMonthYear(d: Date): string {
+export function formatMonthYear(d: Date): string {
   const parts = LAGOS_MONTH_YEAR_FMT.formatToParts(d);
   const year = parts.find((p) => p.type === 'year')?.value ?? '0000';
   const month = parts.find((p) => p.type === 'month')?.value ?? '00';
