@@ -63,7 +63,7 @@ class WorkshopSetupViewModel(
     // generation snapshot blocks stale-job writes from clobbering the newer pick.
     private var logoUploadGeneration = 0
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: WorkshopSetupAction) {
         when (action) {
             is WorkshopSetupAction.OnBusinessNameChange ->
@@ -74,8 +74,11 @@ class WorkshopSetupViewModel(
                         whatsappNumber = capWhatsAppDigits(action.raw),
                         whatsappError = null,
                         whatsappConfirm = it.whatsappConfirm.copy(
-                            confirmed = false, promptVisible = false,
-                            code = null, input = "", error = null,
+                            confirmed = false,
+                            promptVisible = false,
+                            code = null,
+                            input = "",
+                            error = null,
                         ),
                     )
                 }
@@ -92,7 +95,10 @@ class WorkshopSetupViewModel(
             WorkshopSetupAction.OnDismissConfirm -> _state.update {
                 it.copy(
                     whatsappConfirm = it.whatsappConfirm.copy(
-                        promptVisible = false, input = "", error = null, code = null,
+                        promptVisible = false,
+                        input = "",
+                        error = null,
+                        code = null,
                     )
                 )
             }
@@ -282,7 +288,10 @@ class WorkshopSetupViewModel(
         _state.update {
             it.copy(
                 whatsappConfirm = it.whatsappConfirm.copy(
-                    code = code, input = "", promptVisible = true, error = null,
+                    code = code,
+                    input = "",
+                    promptVisible = true,
+                    error = null,
                 )
             )
         }
@@ -305,8 +314,11 @@ class WorkshopSetupViewModel(
             _state.update {
                 it.copy(
                     whatsappConfirm = it.whatsappConfirm.copy(
-                        confirmed = true, promptVisible = false,
-                        code = null, input = "", error = null,
+                        confirmed = true,
+                        promptVisible = false,
+                        code = null,
+                        input = "",
+                        error = null,
                     )
                 )
             }

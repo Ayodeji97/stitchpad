@@ -84,6 +84,7 @@ import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
 import stitchpad.composeapp.generated.resources.bank_details_optional
 import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
 import stitchpad.composeapp.generated.resources.bank_details_section_title
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
@@ -98,7 +99,6 @@ import stitchpad.composeapp.generated.resources.workshop_logo_upload_title
 import stitchpad.composeapp.generated.resources.workshop_skip
 import stitchpad.composeapp.generated.resources.workshop_subtitle
 import stitchpad.composeapp.generated.resources.workshop_title
-import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional

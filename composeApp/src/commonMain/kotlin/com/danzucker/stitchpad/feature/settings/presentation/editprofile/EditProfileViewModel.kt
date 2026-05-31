@@ -50,6 +50,7 @@ private const val MAX_PHONE_DIGITS = 15
 private const val MIN_BUSINESS_NAME_LEN = 2
 private const val CONFIRM_CODE_LENGTH = 4
 
+@Suppress("TooManyFunctions")
 class EditProfileViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -87,7 +88,7 @@ class EditProfileViewModel(
             initialValue = EditProfileState(),
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: EditProfileAction) {
         when (action) {
             is EditProfileAction.OnBusinessNameChange -> _state.update {
@@ -111,8 +112,11 @@ class EditProfileViewModel(
                     whatsappNumber = filtered,
                     whatsappError = null,
                     whatsappConfirm = it.whatsappConfirm.copy(
-                        confirmed = false, promptVisible = false,
-                        code = null, input = "", error = null,
+                        confirmed = false,
+                        promptVisible = false,
+                        code = null,
+                        input = "",
+                        error = null,
                     ),
                 )
             }
@@ -153,7 +157,10 @@ class EditProfileViewModel(
             EditProfileAction.OnDismissConfirm -> _state.update {
                 it.copy(
                     whatsappConfirm = it.whatsappConfirm.copy(
-                        promptVisible = false, input = "", error = null, code = null,
+                        promptVisible = false,
+                        input = "",
+                        error = null,
+                        code = null,
                     )
                 )
             }
@@ -281,7 +288,10 @@ class EditProfileViewModel(
         _state.update {
             it.copy(
                 whatsappConfirm = it.whatsappConfirm.copy(
-                    code = code, input = "", promptVisible = true, error = null,
+                    code = code,
+                    input = "",
+                    promptVisible = true,
+                    error = null,
                 )
             )
         }
@@ -302,8 +312,11 @@ class EditProfileViewModel(
             _state.update {
                 it.copy(
                     whatsappConfirm = it.whatsappConfirm.copy(
-                        confirmed = true, promptVisible = false,
-                        code = null, input = "", error = null,
+                        confirmed = true,
+                        promptVisible = false,
+                        code = null,
+                        input = "",
+                        error = null,
                     )
                 )
             }
