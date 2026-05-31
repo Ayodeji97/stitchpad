@@ -7,6 +7,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
@@ -39,11 +40,20 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.receipt_share_error
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+// Bound on awaitHydrated() in the share path. Long enough for a typical cold-start
+// Firestore snapshot to land (single-digit hundreds of ms in practice); short
+// enough that a true hydration failure (missing user doc, rules issue, network
+// stall) falls back to current() in ~2s rather than appearing to hang silently —
+// the share sheet is already closed by the time we wait, so there's no visible
+// progress affordance to support a longer wait.
+private const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
 
 // Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
@@ -61,6 +71,7 @@ class OrderDetailViewModel(
     private val receiptSharer: OrderReceiptSharer,
     private val imageLoader: ImageLoader,
     private val platformContext: PlatformContext,
+    private val entitlementsProvider: EntitlementsProvider,
 ) : ViewModel() {
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
@@ -371,9 +382,23 @@ class OrderDetailViewModel(
                     .distinct()
                     .associate { it to garmentDisplayNameAsync(it) }
                 val logoBytes = fetchLogoBytes(user.businessLogoUrl)
+                // Wait briefly for entitlements to hydrate so a Pro/Atelier user
+                // opening the app and immediately sharing doesn't get the StitchPad
+                // watermark while the snapshot is still racing. Bounded by a short
+                // timeout because awaitHydrated() never resolves when the user doc
+                // is missing or Firestore can't produce a snapshot (rules issue,
+                // long network stall, fresh-signup race) — the share sheet has
+                // already closed by this point and there's no loading affordance,
+                // so an unbounded wait would look like a silent hang to the user.
+                // On timeout we fall back to current() which defaults to FREE +
+                // StitchPad watermark — degraded for a paid user, never broken.
+                val tier = withTimeoutOrNull(ENTITLEMENTS_HYDRATION_TIMEOUT_MS) {
+                    entitlementsProvider.awaitHydrated()
+                }?.tier ?: entitlementsProvider.current().tier
                 val receiptData = ReceiptFormatter.format(
                     order = order,
                     user = user,
+                    tier = tier,
                     garmentNames = garmentNames,
                     businessLogoBytes = logoBytes,
                     forceDocumentType = choice,
