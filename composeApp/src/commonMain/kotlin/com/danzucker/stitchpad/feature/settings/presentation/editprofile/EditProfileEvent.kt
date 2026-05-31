@@ -18,4 +18,6 @@ sealed interface EditProfileEvent {
      * the scaffold teardown.
      */
     data class SaveSucceeded(val message: UiText) : EditProfileEvent
+
+    data class LaunchWhatsAppConfirm(val phoneE164: String, val code: String) : EditProfileEvent
 }

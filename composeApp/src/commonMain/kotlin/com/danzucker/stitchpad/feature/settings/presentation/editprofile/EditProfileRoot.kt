@@ -39,6 +39,7 @@ fun EditProfileRoot(
                     onNavigateBack()
                 }
             }
+            is EditProfileEvent.LaunchWhatsAppConfirm -> Unit // TODO Task 10
         }
     }
 

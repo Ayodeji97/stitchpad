@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
+import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import org.jetbrains.compose.resources.StringResource
 
@@ -53,6 +54,10 @@ data class EditProfileState(
     val originalLogoUrl: String? = null,
     val originalLogoStoragePath: String? = null,
     val showRemoveLogoDialog: Boolean = false,
+
+    // WhatsApp confirm
+    val whatsappConfirm: WhatsAppConfirmUiState = WhatsAppConfirmUiState(),
+    val originalWhatsappConfirmed: Boolean = false,
 ) {
     val isDirty: Boolean
         get() = businessName != originalBusinessName ||
@@ -62,7 +67,8 @@ data class EditProfileState(
             avatarColorIndex != originalAvatarColorIndex ||
             bankName != originalBankName ||
             bankAccountName != originalBankAccountName ||
-            bankAccountNumber != originalBankAccountNumber
+            bankAccountNumber != originalBankAccountNumber ||
+            whatsappConfirm.confirmed != originalWhatsappConfirmed
 
     val hasErrors: Boolean
         get() = businessNameError != null ||
