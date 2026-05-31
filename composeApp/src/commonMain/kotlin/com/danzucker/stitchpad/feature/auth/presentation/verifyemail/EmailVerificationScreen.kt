@@ -73,10 +73,12 @@ fun EmailVerificationRoot(
     val scope = rememberCoroutineScope()
 
     // Re-check verification each time the screen resumes — the user taps the
-    // link in their mail app (leaving StitchPad) and returns here.
+    // link in their mail app (leaving StitchPad) and returns here. Polling is
+    // stopped on pause so we don't burn battery/data while they're away; the
+    // resume above re-checks immediately and restarts it.
     LifecycleResumeEffect(Unit) {
         viewModel.onAction(EmailVerificationAction.OnScreenResumed)
-        onPauseOrDispose { }
+        onPauseOrDispose { viewModel.onAction(EmailVerificationAction.OnScreenPaused) }
     }
 
     ObserveAsEvents(viewModel.events) { event ->

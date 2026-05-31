@@ -174,4 +174,17 @@ class EmailVerificationViewModelTest {
         }
         assertTrue(authRepository.reloadCount >= 2)
     }
+
+    @Test
+    fun pausingStopsPolling() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val vm = buildViewModel()
+        vm.onAction(EmailVerificationAction.OnScreenResumed) // reload #1 + start polling
+        runCurrent()
+        val reloadsAfterResume = authRepository.reloadCount
+        vm.onAction(EmailVerificationAction.OnScreenPaused) // cancel polling
+        advanceTimeBy(12_100L) // 3 poll intervals would have elapsed
+        runCurrent()
+        assertEquals(reloadsAfterResume, authRepository.reloadCount)
+    }
 }

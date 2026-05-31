@@ -47,6 +47,7 @@ class EmailVerificationViewModel(
     fun onAction(action: EmailVerificationAction) {
         when (action) {
             EmailVerificationAction.OnScreenResumed -> onResumed()
+            EmailVerificationAction.OnScreenPaused -> pollingJob?.cancel()
             EmailVerificationAction.OnCheckVerificationClick -> checkNow()
             EmailVerificationAction.OnResendClick -> resend()
             EmailVerificationAction.OnDebugSkipClick -> debugSkip()
