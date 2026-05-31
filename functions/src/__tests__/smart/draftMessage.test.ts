@@ -1,6 +1,6 @@
 import firebaseFunctionsTest from 'firebase-functions-test';
 import * as freeTierCounter from '../../smart/freeTierCounter';
-import { reconcileUsage } from '../../smart/freeTierCounter';
+import { formatMonthYear, reconcileUsage } from '../../smart/freeTierCounter';
 import { formatDeadline } from '../../smart/draftMessage';
 import { FreeTierUsageDoc } from '../../smart/types';
 import { VertexClient } from '../../smart/vertexClient';
@@ -62,7 +62,7 @@ const fakeFirestore = (overrides: Partial<{
 }>) => {
   const profile = overrides.profile ?? { tier: 'free' as const };
   const initialUsage: FreeTierUsageDoc | null =
-    'usage' in overrides ? (overrides.usage ?? null) : { monthYear: '2026-05', count: 0, limit: 5 };
+    'usage' in overrides ? (overrides.usage ?? null) : { monthYear: formatMonthYear(new Date()), count: 0, limit: 5 };
   let usage: FreeTierUsageDoc | null = initialUsage;
   const customer = overrides.customer ?? { firstName: 'Folake' };
   const order = overrides.order ?? {
@@ -116,7 +116,7 @@ describe('draftMessageHandler', () => {
   });
 
   it('rejects with permission-denied when free tier exhausted', async () => {
-    const fs = fakeFirestore({ usage: { monthYear: '2026-05', count: 5, limit: 5 } });
+    const fs = fakeFirestore({ usage: { monthYear: formatMonthYear(new Date()), count: 5, limit: 5 } });
     await expect(handler(validRequest, baseContext as any, fs)).rejects.toMatchObject({
       code: 'permission-denied',
       message: expect.stringContaining('free_tier_exhausted'),
@@ -129,7 +129,7 @@ describe('draftMessageHandler', () => {
     // should succeed with the new Pro limit of 50.
     const fs = fakeFirestore({
       profile: { tier: 'pro' },
-      usage: { monthYear: '2026-05', count: 5, limit: 5 } as any,
+      usage: { monthYear: formatMonthYear(new Date()), count: 5, limit: 5 } as any,
     });
     const result = await handler(validRequest, baseContext as any, fs);
     // 50 (Pro limit) - 6 (incremented count) = 44 remaining
@@ -241,7 +241,7 @@ describe('draftMessageHandler', () => {
     // fake is single-threaded, the test asserts that 5 reservations succeed
     // and the 6th is rejected — which is the invariant the transaction
     // upholds in production under real concurrency.
-    const fs = fakeFirestore({ usage: { monthYear: '2026-05', count: 0, limit: 5 } });
+    const fs = fakeFirestore({ usage: { monthYear: formatMonthYear(new Date()), count: 0, limit: 5 } });
     for (let i = 0; i < 5; i++) {
       const result = await handler(validRequest, baseContext as any, fs);
       expect(result.remainingFreeQuota).toBe(4 - i);
@@ -308,7 +308,7 @@ describe('draftMessageHandler', () => {
 
   it('consumes bonusBalance before monthly count', async () => {
     const fs = fakeFirestore({
-      usage: { monthYear: '2026-05', count: 0, limit: 5, bonusBalance: 3 } as any,
+      usage: { monthYear: formatMonthYear(new Date()), count: 0, limit: 5, bonusBalance: 3 } as any,
     });
     // Override reserveFreeTierSlot to model bonus consumption with the same
     // local-state mutation pattern as the real fake but tracking bonus.
@@ -319,7 +319,7 @@ describe('draftMessageHandler', () => {
         bonus -= 1;
         return Promise.resolve({
           exhausted: false,
-          usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: bonus },
+          usage: { monthYear: formatMonthYear(new Date()), count, limit: 5, bonusBalance: bonus },
           consumedBonus: true,
         });
       }
@@ -327,7 +327,7 @@ describe('draftMessageHandler', () => {
       count += 1;
       return Promise.resolve({
         exhausted: false,
-        usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: 0 },
+        usage: { monthYear: formatMonthYear(new Date()), count, limit: 5, bonusBalance: 0 },
         consumedBonus: false,
       });
     });
@@ -368,14 +368,14 @@ describe('draftMessageHandler', () => {
         bonusBalance = currentBonus - 1;
         return Promise.resolve({
           exhausted: false,
-          usage: { monthYear: '2026-05', count, limit: 5, bonusBalance },
+          usage: { monthYear: formatMonthYear(new Date()), count, limit: 5, bonusBalance },
           consumedBonus: true,
         });
       }
       count += 1;
       return Promise.resolve({
         exhausted: false,
-        usage: { monthYear: '2026-05', count, limit: 5, bonusBalance: 0 },
+        usage: { monthYear: formatMonthYear(new Date()), count, limit: 5, bonusBalance: 0 },
         consumedBonus: false,
       });
     });
@@ -393,7 +393,7 @@ describe('productionIO contract: reserveFreeTierSlot threads "draft" to reconcil
 
   it('calls reconcileUsage with "draft" as the feature key', async () => {
     const fakeUsageDoc: FreeTierUsageDoc = {
-      monthYear: '2026-05',
+      monthYear: formatMonthYear(new Date()),
       count: 1,
       limit: 5,
       perFeature: { draft: 1 },
