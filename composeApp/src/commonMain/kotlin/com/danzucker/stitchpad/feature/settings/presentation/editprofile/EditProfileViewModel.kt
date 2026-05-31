@@ -53,6 +53,12 @@ class EditProfileViewModel(
     private val _state = MutableStateFlow(EditProfileState())
     private var logoUploadJob: Job? = null
 
+    // Bumped each time a logo is picked. Job.cancel() is cooperative — an
+    // already-running coroutine can land its _state.update synchronously after
+    // cancel() but before its next suspension point checks the flag. The local
+    // generation snapshot blocks stale-job writes from clobbering the newer pick.
+    private var logoUploadGeneration = 0
+
     private val _events = Channel<EditProfileEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
@@ -283,72 +289,37 @@ class EditProfileViewModel(
             is Result.Success -> Unit
         }
         logoUploadJob?.cancel()
+        val myGeneration = ++logoUploadGeneration
         // Show the raw picked preview immediately; compress before the upload runs.
         _state.update { it.copy(logo = LogoUploadState.Uploading(bytes)) }
-        logoUploadJob = viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+        logoUploadJob = viewModelScope.launch { runLogoUpload(bytes, myGeneration) }
+    }
+
+    private suspend fun runLogoUpload(bytes: ByteArray, myGeneration: Int) {
+        val userId = authRepository.getCurrentUser()?.id ?: run {
+            if (myGeneration == logoUploadGeneration) {
                 _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
-                return@launch
             }
-            // Downscale + JPEG re-encode before upload. Null = decode failed despite
-            // the magic-bytes check passing → surface as UnsupportedFormat.
-            val compressed = compressLogo(bytes)
-            if (compressed == null) {
+            return
+        }
+        // Downscale + JPEG re-encode before upload. Null = decode failed despite
+        // the magic-bytes check passing → surface as UnsupportedFormat.
+        val compressed = compressLogo(bytes)
+        if (compressed == null) {
+            if (myGeneration == logoUploadGeneration) {
                 _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
                 _events.send(
                     EditProfileEvent.ShowSnackbar(BrandLogoError.UnsupportedFormat.toUiText())
                 )
-                return@launch
             }
-            when (val result = userRepository.uploadUserLogo(userId, compressed)) {
+            return
+        }
+        val result = userRepository.uploadUserLogo(userId, compressed)
+        if (myGeneration == logoUploadGeneration) {
+            when (result) {
                 is Result.Success -> {
                     val (url, path) = result.data
-                    // Only transition to Uploaded AFTER Firestore is updated. Otherwise
-                    // a Firestore failure (offline, rules reject) leaves the user looking
-                    // at a "Uploaded" tile that won't survive a reload — and the Storage
-                    // object becomes orphaned because nothing references it.
-                    when (userRepository.updateBrandLogo(userId, url, path)) {
-                        is Result.Success -> {
-                            _state.update {
-                                it.copy(
-                                    logo = LogoUploadState.Uploaded(url, path),
-                                    originalLogoUrl = url,
-                                    originalLogoStoragePath = path,
-                                )
-                            }
-                            emit(
-                                EditProfileEvent.ShowSnackbar(
-                                    UiText.StringResourceText(Res.string.edit_profile_logo_updated)
-                                )
-                            )
-                        }
-                        is Result.Error -> {
-                            // Storage wrote but Firestore didn't. Storage path is
-                            // deterministic (users/{uid}/branding/logo.jpg), so the
-                            // upload has OVERWRITTEN any prior logo's bytes already.
-                            //
-                            // - First-time upload (no previous logo): the Storage object
-                            //   is orphaned because the user doc has no reference. Delete
-                            //   it to avoid permanent waste.
-                            // - Replacement (prior logo existed): the previous logo's
-                            //   bytes are already gone — overwritten by this upload. We
-                            //   must NOT delete now, or the path would be empty while
-                            //   the user doc still points at the (token-mismatched, but
-                            //   stable) old URL. A subsequent retry will overwrite the
-                            //   path again and reconcile.
-                            AppLogger.e(tag = TAG) { "updateBrandLogo after upload failed for userId=$userId" }
-                            val hadPreviousLogo = _state.value.originalLogoStoragePath != null
-                            if (!hadPreviousLogo) {
-                                userRepository.deleteUserLogo(path)
-                            }
-                            _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
-                            _events.send(
-                                EditProfileEvent.ShowSnackbar(
-                                    UiText.StringResourceText(Res.string.error_unknown)
-                                )
-                            )
-                        }
-                    }
+                    applyUploadedLogo(userId, url, path, bytes, myGeneration)
                 }
                 is Result.Error -> {
                     _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
@@ -356,6 +327,63 @@ class EditProfileViewModel(
                         EditProfileEvent.ShowSnackbar(BrandLogoError.Network(result.error).toUiText())
                     )
                 }
+            }
+        }
+    }
+
+    // Only transition to Uploaded AFTER Firestore is updated. Otherwise a Firestore
+    // failure (offline, rules reject) leaves the user looking at an "Uploaded" tile
+    // that won't survive a reload — and the Storage object becomes orphaned because
+    // nothing references it.
+    private suspend fun applyUploadedLogo(
+        userId: String,
+        url: String,
+        path: String,
+        bytes: ByteArray,
+        myGeneration: Int,
+    ) {
+        val updateResult = userRepository.updateBrandLogo(userId, url, path)
+        if (myGeneration != logoUploadGeneration) return
+        when (updateResult) {
+            is Result.Success -> {
+                _state.update {
+                    it.copy(
+                        logo = LogoUploadState.Uploaded(url, path),
+                        originalLogoUrl = url,
+                        originalLogoStoragePath = path,
+                    )
+                }
+                emit(
+                    EditProfileEvent.ShowSnackbar(
+                        UiText.StringResourceText(Res.string.edit_profile_logo_updated)
+                    )
+                )
+            }
+            is Result.Error -> {
+                // Storage wrote but Firestore didn't. Storage path is deterministic
+                // (users/{uid}/branding/logo.jpg), so the upload has OVERWRITTEN any
+                // prior logo's bytes already.
+                //
+                // - First-time upload (no previous logo): the Storage object is
+                //   orphaned because the user doc has no reference. Delete it to
+                //   avoid permanent waste.
+                // - Replacement (prior logo existed): the previous logo's bytes are
+                //   already gone — overwritten by this upload. We must NOT delete
+                //   now, or the path would be empty while the user doc still points
+                //   at the (token-mismatched, but stable) old URL. A subsequent
+                //   retry will overwrite the path again and reconcile.
+                AppLogger.e(tag = TAG) { "updateBrandLogo after upload failed for userId=$userId" }
+                val hadPreviousLogo = _state.value.originalLogoStoragePath != null
+                if (!hadPreviousLogo) {
+                    userRepository.deleteUserLogo(path)
+                }
+                if (myGeneration != logoUploadGeneration) return
+                _state.update { it.copy(logo = LogoUploadState.Failed(bytes)) }
+                _events.send(
+                    EditProfileEvent.ShowSnackbar(
+                        UiText.StringResourceText(Res.string.error_unknown)
+                    )
+                )
             }
         }
     }
