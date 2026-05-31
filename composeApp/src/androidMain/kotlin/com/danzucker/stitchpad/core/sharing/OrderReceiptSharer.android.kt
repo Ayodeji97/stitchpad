@@ -95,6 +95,12 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
+        if (data.paymentRows.isNotEmpty()) {
+            estimatedHeight += 36f + data.paymentRows.size * 26f // payments section
+        }
+        if (data.bankBlock != null) {
+            estimatedHeight += 36f + 3 * 26f // bank block (3 rows)
+        }
         estimatedHeight += 30f // gap
         estimatedHeight += 20f // divider
         estimatedHeight += 50f // status + deadline row
@@ -220,6 +226,39 @@ actual class OrderReceiptSharer(private val context: Context) {
             canvas.drawText(dueText, rx + 7f, y, balancePaint)
         }
         y += 28f
+
+        // PAYMENTS section — only when payments are recorded. Renders one row per
+        // payment with date, type, method on the left; formatted amount on the right.
+        if (data.paymentRows.isNotEmpty()) {
+            y += 6f
+            canvas.drawText("PAYMENTS", padding, y, labelPaint)
+            y += 22f
+            data.paymentRows.forEach { row ->
+                val leftText = "${row.dateFormatted}  ·  ${row.typeLabel}  ·  ${row.methodLabel}"
+                canvas.drawText(leftText, padding, y, bodyPaint)
+                canvas.drawText(row.formattedAmount, width - padding, y, priceRightPaint)
+                y += 26f
+            }
+        }
+
+        // PAY VIA TRANSFER — bank block. Formatter nulls bankBlock on fully-paid
+        // orders, so this never renders when there is nothing to collect.
+        val bank = data.bankBlock
+        if (bank != null) {
+            y += 6f
+            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaint)
+            y += 22f
+            val valueX = padding + 130f
+            canvas.drawText("Bank", padding, y, bodyPaint)
+            canvas.drawText(bank.bankName, valueX, y, bodyBoldPaint)
+            y += 26f
+            canvas.drawText("Account name", padding, y, bodyPaint)
+            canvas.drawText(bank.accountName, valueX, y, bodyBoldPaint)
+            y += 26f
+            canvas.drawText("Account number", padding, y, bodyPaint)
+            canvas.drawText(bank.accountNumber, valueX, y, bodyBoldPaint)
+            y += 14f
+        }
 
         // Status & Deadline divider
         canvas.drawLine(padding, y, width - padding, y, linePaint)
@@ -448,6 +487,37 @@ actual class OrderReceiptSharer(private val context: Context) {
             canvas.drawText(dueText, rx + 6f, y, balancePdf)
         }
         y += 22f
+
+        // PAYMENTS section — light PDF variant
+        if (data.paymentRows.isNotEmpty()) {
+            y += 4f
+            canvas.drawText("PAYMENTS", padding, y, labelPaintPdf)
+            y += 16f
+            data.paymentRows.forEach { row ->
+                val leftText = "${row.dateFormatted}  ·  ${row.typeLabel}  ·  ${row.methodLabel}"
+                canvas.drawText(leftText, padding, y, bodyPaintPdf)
+                canvas.drawText(row.formattedAmount, pageWidth - padding, y, priceRightPdf)
+                y += 18f
+            }
+        }
+
+        // PAY VIA TRANSFER — light PDF variant
+        val bankPdf = data.bankBlock
+        if (bankPdf != null) {
+            y += 4f
+            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaintPdf)
+            y += 16f
+            val valueX = padding + 96f
+            canvas.drawText("Bank", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.bankName, valueX, y, bodyBoldPdf)
+            y += 18f
+            canvas.drawText("Account name", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.accountName, valueX, y, bodyBoldPdf)
+            y += 18f
+            canvas.drawText("Account number", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.accountNumber, valueX, y, bodyBoldPdf)
+            y += 10f
+        }
 
         // Status divider
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
