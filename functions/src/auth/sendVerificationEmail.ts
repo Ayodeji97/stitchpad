@@ -7,6 +7,10 @@ const FROM = 'StitchPad <noreply@send.getstitchpad.com>';
 const REPLY_TO = 'support@getstitchpad.com';
 const SUBJECT = 'Verify your email for StitchPad';
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+// Server-side backstop matching the client's 60s resend cooldown, so a client
+// calling the callable directly can't bypass the UI throttle and burn Resend
+// quota / sender reputation.
+const THROTTLE_MS = 60_000;
 
 export interface SendVerificationResult {
   sent: boolean;
@@ -21,6 +25,11 @@ export interface VerificationEmailIO {
   getUser(uid: string): Promise<{ email?: string; displayName?: string; emailVerified: boolean }>;
   generateLink(email: string): Promise<string>;
   sendEmail(params: { to: string; displayName?: string; verifyLink: string }): Promise<void>;
+  /**
+   * Atomically reserves a send for this uid, returning false if one happened
+   * within the throttle window. The server-side rate limit.
+   */
+  reserveSend(uid: string): Promise<boolean>;
 }
 
 /**
@@ -43,6 +52,11 @@ export async function sendVerificationEmailHandler(
   }
   if (user.emailVerified) {
     return { sent: false, alreadyVerified: true };
+  }
+
+  const allowed = await io.reserveSend(uid);
+  if (!allowed) {
+    throw new functions.https.HttpsError('resource-exhausted', 'verification_email_throttled');
   }
 
   const verifyLink = await io.generateLink(user.email);
@@ -88,6 +102,7 @@ async function sendViaResend(
 }
 
 function productionIO(apiKey: string): VerificationEmailIO {
+  const db = admin.firestore();
   return {
     async getUser(uid) {
       const user = await admin.auth().getUser(uid);
@@ -102,6 +117,19 @@ function productionIO(apiKey: string): VerificationEmailIO {
     },
     sendEmail(params) {
       return sendViaResend(apiKey, params);
+    },
+    reserveSend(uid) {
+      const ref = db.collection('email_throttle').doc(uid);
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const now = Date.now();
+        const lastSent: number = (snap.exists && snap.data()?.verificationLastSentMillis) || 0;
+        if (now - lastSent < THROTTLE_MS) {
+          return false;
+        }
+        tx.set(ref, { verificationLastSentMillis: now }, { merge: true });
+        return true;
+      });
     },
   };
 }

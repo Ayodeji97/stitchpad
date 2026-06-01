@@ -17,9 +17,16 @@ function makeIO(overrides: Partial<{
   emailVerified: boolean;
   link: string;
   sendEmail: jest.Mock;
-}> = {}): { io: VerificationEmailIO; sendEmail: jest.Mock; generateLink: jest.Mock } {
+  reserveSend: jest.Mock;
+}> = {}): {
+  io: VerificationEmailIO;
+  sendEmail: jest.Mock;
+  generateLink: jest.Mock;
+  reserveSend: jest.Mock;
+} {
   const sendEmail = overrides.sendEmail ?? jest.fn().mockResolvedValue(undefined);
   const generateLink = jest.fn().mockResolvedValue(overrides.link ?? 'https://verify.example/link');
+  const reserveSend = overrides.reserveSend ?? jest.fn().mockResolvedValue(true);
   const io: VerificationEmailIO = {
     getUser: jest.fn().mockResolvedValue({
       email: 'email' in overrides ? overrides.email : 'tunde@example.com',
@@ -28,8 +35,9 @@ function makeIO(overrides: Partial<{
     }),
     generateLink,
     sendEmail,
+    reserveSend,
   };
-  return { io, sendEmail, generateLink };
+  return { io, sendEmail, generateLink, reserveSend };
 }
 
 const authedContext = { auth: { uid: 'uid-1', token: {} } } as never;
@@ -67,6 +75,14 @@ describe('sendVerificationEmailHandler', () => {
       displayName: 'Tunde Johnson',
       verifyLink: 'https://verify.example/abc',
     });
+  });
+
+  it('throttles when a send was reserved too recently', async () => {
+    const { io, sendEmail } = makeIO({ reserveSend: jest.fn().mockResolvedValue(false) });
+    await expect(sendVerificationEmailHandler(authedContext, io)).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it('maps a send failure to unavailable', async () => {
