@@ -11,8 +11,10 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
@@ -38,10 +40,20 @@ private const val TAG = "CustomerRepo"
 internal fun countActiveCustomers(dtos: List<CustomerDto>): Int =
     dtos.count { CustomerSlotState.fromWire(it.slotState) == CustomerSlotState.ACTIVE }
 
+internal fun shouldBlockActiveCustomerCreate(
+    cachedActiveCount: Int?,
+    customerCap: Int,
+    entitlementsHydrated: Boolean = true,
+): Boolean =
+    entitlementsHydrated && cachedActiveCount != null && cachedActiveCount >= customerCap
+
 class FirebaseCustomerRepository(
     private val firestore: FirebaseFirestore,
     private val entitlements: EntitlementsProvider,
+    private val offlineWrites: OfflineWriteDispatcher,
 ) : CustomerRepository {
+
+    private val cachedActiveCustomerCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
         firestore.collection("users")
@@ -49,9 +61,11 @@ class FirebaseCustomerRepository(
             .collection("customers")
             .snapshots()
             .map { snapshot ->
-                val customers = snapshot.documents.mapNotNull { doc ->
-                    runCatching { doc.data<CustomerDto>().toCustomer(userId) }.getOrNull()
+                val customerDtos = snapshot.documents.mapNotNull { doc ->
+                    runCatching { doc.data<CustomerDto>() }.getOrNull()
                 }
+                cacheActiveCustomerCount(userId, countActiveCustomers(customerDtos))
+                val customers = customerDtos.map { it.toCustomer(userId) }
                 Result.Success(customers) as Result<List<Customer>, DataError.Network>
             }
             .catch { throwable ->
@@ -109,108 +123,89 @@ class FirebaseCustomerRepository(
         userId: String,
         customer: Customer
     ): EmptyResult<DataError.Network> {
-        // Cap enforcement: count ACTIVE-slot customers; LOCKED ones don't count.
-        // Fetch all docs and count client-side via countActiveCustomers() — consistent
-        // with how the rest of this repo avoids nullable-field where-clauses (see
-        // the observeOrders comment about whereEqualTo(field, null) cross-platform issues).
-        //
-        // awaitHydrated (not current()) because `current()` returns the default
-        // FREE/15 placeholder before the first Firestore snapshot lands. On a cold
-        // start, a Pro/Atelier or First Month account with 15+ customers would
-        // otherwise see a spurious CAP_REACHED here. The await blocks just until
-        // the user-doc snapshot listener fires once (typically <100ms).
-        val entitlement = entitlements.awaitHydrated()
-        val activeCount = try {
-            val dtos = firestore.collection("users")
-                .document(userId)
-                .collection("customers")
-                .get()
-                .documents
-                .mapNotNull { doc -> runCatching { doc.data<CustomerDto>() }.getOrNull() }
-            countActiveCustomers(dtos)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
-            // Fail closed: without a count we cannot enforce the cap, and there
-            // is no server-side create guard to fall back on (Firestore rules
-            // don't currently validate cap on writes). Allowing the create
-            // would let a burst of writes during an outage exceed the cap;
-            // surface a network error so the UI retries instead.
-            AppLogger.e(tag = TAG, throwable = e) { "Cap count failed; blocking createCustomer" }
-            return Result.Error(DataError.Network.UNKNOWN)
-        }
-        if (activeCount >= entitlement.customerCap) {
-            AppLogger.i(tag = TAG) {
-                "createCustomer blocked: activeCount=$activeCount cap=${entitlement.customerCap}"
-            }
-            return Result.Error(DataError.Network.CAP_REACHED)
-        }
-
         val docRef = if (customer.id.isBlank()) {
             firestore.collection("users").document(userId).collection("customers").document
         } else {
             firestore.collection("users").document(userId).collection("customers")
                 .document(customer.id)
         }
-        return try {
-            val dto = customer.toCustomerDto().copy(id = docRef.id)
-            docRef.set(dto)
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) {
-                "createCustomer failed customerId=${docRef.id}"
+        val dto = customer.toCustomerDto().copy(id = docRef.id)
+        if (CustomerSlotState.fromWire(dto.slotState) == CustomerSlotState.ACTIVE) {
+            val cap = entitlements.current().customerCap
+            val activeCount = cachedActiveCustomerCounts.value[userId]
+            // Offline create must not block on a remote count read. If the
+            // current session has not observed real entitlements/list counts yet,
+            // accept locally and let existing server reconciliation restore truth.
+            if (shouldBlockActiveCustomerCreate(activeCount, cap, entitlements.hasHydrated())) {
+                AppLogger.i(tag = TAG) {
+                    "createCustomer blocked by cap: activeCount=$activeCount cap=$cap"
+                }
+                return Result.Error(DataError.Network.CAP_REACHED)
             }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        val accepted = offlineWrites.enqueue("createCustomer customerId=${docRef.id}") {
+            docRef.set(dto)
+        }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        if (CustomerSlotState.fromWire(dto.slotState) == CustomerSlotState.ACTIVE) {
+            val current = cachedActiveCustomerCounts.value[userId] ?: 0
+            cacheActiveCustomerCount(userId, current + 1)
+        }
+        return Result.Success(Unit)
+    }
+
+    private fun cacheActiveCustomerCount(userId: String, count: Int) {
+        cachedActiveCustomerCounts.value = cachedActiveCustomerCounts.value + (userId to count)
+    }
+
+    private fun invalidateActiveCustomerCount(userId: String) {
+        cachedActiveCustomerCounts.value = cachedActiveCustomerCounts.value - userId
     }
 
     override suspend fun updateCustomer(
         userId: String,
         customer: Customer
     ): EmptyResult<DataError.Network> {
-        return try {
-            val docRef = firestore.collection("users")
-                .document(userId)
-                .collection("customers")
-                .document(customer.id)
-            // Read the existing slotState + lockedAt before writing so that a
-            // form edit — which reconstructs Customer with the default ACTIVE —
-            // does NOT accidentally unlock a previously-locked customer and
-            // bypass the freemium cap. Authoritative writers of these fields:
-            //   - createCustomer (cap-gated, this file)
-            //   - reconcileCustomerSlots (Cloud Function, server-side cap)
-            //   - swapCustomerSlot (CloudFunctionsFreemiumRepository, paired
-            //     active↔locked swap; user-initiated)
-            // updateCustomer is NOT authoritative and must preserve them.
-            val existing = runCatching { docRef.get().data<CustomerDto>() }.getOrNull()
-            val dto = customer.toCustomerDto().copy(
-                slotState = existing?.slotState ?: customer.toCustomerDto().slotState,
-                lockedAt = existing?.lockedAt ?: customer.lockedAt,
-            )
-            docRef.set(dto)
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) {
-                "updateCustomer failed customerId=${customer.id}"
-            }
-            Result.Error(DataError.Network.UNKNOWN)
+        val docRef = firestore.collection("users")
+            .document(userId)
+            .collection("customers")
+            .document(customer.id)
+        val dto = customer.toCustomerDto()
+        val editableFields = mapOf(
+            "name" to dto.name,
+            "phone" to dto.phone,
+            "email" to dto.email,
+            "address" to dto.address,
+            "updatedAt" to dto.updatedAt,
+        )
+        val accepted = offlineWrites.enqueue("updateCustomer customerId=${customer.id}") {
+            // Merge only fields from the edit form. slotState/lockedAt are
+            // server-owned and must not be reconstructed from offline UI state.
+            docRef.set(editableFields, merge = true)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun deleteCustomer(
         userId: String,
         customerId: String
     ): EmptyResult<DataError.Network> {
-        return try {
+        val accepted = offlineWrites.enqueue("deleteCustomer customerId=$customerId") {
             firestore.collection("users")
                 .document(userId)
                 .collection("customers")
                 .document(customerId)
                 .delete()
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) {
-                "deleteCustomer failed customerId=$customerId"
-            }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        invalidateActiveCustomerCount(userId)
+        return Result.Success(Unit)
     }
 }

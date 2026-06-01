@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.navigation.compose.rememberNavController
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
+import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.feature.freemium.presentation.reconcile.ReconcileCoordinator
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.navigation.StitchPadNavHost
@@ -23,6 +24,7 @@ fun App() {
     // instantiating the object. See ReconcileCoordinator for the full rationale
     // (V1.0 design spec decision #4).
     koinInject<ReconcileCoordinator>().ensureRunning()
+    koinInject<OfflineUploadOutbox>().ensureRunning()
 
     val themeStore: ThemePreferencesStore = koinInject()
     val themeFlow = remember(themeStore) { themeStore.observeTheme() }

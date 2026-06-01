@@ -49,16 +49,22 @@ data class OrderItem(
 
 enum class StyleImageSource { LIBRARY, UPLOADED }
 
+enum class ImageSyncState { SYNCED, PENDING, FAILED }
+
 data class StyleImageRef(
     val source: StyleImageSource,
     val styleId: String? = null, // set when source == LIBRARY
     val photoUrl: String? = null, // set when source == UPLOADED
     val photoStoragePath: String? = null, // set when source == UPLOADED
+    val syncState: ImageSyncState = ImageSyncState.SYNCED,
+    val localPhotoPath: String? = null,
 )
 
 data class FabricImageRef(
     val photoUrl: String,
     val photoStoragePath: String,
+    val syncState: ImageSyncState = ImageSyncState.SYNCED,
+    val localPhotoPath: String? = null,
 )
 
 data class StatusChange(

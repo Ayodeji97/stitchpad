@@ -258,7 +258,7 @@ private fun FabricStrip(
     fabricImages: List<FabricImageRef>,
     onImageClick: (List<String>, Int) -> Unit,
 ) {
-    val urls = fabricImages.map { it.photoUrl }
+    val urls = fabricImages.map { it.localPhotoPath ?: it.photoUrl }
     val caption = stringResource(Res.string.order_detail_fabric_caption)
     Row(
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),

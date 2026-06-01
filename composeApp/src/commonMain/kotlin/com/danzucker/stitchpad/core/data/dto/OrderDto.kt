@@ -64,12 +64,14 @@ data class StyleImageRefDto(
     val styleId: String? = null,
     val photoUrl: String? = null,
     val photoStoragePath: String? = null,
+    val syncState: String = "SYNCED",
 )
 
 @Serializable
 data class FabricImageRefDto(
     val photoUrl: String = "",
     val photoStoragePath: String = "",
+    val syncState: String = "SYNCED",
 )
 
 @Serializable

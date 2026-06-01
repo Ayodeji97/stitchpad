@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -19,6 +20,7 @@ private const val TAG = "CustomFieldRepo"
 
 class FirebaseCustomMeasurementFieldRepository(
     private val firestore: FirebaseFirestore,
+    private val offlineWrites: OfflineWriteDispatcher,
 ) : CustomMeasurementFieldRepository {
 
     private fun collection(userId: String) =
@@ -53,51 +55,45 @@ class FirebaseCustomMeasurementFieldRepository(
         } else {
             collection(userId).document(field.id)
         }
-        return try {
-            val dto = field.toCustomMeasurementFieldDto().copy(id = docRef.id)
+        val dto = field.toCustomMeasurementFieldDto().copy(id = docRef.id)
+        val accepted = offlineWrites.enqueue("createCustomMeasurementField fieldId=${docRef.id}") {
             docRef.set(dto)
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) {
-                "createField failed fieldId=${docRef.id}"
-            }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun updateField(
         userId: String,
         field: CustomMeasurementField,
     ): EmptyResult<DataError.Network> {
-        return try {
-            val now = Clock.System.now().toEpochMilliseconds()
-            val dto = field.copy(updatedAt = now).toCustomMeasurementFieldDto()
+        val now = Clock.System.now().toEpochMilliseconds()
+        val dto = field.copy(updatedAt = now).toCustomMeasurementFieldDto()
+        val accepted = offlineWrites.enqueue("updateCustomMeasurementField fieldId=${field.id}") {
             collection(userId).document(field.id).set(dto)
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) {
-                "updateField failed fieldId=${field.id}"
-            }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun archiveField(
         userId: String,
         fieldId: String,
     ): EmptyResult<DataError.Network> {
-        return try {
-            val now = Clock.System.now().toEpochMilliseconds()
+        val now = Clock.System.now().toEpochMilliseconds()
+        val accepted = offlineWrites.enqueue("archiveCustomMeasurementField fieldId=$fieldId") {
             collection(userId).document(fieldId).set(
                 mapOf("isArchived" to true, "updatedAt" to now),
                 merge = true,
             )
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) {
-                "archiveField failed fieldId=$fieldId"
-            }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 }

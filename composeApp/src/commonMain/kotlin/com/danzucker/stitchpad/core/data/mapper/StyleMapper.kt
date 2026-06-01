@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.StyleDto
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Style
 import kotlin.time.Clock
 
@@ -10,6 +11,7 @@ fun StyleDto.toStyle(customerId: String): Style = Style(
     description = description,
     photoUrl = photoUrl,
     photoStoragePath = photoStoragePath,
+    syncState = runCatching { ImageSyncState.valueOf(syncState) }.getOrDefault(ImageSyncState.SYNCED),
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -21,6 +23,7 @@ fun Style.toStyleDto(): StyleDto {
         description = description,
         photoUrl = photoUrl,
         photoStoragePath = photoStoragePath,
+        syncState = syncState.name,
         createdAt = if (createdAt == 0L) now else createdAt,
         updatedAt = now
     )

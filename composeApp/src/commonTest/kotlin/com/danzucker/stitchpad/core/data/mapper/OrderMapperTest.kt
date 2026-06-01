@@ -60,7 +60,7 @@ class OrderMapperTest {
     }
 
     @Test
-    fun dtoToOrder_doesNotSynthesiseWhenPaymentsListIsPopulated() {
+    fun dtoToOrder_keepsLegacyDepositWhenNewPaymentsWereAppendedOffline() {
         val dto = OrderDto(
             depositPaid = 30_000.0,
             payments = listOf(
@@ -68,9 +68,10 @@ class OrderMapperTest {
             ),
         )
         val order = dto.toOrder("u1")
-        assertEquals(1, order.payments.size)
-        assertEquals("p1", order.payments.single().id)
-        assertEquals(20_000.0, order.depositPaid)
+        assertEquals(2, order.payments.size)
+        assertEquals("legacy-deposit", order.payments.first().id)
+        assertEquals("p1", order.payments.last().id)
+        assertEquals(50_000.0, order.depositPaid)
     }
 
     @Test
@@ -155,13 +156,29 @@ class OrderMapperTest {
     }
 
     @Test
-    fun migrateLegacyDeposit_returnsExistingListWhenPaymentsAlreadyPresent() {
+    fun migrateLegacyDeposit_prependsLegacyDepositWhenPaymentsAlreadyPresent() {
         val existing = listOf(
             PaymentDto(id = "p1", amount = 5_000.0, method = "TRANSFER", type = "PROGRESS"),
         )
         val migrated = migrateLegacyDeposit(
             payments = existing,
             depositPaid = 99_999.0,
+            createdAt = 0L,
+        )
+        assertEquals(2, migrated.size)
+        assertEquals("legacy-deposit", migrated.first().id)
+        assertEquals(existing.single(), migrated.last())
+    }
+
+    @Test
+    fun migrateLegacyDeposit_doesNotDuplicateExistingLegacyPayment() {
+        val existing = listOf(
+            PaymentDto(id = "legacy-deposit", amount = 5_000.0, method = "OTHER", type = "DEPOSIT"),
+            PaymentDto(id = "p1", amount = 2_000.0, method = "CASH", type = "PROGRESS"),
+        )
+        val migrated = migrateLegacyDeposit(
+            payments = existing,
+            depositPaid = 5_000.0,
             createdAt = 0L,
         )
         assertEquals(existing, migrated)
@@ -423,5 +440,29 @@ class OrderMapperTest {
         assertEquals(0.0, updatedDto.depositPaid)
         // And the migrated order's computed depositPaid still surfaces the full ₦15k.
         assertEquals(15_000.0, updatedDto.toOrder("u1").depositPaid)
+    }
+
+    @Test
+    fun recordPaymentOfflineAppend_legacyDepositIsPreserved() {
+        val dto = OrderDto(
+            depositPaid = 10_000.0,
+            payments = listOf(
+                PaymentDto(
+                    id = "p-new",
+                    amount = 5_000.0,
+                    method = "TRANSFER",
+                    type = "PROGRESS",
+                    recordedAt = 1_700_000_500_000L,
+                )
+            ),
+            createdAt = 1_700_000_000_000L,
+        )
+
+        val order = dto.toOrder("u1")
+
+        assertEquals(2, order.payments.size)
+        assertEquals("legacy-deposit", order.payments.first().id)
+        assertEquals("p-new", order.payments.last().id)
+        assertEquals(15_000.0, order.depositPaid)
     }
 }

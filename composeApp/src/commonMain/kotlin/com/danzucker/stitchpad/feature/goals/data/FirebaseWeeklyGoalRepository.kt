@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import com.danzucker.stitchpad.feature.goals.data.dto.WeeklyGoalDto
 import com.danzucker.stitchpad.feature.goals.data.mapper.toWeeklyGoal
 import com.danzucker.stitchpad.feature.goals.data.mapper.toWeeklyGoalDto
@@ -18,7 +19,8 @@ private const val TAG = "WeeklyGoalRepo"
 private const val GOAL_DOC_ID = "weekly"
 
 class FirebaseWeeklyGoalRepository(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val offlineWrites: OfflineWriteDispatcher,
 ) : WeeklyGoalRepository {
 
     override fun observeWeeklyGoal(
@@ -46,16 +48,16 @@ class FirebaseWeeklyGoalRepository(
         userId: String,
         goal: WeeklyGoal
     ): EmptyResult<DataError.Network> {
-        return try {
+        val accepted = offlineWrites.enqueue("setWeeklyGoal") {
             firestore.collection("users")
                 .document(userId)
                 .collection("goals")
                 .document(GOAL_DOC_ID)
                 .set(goal.toWeeklyGoalDto())
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "setWeeklyGoal failed" }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 }

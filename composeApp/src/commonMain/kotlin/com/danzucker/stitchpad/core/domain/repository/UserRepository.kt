@@ -36,9 +36,10 @@ interface UserRepository {
     fun observeUser(userId: String): Flow<User?>
 
     /**
-     * Uploads `bytes` to a deterministic Firebase Storage path (`users/{userId}/branding/logo.jpg`).
-     * Overwrites any existing object at that path. Caller is responsible for invoking
-     * [updateBrandLogo] afterwards to persist the returned (downloadUrl, storagePath) on the user doc.
+     * Stages `bytes` for the deterministic Firebase Storage path
+     * (`users/{userId}/branding/logo.jpg`). Caller passes the returned
+     * (localPath, storagePath) to [updateBrandLogo], which stores the pending
+     * path and lets the upload outbox patch the final download URL.
      */
     suspend fun uploadUserLogo(
         userId: String,
@@ -46,9 +47,8 @@ interface UserRepository {
     ): Result<Pair<String, String>, DataError.Network>
 
     /**
-     * Writes both `businessLogoUrl` and `businessLogoStoragePath` to `users/{userId}`. Passing
-     * (null, null) explicitly clears the logo. Uses `FieldValue.delete` for clears so the keys
-     * actually drop from the Firestore document (matches the `updateProfile` pattern).
+     * Stores pending logo state on `users/{userId}` and queues the staged local
+     * file for upload. Passing (null, null) explicitly clears the logo.
      */
     suspend fun updateBrandLogo(
         userId: String,
