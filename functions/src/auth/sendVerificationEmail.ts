@@ -30,6 +30,8 @@ export interface VerificationEmailIO {
    * within the throttle window. The server-side rate limit.
    */
   reserveSend(uid: string): Promise<boolean>;
+  /** Releases a reservation so a failed delivery doesn't block retries. */
+  releaseSend(uid: string): Promise<void>;
 }
 
 /**
@@ -59,10 +61,13 @@ export async function sendVerificationEmailHandler(
     throw new functions.https.HttpsError('resource-exhausted', 'verification_email_throttled');
   }
 
-  const verifyLink = await io.generateLink(user.email);
   try {
+    const verifyLink = await io.generateLink(user.email);
     await io.sendEmail({ to: user.email, displayName: user.displayName, verifyLink });
   } catch (err) {
+    // Release the reservation so a genuine delivery failure doesn't lock the
+    // user out of retrying for the full throttle window.
+    await io.releaseSend(uid).catch(() => undefined);
     functions.logger.error('verification email send failed', {
       uid,
       error: err instanceof Error ? err.message : String(err),
@@ -130,6 +135,9 @@ function productionIO(apiKey: string): VerificationEmailIO {
         tx.set(ref, { verificationLastSentMillis: now }, { merge: true });
         return true;
       });
+    },
+    async releaseSend(uid) {
+      await db.collection('email_throttle').doc(uid).delete();
     },
   };
 }

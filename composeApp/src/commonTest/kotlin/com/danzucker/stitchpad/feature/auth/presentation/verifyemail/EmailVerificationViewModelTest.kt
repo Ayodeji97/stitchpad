@@ -143,7 +143,9 @@ class EmailVerificationViewModelTest {
 
     @Test
     fun resendFailureEmitsShowError() = runTest {
-        authRepository.shouldReturnError = AuthError.TOO_MANY_REQUESTS
+        // A non-throttle failure: the entry send fails without starting a
+        // cooldown, so Resend stays enabled and its failure surfaces an error.
+        authRepository.shouldReturnError = AuthError.NETWORK_ERROR
         val vm = buildViewModel()
         vm.events.test {
             vm.onAction(EmailVerificationAction.OnResendClick)
@@ -151,6 +153,16 @@ class EmailVerificationViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
         assertEquals(0, vm.state.value.resendCooldownSeconds)
+    }
+
+    @Test
+    fun entrySendThrottledStartsCooldown() = runTest {
+        // Screen recreated within the server's throttle window → entry send
+        // returns TOO_MANY_REQUESTS; the button must reflect the cooldown.
+        authRepository.shouldReturnError = AuthError.TOO_MANY_REQUESTS
+        val vm = buildViewModel()
+        runCurrent()
+        assertEquals(60, vm.state.value.resendCooldownSeconds)
     }
 
     @Test
