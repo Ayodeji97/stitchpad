@@ -44,8 +44,13 @@ class EmailVerificationViewModel(
             // Send a fresh link on every entry to this route (signup, login, or
             // splash re-entry) so the on-screen "we sent a link" copy is always
             // accurate and the user never has to rely on an expired link.
-            // Best-effort — failures are silent here; Resend is the retry path.
-            authRepository.sendEmailVerification()
+            // Start the cooldown on success so the Resend button reflects the
+            // just-sent state — the server enforces the same 60s throttle, so an
+            // immediately-enabled Resend would otherwise return "too many
+            // requests". Best-effort: on failure we leave Resend enabled to retry.
+            if (authRepository.sendEmailVerification() is Result.Success) {
+                startCooldown()
+            }
         }
     }
 

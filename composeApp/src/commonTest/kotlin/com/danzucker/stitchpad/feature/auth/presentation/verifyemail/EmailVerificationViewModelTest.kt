@@ -58,10 +58,13 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun sendsVerificationEmailOnEntry() = runTest {
-        buildViewModel()
+    fun sendsVerificationEmailOnEntryAndStartsCooldown() = runTest {
+        val vm = buildViewModel()
         runCurrent()
         assertEquals(1, authRepository.emailVerificationSentCount)
+        // Cooldown reflects the just-sent state so Resend isn't enabled into
+        // the server's throttle window.
+        assertEquals(60, vm.state.value.resendCooldownSeconds)
     }
 
     @Test
@@ -110,8 +113,11 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun resendSendsEmailAndStartsCooldown() = runTest {
+    fun resendSendsEmailAndStartsCooldownOnceEntryCooldownExpires() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
         val vm = buildViewModel()
+        advanceTimeBy(61_000L) // drain the on-entry send's cooldown
+        runCurrent()
         authRepository.emailVerificationSentCount = 0 // ignore the on-entry send
         vm.events.test {
             vm.onAction(EmailVerificationAction.OnResendClick)
@@ -125,13 +131,14 @@ class EmailVerificationViewModelTest {
     @Test
     fun resendIgnoredWhileOnCooldown() = runTest {
         val vm = buildViewModel()
-        authRepository.emailVerificationSentCount = 0 // ignore the on-entry send
+        runCurrent()
+        // The on-entry send already started the cooldown, so a Resend tap now
+        // must be a no-op (mirrors the server's 60s throttle).
+        authRepository.emailVerificationSentCount = 0
         vm.onAction(EmailVerificationAction.OnResendClick)
         runCurrent()
-        // Second tap while cooldown is active must be a no-op.
-        vm.onAction(EmailVerificationAction.OnResendClick)
-        runCurrent()
-        assertEquals(1, authRepository.emailVerificationSentCount)
+        assertEquals(0, authRepository.emailVerificationSentCount)
+        assertEquals(60, vm.state.value.resendCooldownSeconds)
     }
 
     @Test
