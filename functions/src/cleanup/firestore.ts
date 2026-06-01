@@ -19,6 +19,9 @@ export const ALLOWED_SUBCOLLECTIONS = [
   'customers',
   'orders',
   'goals',
+  // Server-only per-user state (e.g. emailThrottle written by
+  // sendVerificationEmail). Never client-readable; swept on account deletion.
+  'private',
 ] as const;
 
 export async function deleteUserFirestoreData(

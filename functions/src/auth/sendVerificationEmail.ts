@@ -108,6 +108,10 @@ async function sendViaResend(
 
 function productionIO(apiKey: string): VerificationEmailIO {
   const db = admin.firestore();
+  // Stored under the user doc (not a root collection) so onAuthUserDeleted's
+  // recursive cleanup of users/{uid} sweeps it on account deletion.
+  const throttleRef = (uid: string) =>
+    db.collection('users').doc(uid).collection('private').doc('emailThrottle');
   return {
     async getUser(uid) {
       const user = await admin.auth().getUser(uid);
@@ -124,7 +128,7 @@ function productionIO(apiKey: string): VerificationEmailIO {
       return sendViaResend(apiKey, params);
     },
     reserveSend(uid) {
-      const ref = db.collection('email_throttle').doc(uid);
+      const ref = throttleRef(uid);
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const now = Date.now();
@@ -137,7 +141,7 @@ function productionIO(apiKey: string): VerificationEmailIO {
       });
     },
     async releaseSend(uid) {
-      await db.collection('email_throttle').doc(uid).delete();
+      await throttleRef(uid).delete();
     },
   };
 }
