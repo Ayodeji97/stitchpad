@@ -14,4 +14,21 @@ sealed interface MeasurementFormAction {
     data object OnSaveClick : MeasurementFormAction
     data object OnNavigateBack : MeasurementFormAction
     data object OnErrorDismiss : MeasurementFormAction
+
+    // PTSP-12 — custom measurement fields
+    data object OnAddCustomFieldClick : MeasurementFormAction
+    data object OnLockedCustomFieldClick : MeasurementFormAction
+    data class OnEditCustomFieldClick(val fieldId: String) : MeasurementFormAction
+    data object OnCustomFieldSheetDismiss : MeasurementFormAction
+    data class OnCustomFieldDraftLabelChange(val label: String) : MeasurementFormAction
+    data class OnCustomFieldDraftInitialValueChange(val value: String) : MeasurementFormAction
+    data class OnCustomFieldDraftGendersChange(val genders: Set<CustomerGender>) : MeasurementFormAction
+    data class OnSaveCustomField(
+        val id: String?, // null = create, non-null = update
+        val label: String,
+        val genders: Set<CustomerGender>,
+        val initialValue: String = "",
+    ) : MeasurementFormAction
+    data class OnArchiveCustomFieldRequest(val fieldId: String) : MeasurementFormAction
+    data class OnArchiveCustomFieldConfirm(val fieldId: String) : MeasurementFormAction
 }

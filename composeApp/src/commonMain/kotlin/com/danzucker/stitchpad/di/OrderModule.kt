@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.feature.order.data.FirebaseCustomGarmentTypeRepository
 import com.danzucker.stitchpad.feature.order.data.FirebaseOrderRepository
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailViewModel
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormViewModel
@@ -12,6 +14,7 @@ import org.koin.dsl.module
 
 val orderDataModule = module {
     singleOf(::FirebaseOrderRepository) bind OrderRepository::class
+    singleOf(::FirebaseCustomGarmentTypeRepository) bind CustomGarmentTypeRepository::class
 }
 
 val orderPresentationModule = module {

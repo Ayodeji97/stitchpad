@@ -11,6 +11,19 @@ interface AuthRepository {
     suspend fun signInWithGoogle(): Result<User, AuthError>
     suspend fun signInWithApple(): Result<User, AuthError>
     suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError>
+
+    /** Sends a verification link to the signed-in user's email address. */
+    suspend fun sendEmailVerification(): EmptyResult<AuthError>
+
+    /**
+     * Refreshes the locally cached FirebaseUser from the server so a freshly
+     * tapped verification link is reflected by [isEmailVerified].
+     */
+    suspend fun reloadUser(): EmptyResult<AuthError>
+
+    /** Whether the signed-in user's email is verified (cached value — call [reloadUser] first). */
+    suspend fun isEmailVerified(): Boolean
+
     suspend fun signOut(): Result<Unit, AuthError>
     suspend fun deleteAccount(): EmptyResult<AuthError>
     suspend fun getCurrentUser(): User?

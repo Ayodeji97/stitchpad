@@ -196,7 +196,9 @@ class SignUpViewModel(
                     _state.value.displayName
                 )
                 when (result) {
-                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    // The verify screen sends the verification email on entry,
+                    // so the same path serves signup, login and splash re-entry.
+                    is Result.Success -> _events.send(SignUpEvent.NavigateToEmailVerification)
                     is Result.Error -> _events.send(SignUpEvent.ShowError(result.error.toUiText()))
                 }
             } finally {

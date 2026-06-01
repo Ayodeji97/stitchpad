@@ -7,5 +7,20 @@ sealed interface WorkshopSetupAction {
     data object OnWhatsAppNumberBlur : WorkshopSetupAction
     data object OnContinueClick : WorkshopSetupAction
     data object OnSkipClick : WorkshopSetupAction
-    data object OnLogoUploadClick : WorkshopSetupAction
+    data class OnLogoPicked(val bytes: ByteArray) : WorkshopSetupAction
+    data object OnLogoRetry : WorkshopSetupAction
+
+    // WhatsApp confirmation flow
+    data object OnConfirmWhatsAppClick : WorkshopSetupAction
+    data class OnConfirmCodeChange(val value: String) : WorkshopSetupAction
+    data object OnDismissConfirm : WorkshopSetupAction
+
+    // Payment details (PTSP-16)
+    data object OnTogglePaymentDetails : WorkshopSetupAction
+    data class OnBankNameChange(val value: String) : WorkshopSetupAction
+    data class OnBankAccountNameChange(val value: String) : WorkshopSetupAction
+    data class OnBankAccountNumberChange(val value: String) : WorkshopSetupAction
+    data object OnBankNameBlur : WorkshopSetupAction
+    data object OnBankAccountNameBlur : WorkshopSetupAction
+    data object OnBankAccountNumberBlur : WorkshopSetupAction
 }

@@ -230,7 +230,8 @@ private fun MainNavGraph(
         }
         composable<MeasurementFormRoute> {
             MeasurementFormRoot(
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<StyleGalleryRoute> {

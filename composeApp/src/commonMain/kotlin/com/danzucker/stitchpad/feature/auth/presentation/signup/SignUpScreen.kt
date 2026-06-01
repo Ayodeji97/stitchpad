@@ -92,6 +92,7 @@ import stitchpad.composeapp.generated.resources.signup_title
 fun SignUpRoot(
     onNavigateToLogin: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToEmailVerification: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     viewModel: SignUpViewModel = koinViewModel(),
 ) {
@@ -103,6 +104,7 @@ fun SignUpRoot(
         when (event) {
             SignUpEvent.NavigateToLogin -> onNavigateToLogin()
             SignUpEvent.NavigateToHome -> onNavigateToHome()
+            SignUpEvent.NavigateToEmailVerification -> onNavigateToEmailVerification()
             is SignUpEvent.ShowError -> {
                 scope.launch {
                     val message = when (val text = event.message) {

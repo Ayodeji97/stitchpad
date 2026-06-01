@@ -9,8 +9,10 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -19,14 +21,22 @@ private const val TAG = "UserRepo"
 private const val USERS = "users"
 
 class FirebaseUserRepository(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage,
 ) : UserRepository {
+
+    private fun logoStoragePath(userId: String): String =
+        "users/$userId/branding/logo.jpg"
 
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override suspend fun createUserProfile(
         userId: String,
         businessName: String?,
         whatsappNumber: String?,
+        bankName: String?,
+        bankAccountName: String?,
+        bankAccountNumber: String?,
+        whatsappConfirmed: Boolean,
     ): EmptyResult<DataError.Network> {
         return try {
             val document = firestore.collection(USERS).document(userId)
@@ -41,6 +51,12 @@ class FirebaseUserRepository(
             }
             businessName?.let { data["businessName"] = it }
             whatsappNumber?.let { data["whatsapp"] = it }
+            // Boolean (not null-guarded): always reflects the current confirm state.
+            // The form layer sends false when there is no number or it was edited.
+            data["whatsappConfirmed"] = whatsappConfirmed
+            bankName?.let { data["bankName"] = it }
+            bankAccountName?.let { data["bankAccountName"] = it }
+            bankAccountNumber?.let { data["bankAccountNumber"] = it }
             document.set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
@@ -66,7 +82,11 @@ class FirebaseUserRepository(
         displayName: String?,
         phoneNumber: String?,
         whatsappNumber: String?,
-        avatarColorIndex: Int?
+        avatarColorIndex: Int?,
+        bankName: String?,
+        bankAccountName: String?,
+        bankAccountNumber: String?,
+        whatsappConfirmed: Boolean,
     ): EmptyResult<DataError.Network> {
         return try {
             val data = mutableMapOf<String, Any>(
@@ -86,11 +106,19 @@ class FirebaseUserRepository(
             // Distinct slots; not aliases of each other.
             data["phone"] = phoneNumber ?: FieldValue.delete
             data["whatsapp"] = whatsappNumber ?: FieldValue.delete
+            data["whatsappConfirmed"] = whatsappConfirmed
             // Always clear the legacy `whatsappNumber` field on save. Without
             // this, a migrated user clearing the WhatsApp input would still
             // see the old value because UserMapper falls back to the legacy
             // slot when `whatsapp` is null.
             data["whatsappNumber"] = FieldValue.delete
+            // Bank fields are a logical group (all set or all cleared). Validation
+            // in EditProfileViewModel enforces this; here we just honor whatever
+            // came in and use FieldValue.delete for nulls so cleared values
+            // actually drop from the document.
+            data["bankName"] = bankName ?: FieldValue.delete
+            data["bankAccountName"] = bankAccountName ?: FieldValue.delete
+            data["bankAccountNumber"] = bankAccountNumber ?: FieldValue.delete
             firestore.collection(USERS).document(userId).set(data, merge = true)
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
@@ -111,6 +139,66 @@ class FirebaseUserRepository(
                 AppLogger.e(tag = TAG, throwable = error) { "observeUser failed userId=$userId" }
                 emit(null)
             }
+    }
+
+    override suspend fun uploadUserLogo(
+        userId: String,
+        bytes: ByteArray,
+    ): Result<Pair<String, String>, DataError.Network> {
+        val path = logoStoragePath(userId)
+        return try {
+            storage.reference.child(path).putData(bytes.toStorageData())
+            val downloadUrl = storage.reference.child(path).getDownloadUrl()
+            Result.Success(downloadUrl to path)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Callers (ViewModels) cancel in-flight uploads when the user picks again
+            // or skips. We must not convert cancellation into a Result.Error — that
+            // would race the cancelled coroutine's failure path against the newer state.
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "uploadUserLogo failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM")
+    override suspend fun updateBrandLogo(
+        userId: String,
+        logoUrl: String?,
+        logoStoragePath: String?,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            val data = mutableMapOf<String, Any>(
+                "updatedAt" to FieldValue.serverTimestamp,
+                // Nullable URL/path: when the user removes the logo, drop the keys
+                // entirely (FieldValue.delete) so stale URLs don't survive on the doc.
+                "businessLogoUrl" to (logoUrl ?: FieldValue.delete),
+                "businessLogoStoragePath" to (logoStoragePath ?: FieldValue.delete),
+            )
+            firestore.collection(USERS).document(userId).set(data, merge = true)
+            Result.Success(Unit)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "updateBrandLogo failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun deleteUserLogo(
+        storagePath: String,
+    ): EmptyResult<DataError.Network> {
+        return try {
+            storage.reference.child(storagePath).delete()
+            Result.Success(Unit)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // A delete on a non-existent object throws; treat as success so callers can
+            // fire-and-forget on Skip without surfacing a benign 404 to the user.
+            AppLogger.w(tag = TAG, throwable = e) { "deleteUserLogo treated as no-op path=$storagePath" }
+            Result.Success(Unit)
+        }
     }
 
     /**

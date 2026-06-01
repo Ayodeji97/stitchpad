@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 
 data class OrderDetailState(
     val order: Order? = null,
@@ -30,6 +31,14 @@ data class OrderDetailState(
     val showStatusSheet: Boolean = false,
     val showBalanceWarningDialog: Boolean = false,
     val showShareSheet: Boolean = false,
+    /**
+     * Optional override for the document type when sharing. Only meaningful
+     * when the order has a partial-paid state (both Invoice and Deposit
+     * Receipt views are valid). `null` (the default) lets [ReceiptFormatter]
+     * pick the natural one from `order.payments` + `balanceRemaining`. Reset
+     * to `null` whenever the sheet closes.
+     */
+    val documentTypeChoice: ReceiptDocumentType? = null,
     val showRecordPaymentDialog: Boolean = false,
     val showArchiveDialog: Boolean = false,
     val showOverflowMenu: Boolean = false,

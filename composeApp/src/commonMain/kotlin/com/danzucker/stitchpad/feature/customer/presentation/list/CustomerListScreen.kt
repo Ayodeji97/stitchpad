@@ -68,7 +68,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.feature.customer.presentation.list.components.CustomerActionsSheet
 import com.danzucker.stitchpad.feature.freemium.presentation.swap.SwapSheet
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
@@ -733,7 +732,6 @@ private fun CustomerListScreenFilledPreview() {
                         userId = "u1",
                         name = "Ngozi Adeyemi",
                         phone = "+234 803 456 7890",
-                        deliveryPreference = DeliveryPreference.DELIVERY
                     )
                 )
             ),

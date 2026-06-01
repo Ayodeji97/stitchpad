@@ -3,13 +3,18 @@ package com.danzucker.stitchpad.core.sharing
 import com.danzucker.stitchpad.core.platform.activeKeyWindow
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.useContents
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import platform.CoreGraphics.CGContextRestoreGState
+import platform.CoreGraphics.CGContextSaveGState
 import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.NSData
 import platform.Foundation.NSString
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
@@ -19,8 +24,10 @@ import platform.Foundation.writeToURL
 import platform.UIKit.NSFontAttributeName
 import platform.UIKit.NSForegroundColorAttributeName
 import platform.UIKit.UIActivityViewController
+import platform.UIKit.UIBezierPath
 import platform.UIKit.UIColor
 import platform.UIKit.UIFont
+import platform.UIKit.UIGraphicsGetCurrentContext
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
 import platform.UIKit.UIGraphicsPDFRenderer
@@ -29,6 +36,7 @@ import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIViewController
 import platform.UIKit.drawAtPoint
+import platform.UIKit.drawInRect
 import platform.UIKit.popoverPresentationController
 import platform.UIKit.sizeWithAttributes
 
@@ -68,10 +76,19 @@ actual class OrderReceiptSharer {
         estimatedHeight += 60.0 + 20.0 // customer row
         estimatedHeight += 30.0 + data.items.size * lineSpacing + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
+        if (data.bankBlock != null) {
+            // Mirrors the y-advances in the draw block exactly: pre-divider gap
+            // (16) + post-divider gap (24) + 3 inter-row advances of 26 between
+            // header / Bank / Account name / Account number + trailing space (32).
+            // The estimate must match the draw exactly — the iOS image renderer
+            // allocates the bitmap at this height with NO post-crop step, so
+            // over-estimating bleeds dark background below the last content.
+            estimatedHeight += 16.0 + 24.0 + 3 * 26.0 + 32.0
+        }
         estimatedHeight += 60.0 // status
         if (data.priorityLabel != null) estimatedHeight += 30.0
         estimatedHeight += 50.0 // footer
-        if (data.attribution != null) estimatedHeight += 22.0
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 22.0
 
         val size = CGSizeMake(width, estimatedHeight)
         val format = UIGraphicsImageRendererFormat().apply { opaque = true }
@@ -79,14 +96,37 @@ actual class OrderReceiptSharer {
 
         return renderer.imageWithActions { context ->
             val ctx = context ?: return@imageWithActions
+            val logoImage = data.businessLogoBytes?.toUIImage()
 
             // Background
             darkColor("#121110").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, estimatedHeight))
 
+            // Tier watermark — drawn FIRST so all subsequent content layers on top.
+            drawWatermark(
+                spec = data.watermark,
+                canvasWidth = width,
+                canvasHeight = estimatedHeight,
+                inkHex = "#A8A49D",
+            )
+
             // Header band — indigo brand (was saffron pre-rebrand)
             darkColor("#2C3E7C").setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, headerHeight))
+
+            if (logoImage != null) {
+                val logoSize = 40.0
+                val logoLeft = 32.0
+                val logoTop = (headerHeight - logoSize) / 2.0
+                val logoRect = CGRectMake(logoLeft, logoTop, logoSize, logoSize)
+                val path = UIBezierPath.bezierPathWithRoundedRect(rect = logoRect, cornerRadius = 6.0)
+                UIGraphicsGetCurrentContext()?.let { gfxCtx ->
+                    CGContextSaveGState(gfxCtx)
+                    path.addClip()
+                    logoImage.drawInRect(logoRect)
+                    CGContextRestoreGState(gfxCtx)
+                }
+            }
 
             drawCentered(
                 data.businessName,
@@ -168,6 +208,28 @@ actual class OrderReceiptSharer {
             }
             y += 26.0
 
+            // PAY VIA TRANSFER — bank block. Formatter nulls bankBlock on
+            // fully-paid Receipts (no balance to collect) and on users without
+            // bank details, so this never renders without a real call to action.
+            val bank = data.bankBlock
+            if (bank != null) {
+                y += 16.0
+                drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+                y += 24.0
+                drawText("PAY VIA TRANSFER", padding, y, labelFont(), darkColor("#7D7970"))
+                y += 26.0
+                val valueX = padding + 140.0
+                drawText("Bank", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(bank.bankName, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                y += 26.0
+                drawText("Account name", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(bank.accountName, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                y += 26.0
+                drawText("Account number", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(bank.accountNumber, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                y += 32.0
+            }
+
             drawDivider(padding, y, width - padding, darkColor("#3A3731"))
             y += 18.0
 
@@ -217,10 +279,11 @@ actual class OrderReceiptSharer {
                 font = regularFont(11.0),
                 color = darkColor("#3A3731")
             )
-            if (data.attribution != null) {
+            val attributionText = data.attribution.footerText
+            if (attributionText != null) {
                 y += 16.0
                 drawCentered(
-                    data.attribution,
+                    attributionText,
                     y = y,
                     width = width,
                     font = regularFont(10.0),
@@ -244,10 +307,33 @@ actual class OrderReceiptSharer {
         val pdfData = renderer.PDFDataWithActions { context ->
             val ctx = context ?: return@PDFDataWithActions
             ctx.beginPage()
+            val logoImage = data.businessLogoBytes?.toUIImage()
+
+            // Tier watermark — drawn FIRST so all subsequent content layers on top.
+            drawWatermark(
+                spec = data.watermark,
+                canvasWidth = pageWidth,
+                canvasHeight = pageHeight,
+                inkHex = "#7D7970",
+            )
 
             var y = padding
 
-            // Header
+            // Header — match Android light PDF: logo first, then text paints on top.
+            val headerBottomY = if (data.businessPhone != null) y + 50.0 else y + 40.0
+            if (logoImage != null) {
+                val logoSize = 40.0
+                val logoLeft = 32.0
+                val logoTop = y + (headerBottomY - y - logoSize) / 2.0
+                val logoRect = CGRectMake(logoLeft, logoTop, logoSize, logoSize)
+                val path = UIBezierPath.bezierPathWithRoundedRect(rect = logoRect, cornerRadius = 6.0)
+                UIGraphicsGetCurrentContext()?.let { gfxCtx ->
+                    CGContextSaveGState(gfxCtx)
+                    path.addClip()
+                    logoImage.drawInRect(logoRect)
+                    CGContextRestoreGState(gfxCtx)
+                }
+            }
             drawCentered(
                 data.businessName,
                 y = y,
@@ -266,7 +352,7 @@ actual class OrderReceiptSharer {
                 )
                 y += 16.0
             }
-            y += 4.0
+            y = headerBottomY + 4.0
             // Indigo brand border (was saffron pre-rebrand)
             val borderPaint = darkColor("#2C3E7C")
             borderPaint.setFill()
@@ -340,6 +426,26 @@ actual class OrderReceiptSharer {
             }
             y += 20.0
 
+            // PAY VIA TRANSFER — light PDF variant
+            val bankPdf = data.bankBlock
+            if (bankPdf != null) {
+                y += 12.0
+                drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
+                y += 18.0
+                drawText("PAY VIA TRANSFER", padding, y, labelFont(8.0), darkColor("#7D7970"))
+                y += 20.0
+                val valueX = padding + 104.0
+                drawText("Bank", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(bankPdf.bankName, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
+                y += 20.0
+                drawText("Account name", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(bankPdf.accountName, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
+                y += 20.0
+                drawText("Account number", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(bankPdf.accountNumber, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
+                y += 24.0
+            }
+
             drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
             y += 14.0
 
@@ -389,10 +495,11 @@ actual class OrderReceiptSharer {
                 font = regularFont(9.0),
                 color = darkColor("#A8A49D")
             )
-            if (data.attribution != null) {
+            val attributionTextPdf = data.attribution.footerText
+            if (attributionTextPdf != null) {
                 y += 14.0
                 drawCentered(
-                    data.attribution,
+                    attributionTextPdf,
                     y = y,
                     width = pageWidth,
                     font = regularFont(8.0),
@@ -468,12 +575,69 @@ actual class OrderReceiptSharer {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
+    private fun ByteArray.toUIImage(): UIImage? {
+        if (isEmpty()) return null
+        val nsData = usePinned { pinned ->
+            NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
+        }
+        return UIImage.imageWithData(nsData)
+    }
+
     private fun darkColor(hex: String): UIColor {
         val cleaned = hex.removePrefix("#")
         val r = cleaned.substring(0, 2).toInt(16) / 255.0
         val g = cleaned.substring(2, 4).toInt(16) / 255.0
         val b = cleaned.substring(4, 6).toInt(16) / 255.0
         return UIColor.colorWithRed(r, green = g, blue = b, alpha = 1.0)
+    }
+
+    /**
+     * Draws the tier-keyed background watermark before any content. Caller is
+     * responsible for invoking this immediately after the canvas background
+     * fill so the watermark sits at the lowest z-order. Mirrors the Android
+     * implementation at the spec level so both platforms produce comparable
+     * receipts. None branch ships a clean document (paid tiers).
+     */
+    private fun drawWatermark(
+        spec: WatermarkSpec,
+        canvasWidth: Double,
+        canvasHeight: Double,
+        inkHex: String,
+    ) {
+        when (spec) {
+            WatermarkSpec.None -> Unit
+            WatermarkSpec.StitchPadDiagonal -> {
+                val ctx = UIGraphicsGetCurrentContext() ?: return
+                val cx = canvasWidth / 2.0
+                val cy = canvasHeight / 2.0
+                CGContextSaveGState(ctx)
+                platform.CoreGraphics.CGContextTranslateCTM(ctx, cx, cy)
+                platform.CoreGraphics.CGContextRotateCTM(ctx, -kotlin.math.PI / 6.0) // -30°
+                platform.CoreGraphics.CGContextTranslateCTM(ctx, -cx, -cy)
+                val fontSize = canvasWidth * 0.12
+                val font = UIFont.boldSystemFontOfSize(fontSize)
+                val color = darkColor(inkHex).colorWithAlphaComponent(WATERMARK_TEXT_ALPHA_IOS)
+                // Kern matches Android's letterSpacing = 0.08f (which scales by EM).
+                // 0.08 * fontSize is the equivalent absolute per-character spacing.
+                val kern = fontSize * WATERMARK_KERN_EM
+                val text = "STITCHPAD"
+                val attrs = mapOf<Any?, Any?>(
+                    NSFontAttributeName to font,
+                    NSForegroundColorAttributeName to color,
+                    platform.UIKit.NSKernAttributeName to kern,
+                )
+                val nsText = NSString.create(string = text)
+                val size = nsText.sizeWithAttributes(attrs)
+                size.useContents {
+                    nsText.drawAtPoint(
+                        CGPointMake(cx - this.width / 2.0, cy - this.height / 2.0),
+                        withAttributes = attrs,
+                    )
+                }
+                CGContextRestoreGState(ctx)
+            }
+        }
     }
 
     private fun regularFont(size: Double) = UIFont.systemFontOfSize(size)
@@ -529,6 +693,8 @@ actual class OrderReceiptSharer {
 
     private companion object {
         const val SHARE_PRESENT_DELAY_MS = 450L
+        const val WATERMARK_TEXT_ALPHA_IOS = 0.07
+        const val WATERMARK_KERN_EM = 0.08
     }
 
     // endregion

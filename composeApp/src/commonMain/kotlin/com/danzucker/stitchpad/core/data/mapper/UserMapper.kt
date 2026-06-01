@@ -12,6 +12,12 @@ fun UserDto.toUser(): User = User(
     whatsappNumber = whatsappNumber ?: legacyWhatsappNumber,
     avatarColorIndex = avatarColorIndex,
     bonusCoins = bonusCoins,
+    businessLogoUrl = businessLogoUrl,
+    businessLogoStoragePath = businessLogoStoragePath,
+    bankName = bankName,
+    bankAccountName = bankAccountName,
+    bankAccountNumber = bankAccountNumber,
+    whatsappConfirmed = whatsappConfirmed,
 )
 
 fun User.toUserDto(): UserDto = UserDto(
@@ -23,4 +29,10 @@ fun User.toUserDto(): UserDto = UserDto(
     whatsappNumber = whatsappNumber,
     avatarColorIndex = avatarColorIndex,
     bonusCoins = bonusCoins,
+    businessLogoUrl = businessLogoUrl,
+    businessLogoStoragePath = businessLogoStoragePath,
+    bankName = bankName,
+    bankAccountName = bankAccountName,
+    bankAccountNumber = bankAccountNumber,
+    whatsappConfirmed = whatsappConfirmed,
 )

@@ -150,6 +150,7 @@ fun OrderItemDto.toOrderItem(): OrderItem {
     return OrderItem(
         id = id,
         garmentType = parseGarmentType(garmentType),
+        customGarmentName = customGarmentName,
         description = description,
         price = price,
         quantity = quantity.coerceAtLeast(1),
@@ -196,6 +197,7 @@ fun OrderItem.toOrderItemDto(): OrderItemDto {
     return OrderItemDto(
         id = id,
         garmentType = garmentType.name,
+        customGarmentName = customGarmentName,
         description = description,
         price = price,
         quantity = quantity.coerceAtLeast(1),

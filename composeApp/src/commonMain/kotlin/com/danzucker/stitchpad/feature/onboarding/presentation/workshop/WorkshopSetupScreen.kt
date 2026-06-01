@@ -17,7 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Storefront
@@ -37,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -46,26 +52,48 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
+import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.danzucker.stitchpad.util.clearFocusOnTap
+import com.preat.peekaboo.image.picker.SelectionMode
+import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.bank_details_account_name_label
+import stitchpad.composeapp.generated.resources.bank_details_account_name_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_account_number_label
+import stitchpad.composeapp.generated.resources.bank_details_account_number_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_bank_label
+import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
+import stitchpad.composeapp.generated.resources.bank_details_optional
+import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
+import stitchpad.composeapp.generated.resources.bank_details_section_title
+import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
 import stitchpad.composeapp.generated.resources.workshop_continue_button
-import stitchpad.composeapp.generated.resources.workshop_logo_coming_soon
+import stitchpad.composeapp.generated.resources.workshop_logo_finishing
 import stitchpad.composeapp.generated.resources.workshop_logo_label
 import stitchpad.composeapp.generated.resources.workshop_logo_optional
+import stitchpad.composeapp.generated.resources.workshop_logo_retry
+import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_sub
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_title
 import stitchpad.composeapp.generated.resources.workshop_skip
@@ -85,31 +113,45 @@ fun WorkshopSetupRoot(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(Res.string.workshop_logo_coming_soon)
-
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
+    val showMessage: (UiText) -> Unit = { text ->
+        scope.launch {
+            val message = when (text) {
+                is UiText.DynamicString -> text.value
+                is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             WorkshopSetupEvent.NavigateToHome -> onNavigateToHome()
             WorkshopSetupEvent.NavigateToLogin -> onNavigateToLogin()
-            is WorkshopSetupEvent.ShowError -> {
-                scope.launch {
-                    val message = when (val text = event.message) {
-                        is UiText.DynamicString -> text.value
-                        is UiText.StringResourceText -> org.jetbrains.compose.resources.getString(text.id)
-                    }
-                    snackbarHostState.showSnackbar(message)
-                }
-            }
-            WorkshopSetupEvent.ShowComingSoon -> {
-                scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+            is WorkshopSetupEvent.ShowError -> showMessage(event.message)
+            is WorkshopSetupEvent.ShowSnackbar -> showMessage(event.message)
+            is WorkshopSetupEvent.LaunchWhatsAppConfirm -> scope.launch {
+                val message = getString(Res.string.whatsapp_confirm_message, event.code)
+                whatsAppLauncher.launch(event.phoneE164, message)
             }
         }
     }
+
+    val pickerScope = rememberCoroutineScope()
+    val logoPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let {
+                viewModel.onAction(WorkshopSetupAction.OnLogoPicked(it))
+            }
+        }
+    )
 
     WorkshopSetupScreen(
         state = state,
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
+        onLaunchPicker = { logoPicker.launch() },
     )
 }
 
@@ -118,6 +160,7 @@ fun WorkshopSetupScreen(
     state: WorkshopSetupState,
     snackbarHostState: SnackbarHostState,
     onAction: (WorkshopSetupAction) -> Unit,
+    onLaunchPicker: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -293,7 +336,20 @@ fun WorkshopSetupScreen(
                             ),
                         )
                     }
+
+                    // 4d. WhatsApp number confirm row
+                    WhatsAppConfirmRow(
+                        state = state.whatsappConfirm,
+                        numberValid = state.whatsappError == null && state.whatsappNumber.isNotBlank(),
+                        onConfirmClick = { onAction(WorkshopSetupAction.OnConfirmWhatsAppClick) },
+                        onCodeChange = { onAction(WorkshopSetupAction.OnConfirmCodeChange(it)) },
+                        onDismiss = { onAction(WorkshopSetupAction.OnDismissConfirm) },
+                        debugCode = state.whatsappConfirm.code.takeIf { isDebugBuild },
+                    )
                 }
+
+                // 4e. Payment details (PTSP-16) — collapsed group between WhatsApp and Logo.
+                WorkshopPaymentDetailsSection(state = state, onAction = onAction)
 
                 // 5. Logo upload tile
                 Column(
@@ -302,22 +358,19 @@ fun WorkshopSetupScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
                             text = stringResource(Res.string.workshop_logo_label),
                             style = TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFF5F2ED),
+                                color = Color(0xFFF5F2ED)
                             ),
                         )
                         Text(
                             text = stringResource(Res.string.workshop_logo_optional),
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                color = Color(0xFFA8A49D),
-                            ),
+                            style = TextStyle(fontSize = 13.sp, color = Color(0xFFA8A49D)),
                         )
                     }
 
@@ -327,52 +380,32 @@ fun WorkshopSetupScreen(
                             .height(108.dp)
                             .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
                             .background(Color(0xFF1F1D1A), RoundedCornerShape(10.dp))
-                            .clickable { onAction(WorkshopSetupAction.OnLogoUploadClick) },
+                            .clickable {
+                                when (state.logo) {
+                                    is LogoUploadState.Failed ->
+                                        onAction(WorkshopSetupAction.OnLogoRetry)
+                                    LogoUploadState.Empty,
+                                    is LogoUploadState.Uploaded -> onLaunchPicker()
+                                    is LogoUploadState.Uploading -> Unit
+                                }
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(
-                                        LocalStitchPadColors.current.brandAccent.copy(alpha = 0.15f),
-                                        CircleShape,
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.PhotoCamera,
-                                    contentDescription = null,
-                                    tint = LocalStitchPadColors.current.brandAccent,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                            Text(
-                                text = stringResource(Res.string.workshop_logo_upload_title),
-                                style = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFF5F2ED),
-                                ),
-                            )
-                            Text(
-                                text = stringResource(Res.string.workshop_logo_upload_sub),
-                                style = TextStyle(
-                                    fontSize = 11.5.sp,
-                                    color = Color(0xFFA8A49D),
-                                ),
-                            )
-                        }
+                        WorkshopLogoTileContent(state.logo)
+                    }
+
+                    if (state.isAwaitingLogo) {
+                        Text(
+                            text = stringResource(Res.string.workshop_logo_finishing),
+                            style = TextStyle(fontSize = 12.sp, color = Color(0xFFA8A49D)),
+                        )
                     }
                 }
 
                 // 6. Continue button
                 Button(
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading && state.businessName.isNotBlank(),
+                    enabled = !state.isLoading && !state.isAwaitingLogo && state.businessName.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
@@ -421,6 +454,195 @@ fun WorkshopSetupScreen(
     }
 }
 
+@Composable
+private fun WorkshopLogoTileContent(
+    logo: LogoUploadState,
+) {
+    when (logo) {
+        LogoUploadState.Empty -> {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(LocalStitchPadColors.current.brandAccent.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PhotoCamera,
+                        contentDescription = null,
+                        tint = LocalStitchPadColors.current.brandAccent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.workshop_logo_upload_title),
+                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF5F2ED)),
+                )
+                Text(
+                    text = stringResource(Res.string.workshop_logo_upload_sub),
+                    style = TextStyle(fontSize = 11.5.sp, color = Color(0xFFA8A49D)),
+                )
+            }
+        }
+        is LogoUploadState.Uploading -> {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                SubcomposeAsyncImage(
+                    model = logo.previewBytes,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                    // Dim overlay + centered dots sit on top; Coil's loading slot stays empty so we don't show two spinners.
+                    loading = { Box(Modifier.fillMaxSize()) },
+                )
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center,
+                ) { LoadingDots(color = Color.White) }
+            }
+        }
+        is LogoUploadState.Uploaded -> {
+            SubcomposeAsyncImage(
+                model = logo.url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                loading = { LoadingDots() },
+            )
+        }
+        is LogoUploadState.Failed -> {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.workshop_logo_upload_failed),
+                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF5F2ED)),
+                )
+                Text(
+                    text = stringResource(Res.string.workshop_logo_retry),
+                    style = TextStyle(fontSize = 11.5.sp, color = LocalStitchPadColors.current.brandAccent),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkshopPaymentDetailsSection(
+    state: WorkshopSetupState,
+    onAction: (WorkshopSetupAction) -> Unit,
+) {
+    val expanded = state.isPaymentDetailsExpanded
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(12.dp))
+            .background(Color(0xFF1F1D1A)),
+    ) {
+        // Header row — tap to expand/collapse
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onAction(WorkshopSetupAction.OnTogglePaymentDetails) }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(LocalStitchPadColors.current.brandAccent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AccountBalance,
+                    contentDescription = null,
+                    tint = LocalStitchPadColors.current.brandAccent,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.bank_details_section_title),
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFF5F2ED),
+                        ),
+                    )
+                    Text(
+                        text = stringResource(Res.string.bank_details_optional),
+                        style = TextStyle(fontSize = 13.sp, color = Color(0xFFA8A49D)),
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.bank_details_section_subtitle),
+                    style = TextStyle(
+                        fontSize = 11.5.sp,
+                        color = Color(0xFFA8A49D),
+                        lineHeight = 16.sp,
+                    ),
+                )
+            }
+            Icon(
+                imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = Color(0xFFA8A49D),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                AuthTextField(
+                    label = stringResource(Res.string.bank_details_bank_label),
+                    value = state.bankName,
+                    onValueChange = { onAction(WorkshopSetupAction.OnBankNameChange(it)) },
+                    leadingIcon = Icons.Outlined.AccountBalance,
+                    placeholder = stringResource(Res.string.bank_details_bank_placeholder),
+                    errorText = state.bankNameError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBankNameBlur) },
+                    imeAction = ImeAction.Next,
+                )
+                AuthTextField(
+                    label = stringResource(Res.string.bank_details_account_name_label),
+                    value = state.bankAccountName,
+                    onValueChange = { onAction(WorkshopSetupAction.OnBankAccountNameChange(it)) },
+                    leadingIcon = Icons.Outlined.Person,
+                    placeholder = stringResource(Res.string.bank_details_account_name_placeholder),
+                    errorText = state.bankAccountNameError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBankAccountNameBlur) },
+                    imeAction = ImeAction.Next,
+                )
+                AuthTextField(
+                    label = stringResource(Res.string.bank_details_account_number_label),
+                    value = state.bankAccountNumber,
+                    onValueChange = { onAction(WorkshopSetupAction.OnBankAccountNumberChange(it)) },
+                    leadingIcon = Icons.Outlined.Badge,
+                    placeholder = stringResource(Res.string.bank_details_account_number_placeholder),
+                    errorText = state.bankAccountNumberError?.let { stringResource(it) },
+                    onFocusLost = { onAction(WorkshopSetupAction.OnBankAccountNumberBlur) },
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                )
+            }
+        }
+    }
+}
+
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
@@ -430,6 +652,7 @@ private fun WorkshopSetupScreenPreview() {
             state = WorkshopSetupState(),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
+            onLaunchPicker = {},
         )
     }
 }
@@ -446,6 +669,7 @@ private fun WorkshopSetupScreenFilledPreview() {
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
+            onLaunchPicker = {},
         )
     }
 }

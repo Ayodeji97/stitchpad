@@ -6,7 +6,6 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.DeliveryPreference
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
@@ -97,6 +96,7 @@ class CustomerFormViewModelTest {
             welcomeEndsAt = null,
             isWithinWelcomeEndingWarning = false,
             welcomeDaysLeft = null,
+            canUseCustomMeasurements = false,
         )
         private val _flow = MutableStateFlow(entitlements)
         override val flow: StateFlow<UserEntitlements> = _flow
@@ -114,8 +114,6 @@ class CustomerFormViewModelTest {
         assertEquals("", state.phone)
         assertEquals("", state.email)
         assertEquals("", state.address)
-        assertEquals("", state.notes)
-        assertEquals(DeliveryPreference.PICKUP, state.deliveryPreference)
         assertFalse(state.isEditMode)
         assertFalse(state.isLoading)
         assertNull(state.nameError)
@@ -194,20 +192,6 @@ class CustomerFormViewModelTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnAddressChange("Lagos, Nigeria"))
         assertEquals("Lagos, Nigeria", viewModel.state.value.address)
-    }
-
-    @Test
-    fun onNotesChange_updatesState() = runTest {
-        val viewModel = createViewModel()
-        viewModel.onAction(CustomerFormAction.OnNotesChange("Prefers evening pickup"))
-        assertEquals("Prefers evening pickup", viewModel.state.value.notes)
-    }
-
-    @Test
-    fun onDeliveryPreferenceChange_updatesState() = runTest {
-        val viewModel = createViewModel()
-        viewModel.onAction(CustomerFormAction.OnDeliveryPreferenceChange(DeliveryPreference.DELIVERY))
-        assertEquals(DeliveryPreference.DELIVERY, viewModel.state.value.deliveryPreference)
     }
 
     // --- Blur validation ---
@@ -419,8 +403,6 @@ class CustomerFormViewModelTest {
             phone = "+2348012345678",
             email = "ade@gmail.com",
             address = "Lagos, Nigeria",
-            deliveryPreference = DeliveryPreference.DELIVERY,
-            notes = "Prefers evening pickup",
         )
         val viewModel = createViewModel(customerId = "customer-123")
 
@@ -429,8 +411,6 @@ class CustomerFormViewModelTest {
         assertEquals("+2348012345678", state.phone)
         assertEquals("ade@gmail.com", state.email)
         assertEquals("Lagos, Nigeria", state.address)
-        assertEquals(DeliveryPreference.DELIVERY, state.deliveryPreference)
-        assertEquals("Prefers evening pickup", state.notes)
         assertFalse(state.isLoading)
     }
 

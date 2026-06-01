@@ -15,6 +15,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
+private const val WATERMARK_TEXT_ALPHA = 18 // ~7% on a 0–255 scale
+
 actual class OrderReceiptSharer(private val context: Context) {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
@@ -95,18 +97,39 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
+        if (data.bankBlock != null) {
+            // Mirrors the y-advances in the draw block exactly: pre-divider (16)
+            // + post-divider (24) + 3 inter-row advances of 26 + trailing (32).
+            // Android crops to content height before encoding, so a mismatch is
+            // cosmetic here; keeping it aligned with iOS for consistency.
+            estimatedHeight += 16f + 24f + 3 * 26f + 32f
+        }
         estimatedHeight += 30f // gap
         estimatedHeight += 20f // divider
         estimatedHeight += 50f // status + deadline row
         if (data.priorityLabel != null) estimatedHeight += 30f
         estimatedHeight += 50f // footer
-        if (data.attribution != null) estimatedHeight += 24f
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 24f
         estimatedHeight += padding * 2
 
         val height = estimatedHeight.toInt().coerceAtLeast(500)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(bgColor)
+
+        val logoBitmap: android.graphics.Bitmap? = data.businessLogoBytes?.let { bytes ->
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+
+        // Tier watermark — drawn FIRST so all subsequent content layers on top.
+        // Dark theme: use a light gray that reads at low alpha on dark bg.
+        drawWatermark(
+            canvas = canvas,
+            spec = data.watermark,
+            canvasWidth = width.toFloat(),
+            canvasHeight = height.toFloat(),
+            inkColor = Color.parseColor("#A8A49D"),
+        )
 
         var y = 0f
 
@@ -116,6 +139,24 @@ actual class OrderReceiptSharer(private val context: Context) {
             style = Paint.Style.FILL
         }
         canvas.drawRect(0f, 0f, width.toFloat(), headerHeight, headerBgPaint)
+        if (logoBitmap != null) {
+            val logoSize = 40f
+            val logoLeft = 32f
+            val logoTop = (headerHeight - logoSize) / 2f
+            val logoRect = android.graphics.RectF(logoLeft, logoTop, logoLeft + logoSize, logoTop + logoSize)
+            val clipPath = android.graphics.Path().apply {
+                addRoundRect(
+                    logoRect,
+                    6f,
+                    6f,
+                    android.graphics.Path.Direction.CW
+                )
+            }
+            canvas.save()
+            canvas.clipPath(clipPath)
+            canvas.drawBitmap(logoBitmap, null, logoRect, null)
+            canvas.restore()
+        }
         val headerCenterY = if (data.businessPhone != null) headerHeight / 2f - 10f else headerHeight / 2f
         canvas.drawText(
             data.businessName,
@@ -199,6 +240,28 @@ actual class OrderReceiptSharer(private val context: Context) {
         }
         y += 28f
 
+        // PAY VIA TRANSFER — bank block. Formatter nulls bankBlock on fully-paid
+        // Receipts (nothing to collect) and on users without bank details, so this
+        // never renders without a real call to action.
+        val bank = data.bankBlock
+        if (bank != null) {
+            y += 16f
+            canvas.drawLine(padding, y, width - padding, y, linePaint)
+            y += 24f
+            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaint)
+            y += 26f
+            val valueX = padding + 140f
+            canvas.drawText("Bank", padding, y, bodyPaint)
+            canvas.drawText(bank.bankName, valueX, y, bodyBoldPaint)
+            y += 26f
+            canvas.drawText("Account name", padding, y, bodyPaint)
+            canvas.drawText(bank.accountName, valueX, y, bodyBoldPaint)
+            y += 26f
+            canvas.drawText("Account number", padding, y, bodyPaint)
+            canvas.drawText(bank.accountNumber, valueX, y, bodyBoldPaint)
+            y += 32f
+        }
+
         // Status & Deadline divider
         canvas.drawLine(padding, y, width - padding, y, linePaint)
         y += 22f
@@ -240,9 +303,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, width - padding, y, linePaint)
         y += 20f
         canvas.drawText("Order #${data.orderIdShort}", width / 2f, y, footerPaint)
-        if (data.attribution != null) {
+        val attributionText = data.attribution.footerText
+        if (attributionText != null) {
             y += 18f
-            canvas.drawText(data.attribution, width / 2f, y, footerPaint)
+            canvas.drawText(attributionText, width / 2f, y, footerPaint)
         }
 
         // Crop to actual content height
@@ -301,10 +365,41 @@ actual class OrderReceiptSharer(private val context: Context) {
         // White background
         canvas.drawColor(Color.WHITE)
 
+        val logoBitmap: android.graphics.Bitmap? = data.businessLogoBytes?.let { bytes ->
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+
+        // Tier watermark — drawn FIRST so all subsequent content layers on top.
+        drawWatermark(
+            canvas = canvas,
+            spec = data.watermark,
+            canvasWidth = pageWidth.toFloat(),
+            canvasHeight = pageHeight.toFloat(),
+            inkColor = Color.parseColor("#7D7970"),
+        )
+
         var y = padding
 
         // Header (centered, with indigo brand bottom border)
         val headerBottomY = if (data.businessPhone != null) y + 50f else y + 40f
+        if (logoBitmap != null) {
+            val logoSize = 40f
+            val logoLeft = 32f
+            val logoTop = y + (headerBottomY - y - logoSize) / 2f
+            val logoRect = android.graphics.RectF(logoLeft, logoTop, logoLeft + logoSize, logoTop + logoSize)
+            val clipPath = android.graphics.Path().apply {
+                addRoundRect(
+                    logoRect,
+                    6f,
+                    6f,
+                    android.graphics.Path.Direction.CW
+                )
+            }
+            canvas.save()
+            canvas.clipPath(clipPath)
+            canvas.drawBitmap(logoBitmap, null, logoRect, null)
+            canvas.restore()
+        }
         canvas.drawText(
             data.businessName,
             pageWidth / 2f - headerTitlePaint.measureText(data.businessName) / 2f,
@@ -405,6 +500,26 @@ actual class OrderReceiptSharer(private val context: Context) {
         }
         y += 22f
 
+        // PAY VIA TRANSFER — light PDF variant
+        val bankPdf = data.bankBlock
+        if (bankPdf != null) {
+            y += 12f
+            canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
+            y += 18f
+            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaintPdf)
+            y += 20f
+            val valueX = padding + 104f
+            canvas.drawText("Bank", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.bankName, valueX, y, bodyBoldPdf)
+            y += 20f
+            canvas.drawText("Account name", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.accountName, valueX, y, bodyBoldPdf)
+            y += 20f
+            canvas.drawText("Account number", padding, y, bodyPaintPdf)
+            canvas.drawText(bankPdf.accountNumber, valueX, y, bodyBoldPdf)
+            y += 24f
+        }
+
         // Status divider
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
         y += 16f
@@ -444,9 +559,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
         y += 16f
         canvas.drawText("Order #${data.orderIdShort}", pageWidth / 2f, y, footerPdf)
-        if (data.attribution != null) {
+        val attributionTextPdf = data.attribution.footerText
+        if (attributionTextPdf != null) {
             y += 14f
-            canvas.drawText(data.attribution, pageWidth / 2f, y, footerPdf)
+            canvas.drawText(attributionTextPdf, pageWidth / 2f, y, footerPdf)
         }
 
         doc.finishPage(page)
@@ -470,6 +586,42 @@ actual class OrderReceiptSharer(private val context: Context) {
         textSize = size
         isAntiAlias = true
         if (bold) typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    /**
+     * Draws the tier-keyed background watermark before any content. Caller is
+     * responsible for invoking this immediately after the canvas background
+     * fill so the watermark sits at the lowest z-order.
+     *
+     * StitchPadDiagonal: a single large "STITCHPAD" wordmark, rotated -30°,
+     * centered. inkColor is theme-aware (light gray on dark, dark gray on light).
+     * None: no-op (paid tiers ship a clean document).
+     */
+    private fun drawWatermark(
+        canvas: Canvas,
+        spec: WatermarkSpec,
+        canvasWidth: Float,
+        canvasHeight: Float,
+        inkColor: Int,
+    ) {
+        when (spec) {
+            WatermarkSpec.None -> Unit
+            WatermarkSpec.StitchPadDiagonal -> {
+                val wmPaint = Paint().apply {
+                    color = inkColor
+                    textSize = canvasWidth * 0.12f
+                    isAntiAlias = true
+                    alpha = WATERMARK_TEXT_ALPHA
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    textAlign = Paint.Align.CENTER
+                    letterSpacing = 0.08f
+                }
+                canvas.save()
+                canvas.rotate(-30f, canvasWidth / 2f, canvasHeight / 2f)
+                canvas.drawText("STITCHPAD", canvasWidth / 2f, canvasHeight / 2f, wmPaint)
+                canvas.restore()
+            }
+        }
     }
 
     private fun saveBitmapToCache(bitmap: Bitmap, prefix: String): File {

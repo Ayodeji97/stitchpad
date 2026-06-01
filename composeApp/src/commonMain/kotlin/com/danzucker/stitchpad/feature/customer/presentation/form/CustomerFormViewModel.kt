@@ -67,10 +67,6 @@ class CustomerFormViewModel(
                 _state.update { it.copy(email = action.email, emailError = null) }
             is CustomerFormAction.OnAddressChange ->
                 _state.update { it.copy(address = action.address) }
-            is CustomerFormAction.OnDeliveryPreferenceChange ->
-                _state.update { it.copy(deliveryPreference = action.preference) }
-            is CustomerFormAction.OnNotesChange ->
-                _state.update { it.copy(notes = action.notes) }
             CustomerFormAction.OnNameBlur ->
                 if (_state.value.name.isNotBlank()) validateName()
             CustomerFormAction.OnPhoneBlur ->
@@ -105,8 +101,6 @@ class CustomerFormViewModel(
                             phone = c.phone,
                             email = c.email ?: "",
                             address = c.address ?: "",
-                            deliveryPreference = c.deliveryPreference,
-                            notes = c.notes ?: "",
                             createdAt = c.createdAt,
                             isLoading = false
                         )
@@ -148,8 +142,6 @@ class CustomerFormViewModel(
                 phone = s.phone.trim(),
                 email = s.email.trim().ifBlank { null },
                 address = s.address.trim().ifBlank { null },
-                deliveryPreference = s.deliveryPreference,
-                notes = s.notes.trim().ifBlank { null },
                 createdAt = s.createdAt
             )
             val result = if (customerId != null) {

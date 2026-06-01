@@ -90,6 +90,17 @@
     <string name="forgot_password_success_message">We've sent a password reset link to %1$s</string>
     <string name="login_forgot_password">Forgot password?</string>
 
+    <!-- Email verification screen -->
+    <string name="email_verify_title">Verify your email</string>
+    <string name="email_verify_subtitle">We've sent a verification link to %1$s. Tap it to continue, then come back here.</string>
+    <string name="email_verify_check_button">I've verified my email</string>
+    <string name="email_verify_resend_button">Resend email</string>
+    <string name="email_verify_resend_cooldown">Resend in %1$ds</string>
+    <string name="email_verify_change_email">Use a different email</string>
+    <string name="email_verify_skip_debug">Skip verification (debug)</string>
+    <string name="email_verify_sent_message">Verification email sent</string>
+    <string name="email_verify_not_yet_message">Not verified yet. Tap the link in your inbox, then try again.</string>
+
     <!-- Home placeholder -->
     <string name="home_placeholder_title">Welcome to StitchPad!</string>
     <string name="home_sign_out">Sign Out</string>
@@ -220,16 +231,8 @@
     <string name="customer_form_email_placeholder">e.g. amina@gmail.com</string>
     <string name="customer_form_address_label">Address (optional)</string>
     <string name="customer_form_address_placeholder">15 Adeola Odeku St, Lagos…</string>
-    <string name="customer_form_delivery_label">Delivery preference</string>
-    <string name="customer_form_notes_label">Notes (optional)</string>
-    <string name="customer_form_notes_placeholder">Prefers ankara fabric, usually picks up Saturdays…</string>
     <string name="customer_form_add_measurements_next">Add measurements next</string>
     <string name="customer_form_save_button">Save Customer</string>
-
-    <!-- Delivery preference options -->
-    <string name="delivery_pickup">Pickup</string>
-    <string name="delivery_delivery">Delivery</string>
-    <string name="delivery_either">Either</string>
 
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>
@@ -273,6 +276,7 @@
     <string name="garment_type_trouser">Trouser</string>
     <string name="garment_type_shirt">Shirt</string>
     <string name="garment_type_corporate_trouser">Corporate Trouser</string>
+    <string name="garment_type_other">Other</string>
 
     <!-- Order list: lowercase singular/plural forms for item count summary ("1 dress" / "3 dresses") -->
     <string name="order_summary_one_agbada">%1$d agbada</string>
@@ -309,6 +313,9 @@
     <string name="order_summary_other_shirt">%1$d shirts</string>
     <string name="order_summary_one_corporate_trouser">%1$d corporate trouser</string>
     <string name="order_summary_other_corporate_trouser">%1$d corporate trousers</string>
+    <string name="order_summary_one_other">%1$d other item</string>
+    <string name="order_summary_other_other">%1$d other items</string>
+    <string name="order_summary_one_custom_format">1 %1$s</string>
 
     <!-- Garment gender labels -->
     <string name="garment_gender_male">Male</string>
@@ -369,6 +376,36 @@
     <!-- Measurement errors -->
     <string name="error_measurement_not_found">Measurement not found</string>
     <string name="error_measurement_unknown">Could not save measurement. Please try again.</string>
+
+    <!-- PTSP-12 — custom measurement fields -->
+    <string name="custom_field_section_title">Custom</string>
+    <string name="custom_field_section_pill_pro">Your fields</string>
+    <string name="custom_field_section_pill_locked">Pro</string>
+    <string name="custom_field_section_pill_first_month">First Month</string>
+    <string name="custom_field_section_subtitle">Add your own measurements to this customer’s form.</string>
+    <string name="custom_field_empty_caption">Add measurements that aren’t on the default list — like cuff width, lapel, or gown sweep. They’ll appear here for every customer.</string>
+    <string name="custom_field_locked_caption">Define measurements that don’t appear on the default list. Available on Pro.</string>
+    <string name="custom_field_add_button">Add custom field</string>
+    <string name="custom_field_sheet_add_title">Add custom field</string>
+    <string name="custom_field_sheet_add_subtitle">Define a measurement you’d like to track for your customers.</string>
+    <string name="custom_field_sheet_edit_title">Edit field</string>
+    <string name="custom_field_sheet_label">Field name</string>
+    <string name="custom_field_sheet_label_placeholder">e.g. Sleeve cuff width</string>
+    <string name="custom_field_sheet_value">Value</string>
+    <string name="custom_field_sheet_value_placeholder">0</string>
+    <string name="custom_field_sheet_genders_label">Show on</string>
+    <string name="custom_field_sheet_gender_female">Female</string>
+    <string name="custom_field_sheet_gender_male">Male</string>
+    <string name="custom_field_sheet_gender_both">Both</string>
+    <string name="custom_field_sheet_save">Save</string>
+    <string name="custom_field_sheet_save_with_value">Save field &amp; value</string>
+    <string name="custom_field_sheet_save_changes">Save changes</string>
+    <string name="custom_field_sheet_cancel">Cancel</string>
+    <string name="custom_field_delete_content_description">Delete custom field</string>
+    <string name="custom_field_sheet_archive">Delete custom field</string>
+    <string name="custom_field_archive_dialog_title">Delete this field?</string>
+    <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>
+    <string name="custom_field_archive_dialog_confirm">Delete</string>
 
     <!-- Settings -->
     <string name="settings_measurement_unit_label">Measurement unit</string>
@@ -472,6 +509,21 @@
     <string name="order_form_description_label">Design notes (optional)</string>
     <string name="order_form_description_placeholder">e.g. cream agbada, gold embroidery, long sleeves</string>
     <string name="order_form_quantity_label">Quantity</string>
+
+    <!-- Garment picker sheet -->
+    <string name="garment_picker_title">What are you making?</string>
+    <string name="garment_picker_subtitle">Pick from the list, or add a new one.</string>
+    <string name="garment_picker_search_placeholder">Search or add new…</string>
+    <string name="garment_picker_section_my_types">My garment types</string>
+    <string name="garment_picker_section_common_types">Common types</string>
+    <string name="garment_picker_add_custom_format">Add &quot;%1$s&quot; as a new garment type</string>
+    <string name="garment_picker_add_custom_subtext">Saved for next time</string>
+    <string name="garment_picker_no_matches_format">No common type matches &quot;%1$s&quot; — that&apos;s OK, add it as your own.</string>
+    <string name="garment_picker_custom_pill">Custom</string>
+    <string name="garment_picker_saved_snackbar_format">Saved &quot;%1$s&quot; to your garment types.</string>
+    <string name="garment_picker_add_new_cta">Add a new garment type</string>
+    <string name="garment_picker_add_new_hint">Save to your list for next time</string>
+
     <string name="order_form_price_label">Price (₦)</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
@@ -592,6 +644,12 @@
     <string name="share_as_pdf_title">Share as PDF</string>
     <string name="share_as_pdf_description">Best for printing &amp; email</string>
     <string name="receipt_share_error">Could not share receipt. Please try again.</string>
+    <!-- Document type chips (shown when both Invoice and Deposit Receipt are valid for a partial-paid order) -->
+    <string name="share_doc_type_picker_label">Send as</string>
+    <string name="share_doc_type_invoice">Invoice</string>
+    <string name="share_doc_type_deposit_receipt">Deposit receipt</string>
+    <!-- Snackbar action shown after a payment is recorded -->
+    <string name="order_record_payment_snackbar_share_action">Share receipt</string>
 
     <!-- Record payment dialog -->
     <string name="order_record_payment_button">Record Payment</string>
@@ -999,8 +1057,28 @@
     <string name="workshop_logo_label">Business logo</string>
     <string name="workshop_logo_optional">(optional)</string>
     <string name="workshop_logo_upload_title">Upload logo</string>
-    <string name="workshop_logo_upload_sub">PNG, JPG or SVG · Max 2MB</string>
+    <string name="workshop_logo_upload_sub">PNG or JPG · Resized automatically for upload</string>
     <string name="workshop_logo_coming_soon">Logo upload coming soon</string>
+
+    <!-- PTSP-21 brand logo upload -->
+    <string name="workshop_logo_uploading">Uploading logo…</string>
+    <string name="workshop_logo_upload_failed">Couldn&apos;t upload logo. Retry?</string>
+    <string name="workshop_logo_too_large">Logo must be 5MB or smaller</string>
+    <string name="workshop_logo_invalid_format">Use a PNG or JPG image</string>
+    <string name="workshop_logo_finishing">Finishing logo upload…</string>
+    <string name="workshop_logo_uploaded">Logo uploaded</string>
+    <string name="workshop_logo_retry">Retry</string>
+
+    <string name="edit_profile_logo_title">Business logo</string>
+    <string name="edit_profile_logo_change">Change logo</string>
+    <string name="edit_profile_logo_remove">Remove</string>
+    <string name="edit_profile_logo_remove_confirm_title">Remove business logo?</string>
+    <string name="edit_profile_logo_remove_confirm_body">Your logo will no longer appear on the dashboard or receipts.</string>
+    <string name="edit_profile_logo_remove_confirm_cta">Remove</string>
+    <string name="edit_profile_logo_updated">Logo updated</string>
+    <string name="edit_profile_logo_removed">Logo removed</string>
+
+    <string name="brand_logo_content_description">Business logo</string>
     <string name="workshop_brand_tagline">TAILORED FOR YOU</string>
     <string name="brand_name">STITCHPAD</string>
 
@@ -1010,8 +1088,30 @@
     <string name="workshop_whatsapp_optional">Optional</string>
     <string name="workshop_whatsapp_placeholder">801 234 5678</string>
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
+    <string name="whatsapp_confirm_cta">Confirm on WhatsApp</string>
+    <string name="whatsapp_confirmed_badge">WhatsApp confirmed</string>
+    <string name="whatsapp_confirm_instructions">Open WhatsApp, read the 4-digit code in the message we drafted, then enter it below. You don&apos;t need to send the message.</string>
+    <string name="whatsapp_confirm_input_label">Enter the 4-digit code</string>
+    <string name="whatsapp_confirm_message">StitchPad confirmation code: %1$s — you can delete this message.</string>
+    <string name="whatsapp_confirm_error_mismatch">That code doesn&apos;t match. Check WhatsApp and try again.</string>
+    <string name="whatsapp_confirm_cancel">Cancel</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
 
+    <!-- Payment details (PTSP-16) — shown on Workshop onboarding and Edit Profile, surfaced on invoices -->
+    <string name="bank_details_section_title">Payment details</string>
+    <string name="bank_details_section_subtitle">Customers can pay you direct. Shows on every invoice.</string>
+    <string name="bank_details_optional">Optional</string>
+    <string name="bank_details_expand">Add bank details</string>
+    <string name="bank_details_collapse">Hide bank details</string>
+    <string name="bank_details_bank_label">Bank</string>
+    <string name="bank_details_bank_placeholder">e.g. GTBank</string>
+    <string name="bank_details_account_name_label">Account name</string>
+    <string name="bank_details_account_name_placeholder">As shown on your bank statement</string>
+    <string name="bank_details_account_number_label">Account number</string>
+    <string name="bank_details_account_number_placeholder">10-digit account number</string>
+    <string name="error_bank_name_required">Add your bank to show these details on invoices</string>
+    <string name="error_bank_account_name_required">Add the account holder name</string>
+    <string name="error_bank_account_number_invalid">Account number must be exactly 10 digits</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>

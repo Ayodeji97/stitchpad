@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 
 sealed interface OrderDetailAction {
     // Navigation
@@ -37,6 +38,12 @@ sealed interface OrderDetailAction {
     data object OnShareAsImageClick : OrderDetailAction
     data object OnShareAsPdfClick : OrderDetailAction
     data object OnDismissShareSheet : OrderDetailAction
+
+    /** Manually pick Invoice vs Deposit Receipt when both are meaningful (partial-paid orders). */
+    data class OnDocumentTypeChoice(val choice: ReceiptDocumentType) : OrderDetailAction
+
+    /** From the PaymentRecorded snackbar action — open share sheet for the freshly-paid order. */
+    data object OnShareReceiptFromSnackbar : OrderDetailAction
 
     // Record payment
     data object OnRecordPaymentClick : OrderDetailAction

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -94,6 +95,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
@@ -105,16 +107,20 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.garment_gender_female
 import stitchpad.composeapp.generated.resources.garment_gender_male
 import stitchpad.composeapp.generated.resources.garment_gender_unisex
+import stitchpad.composeapp.generated.resources.garment_picker_custom_pill
+import stitchpad.composeapp.generated.resources.garment_picker_saved_snackbar_format
 import stitchpad.composeapp.generated.resources.order_form_add_item
 import stitchpad.composeapp.generated.resources.order_form_create_button
 import stitchpad.composeapp.generated.resources.order_form_deadline_label
@@ -181,11 +187,22 @@ fun OrderFormRoot(
     val viewModel: OrderFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             OrderFormEvent.NavigateBack -> onNavigateBack()
             OrderFormEvent.OrderSaved -> onNavigateBack()
+            is OrderFormEvent.ShowCustomSavedSnackbar -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        getString(
+                            Res.string.garment_picker_saved_snackbar_format,
+                            event.name,
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -319,13 +336,60 @@ fun OrderFormScreen(
                 }
             }
 
+            val activePickerItemId = state.activePickerItemId
+            if (activePickerItemId != null) {
+                // Use the lifted genderFilter from the active item's state so the picker
+                // shows only garments matching the gender chip the user has selected.
+                val activeItem = state.items.firstOrNull { it.id == activePickerItemId }
+                val activeGenderFilter = activeItem?.genderFilter ?: GarmentGender.MALE
+                GarmentPickerSheet(
+                    customs = state.customGarmentTypes,
+                    presets = GarmentType.entries.filter { it != GarmentType.OTHER && it.gender == activeGenderFilter },
+                    searchQuery = state.pickerSearchQuery,
+                    onSearchChange = { onAction(OrderFormAction.OnPickerSearchChange(it)) },
+                    onPickPreset = { type ->
+                        onAction(
+                            OrderFormAction.OnPickGarmentType(
+                                itemId = activePickerItemId,
+                                garmentType = type,
+                                customName = null,
+                            )
+                        )
+                    },
+                    onPickCustom = { custom ->
+                        onAction(
+                            OrderFormAction.OnPickGarmentType(
+                                itemId = activePickerItemId,
+                                garmentType = GarmentType.OTHER,
+                                customName = custom.name,
+                            )
+                        )
+                    },
+                    onAddCustom = { typed ->
+                        onAction(
+                            OrderFormAction.OnAddCustomGarmentType(
+                                itemId = activePickerItemId,
+                                name = typed,
+                            )
+                        )
+                    },
+                    onDismiss = { onAction(OrderFormAction.OnDismissPicker) },
+                )
+            }
+
             val canAdvance = when (state.currentStep) {
                 1 -> state.selectedCustomer != null
                 2 -> {
                     val typed = state.items.filter { it.garmentType != null }
                     typed.isNotEmpty() &&
                         typed.all { (it.quantity.toIntOrNull() ?: 0) > 0 } &&
-                        typed.all { (it.price.toDoubleOrNull() ?: 0.0) > 0.0 }
+                        typed.all { (it.price.toDoubleOrNull() ?: 0.0) > 0.0 } &&
+                        // Mirrors the save-side hasOrphanedOther guard — items with
+                        // garmentType == OTHER must have a non-blank customGarmentName
+                        // so users can't advance to step 3 and lose that work on save.
+                        typed.all { item ->
+                            item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank()
+                        }
                 }
                 else -> true
             }
@@ -639,24 +703,25 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Gender filter chips. Keyed by item.id via the outer key(item.id) so remember
-            // stays tied to this item on add/remove. Initial value follows the item's existing
-            // selection so editing a saved Female garment shows the Female chip preselected.
-            var selectedGenderFilter by remember {
-                mutableStateOf(item.garmentType?.gender ?: GarmentGender.MALE)
-            }
+            // Gender filter chips. Selection is lifted into OrderItemFormState so the
+            // picker can be opened with the correct gender filter, regardless of whether
+            // a garment has already been chosen.
             Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
                 GarmentGender.entries.forEach { gender ->
-                    val isSelected = selectedGenderFilter == gender
+                    val isSelected = item.genderFilter == gender
                     val label = garmentGenderLabel(gender)
                     FilterChip(
                         selected = isSelected,
                         onClick = {
-                            selectedGenderFilter = gender
+                            onAction(OrderFormAction.OnItemGenderFilterChange(item.id, gender))
                             // If the previously selected garment doesn't belong to the new
-                            // gender, clear it so the dropdown label matches what's in-list.
+                            // gender, clear it so the field label matches what's in-list.
+                            // Don't clear custom-garment selections on gender chip change.
+                            // OTHER.gender is UNISEX so the naive incompatibility check always
+                            // returns true for MALE/FEMALE chips — but the user's custom name
+                            // has no gender meaning. Leave it alone.
                             val current = item.garmentType
-                            if (current != null && current.gender != gender) {
+                            if (current != null && current != GarmentType.OTHER && current.gender != gender) {
                                 onAction(OrderFormAction.OnItemGarmentTypeChange(item.id, null))
                             }
                         },
@@ -684,38 +749,38 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Garment type dropdown (filtered by gender)
-            val filteredGarmentTypes = GarmentType.entries.filter { it.gender == selectedGenderFilter }
-            var garmentExpanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(
-                expanded = garmentExpanded,
-                onExpandedChange = { garmentExpanded = it }
-            ) {
+            // Garment-type tap target — opens GarmentPickerSheet on tap
+            val displayValue = when {
+                item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank() ->
+                    item.customGarmentName
+                item.garmentType != null -> garmentDisplayName(item.garmentType)
+                else -> ""
+            }
+            Box {
                 OutlinedTextField(
-                    value = item.garmentType?.let { garmentDisplayName(it) } ?: "",
+                    value = displayValue ?: "",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(Res.string.order_form_garment_type_label)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = garmentExpanded) },
+                    trailingIcon = {
+                        if (item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank()) {
+                            AssistChip(
+                                onClick = { onAction(OrderFormAction.OnOpenGarmentPicker(item.id)) },
+                                label = { Text(stringResource(Res.string.garment_picker_custom_pill)) },
+                                modifier = Modifier.padding(end = 8.dp),
+                            )
+                        }
+                    },
                     shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                ExposedDropdownMenu(
-                    expanded = garmentExpanded,
-                    onDismissRequest = { garmentExpanded = false }
-                ) {
-                    filteredGarmentTypes.forEach { type ->
-                        DropdownMenuItem(
-                            text = { Text(garmentDisplayName(type)) },
-                            onClick = {
-                                onAction(OrderFormAction.OnItemGarmentTypeChange(item.id, type))
-                                garmentExpanded = false
-                            }
-                        )
-                    }
-                }
+                // Transparent overlay so taps aren't swallowed by the read-only BasicTextField
+                // focus handler — see M3 BasicTextField pointer-event consumption.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { onAction(OrderFormAction.OnOpenGarmentPicker(item.id)) }
+                )
             }
 
             Spacer(Modifier.height(DesignTokens.space2))

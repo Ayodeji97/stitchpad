@@ -2,10 +2,12 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
+import com.danzucker.stitchpad.core.data.repository.FakeCustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -19,10 +21,12 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -41,6 +45,7 @@ class OrderFormViewModelTest {
     private lateinit var styleRepository: FakeStyleRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var customGarmentTypeRepository: FakeCustomGarmentTypeRepository
 
     private val testCustomer = Customer(
         id = "cust-1",
@@ -67,6 +72,7 @@ class OrderFormViewModelTest {
         styleRepository = FakeStyleRepository()
         measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository().apply { currentUser = testUser }
+        customGarmentTypeRepository = FakeCustomGarmentTypeRepository()
         customerRepository.customersList = listOf(testCustomer)
     }
 
@@ -86,6 +92,7 @@ class OrderFormViewModelTest {
             styleRepository = styleRepository,
             measurementRepository = measurementRepository,
             authRepository = authRepository,
+            customGarmentTypeRepository = customGarmentTypeRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -382,5 +389,107 @@ class OrderFormViewModelTest {
 
         assertNull(orderRepository.lastCreatedOrder)
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // ─── Garment picker tests ────────────────────────────────────────────────
+
+    @Test
+    fun `OnOpenGarmentPicker sets activePickerItemId`() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnOpenGarmentPicker("item-1"))
+        assertEquals("item-1", vm.state.value.activePickerItemId)
+    }
+
+    @Test
+    fun `OnDismissPicker clears activePickerItemId and search query`() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnOpenGarmentPicker("item-1"))
+        vm.onAction(OrderFormAction.OnPickerSearchChange("iro"))
+
+        vm.onAction(OrderFormAction.OnDismissPicker)
+
+        assertEquals(null, vm.state.value.activePickerItemId)
+        assertEquals("", vm.state.value.pickerSearchQuery)
+    }
+
+    @Test
+    fun `OnPickerSearchChange updates search query`() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnPickerSearchChange("kente"))
+        assertEquals("kente", vm.state.value.pickerSearchQuery)
+    }
+
+    @Test
+    fun `OnPickGarmentType preset updates item and closes picker — no touch call`() = runTest {
+        val vm = createViewModel()
+        val itemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnOpenGarmentPicker(itemId))
+
+        vm.onAction(OrderFormAction.OnPickGarmentType(itemId, GarmentType.AGBADA))
+
+        val item = vm.state.value.items.first()
+        assertEquals(GarmentType.AGBADA, item.garmentType)
+        assertEquals(null, item.customGarmentName)
+        assertEquals(null, vm.state.value.activePickerItemId)
+        assertTrue(customGarmentTypeRepository.touchCalls.isEmpty())
+    }
+
+    @Test
+    fun `OnPickGarmentType existing custom calls touch on matching doc`() = runTest {
+        val userId = "user-1"
+        val existing = CustomGarmentType("c1", "Iro and Buba", 1L, 1L)
+        customGarmentTypeRepository.seed(userId, listOf(existing))
+
+        val vm = createViewModel()
+        runCurrent()  // let the observe() flow propagate into state
+
+        val itemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnOpenGarmentPicker(itemId))
+
+        vm.onAction(
+            OrderFormAction.OnPickGarmentType(itemId, GarmentType.OTHER, "Iro and Buba")
+        )
+        runCurrent()
+
+        val item = vm.state.value.items.first()
+        assertEquals(GarmentType.OTHER, item.garmentType)
+        assertEquals("Iro and Buba", item.customGarmentName)
+        assertEquals(listOf(userId to "c1"), customGarmentTypeRepository.touchCalls)
+    }
+
+    @Test
+    fun `save with OTHER item and blank customGarmentName sets error and does not persist`() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val itemId = vm.state.value.items.first().id
+        // Set garmentType = OTHER with no custom name (simulates half-completed picker entry)
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(itemId, GarmentType.OTHER))
+        vm.onAction(OrderFormAction.OnItemPriceChange(itemId, "5000"))
+
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertNull(orderRepository.lastCreatedOrder)
+    }
+
+    @Test
+    fun `OnAddCustomGarmentType upserts and updates item and emits snackbar`() = runTest {
+        val userId = "user-1"
+        val vm = createViewModel()
+        val itemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnOpenGarmentPicker(itemId))
+
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        vm.onAction(OrderFormAction.OnAddCustomGarmentType(itemId, "Kente cape"))
+        runCurrent()
+
+        val item = vm.state.value.items.first()
+        assertEquals(GarmentType.OTHER, item.garmentType)
+        assertEquals("Kente cape", item.customGarmentName)
+        assertEquals(listOf(userId to "Kente cape"), customGarmentTypeRepository.upsertCalls)
+        assertTrue(events.any { it is OrderFormEvent.ShowCustomSavedSnackbar && it.name == "Kente cape" })
+        job.cancel()
     }
 }

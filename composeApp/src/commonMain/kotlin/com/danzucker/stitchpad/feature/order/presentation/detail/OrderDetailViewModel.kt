@@ -3,6 +3,11 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
@@ -15,10 +20,12 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
+import com.danzucker.stitchpad.core.sharing.toPngBytes
 import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -27,18 +34,32 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.receipt_share_error
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Suppress("TooManyFunctions")
+// Bound on awaitHydrated() in the share path. Long enough for a typical cold-start
+// Firestore snapshot to land (single-digit hundreds of ms in practice); short
+// enough that a true hydration failure (missing user doc, rules issue, network
+// stall) falls back to current() in ~2s rather than appearing to hang silently —
+// the share sheet is already closed by the time we wait, so there's no visible
+// progress affordance to support a longer wait.
+private const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
+
+// Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
+// and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
+// A refactor to bundle repositories into a single dependency would obscure the
+// per-layer wiring; staying explicit + suppressing here keeps the seams visible.
+@Suppress("TooManyFunctions", "LongParameterList")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
@@ -46,7 +67,11 @@ class OrderDetailViewModel(
     private val measurementRepository: MeasurementRepository,
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
     private val receiptSharer: OrderReceiptSharer,
+    private val imageLoader: ImageLoader,
+    private val platformContext: PlatformContext,
+    private val entitlementsProvider: EntitlementsProvider,
 ) : ViewModel() {
 
     private val orderId: String = checkNotNull(savedStateHandle["orderId"])
@@ -174,13 +199,19 @@ class OrderDetailViewModel(
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
                 shareReceipt { receiptSharer.shareReceiptAsImage(it) }
+                _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {
                 _state.update { it.copy(showShareSheet = false) }
                 shareReceipt { receiptSharer.shareReceiptAsPdf(it) }
+                _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnDismissShareSheet ->
-                _state.update { it.copy(showShareSheet = false) }
+                _state.update { it.copy(showShareSheet = false, documentTypeChoice = null) }
+            is OrderDetailAction.OnDocumentTypeChoice ->
+                _state.update { it.copy(documentTypeChoice = action.choice) }
+            OrderDetailAction.OnShareReceiptFromSnackbar ->
+                _state.update { it.copy(showShareSheet = true, documentTypeChoice = null) }
 
             // Record payment
             OrderDetailAction.OnRecordPaymentClick -> {
@@ -343,13 +374,35 @@ class OrderDetailViewModel(
     private fun shareReceipt(share: suspend (ReceiptData) -> Unit) {
         val order = _state.value.order ?: return
         val user = _state.value.user ?: return
+        val choice = _state.value.documentTypeChoice
         viewModelScope.launch {
             try {
                 val garmentNames = order.items
                     .map { it.garmentType }
                     .distinct()
                     .associate { it to garmentDisplayNameAsync(it) }
-                val receiptData = ReceiptFormatter.format(order, user, garmentNames)
+                val logoBytes = fetchLogoBytes(user.businessLogoUrl)
+                // Wait briefly for entitlements to hydrate so a Pro/Atelier user
+                // opening the app and immediately sharing doesn't get the StitchPad
+                // watermark while the snapshot is still racing. Bounded by a short
+                // timeout because awaitHydrated() never resolves when the user doc
+                // is missing or Firestore can't produce a snapshot (rules issue,
+                // long network stall, fresh-signup race) — the share sheet has
+                // already closed by this point and there's no loading affordance,
+                // so an unbounded wait would look like a silent hang to the user.
+                // On timeout we fall back to current() which defaults to FREE +
+                // StitchPad watermark — degraded for a paid user, never broken.
+                val tier = withTimeoutOrNull(ENTITLEMENTS_HYDRATION_TIMEOUT_MS) {
+                    entitlementsProvider.awaitHydrated()
+                }?.tier ?: entitlementsProvider.current().tier
+                val receiptData = ReceiptFormatter.format(
+                    order = order,
+                    user = user,
+                    tier = tier,
+                    garmentNames = garmentNames,
+                    businessLogoBytes = logoBytes,
+                    forceDocumentType = choice,
+                )
                 share(receiptData)
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
@@ -359,9 +412,36 @@ class OrderDetailViewModel(
         }
     }
 
+    /**
+     * Prefetch the user's brand logo via Coil and encode it as PNG bytes.
+     * Returns null when no URL is set or decoding fails.
+     * The bytes are passed through [ReceiptData] so receipt renderers can draw
+     * them synchronously on a Canvas/CGContext without suspending.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun fetchLogoBytes(url: String?): ByteArray? {
+        if (url.isNullOrBlank()) return null
+        val request = ImageRequest.Builder(platformContext)
+            .data(url)
+            .build()
+        val result = imageLoader.execute(request) as? SuccessResult ?: return null
+        return result.image.toPngBytes()
+    }
+
     private fun loadUser() {
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser()
+            val authUser = authRepository.getCurrentUser() ?: return@launch
+            // Resolve the Firestore user doc — the Auth user has businessName,
+            // whatsappNumber, phoneNumber, and businessLogoUrl hardcoded to null, so
+            // without this read the receipt header would fall back to the generic
+            // business name and never show the uploaded logo. Merge identity (email,
+            // displayName) from Auth when the Firestore doc lacks them (the user doc
+            // doesn't redundantly store those fields).
+            val firestoreUser = userRepository.observeUser(authUser.id).first()
+            val user = firestoreUser?.copy(
+                email = firestoreUser.email.ifBlank { authUser.email },
+                displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
+            ) ?: authUser
             _state.update { it.copy(user = user) }
         }
     }
@@ -652,7 +732,20 @@ class OrderDetailViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val res = orderRepository.recordPayment(userId, orderId, payment)) {
-                is Result.Success -> _events.send(OrderDetailEvent.PaymentRecorded)
+                is Result.Success -> {
+                    // Optimistically reflect the new payment in local state BEFORE emitting
+                    // PaymentRecorded. Otherwise the snackbar's "Share receipt" action can
+                    // race the observeOrder snapshot and format a receipt against a stale
+                    // order — wrong doc type (INVOICE instead of DEPOSIT_RECEIPT) or
+                    // missing the just-recorded payment row. observeOrder will overwrite
+                    // with the server-authoritative version once the snapshot lands; the
+                    // optimistic value will match by then.
+                    _state.update { current ->
+                        val existing = current.order ?: return@update current
+                        current.copy(order = existing.copy(payments = existing.payments + payment))
+                    }
+                    _events.send(OrderDetailEvent.PaymentRecorded)
+                }
                 is Result.Error ->
                     _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
             }

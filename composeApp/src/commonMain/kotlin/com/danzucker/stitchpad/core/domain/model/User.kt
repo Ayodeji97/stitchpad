@@ -19,4 +19,22 @@ data class User(
      * back to `WELCOME_BONUS_COIN_COUNT` (30) for those.
      */
     val bonusCoins: Int? = null,
+    /** Resolved Firebase Storage download URL for the user's brand logo. Null = no logo set. */
+    val businessLogoUrl: String? = null,
+    /** Firebase Storage path for the logo. Used for deletion and replacement. Null = no logo set. */
+    val businessLogoStoragePath: String? = null,
+    /**
+     * Bank details surfaced on Invoice and Deposit Receipt documents so customers
+     * can pay via direct transfer. The three fields are a logical group — they are
+     * either all set or all null. Validation in the form layer enforces this.
+     */
+    val bankName: String? = null,
+    val bankAccountName: String? = null,
+    val bankAccountNumber: String? = null,
+    /**
+     * True once the tailor passed the "Confirm on WhatsApp" round-trip for the
+     * current [whatsappNumber]. Proves WhatsApp *reachability*, not ownership.
+     * Resets to false whenever the number is edited.
+     */
+    val whatsappConfirmed: Boolean = false,
 )

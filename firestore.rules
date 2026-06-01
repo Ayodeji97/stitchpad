@@ -93,6 +93,17 @@ service cloud.firestore {
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount');
 
+      // ── Custom measurement fields ────────────────────────────────────────
+      // PTSP-12 — Per-tailor custom field definitions. Soft-archive only;
+      // no hard-delete (delete is explicitly denied so past measurements'
+      // UUID-to-label mappings stay intact). Client-side gate on tier;
+      // server-side feature gate is deferred (see custom-measurements
+      // design doc §7).
+      match /customMeasurementFields/{fieldId} {
+        allow read, create, update: if isOwner(uid);
+        // delete is intentionally omitted — soft-archive only.
+      }
+
       // ── Customer subcollection ───────────────────────────────────────────
       // slotState/lockedAt stay client-writable in V1.0 because the SwapSheet
       // mutates them directly via Firestore batch. See top-level comment.
@@ -110,6 +121,14 @@ service cloud.firestore {
 
       // ── Orders subcollection ─────────────────────────────────────────────
       match /orders/{orderId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Custom garment types subcollection ───────────────────────────────
+      // Stores tailor-defined garment names (e.g. "Iro/Buba"). Client reads
+      // these in the garment picker and writes on upsert / touch. No
+      // financially meaningful fields — full read/write for the owner.
+      match /customGarmentTypes/{docId} {
         allow read, write: if isOwner(uid);
       }
 
