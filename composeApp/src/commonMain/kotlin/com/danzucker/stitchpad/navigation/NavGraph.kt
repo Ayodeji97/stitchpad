@@ -7,9 +7,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginRoot
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpRoot
+import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerificationRoot
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuRoot
 import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
@@ -18,6 +20,24 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+
+/**
+ * Whether the signed-in user must verify their email before entering the app.
+ * Only email/password users are gated; SSO providers supply pre-verified emails.
+ * The bypass flag is honoured ONLY in debug builds — a persisted flag (e.g. from
+ * a prior debug install or restored backup) must never let a release build skip
+ * the gate. Store reviewers use a pre-verified account instead. Reloads from the
+ * server first so a freshly tapped link is reflected.
+ */
+private suspend fun AuthRepository.needsEmailVerification(
+    onboardingPreferences: OnboardingPreferences,
+): Boolean {
+    val bypassed = isDebugBuild && onboardingPreferences.hasBypassedEmailVerification()
+    val gated = getSignInProvider() == SignInProvider.EMAIL_PASSWORD && !bypassed
+    if (!gated) return false
+    reloadUser()
+    return !isEmailVerified()
+}
 
 @Composable
 fun StitchPadNavHost(
@@ -39,9 +59,11 @@ fun StitchPadNavHost(
                         val hasCompletedWorkshop = onboardingPreferences.hasCompletedWorkshopSetup()
                         val destination = when {
                             !hasSeenOnboarding -> OnboardingRoute
-                            authRepository.isLoggedIn && !hasCompletedWorkshop -> WorkshopSetupRoute
-                            authRepository.isLoggedIn -> HomeRoute
-                            else -> LoginRoute
+                            !authRepository.isLoggedIn -> LoginRoute
+                            authRepository.needsEmailVerification(onboardingPreferences) ->
+                                EmailVerificationRoute
+                            !hasCompletedWorkshop -> WorkshopSetupRoute
+                            else -> HomeRoute
                         }
                         navController.navigate(destination) {
                             popUpTo(SplashRoute) { inclusive = true }
@@ -70,10 +92,11 @@ fun StitchPadNavHost(
                 onNavigateToForgotPassword = { navController.navigate(ForgotPasswordRoute) },
                 onNavigateToHome = {
                     scope.launch {
-                        val destination = if (!onboardingPreferences.hasCompletedWorkshopSetup()) {
-                            WorkshopSetupRoute
-                        } else {
-                            HomeRoute
+                        val destination = when {
+                            authRepository.needsEmailVerification(onboardingPreferences) ->
+                                EmailVerificationRoute
+                            !onboardingPreferences.hasCompletedWorkshopSetup() -> WorkshopSetupRoute
+                            else -> HomeRoute
                         }
                         navController.navigate(destination) {
                             popUpTo(LoginRoute) { inclusive = true }
@@ -93,6 +116,33 @@ fun StitchPadNavHost(
                 onNavigateToHome = {
                     navController.navigate(WorkshopSetupRoute) {
                         popUpTo(LoginRoute) { inclusive = true }
+                    }
+                },
+                onNavigateToEmailVerification = {
+                    navController.navigate(EmailVerificationRoute) {
+                        popUpTo(LoginRoute) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable<EmailVerificationRoute> {
+            val scope = rememberCoroutineScope()
+            EmailVerificationRoot(
+                onVerified = {
+                    scope.launch {
+                        val destination = if (!onboardingPreferences.hasCompletedWorkshopSetup()) {
+                            WorkshopSetupRoute
+                        } else {
+                            HomeRoute
+                        }
+                        navController.navigate(destination) {
+                            popUpTo(EmailVerificationRoute) { inclusive = true }
+                        }
+                    }
+                },
+                onNavigateToLogin = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo(EmailVerificationRoute) { inclusive = true }
                     }
                 }
             )

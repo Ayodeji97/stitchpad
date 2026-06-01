@@ -198,12 +198,12 @@ class SignUpViewModelTest {
     // --- Async flows ---
 
     @Test
-    fun successfulSignUpEmitsNavigateToHome() = runTest {
+    fun successfulSignUpEmitsNavigateToEmailVerification() = runTest {
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
         val event = viewModel.events.first()
-        assertIs<SignUpEvent.NavigateToHome>(event)
+        assertIs<SignUpEvent.NavigateToEmailVerification>(event)
     }
 
     @Test

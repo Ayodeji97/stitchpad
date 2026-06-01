@@ -18,6 +18,9 @@ data object SignUpRoute
 data object ForgotPasswordRoute
 
 @Serializable
+data object EmailVerificationRoute
+
+@Serializable
 data object WorkshopSetupRoute
 
 @Serializable

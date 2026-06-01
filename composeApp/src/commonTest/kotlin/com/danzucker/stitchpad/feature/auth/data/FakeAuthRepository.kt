@@ -19,6 +19,18 @@ class FakeAuthRepository : AuthRepository {
     var lastUpdatedPassword: String? = null
     var deleteAccountCalled: Boolean = false
 
+    // --- Email verification controls ---
+    var emailVerificationSentCount = 0
+    var reloadCount = 0
+    var isEmailVerifiedValue = false
+
+    /**
+     * When set, [reloadUser] flips [isEmailVerifiedValue] to true once
+     * [reloadCount] reaches this value — simulates the user tapping the link
+     * partway through the verification screen's polling loop.
+     */
+    var verifyAfterReloads: Int? = null
+
     var currentBusinessName: String?
         get() = currentUser?.businessName
         set(value) {
@@ -89,6 +101,23 @@ class FakeAuthRepository : AuthRepository {
         resetEmailSentTo = email
         return Result.Success(Unit)
     }
+
+    override suspend fun sendEmailVerification(): EmptyResult<AuthError> {
+        shouldReturnError?.let { return Result.Error(it) }
+        emailVerificationSentCount++
+        return Result.Success(Unit)
+    }
+
+    override suspend fun reloadUser(): EmptyResult<AuthError> {
+        reloadCount++
+        verifyAfterReloads?.let { threshold ->
+            if (reloadCount >= threshold) isEmailVerifiedValue = true
+        }
+        shouldReturnError?.let { return Result.Error(it) }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun isEmailVerified(): Boolean = isEmailVerifiedValue
 
     override suspend fun signOut(): Result<Unit, AuthError> {
         currentUser = null
