@@ -4,6 +4,8 @@ import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.feature.auth.data.EmailPatternValidator
 import com.danzucker.stitchpad.feature.auth.data.FirebaseAuthRepository
+import com.danzucker.stitchpad.feature.auth.data.GitLiveVerificationEmailSender
+import com.danzucker.stitchpad.feature.auth.data.VerificationEmailSender
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordViewModel
@@ -20,6 +22,8 @@ import org.koin.dsl.module
 
 val authDataModule = module {
     singleOf(::FirebaseAuthRepository) bind AuthRepository::class
+    // FirebaseFunctions is provided by smartDataModule (Firebase.functions("europe-west1")).
+    singleOf(::GitLiveVerificationEmailSender) bind VerificationEmailSender::class
     singleOf(::EmailPatternValidator) bind PatternValidator::class
     singleOf(::FirebaseUserRepository) bind UserRepository::class
     // BrandLogoValidator must be bound so viewModelOf(::WorkshopSetupViewModel)
