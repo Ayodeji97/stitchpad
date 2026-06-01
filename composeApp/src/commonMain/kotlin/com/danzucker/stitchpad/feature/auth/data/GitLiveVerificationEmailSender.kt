@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "VerificationEmail"
 
@@ -23,6 +24,10 @@ class GitLiveVerificationEmailSender(
                 "sendVerificationEmail failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapFunctionsException(e))
+        } catch (e: CancellationException) {
+            // Don't swallow structured-concurrency cancellation (e.g. the VM
+            // was cleared mid-call) into a Result.Error — let it propagate.
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             // Non-Functions throwables are almost always transport-layer
             // failures (no network, DNS, TLS) — surface as a network error.
