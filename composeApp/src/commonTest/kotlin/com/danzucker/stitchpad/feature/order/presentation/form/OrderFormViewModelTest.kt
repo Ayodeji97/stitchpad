@@ -492,4 +492,47 @@ class OrderFormViewModelTest {
         assertTrue(events.any { it is OrderFormEvent.ShowCustomSavedSnackbar && it.name == "Kente cape" })
         job.cancel()
     }
+
+    // ─── Oversized photo guard ───────────────────────────────────────────────
+
+    @Test
+    fun addStylePhoto_whenPhotoTooLarge_setsErrorAndDoesNotStoreBytes() = runTest {
+        val vm = createViewModel(orderId = null)
+        val itemId = vm.state.value.items.first().id
+
+        vm.onAction(OrderFormAction.OnItemAddStylePhoto(itemId, ByteArray(MAX_TEST_PHOTO_BYTES + 1)))
+
+        val item = vm.state.value.items.first()
+        assertEquals(0, item.uploadedStyleBytesList.size)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun addFabricPhoto_whenPhotoTooLarge_setsErrorAndDoesNotStoreBytes() = runTest {
+        val vm = createViewModel(orderId = null)
+        val itemId = vm.state.value.items.first().id
+
+        vm.onAction(OrderFormAction.OnItemAddFabricPhoto(itemId, ByteArray(MAX_TEST_PHOTO_BYTES + 1)))
+
+        val item = vm.state.value.items.first()
+        assertEquals(0, item.uploadedFabricBytesList.size)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun addStylePhoto_whenPhotoWithinLimit_storesBytes() = runTest {
+        val vm = createViewModel(orderId = null)
+        val itemId = vm.state.value.items.first().id
+        val photoBytes = ByteArray(MAX_TEST_PHOTO_BYTES)
+
+        vm.onAction(OrderFormAction.OnItemAddStylePhoto(itemId, photoBytes))
+
+        val item = vm.state.value.items.first()
+        assertEquals(1, item.uploadedStyleBytesList.size)
+        assertEquals(photoBytes.size, item.uploadedStyleBytesList.single().size)
+    }
+
+    private companion object {
+        const val MAX_TEST_PHOTO_BYTES = 5 * 1024 * 1024
+    }
 }
