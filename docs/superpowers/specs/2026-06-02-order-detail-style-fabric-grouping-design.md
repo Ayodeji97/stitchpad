@@ -104,3 +104,65 @@ details"); the reorder and the summary-card cleanup were reviewed and approved.
 5. Confirm secondary CTA reads "Record payment" and opens the record-payment flow; confirm a fully-paid order does not show it.
 6. Multi-item order: Style strip shows once; each item keeps its own fabric.
 7. Verify on both light and dark mode, and run an iOS build before declaring done.
+
+---
+
+## Amendment — 2026-06-02 (post-implementation polish, same PR)
+
+After building the stacked Style-above-Fabric strips, two issues surfaced in review on device:
+
+### A. Style & Fabric read as wasted space when single-image
+
+The stacked layout pins each 64dp thumbnail to the **left** and stacks Style above Fabric, so a
+common order (one style photo + one fabric photo) leaves a wide empty gutter running down the right
+of the card. It reads as unbalanced and under-uses the horizontal space.
+
+**Decision — side-by-side columns (was: stacked strips).** Replace the two stacked `ReferenceSection`s
+with a single **`Row` of two equal-width columns**: **Style | Fabric**. This kills the gutter, keeps
+the two photo-forward, and reinforces the "style + fabric as peers" intent.
+
+- The existing `ReferenceSection` becomes a **`ReferenceColumn`** that fills the width it is given
+  (a `Modifier.weight(1f)` cell, or full width).
+- **First garment item:** `Row { ReferenceColumn(Style, weight 1f) ; ReferenceColumn(Fabric, weight 1f) }`.
+  Style stays **order-level** — rendered once, paired with the first item's fabric.
+- **Additional garment items** (rare multi-garment orders): their `ReferenceColumn(Fabric)` renders
+  **full-width** below; no Style column for items 2+.
+- **Media area, fixed height (~128dp), so both columns always align:**
+  - **0 photos** → full-column placeholder tile (icon, primary @10% bg) + the "Add style /
+    Add fabric" text CTA below (existing CTA gating preserved: Add fabric **photo** vs **name**).
+  - **1 photo** → single tile, `fillMaxWidth`, fixed height, center-crop.
+  - **2+ photos** → horizontal scroll of fixed-height tiles, each sized so the next **peeks** at the
+    edge; a **count pill ("1/3")** top-right that tracks the scroll offset (derived from
+    `scrollState.value`, no pager). Tapping any photo opens the existing `FullScreenImageViewer`.
+- Equal fixed heights mean asymmetric states (one filled, one empty) still line up — no jagged edges.
+- The old single-image caption-overlay treatment (white "Style"/"Fabric" pill on the photo) is
+  dropped in favour of the column's mini-header label above the media.
+
+### B. Overdue banner stretches full-width
+
+The "Customer is waiting · N days overdue" red-tinted banner in the summary card stretches edge to
+edge because `OverdueBanner` sets `Modifier.fillMaxWidth()` (`OrderHeroCard.kt`).
+
+**Decision:** drop `Modifier.fillMaxWidth()` from the banner `Surface` so the pill **wraps its
+content** — only as wide as the icon + text.
+
+### Non-issue confirmed (no change)
+
+The "Fabric" text that appeared under the garment name is the **fabric name** the tester typed into
+the optional Fabric-name field, not a fallback label. `GarmentTextBlock` already renders the fabric
+name only when non-blank, so "if no fabric name, keep it empty" is already the behaviour. No change.
+
+### Amendment — components affected
+
+| File | Change |
+|---|---|
+| `OrderGarmentDetailsCard.kt` | Replace stacked `ReferenceSection`s with a side-by-side `Row` of `ReferenceColumn`s (Style \| Fabric for the first item; Fabric full-width for items 2+). `ReferenceColumn` fills given width, fixed media height; 1 photo fills width, 2+ scroll with peek + "i/n" count pill; placeholder fills column. Update previews to the new states (1+1, multi-style scroll, asymmetric, both-empty, multi-item). |
+| `OrderHeroCard.kt` | Remove `Modifier.fillMaxWidth()` from `OverdueBanner`'s `Surface` so it wraps content. |
+
+### Amendment — smoke test additions
+
+8. Order with **one** style photo + **one** fabric photo → two equal columns, no empty right gutter.
+9. Order with **2–3** style photos → Style column scrolls, next photo peeks, "1/3" pill updates on scroll, tap opens full-screen viewer; Fabric column unaffected.
+10. Asymmetric (style added, fabric empty — and vice-versa) → columns stay aligned at equal height; the empty side shows placeholder + Add CTA.
+11. Overdue order → "Customer is waiting · N days overdue" pill wraps its text (not full-width).
+12. Re-verify light + dark and run an iOS build before declaring done.
