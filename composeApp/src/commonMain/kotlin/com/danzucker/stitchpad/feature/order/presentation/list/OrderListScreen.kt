@@ -101,7 +101,7 @@ import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
-import stitchpad.composeapp.generated.resources.order_summary_one_custom_format
+import stitchpad.composeapp.generated.resources.order_summary_custom_format
 import kotlin.time.Clock
 
 @Composable
@@ -543,13 +543,14 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
 private fun garmentSummary(order: Order): String {
     val firstItem = order.items.firstOrNull() ?: return ""
     val count = order.items.sumOf { it.quantity }
-    // Single-item orders with a custom garment name (e.g. "Iro/Buba") should display
-    // the tailor-typed name rather than the generic "1 other item" string.
+    // Single-row orders with a custom garment name (e.g. "Iro/Buba") should display
+    // the tailor-typed name rather than the generic "N other items" string, keeping the
+    // quantity prefix so e.g. 3 of one custom garment reads "3 Iro/Buba", not "1 Iro/Buba".
     val isSingleCustom = order.items.size == 1 &&
         firstItem.garmentType == GarmentType.OTHER &&
         !firstItem.customGarmentName.isNullOrBlank()
     return if (isSingleCustom) {
-        stringResource(Res.string.order_summary_one_custom_format, firstItem.customGarmentName ?: "")
+        stringResource(Res.string.order_summary_custom_format, count, firstItem.customGarmentName ?: "")
     } else {
         stringResource(garmentSummaryRes(firstItem.garmentType, count), count)
     }
