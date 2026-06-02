@@ -274,7 +274,11 @@ private fun ReferenceSection(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
         ) {
             urls.forEachIndexed { index, url ->
-                ReferenceThumbnail(url = url, onClick = { onImageClick(urls, index) })
+                ReferenceThumbnail(
+                    url = url,
+                    contentDescription = label,
+                    onClick = { onImageClick(urls, index) },
+                )
             }
         }
     }
@@ -294,6 +298,7 @@ private fun ReferenceSection(
 @Composable
 private fun ReferenceThumbnail(
     url: String,
+    contentDescription: String?,
     onClick: () -> Unit,
 ) {
     Box(
@@ -307,7 +312,7 @@ private fun ReferenceThumbnail(
     ) {
         SubcomposeAsyncImage(
             model = url,
-            contentDescription = null,
+            contentDescription = contentDescription,
             contentScale = ContentScale.Crop,
             loading = {
                 Box(
