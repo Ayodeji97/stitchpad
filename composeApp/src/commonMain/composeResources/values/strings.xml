@@ -176,7 +176,7 @@
     <string name="customer_search_hint">Search by name or phone…</string>
     <string name="customer_empty_state">No customers yet. Tap + to add one.</string>
     <string name="customer_empty_state_title">No customers yet</string>
-    <string name="customer_empty_state_subtitle">Tap the + button to add your first customer</string>
+    <string name="customer_empty_state_subtitle">Tap to add your first customer</string>
     <string name="customer_search_no_results_title">Customer not found</string>
     <string name="customer_search_no_results_subtitle">No saved customer matches “%1$s”. Try a different name or phone number.</string>
     <string name="customer_search_clear_cd">Clear search</string>
@@ -446,7 +446,7 @@
     <!-- Order list screen -->
     <string name="order_list_title">Orders</string>
     <string name="order_empty_title">No orders yet</string>
-    <string name="order_empty_subtitle">Tap the + button to create your first order</string>
+    <string name="order_empty_subtitle">Tap to create your first order</string>
     <string name="order_empty_pending_title">No pending orders</string>
     <string name="order_empty_in_progress_title">No orders in progress</string>
     <string name="order_empty_ready_title">No orders ready</string>

@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -201,6 +202,7 @@ fun OrderListScreen(
                 state.orders.isEmpty() -> {
                     OrderEmptyState(
                         statusFilter = state.statusFilter,
+                        onAddOrderClick = { onAction(OrderListAction.OnAddOrderClick) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -351,6 +353,7 @@ private fun OrderStatusFilterChips(
 @Composable
 private fun OrderEmptyState(
     statusFilter: OrderStatus?,
+    onAddOrderClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val titleRes = when (statusFilter) {
@@ -365,40 +368,59 @@ private fun OrderEmptyState(
     } else {
         Res.string.order_empty_filtered_subtitle
     }
+    // Only the true-empty state (no filter) is a "create your first order" CTA.
+    // Filtered-empty ("No pending orders → try another tab") stays inert — orders
+    // exist elsewhere, so adding isn't the suggested action.
+    val addLabel = stringResource(Res.string.order_fab_cd)
+    val clusterModifier = if (statusFilter == null) {
+        Modifier.clickable(
+            onClickLabel = addLabel,
+            role = Role.Button,
+            onClick = onAddOrderClick,
+        )
+    } else {
+        Modifier
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(horizontal = DesignTokens.space8)
     ) {
         Spacer(Modifier.weight(1f))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(DesignTokens.radiusXl))
-                .background(MaterialTheme.colorScheme.primaryContainer)
+        // Tap target is the icon + text cluster, not the whole screen.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = clusterModifier
         ) {
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(36.dp)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(DesignTokens.radiusXl))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ShoppingCart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            Spacer(Modifier.height(DesignTokens.space4))
+            Text(
+                text = stringResource(titleRes),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(DesignTokens.space2))
+            Text(
+                text = stringResource(subtitleRes),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
-        Spacer(Modifier.height(DesignTokens.space4))
-        Text(
-            text = stringResource(titleRes),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(Modifier.height(DesignTokens.space2))
-        Text(
-            text = stringResource(subtitleRes),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
         Spacer(Modifier.weight(3f))
     }
 }
