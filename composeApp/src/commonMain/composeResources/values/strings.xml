@@ -943,7 +943,6 @@
     <string name="order_detail_archive_confirm_cta">Archive</string>
     <string name="order_archived_snackbar">Order archived</string>
     <string name="order_detail_send_reminder">Send reminder</string>
-    <string name="order_detail_message_customer">Message customer</string>
     <string name="order_detail_mark_delivered">Mark delivered</string>
     <string name="order_detail_confirm_fitting">Confirm fitting</string>
     <string name="order_detail_start_work">Start work</string>

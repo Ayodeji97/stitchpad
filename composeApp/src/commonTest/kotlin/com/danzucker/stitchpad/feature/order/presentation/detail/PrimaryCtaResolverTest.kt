@@ -52,10 +52,21 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun ready_offersMarkDeliveredPlusMessage() {
+    fun readyFullyPaid_offersMarkDeliveredNoSecondary() {
+        // Nothing to record once the balance is cleared — primary goes full-width.
         assertEquals(
-            CtaPair(PrimaryCta.MarkDelivered, SecondaryCta.MessageCustomer),
-            cta(OrderStatus.READY, balance = 80_000.0),
+            CtaPair(PrimaryCta.MarkDelivered, null),
+            cta(OrderStatus.READY),
+        )
+    }
+
+    @Test
+    fun readyWithBalance_offersRecordPayment() {
+        // At pickup the tailor often collects the outstanding balance, so a
+        // READY order that still owes money surfaces the Record payment shortcut.
+        assertEquals(
+            CtaPair(PrimaryCta.MarkDelivered, SecondaryCta.RecordPayment),
+            cta(OrderStatus.READY, balance = 20_000.0),
         )
     }
 
@@ -68,11 +79,11 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun zeroBalance_replacesRecordPaymentWithMessageCustomer() {
-        // When balance is 0 the "Record payment" secondary doesn't make sense
-        // — fall back to "Message customer" so the secondary is still useful.
+    fun zeroBalance_dropsSecondary() {
+        // With nothing to record and Call/WhatsApp already on the Customer card,
+        // the secondary slot is empty — the primary goes full-width.
         assertEquals(
-            CtaPair(PrimaryCta.UpdateStatus, SecondaryCta.MessageCustomer),
+            CtaPair(PrimaryCta.UpdateStatus, null),
             cta(OrderStatus.IN_PROGRESS, sub = OrderSubStatus.CUTTING, balance = 0.0),
         )
     }

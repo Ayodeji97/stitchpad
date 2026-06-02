@@ -1,19 +1,13 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,7 +19,6 @@ import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -35,25 +28,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
@@ -63,18 +49,14 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.CtaPair
 import com.danzucker.stitchpad.feature.order.presentation.detail.PrimaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.SecondaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.resolvePrimaryCta
-import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
-import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.order_detail_add_style
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
 import stitchpad.composeapp.generated.resources.order_detail_confirm_fitting
 import stitchpad.composeapp.generated.resources.order_detail_duplicate_order
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
-import stitchpad.composeapp.generated.resources.order_detail_message_customer
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_one
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_other
@@ -82,7 +64,6 @@ import stitchpad.composeapp.generated.resources.order_detail_send_reminder
 import stitchpad.composeapp.generated.resources.order_detail_set_deadline
 import stitchpad.composeapp.generated.resources.order_detail_share_receipt
 import stitchpad.composeapp.generated.resources.order_detail_start_work
-import stitchpad.composeapp.generated.resources.order_detail_style_caption
 import stitchpad.composeapp.generated.resources.order_detail_total_price
 import stitchpad.composeapp.generated.resources.order_detail_update_status
 import stitchpad.composeapp.generated.resources.order_overdue_label
@@ -97,7 +78,6 @@ import stitchpad.composeapp.generated.resources.order_status_ready
 @Suppress("LongParameterList", "LongMethod")
 @Composable
 fun OrderHeroCard(
-    styleImageUrls: List<String>,
     garmentTypeIcon: ImageVector,
     garmentName: String,
     customerName: String,
@@ -112,7 +92,6 @@ fun OrderHeroCard(
     cta: CtaPair,
     onPrimaryCta: () -> Unit,
     onSecondaryCta: () -> Unit,
-    onAddStyleClick: () -> Unit,
     onSetDeadlineClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -121,8 +100,6 @@ fun OrderHeroCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
-    var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
-    var viewerStartIndex: Int by remember { mutableStateOf(0) }
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
@@ -130,212 +107,34 @@ fun OrderHeroCard(
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column {
-            // ── Full-width hero image ─────────────────────────────────────────
-            HeroImage(
-                styleImageUrls = styleImageUrls,
+        Column(
+            modifier = Modifier.padding(DesignTokens.space3),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        ) {
+            HeroDetails(
                 garmentTypeIcon = garmentTypeIcon,
                 garmentName = garmentName,
-                onAddStyleClick = onAddStyleClick,
-                onPhotoClick = { urls, index ->
-                    viewerImages = urls
-                    viewerStartIndex = index
-                },
+                customerName = customerName,
+                status = status,
+                subStatus = subStatus,
+                priority = priority,
+                isOverdue = isOverdue,
+                dueLabel = dueLabel,
+                totalPrice = totalPrice,
+                balanceRemaining = balanceRemaining,
+                onSetDeadlineClick = onSetDeadlineClick,
             )
 
-            // ── Text content + CTAs ───────────────────────────────────────────
-            Column(
-                modifier = Modifier.padding(DesignTokens.space3),
-                verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-            ) {
-                HeroDetails(
-                    garmentName = garmentName,
-                    customerName = customerName,
-                    status = status,
-                    subStatus = subStatus,
-                    priority = priority,
-                    isOverdue = isOverdue,
-                    dueLabel = dueLabel,
-                    totalPrice = totalPrice,
-                    balanceRemaining = balanceRemaining,
-                    onSetDeadlineClick = onSetDeadlineClick,
-                )
-
-                // ── Overdue banner ────────────────────────────────────────────
-                if (isOverdue) {
-                    OverdueBanner(overdueDaysAgo = overdueDaysAgo)
-                }
-
-                // ── Dual CTA row ──────────────────────────────────────────────
-                CtaRow(
-                    cta = cta,
-                    isOverdue = isOverdue,
-                    onPrimaryCta = onPrimaryCta,
-                    onSecondaryCta = onSecondaryCta,
-                )
+            if (isOverdue) {
+                OverdueBanner(overdueDaysAgo = overdueDaysAgo)
             }
-        }
-    }
-    if (viewerImages.isNotEmpty()) {
-        FullScreenImageViewer(
-            images = viewerImages,
-            startIndex = viewerStartIndex,
-            contentDescription = null,
-            onDismiss = {
-                viewerImages = emptyList()
-                viewerStartIndex = 0
-            },
-        )
-    }
-}
 
-@Suppress("LongMethod")
-@Composable
-private fun HeroImage(
-    styleImageUrls: List<String>,
-    garmentTypeIcon: ImageVector,
-    garmentName: String,
-    onAddStyleClick: () -> Unit,
-    onPhotoClick: (List<String>, Int) -> Unit,
-) {
-    val baseModifier = Modifier
-        .fillMaxWidth()
-        .height(190.dp)
-        .clip(
-            RoundedCornerShape(
-                topStart = DesignTokens.radiusLg,
-                topEnd = DesignTokens.radiusLg,
-            ),
-        )
-        .background(MaterialTheme.colorScheme.surfaceVariant)
-
-    when {
-        styleImageUrls.isEmpty() -> {
-            // Empty state — placeholder icon + Add style CTA
-            Box(
-                modifier = baseModifier,
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                    ) {
-                        Icon(
-                            imageVector = garmentTypeIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(56.dp),
-                        )
-                        TextButton(onClick = onAddStyleClick) {
-                            Text(
-                                text = stringResource(Res.string.order_detail_add_style),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        styleImageUrls.size == 1 -> {
-            // Single image — render once, no pager
-            Box(modifier = baseModifier.clickable { onPhotoClick(styleImageUrls, 0) }) {
-                SubcomposeAsyncImage(
-                    model = styleImageUrls[0],
-                    contentDescription = garmentName,
-                    contentScale = ContentScale.Crop,
-                    loading = {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxSize(),
-                        ) { LoadingDots() }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                // Style caption
-                Text(
-                    text = stringResource(Res.string.order_detail_style_caption),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(DesignTokens.space2)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(DesignTokens.radiusFull),
-                        )
-                        .padding(horizontal = DesignTokens.space3, vertical = 4.dp),
-                )
-            }
-        }
-        else -> {
-            // Carousel with dots + counter
-            val pagerState = rememberPagerState(pageCount = { styleImageUrls.size })
-            Box(modifier = baseModifier) {
-                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                    SubcomposeAsyncImage(
-                        model = styleImageUrls[page],
-                        contentDescription = garmentName,
-                        contentScale = ContentScale.Crop,
-                        loading = {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize(),
-                            ) { LoadingDots() }
-                        },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            // Use the lambda `page` param, not pagerState.currentPage. During a swipe
-                            // adjacent pages are pre-composed and currentPage may still point at the
-                            // previous settled page while the user taps the incoming page (BugBot).
-                            .clickable { onPhotoClick(styleImageUrls, page) },
-                    )
-                }
-                // Counter pill (top-right)
-                Text(
-                    text = "${pagerState.currentPage + 1} / ${styleImageUrls.size}",
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .background(
-                            Color.Black.copy(alpha = 0.6f),
-                            RoundedCornerShape(999.dp),
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                )
-                // Dots (bottom-center)
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    repeat(styleImageUrls.size) { i ->
-                        val active = i == pagerState.currentPage
-                        Box(
-                            modifier = Modifier
-                                .size(
-                                    width = if (active) 22.dp else 7.dp,
-                                    height = 7.dp,
-                                )
-                                .background(
-                                    color = if (active) Color.White else Color.White.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(4.dp),
-                                ),
-                        )
-                    }
-                }
-            }
+            CtaRow(
+                cta = cta,
+                isOverdue = isOverdue,
+                onPrimaryCta = onPrimaryCta,
+                onSecondaryCta = onSecondaryCta,
+            )
         }
     }
 }
@@ -343,6 +142,7 @@ private fun HeroImage(
 @Suppress("LongParameterList")
 @Composable
 private fun HeroDetails(
+    garmentTypeIcon: ImageVector,
     garmentName: String,
     customerName: String,
     status: OrderStatus,
@@ -356,7 +156,7 @@ private fun HeroDetails(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = garmentName,
+            text = customerName,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -368,15 +168,17 @@ private fun HeroDetails(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Default.Person,
+                imageVector = garmentTypeIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(14.dp),
             )
             Text(
-                text = customerName,
+                text = garmentName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -632,7 +434,6 @@ private fun OverdueBanner(overdueDaysAgo: Int) {
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.10f),
-        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -707,19 +508,22 @@ private fun CtaRow(
             Text(text = label)
         }
 
-        val secondaryContentColor = if (isOverdue) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.primary
-        }
+        val secondary = cta.secondary
+        if (secondary != null) {
+            val secondaryContentColor = if (isOverdue) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            }
 
-        OutlinedButton(
-            onClick = onSecondaryCta,
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = secondaryContentColor),
-        ) {
-            Text(text = secondaryCtaLabel(cta.secondary))
+            OutlinedButton(
+                onClick = onSecondaryCta,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = secondaryContentColor),
+            ) {
+                Text(text = secondaryCtaLabel(secondary))
+            }
         }
     }
 }
@@ -737,7 +541,6 @@ private fun primaryCtaLabel(cta: PrimaryCta): String = when (cta) {
 @Composable
 private fun secondaryCtaLabel(cta: SecondaryCta): String = when (cta) {
     SecondaryCta.RecordPayment -> stringResource(Res.string.order_record_payment_button)
-    SecondaryCta.MessageCustomer -> stringResource(Res.string.order_detail_message_customer)
     SecondaryCta.StartWork -> stringResource(Res.string.order_detail_start_work)
     SecondaryCta.UpdateStatus -> stringResource(Res.string.order_detail_update_status)
     SecondaryCta.MarkDelivered -> stringResource(Res.string.order_detail_mark_delivered)
@@ -752,7 +555,6 @@ private fun secondaryCtaLabel(cta: SecondaryCta): String = when (cta) {
 private fun OrderHeroCardInProgressLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Vintage Buba",
             customerName = "Adewale Paul",
@@ -772,7 +574,6 @@ private fun OrderHeroCardInProgressLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
-            onAddStyleClick = {},
             onSetDeadlineClick = {},
         )
     }
@@ -784,7 +585,6 @@ private fun OrderHeroCardInProgressLightPreview() {
 private fun OrderHeroCardReadyLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            styleImageUrls = listOf("https://example.com/style.jpg"),
             garmentTypeIcon = Icons.Default.Inventory2,
             garmentName = "Senator Outfit",
             customerName = "Chukwuemeka Nwosu",
@@ -804,7 +604,6 @@ private fun OrderHeroCardReadyLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
-            onAddStyleClick = {},
             onSetDeadlineClick = {},
         )
     }
@@ -816,8 +615,7 @@ private fun OrderHeroCardReadyLightPreview() {
 private fun OrderHeroCardFittingLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            styleImageUrls = emptyList(),
-            garmentTypeIcon = Icons.Default.Person,
+            garmentTypeIcon = Icons.Default.Build,
             garmentName = "Agbada Set",
             customerName = "Tunde Bakare",
             status = OrderStatus.IN_PROGRESS,
@@ -836,7 +634,6 @@ private fun OrderHeroCardFittingLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
-            onAddStyleClick = {},
             onSetDeadlineClick = {},
         )
     }
@@ -848,7 +645,6 @@ private fun OrderHeroCardFittingLightPreview() {
 private fun OrderHeroCardOverdueLightPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.Build,
             garmentName = "Kaftan",
             customerName = "Blessing Okafor",
@@ -868,7 +664,6 @@ private fun OrderHeroCardOverdueLightPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
-            onAddStyleClick = {},
             onSetDeadlineClick = {},
         )
     }
@@ -880,7 +675,6 @@ private fun OrderHeroCardOverdueLightPreview() {
 private fun OrderHeroCardDeliveredDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         OrderHeroCard(
-            styleImageUrls = emptyList(),
             garmentTypeIcon = Icons.Default.CheckCircle,
             garmentName = "Bridal Gown",
             customerName = "Amaka Eze",
@@ -900,7 +694,6 @@ private fun OrderHeroCardDeliveredDarkPreview() {
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
-            onAddStyleClick = {},
             onSetDeadlineClick = {},
         )
     }
@@ -909,11 +702,10 @@ private fun OrderHeroCardDeliveredDarkPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun OrderHeroCardEmptyAddStylePreview() {
+private fun OrderHeroCardNullSecondaryPreview() {
     StitchPadTheme {
         OrderHeroCard(
-            styleImageUrls = emptyList(),
-            garmentTypeIcon = Icons.Default.Build,
+            garmentTypeIcon = Icons.Default.Inventory2,
             garmentName = "Agbada",
             customerName = "Gose Wale",
             status = OrderStatus.PENDING,
@@ -923,16 +715,15 @@ private fun OrderHeroCardEmptyAddStylePreview() {
             overdueDaysAgo = 0,
             dueLabel = UiText.DynamicString("Due 29 May"),
             totalPrice = 40000.0,
-            balanceRemaining = 40000.0,
+            balanceRemaining = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.PENDING,
                 subStatus = null,
                 isOverdue = false,
-                balanceRemaining = 40000.0,
+                balanceRemaining = 0.0,
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
-            onAddStyleClick = {},
             onSetDeadlineClick = {},
         )
     }
