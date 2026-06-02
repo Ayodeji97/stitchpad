@@ -72,6 +72,19 @@ class StyleGalleryViewModelTest {
     // --- Observe styles ---
 
     @Test
+    fun missingCustomerId_navigatesBack_withoutLoading() = runTest {
+        val vm = StyleGalleryViewModel(
+            savedStateHandle = SavedStateHandle(),
+            styleRepository = styleRepository,
+            authRepository = authRepository,
+        )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+
+        assertIs<StyleGalleryEvent.NavigateBack>(vm.events.first())
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    @Test
     fun observeStyles_success_populatesStyles_andClearsLoading() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.stylesList = listOf(fakeStyle(id = "a"), fakeStyle(id = "b"))

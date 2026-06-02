@@ -28,7 +28,7 @@ class CustomerDetailViewModel(
     private val customFieldRepository: CustomMeasurementFieldRepository,
 ) : ViewModel() {
 
-    private val customerId: String = checkNotNull(savedStateHandle["customerId"])
+    private val customerId: String? = savedStateHandle["customerId"]
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(CustomerDetailState())
@@ -40,6 +40,11 @@ class CustomerDetailViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
+                if (customerId == null) {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(CustomerDetailEvent.NavigateBack)
+                    return@onStart
+                }
                 loadData()
             }
         }
@@ -49,17 +54,28 @@ class CustomerDetailViewModel(
             initialValue = CustomerDetailState()
         )
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: CustomerDetailAction) {
         when (action) {
             CustomerDetailAction.OnEditCustomerClick -> {
-                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToEditCustomer(customerId)) }
+                withCustomerId {
+                    viewModelScope.launch {
+                        _events.send(CustomerDetailEvent.NavigateToEditCustomer(it))
+                    }
+                }
             }
             CustomerDetailAction.OnAddMeasurementClick -> {
-                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToAddMeasurement(customerId)) }
+                withCustomerId {
+                    viewModelScope.launch {
+                        _events.send(CustomerDetailEvent.NavigateToAddMeasurement(it))
+                    }
+                }
             }
             is CustomerDetailAction.OnMeasurementClick -> {
-                viewModelScope.launch {
-                    _events.send(CustomerDetailEvent.NavigateToEditMeasurement(customerId, action.measurement.id))
+                withCustomerId {
+                    viewModelScope.launch {
+                        _events.send(CustomerDetailEvent.NavigateToEditMeasurement(it, action.measurement.id))
+                    }
                 }
             }
             is CustomerDetailAction.OnDeleteMeasurementClick -> {
@@ -70,7 +86,11 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(showDeleteDialog = false, measurementToDelete = null) }
             }
             CustomerDetailAction.OnViewStylesClick -> {
-                viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToStyleGallery(customerId)) }
+                withCustomerId {
+                    viewModelScope.launch {
+                        _events.send(CustomerDetailEvent.NavigateToStyleGallery(it))
+                    }
+                }
             }
             CustomerDetailAction.OnUpgradeClick -> {
                 viewModelScope.launch { _events.send(CustomerDetailEvent.NavigateToUpgrade) }
@@ -84,15 +104,21 @@ class CustomerDetailViewModel(
         }
     }
 
+    private fun withCustomerId(block: (String) -> Unit) {
+        val customerId = customerId ?: return
+        block(customerId)
+    }
+
     private fun loadData() {
+        val customerId = customerId ?: return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            launch { observeCustomer(userId) }
+            launch { observeCustomer(userId, customerId) }
             launch { observeCustomFieldLabels(userId) }
-            observeMeasurements(userId)
+            observeMeasurements(userId, customerId)
         }
     }
 
@@ -114,7 +140,7 @@ class CustomerDetailViewModel(
     // reflects live slotState flips. Without this, a customer locked by the
     // server's reconcile while the detail screen is open keeps rendering the
     // editable (active) UI until the user navigates away and back.
-    private suspend fun observeCustomer(userId: String) {
+    private suspend fun observeCustomer(userId: String, customerId: String) {
         customerRepository.observeCustomer(userId, customerId).collect { result ->
             when (result) {
                 is Result.Success -> _state.update { it.copy(customer = result.data, isLoading = false) }
@@ -125,7 +151,7 @@ class CustomerDetailViewModel(
         }
     }
 
-    private suspend fun observeMeasurements(userId: String) {
+    private suspend fun observeMeasurements(userId: String, customerId: String) {
         measurementRepository.observeMeasurements(userId, customerId).collect { result ->
             when (result) {
                 is Result.Success -> _state.update { it.copy(measurements = result.data, isLoading = false) }
@@ -137,6 +163,7 @@ class CustomerDetailViewModel(
     }
 
     private fun deleteMeasurement() {
+        val customerId = customerId ?: return
         val measurement = _state.value.measurementToDelete ?: return
         _state.update { it.copy(showDeleteDialog = false, measurementToDelete = null) }
         viewModelScope.launch {

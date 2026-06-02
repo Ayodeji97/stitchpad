@@ -31,7 +31,7 @@ class StyleFormViewModel(
     private val orderRepository: OrderRepository,
 ) : ViewModel() {
 
-    private val customerId: String = checkNotNull(savedStateHandle["customerId"])
+    private val customerId: String? = savedStateHandle["customerId"]
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
@@ -45,6 +45,11 @@ class StyleFormViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
+                if (customerId == null) {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(StyleFormEvent.NavigateBack)
+                    return@onStart
+                }
                 if (styleId != null) loadStyle(styleId)
             }
         }
@@ -84,6 +89,7 @@ class StyleFormViewModel(
     }
 
     private fun loadStyle(id: String) {
+        val customerId = customerId ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val userId = authRepository.getCurrentUser()?.id ?: run {
@@ -119,6 +125,7 @@ class StyleFormViewModel(
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
+        val customerId = customerId ?: return
         val s = _state.value
         val trimmedDescription = s.description.trim()
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotoBytes == null
