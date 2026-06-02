@@ -111,6 +111,10 @@ private fun launchCapture(
 private const val MAX_DIM = 1920
 private const val JPEG_QUALITY = 85
 
+// Single ownership point for recycling: the `finally` below recycles every
+// bitmap this function allocated, each exactly once (recycleIfDistinct guards
+// against double-recycling shared instances). Any RuntimeException from decode/
+// rotate/scale propagates after cleanup runs.
 @Suppress("ReturnCount")
 private fun File.toDownscaledJpegBytes(): ByteArray? {
     val raw = runCatching { readBytes() }.getOrNull() ?: return null
@@ -121,16 +125,20 @@ private fun File.toDownscaledJpegBytes(): ByteArray? {
         BitmapFactory.Options().apply { inSampleSize = dimensions.sampleSize() }
     ) ?: return raw
 
-    var prepared: PreparedBitmap? = null
+    val rotation = runCatching {
+        ExifInterface(absolutePath).rotationDegrees()
+    }.getOrDefault(0)
+
+    var oriented: Bitmap? = null
+    var scaled: Bitmap? = null
     try {
-        prepared = decoded.prepareForJpeg(
-            runCatching {
-                ExifInterface(absolutePath).rotationDegrees()
-            }.getOrDefault(0)
-        )
-        return prepared.toJpegBytes()
+        oriented = if (rotation == 0) decoded else decoded.rotated(rotation)
+        scaled = oriented.scaledToMaxDimension()
+        return scaled.toJpegBytes()
     } finally {
-        prepared?.recycle() ?: decoded.recycle()
+        scaled?.recycleIfDistinct(oriented ?: decoded, decoded)
+        oriented?.recycleIfDistinct(decoded)
+        decoded.recycle()
     }
 }
 
@@ -147,22 +155,10 @@ private data class ImageDimensions(
     }
 }
 
-private data class PreparedBitmap(
-    val decoded: Bitmap,
-    val oriented: Bitmap,
-    val finalBitmap: Bitmap
-) {
-    fun toJpegBytes(): ByteArray {
-        val out = ByteArrayOutputStream()
-        finalBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-        return out.toByteArray()
-    }
-
-    fun recycle() {
-        finalBitmap.recycleIfDistinct(oriented, decoded)
-        oriented.recycleIfDistinct(decoded)
-        decoded.recycle()
-    }
+private fun Bitmap.toJpegBytes(): ByteArray {
+    val out = ByteArrayOutputStream()
+    compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+    return out.toByteArray()
 }
 
 private fun ByteArray.imageDimensions(): ImageDimensions? {
@@ -172,25 +168,6 @@ private fun ByteArray.imageDimensions(): ImageDimensions? {
         ImageDimensions(bounds.outWidth, bounds.outHeight)
     } else {
         null
-    }
-}
-
-private fun Bitmap.prepareForJpeg(rotation: Int): PreparedBitmap {
-    var oriented: Bitmap? = null
-    var finalBitmap: Bitmap? = null
-    try {
-        oriented = if (rotation == 0) this else rotated(rotation)
-        finalBitmap = oriented.scaledToMaxDimension()
-        return PreparedBitmap(
-            decoded = this,
-            oriented = oriented,
-            finalBitmap = finalBitmap
-        )
-    } catch (exception: RuntimeException) {
-        finalBitmap?.recycleIfDistinct(oriented ?: this, this)
-        oriented?.recycleIfDistinct(this)
-        recycle()
-        throw exception
     }
 }
 
