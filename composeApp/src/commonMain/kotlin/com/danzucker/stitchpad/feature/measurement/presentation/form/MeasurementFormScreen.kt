@@ -1218,3 +1218,72 @@ private fun MeasurementFormScreenCreateFlowDarkPreview() {
         )
     }
 }
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCustomStepEntitledPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = sections.size, // custom page
+                canUseCustomMeasurements = true,
+                customFields = listOf(
+                    CustomMeasurementField(
+                        id = "cf-1",
+                        label = "Sleeve cuff width",
+                        genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+                        createdAt = 0L,
+                        updatedAt = 0L,
+                    )
+                ),
+                fields = mapOf("cf-1" to "6"),
+                unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCustomStepEmptyPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = sections.size,
+                canUseCustomMeasurements = true,
+                customFields = emptyList(),
+                unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCustomStepLockedPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = sections.size,
+                canUseCustomMeasurements = false,
+                customFields = emptyList(),
+                unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
