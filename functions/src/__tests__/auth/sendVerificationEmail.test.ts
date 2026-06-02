@@ -116,6 +116,13 @@ describe('buildVerificationEmailHtml', () => {
     expect(html).toContain('Hello Tunde');
   });
 
+  it('embeds the brand logo and indigo CTA', () => {
+    const html = buildVerificationEmailHtml({ verifyLink: 'https://x/y' });
+    expect(html).toContain('stitchpad-email-logo.png');
+    expect(html).toContain('alt="StitchPad"');
+    expect(html).toContain('#1E2B5C'); // indigo CTA fill
+  });
+
   it('falls back to a generic greeting and escapes HTML in the name', () => {
     const withoutName = buildVerificationEmailHtml({ verifyLink: 'https://x/y' });
     expect(withoutName).toContain('Hello there');
