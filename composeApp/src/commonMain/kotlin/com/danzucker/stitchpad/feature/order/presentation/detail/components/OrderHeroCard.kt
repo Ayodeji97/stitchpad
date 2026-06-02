@@ -434,7 +434,6 @@ private fun OverdueBanner(overdueDaysAgo: Int) {
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.10f),
-        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
