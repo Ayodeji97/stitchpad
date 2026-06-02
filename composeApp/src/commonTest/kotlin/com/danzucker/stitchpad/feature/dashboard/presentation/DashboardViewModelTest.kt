@@ -483,8 +483,19 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun onNewOrderClick_emitsNavigateToOrderForm() = runTest {
+    fun onNewOrderClick_inBrandNew_emitsNavigateToAddCustomerFirst() = runTest {
+        // No customers, no orders → BrandNew. Starting an order from the FAB
+        // must gate to "add a customer first", matching the onboarding card path.
         signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnNewOrderClick)
+        assertEquals(DashboardEvent.NavigateToAddCustomerFirst, vm.events.first())
+    }
+
+    @Test
+    fun onNewOrderClick_outsideBrandNew_emitsNavigateToOrderForm() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
         val vm = createViewModel()
         vm.onAction(DashboardAction.OnNewOrderClick)
         assertIs<DashboardEvent.NavigateToOrderForm>(vm.events.first())

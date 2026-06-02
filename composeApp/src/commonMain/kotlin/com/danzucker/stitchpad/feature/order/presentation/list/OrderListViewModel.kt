@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
+import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -21,11 +22,17 @@ import kotlinx.coroutines.launch
 
 class OrderListViewModel(
     private val orderRepository: OrderRepository,
+    private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
     private var allOrders: List<Order> = emptyList()
+
+    // Tracks whether the user has any customer at all. The Orders-tab FAB gates
+    // on this so a customer-less user is routed to "add a customer first" rather
+    // than dropped on an order form with an empty, unusable customer picker.
+    private var hasCustomers = false
 
     private val _state = MutableStateFlow(OrderListState())
 
@@ -37,6 +44,7 @@ class OrderListViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 observeOrders()
+                observeCustomers()
             }
         }
         .stateIn(
@@ -62,7 +70,13 @@ class OrderListViewModel(
             }
             OrderListAction.OnAddOrderClick -> {
                 viewModelScope.launch {
-                    _events.send(OrderListEvent.NavigateToOrderForm)
+                    _events.send(
+                        if (hasCustomers) {
+                            OrderListEvent.NavigateToOrderForm
+                        } else {
+                            OrderListEvent.NavigateToAddCustomerFirst
+                        }
+                    )
                 }
             }
             is OrderListAction.OnDeleteOrderClick -> {
@@ -103,6 +117,17 @@ class OrderListViewModel(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private fun observeCustomers() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            customerRepository.observeCustomers(userId).collect { result ->
+                if (result is Result.Success) {
+                    hasCustomers = result.data.isNotEmpty()
                 }
             }
         }
