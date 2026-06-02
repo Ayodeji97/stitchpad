@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.presentation.list
 
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,19 @@ class OrderListViewModelTest {
     fun onAddOrderClick_withCustomers_emitsNavigateToOrderForm() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnAddOrderClick)
+
+        assertEquals(OrderListEvent.NavigateToOrderForm, vm.events.first())
+    }
+
+    @Test
+    fun onAddOrderClick_whenCustomerQueryErrors_failsOpenToOrderForm() = runTest {
+        // If we can't resolve the customer list, route to the form (which surfaces
+        // whatever's cached) rather than wrongly gating a customer-owning user.
+        signIn()
+        customerRepository.shouldReturnError = DataError.Network.NO_INTERNET
         val vm = createViewModel()
 
         vm.onAction(OrderListAction.OnAddOrderClick)

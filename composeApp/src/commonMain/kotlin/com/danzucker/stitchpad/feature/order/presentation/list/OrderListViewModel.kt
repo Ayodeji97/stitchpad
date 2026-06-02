@@ -14,6 +14,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -29,11 +30,6 @@ class OrderListViewModel(
     private var hasLoadedInitialData = false
     private var allOrders: List<Order> = emptyList()
 
-    // Tracks whether the user has any customer at all. The Orders-tab FAB gates
-    // on this so a customer-less user is routed to "add a customer first" rather
-    // than dropped on an order form with an empty, unusable customer picker.
-    private var hasCustomers = false
-
     private val _state = MutableStateFlow(OrderListState())
 
     private val _events = Channel<OrderListEvent>()
@@ -44,7 +40,6 @@ class OrderListViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 observeOrders()
-                observeCustomers()
             }
         }
         .stateIn(
@@ -71,7 +66,7 @@ class OrderListViewModel(
             OrderListAction.OnAddOrderClick -> {
                 viewModelScope.launch {
                     _events.send(
-                        if (hasCustomers) {
+                        if (userHasCustomers()) {
                             OrderListEvent.NavigateToOrderForm
                         } else {
                             OrderListEvent.NavigateToAddCustomerFirst
@@ -122,14 +117,18 @@ class OrderListViewModel(
         }
     }
 
-    private fun observeCustomers() {
-        viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            customerRepository.observeCustomers(userId).collect { result ->
-                if (result is Result.Success) {
-                    hasCustomers = result.data.isNotEmpty()
-                }
-            }
+    /**
+     * Resolve whether the user has any customer before deciding where the FAB
+     * goes. We await the first customer snapshot rather than reading a cached
+     * flag so a customer-owning user is never misrouted to the add-customer
+     * gate during initial load. On error we fail open to the order form (the
+     * form surfaces whatever's cached) rather than wrongly gating.
+     */
+    private suspend fun userHasCustomers(): Boolean {
+        val userId = authRepository.getCurrentUser()?.id ?: return false
+        return when (val result = customerRepository.observeCustomers(userId).first()) {
+            is Result.Success -> result.data.isNotEmpty()
+            is Result.Error -> true
         }
     }
 
