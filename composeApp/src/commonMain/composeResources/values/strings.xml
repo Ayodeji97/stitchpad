@@ -642,6 +642,7 @@
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
     <string name="error_order_items_required">Pick what you&apos;re making to save this order.</string>
+    <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>
 
     <!-- Receipt sharing -->
     <string name="share_receipt_title">Share Receipt</string>

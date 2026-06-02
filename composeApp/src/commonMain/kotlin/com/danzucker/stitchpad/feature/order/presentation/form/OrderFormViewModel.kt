@@ -39,6 +39,7 @@ import stitchpad.composeapp.generated.resources.error_order_customer_required
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
+import stitchpad.composeapp.generated.resources.error_order_photo_too_large
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -167,10 +168,13 @@ class OrderFormViewModel(
                     ),
                 )
             }
-            is OrderFormAction.OnItemAddStylePhoto -> updateItem(action.itemId) {
-                val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
-                if (total >= 3) return@updateItem it
-                it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + action.photoBytes)
+            is OrderFormAction.OnItemAddStylePhoto -> {
+                if (rejectOversizedPhoto(action.photoBytes)) return
+                updateItem(action.itemId) {
+                    val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
+                    if (total >= 3) return@updateItem it
+                    it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + action.photoBytes)
+                }
             }
             is OrderFormAction.OnItemRemoveStyleImage -> updateItem(action.itemId) {
                 // The combined list is: styleImageRefs FIRST, then uploadedStyleBytesList.
@@ -214,10 +218,13 @@ class OrderFormViewModel(
             OrderFormAction.OnDismissStylePickerSheet -> {
                 _state.update { it.copy(stylePickerSheetForItemId = null) }
             }
-            is OrderFormAction.OnItemAddFabricPhoto -> updateItem(action.itemId) {
-                val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
-                if (total >= 3) return@updateItem it
-                it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + action.photoBytes)
+            is OrderFormAction.OnItemAddFabricPhoto -> {
+                if (rejectOversizedPhoto(action.photoBytes)) return
+                updateItem(action.itemId) {
+                    val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
+                    if (total >= 3) return@updateItem it
+                    it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + action.photoBytes)
+                }
             }
             is OrderFormAction.OnItemRemoveFabricImage -> updateItem(action.itemId) {
                 val savedCount = it.fabricImageRefs.size
@@ -752,6 +759,18 @@ class OrderFormViewModel(
     }
 
     /**
+     * Guards against attaching an oversized photo to an order item. Firebase
+     * Storage uploads of multi-MB photos are slow/expensive and a runaway file
+     * would otherwise sit in state until save. Returns true (and surfaces an
+     * error) when the photo exceeds the cap so callers can short-circuit.
+     */
+    private fun rejectOversizedPhoto(photoBytes: ByteArray): Boolean {
+        if (photoBytes.size <= MAX_ORDER_PHOTO_BYTES) return false
+        setError(Res.string.error_order_photo_too_large)
+        return true
+    }
+
+    /**
      * Result holder for per-item multi-image resolution at save time.
      */
     private data class ItemImageResolution(
@@ -853,5 +872,9 @@ class OrderFormViewModel(
         if (allPaths.isNotEmpty()) {
             orderRepository.deleteStoragePaths(allPaths)
         }
+    }
+
+    private companion object {
+        const val MAX_ORDER_PHOTO_BYTES = 5 * 1024 * 1024
     }
 }
