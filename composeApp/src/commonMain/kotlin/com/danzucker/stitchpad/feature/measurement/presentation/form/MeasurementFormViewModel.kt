@@ -181,7 +181,10 @@ class MeasurementFormViewModel(
 
     private fun openCustomFieldSheetWhenEntitled() {
         viewModelScope.launch {
-            val canUseCustomMeasurements = entitlements.awaitHydrated().canUseCustomMeasurements
+            val resolvedEntitlements = withTimeoutOrNull(ENTITLEMENTS_HYDRATION_TIMEOUT_MS) {
+                entitlements.awaitHydrated()
+            } ?: entitlements.current()
+            val canUseCustomMeasurements = resolvedEntitlements.canUseCustomMeasurements
             if (canUseCustomMeasurements) {
                 _state.update { it.copy(customFieldSheet = CustomFieldSheet.Adding()) }
             } else {
@@ -482,6 +485,7 @@ class MeasurementFormViewModel(
 
     private companion object {
         const val LINK_ORDER_READ_TIMEOUT_MS = 750L
+        const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
     }
 
     @OptIn(ExperimentalUuidApi::class)
