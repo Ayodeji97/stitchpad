@@ -181,9 +181,16 @@ fun MeasurementFormScreen(
     // page is harmless.
     val pagerState = rememberPagerState(pageCount = { state.sections.size + 1 })
 
-    // Swipe → notify ViewModel
-    LaunchedEffect(pagerState.currentPage) {
-        onAction(MeasurementFormAction.OnSectionChange(pagerState.currentPage))
+    // Swipe / settled jump → notify ViewModel.
+    // Keyed on settledPage (NOT currentPage): a multi-page jump (tapping a far
+    // dot or the Custom pill) animates THROUGH intermediate pages, and currentPage
+    // ticks through each one. Firing OnSectionChange for those intermediates would
+    // change currentSectionIndex mid-animation, restart the animate effect below,
+    // and cancel the in-flight scroll — stranding the pager on a middle page.
+    // settledPage only updates once the scroll/animation fully settles, so this
+    // fires exactly once per landing.
+    LaunchedEffect(pagerState.settledPage) {
+        onAction(MeasurementFormAction.OnSectionChange(pagerState.settledPage))
     }
 
     // Tab / button → animate pager
