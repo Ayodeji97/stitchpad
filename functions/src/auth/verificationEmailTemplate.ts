@@ -19,12 +19,15 @@ const MUTED = '#57534C'; // secondary text
 const BORDER = '#E5E3DF';
 const SUPPORT_EMAIL = 'support@getstitchpad.com';
 const FONT_STACK =
-  "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  '\'Plus Jakarta Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif';
 
 // Real StitchPad logo mark (notebook + measuring-tape), hosted on Firebase
 // Storage as a PNG (email clients don't render SVG). 512px source, shown ~36px.
+// The ?token= is a public, read-only Firebase Storage download token for a
+// static brand image (it's embedded in every verification email we send) — not
+// a sensitive credential, hence the gitleaks:allow.
 const LOGO_URL =
-  'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.firebasestorage.app/o/stitchpad-email-logo.png?alt=media&token=d05c88f4-d9c4-4085-a0a8-a136e0c9d8b3';
+  'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.firebasestorage.app/o/stitchpad-email-logo.png?alt=media&token=d05c88f4-d9c4-4085-a0a8-a136e0c9d8b3'; // gitleaks:allow
 
 function escapeHtml(value: string): string {
   return value
@@ -60,7 +63,7 @@ export function buildVerificationEmailHtml(params: {
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="vertical-align:middle;padding-right:10px;">
-                      <img src="${LOGO_URL}" width="36" height="36" alt="StitchPad"
+                      <img src="${escapeHtml(LOGO_URL)}" width="36" height="36" alt="StitchPad"
                         style="display:block;border:0;outline:none;text-decoration:none;width:36px;height:36px;" />
                     </td>
                     <td style="vertical-align:middle;">
