@@ -325,6 +325,24 @@ private fun ReferenceColumn(
 }
 
 @Composable
+private fun ReferenceTileImage(url: String, contentDescription: String?) {
+    SubcomposeAsyncImage(
+        model = url,
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Crop,
+        loading = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                LoadingDots(dotSize = 6.dp)
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+@Composable
 private fun SingleReferenceTile(
     url: String,
     contentDescription: String?,
@@ -338,20 +356,7 @@ private fun SingleReferenceTile(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() },
     ) {
-        SubcomposeAsyncImage(
-            model = url,
-            contentDescription = contentDescription,
-            contentScale = ContentScale.Crop,
-            loading = {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    LoadingDots(dotSize = 6.dp)
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        ReferenceTileImage(url = url, contentDescription = contentDescription)
     }
 }
 
@@ -362,13 +367,14 @@ private fun MultiReferenceStrip(
     onImageClick: (List<String>, Int) -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    val strideePx = with(LocalDensity.current) {
-        (REFERENCE_MULTI_TILE_WIDTH + DesignTokens.space2).toPx()
+    val density = LocalDensity.current
+    val stridePx = remember(density) {
+        with(density) { (REFERENCE_MULTI_TILE_WIDTH + DesignTokens.space2).toPx() }
     }
-    val currentIndex by remember(urls.size, strideePx) {
-        derivedStateOf { referenceScrollIndex(scrollState.value, strideePx, urls.size) }
+    val currentIndex by remember(urls.size, stridePx) {
+        derivedStateOf { referenceScrollIndex(scrollState.value, stridePx, urls.size) }
     }
-    Box(modifier = Modifier.height(REFERENCE_TILE_HEIGHT)) {
+    Box(modifier = Modifier.fillMaxWidth().height(REFERENCE_TILE_HEIGHT)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
             modifier = Modifier.horizontalScroll(scrollState),
@@ -382,20 +388,7 @@ private fun MultiReferenceStrip(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick(urls, index) },
                 ) {
-                    SubcomposeAsyncImage(
-                        model = url,
-                        contentDescription = contentDescription,
-                        contentScale = ContentScale.Crop,
-                        loading = {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize(),
-                            ) {
-                                LoadingDots(dotSize = 6.dp)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    ReferenceTileImage(url = url, contentDescription = contentDescription)
                 }
             }
         }
@@ -491,12 +484,12 @@ private fun needsFabricInfo(item: OrderItem): Boolean {
 
 /**
  * Maps a horizontal scroll offset (px) to the index of the photo currently centred-ish under
- * the count pill. Pure so the rounding/clamping is unit-tested. `strideePx` is one tile width
+ * the count pill. Pure so the rounding/clamping is unit-tested. `stridePx` is one tile width
  * plus the inter-tile gap, in px.
  */
-internal fun referenceScrollIndex(scrollPx: Int, strideePx: Float, count: Int): Int {
-    if (count <= 1 || strideePx <= 0f) return 0
-    return (scrollPx / strideePx).roundToInt().coerceIn(0, count - 1)
+internal fun referenceScrollIndex(scrollPx: Int, stridePx: Float, count: Int): Int {
+    if (count <= 1 || stridePx <= 0f) return 0
+    return (scrollPx / stridePx).roundToInt().coerceIn(0, count - 1)
 }
 
 // region — Previews
