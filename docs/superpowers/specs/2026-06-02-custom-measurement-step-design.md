@@ -146,3 +146,20 @@ icon + `LOCKED` badge), the locked caption, and `onLockedAddClick → NavigateTo
   `ConfirmArchiveDialog`).
 - No change to entitlement logic, gender filtering, or persistence.
 - No change to the default-section field layout or the "Show more/less" behavior.
+
+## Post-implementation refinements (QA feedback, 2026-06-02)
+
+Adjustments made after on-device QA, superseding earlier details above where noted:
+
+- **Pill label:** the pill (and the custom-page step) reads **"Custom measurement"**, not
+  "Custom" — clearer for tailors.
+- **Custom-page counter:** on the custom page the counter text is **hidden** (the active
+  pill already labels the step); the "X of N" counter still shows on default section pages.
+- **Pill size:** the pill is a **compact chip** (12h/4v padding, no forced
+  `minimumInteractiveComponentSize`); the earlier 48dp min-height read as oversized.
+- **Section dots:** dots are **larger (10dp)** and use **primary @ 0.3 alpha** when
+  unvisited (the neutral gray was too faint / muddy). They remain **tappable**
+  (`OnSectionChange(index)`, `Role.Button` + click label) but intentionally **omit the 48dp
+  minimum touch target** — it spread the dots too far apart. The small target is an accepted
+  trade-off: the Custom pill (primary entry), Previous/Next, and swipe are the main
+  navigation; the dots are a redundant shortcut.

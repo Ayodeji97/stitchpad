@@ -605,3 +605,10 @@ git commit -m "fix(ptsp): smoke-test adjustments for custom measurements step"
 - The two `LaunchedEffect`s syncing `pagerState.currentPage` ↔ `currentSectionIndex` (lines ~166-175) need **no change** — both indices now range `0..sections.size`.
 - No State or Action members are added. If you find yourself adding one, re-read the plan — `OnSectionChange(index)` is the only action needed.
 - Verify nothing else in the file assumes `currentSectionIndex <= sections.size - 1` (the spec flagged this). The pager content, `SectionProgressRow`, and `SectionNavigation` are the only consumers and are all updated here.
+
+## Post-implementation refinements (QA feedback, 2026-06-02)
+
+See the spec's "Post-implementation refinements" section. Net code deltas beyond the tasks
+above: pill label "Custom measurement"; custom-page counter hidden; pill made a compact chip
+(no `minimumInteractiveComponentSize`); dots 10dp + `primary.copy(alpha = 0.3f)` when unvisited;
+dots tappable via `.clickable(role = Role.Button, onClickLabel = …)` without the 48dp min-size.
