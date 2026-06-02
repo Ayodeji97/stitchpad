@@ -99,6 +99,7 @@ import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_add_note
 import stitchpad.composeapp.generated.resources.measurement_add_title
+import stitchpad.composeapp.generated.resources.measurement_create_flow_save_button
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
 import stitchpad.composeapp.generated.resources.measurement_next
@@ -109,6 +110,7 @@ import stitchpad.composeapp.generated.resources.measurement_save_button
 import stitchpad.composeapp.generated.resources.measurement_section_of
 import stitchpad.composeapp.generated.resources.measurement_show_less
 import stitchpad.composeapp.generated.resources.measurement_show_more_count
+import stitchpad.composeapp.generated.resources.measurement_skip_for_now
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 
@@ -361,11 +363,27 @@ fun MeasurementFormScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = stringResource(Res.string.measurement_save_button),
+                                text = if (state.fromCustomerCreation) {
+                                    stringResource(Res.string.measurement_create_flow_save_button)
+                                } else {
+                                    stringResource(Res.string.measurement_save_button)
+                                },
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+                }
+                if (state.fromCustomerCreation) {
+                    TextButton(
+                        onClick = { onAction(MeasurementFormAction.OnSkipClick) },
+                        enabled = !state.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.measurement_skip_for_now),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 }
                 Spacer(Modifier.height(DesignTokens.space4))
@@ -1051,6 +1069,27 @@ private fun MeasurementFormScreenMalePreview() {
                     "shirt_length" to "28"
                 ),
                 unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCreateFlowPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    val allKeys = sections.flatMap { it.fields }.map { it.key }
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                fromCustomerCreation = true,
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = 0,
+                fields = allKeys.associateWith { "" } + mapOf("bust_circumference" to "36"),
+                unit = MeasurementUnit.INCHES,
             ),
             onAction = {}
         )
