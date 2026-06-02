@@ -56,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -100,11 +102,12 @@ import stitchpad.composeapp.generated.resources.custom_field_sheet_archive
 import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_add_note
-import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_add_title
 import stitchpad.composeapp.generated.resources.measurement_create_flow_save_button
+import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
+import stitchpad.composeapp.generated.resources.measurement_go_to_section
 import stitchpad.composeapp.generated.resources.measurement_next
 import stitchpad.composeapp.generated.resources.measurement_notes_label
 import stitchpad.composeapp.generated.resources.measurement_notes_placeholder
@@ -546,12 +549,22 @@ private fun SectionProgressRow(
                     } -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.outlineVariant
                 }
+                val goToSectionLabel = stringResource(Res.string.measurement_go_to_section, index + 1)
                 Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(8.dp)
-                        .background(color = color, shape = CircleShape)
-                        .clickable { onJumpToSection(index) }
-                )
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = goToSectionLabel,
+                        ) { onJumpToSection(index) }
+                        .minimumInteractiveComponentSize(),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(color = color, shape = CircleShape)
+                    )
+                }
             }
             CustomStepPill(
                 isActive = isCustomActive,
@@ -604,7 +617,8 @@ private fun CustomStepPill(
                 border = BorderStroke(1.dp, borderColor),
                 shape = RoundedCornerShape(DesignTokens.radiusFull),
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick, role = Role.Button)
+            .minimumInteractiveComponentSize()
             .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
     ) {
         Icon(
