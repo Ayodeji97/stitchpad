@@ -106,26 +106,29 @@ describe('sendVerificationEmailHandler', () => {
 });
 
 describe('buildVerificationEmailHtml', () => {
-  it('embeds the verify link in a button and a fallback link', () => {
+  it('embeds the verify link in the button and the personalized greeting', () => {
     const html = buildVerificationEmailHtml({
       displayName: 'Tunde',
       verifyLink: 'https://verify.example/abc',
     });
     expect(html).toContain('href="https://verify.example/abc"');
-    expect(html).toContain('Verify Email');
-    expect(html).toContain('Hello Tunde');
+    expect(html).toContain('Verify email');
+    expect(html).toContain('Hi Tunde,');
+    // Copy-paste fallback for when the button doesn't work.
+    expect(html).toContain('Button not working?');
   });
 
-  it('embeds the brand logo and indigo CTA', () => {
+  it('embeds the brand logo, headline, and indigo CTA', () => {
     const html = buildVerificationEmailHtml({ verifyLink: 'https://x/y' });
     expect(html).toContain('stitchpad-email-logo.png');
     expect(html).toContain('alt="StitchPad"');
+    expect(html).toContain('Welcome to StitchPad');
     expect(html).toContain('#1E2B5C'); // indigo CTA fill
   });
 
   it('falls back to a generic greeting and escapes HTML in the name', () => {
     const withoutName = buildVerificationEmailHtml({ verifyLink: 'https://x/y' });
-    expect(withoutName).toContain('Hello there');
+    expect(withoutName).toContain('Hi there,');
 
     const malicious = buildVerificationEmailHtml({
       displayName: '<script>x</script>',
