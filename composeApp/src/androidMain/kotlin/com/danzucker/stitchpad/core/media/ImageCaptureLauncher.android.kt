@@ -16,11 +16,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 
@@ -39,6 +43,7 @@ actual fun rememberImageCaptureLauncher(
 ): ImageCaptureLauncher {
     val context = LocalContext.current
     val currentOnResult by rememberUpdatedState(onResult)
+    val captureScope = rememberCoroutineScope()
     var pendingFile by remember { mutableStateOf<File?>(null) }
 
     val captureLauncher = rememberLauncherForActivityResult(
@@ -47,9 +52,16 @@ actual fun rememberImageCaptureLauncher(
         val file = pendingFile
         pendingFile = null
         if (success && file != null && file.exists()) {
-            val bytes = file.toDownscaledJpegBytes()
-            file.delete()
-            currentOnResult(bytes)
+            captureScope.launch {
+                val bytes = withContext(Dispatchers.Default) {
+                    try {
+                        file.toDownscaledJpegBytes()
+                    } finally {
+                        file.delete()
+                    }
+                }
+                currentOnResult(bytes)
+            }
         } else {
             file?.delete()
             currentOnResult(null)
@@ -99,41 +111,82 @@ private fun launchCapture(
 private const val MAX_DIM = 1920
 private const val JPEG_QUALITY = 85
 
+// Single ownership point for recycling: the `finally` below recycles every
+// bitmap this function allocated, each exactly once (recycleIfDistinct guards
+// against double-recycling shared instances). Any RuntimeException from decode/
+// rotate/scale propagates after cleanup runs.
 @Suppress("ReturnCount")
 private fun File.toDownscaledJpegBytes(): ByteArray? {
     val raw = runCatching { readBytes() }.getOrNull() ?: return null
 
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(raw, 0, raw.size, bounds)
-    val w = bounds.outWidth
-    val h = bounds.outHeight
-    if (w <= 0 || h <= 0) return raw
-
-    var sampleSize = 1
-    while (w / (sampleSize * 2) >= MAX_DIM || h / (sampleSize * 2) >= MAX_DIM) {
-        sampleSize *= 2
-    }
+    val dimensions = raw.imageDimensions() ?: return raw
     val decoded = BitmapFactory.decodeByteArray(
         raw, 0, raw.size,
-        BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        BitmapFactory.Options().apply { inSampleSize = dimensions.sampleSize() }
     ) ?: return raw
 
-    val rotation = runCatching { ExifInterface(absolutePath).rotationDegrees() }.getOrDefault(0)
-    val oriented = if (rotation == 0) decoded else decoded.rotated(rotation)
+    val rotation = runCatching {
+        ExifInterface(absolutePath).rotationDegrees()
+    }.getOrDefault(0)
 
-    val longEdge = maxOf(oriented.width, oriented.height).toFloat()
-    val scale = longEdge / MAX_DIM
-    val finalBitmap = if (scale > 1f) {
-        val newW = (oriented.width / scale).toInt().coerceAtLeast(1)
-        val newH = (oriented.height / scale).toInt().coerceAtLeast(1)
-        Bitmap.createScaledBitmap(oriented, newW, newH, true)
-    } else {
-        oriented
+    var oriented: Bitmap? = null
+    var scaled: Bitmap? = null
+    try {
+        oriented = if (rotation == 0) decoded else decoded.rotated(rotation)
+        scaled = oriented.scaledToMaxDimension()
+        return scaled.toJpegBytes()
+    } finally {
+        scaled?.recycleIfDistinct(oriented ?: decoded, decoded)
+        oriented?.recycleIfDistinct(decoded)
+        decoded.recycle()
     }
+}
 
+private data class ImageDimensions(
+    val width: Int,
+    val height: Int
+) {
+    fun sampleSize(): Int {
+        var sampleSize = 1
+        while (width / (sampleSize * 2) >= MAX_DIM || height / (sampleSize * 2) >= MAX_DIM) {
+            sampleSize *= 2
+        }
+        return sampleSize
+    }
+}
+
+private fun Bitmap.toJpegBytes(): ByteArray {
     val out = ByteArrayOutputStream()
-    finalBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+    compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
     return out.toByteArray()
+}
+
+private fun ByteArray.imageDimensions(): ImageDimensions? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(this, 0, size, bounds)
+    return if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+        ImageDimensions(bounds.outWidth, bounds.outHeight)
+    } else {
+        null
+    }
+}
+
+private fun Bitmap.scaledToMaxDimension(): Bitmap {
+    val longEdge = maxOf(width, height).toFloat()
+    val scale = longEdge / MAX_DIM
+    return if (scale > 1f) {
+        val newW = (width / scale).toInt().coerceAtLeast(1)
+        val newH = (height / scale).toInt().coerceAtLeast(1)
+        Bitmap.createScaledBitmap(this, newW, newH, true)
+    } else {
+        this
+    }
+}
+
+private fun Bitmap.recycleIfDistinct(vararg others: Bitmap) {
+    if (others.none { this === it }) {
+        recycle()
+    }
 }
 
 private fun Bitmap.rotated(degrees: Int): Bitmap {
