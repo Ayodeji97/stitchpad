@@ -87,6 +87,10 @@ export function buildVerificationEmailHtml(params: {
                     </td>
                   </tr>
                 </table>
+                <p style="margin:0 0 24px;font-size:12px;line-height:1.6;color:${FAINT};">
+                  Button not working? Paste this link into your browser:<br />
+                  <a href="${link}" target="_blank" style="color:${INDIGO};word-break:break-all;">${link}</a>
+                </p>
                 <p style="margin:0;padding-top:22px;border-top:1px solid ${LINE};font-size:12px;line-height:1.6;color:${FAINT};">
                   Didn't sign up? You can safely ignore this email.<br />
                   Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${INDIGO};text-decoration:none;">${SUPPORT_EMAIL}</a>

@@ -114,6 +114,8 @@ describe('buildVerificationEmailHtml', () => {
     expect(html).toContain('href="https://verify.example/abc"');
     expect(html).toContain('Verify email');
     expect(html).toContain('Hi Tunde,');
+    // Copy-paste fallback for when the button doesn't work.
+    expect(html).toContain('Button not working?');
   });
 
   it('embeds the brand logo, headline, and indigo CTA', () => {
