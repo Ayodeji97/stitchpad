@@ -165,7 +165,10 @@ fun MeasurementFormScreen(
     val canSave = state.canSave
     val focusManager = LocalFocusManager.current
 
-    val pagerState = rememberPagerState(pageCount = { state.sections.size })
+    // +1 trailing page for the custom-measurements step (index == sections.size).
+    // When sections is empty the pager block below isn't rendered, so the lone
+    // page is harmless.
+    val pagerState = rememberPagerState(pageCount = { state.sections.size + 1 })
 
     // Swipe → notify ViewModel
     LaunchedEffect(pagerState.currentPage) {
@@ -247,11 +250,6 @@ fun MeasurementFormScreen(
                     state = pagerState,
                     modifier = Modifier.weight(1f)
                 ) { pageIndex ->
-                    val section = state.sections[pageIndex]
-                    val essentialFields = section.fields.filter { it.isEssential }
-                    val extraFields = section.fields.filter { !it.isEssential }
-                    val isExpanded = pageIndex != state.currentSectionIndex || state.isCurrentSectionExpanded
-
                     Column(
                         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
                         modifier = Modifier
@@ -262,38 +260,47 @@ fun MeasurementFormScreen(
                                 vertical = DesignTokens.space3
                             )
                     ) {
-                        essentialFields.forEach { field ->
-                            MeasurementFieldInput(
-                                field = field,
-                                value = state.fields[field.key] ?: "",
-                                unitSuffix = unitSuffix,
-                                onValueChange = { onAction(MeasurementFormAction.OnFieldChange(field.key, it)) }
-                            )
-                        }
+                        if (pageIndex < state.sections.size) {
+                            val section = state.sections[pageIndex]
+                            val essentialFields = section.fields.filter { it.isEssential }
+                            val extraFields = section.fields.filter { !it.isEssential }
+                            val isExpanded =
+                                pageIndex != state.currentSectionIndex || state.isCurrentSectionExpanded
 
-                        if (isExpanded) {
-                            extraFields.forEach { field ->
+                            essentialFields.forEach { field ->
                                 MeasurementFieldInput(
                                     field = field,
                                     value = state.fields[field.key] ?: "",
                                     unitSuffix = unitSuffix,
-                                    onValueChange = { onAction(MeasurementFormAction.OnFieldChange(field.key, it)) }
+                                    onValueChange = {
+                                        onAction(MeasurementFormAction.OnFieldChange(field.key, it))
+                                    }
                                 )
                             }
-                        }
 
-                        if (extraFields.isNotEmpty() && pageIndex == state.currentSectionIndex) {
-                            ShowMoreToggle(
-                                isExpanded = state.isCurrentSectionExpanded,
-                                extraCount = extraFields.size,
-                                onClick = { onAction(MeasurementFormAction.OnToggleShowMore) }
-                            )
-                        }
+                            if (isExpanded) {
+                                extraFields.forEach { field ->
+                                    MeasurementFieldInput(
+                                        field = field,
+                                        value = state.fields[field.key] ?: "",
+                                        unitSuffix = unitSuffix,
+                                        onValueChange = {
+                                            onAction(MeasurementFormAction.OnFieldChange(field.key, it))
+                                        }
+                                    )
+                                }
+                            }
 
-                        if (pageIndex == state.sections.lastIndex) {
-                            // PTSP-12: Custom fields live at the bottom of the
-                            // last default section, scrolling with the page.
-                            // Renders on every gender (filter handled by VM).
+                            if (extraFields.isNotEmpty() && pageIndex == state.currentSectionIndex) {
+                                ShowMoreToggle(
+                                    isExpanded = state.isCurrentSectionExpanded,
+                                    extraCount = extraFields.size,
+                                    onClick = { onAction(MeasurementFormAction.OnToggleShowMore) }
+                                )
+                            }
+                        } else {
+                            // Trailing custom-measurements step. Filtering by gender
+                            // is handled in the ViewModel; this renders the result.
                             CustomFieldsSection(
                                 fields = state.customFields,
                                 fieldValues = state.fields,
@@ -307,11 +314,11 @@ fun MeasurementFormScreen(
                                 },
                                 onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
                                 onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
-                                onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
+                                onEditField = { id ->
+                                    onAction(MeasurementFormAction.OnEditCustomFieldClick(id))
+                                },
                                 onDeleteField = { id ->
-                                    onAction(
-                                        MeasurementFormAction.OnArchiveCustomFieldRequest(id)
-                                    )
+                                    onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(id))
                                 },
                             )
                         }
@@ -326,7 +333,7 @@ fun MeasurementFormScreen(
                 if (state.sections.isNotEmpty()) {
                     SectionNavigation(
                         currentIndex = state.currentSectionIndex,
-                        totalSections = state.sections.size,
+                        totalSections = state.sections.size + 1,
                         onPrevious = { onAction(MeasurementFormAction.OnPreviousSection) },
                         onNext = { onAction(MeasurementFormAction.OnNextSection) }
                     )
@@ -866,6 +873,11 @@ private fun CustomFieldsSection(
             )
         }
 
+        AddCustomFieldButton(
+            enabled = canUseCustomMeasurements,
+            onClick = if (canUseCustomMeasurements) onAddClick else onLockedAddClick,
+        )
+
         // When not entitled, still show rows whose value is recorded (non-blank)
         // so a FREE-post-welcome tailor editing a past measurement keeps seeing
         // previously recorded custom-field values. Spec: "Past measurements
@@ -948,11 +960,6 @@ private fun CustomFieldsSection(
                 }
             }
         }
-
-        AddCustomFieldButton(
-            enabled = canUseCustomMeasurements,
-            onClick = if (canUseCustomMeasurements) onAddClick else onLockedAddClick,
-        )
     }
 }
 
