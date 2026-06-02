@@ -19,6 +19,7 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
 
 private const val TAG = "UserRepo"
 private const val USERS = "users"
@@ -67,11 +68,35 @@ class FirebaseUserRepository(
         bankAccountName?.let { data["bankAccountName"] = it }
         bankAccountNumber?.let { data["bankAccountNumber"] = it }
         data["updatedAt"] = FieldValue.serverTimestamp
+        // Profile fields are fire-and-forget so Workshop Setup returns instantly
+        // offline (the whole point of OfflineWriteDispatcher). They never include
+        // the billing/entitlement defaults — those are seeded once below.
         val accepted = offlineWrites.enqueue("createUserProfile userId=$userId") {
-            document.set(buildInitialUserDoc().apply { putAll(data) }, merge = true)
+            document.set(data, merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
+        }
+        // Seed the billing/entitlement defaults exactly once, at first creation.
+        // A transaction (not the old blocking `document.get().exists` pre-read,
+        // which stalled the form offline) guards the write so re-entering Workshop
+        // Setup — skip-then-complete, reinstall, or a doc that already exists on the
+        // server — can NEVER reset a paying user's tier or re-grant the welcome
+        // window. We key off `subscriptionTier`, not doc existence, because the
+        // fire-and-forget profile write above may have created the doc first;
+        // absence of the tier field is the real "not yet seeded" signal.
+        // Enqueued fire-and-forget: the transaction needs the server, so it lands
+        // once connectivity is available (sign-up is always online). Until then the
+        // entitlements provider safely treats the user as FREE.
+        offlineWrites.enqueue("seedInitialUserDoc userId=$userId") {
+            firestore.runTransaction {
+                val snapshot = get(document)
+                val existingTier =
+                    if (snapshot.exists) snapshot.data<UserSeedStateDto>().subscriptionTier else null
+                if (shouldSeedInitialUserDoc(snapshot.exists, existingTier)) {
+                    set(document, buildInitialUserDoc(), merge = true)
+                }
+            }
         }
         return Result.Success(Unit)
     }
@@ -259,8 +284,11 @@ class FirebaseUserRepository(
     }
 
     /**
-     * Initial user-doc shape written during first workshop setup. Profile edit
-     * paths never write these billing/entitlement-owned fields.
+     * Initial user-doc shape, seeded exactly once when the doc is first created
+     * (guarded by the transaction in [createUserProfile]). Profile edit paths and
+     * repeat Workshop Setup completions never rewrite these
+     * billing/entitlement-owned fields, so a paying user can't be reset to FREE
+     * or have their welcome window re-granted.
      */
     private fun buildInitialUserDoc(): MutableMap<String, Any> = mutableMapOf(
         "subscriptionTier" to SubscriptionTier.FREE.wireValue,
@@ -273,3 +301,29 @@ class FirebaseUserRepository(
         "updatedAt" to FieldValue.serverTimestamp,
     )
 }
+
+/**
+ * The slice of `users/{uid}` the seed guard reads. A typed DTO (not
+ * `Map<String, Any?>`) because kotlinx.serialization on Kotlin/Native has no
+ * runtime serializer for `Any?` — see [UserDto] / the entitlements provider for
+ * the same constraint. Unknown fields are ignored by GitLive's decoder.
+ */
+@Serializable
+private data class UserSeedStateDto(
+    val subscriptionTier: String? = null,
+)
+
+/**
+ * Whether [com.danzucker.stitchpad.core.domain.repository.UserRepository.createUserProfile]
+ * should seed the one-time billing/entitlement defaults. Seed only when the doc
+ * has never been seeded — i.e. it doesn't exist yet, or it exists (the
+ * fire-and-forget profile write may have created it) but carries no
+ * `subscriptionTier`. A doc that already has a tier belongs to a returning user
+ * whose billing state must be preserved.
+ *
+ * Pure + `internal` so the reseed guard is unit-testable without a Firestore fake.
+ */
+internal fun shouldSeedInitialUserDoc(
+    docExists: Boolean,
+    existingSubscriptionTier: String?,
+): Boolean = !docExists || existingSubscriptionTier == null
