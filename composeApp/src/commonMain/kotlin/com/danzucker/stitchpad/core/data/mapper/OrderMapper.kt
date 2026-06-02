@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.dto.StyleImageRefDto
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -30,20 +31,25 @@ fun migrateLegacyDeposit(
     payments: List<PaymentDto>,
     depositPaid: Double,
     createdAt: Long,
-): List<PaymentDto> = if (payments.isNotEmpty() || depositPaid <= 0.0) {
+): List<PaymentDto> = if (
+    depositPaid <= 0.0 ||
+    payments.any { it.id == LEGACY_DEPOSIT_PAYMENT_ID }
+) {
     payments
 } else {
     listOf(
         PaymentDto(
-            id = "legacy-deposit",
+            id = LEGACY_DEPOSIT_PAYMENT_ID,
             amount = depositPaid,
             method = PaymentMethod.OTHER.name,
             type = PaymentType.DEPOSIT.name,
             recordedAt = createdAt,
             note = null,
         )
-    )
+    ) + payments
 }
+
+private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
 
 fun OrderDto.toOrder(userId: String): Order {
     val parsedStatus = runCatching { OrderStatus.valueOf(status) }
@@ -175,12 +181,17 @@ private fun StyleImageRefDto.toStyleImageRef(): StyleImageRef = StyleImageRef(
     styleId = styleId,
     photoUrl = photoUrl,
     photoStoragePath = photoStoragePath,
+    syncState = parseImageSyncState(syncState),
 )
 
 private fun FabricImageRefDto.toFabricImageRef(): FabricImageRef = FabricImageRef(
     photoUrl = photoUrl,
     photoStoragePath = photoStoragePath,
+    syncState = parseImageSyncState(syncState),
 )
+
+private fun parseImageSyncState(value: String): ImageSyncState =
+    runCatching { ImageSyncState.valueOf(value) }.getOrDefault(ImageSyncState.SYNCED)
 
 private fun parseGarmentType(value: String): GarmentType = when (value) {
     "SENATOR_KAFTAN" -> GarmentType.SENATOR
@@ -219,11 +230,13 @@ private fun StyleImageRef.toStyleImageRefDto(): StyleImageRefDto = StyleImageRef
     styleId = styleId,
     photoUrl = photoUrl,
     photoStoragePath = photoStoragePath,
+    syncState = syncState.name,
 )
 
 private fun FabricImageRef.toFabricImageRefDto(): FabricImageRefDto = FabricImageRefDto(
     photoUrl = photoUrl,
     photoStoragePath = photoStoragePath,
+    syncState = syncState.name,
 )
 
 fun StatusChangeDto.toStatusChange(): StatusChange = StatusChange(

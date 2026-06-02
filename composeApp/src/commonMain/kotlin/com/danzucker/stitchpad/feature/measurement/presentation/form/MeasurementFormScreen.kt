@@ -1,8 +1,16 @@
+@file:Suppress("TooManyFunctions")
+// This screen composes the measurement wizard from many small private composables
+// (gender selector, progress row + Custom pill, per-section field inputs, custom-field
+// section, navigation, notes) plus their previews. Splitting the file would scatter
+// tightly-coupled UI; the function count is inherent to one cohesive screen.
+
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -64,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -99,8 +108,11 @@ import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_add_note
 import stitchpad.composeapp.generated.resources.measurement_add_title
+import stitchpad.composeapp.generated.resources.measurement_create_flow_save_button
+import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
+import stitchpad.composeapp.generated.resources.measurement_go_to_section
 import stitchpad.composeapp.generated.resources.measurement_next
 import stitchpad.composeapp.generated.resources.measurement_notes_label
 import stitchpad.composeapp.generated.resources.measurement_notes_placeholder
@@ -109,6 +121,7 @@ import stitchpad.composeapp.generated.resources.measurement_save_button
 import stitchpad.composeapp.generated.resources.measurement_section_of
 import stitchpad.composeapp.generated.resources.measurement_show_less
 import stitchpad.composeapp.generated.resources.measurement_show_more_count
+import stitchpad.composeapp.generated.resources.measurement_skip_for_now
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 
@@ -124,6 +137,9 @@ fun MeasurementFormRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             MeasurementFormEvent.NavigateBack -> onNavigateBack()
+            // Skip lands on the same destination as a successful save: the
+            // customer (already persisted) detail. No measurement is written.
+            MeasurementFormEvent.SkipMeasurements -> onNavigateBack()
             MeasurementFormEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
@@ -160,11 +176,21 @@ fun MeasurementFormScreen(
     val canSave = state.canSave
     val focusManager = LocalFocusManager.current
 
-    val pagerState = rememberPagerState(pageCount = { state.sections.size })
+    // +1 trailing page for the custom-measurements step (index == sections.size).
+    // When sections is empty the pager block below isn't rendered, so the lone
+    // page is harmless.
+    val pagerState = rememberPagerState(pageCount = { state.sections.size + 1 })
 
-    // Swipe → notify ViewModel
-    LaunchedEffect(pagerState.currentPage) {
-        onAction(MeasurementFormAction.OnSectionChange(pagerState.currentPage))
+    // Swipe / settled jump → notify ViewModel.
+    // Keyed on settledPage (NOT currentPage): a multi-page jump (tapping a far
+    // dot or the Custom pill) animates THROUGH intermediate pages, and currentPage
+    // ticks through each one. Firing OnSectionChange for those intermediates would
+    // change currentSectionIndex mid-animation, restart the animate effect below,
+    // and cancel the in-flight scroll — stranding the pager on a middle page.
+    // settledPage only updates once the scroll/animation fully settles, so this
+    // fires exactly once per landing.
+    LaunchedEffect(pagerState.settledPage) {
+        onAction(MeasurementFormAction.OnSectionChange(pagerState.settledPage))
     }
 
     // Tab / button → animate pager
@@ -227,7 +253,16 @@ fun MeasurementFormScreen(
                     SectionProgressRow(
                         sections = state.sections,
                         currentIndex = state.currentSectionIndex,
-                        fields = state.fields
+                        fields = state.fields,
+                        customLocked = !state.canUseCustomMeasurements,
+                        // Mirror the dot "has data" rule: light the pill when any
+                        // custom field holds a value that will actually persist.
+                        customHasData = state.customFields.any { f ->
+                            (state.fields[f.id]?.toDoubleOrNull() ?: 0.0) > 0.0
+                        },
+                        onJumpToSection = { index ->
+                            onAction(MeasurementFormAction.OnSectionChange(index))
+                        }
                     )
                     Spacer(Modifier.height(DesignTokens.space2))
                 }
@@ -242,11 +277,6 @@ fun MeasurementFormScreen(
                     state = pagerState,
                     modifier = Modifier.weight(1f)
                 ) { pageIndex ->
-                    val section = state.sections[pageIndex]
-                    val essentialFields = section.fields.filter { it.isEssential }
-                    val extraFields = section.fields.filter { !it.isEssential }
-                    val isExpanded = pageIndex != state.currentSectionIndex || state.isCurrentSectionExpanded
-
                     Column(
                         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
                         modifier = Modifier
@@ -257,38 +287,47 @@ fun MeasurementFormScreen(
                                 vertical = DesignTokens.space3
                             )
                     ) {
-                        essentialFields.forEach { field ->
-                            MeasurementFieldInput(
-                                field = field,
-                                value = state.fields[field.key] ?: "",
-                                unitSuffix = unitSuffix,
-                                onValueChange = { onAction(MeasurementFormAction.OnFieldChange(field.key, it)) }
-                            )
-                        }
+                        if (pageIndex < state.sections.size) {
+                            val section = state.sections[pageIndex]
+                            val essentialFields = section.fields.filter { it.isEssential }
+                            val extraFields = section.fields.filter { !it.isEssential }
+                            val isExpanded =
+                                pageIndex != state.currentSectionIndex || state.isCurrentSectionExpanded
 
-                        if (isExpanded) {
-                            extraFields.forEach { field ->
+                            essentialFields.forEach { field ->
                                 MeasurementFieldInput(
                                     field = field,
                                     value = state.fields[field.key] ?: "",
                                     unitSuffix = unitSuffix,
-                                    onValueChange = { onAction(MeasurementFormAction.OnFieldChange(field.key, it)) }
+                                    onValueChange = {
+                                        onAction(MeasurementFormAction.OnFieldChange(field.key, it))
+                                    }
                                 )
                             }
-                        }
 
-                        if (extraFields.isNotEmpty() && pageIndex == state.currentSectionIndex) {
-                            ShowMoreToggle(
-                                isExpanded = state.isCurrentSectionExpanded,
-                                extraCount = extraFields.size,
-                                onClick = { onAction(MeasurementFormAction.OnToggleShowMore) }
-                            )
-                        }
+                            if (isExpanded) {
+                                extraFields.forEach { field ->
+                                    MeasurementFieldInput(
+                                        field = field,
+                                        value = state.fields[field.key] ?: "",
+                                        unitSuffix = unitSuffix,
+                                        onValueChange = {
+                                            onAction(MeasurementFormAction.OnFieldChange(field.key, it))
+                                        }
+                                    )
+                                }
+                            }
 
-                        if (pageIndex == state.sections.lastIndex) {
-                            // PTSP-12: Custom fields live at the bottom of the
-                            // last default section, scrolling with the page.
-                            // Renders on every gender (filter handled by VM).
+                            if (extraFields.isNotEmpty() && pageIndex == state.currentSectionIndex) {
+                                ShowMoreToggle(
+                                    isExpanded = state.isCurrentSectionExpanded,
+                                    extraCount = extraFields.size,
+                                    onClick = { onAction(MeasurementFormAction.OnToggleShowMore) }
+                                )
+                            }
+                        } else {
+                            // Trailing custom-measurements step. Filtering by gender
+                            // is handled in the ViewModel; this renders the result.
                             CustomFieldsSection(
                                 fields = state.customFields,
                                 fieldValues = state.fields,
@@ -302,11 +341,11 @@ fun MeasurementFormScreen(
                                 },
                                 onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
                                 onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
-                                onEditField = { id -> onAction(MeasurementFormAction.OnEditCustomFieldClick(id)) },
+                                onEditField = { id ->
+                                    onAction(MeasurementFormAction.OnEditCustomFieldClick(id))
+                                },
                                 onDeleteField = { id ->
-                                    onAction(
-                                        MeasurementFormAction.OnArchiveCustomFieldRequest(id)
-                                    )
+                                    onAction(MeasurementFormAction.OnArchiveCustomFieldRequest(id))
                                 },
                             )
                         }
@@ -321,7 +360,7 @@ fun MeasurementFormScreen(
                 if (state.sections.isNotEmpty()) {
                     SectionNavigation(
                         currentIndex = state.currentSectionIndex,
-                        totalSections = state.sections.size,
+                        totalSections = state.sections.size + 1,
                         onPrevious = { onAction(MeasurementFormAction.OnPreviousSection) },
                         onNext = { onAction(MeasurementFormAction.OnNextSection) }
                     )
@@ -358,11 +397,28 @@ fun MeasurementFormScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = stringResource(Res.string.measurement_save_button),
+                                text = if (state.fromCustomerCreation) {
+                                    stringResource(Res.string.measurement_create_flow_save_button)
+                                } else {
+                                    stringResource(Res.string.measurement_save_button)
+                                },
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+                }
+                if (state.fromCustomerCreation) {
+                    Spacer(Modifier.height(DesignTokens.space1))
+                    TextButton(
+                        onClick = { onAction(MeasurementFormAction.OnSkipClick) },
+                        enabled = !state.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.measurement_skip_for_now),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 }
                 Spacer(Modifier.height(DesignTokens.space4))
@@ -480,35 +536,116 @@ private fun GenderSelector(
 private fun SectionProgressRow(
     sections: List<MeasurementSection>,
     currentIndex: Int,
-    fields: Map<String, String>
+    fields: Map<String, String>,
+    customLocked: Boolean,
+    customHasData: Boolean,
+    onJumpToSection: (Int) -> Unit,
 ) {
+    val customPageIndex = sections.size
+    val isCustomActive = currentIndex >= customPageIndex
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             sections.forEachIndexed { index, section ->
                 val color = when {
                     index == currentIndex -> MaterialTheme.colorScheme.primary
-                    // Use the same parsable-positive predicate as MeasurementFormState.canSave
-                    // so a dot only lights up for values that will actually persist; otherwise
-                    // typing "0" or "." paints the dot but Save stays disabled (visual contradiction).
+                    // Same parsable-positive predicate as MeasurementFormState.canSave
+                    // so a dot only lights for values that will actually persist.
                     section.fields.any { f ->
                         (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
                     } -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.outlineVariant
+                    // A soft tint of the brand primary so unvisited dots stay
+                    // clearly visible on the light background without the muddy
+                    // look of a neutral gray.
+                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 }
+                // Tappable to jump to that section, but intentionally NOT wrapped in
+                // minimumInteractiveComponentSize — the 48dp target spread the dots too
+                // far apart. The small target is acceptable here since the Custom pill,
+                // Previous/Next, and swipe are the primary navigation; the dots are a
+                // redundant shortcut. Role + label still expose them to screen readers.
+                val goToSectionLabel = stringResource(Res.string.measurement_go_to_section, index + 1)
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .background(color = color, shape = CircleShape)
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = goToSectionLabel,
+                        ) { onJumpToSection(index) }
                 )
             }
+            CustomStepPill(
+                isActive = isCustomActive,
+                isLocked = customLocked,
+                hasData = customHasData,
+                onClick = { onJumpToSection(customPageIndex) },
+            )
         }
+        // On the custom page the active pill already reads "Custom measurement",
+        // so the counter is hidden there to avoid the duplicate label. The "X of N"
+        // progress counter still shows on the default section pages.
+        if (!isCustomActive) {
+            Text(
+                text = stringResource(Res.string.measurement_section_of, currentIndex + 1, sections.size),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomStepPill(
+    isActive: Boolean,
+    isLocked: Boolean,
+    hasData: Boolean,
+    onClick: () -> Unit,
+) {
+    // Filled when the step is open or holds data; outlined otherwise.
+    val filled = isActive || hasData
+    val borderColor = when {
+        isLocked -> MaterialTheme.colorScheme.outline
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val containerColor = if (filled && !isLocked) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        Color.Transparent
+    }
+    val contentColor = when {
+        isLocked -> MaterialTheme.colorScheme.onSurfaceVariant
+        filled -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier
+            .background(color = containerColor, shape = RoundedCornerShape(DesignTokens.radiusFull))
+            .border(
+                border = BorderStroke(1.dp, borderColor),
+                shape = RoundedCornerShape(DesignTokens.radiusFull),
+            )
+            .clickable(onClick = onClick, role = Role.Button)
+            .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space1),
+    ) {
+        Icon(
+            imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.Add,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(12.dp),
+        )
         Text(
-            text = stringResource(Res.string.measurement_section_of, currentIndex + 1, sections.size),
+            text = stringResource(Res.string.measurement_custom_step),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = FontWeight.SemiBold,
+            color = contentColor,
         )
     }
 }
@@ -844,6 +981,11 @@ private fun CustomFieldsSection(
             )
         }
 
+        AddCustomFieldButton(
+            enabled = canUseCustomMeasurements,
+            onClick = if (canUseCustomMeasurements) onAddClick else onLockedAddClick,
+        )
+
         // When not entitled, still show rows whose value is recorded (non-blank)
         // so a FREE-post-welcome tailor editing a past measurement keeps seeing
         // previously recorded custom-field values. Spec: "Past measurements
@@ -926,11 +1068,6 @@ private fun CustomFieldsSection(
                 }
             }
         }
-
-        AddCustomFieldButton(
-            enabled = canUseCustomMeasurements,
-            onClick = if (canUseCustomMeasurements) onAddClick else onLockedAddClick,
-        )
     }
 }
 
@@ -1047,6 +1184,117 @@ private fun MeasurementFormScreenMalePreview() {
                     "trouser_waist" to "32",
                     "shirt_length" to "28"
                 ),
+                unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCreateFlowPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    val allKeys = sections.flatMap { it.fields }.map { it.key }
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                fromCustomerCreation = true,
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = 0,
+                fields = allKeys.associateWith { "" } + mapOf("bust_circumference" to "36"),
+                unit = MeasurementUnit.INCHES,
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCreateFlowDarkPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    val allKeys = sections.flatMap { it.fields }.map { it.key }
+    StitchPadTheme(darkTheme = true) {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                fromCustomerCreation = true,
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = 0,
+                fields = allKeys.associateWith { "" } + mapOf("bust_circumference" to "36"),
+                unit = MeasurementUnit.INCHES,
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCustomStepEntitledPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = sections.size, // custom page
+                canUseCustomMeasurements = true,
+                customFields = listOf(
+                    CustomMeasurementField(
+                        id = "cf-1",
+                        label = "Sleeve cuff width",
+                        genders = setOf(CustomerGender.FEMALE, CustomerGender.MALE),
+                        createdAt = 0L,
+                        updatedAt = 0L,
+                    )
+                ),
+                fields = mapOf("cf-1" to "6"),
+                unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCustomStepEmptyPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = sections.size,
+                canUseCustomMeasurements = true,
+                customFields = emptyList(),
+                unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCustomStepLockedPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = sections.size,
+                canUseCustomMeasurements = false,
+                customFields = emptyList(),
                 unit = MeasurementUnit.INCHES
             ),
             onAction = {}

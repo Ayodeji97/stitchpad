@@ -36,6 +36,8 @@ data class UserDto(
     val businessLogoUrl: String? = null,
     @SerialName("businessLogoStoragePath")
     val businessLogoStoragePath: String? = null,
+    @SerialName("businessLogoUploadId")
+    val businessLogoUploadId: String? = null,
     @SerialName("bankName")
     val bankName: String? = null,
     @SerialName("bankAccountName")

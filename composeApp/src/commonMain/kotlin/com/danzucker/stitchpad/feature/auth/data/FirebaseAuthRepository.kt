@@ -30,6 +30,7 @@ class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth,
     private val ssoCredentialProvider: SsoCredentialProvider,
     private val userRepository: UserRepository,
+    private val verificationEmailSender: VerificationEmailSender,
 ) : AuthRepository {
 
     override suspend fun signUpWithEmail(
@@ -157,15 +158,11 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun sendEmailVerification(): EmptyResult<AuthError> {
-        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
-        return try {
-            user.sendEmailVerification()
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            val error = e.toAuthError()
-            AppLogger.e(tag = TAG, throwable = e) { "sendEmailVerification failed error=$error" }
-            Result.Error(error)
-        }
+        // Delegated to the sendVerificationEmail Cloud Function (branded email
+        // via Resend on a custom domain) rather than Firebase Auth's default
+        // sender, whose firebaseapp.com reputation lands the mail in spam.
+        firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return verificationEmailSender.send()
     }
 
     override suspend fun reloadUser(): EmptyResult<AuthError> {

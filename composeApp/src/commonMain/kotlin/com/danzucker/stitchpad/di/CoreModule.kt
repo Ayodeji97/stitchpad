@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.firestore
@@ -21,6 +23,23 @@ val coreModule = module {
     // Named separately from smartAppScope to avoid qualifier collisions.
     single<CoroutineScope>(qualifier = named("entitlementsAppScope")) {
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single<CoroutineScope>(qualifier = named("offlineWriteAppScope")) {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single {
+        OfflineWriteDispatcher(
+            appScope = get<CoroutineScope>(qualifier = named("offlineWriteAppScope")),
+        )
+    }
+    single {
+        OfflineUploadOutbox(
+            firestore = get(),
+            storage = get(),
+            photoStore = get(),
+            scheduler = get(),
+            appScope = get<CoroutineScope>(qualifier = named("offlineWriteAppScope")),
+        )
     }
     single<EntitlementsProvider> {
         UserDocEntitlementsProvider(

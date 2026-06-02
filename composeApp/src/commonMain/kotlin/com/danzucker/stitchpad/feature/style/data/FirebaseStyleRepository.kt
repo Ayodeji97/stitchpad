@@ -6,11 +6,16 @@ import com.danzucker.stitchpad.core.data.mapper.toStyleDto
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
+import com.danzucker.stitchpad.core.offline.OfflineUploadJob
+import com.danzucker.stitchpad.core.offline.OfflineUploadJobType
+import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FirebaseFirestore
-import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -19,7 +24,9 @@ private const val TAG = "StyleRepo"
 
 class FirebaseStyleRepository(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val offlineWrites: OfflineWriteDispatcher,
+    private val photoStore: OfflinePhotoStore,
+    private val uploadOutbox: OfflineUploadOutbox,
 ) : StyleRepository {
 
     private fun stylesCollection(userId: String, customerId: String) =
@@ -32,6 +39,16 @@ class FirebaseStyleRepository(
     private fun storagePath(userId: String, customerId: String, styleId: String): String =
         "users/$userId/customers/$customerId/styles/$styleId.jpg"
 
+    private fun uploadJobId(path: String): String =
+        "${OfflineUploadJobType.STYLE_GALLERY_IMAGE}:$path"
+
+    private fun Style.withLocalPendingPhoto(): Style =
+        if (syncState == ImageSyncState.PENDING) {
+            copy(localPhotoPath = uploadOutbox.localPathForStoragePath(photoStoragePath))
+        } else {
+            this
+        }
+
     override fun observeStyles(
         userId: String,
         customerId: String
@@ -41,7 +58,9 @@ class FirebaseStyleRepository(
             .map<_, Result<List<Style>, DataError.Network>> { snapshot ->
                 val styles = snapshot.documents
                     .mapNotNull { doc ->
-                        runCatching { doc.data<StyleDto>().toStyle(customerId) }.getOrNull()
+                        runCatching {
+                            doc.data<StyleDto>().toStyle(customerId).withLocalPendingPhoto()
+                        }.getOrNull()
                     }
                     .sortedByDescending { it.createdAt }
                 Result.Success(styles)
@@ -59,27 +78,41 @@ class FirebaseStyleRepository(
     ): Result<String, DataError.Network> {
         val docRef = stylesCollection(userId, customerId).document
         val path = storagePath(userId, customerId, docRef.id)
-        var uploaded = false
         return try {
-            storage.reference.child(path).putData(photoBytes.toStorageData())
-            uploaded = true
-            val downloadUrl = storage.reference.child(path).getDownloadUrl()
+            val localPath = photoStore.save(photoBytes, "style-${docRef.id}.jpg")
             val style = Style(
                 id = docRef.id,
                 customerId = customerId,
                 description = description,
-                photoUrl = downloadUrl,
+                photoUrl = "",
                 photoStoragePath = path,
+                syncState = ImageSyncState.PENDING,
+                localPhotoPath = localPath,
                 createdAt = 0L,
                 updatedAt = 0L
             )
-            docRef.set(style.toStyleDto())
+            val accepted = offlineWrites.enqueue("createStyle styleId=${docRef.id}") {
+                docRef.set(style.toStyleDto())
+            }
+            if (!accepted) {
+                return Result.Error(DataError.Network.UNKNOWN)
+            }
+            uploadOutbox.enqueue(
+                OfflineUploadJob(
+                    id = uploadJobId(path),
+                    type = OfflineUploadJobType.STYLE_GALLERY_IMAGE,
+                    userId = userId,
+                    customerId = customerId,
+                    styleId = docRef.id,
+                    storagePath = path,
+                    localPath = localPath,
+                )
+            )
             Result.Success(docRef.id)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "createStyle failed styleId=${docRef.id}"
             }
-            if (uploaded) cleanupOrphanedUpload(path)
             Result.Error(DataError.Network.UNKNOWN)
         }
     }
@@ -109,20 +142,47 @@ class FirebaseStyleRepository(
         newPhotoBytes: ByteArray?
     ): EmptyResult<DataError.Network> {
         return try {
-            val updatedStyle = if (newPhotoBytes != null) {
+            val accepted = if (newPhotoBytes != null) {
                 val path = style.photoStoragePath.ifBlank {
                     storagePath(userId, customerId, style.id)
                 }
-                storage.reference.child(path).putData(newPhotoBytes.toStorageData())
-                val downloadUrl = storage.reference.child(path).getDownloadUrl()
-                style.copy(photoUrl = downloadUrl, photoStoragePath = path)
+                val localPath = photoStore.save(newPhotoBytes, "style-${style.id}.jpg")
+                val pendingStyle = style.copy(
+                    photoStoragePath = path,
+                    syncState = ImageSyncState.PENDING,
+                    localPhotoPath = localPath,
+                )
+                val accepted = offlineWrites.enqueue("updateStylePhoto styleId=${style.id}") {
+                    stylesCollection(userId, customerId)
+                        .document(pendingStyle.id)
+                        .set(pendingStyle.toStyleDto())
+                }
+                if (accepted) {
+                    uploadOutbox.enqueue(
+                        OfflineUploadJob(
+                            id = uploadJobId(path),
+                            type = OfflineUploadJobType.STYLE_GALLERY_IMAGE,
+                            userId = userId,
+                            customerId = customerId,
+                            styleId = style.id,
+                            storagePath = path,
+                            localPath = localPath,
+                        )
+                    )
+                }
+                accepted
             } else {
-                style
+                offlineWrites.enqueue("updateStyle styleId=${style.id}") {
+                    stylesCollection(userId, customerId)
+                        .document(style.id)
+                        .set(style.toStyleDto())
+                }
             }
-            stylesCollection(userId, customerId)
-                .document(updatedStyle.id)
-                .set(updatedStyle.toStyleDto())
-            Result.Success(Unit)
+            if (accepted) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(DataError.Network.UNKNOWN)
+            }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "updateStyle failed styleId=${style.id}"
@@ -135,14 +195,29 @@ class FirebaseStyleRepository(
         userId: String,
         customerId: String,
         style: Style
-    ): EmptyResult<DataError.Network> {
-        return try {
+    ): EmptyResult<DataError.Network> =
+        try {
             if (style.photoStoragePath.isNotBlank()) {
-                runCatching { storage.reference.child(style.photoStoragePath).delete() }
+                uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
+                runCatching {
+                    uploadOutbox.enqueue(
+                        OfflineUploadJob(
+                            id = "${OfflineUploadJobType.STORAGE_DELETE}:${style.photoStoragePath}",
+                            type = OfflineUploadJobType.STORAGE_DELETE,
+                            userId = userId,
+                            storagePath = style.photoStoragePath,
+                        )
+                    )
+                }
             }
-            stylesCollection(userId, customerId)
-                .document(style.id)
-                .delete()
+            val accepted = offlineWrites.enqueue("deleteStyle styleId=${style.id}") {
+                stylesCollection(userId, customerId)
+                    .document(style.id)
+                    .delete()
+            }
+            if (!accepted) {
+                return Result.Error(DataError.Network.UNKNOWN)
+            }
             Result.Success(Unit)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
@@ -150,14 +225,4 @@ class FirebaseStyleRepository(
             }
             Result.Error(DataError.Network.UNKNOWN)
         }
-    }
-
-    private suspend fun cleanupOrphanedUpload(path: String) {
-        runCatching { storage.reference.child(path).delete() }
-            .onFailure { throwable ->
-                AppLogger.w(tag = TAG, throwable = throwable) {
-                    "cleanupOrphanedUpload failed"
-                }
-            }
-    }
 }

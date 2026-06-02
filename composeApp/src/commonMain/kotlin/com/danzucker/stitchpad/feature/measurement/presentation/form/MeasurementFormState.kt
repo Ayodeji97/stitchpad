@@ -30,6 +30,10 @@ data class MeasurementFormState(
     // "FIRST MONTH" — implying temporary access for what is actually permanent.
     val tier: SubscriptionTier = SubscriptionTier.FREE,
     val customFieldSheet: CustomFieldSheet? = null,
+    // True when this form was reached as the second step of customer creation
+    // (CustomerForm → "Save & Add Measurements"). Drives the "Save" CTA copy and
+    // the "Skip for now" escape hatch. False for edit / order-link / detail entry.
+    val fromCustomerCreation: Boolean = false,
 ) {
     /**
      * PTSP-6: Save is gated to mirror what `MeasurementFormViewModel.save()`

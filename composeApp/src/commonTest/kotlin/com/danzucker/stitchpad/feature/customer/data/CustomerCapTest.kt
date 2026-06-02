@@ -101,6 +101,40 @@ class CustomerCapTest {
         assertEquals(5, countActiveCustomers(dtos))
     }
 
+    @Test
+    fun shouldBlockActiveCustomerCreate_allows_when_cached_count_is_unknown() {
+        assertEquals(
+            false,
+            shouldBlockActiveCustomerCreate(
+                cachedActiveCount = null,
+                customerCap = EntitlementsCalculator.FREE_CUSTOMER_CAP,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldBlockActiveCustomerCreate_blocks_when_cached_count_reaches_cap() {
+        assertEquals(
+            true,
+            shouldBlockActiveCustomerCreate(
+                cachedActiveCount = EntitlementsCalculator.FREE_CUSTOMER_CAP,
+                customerCap = EntitlementsCalculator.FREE_CUSTOMER_CAP,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldBlockActiveCustomerCreate_allows_when_entitlements_are_unhydrated() {
+        assertEquals(
+            false,
+            shouldBlockActiveCustomerCreate(
+                cachedActiveCount = EntitlementsCalculator.FREE_CUSTOMER_CAP,
+                customerCap = EntitlementsCalculator.FREE_CUSTOMER_CAP,
+                entitlementsHydrated = false,
+            ),
+        )
+    }
+
     // ── DataError.Network.CAP_REACHED mapping test ────────────────────────
 
     @Test

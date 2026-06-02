@@ -222,7 +222,9 @@ private fun MainNavGraph(
                         popUpTo<CustomerFormRoute> { inclusive = true }
                         launchSingleTop = true
                     }
-                    navController.navigate(MeasurementFormRoute(customerId = newId)) {
+                    navController.navigate(
+                        MeasurementFormRoute(customerId = newId, fromCustomerCreation = true),
+                    ) {
                         launchSingleTop = true
                     }
                 },

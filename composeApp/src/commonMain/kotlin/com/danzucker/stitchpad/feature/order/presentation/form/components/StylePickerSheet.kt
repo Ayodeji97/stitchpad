@@ -117,7 +117,7 @@ private fun StylePickerRow(
                 .clip(RoundedCornerShape(DesignTokens.radiusMd)),
         ) {
             SubcomposeAsyncImage(
-                model = style.photoUrl,
+                model = style.localPhotoPath ?: style.photoUrl,
                 contentDescription = null,
                 loading = {
                     Box(

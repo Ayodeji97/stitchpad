@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.androidx.core.splashscreen)
             implementation(libs.androidx.credentials)
             implementation(libs.androidx.credentials.play.services.auth)
+            implementation(libs.androidx.work.runtime.ktx)
             implementation(libs.googleid)
             implementation(libs.koin.android)
             implementation(libs.ktor.client.okhttp)

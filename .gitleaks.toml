@@ -1,0 +1,18 @@
+# gitleaks configuration.
+# Extends gitleaks' default ruleset (so real secrets are still caught) and
+# allowlists known-public asset URLs that match secret-like patterns but are
+# not sensitive credentials.
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Public, read-only Firebase Storage download URLs for static brand assets
+(e.g. the email-verification logo at functions/src/auth/verificationEmailTemplate.ts).
+The ?alt=media&token=... grants read access to a public image that is embedded
+in every verification email we send — it is not a sensitive credential.
+"""
+regexTarget = "line"
+regexes = [
+  '''firebasestorage\.googleapis\.com/v0/b/[^\s"'`]+\?alt=media&token=[0-9a-fA-F-]+''',
+]

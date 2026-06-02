@@ -1,21 +1,25 @@
 package com.danzucker.stitchpad.feature.order.data
 
-import com.danzucker.stitchpad.core.data.dto.OrderDto
-import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
-import com.danzucker.stitchpad.core.data.mapper.migrateLegacyDeposit
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
+import com.danzucker.stitchpad.core.offline.OfflineUploadJob
+import com.danzucker.stitchpad.core.offline.OfflineUploadJobType
+import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import com.danzucker.stitchpad.feature.style.data.toStorageData
+import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
@@ -26,11 +30,58 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private const val TAG = "OrderRepo"
+private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
+
+internal fun applyCompletedOrderUploadPatches(
+    order: Order,
+    completedUrlForStoragePath: (String) -> String?,
+): Order = order.copy(
+    items = order.items.map { item ->
+        item.copy(
+            styleImages = item.styleImages.map { ref ->
+                val storagePath = ref.photoStoragePath
+                val completedUrl = storagePath?.let(completedUrlForStoragePath)
+                if (completedUrl != null) {
+                    ref.copy(
+                        photoUrl = completedUrl,
+                        syncState = ImageSyncState.SYNCED,
+                        localPhotoPath = null,
+                    )
+                } else {
+                    ref
+                }
+            },
+            fabricImages = item.fabricImages.map { ref ->
+                val completedUrl = completedUrlForStoragePath(ref.photoStoragePath)
+                if (completedUrl != null) {
+                    ref.copy(
+                        photoUrl = completedUrl,
+                        syncState = ImageSyncState.SYNCED,
+                        localPhotoPath = null,
+                    )
+                } else {
+                    ref
+                }
+            },
+        )
+    },
+)
+
+internal fun paymentDtosForOfflineAppend(
+    payment: Payment,
+    knownPayments: List<Payment>,
+): List<com.danzucker.stitchpad.core.data.dto.PaymentDto> =
+    (knownPayments.filter { it.id == LEGACY_DEPOSIT_PAYMENT_ID } + payment)
+        .distinctBy { it.id }
+        .map { it.toPaymentDto() }
 
 @Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val offlineWrites: OfflineWriteDispatcher,
+    private val photoStore: OfflinePhotoStore,
+    private val uploadOutbox: OfflineUploadOutbox,
 ) : OrderRepository {
 
     private fun ordersCollection(userId: String) =
@@ -56,13 +107,51 @@ class FirebaseOrderRepository(
     private fun styleStoragePath(userId: String, orderId: String, itemId: String, suffix: String): String =
         "users/$userId/orders/$orderId/styles/$itemId-$suffix.jpg"
 
+    private fun uploadJobId(type: OfflineUploadJobType, path: String): String =
+        "$type:$path"
+
+    private fun Order.withLocalPendingImages(): Order = copy(
+        items = items.map { item ->
+            item.copy(
+                styleImages = item.styleImages.map { ref ->
+                    if (ref.syncState == ImageSyncState.PENDING) {
+                        ref.copy(
+                            localPhotoPath = ref.photoStoragePath
+                                ?.let(uploadOutbox::localPathForStoragePath)
+                        )
+                    } else {
+                        ref
+                    }
+                },
+                fabricImages = item.fabricImages.map { ref ->
+                    if (ref.syncState == ImageSyncState.PENDING) {
+                        ref.copy(localPhotoPath = uploadOutbox.localPathForStoragePath(ref.photoStoragePath))
+                    } else {
+                        ref
+                    }
+                },
+            )
+        },
+    )
+
+    private fun Order.withCompletedUploadPatches(): Order = copy(
+        items = applyCompletedOrderUploadPatches(
+            order = this,
+            completedUrlForStoragePath = uploadOutbox::completedUrlForStoragePath,
+        ).items,
+    )
+
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         ordersCollection(userId)
             .snapshots()
             .map { snapshot ->
                 val orders = snapshot.documents
                     .mapNotNull { doc ->
-                        runCatching { doc.data<OrderDto>().toOrder(userId) }.getOrNull()
+                        runCatching {
+                            doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+                                .toOrder(userId)
+                                .withLocalPendingImages()
+                        }.getOrNull()
                     }
                     // Filter archived orders client-side. The GitLive Firebase
                     // SDK doesn't support `whereEqualTo(field, null)` cleanly
@@ -86,8 +175,8 @@ class FirebaseOrderRepository(
                 if (!snapshot.exists) {
                     Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
                 } else {
-                    val dto = snapshot.data<OrderDto>()
-                    Result.Success(dto.toOrder(userId)) as Result<Order, DataError.Network>
+                    val dto = snapshot.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+                    Result.Success(dto.toOrder(userId).withLocalPendingImages()) as Result<Order, DataError.Network>
                 }
             }
             .catch { throwable ->
@@ -102,8 +191,8 @@ class FirebaseOrderRepository(
         return try {
             val doc = ordersCollection(userId).document(orderId).get()
             if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
-            val dto = doc.data<OrderDto>()
-            Result.Success(dto.toOrder(userId))
+            val dto = doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+            Result.Success(dto.toOrder(userId).withLocalPendingImages())
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "getOrder failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -119,27 +208,27 @@ class FirebaseOrderRepository(
         } else {
             ordersCollection(userId).document(order.id)
         }
-        return try {
-            val dto = order.toOrderDto().copy(id = docRef.id)
+        val dto = order.withCompletedUploadPatches().toOrderDto().copy(id = docRef.id)
+        val accepted = offlineWrites.enqueue("createOrder orderId=${docRef.id}") {
             docRef.set(dto)
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "createOrder failed orderId=${docRef.id}" }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun updateOrder(
         userId: String,
         order: Order
     ): EmptyResult<DataError.Network> {
-        return try {
-            ordersCollection(userId).document(order.id).set(order.toOrderDto())
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "updateOrder failed orderId=${order.id}" }
-            Result.Error(DataError.Network.UNKNOWN)
+        val accepted = offlineWrites.enqueue("updateOrder orderId=${order.id}") {
+            ordersCollection(userId).document(order.id).set(order.withCompletedUploadPatches().toOrderDto())
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun updateOrderStatus(
@@ -147,71 +236,46 @@ class FirebaseOrderRepository(
         orderId: String,
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network> {
-        return try {
-            val docRef = ordersCollection(userId).document(orderId)
-            // Capture once outside the transaction body — Firestore retries on
-            // concurrent modification, and we want a stable timestamp tied to
-            // when the user took the action, not to which retry attempt won.
-            val now = Clock.System.now().toEpochMilliseconds()
-            val notFound = firestore.runTransaction {
-                val snap = get(docRef)
-                if (!snap.exists) return@runTransaction true
-                val dto = snap.data<OrderDto>()
-                val updatedDto = dto.copy(
-                    status = newStatus.name,
-                    statusHistory = dto.statusHistory + StatusChangeDto(
-                        status = newStatus.name,
-                        changedAt = now
-                    ),
-                    updatedAt = now
-                )
-                set(docRef, updatedDto)
-                false
-            }
-            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "updateOrderStatus failed orderId=$orderId" }
-            Result.Error(DataError.Network.UNKNOWN)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val change = com.danzucker.stitchpad.core.data.dto.StatusChangeDto(status = newStatus.name, changedAt = now)
+        val accepted = offlineWrites.enqueue("updateOrderStatus orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                "status" to newStatus.name,
+                "statusHistory" to FieldValue.arrayUnion(change),
+                "updatedAt" to now,
+            )
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun recordPayment(
         userId: String,
         orderId: String,
         payment: Payment,
+        knownPayments: List<Payment>,
     ): EmptyResult<DataError.Network> {
-        return try {
-            val docRef = ordersCollection(userId).document(orderId)
-            // Capture once outside runTransaction so retries don't shift the
-            // recordedAt/updatedAt timestamps — the value reflects when the
-            // user tapped Save, not which retry won the race.
-            val now = Clock.System.now().toEpochMilliseconds()
-            val stampedPayment = payment.copy(recordedAt = now)
-            val notFound = firestore.runTransaction {
-                val snap = get(docRef)
-                if (!snap.exists) return@runTransaction true
-                val dto = snap.data<OrderDto>()
-                // Absorb any legacy depositPaid into the payments list BEFORE
-                // appending the new one — otherwise zeroing depositPaid below
-                // permanently drops the legacy deposit.
-                val migratedPayments = migrateLegacyDeposit(
-                    payments = dto.payments,
-                    depositPaid = dto.depositPaid,
-                    createdAt = dto.createdAt,
-                )
-                val updatedDto = dto.copy(
-                    payments = migratedPayments + stampedPayment.toPaymentDto(),
-                    depositPaid = 0.0,
-                    updatedAt = now,
-                )
-                set(docRef, updatedDto)
-                false
-            }
-            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "recordPayment failed orderId=$orderId" }
-            Result.Error(DataError.Network.UNKNOWN)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val stampedPayment = payment.copy(recordedAt = payment.recordedAt.takeIf { it > 0L } ?: now)
+        val paymentsToAppend = paymentDtosForOfflineAppend(stampedPayment, knownPayments)
+        val paymentsArrayUnion = if (paymentsToAppend.size == 1) {
+            FieldValue.arrayUnion(paymentsToAppend.first())
+        } else {
+            FieldValue.arrayUnion(paymentsToAppend[0], paymentsToAppend[1])
         }
+        val accepted = offlineWrites.enqueue("recordPayment orderId=$orderId paymentId=${payment.id}") {
+            ordersCollection(userId).document(orderId).update(
+                "payments" to paymentsArrayUnion,
+                "depositPaid" to 0.0,
+                "updatedAt" to now,
+            )
+        }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun updateSubStatus(
@@ -219,21 +283,17 @@ class FirebaseOrderRepository(
         orderId: String,
         subStatus: OrderSubStatus?,
     ): EmptyResult<DataError.Network> {
-        return try {
-            val docRef = ordersCollection(userId).document(orderId)
-            val now = Clock.System.now().toEpochMilliseconds()
-            val notFound = firestore.runTransaction {
-                val snap = get(docRef)
-                if (!snap.exists) return@runTransaction true
-                val dto = snap.data<OrderDto>()
-                set(docRef, dto.copy(subStatus = subStatus?.name, updatedAt = now))
-                false
-            }
-            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "updateSubStatus failed orderId=$orderId" }
-            Result.Error(DataError.Network.UNKNOWN)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val accepted = offlineWrites.enqueue("updateSubStatus orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                "subStatus" to (subStatus?.name ?: FieldValue.delete),
+                "updatedAt" to now,
+            )
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun updateNotes(
@@ -241,92 +301,69 @@ class FirebaseOrderRepository(
         orderId: String,
         notes: String?,
     ): EmptyResult<DataError.Network> {
-        return try {
-            val docRef = ordersCollection(userId).document(orderId)
-            val now = Clock.System.now().toEpochMilliseconds()
-            val notFound = firestore.runTransaction {
-                val snap = get(docRef)
-                if (!snap.exists) return@runTransaction true
-                val dto = snap.data<OrderDto>()
-                set(docRef, dto.copy(notes = notes, updatedAt = now))
-                false
-            }
-            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "updateNotes failed orderId=$orderId" }
-            Result.Error(DataError.Network.UNKNOWN)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val accepted = offlineWrites.enqueue("updateNotes orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                "notes" to (notes ?: FieldValue.delete),
+                "updatedAt" to now,
+            )
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun archiveOrder(
         userId: String,
         orderId: String,
     ): EmptyResult<DataError.Network> {
-        return try {
-            val docRef = ordersCollection(userId).document(orderId)
-            val now = Clock.System.now().toEpochMilliseconds()
-            val notFound = firestore.runTransaction {
-                val snap = get(docRef)
-                if (!snap.exists) return@runTransaction true
-                val dto = snap.data<OrderDto>()
-                set(docRef, dto.copy(archivedAt = now, updatedAt = now))
-                false
-            }
-            if (notFound) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "archiveOrder failed orderId=$orderId" }
-            Result.Error(DataError.Network.UNKNOWN)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val accepted = offlineWrites.enqueue("archiveOrder orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                "archivedAt" to now,
+                "updatedAt" to now,
+            )
         }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun deleteOrder(
         userId: String,
-        orderId: String
+        orderId: String,
+        ownedStoragePaths: List<String>,
     ): EmptyResult<DataError.Network> {
-        return try {
-            deleteFabricPhotosFor(userId, orderId)
-            ordersCollection(userId).document(orderId).delete()
-            Result.Success(Unit)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "deleteOrder failed orderId=$orderId" }
-            Result.Error(DataError.Network.UNKNOWN)
+        ownedStoragePaths.forEach { path ->
+            runCatching { deleteOrderImagePath(path) }
+                .onFailure { throwable ->
+                    AppLogger.w(tag = TAG, throwable = throwable) {
+                        "deleteOrder image cleanup enqueue failed path=$path"
+                    }
+                }
         }
+        val accepted = offlineWrites.enqueue("deleteOrder orderId=$orderId") {
+            ordersCollection(userId).document(orderId).delete()
+        }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
     }
 
-    private suspend fun deleteFabricPhotosFor(userId: String, orderId: String) {
-        runCatching {
-            val doc = ordersCollection(userId).document(orderId).get()
-            if (!doc.exists) return@runCatching
-            val dto = doc.data<OrderDto>()
-            dto.items.forEach { item ->
-                val path = item.fabricPhotoStoragePath
-                if (!path.isNullOrBlank()) {
-                    runCatching { storage.reference.child(path).delete() }
-                }
-                val stylePath = item.stylePhotoStoragePath
-                if (!stylePath.isNullOrBlank()) {
-                    runCatching { storage.reference.child(stylePath).delete() }
-                }
-                // PTSP-11 multi-image cleanup
-                item.fabricImages.forEach { ref ->
-                    val p = ref.photoStoragePath
-                    if (p.isNotBlank()) {
-                        runCatching { storage.reference.child(p).delete() }
-                    }
-                }
-                // Iterate ALL styleImages refs and delete any that own a storage
-                // path. LIBRARY-source refs have photoStoragePath = null (the image
-                // lives on the Style entity in the customer's gallery, with its own
-                // lifecycle), so they're naturally excluded. Avoids coupling the DTO
-                // string field to the domain enum's .name (BugBot).
-                item.styleImages.forEach { ref ->
-                    val p = ref.photoStoragePath
-                    if (!p.isNullOrBlank()) {
-                        runCatching { storage.reference.child(p).delete() }
-                    }
-                }
-            }
-        }
+    private suspend fun deleteOrderImagePath(storagePath: String) {
+        uploadOutbox.cancel(uploadJobId(OfflineUploadJobType.ORDER_FABRIC_IMAGE, storagePath))
+        uploadOutbox.cancel(uploadJobId(OfflineUploadJobType.ORDER_STYLE_IMAGE, storagePath))
+        uploadOutbox.enqueue(
+            OfflineUploadJob(
+                id = uploadJobId(OfflineUploadJobType.STORAGE_DELETE, storagePath),
+                type = OfflineUploadJobType.STORAGE_DELETE,
+                userId = "",
+                storagePath = storagePath,
+            )
+        )
     }
 
     override fun newOrderId(userId: String): String =
@@ -373,14 +410,18 @@ class FirebaseOrderRepository(
         orderId: String,
         itemId: String,
         photoBytesList: List<ByteArray>,
-    ): Result<List<Pair<String, String>>, DataError.Network> =
-        uploadPhotos(
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        return uploadPhotos(
+            userId = userId,
+            orderId = orderId,
             itemId = itemId,
             photoBytesList = photoBytesList,
             operationName = "uploadFabricPhotos",
+            jobType = OfflineUploadJobType.ORDER_FABRIC_IMAGE,
         ) { suffix ->
             fabricStoragePath(userId, orderId, itemId, suffix)
         }
+    }
 
     @OptIn(ExperimentalUuidApi::class)
     @Suppress("ReturnCount")
@@ -389,21 +430,28 @@ class FirebaseOrderRepository(
         orderId: String,
         itemId: String,
         photoBytesList: List<ByteArray>,
-    ): Result<List<Pair<String, String>>, DataError.Network> =
-        uploadPhotos(
+    ): Result<List<Pair<String, String>>, DataError.Network> {
+        return uploadPhotos(
+            userId = userId,
+            orderId = orderId,
             itemId = itemId,
             photoBytesList = photoBytesList,
             operationName = "uploadStylePhotos",
+            jobType = OfflineUploadJobType.ORDER_STYLE_IMAGE,
         ) { suffix ->
             styleStoragePath(userId, orderId, itemId, suffix)
         }
+    }
 
     @OptIn(ExperimentalUuidApi::class)
     @Suppress("ReturnCount")
     private suspend fun uploadPhotos(
+        userId: String,
+        orderId: String,
         itemId: String,
         photoBytesList: List<ByteArray>,
         operationName: String,
+        jobType: OfflineUploadJobType,
         storagePath: (suffix: String) -> String,
     ): Result<List<Pair<String, String>>, DataError.Network> {
         if (photoBytesList.isEmpty()) return Result.Success(emptyList())
@@ -415,9 +463,19 @@ class FirebaseOrderRepository(
             val suffix = Uuid.random().toString().take(8)
             val path = storagePath(suffix)
             try {
-                storage.reference.child(path).putData(bytes.toStorageData())
-                val downloadUrl = storage.reference.child(path).getDownloadUrl()
-                results += downloadUrl to path
+                val localPath = photoStore.save(bytes, "$operationName-$suffix.jpg")
+                results += localPath to path
+                uploadOutbox.enqueue(
+                    OfflineUploadJob(
+                        id = uploadJobId(jobType, path),
+                        type = jobType,
+                        userId = userId,
+                        storagePath = path,
+                        localPath = localPath,
+                        orderId = orderId,
+                        itemId = itemId,
+                    )
+                )
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 AppLogger.e(tag = TAG, throwable = e) { "$operationName failed itemId=$itemId suffix=$suffix" }
                 return Result.Error(DataError.Network.UNKNOWN)
@@ -427,7 +485,9 @@ class FirebaseOrderRepository(
     }
 
     suspend fun deleteFabricPhoto(storagePath: String) {
-        runCatching { storage.reference.child(storagePath).delete() }
+        runCatching {
+            deleteOrderImagePath(storagePath)
+        }
             .onFailure { throwable ->
                 AppLogger.w(tag = TAG, throwable = throwable) { "deleteFabricPhoto failed" }
             }
@@ -437,7 +497,9 @@ class FirebaseOrderRepository(
         paths: List<String>,
     ): EmptyResult<DataError.Network> {
         paths.filter { it.isNotBlank() }.forEach { path ->
-            runCatching { storage.reference.child(path).delete() }
+            runCatching {
+                deleteOrderImagePath(path)
+            }
         }
         return Result.Success(Unit)
     }

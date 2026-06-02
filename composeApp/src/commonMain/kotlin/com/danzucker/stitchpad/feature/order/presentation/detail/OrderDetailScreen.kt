@@ -824,6 +824,12 @@ private fun OrderDetailContent(
     val garmentName = firstItem?.let { garmentDisplayName(it) }.orEmpty()
     val primaryFieldLabels = firstItem?.garmentType?.fieldLabels?.take(3).orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
+    val styleImageUrls: List<String> = firstItem?.styleImages.orEmpty().mapNotNull { ref ->
+        when (ref.source) {
+            StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.let { it.localPhotoPath ?: it.photoUrl }
+            StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
+        }
+    }
 
     LazyColumn(
         state = listState,
@@ -831,15 +837,7 @@ private fun OrderDetailContent(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
     ) {
         item {
-            val firstItem = state.order?.items?.firstOrNull()
-            val styleImageUrls: List<String> = firstItem?.styleImages.orEmpty().mapNotNull { ref ->
-                when (ref.source) {
-                    StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.photoUrl
-                    StyleImageSource.UPLOADED -> ref.photoUrl
-                }
-            }
             OrderHeroCard(
-                styleImageUrls = styleImageUrls,
                 garmentTypeIcon = Icons.Default.Checkroom,
                 garmentName = garmentName,
                 customerName = order.customerName,
@@ -854,8 +852,17 @@ private fun OrderDetailContent(
                 cta = cta,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
-                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
                 onSetDeadlineClick = { onAction(OrderDetailAction.OnSetDeadlineClick) },
+            )
+        }
+        item {
+            OrderGarmentDetailsCard(
+                items = order.items,
+                priority = order.priority,
+                styleImageUrls = styleImageUrls,
+                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
+                onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
+                onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }
         item {
@@ -867,14 +874,6 @@ private fun OrderDetailContent(
                 onCallClick = { onAction(OrderDetailAction.OnCallClick) },
                 onAddPhoneClick = { onAction(OrderDetailAction.OnAddPhoneClick) },
                 onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
-            )
-        }
-        item {
-            OrderGarmentDetailsCard(
-                items = order.items,
-                priority = order.priority,
-                onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
-                onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }
         item {
@@ -945,10 +944,10 @@ private fun handlePrimaryCta(cta: PrimaryCta, onAction: (OrderDetailAction) -> U
     }
 }
 
-private fun handleSecondaryCta(cta: SecondaryCta, onAction: (OrderDetailAction) -> Unit) {
+private fun handleSecondaryCta(cta: SecondaryCta?, onAction: (OrderDetailAction) -> Unit) {
     when (cta) {
+        null -> Unit
         SecondaryCta.RecordPayment -> onAction(OrderDetailAction.OnRecordPaymentClick)
-        SecondaryCta.MessageCustomer -> onAction(OrderDetailAction.OnWhatsAppClick)
         SecondaryCta.StartWork,
         SecondaryCta.UpdateStatus,
         SecondaryCta.MarkDelivered -> onAction(OrderDetailAction.OnUpdateStatusClick)

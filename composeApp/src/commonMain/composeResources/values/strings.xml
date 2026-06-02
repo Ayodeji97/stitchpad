@@ -176,7 +176,7 @@
     <string name="customer_search_hint">Search by name or phone…</string>
     <string name="customer_empty_state">No customers yet. Tap + to add one.</string>
     <string name="customer_empty_state_title">No customers yet</string>
-    <string name="customer_empty_state_subtitle">Tap the + button to add your first customer</string>
+    <string name="customer_empty_state_subtitle">Tap to add your first customer</string>
     <string name="customer_search_no_results_title">Customer not found</string>
     <string name="customer_search_no_results_subtitle">No saved customer matches “%1$s”. Try a different name or phone number.</string>
     <string name="customer_search_clear_cd">Clear search</string>
@@ -232,7 +232,9 @@
     <string name="customer_form_address_label">Address (optional)</string>
     <string name="customer_form_address_placeholder">15 Adeola Odeku St, Lagos…</string>
     <string name="customer_form_add_measurements_next">Add measurements next</string>
+    <string name="customer_form_add_measurements_helper">We&apos;ll save them, then take you to their measurements.</string>
     <string name="customer_form_save_button">Save Customer</string>
+    <string name="customer_form_save_and_measure_button">Save &amp; Add Measurements</string>
 
     <!-- Customer errors -->
     <string name="error_customer_not_found">Customer not found</string>
@@ -255,7 +257,7 @@
 
     <!-- Customer detail screen -->
     <string name="customer_detail_measurements_section">Measurements</string>
-    <string name="customer_detail_no_measurements">No measurements yet. Tap + to record one.</string>
+    <string name="customer_detail_no_measurements">No measurements yet. Tap to record one.</string>
     <string name="cd_edit_customer">Edit customer</string>
 
     <!-- Garment type names -->
@@ -326,6 +328,8 @@
     <string name="measurement_add_title">Add Measurements</string>
     <string name="measurement_edit_title">Edit Measurements</string>
     <string name="measurement_save_button">Save Measurements</string>
+    <string name="measurement_create_flow_save_button">Save</string>
+    <string name="measurement_skip_for_now">Skip for now</string>
     <string name="measurement_garment_type_label">Garment type</string>
     <string name="measurement_gender_label">Gender</string>
     <string name="measurement_body_shape_label">Body shape (optional)</string>
@@ -333,6 +337,8 @@
     <string name="measurement_show_more_count">Show %1$d more</string>
     <string name="measurement_show_less">Show less</string>
     <string name="measurement_section_of">%1$d of %2$d</string>
+    <string name="measurement_custom_step">Custom measurement</string>
+    <string name="measurement_go_to_section">Go to section %1$d</string>
     <string name="measurement_previous">Previous</string>
     <string name="measurement_next">Next</string>
     <string name="measurement_add_note">Add a note (optional)</string>
@@ -442,7 +448,7 @@
     <!-- Order list screen -->
     <string name="order_list_title">Orders</string>
     <string name="order_empty_title">No orders yet</string>
-    <string name="order_empty_subtitle">Tap the + button to create your first order</string>
+    <string name="order_empty_subtitle">Tap to create your first order</string>
     <string name="order_empty_pending_title">No pending orders</string>
     <string name="order_empty_in_progress_title">No orders in progress</string>
     <string name="order_empty_ready_title">No orders ready</string>
@@ -942,7 +948,6 @@
     <string name="order_detail_archive_confirm_cta">Archive</string>
     <string name="order_archived_snackbar">Order archived</string>
     <string name="order_detail_send_reminder">Send reminder</string>
-    <string name="order_detail_message_customer">Message customer</string>
     <string name="order_detail_mark_delivered">Mark delivered</string>
     <string name="order_detail_confirm_fitting">Confirm fitting</string>
     <string name="order_detail_start_work">Start work</string>

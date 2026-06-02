@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -41,6 +42,7 @@ class MeasurementFormViewModel(
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
     private val measurementId: String? = savedStateHandle["measurementId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
+    private val fromCustomerCreation: Boolean = savedStateHandle["fromCustomerCreation"] ?: false
 
     private var hasLoadedInitialData = false
 
@@ -49,7 +51,12 @@ class MeasurementFormViewModel(
     // (not from the already-filtered state, which would lose other-gender fields).
     private var allCustomFields: List<CustomMeasurementField> = emptyList()
 
-    private val _state = MutableStateFlow(MeasurementFormState(isEditMode = measurementId != null))
+    private val _state = MutableStateFlow(
+        MeasurementFormState(
+            isEditMode = measurementId != null,
+            fromCustomerCreation = fromCustomerCreation,
+        ),
+    )
 
     private val _events = Channel<MeasurementFormEvent>()
     val events = _events.receiveAsFlow()
@@ -78,7 +85,10 @@ class MeasurementFormViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = MeasurementFormState(isEditMode = measurementId != null)
+            initialValue = MeasurementFormState(
+                isEditMode = measurementId != null,
+                fromCustomerCreation = fromCustomerCreation,
+            )
         )
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -90,7 +100,9 @@ class MeasurementFormViewModel(
             }
             MeasurementFormAction.OnNextSection -> {
                 _state.update { s ->
-                    val next = (s.currentSectionIndex + 1).coerceAtMost(s.sections.size - 1)
+                    // Last page is the custom step at index sections.size, so Next
+                    // walks one past the last default section (sections.size - 1).
+                    val next = (s.currentSectionIndex + 1).coerceAtMost(s.sections.size)
                     s.copy(currentSectionIndex = next, isCurrentSectionExpanded = true)
                 }
             }
@@ -150,6 +162,9 @@ class MeasurementFormViewModel(
             )
             is MeasurementFormAction.OnArchiveCustomFieldConfirm -> archiveCustomField(action.fieldId)
             MeasurementFormAction.OnSaveClick -> save()
+            MeasurementFormAction.OnSkipClick -> {
+                viewModelScope.launch { _events.send(MeasurementFormEvent.SkipMeasurements) }
+            }
             MeasurementFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateBack) }
             }
@@ -447,13 +462,19 @@ class MeasurementFormViewModel(
         measurementId: String,
     ) {
         val linkOrderId = linkToOrderId ?: return
-        val order = (orderRepository.getOrder(userId, linkOrderId) as? Result.Success)?.data
+        val order = withTimeoutOrNull(LINK_ORDER_READ_TIMEOUT_MS) {
+            (orderRepository.getOrder(userId, linkOrderId) as? Result.Success)?.data
+        }
         val firstItem = order?.items?.firstOrNull()
         if (order != null && firstItem != null) {
             val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) +
                 order.items.drop(1)
             orderRepository.updateOrder(userId, order.copy(items = updatedItems))
         }
+    }
+
+    private companion object {
+        const val LINK_ORDER_READ_TIMEOUT_MS = 750L
     }
 
     @OptIn(ExperimentalUuidApi::class)

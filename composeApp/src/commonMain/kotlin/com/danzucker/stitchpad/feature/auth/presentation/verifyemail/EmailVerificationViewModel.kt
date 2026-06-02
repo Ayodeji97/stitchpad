@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
@@ -44,8 +45,16 @@ class EmailVerificationViewModel(
             // Send a fresh link on every entry to this route (signup, login, or
             // splash re-entry) so the on-screen "we sent a link" copy is always
             // accurate and the user never has to rely on an expired link.
-            // Best-effort — failures are silent here; Resend is the retry path.
-            authRepository.sendEmailVerification()
+            // Start the cooldown on success — and also when the server says we're
+            // throttled (a recent send within its 60s window) — so the Resend
+            // button reflects the real server state instead of looking enabled
+            // and erroring on tap. On other failures (e.g. network) leave Resend
+            // enabled so the user can retry.
+            val result = authRepository.sendEmailVerification()
+            val throttled = result is Result.Error && result.error == AuthError.TOO_MANY_REQUESTS
+            if (result is Result.Success || throttled) {
+                startCooldown()
+            }
         }
     }
 

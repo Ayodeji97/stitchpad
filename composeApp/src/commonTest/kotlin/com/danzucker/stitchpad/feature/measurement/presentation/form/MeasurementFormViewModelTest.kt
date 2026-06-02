@@ -65,10 +65,12 @@ class MeasurementFormViewModelTest {
     private fun TestScope.createViewModel(
         customerId: String = "customer-1",
         measurementId: String? = null,
+        fromCustomerCreation: Boolean = false,
     ): MeasurementFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
             if (measurementId != null) put("measurementId", measurementId)
+            put("fromCustomerCreation", fromCustomerCreation)
         }
         val vm = MeasurementFormViewModel(
             savedStateHandle = SavedStateHandle(args),
@@ -267,12 +269,24 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun onNextSection_doesNotExceedLastSection() = runTest {
+    fun onNextSection_fromLastDefaultSection_landsOnCustomPage() = runTest {
         val vm = createViewModel()
-        val lastIndex = vm.state.value.sections.size - 1
-        vm.onAction(MeasurementFormAction.OnSectionChange(lastIndex))
+        // Capture the expected custom-page index up front so the assertion
+        // doesn't re-read state on its expected side.
+        val customPageIndex = vm.state.value.sections.size
+        vm.onAction(MeasurementFormAction.OnSectionChange(customPageIndex - 1))
         vm.onAction(MeasurementFormAction.OnNextSection)
-        assertEquals(lastIndex, vm.state.value.currentSectionIndex)
+        // Custom page index == sections.size (one past the last default section).
+        assertEquals(customPageIndex, vm.state.value.currentSectionIndex)
+    }
+
+    @Test
+    fun onNextSection_doesNotExceedCustomPage() = runTest {
+        val vm = createViewModel()
+        val customPageIndex = vm.state.value.sections.size
+        vm.onAction(MeasurementFormAction.OnSectionChange(customPageIndex))
+        vm.onAction(MeasurementFormAction.OnNextSection)
+        assertEquals(customPageIndex, vm.state.value.currentSectionIndex)
     }
 
     @Test
@@ -334,6 +348,37 @@ class MeasurementFormViewModelTest {
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnNotesChange("taken after breakfast"))
         assertEquals("taken after breakfast", vm.state.value.notes)
+    }
+
+    // --- Create-flow source awareness (PTSP measurement CTA UX) ---
+
+    @Test
+    fun fromCustomerCreation_arg_surfacesInState() = runTest {
+        val vm = createViewModel(fromCustomerCreation = true)
+        assertTrue(vm.state.value.fromCustomerCreation)
+    }
+
+    @Test
+    fun fromCustomerCreation_defaultsFalse_whenArgAbsent() = runTest {
+        val vm = createViewModel()
+        assertFalse(vm.state.value.fromCustomerCreation)
+    }
+
+    @Test
+    fun onSkipClick_emitsSkipMeasurements_andSavesNothing() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel(fromCustomerCreation = true)
+        vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        // Precondition: canSave is true, so a save WOULD persist here. This makes the
+        // null assertions below prove that skip actively avoids the write, not that
+        // there was simply nothing to save.
+        assertTrue(vm.state.value.canSave)
+
+        vm.onAction(MeasurementFormAction.OnSkipClick)
+
+        assertIs<MeasurementFormEvent.SkipMeasurements>(vm.events.first())
+        assertNull(measurementRepository.lastCreatedMeasurement)
+        assertNull(measurementRepository.lastUpdatedMeasurement)
     }
 
     // --- Save: create mode ---

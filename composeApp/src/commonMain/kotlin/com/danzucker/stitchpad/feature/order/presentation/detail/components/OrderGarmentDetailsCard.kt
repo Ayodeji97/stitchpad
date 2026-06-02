@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +45,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
-import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -57,25 +58,35 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_add_fabric
 import stitchpad.composeapp.generated.resources.order_detail_add_fabric_name
+import stitchpad.composeapp.generated.resources.order_detail_add_style
 import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
 import stitchpad.composeapp.generated.resources.order_detail_quantity
+import stitchpad.composeapp.generated.resources.order_detail_style_caption
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
+import kotlin.math.roundToInt
 
-private val FABRIC_THUMBNAIL_SIZE = 64.dp
-private val FABRIC_PLACEHOLDER_SIZE = 96.dp
+private val REFERENCE_TILE_HEIGHT = 128.dp
+private val REFERENCE_MULTI_TILE_WIDTH = 100.dp
 
 @Composable
 fun OrderGarmentDetailsCard(
     items: List<OrderItem>,
     priority: OrderPriority,
+    styleImageUrls: List<String>,
+    onAddStyleClick: () -> Unit,
     onAddFabricPhotoClick: () -> Unit,
     onAddFabricNameClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
     var viewerStartIndex: Int by remember { mutableIntStateOf(0) }
+    val openViewer: (List<String>, Int) -> Unit = { urls, startIdx ->
+        viewerImages = urls
+        viewerStartIndex = startIdx
+    }
+
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
@@ -87,32 +98,64 @@ fun OrderGarmentDetailsCard(
                 start = DesignTokens.space4,
                 end = DesignTokens.space4,
                 top = DesignTokens.space4,
-                bottom = DesignTokens.space3,
+                bottom = DesignTokens.space4,
             ),
         ) {
-            // Per-item rows. The first row hosts the section header inside its
-            // left column so the fabric strip spans from the top of the card
-            // body and total card height collapses by ~40dp.
+            SectionHeader()
+            Spacer(Modifier.height(DesignTokens.space3))
+
+            val firstNeedsFabricIndex = items.indexOfFirst { needsFabricInfo(it) }
             items.forEachIndexed { index, item ->
                 if (index > 0) {
-                    Spacer(Modifier.height(DesignTokens.space3))
+                    Spacer(Modifier.height(DesignTokens.space4))
                 }
-                val isFirstItemNeedingFabric = items.indexOfFirst { needsFabricInfo(it) } == index
-                val showCta = needsFabricInfo(item) && isFirstItemNeedingFabric
-                GarmentItemRow(
+
+                GarmentTextBlock(
                     item = item,
-                    onAddFabricPhotoClick = if (showCta) onAddFabricPhotoClick else null,
-                    onAddFabricNameClick = if (showCta) onAddFabricNameClick else null,
                     priority = if (index == 0) priority else OrderPriority.NORMAL,
-                    showHeader = index == 0,
-                    onFabricStripClick = { urls, startIdx ->
-                        viewerImages = urls
-                        viewerStartIndex = startIdx
-                    },
                 )
+                Spacer(Modifier.height(DesignTokens.space3))
+
+                if (index == 0) {
+                    // Style is order-level — pair it with the first item's fabric.
+                    Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+                        ReferenceColumn(
+                            label = stringResource(Res.string.order_detail_style_caption),
+                            icon = Icons.Default.Checkroom,
+                            urls = styleImageUrls,
+                            ctaLabel = if (styleImageUrls.isEmpty()) {
+                                Res.string.order_detail_add_style
+                            } else {
+                                null
+                            },
+                            onCtaClick = onAddStyleClick,
+                            onImageClick = openViewer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        FabricColumn(
+                            item = item,
+                            showCta = firstNeedsFabricIndex == index,
+                            onAddFabricPhotoClick = onAddFabricPhotoClick,
+                            onAddFabricNameClick = onAddFabricNameClick,
+                            onImageClick = openViewer,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                } else {
+                    // Additional garment items: fabric only, full width (no style column).
+                    FabricColumn(
+                        item = item,
+                        showCta = firstNeedsFabricIndex == index,
+                        onAddFabricPhotoClick = onAddFabricPhotoClick,
+                        onAddFabricNameClick = onAddFabricNameClick,
+                        onImageClick = openViewer,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }
+
     if (viewerImages.isNotEmpty()) {
         FullScreenImageViewer(
             images = viewerImages,
@@ -124,210 +167,263 @@ fun OrderGarmentDetailsCard(
 }
 
 @Composable
-private fun GarmentItemRow(
+private fun SectionHeader() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
+        SectionIconTile(imageVector = Icons.Default.Checkroom, contentDescription = null)
+        Text(
+            text = stringResource(Res.string.order_detail_garment_section),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun GarmentTextBlock(
     item: OrderItem,
-    onAddFabricPhotoClick: (() -> Unit)?,
-    onAddFabricNameClick: (() -> Unit)?,
     priority: OrderPriority,
-    showHeader: Boolean,
-    onFabricStripClick: (List<String>, Int) -> Unit = { _, _ -> },
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            if (showHeader) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                ) {
-                    SectionIconTile(
-                        imageVector = Icons.Default.Checkroom,
-                        contentDescription = null,
-                    )
-                    Text(
-                        text = stringResource(Res.string.order_detail_garment_section),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.height(DesignTokens.space3))
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-            ) {
-                val garmentLabel = garmentDisplayName(item)
-                Text(
-                    text = garmentLabel,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                if (priority != OrderPriority.NORMAL) {
-                    PriorityPill(priority = priority)
-                }
-            }
-            if (!item.fabricName.isNullOrBlank()) {
-                Spacer(Modifier.height(DesignTokens.space2))
-                Text(
-                    text = item.fabricName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.height(DesignTokens.space2))
-            Text(
-                text = stringResource(Res.string.order_detail_quantity, item.quantity),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (item.description.isNotBlank()) {
-                Spacer(Modifier.height(DesignTokens.space2))
-                Text(
-                    text = item.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            val hasFabricImages = item.fabricImages.isNotEmpty()
-            val needsPhoto = !hasFabricImages && item.fabricPhotoUrl.isNullOrBlank()
-            val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
-            val ctaLabel: StringResource?
-            val ctaCallback: (() -> Unit)?
-            when {
-                needsPhoto -> {
-                    ctaLabel = Res.string.order_detail_add_fabric
-                    ctaCallback = onAddFabricPhotoClick
-                }
-                needsName -> {
-                    ctaLabel = Res.string.order_detail_add_fabric_name
-                    ctaCallback = onAddFabricNameClick
-                }
-                else -> {
-                    ctaLabel = null
-                    ctaCallback = null
-                }
-            }
-            if (ctaLabel != null && ctaCallback != null) {
-                Spacer(Modifier.height(DesignTokens.space1))
-                TextButton(
-                    onClick = ctaCallback,
-                    contentPadding = PaddingValues(0.dp),
-                ) {
-                    Text(
-                        text = stringResource(ctaLabel),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
-
-        // Right column: fabric strip (multi-image) or placeholder.
-        if (item.fabricImages.isNotEmpty()) {
-            FabricStrip(
-                fabricImages = item.fabricImages,
-                onImageClick = onFabricStripClick,
-            )
-        } else if (!item.fabricPhotoUrl.isNullOrBlank()) {
-            // Legacy single-field fallback during double-write window.
-            FabricStrip(
-                fabricImages = listOf(
-                    FabricImageRef(
-                        photoUrl = item.fabricPhotoUrl,
-                        photoStoragePath = item.fabricPhotoStoragePath.orEmpty(),
-                    )
-                ),
-                onImageClick = onFabricStripClick,
-            )
-        } else {
-            FabricPlaceholder()
+        Text(
+            text = garmentDisplayName(item),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (priority != OrderPriority.NORMAL) {
+            PriorityPill(priority = priority)
         }
     }
+    if (!item.fabricName.isNullOrBlank()) {
+        Spacer(Modifier.height(DesignTokens.space2))
+        Text(
+            text = item.fabricName,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    Spacer(Modifier.height(DesignTokens.space2))
+    Text(
+        text = stringResource(Res.string.order_detail_quantity, item.quantity),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (item.description.isNotBlank()) {
+        Spacer(Modifier.height(DesignTokens.space2))
+        Text(
+            text = item.description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun FabricColumn(
+    item: OrderItem,
+    showCta: Boolean,
+    onAddFabricPhotoClick: () -> Unit,
+    onAddFabricNameClick: () -> Unit,
+    onImageClick: (List<String>, Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val legacyUrl = item.fabricPhotoUrl
+    val urls = when {
+        item.fabricImages.isNotEmpty() -> item.fabricImages.map { it.localPhotoPath ?: it.photoUrl }
+        !legacyUrl.isNullOrBlank() -> listOf(legacyUrl)
+        else -> emptyList()
+    }
+    val needsPhoto = urls.isEmpty()
+    val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
+    val ctaLabel: StringResource? = when {
+        !showCta -> null
+        needsPhoto -> Res.string.order_detail_add_fabric
+        needsName -> Res.string.order_detail_add_fabric_name
+        else -> null
+    }
+    val onCtaClick: () -> Unit = if (needsPhoto) onAddFabricPhotoClick else onAddFabricNameClick
+
+    ReferenceColumn(
+        label = stringResource(Res.string.order_detail_fabric_caption),
+        icon = Icons.Default.Texture,
+        urls = urls,
+        ctaLabel = ctaLabel,
+        onCtaClick = onCtaClick,
+        onImageClick = onImageClick,
+        modifier = modifier,
+    )
 }
 
 /**
- * Horizontal scrollable strip of fabric thumbnail tiles.
- * Tapping any tile opens the full-screen viewer at that index.
+ * A labeled reference block that fills the width it is given: a mini header (icon + label),
+ * a fixed-height media area, and an optional "Add ..." CTA below. Used for both style and
+ * fabric so the two read as side-by-side peers. Media: a single photo fills the column; 2+
+ * photos scroll horizontally with the next one peeking and a "i/n" count pill; empty shows a
+ * tappable placeholder.
  */
 @Composable
-private fun FabricStrip(
-    fabricImages: List<FabricImageRef>,
+private fun ReferenceColumn(
+    label: String,
+    icon: ImageVector,
+    urls: List<String>,
+    ctaLabel: StringResource?,
+    onCtaClick: () -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val urls = fabricImages.map { it.photoUrl }
-    val caption = stringResource(Res.string.order_detail_fabric_caption)
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-    ) {
-        urls.forEachIndexed { index, url ->
-            Box(
-                modifier = Modifier
-                    .size(FABRIC_THUMBNAIL_SIZE)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    )
-                    .clickable { onImageClick(urls, index) },
-            ) {
-                SubcomposeAsyncImage(
-                    model = url,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    loading = {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            LoadingDots(dotSize = 6.dp)
-                        }
-                    },
-                    modifier = Modifier
-                        .size(FABRIC_THUMBNAIL_SIZE)
-                        .clip(RoundedCornerShape(DesignTokens.radiusMd)),
+    Column(modifier = modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(13.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(DesignTokens.space2))
+
+        when {
+            urls.isEmpty() -> ReferencePlaceholder(
+                icon = icon,
+                onClick = if (ctaLabel != null) onCtaClick else null,
+            )
+            urls.size == 1 -> SingleReferenceTile(
+                url = urls[0],
+                contentDescription = label,
+                onClick = { onImageClick(urls, 0) },
+            )
+            else -> MultiReferenceStrip(
+                urls = urls,
+                contentDescription = label,
+                onImageClick = onImageClick,
+            )
+        }
+
+        if (ctaLabel != null) {
+            Spacer(Modifier.height(DesignTokens.space1))
+            TextButton(onClick = onCtaClick, contentPadding = PaddingValues(0.dp)) {
+                Text(
+                    text = stringResource(ctaLabel),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
-                if (index == 0) {
-                    Text(
-                        text = caption,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 4.dp)
-                            .background(
-                                color = Color.Black.copy(alpha = 0.55f),
-                                shape = RoundedCornerShape(DesignTokens.radiusFull),
-                            )
-                            .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
-                    )
-                }
             }
         }
     }
 }
 
 @Composable
-private fun FabricPlaceholder() {
+private fun ReferenceTileImage(url: String, contentDescription: String?) {
+    SubcomposeAsyncImage(
+        model = url,
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Crop,
+        loading = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                LoadingDots(dotSize = 6.dp)
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+@Composable
+private fun SingleReferenceTile(
+    url: String,
+    contentDescription: String?,
+    onClick: () -> Unit,
+) {
     Box(
         modifier = Modifier
-            .size(FABRIC_PLACEHOLDER_SIZE)
-            .background(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-            ),
+            .fillMaxWidth()
+            .height(REFERENCE_TILE_HEIGHT)
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onClick() },
+    ) {
+        ReferenceTileImage(url = url, contentDescription = contentDescription)
+    }
+}
+
+@Composable
+private fun MultiReferenceStrip(
+    urls: List<String>,
+    contentDescription: String?,
+    onImageClick: (List<String>, Int) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    val currentIndex by remember(urls.size) {
+        derivedStateOf { referenceScrollIndex(scrollState.value, scrollState.maxValue, urls.size) }
+    }
+    Box(modifier = Modifier.fillMaxWidth().height(REFERENCE_TILE_HEIGHT)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+            modifier = Modifier.horizontalScroll(scrollState),
+        ) {
+            urls.forEachIndexed { index, url ->
+                Box(
+                    modifier = Modifier
+                        .width(REFERENCE_MULTI_TILE_WIDTH)
+                        .height(REFERENCE_TILE_HEIGHT)
+                        .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onImageClick(urls, index) },
+                ) {
+                    ReferenceTileImage(url = url, contentDescription = contentDescription)
+                }
+            }
+        }
+        Text(
+            text = "${currentIndex + 1}/${urls.size}",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(DesignTokens.space2)
+                .background(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(DesignTokens.radiusFull),
+                )
+                .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun ReferencePlaceholder(icon: ImageVector, onClick: (() -> Unit)?) {
+    val base = Modifier
+        .fillMaxWidth()
+        .height(REFERENCE_TILE_HEIGHT)
+        .clip(RoundedCornerShape(DesignTokens.radiusMd))
+        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+    Box(
+        modifier = if (onClick != null) base.clickable { onClick() } else base,
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Default.Texture,
+            imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
             modifier = Modifier.size(DesignTokens.iconFeature),
@@ -388,12 +484,24 @@ private fun needsFabricInfo(item: OrderItem): Boolean {
     return !hasPhoto || item.fabricName.isNullOrBlank()
 }
 
+/**
+ * Maps the current horizontal scroll offset to the index of the photo the count pill should
+ * highlight, as a progress fraction over the scroll state's REACHABLE range (`maxScrollPx`).
+ * Stride-based math can't reach the final image in a narrow peek-column (the last tiles never
+ * reach the left edge), so we map [0, maxScrollPx] across [0, count-1]. Pure so it's unit-tested.
+ */
+internal fun referenceScrollIndex(scrollPx: Int, maxScrollPx: Int, count: Int): Int {
+    if (count <= 1 || maxScrollPx <= 0) return 0
+    val progress = (scrollPx.toFloat() / maxScrollPx).coerceIn(0f, 1f)
+    return (progress * (count - 1)).roundToInt()
+}
+
 // region — Previews
 
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun OrderGarmentDetailsCardSingleNormalFabricPreview() {
+private fun OrderGarmentDetailsCardOneEachPreview() {
     StitchPadTheme {
         OrderGarmentDetailsCard(
             items = listOf(
@@ -406,7 +514,9 @@ private fun OrderGarmentDetailsCardSingleNormalFabricPreview() {
                     fabricName = "Royal Lace",
                 ),
             ),
-            priority = OrderPriority.NORMAL,
+            priority = OrderPriority.URGENT,
+            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            onAddStyleClick = {},
             onAddFabricPhotoClick = {},
             onAddFabricNameClick = {},
         )
@@ -416,7 +526,7 @@ private fun OrderGarmentDetailsCardSingleNormalFabricPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun OrderGarmentDetailsCardPhotoSetNameMissingPreview() {
+private fun OrderGarmentDetailsCardMultiStylePreview() {
     StitchPadTheme {
         OrderGarmentDetailsCard(
             items = listOf(
@@ -426,10 +536,16 @@ private fun OrderGarmentDetailsCardPhotoSetNameMissingPreview() {
                     description = "Gold damask",
                     price = 100_000.0,
                     fabricPhotoUrl = "https://example.com/fabric.jpg",
-                    fabricName = null,
+                    fabricName = "Damask",
                 ),
             ),
             priority = OrderPriority.NORMAL,
+            styleImageUrls = listOf(
+                "https://example.com/style1.jpg",
+                "https://example.com/style2.jpg",
+                "https://example.com/style3.jpg",
+            ),
+            onAddStyleClick = {},
             onAddFabricPhotoClick = {},
             onAddFabricNameClick = {},
         )
@@ -439,7 +555,8 @@ private fun OrderGarmentDetailsCardPhotoSetNameMissingPreview() {
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
-private fun OrderGarmentDetailsCardUrgentNoFabricPreview() {
+private fun OrderGarmentDetailsCardAsymmetricPreview() {
+    // Style added, fabric empty — columns must stay aligned at equal height.
     StitchPadTheme {
         OrderGarmentDetailsCard(
             items = listOf(
@@ -451,7 +568,58 @@ private fun OrderGarmentDetailsCardUrgentNoFabricPreview() {
                     fabricPhotoUrl = null,
                 ),
             ),
-            priority = OrderPriority.URGENT,
+            priority = OrderPriority.NORMAL,
+            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            onAddStyleClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderGarmentDetailsCardEmptyPreview() {
+    StitchPadTheme {
+        OrderGarmentDetailsCard(
+            items = listOf(
+                OrderItem(
+                    id = "i1",
+                    garmentType = GarmentType.AGBADA,
+                    description = "Gold damask",
+                    price = 60_000.0,
+                    fabricPhotoUrl = null,
+                ),
+            ),
+            priority = OrderPriority.NORMAL,
+            styleImageUrls = emptyList(),
+            onAddStyleClick = {},
+            onAddFabricPhotoClick = {},
+            onAddFabricNameClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderGarmentDetailsCardDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        OrderGarmentDetailsCard(
+            items = listOf(
+                OrderItem(
+                    id = "i1",
+                    garmentType = GarmentType.SENATOR,
+                    description = "White lace",
+                    price = 85_000.0,
+                    fabricPhotoUrl = "https://example.com/fabric.jpg",
+                    fabricName = "Lace",
+                ),
+            ),
+            priority = OrderPriority.NORMAL,
+            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            onAddStyleClick = {},
             onAddFabricPhotoClick = {},
             onAddFabricNameClick = {},
         )
@@ -471,6 +639,7 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
                     description = "Gold damask with embroidery",
                     price = 100_000.0,
                     fabricPhotoUrl = "https://example.com/fabric1.jpg",
+                    fabricName = "Damask",
                 ),
                 OrderItem(
                     id = "i2",
@@ -481,28 +650,8 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            onAddFabricPhotoClick = {},
-            onAddFabricNameClick = {},
-        )
-    }
-}
-
-@Suppress("UnusedPrivateMember")
-@Preview
-@Composable
-private fun OrderGarmentDetailsCardRushDarkPreview() {
-    StitchPadTheme(darkTheme = true) {
-        OrderGarmentDetailsCard(
-            items = listOf(
-                OrderItem(
-                    id = "i1",
-                    garmentType = GarmentType.AGBADA,
-                    description = "Gold Damask",
-                    price = 120_000.0,
-                    fabricPhotoUrl = null,
-                ),
-            ),
-            priority = OrderPriority.RUSH,
+            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            onAddStyleClick = {},
             onAddFabricPhotoClick = {},
             onAddFabricNameClick = {},
         )
