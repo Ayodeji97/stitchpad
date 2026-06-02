@@ -257,7 +257,7 @@
 
     <!-- Customer detail screen -->
     <string name="customer_detail_measurements_section">Measurements</string>
-    <string name="customer_detail_no_measurements">No measurements yet. Tap + to record one.</string>
+    <string name="customer_detail_no_measurements">No measurements yet. Tap to record one.</string>
     <string name="cd_edit_customer">Edit customer</string>
 
     <!-- Garment type names -->
