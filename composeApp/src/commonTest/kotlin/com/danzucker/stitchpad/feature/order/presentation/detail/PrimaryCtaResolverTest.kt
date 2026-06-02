@@ -52,10 +52,11 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun ready_offersMarkDeliveredPlusMessage() {
+    fun ready_offersMarkDeliveredNoSecondary() {
+        // READY returns a null secondary regardless of balance.
         assertEquals(
-            CtaPair(PrimaryCta.MarkDelivered, SecondaryCta.MessageCustomer),
-            cta(OrderStatus.READY, balance = 80_000.0),
+            CtaPair(PrimaryCta.MarkDelivered, null),
+            cta(OrderStatus.READY),
         )
     }
 
@@ -68,11 +69,11 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun zeroBalance_replacesRecordPaymentWithMessageCustomer() {
-        // When balance is 0 the "Record payment" secondary doesn't make sense
-        // — fall back to "Message customer" so the secondary is still useful.
+    fun zeroBalance_dropsSecondary() {
+        // With nothing to record and Call/WhatsApp already on the Customer card,
+        // the secondary slot is empty — the primary goes full-width.
         assertEquals(
-            CtaPair(PrimaryCta.UpdateStatus, SecondaryCta.MessageCustomer),
+            CtaPair(PrimaryCta.UpdateStatus, null),
             cta(OrderStatus.IN_PROGRESS, sub = OrderSubStatus.CUTTING, balance = 0.0),
         )
     }

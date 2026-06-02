@@ -14,14 +14,13 @@ enum class PrimaryCta {
 
 enum class SecondaryCta {
     RecordPayment,
-    MessageCustomer,
     StartWork,
     UpdateStatus,
     MarkDelivered,
     DuplicateOrder,
 }
 
-data class CtaPair(val primary: PrimaryCta, val secondary: SecondaryCta)
+data class CtaPair(val primary: PrimaryCta, val secondary: SecondaryCta?)
 
 @Suppress("CyclomaticComplexMethod")
 internal fun resolvePrimaryCta(
@@ -33,7 +32,7 @@ internal fun resolvePrimaryCta(
     val balanceSecondary = if (balanceRemaining > 0.0) {
         SecondaryCta.RecordPayment
     } else {
-        SecondaryCta.MessageCustomer
+        null
     }
     return when {
         status == OrderStatus.DELIVERED ->
@@ -51,7 +50,7 @@ internal fun resolvePrimaryCta(
         status == OrderStatus.IN_PROGRESS ->
             CtaPair(PrimaryCta.UpdateStatus, balanceSecondary)
         status == OrderStatus.READY ->
-            CtaPair(PrimaryCta.MarkDelivered, SecondaryCta.MessageCustomer)
+            CtaPair(PrimaryCta.MarkDelivered, null)
         else -> CtaPair(PrimaryCta.UpdateStatus, balanceSecondary) // unreachable
     }
 }
