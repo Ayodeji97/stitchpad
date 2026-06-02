@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -209,7 +210,10 @@ fun CustomerListScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        CustomerEmptyState(modifier = Modifier.fillMaxSize())
+                        CustomerEmptyState(
+                            onClick = { onAction(CustomerListAction.OnAddCustomerClick) },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
                 else -> {
@@ -460,40 +464,55 @@ private fun CustomerSearchField(
 }
 
 @Composable
-private fun CustomerEmptyState(modifier: Modifier = Modifier) {
+private fun CustomerEmptyState(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val addLabel = stringResource(Res.string.customer_fab_cd)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(horizontal = DesignTokens.space8)
     ) {
         Spacer(Modifier.weight(1f))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(DesignTokens.radiusXl))
-                .background(MaterialTheme.colorScheme.primaryContainer)
+        // Tap target is the icon + text cluster, not the whole screen — testers
+        // reach for the icon, and tapping blank space to add a record is surprising.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable(
+                onClickLabel = addLabel,
+                role = Role.Button,
+                onClick = onClick,
+            )
         ) {
-            Icon(
-                imageVector = Icons.Default.Group,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(36.dp)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(DesignTokens.radiusXl))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Group,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            Spacer(Modifier.height(DesignTokens.space4))
+            Text(
+                text = stringResource(Res.string.customer_empty_state_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(DesignTokens.space2))
+            Text(
+                text = stringResource(Res.string.customer_empty_state_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
-        Spacer(Modifier.height(DesignTokens.space4))
-        Text(
-            text = stringResource(Res.string.customer_empty_state_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(Modifier.height(DesignTokens.space2))
-        Text(
-            text = stringResource(Res.string.customer_empty_state_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
         Spacer(Modifier.weight(3f))
     }
 }

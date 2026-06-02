@@ -51,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -231,7 +232,15 @@ fun CustomerDetailScreen(
                     }
                     if (state.measurements.isEmpty()) {
                         item {
+                            // Locked customers are read-only (FAB hidden too), so the empty
+                            // state is inert there. Otherwise tapping it is a shortcut to the
+                            // same action as the FAB — testers reached for the icon first.
                             MeasurementsEmptyState(
+                                onClick = if (state.isLocked) {
+                                    null
+                                } else {
+                                    { onAction(CustomerDetailAction.OnAddMeasurementClick) }
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(DesignTokens.space8)
@@ -386,10 +395,24 @@ private fun MeasurementsSectionHeader() {
 }
 
 @Composable
-private fun MeasurementsEmptyState(modifier: Modifier = Modifier) {
+private fun MeasurementsEmptyState(
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val addLabel = stringResource(Res.string.fab_add_measurement)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
+        modifier = modifier.then(
+            if (onClick != null) {
+                Modifier.clickable(
+                    onClickLabel = addLabel,
+                    role = Role.Button,
+                    onClick = onClick,
+                )
+            } else {
+                Modifier
+            }
+        )
     ) {
         Box(
             contentAlignment = Alignment.Center,

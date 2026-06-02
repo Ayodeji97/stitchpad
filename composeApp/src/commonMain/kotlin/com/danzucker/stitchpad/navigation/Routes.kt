@@ -40,6 +40,7 @@ data class MeasurementFormRoute(
     val customerId: String,
     val measurementId: String? = null,
     val linkToOrderId: String? = null,
+    val fromCustomerCreation: Boolean = false,
 )
 
 @Serializable
