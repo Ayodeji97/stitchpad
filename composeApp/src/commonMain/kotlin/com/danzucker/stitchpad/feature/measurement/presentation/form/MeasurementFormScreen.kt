@@ -375,6 +375,7 @@ fun MeasurementFormScreen(
                     }
                 }
                 if (state.fromCustomerCreation) {
+                    Spacer(Modifier.height(DesignTokens.space1))
                     TextButton(
                         onClick = { onAction(MeasurementFormAction.OnSkipClick) },
                         enabled = !state.isLoading,
@@ -1082,6 +1083,27 @@ private fun MeasurementFormScreenCreateFlowPreview() {
     val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
     val allKeys = sections.flatMap { it.fields }.map { it.key }
     StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                fromCustomerCreation = true,
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                currentSectionIndex = 0,
+                fields = allKeys.associateWith { "" } + mapOf("bust_circumference" to "36"),
+                unit = MeasurementUnit.INCHES,
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenCreateFlowDarkPreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    val allKeys = sections.flatMap { it.fields }.map { it.key }
+    StitchPadTheme(darkTheme = true) {
         MeasurementFormScreen(
             state = MeasurementFormState(
                 fromCustomerCreation = true,

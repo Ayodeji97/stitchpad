@@ -561,3 +561,19 @@ private fun CustomerFormScreenAddMeasurementsUncheckedPreview() {
         )
     }
 }
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerFormScreenAddMeasurementsCheckedDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        CustomerFormScreen(
+            state = CustomerFormState(
+                name = "Amina Bello",
+                phone = "+234 801 234 5678",
+                addMeasurementsNext = true,
+            ),
+            onAction = {}
+        )
+    }
+}
