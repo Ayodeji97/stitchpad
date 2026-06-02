@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.order.presentation.list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
@@ -66,7 +67,7 @@ class OrderListViewModel(
             OrderListAction.OnAddOrderClick -> {
                 viewModelScope.launch {
                     _events.send(
-                        if (userHasCustomers()) {
+                        if (userHasActiveCustomer()) {
                             OrderListEvent.NavigateToOrderForm
                         } else {
                             OrderListEvent.NavigateToAddCustomerFirst
@@ -118,16 +119,18 @@ class OrderListViewModel(
     }
 
     /**
-     * Resolve whether the user has any customer before deciding where the FAB
-     * goes. We await the first customer snapshot rather than reading a cached
-     * flag so a customer-owning user is never misrouted to the add-customer
-     * gate during initial load. On error we fail open to the order form (the
-     * form surfaces whatever's cached) rather than wrongly gating.
+     * Resolve whether the user has a *usable* customer before deciding where the
+     * FAB goes. We match the order form's own picker criteria — only ACTIVE
+     * customers are selectable (LOCKED freemium customers are read-only) — so a
+     * user whose customers are all locked is gated rather than dropped on an
+     * empty picker dead-end. We await the first snapshot rather than reading a
+     * cached flag so a customer-owning user is never misrouted during initial
+     * load, and fail open to the form on error (it surfaces whatever's cached).
      */
-    private suspend fun userHasCustomers(): Boolean {
+    private suspend fun userHasActiveCustomer(): Boolean {
         val userId = authRepository.getCurrentUser()?.id ?: return false
         return when (val result = customerRepository.observeCustomers(userId).first()) {
-            is Result.Success -> result.data.isNotEmpty()
+            is Result.Success -> result.data.any { it.slotState == CustomerSlotState.ACTIVE }
             is Result.Error -> true
         }
     }

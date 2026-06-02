@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,8 +44,17 @@ class OrderListViewModelTest {
         authRepository.signUpWithEmail("t@t.com", "pass", "Ade Bello")
     }
 
-    private fun fakeCustomer(id: String = "c1", name: String = "Ada Lovelace") =
-        Customer(id = id, userId = "test-uid", name = name, phone = "+2348012345678")
+    private fun fakeCustomer(
+        id: String = "c1",
+        name: String = "Ada Lovelace",
+        slotState: CustomerSlotState = CustomerSlotState.ACTIVE,
+    ) = Customer(
+        id = id,
+        userId = "test-uid",
+        name = name,
+        phone = "+2348012345678",
+        slotState = slotState,
+    )
 
     private fun TestScope.createViewModel(): OrderListViewModel {
         val vm = OrderListViewModel(
@@ -70,7 +80,7 @@ class OrderListViewModelTest {
     }
 
     @Test
-    fun onAddOrderClick_withCustomers_emitsNavigateToOrderForm() = runTest {
+    fun onAddOrderClick_withActiveCustomer_emitsNavigateToOrderForm() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())
         val vm = createViewModel()
@@ -78,6 +88,21 @@ class OrderListViewModelTest {
         vm.onAction(OrderListAction.OnAddOrderClick)
 
         assertEquals(OrderListEvent.NavigateToOrderForm, vm.events.first())
+    }
+
+    @Test
+    fun onAddOrderClick_withOnlyLockedCustomers_emitsNavigateToAddCustomerFirst() = runTest {
+        // Locked customers aren't selectable in the order form's picker, so a
+        // user whose customers are all locked must be gated rather than dropped
+        // on an empty picker dead-end.
+        signIn()
+        customerRepository.customersList =
+            listOf(fakeCustomer(slotState = CustomerSlotState.LOCKED))
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnAddOrderClick)
+
+        assertEquals(OrderListEvent.NavigateToAddCustomerFirst, vm.events.first())
     }
 
     @Test
