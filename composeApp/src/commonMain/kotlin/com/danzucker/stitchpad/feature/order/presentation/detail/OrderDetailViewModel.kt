@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -599,7 +600,13 @@ class OrderDetailViewModel(
         _state.update { it.copy(showDeleteDialog = false) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            when (val result = orderRepository.deleteOrder(userId, orderId)) {
+            when (
+                val result = orderRepository.deleteOrder(
+                    userId = userId,
+                    orderId = orderId,
+                    ownedStoragePaths = _state.value.order?.ownedStoragePaths().orEmpty(),
+                )
+            ) {
                 is Result.Success -> _events.send(OrderDetailEvent.OrderDeleted)
                 is Result.Error -> _state.update {
                     it.copy(errorMessage = result.error.toOrderUiText())
@@ -731,7 +738,14 @@ class OrderDetailViewModel(
         }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            when (val res = orderRepository.recordPayment(userId, orderId, payment)) {
+            when (
+                val res = orderRepository.recordPayment(
+                    userId = userId,
+                    orderId = orderId,
+                    payment = payment,
+                    knownPayments = order.payments,
+                )
+            ) {
                 is Result.Success -> {
                     // Optimistically reflect the new payment in local state BEFORE emitting
                     // PaymentRecorded. Otherwise the snackbar's "Share receipt" action can

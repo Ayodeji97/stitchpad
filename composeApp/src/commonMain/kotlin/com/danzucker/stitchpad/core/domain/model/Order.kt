@@ -96,3 +96,18 @@ data class Order(
     /** Outstanding balance. Always recomputed from [totalPrice] and [payments]. */
     val balanceRemaining: Double get() = (totalPrice - depositPaid).coerceAtLeast(0.0)
 }
+
+fun Order.ownedStoragePaths(): List<String> =
+    items
+        .flatMap { item ->
+            buildList {
+                item.fabricPhotoStoragePath?.let(::add)
+                item.stylePhotoStoragePath?.let(::add)
+                item.fabricImages.forEach { add(it.photoStoragePath) }
+                item.styleImages.forEach { ref ->
+                    ref.photoStoragePath?.let(::add)
+                }
+            }
+        }
+        .filter { it.isNotBlank() }
+        .distinct()

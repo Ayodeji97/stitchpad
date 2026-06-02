@@ -27,6 +27,18 @@ internal fun customGarmentUpsertFields(
     "lastUsedAt" to lastUsedAt,
 )
 
+/**
+ * Keep the pre-offline-first ID scheme so existing custom garment docs are
+ * reused after this PR. It does collapse names that differ only by `/` vs `.`,
+ * but changing the encoding would create duplicate picker rows for current users.
+ */
+internal fun sanitizeCustomGarmentDocId(name: String): String =
+    name.lowercase()
+        .replace(Regex("[/.]"), "-")
+        .replace(Regex("-+"), "-")
+        .trim('-')
+        .ifEmpty { "garment-${Clock.System.now().toEpochMilliseconds()}" }
+
 class FirebaseCustomGarmentTypeRepository(
     private val firestore: FirebaseFirestore,
     private val offlineWrites: OfflineWriteDispatcher,
@@ -64,7 +76,7 @@ class FirebaseCustomGarmentTypeRepository(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return Result.Error(DataError.Network.UNKNOWN)
         val now = Clock.System.now().toEpochMilliseconds()
-        val docId = sanitizeDocId(trimmed)
+        val docId = sanitizeCustomGarmentDocId(trimmed)
         val dto = CustomGarmentTypeDto(
             id = docId,
             name = trimmed,
@@ -86,27 +98,6 @@ class FirebaseCustomGarmentTypeRepository(
         }
         return Result.Success(dto.toCustomGarmentType())
     }
-
-    /**
-     * Converts a tailor-typed garment name into a valid Firestore document ID.
-     * Firestore rejects paths containing '/' and treats '.' or '..' as special.
-     * Encode those characters differently so "Iro/Buba" and "Iro.Buba" remain
-     * distinct documents while repeated upserts of the same name stay idempotent.
-     */
-    private fun sanitizeDocId(name: String): String =
-        buildString {
-            for (char in name.lowercase()) {
-                append(
-                    when (char) {
-                        '~' -> "~7e"
-                        '/' -> "~2f"
-                        '.' -> "~2e"
-                        else -> char
-                    }
-                )
-            }
-        }.trim()
-            .ifEmpty { "garment-${Clock.System.now().toEpochMilliseconds()}" }
 
     override suspend fun touch(
         userId: String,

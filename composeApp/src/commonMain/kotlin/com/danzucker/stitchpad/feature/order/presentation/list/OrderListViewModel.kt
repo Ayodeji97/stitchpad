@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -112,7 +113,11 @@ class OrderListViewModel(
         _state.update { it.copy(showDeleteDialog = false, orderToDelete = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = orderRepository.deleteOrder(userId, order.id)
+            val result = orderRepository.deleteOrder(
+                userId = userId,
+                orderId = order.id,
+                ownedStoragePaths = order.ownedStoragePaths(),
+            )
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toOrderUiText()) }
             }

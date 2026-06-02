@@ -18,4 +18,11 @@ class CustomGarmentTypeRepositoryTest {
         assertEquals(1_800L, fields["lastUsedAt"])
         assertFalse(fields.containsKey("createdAt"))
     }
+
+    @Test
+    fun sanitizeCustomGarmentDocId_usesLegacySlashAndDotEncoding() {
+        assertEquals("iro-buba", sanitizeCustomGarmentDocId("Iro/Buba"))
+        assertEquals("iro-buba", sanitizeCustomGarmentDocId("Iro.Buba"))
+        assertEquals("agbada-cap", sanitizeCustomGarmentDocId("Agbada//Cap"))
+    }
 }

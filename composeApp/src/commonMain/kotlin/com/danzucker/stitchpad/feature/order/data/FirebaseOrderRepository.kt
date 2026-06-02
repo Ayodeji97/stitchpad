@@ -30,6 +30,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private const val TAG = "OrderRepo"
+private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
 
 internal fun applyCompletedOrderUploadPatches(
     order: Order,
@@ -65,6 +66,14 @@ internal fun applyCompletedOrderUploadPatches(
         )
     },
 )
+
+internal fun paymentDtosForOfflineAppend(
+    payment: Payment,
+    knownPayments: List<Payment>,
+): List<com.danzucker.stitchpad.core.data.dto.PaymentDto> =
+    (knownPayments.filter { it.id == LEGACY_DEPOSIT_PAYMENT_ID } + payment)
+        .distinctBy { it.id }
+        .map { it.toPaymentDto() }
 
 @Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
@@ -246,12 +255,20 @@ class FirebaseOrderRepository(
         userId: String,
         orderId: String,
         payment: Payment,
+        knownPayments: List<Payment>,
     ): EmptyResult<DataError.Network> {
         val now = Clock.System.now().toEpochMilliseconds()
         val stampedPayment = payment.copy(recordedAt = payment.recordedAt.takeIf { it > 0L } ?: now)
+        val paymentsToAppend = paymentDtosForOfflineAppend(stampedPayment, knownPayments)
+        val paymentsArrayUnion = if (paymentsToAppend.size == 1) {
+            FieldValue.arrayUnion(paymentsToAppend.first())
+        } else {
+            FieldValue.arrayUnion(paymentsToAppend[0], paymentsToAppend[1])
+        }
         val accepted = offlineWrites.enqueue("recordPayment orderId=$orderId paymentId=${payment.id}") {
             ordersCollection(userId).document(orderId).update(
-                "payments" to FieldValue.arrayUnion(stampedPayment.toPaymentDto()),
+                "payments" to paymentsArrayUnion,
+                "depositPaid" to 0.0,
                 "updatedAt" to now,
             )
         }
@@ -316,8 +333,17 @@ class FirebaseOrderRepository(
 
     override suspend fun deleteOrder(
         userId: String,
-        orderId: String
+        orderId: String,
+        ownedStoragePaths: List<String>,
     ): EmptyResult<DataError.Network> {
+        ownedStoragePaths.forEach { path ->
+            runCatching { deleteOrderImagePath(path) }
+                .onFailure { throwable ->
+                    AppLogger.w(tag = TAG, throwable = throwable) {
+                        "deleteOrder image cleanup enqueue failed path=$path"
+                    }
+                }
+        }
         val accepted = offlineWrites.enqueue("deleteOrder orderId=$orderId") {
             ordersCollection(userId).document(orderId).delete()
         }
