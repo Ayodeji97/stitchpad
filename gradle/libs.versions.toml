@@ -32,7 +32,7 @@ material3 = "1.11.0-alpha07"
 coil = "3.4.0"
 napier = "2.7.1"
 peekaboo = "0.5.2"
-turbine = "1.2.0"
+turbine = "1.2.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
