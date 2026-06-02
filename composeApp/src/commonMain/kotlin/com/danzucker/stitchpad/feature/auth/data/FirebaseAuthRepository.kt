@@ -21,10 +21,17 @@ import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
 import dev.gitlive.firebase.auth.OAuthProvider
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 
 private const val TAG = "AuthRepo"
 
+// Every method below catches a generic Exception to map Firebase failures into
+// Result.Error. Each first rethrows CancellationException so structured-concurrency
+// cancellation (e.g. the email-verification polling job cancelled mid-reload by
+// logout, or a ViewModel being cleared) propagates cleanly instead of being
+// swallowed into a bogus Result.Error + error log. Mirrors the same guard in
+// GitLiveVerificationEmailSender.
 @Suppress("TooManyFunctions")
 class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth,
@@ -43,6 +50,8 @@ class FirebaseAuthRepository(
             val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
             firebaseUser.updateProfile(displayName = displayName)
             Result.Success(firebaseUser.toDomainUser())
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "signUpWithEmail failed error=$error" }
@@ -58,6 +67,8 @@ class FirebaseAuthRepository(
             val authResult = firebaseAuth.signInWithEmailAndPassword(email, password)
             val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
             Result.Success(firebaseUser.toDomainUser())
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "signInWithEmail failed error=$error" }
@@ -82,6 +93,8 @@ class FirebaseAuthRepository(
         } catch (e: FirebaseAuthUserCollisionException) {
             AppLogger.e(tag = TAG, throwable = e) { "Google sign-in collision" }
             Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "Google credential exchange failed" }
             Result.Error(e.toAuthError())
@@ -115,6 +128,8 @@ class FirebaseAuthRepository(
         } catch (e: FirebaseAuthUserCollisionException) {
             AppLogger.e(tag = TAG, throwable = e) { "Apple sign-in collision" }
             Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "Apple credential exchange failed" }
             Result.Error(e.toAuthError())
@@ -140,6 +155,8 @@ class FirebaseAuthRepository(
         } catch (e: FirebaseAuthRecentLoginRequiredException) {
             AppLogger.e(tag = TAG, throwable = e) { "deleteAccount requires recent login uid=$uid" }
             Result.Error(AuthError.REQUIRES_RECENT_LOGIN)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "deleteAccount failed uid=$uid" }
             Result.Error(e.toAuthError())
@@ -150,6 +167,8 @@ class FirebaseAuthRepository(
         return try {
             firebaseAuth.sendPasswordResetEmail(email)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "sendPasswordResetEmail failed error=$error" }
@@ -170,6 +189,8 @@ class FirebaseAuthRepository(
         return try {
             user.reload()
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "reloadUser failed error=$error" }
@@ -185,6 +206,8 @@ class FirebaseAuthRepository(
         return try {
             firebaseAuth.signOut()
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "signOut failed" }
             Result.Error(AuthError.UNKNOWN)
@@ -219,6 +242,8 @@ class FirebaseAuthRepository(
             val credential = EmailAuthProvider.credential(email, password)
             user.reauthenticate(credential)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "reauthenticateWithPassword failed error=$error" }
@@ -246,6 +271,8 @@ class FirebaseAuthRepository(
             )
             user.reauthenticate(firebaseCredential)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "reauthenticateWithApple failed error=$error" }
@@ -269,6 +296,8 @@ class FirebaseAuthRepository(
             val credential = GoogleAuthProvider.credential(cred.idToken, cred.accessToken)
             user.reauthenticate(credential)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "reauthenticateWithGoogle failed error=$error" }
@@ -281,6 +310,8 @@ class FirebaseAuthRepository(
         return try {
             user.verifyBeforeUpdateEmail(newEmail)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "updateEmail failed error=$error" }
@@ -293,6 +324,8 @@ class FirebaseAuthRepository(
         return try {
             user.updatePassword(newPassword)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "updatePassword failed error=$error" }
@@ -308,6 +341,8 @@ class FirebaseAuthRepository(
             // user empties the "Your name" field in Edit Profile.
             user.updateProfile(displayName = name?.takeIf { it.isNotBlank() })
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             val error = e.toAuthError()
             AppLogger.e(tag = TAG, throwable = e) { "updateAuthDisplayName failed error=$error" }

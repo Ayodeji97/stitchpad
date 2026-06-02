@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.order.data
 
+import com.danzucker.stitchpad.core.data.dto.PaymentDto
+import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
@@ -70,10 +72,31 @@ internal fun applyCompletedOrderUploadPatches(
 internal fun paymentDtosForOfflineAppend(
     payment: Payment,
     knownPayments: List<Payment>,
-): List<com.danzucker.stitchpad.core.data.dto.PaymentDto> =
+): List<PaymentDto> =
     (knownPayments.filter { it.id == LEGACY_DEPOSIT_PAYMENT_ID } + payment)
         .distinctBy { it.id }
         .map { it.toPaymentDto() }
+
+// gitlive's FieldValue.arrayUnion(vararg Any) does NOT run the kotlinx
+// serializer over its elements — on iOS it hands them straight to native
+// FIRFieldValue, which rejects Kotlin data classes ("Unsupported type:
+// com.danzucker…") and hard-crashes. (set()/toOrderDto() are safe — they
+// serialize the whole DTO via its @Serializable strategy.) arrayUnion elements
+// must therefore be primitive maps. Keys MUST match the matching DTO's
+// @Serializable field names so snapshot reads via OrderDto round-trip.
+internal fun StatusChangeDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "status" to status,
+    "changedAt" to changedAt,
+)
+
+internal fun PaymentDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "id" to id,
+    "amount" to amount,
+    "method" to method,
+    "type" to type,
+    "recordedAt" to recordedAt,
+    "note" to note,
+)
 
 @Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
@@ -237,11 +260,11 @@ class FirebaseOrderRepository(
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network> {
         val now = Clock.System.now().toEpochMilliseconds()
-        val change = com.danzucker.stitchpad.core.data.dto.StatusChangeDto(status = newStatus.name, changedAt = now)
+        val change = StatusChangeDto(status = newStatus.name, changedAt = now)
         val accepted = offlineWrites.enqueue("updateOrderStatus orderId=$orderId") {
             ordersCollection(userId).document(orderId).update(
                 "status" to newStatus.name,
-                "statusHistory" to FieldValue.arrayUnion(change),
+                "statusHistory" to FieldValue.arrayUnion(change.toFirestoreMap()),
                 "updatedAt" to now,
             )
         }
@@ -260,6 +283,7 @@ class FirebaseOrderRepository(
         val now = Clock.System.now().toEpochMilliseconds()
         val stampedPayment = payment.copy(recordedAt = payment.recordedAt.takeIf { it > 0L } ?: now)
         val paymentsToAppend = paymentDtosForOfflineAppend(stampedPayment, knownPayments)
+            .map { it.toFirestoreMap() }
         val paymentsArrayUnion = if (paymentsToAppend.size == 1) {
             FieldValue.arrayUnion(paymentsToAppend.first())
         } else {

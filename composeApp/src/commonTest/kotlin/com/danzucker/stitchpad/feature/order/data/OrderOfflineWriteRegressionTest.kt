@@ -9,12 +9,15 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.data.dto.PaymentDto
+import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class OrderOfflineWriteRegressionTest {
 
@@ -31,6 +34,61 @@ class OrderOfflineWriteRegressionTest {
 
         assertEquals(listOf("legacy-deposit", "new-payment"), dtos.map { it.id })
         assertEquals(listOf(10_000.0, 5_000.0), dtos.map { it.amount })
+    }
+
+    // Regression: gitlive's FieldValue.arrayUnion does not serialize @Serializable
+    // DTOs — passing one crashes iOS with "Unsupported type: com.danzucker…".
+    // arrayUnion elements must be primitive maps whose keys mirror the DTO's
+    // serialized field names so OrderDto snapshot reads still round-trip.
+
+    @Test
+    fun statusChangeDto_toFirestoreMap_matchesDtoFieldsWithPrimitiveValues() {
+        val map = StatusChangeDto(status = "IN_PROGRESS", changedAt = 1_700_000_000_000L)
+            .toFirestoreMap()
+
+        assertEquals(
+            mapOf<String, Any?>(
+                "status" to "IN_PROGRESS",
+                "changedAt" to 1_700_000_000_000L,
+            ),
+            map,
+        )
+        assertAllValuesAreFirestorePrimitives(map)
+    }
+
+    @Test
+    fun paymentDto_toFirestoreMap_matchesDtoFieldsWithPrimitiveValues() {
+        val map = PaymentDto(
+            id = "pay-1",
+            amount = 5_000.0,
+            method = "CASH",
+            type = "DEPOSIT",
+            recordedAt = 1_700_000_000_000L,
+            note = null,
+        ).toFirestoreMap()
+
+        assertEquals(
+            mapOf<String, Any?>(
+                "id" to "pay-1",
+                "amount" to 5_000.0,
+                "method" to "CASH",
+                "type" to "DEPOSIT",
+                "recordedAt" to 1_700_000_000_000L,
+                "note" to null,
+            ),
+            map,
+        )
+        assertAllValuesAreFirestorePrimitives(map)
+    }
+
+    private fun assertAllValuesAreFirestorePrimitives(map: Map<String, Any?>) {
+        map.forEach { (key, value) ->
+            assertTrue(
+                value == null || value is String || value is Long || value is Double || value is Boolean,
+                "Field '$key' is ${value?.let { it::class.simpleName }} — gitlive arrayUnion " +
+                    "rejects non-primitive types on iOS",
+            )
+        }
     }
 
     @Test
