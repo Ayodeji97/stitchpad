@@ -1,8 +1,11 @@
 package com.danzucker.stitchpad.feature.customer.presentation.form
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,7 +22,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,8 +47,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
@@ -63,6 +69,7 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.customer_form_add_measurements_helper
 import stitchpad.composeapp.generated.resources.customer_form_add_measurements_next
 import stitchpad.composeapp.generated.resources.customer_form_address_label
 import stitchpad.composeapp.generated.resources.customer_form_address_placeholder
@@ -72,6 +79,7 @@ import stitchpad.composeapp.generated.resources.customer_form_name_label
 import stitchpad.composeapp.generated.resources.customer_form_name_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_phone_label
 import stitchpad.composeapp.generated.resources.customer_form_phone_placeholder
+import stitchpad.composeapp.generated.resources.customer_form_save_and_measure_button
 import stitchpad.composeapp.generated.resources.customer_form_save_button
 import stitchpad.composeapp.generated.resources.customer_form_title_add
 import stitchpad.composeapp.generated.resources.customer_form_title_edit
@@ -257,16 +265,26 @@ fun CustomerFormScreen(
             Spacer(Modifier.height(DesignTokens.space2))
 
             if (!state.isEditMode) {
-                MeasurementsToggleRow(
+                MeasurementsToggleCard(
                     checked = state.addMeasurementsNext,
                     onToggle = { onAction(CustomerFormAction.OnToggleAddMeasurementsNext) },
                     enabled = !state.isLoading,
                 )
             }
 
+            val showMeasureCta = !state.isEditMode && state.addMeasurementsNext
             SaveButton(
                 isLoading = state.isLoading,
-                label = stringResource(Res.string.customer_form_save_button),
+                label = if (showMeasureCta) {
+                    stringResource(Res.string.customer_form_save_and_measure_button)
+                } else {
+                    stringResource(Res.string.customer_form_save_button)
+                },
+                leadingIcon = if (showMeasureCta) {
+                    Icons.AutoMirrored.Filled.ArrowForward
+                } else {
+                    Icons.Default.Check
+                },
                 onClick = { onAction(CustomerFormAction.OnSaveClick) }
             )
         }
@@ -381,7 +399,8 @@ private fun SaveButton(
     isLoading: Boolean,
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    leadingIcon: ImageVector = Icons.Default.Check,
 ) {
     Button(
         onClick = onClick,
@@ -403,7 +422,7 @@ private fun SaveButton(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = leadingIcon,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -418,31 +437,69 @@ private fun SaveButton(
 }
 
 @Composable
-private fun MeasurementsToggleRow(
+private fun MeasurementsToggleCard(
     checked: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    // Border emphasises when checked (the default + recommended path) so the card
+    // reads as an active, intentional step rather than ignorable fine print.
+    val borderColor = if (checked) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.radiusLg))
+            .border(
+                width = if (checked) 2.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(DesignTokens.radiusLg),
+            )
             .toggleable(
                 value = checked,
                 enabled = enabled,
                 onValueChange = { onToggle() },
                 role = Role.Checkbox,
             )
-            .padding(vertical = DesignTokens.space2)
+            .padding(DesignTokens.space3),
     ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                .background(MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Straighten,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(DesignTokens.iconList),
+            )
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = stringResource(Res.string.customer_form_add_measurements_next),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(Res.string.customer_form_add_measurements_helper),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
-        Spacer(Modifier.width(DesignTokens.space2))
-        Text(
-            text = stringResource(Res.string.customer_form_add_measurements_next),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
     }
 }
 
