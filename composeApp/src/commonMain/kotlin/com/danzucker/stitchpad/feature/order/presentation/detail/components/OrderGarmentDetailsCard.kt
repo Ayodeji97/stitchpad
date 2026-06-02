@@ -76,11 +76,9 @@ fun OrderGarmentDetailsCard(
 ) {
     var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
     var viewerStartIndex: Int by remember { mutableIntStateOf(0) }
-    val openViewer: (List<String>, Int) -> Unit = remember {
-        { urls, startIdx ->
-            viewerImages = urls
-            viewerStartIndex = startIdx
-        }
+    val openViewer: (List<String>, Int) -> Unit = { urls, startIdx ->
+        viewerImages = urls
+        viewerStartIndex = startIdx
     }
 
     Surface(
