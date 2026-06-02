@@ -28,6 +28,10 @@ xcuserdata/
 **/xcshareddata/WorkspaceSettings.xcsettings
 Pods/
 *.xcworkspace
+!**/*.xcodeproj/project.xcworkspace/
+!**/*.xcodeproj/project.xcworkspace/xcshareddata/
+!**/*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+!**/*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Secrets — NEVER commit these
 **/google-services.json
