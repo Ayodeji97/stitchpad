@@ -113,7 +113,13 @@ platform :ios do
     # auth flags all resolve the same absolute path. gym cd's into the xcode
     # project before invoking xcodebuild, so a relative key_path would pass
     # File.exist? from Ruby's CWD then break at the xcodebuild step.
-    key_path = File.expand_path(ENV.fetch("APP_STORE_CONNECT_API_KEY_PATH"))
+    # NOTE: deliberately NOT named APP_STORE_CONNECT_API_KEY_PATH. fastlane's
+    # pilot / latest_testflight_build_number auto-read that env var for their
+    # `api_key_path` option, which expects a *JSON* key file — they'd then
+    # JSON-parse our .p8 and crash with "invalid number: '-----BEGIN'". We pass
+    # the .p8 explicitly to app_store_connect_api_key below, so the env name
+    # just needs to be ours and collision-free. Don't rename it back.
+    key_path = File.expand_path(ENV.fetch("ASC_API_KEY_P8_PATH"))
     UI.user_error!("ASC API key not found at #{key_path}") unless File.exist?(key_path)
 
     app_store_connect_api_key(
