@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.measurement.data.FakeMeasurementPreferencesStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -98,9 +101,15 @@ class MeasurementFormViewModelTest {
         )
         private val _flow = MutableStateFlow(build(initialCanUseCustomMeasurements))
         private var awaitedEntitlements = build(initialCanUseCustomMeasurements)
+        private var shouldAwaitForever = false
         override val flow: StateFlow<UserEntitlements> = _flow
         override fun current(): UserEntitlements = _flow.value
-        override suspend fun awaitHydrated(): UserEntitlements = awaitedEntitlements
+        override suspend fun awaitHydrated(): UserEntitlements {
+            if (shouldAwaitForever) {
+                CompletableDeferred<Unit>().await()
+            }
+            return awaitedEntitlements
+        }
 
         fun setEntitled(can: Boolean) {
             val entitlements = build(can)
@@ -110,6 +119,10 @@ class MeasurementFormViewModelTest {
 
         fun setAwaitedEntitled(can: Boolean) {
             awaitedEntitlements = build(can)
+        }
+
+        fun neverHydrate() {
+            shouldAwaitForever = true
         }
     }
 
@@ -578,6 +591,40 @@ class MeasurementFormViewModelTest {
         val vm = createViewModel()
 
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+
+        assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
+    }
+
+    @Test
+    fun onAddCustomFieldClick_whenHydrationNeverCompletes_fallsBackToCurrentEntitlement() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false).also {
+            it.neverHydrate()
+        }
+        val vm = createViewModel()
+
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+        runCurrent()
+        assertNull(vm.state.value.customFieldSheet)
+
+        advanceTimeBy(2_000L)
+        runCurrent()
+
+        assertNull(vm.state.value.customFieldSheet)
+        assertIs<MeasurementFormEvent.NavigateToUpgrade>(vm.events.first())
+    }
+
+    @Test
+    fun onAddCustomFieldClick_whenHydrationNeverCompletesAndCurrentEntitled_opensSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = true).also {
+            it.neverHydrate()
+        }
+        val vm = createViewModel()
+
+        vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
+        advanceTimeBy(2_000L)
+        runCurrent()
 
         assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
     }
