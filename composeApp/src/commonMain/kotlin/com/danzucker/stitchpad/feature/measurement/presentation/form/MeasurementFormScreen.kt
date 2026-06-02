@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -98,6 +100,7 @@ import stitchpad.composeapp.generated.resources.custom_field_sheet_archive
 import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_add_note
+import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_add_title
 import stitchpad.composeapp.generated.resources.measurement_create_flow_save_button
 import stitchpad.composeapp.generated.resources.measurement_edit_title
@@ -235,7 +238,16 @@ fun MeasurementFormScreen(
                     SectionProgressRow(
                         sections = state.sections,
                         currentIndex = state.currentSectionIndex,
-                        fields = state.fields
+                        fields = state.fields,
+                        customLocked = !state.canUseCustomMeasurements,
+                        // Mirror the dot "has data" rule: light the pill when any
+                        // custom field holds a value that will actually persist.
+                        customHasData = state.customFields.any { f ->
+                            (state.fields[f.id]?.toDoubleOrNull() ?: 0.0) > 0.0
+                        },
+                        onJumpToSection = { index ->
+                            onAction(MeasurementFormAction.OnSectionChange(index))
+                        }
                     )
                     Spacer(Modifier.height(DesignTokens.space2))
                 }
@@ -509,19 +521,26 @@ private fun GenderSelector(
 private fun SectionProgressRow(
     sections: List<MeasurementSection>,
     currentIndex: Int,
-    fields: Map<String, String>
+    fields: Map<String, String>,
+    customLocked: Boolean,
+    customHasData: Boolean,
+    onJumpToSection: (Int) -> Unit,
 ) {
+    val customPageIndex = sections.size
+    val isCustomActive = currentIndex >= customPageIndex
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             sections.forEachIndexed { index, section ->
                 val color = when {
                     index == currentIndex -> MaterialTheme.colorScheme.primary
-                    // Use the same parsable-positive predicate as MeasurementFormState.canSave
-                    // so a dot only lights up for values that will actually persist; otherwise
-                    // typing "0" or "." paints the dot but Save stays disabled (visual contradiction).
+                    // Same parsable-positive predicate as MeasurementFormState.canSave
+                    // so a dot only lights for values that will actually persist.
                     section.fields.any { f ->
                         (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
                     } -> MaterialTheme.colorScheme.primary
@@ -531,13 +550,74 @@ private fun SectionProgressRow(
                     modifier = Modifier
                         .size(8.dp)
                         .background(color = color, shape = CircleShape)
+                        .clickable { onJumpToSection(index) }
                 )
             }
+            CustomStepPill(
+                isActive = isCustomActive,
+                isLocked = customLocked,
+                hasData = customHasData,
+                onClick = { onJumpToSection(customPageIndex) },
+            )
         }
         Text(
-            text = stringResource(Res.string.measurement_section_of, currentIndex + 1, sections.size),
+            text = if (isCustomActive) {
+                stringResource(Res.string.measurement_custom_step)
+            } else {
+                stringResource(Res.string.measurement_section_of, currentIndex + 1, sections.size)
+            },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun CustomStepPill(
+    isActive: Boolean,
+    isLocked: Boolean,
+    hasData: Boolean,
+    onClick: () -> Unit,
+) {
+    // Filled when the step is open or holds data; outlined otherwise.
+    val filled = isActive || hasData
+    val borderColor = when {
+        isLocked -> MaterialTheme.colorScheme.outline
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val containerColor = if (filled && !isLocked) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        Color.Transparent
+    }
+    val contentColor = when {
+        isLocked -> MaterialTheme.colorScheme.onSurfaceVariant
+        filled -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier
+            .background(color = containerColor, shape = RoundedCornerShape(DesignTokens.radiusFull))
+            .border(
+                border = BorderStroke(1.dp, borderColor),
+                shape = RoundedCornerShape(DesignTokens.radiusFull),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+    ) {
+        Icon(
+            imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.Add,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(12.dp),
+        )
+        Text(
+            text = stringResource(Res.string.measurement_custom_step),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = contentColor,
         )
     }
 }
