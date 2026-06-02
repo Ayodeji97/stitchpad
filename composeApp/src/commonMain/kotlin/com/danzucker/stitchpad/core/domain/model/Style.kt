@@ -7,5 +7,7 @@ data class Style(
     val photoUrl: String,
     val photoStoragePath: String,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val syncState: ImageSyncState = ImageSyncState.SYNCED,
+    val localPhotoPath: String? = null,
 )

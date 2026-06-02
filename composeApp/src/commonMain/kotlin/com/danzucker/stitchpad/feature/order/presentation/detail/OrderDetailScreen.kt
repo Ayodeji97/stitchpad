@@ -834,8 +834,10 @@ private fun OrderDetailContent(
             val firstItem = state.order?.items?.firstOrNull()
             val styleImageUrls: List<String> = firstItem?.styleImages.orEmpty().mapNotNull { ref ->
                 when (ref.source) {
-                    StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.photoUrl
-                    StyleImageSource.UPLOADED -> ref.photoUrl
+                    StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.let {
+                        it.localPhotoPath ?: it.photoUrl
+                    }
+                    StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
                 }
             }
             OrderHeroCard(

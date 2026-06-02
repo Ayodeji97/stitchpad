@@ -242,7 +242,7 @@ private fun PhotoSection(
 ) {
     val model: Any? = when {
         state.selectedPhotoBytes != null -> state.selectedPhotoBytes
-        state.existingStyle != null -> state.existingStyle.photoUrl
+        state.existingStyle != null -> state.existingStyle.localPhotoPath ?: state.existingStyle.photoUrl
         else -> null
     }
 

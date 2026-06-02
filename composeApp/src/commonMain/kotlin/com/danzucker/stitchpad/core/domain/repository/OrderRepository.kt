@@ -21,12 +21,17 @@ interface OrderRepository {
         orderId: String,
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network>
-    suspend fun deleteOrder(userId: String, orderId: String): EmptyResult<DataError.Network>
+    suspend fun deleteOrder(
+        userId: String,
+        orderId: String,
+        ownedStoragePaths: List<String> = emptyList(),
+    ): EmptyResult<DataError.Network>
 
     suspend fun recordPayment(
         userId: String,
         orderId: String,
         payment: Payment,
+        knownPayments: List<Payment> = emptyList(),
     ): EmptyResult<DataError.Network>
 
     suspend fun updateSubStatus(

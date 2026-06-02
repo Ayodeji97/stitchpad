@@ -200,6 +200,8 @@ internal class UserDocEntitlementsProvider(
 
     override fun current(): UserEntitlements = _flow.value
 
+    override fun hasHydrated(): Boolean = _hydrated.value
+
     override suspend fun awaitHydrated(): UserEntitlements {
         // No timeout: a wall-clock cutoff would return the default FREE/15 on
         // a merely slow snapshot, falsely blocking Pro/Atelier users with

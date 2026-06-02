@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -755,7 +756,7 @@ class OrderFormViewModel(
      *      • Style + toggle OFF → upload to Firebase Storage, refs become UPLOADED
      *  - On ANY failure → Result.Error so save() aborts (no silent data loss)
      */
-    @Suppress("ReturnCount")
+    @Suppress("LongMethod", "ReturnCount")
     private suspend fun resolveItemImages(
         userId: String,
         customerId: String,
@@ -770,7 +771,14 @@ class OrderFormViewModel(
             photoBytesList = item.uploadedFabricBytesList,
         )
         val uploadedFabric = when (fabricUploadResult) {
-            is Result.Success -> fabricUploadResult.data.map { (url, path) -> FabricImageRef(url, path) }
+            is Result.Success -> fabricUploadResult.data.map { (localPath, path) ->
+                FabricImageRef(
+                    photoUrl = "",
+                    photoStoragePath = path,
+                    syncState = ImageSyncState.PENDING,
+                    localPhotoPath = localPath,
+                )
+            }
             is Result.Error -> return Result.Error(fabricUploadResult.error)
         }
         val finalFabricImages = item.fabricImageRefs + uploadedFabric
@@ -799,11 +807,13 @@ class OrderFormViewModel(
                 photoBytesList = item.uploadedStyleBytesList,
             )
             when (uploadResult) {
-                is Result.Success -> uploadResult.data.map { (url, path) ->
+                is Result.Success -> uploadResult.data.map { (localPath, path) ->
                     StyleImageRef(
                         source = StyleImageSource.UPLOADED,
-                        photoUrl = url,
+                        photoUrl = "",
                         photoStoragePath = path,
+                        syncState = ImageSyncState.PENDING,
+                        localPhotoPath = localPath,
                     )
                 }
                 is Result.Error -> return Result.Error(uploadResult.error)
