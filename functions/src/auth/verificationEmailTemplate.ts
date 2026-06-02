@@ -3,26 +3,27 @@
  * it can be unit-tested without sending anything. Inline styles only — email
  * clients strip <style> blocks and external CSS.
  *
- * Styling follows the Adire Atelier brand: indigo primary, warm-paper surface,
- * saffron as a single heritage accent. Single light design (the warm-paper card
- * renders fine in dark clients), table layout, max-width ~500px.
+ * Adire Atelier brand, clean editorial treatment: white surface, indigo
+ * primary, a serif headline. Single light design, table layout, max-width
+ * ~480px. Short, warm copy.
  */
 
 // Adire Atelier palette (mirrors DesignTokens.kt).
-const INDIGO = '#2C3E7C'; // primary — wordmark, heading, links
+const INDIGO = '#2C3E7C'; // primary — wordmark, serif headline, links
 const INDIGO_CTA = '#1E2B5C'; // CTA fill
-const SAFFRON = '#E8A800'; // heritage accent (single rule)
-const PAPER = '#FAF6EC'; // warm-paper page + header band
-const CARD = '#FFFFFF';
-const INK = '#252320'; // body text
-const MUTED = '#57534C'; // secondary text
-const BORDER = '#E5E3DF';
+const WHITE = '#FFFFFF'; // page + card
+const INK = '#252320'; // greeting
+const MUTED = '#57534C'; // body
+const FAINT = '#A8A49D'; // footer
+const BORDER = '#E5E3DF'; // card border
+const LINE = '#F2F1EF'; // footer divider
 const SUPPORT_EMAIL = 'support@getstitchpad.com';
 const FONT_STACK =
   '\'Plus Jakarta Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif';
+const SERIF_STACK = 'Georgia,\'Times New Roman\',serif';
 
 // Real StitchPad logo mark (notebook + measuring-tape), hosted on Firebase
-// Storage as a PNG (email clients don't render SVG). 512px source, shown ~36px.
+// Storage as a PNG (email clients don't render SVG). 512px source, shown ~34px.
 // The ?token= is a public, read-only Firebase Storage download token for a
 // static brand image (it's embedded in every verification email we send) — not
 // a sensitive credential, hence the gitleaks:allow.
@@ -52,71 +53,48 @@ export function buildVerificationEmailHtml(params: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light only" />
   </head>
-  <body style="margin:0;padding:0;background-color:${PAPER};font-family:${FONT_STACK};">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${PAPER};padding:32px 16px;">
+  <body style="margin:0;padding:0;background-color:${WHITE};font-family:${FONT_STACK};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${WHITE};padding:44px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background-color:${CARD};border:1px solid ${BORDER};border-radius:16px;overflow:hidden;">
-            <!-- Header: logo mark + wordmark on warm paper -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:${WHITE};border:1px solid ${BORDER};border-radius:14px;">
             <tr>
-              <td style="background-color:${PAPER};padding:20px 32px;">
-                <table role="presentation" cellpadding="0" cellspacing="0">
+              <td style="padding:36px 44px 40px;">
+                <!-- Logo + wordmark -->
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">
                   <tr>
                     <td style="vertical-align:middle;padding-right:10px;">
-                      <img src="${escapeHtml(LOGO_URL)}" width="36" height="36" alt="StitchPad"
-                        style="display:block;border:0;outline:none;text-decoration:none;width:36px;height:36px;" />
+                      <img src="${escapeHtml(LOGO_URL)}" width="34" height="34" alt="StitchPad"
+                        style="display:block;border:0;outline:none;text-decoration:none;width:34px;height:34px;" />
                     </td>
                     <td style="vertical-align:middle;">
-                      <span style="font-size:20px;font-weight:800;color:${INDIGO};letter-spacing:-0.3px;">StitchPad</span>
+                      <span style="font-size:18px;font-weight:800;color:${INDIGO};letter-spacing:-0.2px;">StitchPad</span>
                     </td>
                   </tr>
                 </table>
-              </td>
-            </tr>
-            <!-- Saffron heritage rule -->
-            <tr>
-              <td style="height:3px;line-height:3px;font-size:0;background-color:${SAFFRON};">&nbsp;</td>
-            </tr>
-            <!-- Body -->
-            <tr>
-              <td style="padding:32px;">
-                <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:${INDIGO};">Verify your email</h1>
-                <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:${INK};">Hello ${name},</p>
-                <p style="margin:0 0 24px;font-size:15px;line-height:1.5;color:${INK};">
-                  Thanks for signing up for StitchPad. Tap the button below to verify your email address and start managing your tailoring business.
+                <h1 style="margin:0 0 18px;font-family:${SERIF_STACK};font-size:28px;font-weight:700;color:${INDIGO};line-height:1.2;">Welcome to StitchPad</h1>
+                <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:${INK};">Hi ${name},</p>
+                <p style="margin:0 0 30px;font-size:15px;line-height:1.6;color:${MUTED};">
+                  We're happy you signed up. Kindly confirm your email to start managing your workshop on StitchPad.
                 </p>
-                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">
                   <tr>
-                    <td align="center" style="border-radius:12px;background-color:${INDIGO_CTA};">
+                    <td style="border-radius:10px;background-color:${INDIGO_CTA};">
                       <a href="${link}" target="_blank"
-                        style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:12px;">
-                        Verify Email
+                        style="display:inline-block;padding:14px 38px;font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:10px;">
+                        Verify email
                       </a>
                     </td>
                   </tr>
                 </table>
-                <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:${MUTED};">
-                  If the button doesn't work, copy and paste this link into your browser:
-                </p>
-                <p style="margin:0 0 24px;font-size:13px;line-height:1.5;word-break:break-all;">
-                  <a href="${link}" target="_blank" style="color:${INDIGO};">${link}</a>
-                </p>
-                <p style="margin:0;font-size:13px;line-height:1.5;color:${MUTED};">
-                  If you didn't create a StitchPad account, you can safely ignore this email.
-                </p>
-              </td>
-            </tr>
-            <!-- Footer -->
-            <tr>
-              <td style="padding:20px 32px;border-top:1px solid ${BORDER};">
-                <p style="margin:0;font-size:12px;line-height:1.5;color:${MUTED};">
-                  Need help? Reach us at
-                  <a href="mailto:${SUPPORT_EMAIL}" style="color:${INDIGO};">${SUPPORT_EMAIL}</a>.<br />
-                  &copy; StitchPad
+                <p style="margin:0;padding-top:22px;border-top:1px solid ${LINE};font-size:12px;line-height:1.6;color:${FAINT};">
+                  Didn't sign up? You can safely ignore this email.<br />
+                  Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${INDIGO};text-decoration:none;">${SUPPORT_EMAIL}</a>
                 </p>
               </td>
             </tr>
           </table>
+          <p style="max-width:480px;margin:18px auto 0;font-size:11px;color:${FAINT};">&copy; StitchPad</p>
         </td>
       </tr>
     </table>
