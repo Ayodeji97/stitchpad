@@ -12,6 +12,7 @@ sealed interface MeasurementFormAction {
     data class OnFieldChange(val key: String, val value: String) : MeasurementFormAction
     data class OnNotesChange(val notes: String) : MeasurementFormAction
     data object OnSaveClick : MeasurementFormAction
+    data object OnSkipClick : MeasurementFormAction
     data object OnNavigateBack : MeasurementFormAction
     data object OnErrorDismiss : MeasurementFormAction
 

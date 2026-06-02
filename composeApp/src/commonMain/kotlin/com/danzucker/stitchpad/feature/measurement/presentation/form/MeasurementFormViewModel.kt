@@ -42,6 +42,7 @@ class MeasurementFormViewModel(
     private val customerId: String = checkNotNull(savedStateHandle["customerId"])
     private val measurementId: String? = savedStateHandle["measurementId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
+    private val fromCustomerCreation: Boolean = savedStateHandle["fromCustomerCreation"] ?: false
 
     private var hasLoadedInitialData = false
 
@@ -50,7 +51,12 @@ class MeasurementFormViewModel(
     // (not from the already-filtered state, which would lose other-gender fields).
     private var allCustomFields: List<CustomMeasurementField> = emptyList()
 
-    private val _state = MutableStateFlow(MeasurementFormState(isEditMode = measurementId != null))
+    private val _state = MutableStateFlow(
+        MeasurementFormState(
+            isEditMode = measurementId != null,
+            fromCustomerCreation = fromCustomerCreation,
+        ),
+    )
 
     private val _events = Channel<MeasurementFormEvent>()
     val events = _events.receiveAsFlow()
@@ -79,7 +85,10 @@ class MeasurementFormViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = MeasurementFormState(isEditMode = measurementId != null)
+            initialValue = MeasurementFormState(
+                isEditMode = measurementId != null,
+                fromCustomerCreation = fromCustomerCreation,
+            )
         )
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -151,6 +160,9 @@ class MeasurementFormViewModel(
             )
             is MeasurementFormAction.OnArchiveCustomFieldConfirm -> archiveCustomField(action.fieldId)
             MeasurementFormAction.OnSaveClick -> save()
+            MeasurementFormAction.OnSkipClick -> {
+                viewModelScope.launch { _events.send(MeasurementFormEvent.SkipMeasurements) }
+            }
             MeasurementFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(MeasurementFormEvent.NavigateBack) }
             }

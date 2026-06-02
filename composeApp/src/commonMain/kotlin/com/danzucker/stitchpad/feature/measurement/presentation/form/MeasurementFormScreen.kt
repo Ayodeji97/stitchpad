@@ -124,6 +124,9 @@ fun MeasurementFormRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             MeasurementFormEvent.NavigateBack -> onNavigateBack()
+            // Skip lands on the same destination as a successful save: the
+            // customer (already persisted) detail. No measurement is written.
+            MeasurementFormEvent.SkipMeasurements -> onNavigateBack()
             MeasurementFormEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
