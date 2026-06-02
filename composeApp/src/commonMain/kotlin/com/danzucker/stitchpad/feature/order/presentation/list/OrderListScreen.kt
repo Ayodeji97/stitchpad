@@ -107,6 +107,7 @@ import kotlin.time.Clock
 @Composable
 fun OrderListRoot(
     onNavigateToOrderForm: () -> Unit,
+    onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToOrderDetail: (String) -> Unit
 ) {
     val viewModel: OrderListViewModel = koinViewModel()
@@ -116,6 +117,7 @@ fun OrderListRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             OrderListEvent.NavigateToOrderForm -> onNavigateToOrderForm()
+            OrderListEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
             is OrderListEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
         }
     }

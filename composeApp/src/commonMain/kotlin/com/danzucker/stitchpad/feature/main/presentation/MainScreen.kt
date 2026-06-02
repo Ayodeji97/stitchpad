@@ -257,6 +257,9 @@ private fun MainNavGraph(
                 onNavigateToOrderForm = {
                     navController.navigate(OrderFormRoute())
                 },
+                onNavigateToAddCustomerFirst = {
+                    navController.navigate(AddCustomerFirstRoute)
+                },
                 onNavigateToOrderDetail = { orderId ->
                     navController.navigate(OrderDetailRoute(orderId = orderId))
                 }

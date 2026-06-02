@@ -137,8 +137,9 @@ class DashboardViewModel(
             DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
-            DashboardAction.OnNewOrderClick -> emitEvent(DashboardEvent.NavigateToOrderForm)
-            DashboardAction.OnCreateOrderClick -> emitEvent(
+            DashboardAction.OnNewOrderClick,
+            DashboardAction.OnCreateOrderClick,
+            -> emitEvent(
                 if (_state.value.uiState == DashboardUiState.BrandNew) {
                     DashboardEvent.NavigateToAddCustomerFirst
                 } else {
