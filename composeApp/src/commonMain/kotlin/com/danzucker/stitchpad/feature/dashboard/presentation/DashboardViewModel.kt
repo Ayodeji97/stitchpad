@@ -283,12 +283,11 @@ class DashboardViewModel(
                 val ordersResult = combined.ordersResult
                 val customersResult = combined.customersResult
                 val goalResult = combined.goalResult
-                // The Firestore user doc doesn't redundantly store email or displayName
-                // (createUserProfile/buildInitialUserDoc only persist business/profile
-                // fields), so a wholesale replacement would blank Auth identity for new
-                // signups whose snapshot has arrived. Merge: Auth identity wins when
-                // Firestore lacks the field, Firestore-only fields (businessName, logo,
-                // contact) win when present.
+                // The editable profile doc doesn't redundantly store email or
+                // displayName, so a wholesale replacement would blank Auth identity
+                // for new signups whose snapshot has arrived. Merge: Auth identity
+                // wins when Firestore lacks the field, Firestore-only fields
+                // (businessName, logo, contact) win when present.
                 val user = combined.firestoreUser?.copy(
                     email = combined.firestoreUser.email.ifBlank { authUser.email },
                     displayName = combined.firestoreUser.displayName.ifBlank { authUser.displayName },

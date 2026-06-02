@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -447,13 +448,19 @@ class MeasurementFormViewModel(
         measurementId: String,
     ) {
         val linkOrderId = linkToOrderId ?: return
-        val order = (orderRepository.getOrder(userId, linkOrderId) as? Result.Success)?.data
+        val order = withTimeoutOrNull(LINK_ORDER_READ_TIMEOUT_MS) {
+            (orderRepository.getOrder(userId, linkOrderId) as? Result.Success)?.data
+        }
         val firstItem = order?.items?.firstOrNull()
         if (order != null && firstItem != null) {
             val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) +
                 order.items.drop(1)
             orderRepository.updateOrder(userId, order.copy(items = updatedItems))
         }
+    }
+
+    private companion object {
+        const val LINK_ORDER_READ_TIMEOUT_MS = 750L
     }
 
     @OptIn(ExperimentalUuidApi::class)

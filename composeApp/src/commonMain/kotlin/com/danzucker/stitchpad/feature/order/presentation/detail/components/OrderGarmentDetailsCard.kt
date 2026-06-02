@@ -210,7 +210,7 @@ private fun FabricSection(
 ) {
     val legacyUrl = item.fabricPhotoUrl
     val urls = when {
-        item.fabricImages.isNotEmpty() -> item.fabricImages.map { it.photoUrl }
+        item.fabricImages.isNotEmpty() -> item.fabricImages.map { it.localPhotoPath ?: it.photoUrl }
         !legacyUrl.isNullOrBlank() -> listOf(legacyUrl)
         else -> emptyList()
     }

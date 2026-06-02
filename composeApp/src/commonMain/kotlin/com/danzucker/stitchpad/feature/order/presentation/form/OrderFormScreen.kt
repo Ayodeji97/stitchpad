@@ -1297,8 +1297,10 @@ private fun StyleImageStrip(
     val thumbnails = buildList {
         item.styleImageRefs.forEachIndexed { index, ref ->
             val model = when (ref.source) {
-                StyleImageSource.LIBRARY -> availableStyles.find { it.id == ref.styleId }?.photoUrl
-                StyleImageSource.UPLOADED -> ref.photoUrl
+                StyleImageSource.LIBRARY -> availableStyles.find { it.id == ref.styleId }?.let {
+                    it.localPhotoPath ?: it.photoUrl
+                }
+                StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
             }
             if (model != null) {
                 add(
@@ -1366,7 +1368,7 @@ private fun FabricImageSection(
             add(
                 ReferenceThumbnail(
                     combinedIndex = index,
-                    model = ref.photoUrl,
+                    model = ref.localPhotoPath ?: ref.photoUrl,
                     badge = null,
                 ),
             )

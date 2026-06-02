@@ -20,6 +20,9 @@ interface EntitlementsProvider {
     /** Hot flow for reactive observers (banner, customer-list ViewModel). */
     val flow: StateFlow<UserEntitlements>
 
+    /** True after the current signed-in user's Firestore entitlement snapshot has landed. */
+    fun hasHydrated(): Boolean = true
+
     /**
      * Suspends until the first Firestore-sourced snapshot for the currently
      * signed-in user has been applied, then returns the live snapshot. Use

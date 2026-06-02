@@ -25,8 +25,10 @@ class FakeOrderRepository : OrderRepository {
     var lastUpdatedOrder: Order? = null
     var updateOrderCallCount: Int = 0
     var lastDeletedOrderId: String? = null
+    var lastDeletedOrderStoragePaths: List<String> = emptyList()
     var lastStatusUpdate: Pair<String, OrderStatus>? = null
     var lastRecordedPayment: Pair<String, Payment>? = null
+    var lastKnownPayments: List<Payment> = emptyList()
     var lastSubStatusUpdate: Pair<String, OrderSubStatus?>? = null
     var lastNotesUpdate: Pair<String, String?>? = null
     var lastArchivedOrderId: String? = null
@@ -96,10 +98,12 @@ class FakeOrderRepository : OrderRepository {
 
     override suspend fun deleteOrder(
         userId: String,
-        orderId: String
+        orderId: String,
+        ownedStoragePaths: List<String>,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastDeletedOrderId = orderId
+        lastDeletedOrderStoragePaths = ownedStoragePaths
         ordersFlow.value = ordersFlow.value.filterNot { it.id == orderId }
         return Result.Success(Unit)
     }
@@ -108,9 +112,11 @@ class FakeOrderRepository : OrderRepository {
         userId: String,
         orderId: String,
         payment: Payment,
+        knownPayments: List<Payment>,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
         lastRecordedPayment = orderId to payment
+        lastKnownPayments = knownPayments
         ordersFlow.value = ordersFlow.value.map { existing ->
             if (existing.id == orderId) existing.copy(payments = existing.payments + payment) else existing
         }

@@ -9,6 +9,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
+        IosOfflineUploadBackgroundTasksKt.registerIosOfflineUploadTasks()
         // Must register both Swift launchers BEFORE doInitKoin so PlatformModule
         // can wire them into SsoCredentialProvider.
         PlatformModule_iosKt.iosNativeGoogleSignInLauncher = GoogleSignInLauncherIos()
@@ -29,10 +30,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct iOSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                IosOfflineUploadBackgroundTasksKt.drainIosOfflineUploadsInForeground()
+            }
         }
     }
 }
