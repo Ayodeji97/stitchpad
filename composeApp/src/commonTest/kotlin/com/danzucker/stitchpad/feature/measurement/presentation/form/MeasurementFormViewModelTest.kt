@@ -269,12 +269,24 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun onNextSection_doesNotExceedLastSection() = runTest {
+    fun onNextSection_fromLastDefaultSection_landsOnCustomPage() = runTest {
         val vm = createViewModel()
-        val lastIndex = vm.state.value.sections.size - 1
-        vm.onAction(MeasurementFormAction.OnSectionChange(lastIndex))
+        // Capture the expected custom-page index up front so the assertion
+        // doesn't re-read state on its expected side.
+        val customPageIndex = vm.state.value.sections.size
+        vm.onAction(MeasurementFormAction.OnSectionChange(customPageIndex - 1))
         vm.onAction(MeasurementFormAction.OnNextSection)
-        assertEquals(lastIndex, vm.state.value.currentSectionIndex)
+        // Custom page index == sections.size (one past the last default section).
+        assertEquals(customPageIndex, vm.state.value.currentSectionIndex)
+    }
+
+    @Test
+    fun onNextSection_doesNotExceedCustomPage() = runTest {
+        val vm = createViewModel()
+        val customPageIndex = vm.state.value.sections.size
+        vm.onAction(MeasurementFormAction.OnSectionChange(customPageIndex))
+        vm.onAction(MeasurementFormAction.OnNextSection)
+        assertEquals(customPageIndex, vm.state.value.currentSectionIndex)
     }
 
     @Test
