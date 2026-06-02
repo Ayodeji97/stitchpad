@@ -62,7 +62,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -552,13 +551,15 @@ private fun SectionProgressRow(
                     section.fields.any { f ->
                         (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
                     } -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.outlineVariant
+                    // onSurfaceVariant (not outlineVariant) so unvisited dots stay
+                    // clearly visible on the light background.
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 // Dots are non-interactive progress indicators (kept tight, as before).
                 // Navigation is via the Custom pill, Previous/Next, and pager swipe.
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .background(color = color, shape = CircleShape)
                 )
             }
@@ -614,8 +615,7 @@ private fun CustomStepPill(
                 shape = RoundedCornerShape(DesignTokens.radiusFull),
             )
             .clickable(onClick = onClick, role = Role.Button)
-            .minimumInteractiveComponentSize()
-            .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+            .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space1),
     ) {
         Icon(
             imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.Add,
