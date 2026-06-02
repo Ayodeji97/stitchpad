@@ -23,7 +23,7 @@ class StyleGalleryViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val customerId: String = checkNotNull(savedStateHandle["customerId"])
+    private val customerId: String? = savedStateHandle["customerId"]
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(StyleGalleryState())
@@ -35,6 +35,11 @@ class StyleGalleryViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
+                if (customerId == null) {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(StyleGalleryEvent.NavigateBack)
+                    return@onStart
+                }
                 observeStyles()
             }
         }
@@ -47,9 +52,11 @@ class StyleGalleryViewModel(
     fun onAction(action: StyleGalleryAction) {
         when (action) {
             StyleGalleryAction.OnAddClick -> {
+                val customerId = customerId ?: return
                 viewModelScope.launch { _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId)) }
             }
             is StyleGalleryAction.OnStyleClick -> {
+                val customerId = customerId ?: return
                 viewModelScope.launch {
                     _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, action.style.id))
                 }
@@ -71,6 +78,7 @@ class StyleGalleryViewModel(
     }
 
     private fun observeStyles() {
+        val customerId = customerId ?: return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(isLoading = false) }
@@ -90,6 +98,7 @@ class StyleGalleryViewModel(
     }
 
     private fun deleteStyle() {
+        val customerId = customerId ?: return
         val style = _state.value.styleToDelete ?: return
         _state.update { it.copy(showDeleteDialog = false, styleToDelete = null) }
         viewModelScope.launch {

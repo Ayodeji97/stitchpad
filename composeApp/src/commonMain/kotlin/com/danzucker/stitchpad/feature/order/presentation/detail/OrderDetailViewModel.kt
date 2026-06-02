@@ -60,7 +60,7 @@ private const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
 // A refactor to bundle repositories into a single dependency would obscure the
 // per-layer wiring; staying explicit + suppressing here keeps the seams visible.
-@Suppress("TooManyFunctions", "LongParameterList")
+@Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
@@ -75,7 +75,7 @@ class OrderDetailViewModel(
     private val entitlementsProvider: EntitlementsProvider,
 ) : ViewModel() {
 
-    private val orderId: String = checkNotNull(savedStateHandle["orderId"])
+    private val orderId: String? = savedStateHandle["orderId"]
 
     private var hasStartedObserving = false
     private var customerJob: Job? = null
@@ -93,6 +93,11 @@ class OrderDetailViewModel(
         .onStart {
             if (!hasStartedObserving) {
                 hasStartedObserving = true
+                if (orderId == null) {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(OrderDetailEvent.NavigateBack)
+                    return@onStart
+                }
                 observeOrder()
                 loadUser()
             }
@@ -109,8 +114,10 @@ class OrderDetailViewModel(
             // Navigation
             OrderDetailAction.OnBackClick ->
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateBack) }
-            OrderDetailAction.OnEditClick ->
+            OrderDetailAction.OnEditClick -> {
+                val orderId = orderId ?: return
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateToOrderForm(orderId)) }
+            }
             OrderDetailAction.OnCustomerClick -> {
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateToCustomerDetail(customerId)) }
@@ -120,6 +127,7 @@ class OrderDetailViewModel(
             OrderDetailAction.OnOverflowMenuToggle ->
                 _state.update { it.copy(showOverflowMenu = !it.showOverflowMenu) }
             OrderDetailAction.OnDuplicateClick -> {
+                val orderId = orderId ?: return
                 _state.update { it.copy(showOverflowMenu = false) }
                 viewModelScope.launch { _events.send(OrderDetailEvent.NavigateToCreateOrder(orderId)) }
             }
@@ -269,6 +277,7 @@ class OrderDetailViewModel(
             OrderDetailAction.OnAddStyleClick ->
                 _state.update { it.copy(showStylePickerSheet = true) }
             OrderDetailAction.OnAddFabricClick -> {
+                val orderId = orderId ?: return
                 viewModelScope.launch {
                     _events.send(OrderDetailEvent.NavigateToOrderForm(orderId))
                 }
@@ -295,6 +304,7 @@ class OrderDetailViewModel(
             is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId)
 
             OrderDetailAction.OnCreateNewStyleClick -> {
+                val orderId = orderId ?: return
                 _state.update { it.copy(showStylePickerSheet = false) }
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
@@ -312,6 +322,7 @@ class OrderDetailViewModel(
             is OrderDetailAction.OnSelectMeasurement -> linkExistingMeasurement(action.measurementId)
 
             OrderDetailAction.OnCreateNewMeasurementClick -> {
+                val orderId = orderId ?: return
                 _state.update { it.copy(showMeasurementPickerSheet = false) }
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
@@ -448,6 +459,7 @@ class OrderDetailViewModel(
     }
 
     private fun observeOrder() {
+        val orderId = orderId ?: return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(isLoading = false) }
@@ -597,6 +609,7 @@ class OrderDetailViewModel(
     }
 
     private fun deleteOrder() {
+        val orderId = orderId ?: return
         _state.update { it.copy(showDeleteDialog = false) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
@@ -616,6 +629,7 @@ class OrderDetailViewModel(
     }
 
     private fun archiveOrder() {
+        val orderId = orderId ?: return
         _state.update { it.copy(showArchiveDialog = false) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
@@ -648,6 +662,7 @@ class OrderDetailViewModel(
     }
 
     private fun performStatusUpdate(newStatus: OrderStatus, newSubStatus: OrderSubStatus?) {
+        val orderId = orderId ?: return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val statusResult = orderRepository.updateOrderStatus(userId, orderId, newStatus)
@@ -665,6 +680,7 @@ class OrderDetailViewModel(
     }
 
     private fun saveNotes() {
+        val orderId = orderId ?: return
         val draft = _state.value.notesDraft
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
@@ -713,8 +729,10 @@ class OrderDetailViewModel(
 
     @OptIn(ExperimentalUuidApi::class)
     private fun submitPayment(amountJustPaid: Double) {
+        val orderId = orderId
         val state = _state.value
-        val order = state.order ?: return
+        val order = state.order
+        if (orderId == null || order == null) return
         // capPaymentDigits intentionally echoes user input when balance is 0.0
         // (so the field stays editable visually), so we must guard AFTER
         // coercing — otherwise a 0-balance order accepts a phantom payment.

@@ -89,6 +89,21 @@ class CustomerDetailViewModelTest {
     // --- Load data ---
 
     @Test
+    fun missingCustomerId_navigatesBack_withoutLoading() = runTest {
+        val vm = CustomerDetailViewModel(
+            savedStateHandle = SavedStateHandle(),
+            customerRepository = customerRepository,
+            measurementRepository = measurementRepository,
+            authRepository = authRepository,
+            customFieldRepository = customFieldRepository,
+        )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+
+        assertIs<CustomerDetailEvent.NavigateBack>(vm.events.first())
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    @Test
     fun loadData_success_populatesCustomerAndMeasurements() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // VM observes the customer doc now (was one-shot getCustomer pre-PR);

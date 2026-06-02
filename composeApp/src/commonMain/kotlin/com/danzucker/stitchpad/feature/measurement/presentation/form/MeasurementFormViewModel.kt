@@ -39,7 +39,7 @@ class MeasurementFormViewModel(
     private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
-    private val customerId: String = checkNotNull(savedStateHandle["customerId"])
+    private val customerId: String? = savedStateHandle["customerId"]
     private val measurementId: String? = savedStateHandle["measurementId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
     private val fromCustomerCreation: Boolean = savedStateHandle["fromCustomerCreation"] ?: false
@@ -65,6 +65,11 @@ class MeasurementFormViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
+                if (customerId == null) {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(MeasurementFormEvent.NavigateBack)
+                    return@onStart
+                }
                 val unit = measurementPreferencesStore.getUnit()
                 _state.update { it.copy(unit = unit) }
                 // Observe the entitlement flow rather than reading current()
@@ -307,6 +312,7 @@ class MeasurementFormViewModel(
     }
 
     private fun loadMeasurement(id: String) {
+        val customerId = customerId ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val userId = authRepository.getCurrentUser()?.id ?: run {
@@ -389,6 +395,7 @@ class MeasurementFormViewModel(
         // and persist an empty/all-zero measurement. canSave already encodes
         // gender + at-least-one-positive-field + !isLoading.
         if (!_state.value.canSave) return
+        val customerId = customerId ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val userId = authRepository.getCurrentUser()?.id ?: run {

@@ -83,6 +83,20 @@ class StyleFormViewModelTest {
     // --- Initial state ---
 
     @Test
+    fun missingCustomerId_navigatesBack_withoutLoading() = runTest {
+        val vm = StyleFormViewModel(
+            savedStateHandle = SavedStateHandle(),
+            styleRepository = styleRepository,
+            authRepository = authRepository,
+            orderRepository = orderRepository,
+        )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+
+        assertIs<StyleFormEvent.NavigateBack>(vm.events.first())
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    @Test
     fun addMode_initialState_hasEditModeFalse() = runTest {
         val vm = createViewModel()
 

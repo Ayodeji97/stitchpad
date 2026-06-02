@@ -132,6 +132,23 @@ class MeasurementFormViewModelTest {
         createdAt = 12345L,
     )
 
+    @Test
+    fun missingCustomerId_navigatesBack_withoutLoading() = runTest {
+        val vm = MeasurementFormViewModel(
+            savedStateHandle = SavedStateHandle(),
+            measurementRepository = measurementRepository,
+            authRepository = authRepository,
+            measurementPreferencesStore = preferencesStore,
+            orderRepository = orderRepository,
+            customFieldRepository = customFieldRepository,
+            entitlements = fakeEntitlements,
+        )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+
+        assertIs<MeasurementFormEvent.NavigateBack>(vm.events.first())
+        assertFalse(vm.state.value.isLoading)
+    }
+
     // --- Initial state ---
 
     @Test
