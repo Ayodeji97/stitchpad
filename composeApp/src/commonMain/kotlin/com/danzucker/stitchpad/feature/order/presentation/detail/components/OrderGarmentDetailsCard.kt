@@ -40,7 +40,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -367,12 +366,8 @@ private fun MultiReferenceStrip(
     onImageClick: (List<String>, Int) -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    val density = LocalDensity.current
-    val stridePx = remember(density) {
-        with(density) { (REFERENCE_MULTI_TILE_WIDTH + DesignTokens.space2).toPx() }
-    }
-    val currentIndex by remember(urls.size, stridePx) {
-        derivedStateOf { referenceScrollIndex(scrollState.value, stridePx, urls.size) }
+    val currentIndex by remember(urls.size) {
+        derivedStateOf { referenceScrollIndex(scrollState.value, scrollState.maxValue, urls.size) }
     }
     Box(modifier = Modifier.fillMaxWidth().height(REFERENCE_TILE_HEIGHT)) {
         Row(
@@ -483,13 +478,15 @@ private fun needsFabricInfo(item: OrderItem): Boolean {
 }
 
 /**
- * Maps a horizontal scroll offset (px) to the index of the photo currently centred-ish under
- * the count pill. Pure so the rounding/clamping is unit-tested. `stridePx` is one tile width
- * plus the inter-tile gap, in px.
+ * Maps the current horizontal scroll offset to the index of the photo the count pill should
+ * highlight, as a progress fraction over the scroll state's REACHABLE range (`maxScrollPx`).
+ * Stride-based math can't reach the final image in a narrow peek-column (the last tiles never
+ * reach the left edge), so we map [0, maxScrollPx] across [0, count-1]. Pure so it's unit-tested.
  */
-internal fun referenceScrollIndex(scrollPx: Int, stridePx: Float, count: Int): Int {
-    if (count <= 1 || stridePx <= 0f) return 0
-    return (scrollPx / stridePx).roundToInt().coerceIn(0, count - 1)
+internal fun referenceScrollIndex(scrollPx: Int, maxScrollPx: Int, count: Int): Int {
+    if (count <= 1 || maxScrollPx <= 0) return 0
+    val progress = (scrollPx.toFloat() / maxScrollPx).coerceIn(0f, 1f)
+    return (progress * (count - 1)).roundToInt()
 }
 
 // region — Previews

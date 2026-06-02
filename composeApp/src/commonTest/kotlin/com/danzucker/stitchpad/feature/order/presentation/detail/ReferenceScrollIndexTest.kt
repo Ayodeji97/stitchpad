@@ -6,36 +6,42 @@ import kotlin.test.assertEquals
 
 class ReferenceScrollIndexTest {
 
-    private val stride = 108f // tile width (100) + gap (8), in px for the test
-
     @Test
     fun atRest_isFirst() {
-        assertEquals(0, referenceScrollIndex(scrollPx = 0, stridePx = stride, count = 3))
+        assertEquals(0, referenceScrollIndex(scrollPx = 0, maxScrollPx = 200, count = 3))
     }
 
     @Test
-    fun justPastHalf_roundsToSecond() {
-        // 60px > half of 108 → rounds up to index 1
-        assertEquals(1, referenceScrollIndex(scrollPx = 60, stridePx = stride, count = 3))
+    fun fullyScrolled_reachesLast() {
+        // The whole point of the fix: max scroll must map to the final index.
+        assertEquals(2, referenceScrollIndex(scrollPx = 200, maxScrollPx = 200, count = 3))
     }
 
     @Test
-    fun justUnderHalf_staysFirst() {
-        assertEquals(0, referenceScrollIndex(scrollPx = 40, stridePx = stride, count = 3))
+    fun halfScrolled_isMiddle() {
+        assertEquals(1, referenceScrollIndex(scrollPx = 100, maxScrollPx = 200, count = 3))
     }
 
     @Test
-    fun scrolledToEnd_clampsToLast() {
-        assertEquals(2, referenceScrollIndex(scrollPx = 10_000, stridePx = stride, count = 3))
+    fun justUnderFirstThreshold_staysFirst() {
+        // For 3 items the flip to index 1 happens at 25% progress (round(0.5)).
+        // 49/200 = 0.245 -> round(0.49) = 0.
+        assertEquals(0, referenceScrollIndex(scrollPx = 49, maxScrollPx = 200, count = 3))
+    }
+
+    @Test
+    fun beyondMax_clampsToLast() {
+        assertEquals(2, referenceScrollIndex(scrollPx = 10_000, maxScrollPx = 200, count = 3))
     }
 
     @Test
     fun singleImage_isAlwaysFirst() {
-        assertEquals(0, referenceScrollIndex(scrollPx = 500, stridePx = stride, count = 1))
+        assertEquals(0, referenceScrollIndex(scrollPx = 500, maxScrollPx = 200, count = 1))
     }
 
     @Test
-    fun zeroStride_doesNotCrash() {
-        assertEquals(0, referenceScrollIndex(scrollPx = 500, stridePx = 0f, count = 3))
+    fun zeroMaxScroll_isFirst() {
+        // Not yet laid out / nothing scrollable.
+        assertEquals(0, referenceScrollIndex(scrollPx = 500, maxScrollPx = 0, count = 3))
     }
 }
