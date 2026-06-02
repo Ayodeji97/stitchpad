@@ -112,6 +112,7 @@ import stitchpad.composeapp.generated.resources.measurement_create_flow_save_but
 import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
+import stitchpad.composeapp.generated.resources.measurement_go_to_section
 import stitchpad.composeapp.generated.resources.measurement_next
 import stitchpad.composeapp.generated.resources.measurement_notes_label
 import stitchpad.composeapp.generated.resources.measurement_notes_placeholder
@@ -556,12 +557,20 @@ private fun SectionProgressRow(
                     // look of a neutral gray.
                     else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 }
-                // Dots are non-interactive progress indicators (kept tight, as before).
-                // Navigation is via the Custom pill, Previous/Next, and pager swipe.
+                // Tappable to jump to that section, but intentionally NOT wrapped in
+                // minimumInteractiveComponentSize — the 48dp target spread the dots too
+                // far apart. The small target is acceptable here since the Custom pill,
+                // Previous/Next, and swipe are the primary navigation; the dots are a
+                // redundant shortcut. Role + label still expose them to screen readers.
+                val goToSectionLabel = stringResource(Res.string.measurement_go_to_section, index + 1)
                 Box(
                     modifier = Modifier
                         .size(10.dp)
                         .background(color = color, shape = CircleShape)
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = goToSectionLabel,
+                        ) { onJumpToSection(index) }
                 )
             }
             CustomStepPill(
