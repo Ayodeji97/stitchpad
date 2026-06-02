@@ -551,9 +551,10 @@ private fun SectionProgressRow(
                     section.fields.any { f ->
                         (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
                     } -> MaterialTheme.colorScheme.primary
-                    // onSurfaceVariant (not outlineVariant) so unvisited dots stay
-                    // clearly visible on the light background.
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    // A soft tint of the brand primary so unvisited dots stay
+                    // clearly visible on the light background without the muddy
+                    // look of a neutral gray.
+                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 }
                 // Dots are non-interactive progress indicators (kept tight, as before).
                 // Navigation is via the Custom pill, Previous/Next, and pager swipe.
@@ -570,15 +571,16 @@ private fun SectionProgressRow(
                 onClick = { onJumpToSection(customPageIndex) },
             )
         }
-        Text(
-            text = if (isCustomActive) {
-                stringResource(Res.string.measurement_custom_step)
-            } else {
-                stringResource(Res.string.measurement_section_of, currentIndex + 1, sections.size)
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // On the custom page the active pill already reads "Custom measurement",
+        // so the counter is hidden there to avoid the duplicate label. The "X of N"
+        // progress counter still shows on the default section pages.
+        if (!isCustomActive) {
+            Text(
+                text = stringResource(Res.string.measurement_section_of, currentIndex + 1, sections.size),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
