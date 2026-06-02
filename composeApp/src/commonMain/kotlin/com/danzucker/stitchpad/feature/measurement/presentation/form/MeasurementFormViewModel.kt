@@ -100,7 +100,9 @@ class MeasurementFormViewModel(
             }
             MeasurementFormAction.OnNextSection -> {
                 _state.update { s ->
-                    val next = (s.currentSectionIndex + 1).coerceAtMost(s.sections.size - 1)
+                    // Last page is the custom step at index sections.size, so Next
+                    // walks one past the last default section (sections.size - 1).
+                    val next = (s.currentSectionIndex + 1).coerceAtMost(s.sections.size)
                     s.copy(currentSectionIndex = next, isCurrentSectionExpanded = true)
                 }
             }
