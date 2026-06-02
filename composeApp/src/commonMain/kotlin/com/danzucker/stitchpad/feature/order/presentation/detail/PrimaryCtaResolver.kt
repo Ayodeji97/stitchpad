@@ -50,7 +50,7 @@ internal fun resolvePrimaryCta(
         status == OrderStatus.IN_PROGRESS ->
             CtaPair(PrimaryCta.UpdateStatus, balanceSecondary)
         status == OrderStatus.READY ->
-            CtaPair(PrimaryCta.MarkDelivered, null)
+            CtaPair(PrimaryCta.MarkDelivered, balanceSecondary)
         else -> CtaPair(PrimaryCta.UpdateStatus, balanceSecondary) // unreachable
     }
 }

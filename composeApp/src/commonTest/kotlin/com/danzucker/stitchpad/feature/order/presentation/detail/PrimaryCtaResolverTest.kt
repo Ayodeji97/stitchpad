@@ -52,11 +52,21 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun ready_offersMarkDeliveredNoSecondary() {
-        // READY returns a null secondary regardless of balance.
+    fun readyFullyPaid_offersMarkDeliveredNoSecondary() {
+        // Nothing to record once the balance is cleared — primary goes full-width.
         assertEquals(
             CtaPair(PrimaryCta.MarkDelivered, null),
             cta(OrderStatus.READY),
+        )
+    }
+
+    @Test
+    fun readyWithBalance_offersRecordPayment() {
+        // At pickup the tailor often collects the outstanding balance, so a
+        // READY order that still owes money surfaces the Record payment shortcut.
+        assertEquals(
+            CtaPair(PrimaryCta.MarkDelivered, SecondaryCta.RecordPayment),
+            cta(OrderStatus.READY, balance = 20_000.0),
         )
     }
 
