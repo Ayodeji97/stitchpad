@@ -1,3 +1,9 @@
+@file:Suppress("TooManyFunctions")
+// This screen composes the measurement wizard from many small private composables
+// (gender selector, progress row + Custom pill, per-section field inputs, custom-field
+// section, navigation, notes) plus their previews. Splitting the file would scatter
+// tightly-coupled UI; the function count is inherent to one cohesive screen.
+
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.compose.foundation.BorderStroke
