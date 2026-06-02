@@ -223,9 +223,9 @@ object ReceiptFormatter {
                 garmentNames[first.garmentType] ?: first.garmentType.name
             }
             ReceiptItem(
-                quantity = group.size,
+                quantity = group.sumOf { it.quantity },
                 garmentName = garmentName,
-                formattedPrice = "₦${formatPrice(group.sumOf { it.price })}",
+                formattedPrice = "₦${formatPrice(group.sumOf { it.price * it.quantity })}",
             )
         }
 

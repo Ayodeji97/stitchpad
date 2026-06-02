@@ -328,6 +328,69 @@ class OrderFormViewModelTest {
         assertEquals(PaymentType.DEPOSIT, created.payments.single().type)
     }
 
+    @Test
+    fun onItemQuantityChange_updatesState() = runTest {
+        val vm = createViewModel(orderId = null)
+        val firstItemId = vm.state.value.items.first().id
+
+        vm.onAction(OrderFormAction.OnItemQuantityChange(firstItemId, "3"))
+
+        assertEquals("3", vm.state.value.items.first().quantity)
+    }
+
+    @Test
+    fun save_inCreateMode_persistsQuantityAndMultipliesTotalPrice() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemQuantityChange(firstItemId, "3"))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertEquals(3, created.items.single().quantity)
+        assertEquals(15_000.0, created.totalPrice)
+    }
+
+    @Test
+    fun loadOrder_populatesItemQuantityFromOrder() = runTest {
+        val order = seedOrder().copy(
+            items = listOf(
+                OrderItem(
+                    id = "item-1",
+                    garmentType = GarmentType.AGBADA,
+                    description = "Demo",
+                    price = 5_000.0,
+                    quantity = 4,
+                ),
+            ),
+            totalPrice = 20_000.0,
+        )
+        orderRepository.ordersList = listOf(order)
+
+        val vm = createViewModel(orderId = "order-1")
+
+        assertEquals("4", vm.state.value.items.single().quantity)
+    }
+
+    @Test
+    fun save_withBlankQuantity_doesNotPersist() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemQuantityChange(firstItemId, ""))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
     // ─── Garment picker tests ────────────────────────────────────────────────
 
     @Test

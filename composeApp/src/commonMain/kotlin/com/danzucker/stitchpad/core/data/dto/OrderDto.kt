@@ -42,6 +42,7 @@ data class OrderItemDto(
     val customGarmentName: String? = null, // set only when garmentType == OTHER
     val description: String = "",
     val price: Double = 0.0,
+    val quantity: Int = 1,
     val measurementId: String? = null,
     val fabricName: String? = null,
     // PTSP-11 — source of truth going forward

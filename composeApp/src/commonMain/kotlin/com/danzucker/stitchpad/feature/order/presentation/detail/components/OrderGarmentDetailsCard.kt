@@ -61,6 +61,7 @@ import stitchpad.composeapp.generated.resources.order_detail_add_fabric_name
 import stitchpad.composeapp.generated.resources.order_detail_add_style
 import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
+import stitchpad.composeapp.generated.resources.order_detail_quantity
 import stitchpad.composeapp.generated.resources.order_detail_style_caption
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
@@ -209,6 +210,12 @@ private fun GarmentTextBlock(
             overflow = TextOverflow.Ellipsis,
         )
     }
+    Spacer(Modifier.height(DesignTokens.space2))
+    Text(
+        text = stringResource(Res.string.order_detail_quantity, item.quantity),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     if (item.description.isNotBlank()) {
         Spacer(Modifier.height(DesignTokens.space2))
         Text(

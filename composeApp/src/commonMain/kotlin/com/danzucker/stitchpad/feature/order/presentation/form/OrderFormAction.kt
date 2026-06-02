@@ -50,6 +50,7 @@ sealed interface OrderFormAction {
     data object OnDismissPicker : OrderFormAction
 
     data class OnItemDescriptionChange(val itemId: String, val description: String) : OrderFormAction
+    data class OnItemQuantityChange(val itemId: String, val quantity: String) : OrderFormAction
     data class OnItemPriceChange(val itemId: String, val price: String) : OrderFormAction
     data class OnItemMeasurementChange(val itemId: String, val measurementId: String?) : OrderFormAction
     data class OnItemFabricNameChange(val itemId: String, val fabricName: String) : OrderFormAction

@@ -66,6 +66,7 @@ constructor(
     /** Tracks which gender chip is active for this row; mirrors picker filter. */
     val genderFilter: GarmentGender = GarmentGender.MALE,
     val description: String = "",
+    val quantity: String = "1",
     val price: String = "",
     val measurementId: String? = null,
     val fabricName: String = "",
