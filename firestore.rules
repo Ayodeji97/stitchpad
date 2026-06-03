@@ -149,6 +149,15 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow write: if false;
       }
+
+      // ── Billing transactions — server-only writes ───────────────────────
+      // The app can observe checkout/payment status for its own account, but
+      // transaction creation, Paystack references, paid markers, and entitlement
+      // updates must come only from Cloud Functions using the Admin SDK.
+      match /billingTransactions/{transactionId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
     }
 
     // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────

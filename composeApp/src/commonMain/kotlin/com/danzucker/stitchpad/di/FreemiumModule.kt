@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsFreemiumRepository
+import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsPaymentRepository
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
+import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.freemium.presentation.reconcile.ReconcileCoordinator
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeViewModel
 import dev.gitlive.firebase.auth.FirebaseAuth
@@ -29,6 +31,9 @@ val freemiumModule = module {
             functions = get(),
             appScope = get(qualifier = named("freemiumAppScope")),
         )
+    }
+    single<PaymentRepository> {
+        CloudFunctionsPaymentRepository(functions = get())
     }
     single {
         // Bridge GitLive's FirebaseAuth.authStateChanged into the testable

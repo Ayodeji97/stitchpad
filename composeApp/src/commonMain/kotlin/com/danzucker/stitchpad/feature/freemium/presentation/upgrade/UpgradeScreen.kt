@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +27,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -36,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -51,12 +56,14 @@ import stitchpad.composeapp.generated.resources.upgrade_pro_annual
 import stitchpad.composeapp.generated.resources.upgrade_pro_name
 import stitchpad.composeapp.generated.resources.upgrade_pro_price
 import stitchpad.composeapp.generated.resources.upgrade_screen_title
+import stitchpad.composeapp.generated.resources.upgrade_starting_checkout
 import stitchpad.composeapp.generated.resources.upgrade_terms
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpgradeScreen(
     state: UpgradeState,
+    snackbarHostState: SnackbarHostState,
     onAction: (UpgradeAction) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -86,6 +93,7 @@ fun UpgradeScreen(
                 ),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier,
     ) { innerPadding ->
@@ -140,6 +148,7 @@ fun UpgradeScreen(
             // Pay CTA
             Button(
                 onClick = { onAction(UpgradeAction.PayWithPaystack) },
+                enabled = !state.isStartingCheckout,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
                 colors = ButtonDefaults.buttonColors(
@@ -147,8 +156,23 @@ fun UpgradeScreen(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
+                if (state.isStartingCheckout) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = DesignTokens.space2)
+                            .size(18.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp,
+                    )
+                }
                 Text(
-                    text = stringResource(Res.string.upgrade_pay_with_paystack),
+                    text = stringResource(
+                        if (state.isStartingCheckout) {
+                            Res.string.upgrade_starting_checkout
+                        } else {
+                            Res.string.upgrade_pay_with_paystack
+                        }
+                    ),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = DesignTokens.space2),
@@ -240,6 +264,7 @@ private fun UpgradeScreenProSelectedPreview() {
                 selectedTier = SubscriptionTier.PRO,
                 billingCadence = BillingCadence.MONTHLY,
             ),
+            snackbarHostState = SnackbarHostState(),
             onAction = {},
             onBack = {},
         )
@@ -257,6 +282,7 @@ private fun UpgradeScreenAtelierAnnualPreview() {
                 selectedTier = SubscriptionTier.ATELIER,
                 billingCadence = BillingCadence.ANNUAL,
             ),
+            snackbarHostState = SnackbarHostState(),
             onAction = {},
             onBack = {},
         )
@@ -274,6 +300,7 @@ private fun UpgradeScreenDarkPreview() {
                 selectedTier = SubscriptionTier.PRO,
                 billingCadence = BillingCadence.ANNUAL,
             ),
+            snackbarHostState = SnackbarHostState(),
             onAction = {},
             onBack = {},
         )

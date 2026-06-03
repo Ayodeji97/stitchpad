@@ -47,3 +47,8 @@ export { smartDraftMessage } from './smart/draftMessage';
 export { reconcileCustomerSlots } from './freemium/reconcileSlots';
 export { sendVerificationEmail } from './auth/sendVerificationEmail';
 export { dailyDigest, debugSendMyDigest } from './notifications/dailyDigest';
+export {
+  initializeSubscriptionCheckout,
+  paystackWebhook,
+  expirePrepaidSubscriptions,
+} from './billing/paystackBilling';

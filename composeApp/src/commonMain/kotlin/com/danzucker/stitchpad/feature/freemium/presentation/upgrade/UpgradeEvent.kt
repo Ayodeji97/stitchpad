@@ -1,7 +1,10 @@
 package com.danzucker.stitchpad.feature.freemium.presentation.upgrade
 
+import com.danzucker.stitchpad.core.presentation.UiText
+
 sealed interface UpgradeEvent {
     data class OpenExternalBrowser(val url: String) : UpgradeEvent
+    data class ShowSnackbar(val message: UiText) : UpgradeEvent
 
     /**
      * Emitted when the observed tier rises (e.g. Paystack webhook completes
