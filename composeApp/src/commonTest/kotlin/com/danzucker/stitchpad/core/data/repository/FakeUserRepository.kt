@@ -119,17 +119,12 @@ class FakeUserRepository : UserRepository {
     /** Last value passed to [setDailyDigestEmailEnabled], or null if never called. */
     var lastDigestEnabled: Boolean? = null
 
-    /**
-     * Configurable result for [setDailyDigestEmailEnabled].
-     * Defaults to [Result.Success] unless overridden.
-     */
-    var digestSetterResult: EmptyResult<DataError.Network> = Result.Success(Unit)
-
     override suspend fun setDailyDigestEmailEnabled(
         userId: String,
         enabled: Boolean,
     ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
         lastDigestEnabled = enabled
-        return digestSetterResult
+        return Result.Success(Unit)
     }
 }

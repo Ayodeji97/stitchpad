@@ -5,10 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
-import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
-import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
@@ -34,8 +32,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.error_no_internet
-import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.settings_invite_share_message
 import stitchpad.composeapp.generated.resources.settings_support_intro_message
 
@@ -71,6 +67,8 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
+
+    private var currentUserId: String? = null
 
     private val _events = Channel<SettingsEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -129,6 +127,7 @@ class SettingsViewModel(
             emit(SettingsState(isLoading = false))
             return@flow
         }
+        currentUserId = authUser.id
         val provider = authRepository.getSignInProvider()
         // Seed the persisted measurement unit and theme once; toggles update uiState below.
         uiState.update {
@@ -263,22 +262,17 @@ class SettingsViewModel(
         }
     }
 
-    private suspend fun authUserId(): String =
-        authRepository.getCurrentUser()?.id ?: ""
-
     private fun setDailyDigest(enabled: Boolean) {
-        // Optimistic: reflect immediately, then persist. The snapshot listener
-        // confirms; on failure we revert the override and tell the user.
+        // Optimistic override + fire-and-forget persist, mirroring
+        // toggleMeasurementUnit/cycleTheme. Per the app's fire-and-forget write
+        // model the snapshot listener is the source of truth and the offline
+        // outbox handles persistence, so we neither await nor surface write
+        // errors here. The override stays the displayed value for the session
+        // (single-user, single-device) — consistent with the sibling toggles.
+        val userId = currentUserId ?: return
         uiState.update { it.copy(dailyDigestEnabledOverride = enabled) }
         viewModelScope.launch {
-            when (val result = userRepository.setDailyDigestEmailEnabled(authUserId(), enabled)) {
-                is Result.Success -> Unit
-                is Result.Error -> {
-                    uiState.update { it.copy(dailyDigestEnabledOverride = !enabled) }
-                    AppLogger.e(tag = TAG) { "setDailyDigest failed error=${result.error}" }
-                    emit(SettingsEvent.ShowSnackbar(result.error.toUiText()))
-                }
-            }
+            userRepository.setDailyDigestEmailEnabled(userId, enabled)
         }
     }
 
@@ -353,9 +347,4 @@ internal fun computeAiDisplay(
             ?: 0
         AiDisplay(limit = smartCoinAllowance, used = used.coerceIn(0, smartCoinAllowance))
     }
-}
-
-private fun DataError.Network.toUiText(): UiText = when (this) {
-    DataError.Network.NO_INTERNET -> UiText.StringResourceText(Res.string.error_no_internet)
-    else -> UiText.StringResourceText(Res.string.error_unknown)
 }

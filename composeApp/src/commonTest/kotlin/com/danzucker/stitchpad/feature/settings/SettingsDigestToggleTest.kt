@@ -5,9 +5,6 @@ import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
-import com.danzucker.stitchpad.core.domain.error.DataError
-import com.danzucker.stitchpad.core.domain.error.EmptyResult
-import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
@@ -34,6 +31,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class SettingsDigestToggleTest {
 
@@ -60,17 +58,13 @@ class SettingsDigestToggleTest {
     }
 
     @Test
-    fun toggleOff_revertsOnRepositoryError() = runTest {
-        val (vm, _) = buildSettingsVmForDigest(
-            initialEnabled = true,
-            setterResult = Result.Error(DataError.Network.UNKNOWN),
-        )
+    fun toggleOn_reflectsInStateAndPersists() = runTest {
+        val (vm, repo) = buildSettingsVmForDigest(initialEnabled = false)
         vm.state.test {
-            awaitItem()
-            vm.onAction(SettingsAction.OnDailyDigestToggle(false))
-            // optimistic false, then reverted to true
-            assertFalse(awaitItem().dailyDigestEmailEnabled)
-            assertEquals(true, awaitItem().dailyDigestEmailEnabled)
+            awaitItem() // initial
+            vm.onAction(SettingsAction.OnDailyDigestToggle(true))
+            assertTrue(awaitItem().dailyDigestEmailEnabled)
+            assertEquals(true, repo.lastDigestEnabled)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -80,7 +74,6 @@ class SettingsDigestToggleTest {
 
 private fun buildSettingsVmForDigest(
     initialEnabled: Boolean = true,
-    setterResult: EmptyResult<DataError.Network> = Result.Success(Unit),
 ): Pair<SettingsViewModel, FakeUserRepository> {
     val authRepo = FakeAuthRepository().apply {
         currentUser = User(
@@ -105,7 +98,6 @@ private fun buildSettingsVmForDigest(
             avatarColorIndex = 0,
             dailyDigestEmailEnabled = initialEnabled,
         )
-        digestSetterResult = setterResult
     }
 
     val vm = SettingsViewModel(
