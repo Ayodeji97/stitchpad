@@ -176,10 +176,14 @@ Storage-hosted logo, plain-text fallback alongside HTML).
 
 ### Preferences + Settings (client)
 
-- Toggle writes `dailyDigestEmailEnabled` via `FirebaseUserRepository`. GitLive `set()`
-  awaits server ACK; the VM reflects state optimistically and reconciles from the snapshot
-  listener.
-- **Snackbar** confirmation on change (per notification-patterns rule — never Toast/Banner).
+- Toggle writes `dailyDigestEmailEnabled` via `FirebaseUserRepository` through the
+  fire-and-forget offline outbox. The VM applies an optimistic override so the switch
+  flips instantly; the offline outbox + snapshot listener handle persistence.
+- **No Snackbar on toggle** (revised during implementation): the switch flipping *is* the
+  feedback, and this matches the sibling Preferences toggles (measurement unit, appearance),
+  which are also silent fire-and-forget. A write that can't surface a real failure (the
+  outbox swallows transient Firestore errors by design) shouldn't claim success/failure via
+  a Snackbar. This intentionally diverges from the original spec's Snackbar-on-change note.
 - Toggle ships in **PR1** — shipping a recurring email with no off-switch is not acceptable,
   and the client change is small (one bool + one switch row).
 
