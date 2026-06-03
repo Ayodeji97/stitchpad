@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.debug.presentation
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
+import com.danzucker.stitchpad.core.debug.DigestDebugActions
+import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -53,16 +55,24 @@ class DebugMenuViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun TestScope.createViewModel(testAccountsConfigured: Boolean = true): DebugMenuViewModel {
+    private fun TestScope.createViewModel(
+        testAccountsConfigured: Boolean = true,
+        digestActions: DigestDebugActions = NoopDigestDebugActions,
+    ): DebugMenuViewModel {
         val vm = DebugMenuViewModel(
             seeder = seeder,
             sessionActions = sessionActions,
             freemiumActions = NoopFreemiumDebugActions,
+            digestActions = digestActions,
             now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    private object NoopDigestDebugActions : DigestDebugActions {
+        override suspend fun sendNow(): DigestSendResult = DigestSendResult.Empty
     }
 
     private object NoopFreemiumDebugActions : FreemiumDebugActions {
@@ -255,6 +265,22 @@ class DebugMenuViewModelTest {
         assertEquals(0, seeder.seedBulkCustomersCalls)
         // Dialog remains open so user can fix input
         assertTrue(vm.state.first().bulkSeed != null)
+    }
+
+    @Test
+    fun `OnSendDailyDigestClick emits ShowSnackbar when digest is sent`() = runTest {
+        val sentDigest = object : DigestDebugActions {
+            override suspend fun sendNow(): DigestSendResult = DigestSendResult.Sent
+        }
+        val vm = createViewModel(digestActions = sentDigest)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
     }
 
     private class FakeDebugSeeder : DebugSeeder {
