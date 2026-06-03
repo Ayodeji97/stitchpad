@@ -37,4 +37,11 @@ data class User(
      * Resets to false whenever the number is edited.
      */
     val whatsappConfirmed: Boolean = false,
+    /**
+     * Whether the tailor receives the daily operational email digest (orders
+     * due soon / overdue / outstanding balance). Opt-out: true by default, so a
+     * legacy doc with the field absent still gets the digest. Flipped from
+     * Settings → Notifications.
+     */
+    val dailyDigestEmailEnabled: Boolean = true,
 )
