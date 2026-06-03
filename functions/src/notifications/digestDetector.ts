@@ -5,7 +5,9 @@ const CAP = 5;
 const MIN_BALANCE = 1; // ignore sub-naira rounding residue from totalPrice - payments
 
 function balanceRemaining(o: OrderScanDoc): number {
-  const paid = o.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const paid = o.payments.length > 0
+    ? o.payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    : (o.depositPaid ?? 0);
   return Math.max(0, o.totalPrice - paid);
 }
 

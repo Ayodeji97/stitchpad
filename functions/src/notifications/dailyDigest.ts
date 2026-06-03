@@ -26,6 +26,7 @@ function mapOrder(id: string, d: DocumentData): OrderScanDoc {
     archivedAt: typeof d.archivedAt === 'number' ? d.archivedAt : null,
     totalPrice: typeof d.totalPrice === 'number' ? d.totalPrice : 0,
     payments: Array.isArray(d.payments) ? d.payments.map((p: any) => ({ amount: Number(p?.amount) || 0 })) : [],
+    depositPaid: typeof d.depositPaid === 'number' ? d.depositPaid : 0,
     items: Array.isArray(d.items) ? d.items.map((i: any) => ({
       garmentType: i?.garmentType, customGarmentName: i?.customGarmentName, description: i?.description,
     })) : [],

@@ -83,4 +83,19 @@ describe('digestDetector', () => {
     })], NOW);
     expect(m.dueSoon[0].garmentSummary).toBe('Agbada +1 more');
   });
+
+  it('counts legacy depositPaid as paid when payments is empty', () => {
+    const m = digestDetector([
+      order({ status: 'DELIVERED', totalPrice: 10000, payments: [], depositPaid: 4000 }),
+    ], NOW);
+    expect(m.outstandingTotal).toBe(1);
+    expect(m.outstanding[0].amount).toBe(6000); // 10000 - 4000 legacy deposit
+  });
+
+  it('ignores depositPaid when payments are present (payments are source of truth)', () => {
+    const m = digestDetector([
+      order({ status: 'DELIVERED', totalPrice: 10000, payments: [{ amount: 10000 }], depositPaid: 4000 }),
+    ], NOW);
+    expect(m.outstandingTotal).toBe(0); // fully paid via payments; depositPaid ignored
+  });
 });

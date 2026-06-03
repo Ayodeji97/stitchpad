@@ -9,6 +9,7 @@ export interface OrderScanDoc {
   archivedAt: number | null;   // epoch millis; non-null = archived (excluded)
   totalPrice: number;
   payments: { amount: number }[];
+  depositPaid?: number; // legacy deposit field; only meaningful when payments is empty
   items: { garmentType?: string; customGarmentName?: string; description?: string }[];
 }
 
