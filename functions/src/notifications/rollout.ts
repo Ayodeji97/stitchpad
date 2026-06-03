@@ -6,10 +6,13 @@
  */
 const STAGING = true;
 
-// Test-account emails (lower-cased). Replace/extend with the real tester emails.
+// Test-account emails (lower-cased). Daniel's Gmail +aliases deliver to his
+// inbox while being distinct Firebase Auth addresses — so digests are visible
+// during staging. Replace/extend with the real tester emails before the
+// STAGING=false flip to broad rollout.
 export const DIGEST_ALLOWLIST: string[] = [
-  'fola.tailor@getstitchpad.com',
-  'gabby.tailor@getstitchpad.com',
+  'danielayodeji97+fola@gmail.com',
+  'danielayodeji97+gabby@gmail.com',
 ];
 
 export function isDigestAllowed(_uid: string, email: string): boolean {
