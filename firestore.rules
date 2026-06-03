@@ -88,6 +88,7 @@ service cloud.firestore {
       allow update: if isOwner(uid)
         && fieldUnchanged('subscriptionTier')
         && fieldUnchanged('subscriptionStatus')
+        && fieldUnchanged('subscriptionEndsAt')
         && fieldUnchanged('subscriptionRenews')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
