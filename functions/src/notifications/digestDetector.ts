@@ -20,10 +20,7 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
   const today = lagosDayIndex(now);
   const dueSoon: DigestItem[] = [];
   const overdue: DigestItem[] = [];
-  // READY and DELIVERED are tracked separately so READY surfaces first in the digest
-  // (the tailor can collect immediately when a garment is ready for pickup).
-  const readyItems: DigestItem[] = [];
-  const deliveredItems: DigestItem[] = [];
+  const outstanding: DigestItem[] = [];
 
   for (const o of orders) {
     const open = o.status !== 'DELIVERED' && o.archivedAt == null;
@@ -39,19 +36,14 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
     if ((o.status === 'READY' || o.status === 'DELIVERED') && o.archivedAt == null) {
       const bal = balanceRemaining(o);
       if (bal >= MIN_BALANCE) {
-        const item: DigestItem = { customerName: o.customerName, garmentSummary: summariseGarments(o.items), amount: Math.round(bal) };
-        if (o.status === 'READY') readyItems.push(item);
-        else deliveredItems.push(item);
+        outstanding.push({ customerName: o.customerName, garmentSummary: summariseGarments(o.items), amount: Math.round(bal) });
       }
     }
   }
 
   overdue.sort((a, b) => (a.deadline! - b.deadline!));  // most overdue first
   dueSoon.sort((a, b) => (a.deadline! - b.deadline!));  // soonest first
-  // READY before DELIVERED; biggest owed first within each group.
-  readyItems.sort((a, b) => (b.amount! - a.amount!));
-  deliveredItems.sort((a, b) => (b.amount! - a.amount!));
-  const outstanding = [...readyItems, ...deliveredItems];
+  outstanding.sort((a, b) => (b.amount! - a.amount!)); // biggest owed first
 
   return {
     dueSoon: dueSoon.slice(0, CAP),
