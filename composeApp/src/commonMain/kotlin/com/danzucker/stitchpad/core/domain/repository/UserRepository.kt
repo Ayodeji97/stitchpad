@@ -64,4 +64,13 @@ interface UserRepository {
     suspend fun deleteUserLogo(
         storagePath: String,
     ): EmptyResult<DataError.Network>
+
+    /**
+     * Sets the daily digest email opt-out flag on `users/{userId}`. Fire-and-forget
+     * (offline outbox) — the snapshot listener reflects the change locally at once.
+     */
+    suspend fun setDailyDigestEmailEnabled(
+        userId: String,
+        enabled: Boolean,
+    ): EmptyResult<DataError.Network>
 }
