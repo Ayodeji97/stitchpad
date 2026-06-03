@@ -52,7 +52,6 @@ private data class LocalUiState(
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
-    val dailyDigestEnabledOverride: Boolean? = null,
 )
 
 class SettingsViewModel(
@@ -215,8 +214,7 @@ class SettingsViewModel(
             welcomeDaysLeft = entitlements.welcomeDaysLeft,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
-            dailyDigestEmailEnabled = ui.dailyDigestEnabledOverride
-                ?: firestoreUser?.dailyDigestEmailEnabled ?: true,
+            dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
@@ -260,13 +258,12 @@ class SettingsViewModel(
     }
 
     private fun setDailyDigest(enabled: Boolean) {
-        // Optimistic override (flips the switch immediately) + fire-and-forget
-        // persist, mirroring toggleMeasurementUnit/cycleTheme. The user id is
-        // resolved live from the auth repo inside the coroutine — not from a
-        // captured field — so a toggle tapped before the cold state flow has run
-        // still updates the UI and persists. getCurrentUser() is null only when
-        // signed out (impossible on Settings); guarded so we never write users/"".
-        uiState.update { it.copy(dailyDigestEnabledOverride = enabled) }
+        // Firestore-backed flag: persist fire-and-forget and let the user-doc
+        // snapshot (already in the state combine) drive the switch — same as
+        // every other server-backed field on this screen. No optimistic override,
+        // so the switch can never get stuck showing a value that diverges from
+        // the server. getCurrentUser() is null only when signed out (impossible
+        // on Settings); guarded so we never write users/"".
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             userRepository.setDailyDigestEmailEnabled(userId, enabled)

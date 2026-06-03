@@ -46,7 +46,7 @@ class SettingsDigestToggleTest {
     }
 
     @Test
-    fun toggleOff_optimisticallyDisables_andPersists() = runTest {
+    fun toggleOff_snapshotDriven_disablesAndPersists() = runTest {
         val (vm, repo) = buildSettingsVmForDigest(initialEnabled = true)
         vm.state.test {
             awaitItem() // drain the settled initial state
