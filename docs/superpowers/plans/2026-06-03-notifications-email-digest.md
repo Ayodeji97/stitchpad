@@ -260,7 +260,7 @@ describe('digestDetector', () => {
       order({ status: 'READY', totalPrice: 5000, payments: [] }),
     ], NOW);
     expect(m.outstandingTotal).toBe(2);
-    expect(m.outstanding[0].amount).toBe(5000); // biggest owed first
+    expect(m.outstanding[0].amount).toBe(6000); // biggest owed first (DELIVERED bal 6000 > READY bal 5000)
   });
 
   it('excludes in-progress balances and sub-naira residue from outstanding', () => {
