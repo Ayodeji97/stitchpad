@@ -21,6 +21,14 @@ describe('sendResendEmail', () => {
     expect(body.reply_to).toBe('support@getstitchpad.com');
     expect(body.to).toEqual(['a@b.com']);
     expect(body.subject).toBe('Hi');
+    expect(body.text).toBe('x');
+  });
+
+  it('omits the text field from the payload when no text is provided', async () => {
+    let captured: any;
+    global.fetch = (async (_url: any, init: any) => { captured = JSON.parse(init.body); return { ok: true, status: 200, text: async () => '' } as any; }) as any;
+    await sendResendEmail('k', { to: 'a@b.com', subject: 's', html: '<p>h</p>' });
+    expect(captured.text).toBeUndefined();
   });
 
   it('throws with status detail when Resend responds non-ok', async () => {

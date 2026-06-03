@@ -32,6 +32,15 @@ describe('buildDigestEmail', () => {
     expect(html).toContain('+3 more');
   });
 
+  it('escapes HTML in customer/garment names (no raw script tags in output)', () => {
+    const { html } = buildDigestEmail(model({
+      overdue: [{ customerName: '<script>alert(1)</script>', garmentSummary: 'Agbada', deadline: 0 }],
+      overdueTotal: 1,
+    }), 'Ada');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
   it('formats outstanding amounts as naira with thousands separators', () => {
     const { html } = buildDigestEmail(model({
       outstanding: [{ customerName: 'Ada', garmentSummary: 'Buba', amount: 15000 }],
