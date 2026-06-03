@@ -23,6 +23,9 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
       if (isDigestEmpty(model)) { result.suppressedEmpty++; continue; }
 
       const { subject, html, text } = buildDigestEmail(model, r.name);
+      // Stamp AFTER a successful send (at-least-once): if setLastSentDate throws
+      // after the email went out, the next run may re-send — preferred over
+      // stamping first and losing the email on a transient Resend failure.
       await io.sendEmail({ to: r.email, subject, html, text });
       await io.setLastSentDate(r.uid, todayKey);
       result.sent++;

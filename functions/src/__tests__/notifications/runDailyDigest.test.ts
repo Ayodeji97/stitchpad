@@ -68,6 +68,7 @@ describe('runDailyDigest', () => {
     });
     io.loadOrders = async (uid) => { if (uid === 'u1') throw new Error('boom'); return [order({ deadline: NOW - DAY })]; };
     const r = await runDailyDigest(io, NOW);
+    expect(r.sent).toBe(1);
     expect(r.failed).toBe(1);
     expect(sent.map((s) => s.to)).toEqual(['u2@x.com']);
   });

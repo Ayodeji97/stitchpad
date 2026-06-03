@@ -36,6 +36,9 @@ function productionDigestIO(apiKey: string): DigestIO {
   const db = admin.firestore();
   return {
     async listRecipients(): Promise<DigestRecipient[]> {
+      // Scale path: V1 does one users.get() + a serial admin.auth().getUser(uid)
+      // per user (N+1). Before going much beyond ~50 users, switch to
+      // admin.auth().listUsers() pagination + a uid→email map to drop the N+1.
       const usersSnap = await db.collection('users').get();
       const recipients: DigestRecipient[] = [];
       for (const doc of usersSnap.docs) {
@@ -106,15 +109,19 @@ export const debugSendMyDigest = functions
     }
     const authUser = await admin.auth().getUser(uid);
     if (!authUser.email) throw new functions.https.HttpsError('failed-precondition', 'no_email_on_account');
+    if (!authUser.emailVerified) {
+      throw new functions.https.HttpsError('failed-precondition', 'email_not_verified');
+    }
 
+    const now = Date.now();
     const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
-    const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), Date.now());
+    const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), now);
     if (isDigestEmpty(model)) return { sent: false, reason: 'empty' };
 
     const data = userDoc.data() || {};
     const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
     const { subject, html, text } = buildDigestEmail(model, name);
     await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
-    await digestStateRef(uid).set({ lastSentDate: lagosDateKey(Date.now()) }, { merge: true });
+    await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
     return { sent: true };
   });
