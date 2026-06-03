@@ -67,6 +67,15 @@ describe('digestDetector', () => {
     expect(m.overdueTotal).toBe(8);
   });
 
+  it('lists a READY past-deadline unpaid order in both overdue and outstanding', () => {
+    const m = digestDetector([
+      order({ status: 'READY', deadline: NOW - DAY, totalPrice: 8000, payments: [] }),
+    ], NOW);
+    expect(m.overdueTotal).toBe(1);
+    expect(m.outstandingTotal).toBe(1);
+    expect(m.overdue[0].customerName).toBe(m.outstanding[0].customerName);
+  });
+
   it('summarises multiple garments', () => {
     const m = digestDetector([order({
       deadline: NOW + DAY,

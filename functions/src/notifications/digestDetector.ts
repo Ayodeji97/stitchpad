@@ -22,6 +22,10 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
   const overdue: DigestItem[] = [];
   const outstanding: DigestItem[] = [];
 
+  // A single order can land in two buckets at once and that is intentional:
+  // e.g. a READY order past its deadline with a balance is both `overdue`
+  // (open + past deadline) and `outstanding` (READY/DELIVERED + owed). The
+  // tailor needs both signals; the email renders each bucket independently.
   for (const o of orders) {
     const open = o.status !== 'DELIVERED' && o.archivedAt == null;
 
