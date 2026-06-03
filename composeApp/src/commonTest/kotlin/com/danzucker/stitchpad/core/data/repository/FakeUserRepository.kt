@@ -115,4 +115,21 @@ class FakeUserRepository : UserRepository {
         deletedLogoPaths.add(storagePath)
         return Result.Success(Unit)
     }
+
+    /** Last value passed to [setDailyDigestEmailEnabled], or null if never called. */
+    var lastDigestEnabled: Boolean? = null
+
+    /**
+     * Configurable result for [setDailyDigestEmailEnabled].
+     * Defaults to [Result.Success] unless overridden.
+     */
+    var digestSetterResult: EmptyResult<DataError.Network> = Result.Success(Unit)
+
+    override suspend fun setDailyDigestEmailEnabled(
+        userId: String,
+        enabled: Boolean,
+    ): EmptyResult<DataError.Network> {
+        lastDigestEnabled = enabled
+        return digestSetterResult
+    }
 }
