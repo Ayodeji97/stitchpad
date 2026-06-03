@@ -31,6 +31,7 @@ class DefaultDigestDebugActions(
 ) : DigestDebugActions {
     override suspend fun sendNow(): DigestSendResult {
         return try {
+            // no payload — the function reads the caller's uid from the Auth context server-side
             val result = functions
                 .httpsCallable("debugSendMyDigest")
                 .invoke()
