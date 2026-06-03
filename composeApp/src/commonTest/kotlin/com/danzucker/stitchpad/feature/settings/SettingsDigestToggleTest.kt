@@ -49,7 +49,7 @@ class SettingsDigestToggleTest {
     fun toggleOff_optimisticallyDisables_andPersists() = runTest {
         val (vm, repo) = buildSettingsVmForDigest(initialEnabled = true)
         vm.state.test {
-            awaitItem() // initial
+            awaitItem() // drain the settled initial state
             vm.onAction(SettingsAction.OnDailyDigestToggle(false))
             assertFalse(awaitItem().dailyDigestEmailEnabled)
             assertEquals(false, repo.lastDigestEnabled)
@@ -61,7 +61,7 @@ class SettingsDigestToggleTest {
     fun toggleOn_reflectsInStateAndPersists() = runTest {
         val (vm, repo) = buildSettingsVmForDigest(initialEnabled = false)
         vm.state.test {
-            awaitItem() // initial
+            awaitItem() // drain the settled initial state
             vm.onAction(SettingsAction.OnDailyDigestToggle(true))
             assertTrue(awaitItem().dailyDigestEmailEnabled)
             assertEquals(true, repo.lastDigestEnabled)

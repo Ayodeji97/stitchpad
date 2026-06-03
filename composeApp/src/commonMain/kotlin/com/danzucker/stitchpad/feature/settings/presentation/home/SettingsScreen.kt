@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Straighten
@@ -197,7 +198,7 @@ fun SettingsScreen(
                 )
                 SettingsRowDivider()
                 SettingsRow(
-                    icon = Icons.Outlined.Email,
+                    icon = Icons.Outlined.Notifications,
                     label = stringResource(Res.string.settings_row_daily_digest),
                     onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
                     trailing = {
