@@ -68,8 +68,6 @@ class SettingsViewModel(
 
     private val uiState = MutableStateFlow(LocalUiState())
 
-    private var currentUserId: String? = null
-
     private val _events = Channel<SettingsEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
@@ -127,7 +125,6 @@ class SettingsViewModel(
             emit(SettingsState(isLoading = false))
             return@flow
         }
-        currentUserId = authUser.id
         val provider = authRepository.getSignInProvider()
         // Seed the persisted measurement unit and theme once; toggles update uiState below.
         uiState.update {
@@ -263,15 +260,15 @@ class SettingsViewModel(
     }
 
     private fun setDailyDigest(enabled: Boolean) {
-        // Optimistic override + fire-and-forget persist, mirroring
-        // toggleMeasurementUnit/cycleTheme. Per the app's fire-and-forget write
-        // model the snapshot listener is the source of truth and the offline
-        // outbox handles persistence, so we neither await nor surface write
-        // errors here. The override stays the displayed value for the session
-        // (single-user, single-device) — consistent with the sibling toggles.
-        val userId = currentUserId ?: return
+        // Optimistic override (flips the switch immediately) + fire-and-forget
+        // persist, mirroring toggleMeasurementUnit/cycleTheme. The user id is
+        // resolved live from the auth repo inside the coroutine — not from a
+        // captured field — so a toggle tapped before the cold state flow has run
+        // still updates the UI and persists. getCurrentUser() is null only when
+        // signed out (impossible on Settings); guarded so we never write users/"".
         uiState.update { it.copy(dailyDigestEnabledOverride = enabled) }
         viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
             userRepository.setDailyDigestEmailEnabled(userId, enabled)
         }
     }
