@@ -15,7 +15,12 @@ export const DIGEST_ALLOWLIST: string[] = [
   'danielayodeji97+gabby@gmail.com',
 ];
 
+/** Raw allowlist membership — independent of STAGING. Used to gate the debug callable. */
+export function isDigestTester(email: string): boolean {
+  return DIGEST_ALLOWLIST.includes(email.trim().toLowerCase());
+}
+
 export function isDigestAllowed(_uid: string, email: string): boolean {
   if (!STAGING) return true;
-  return DIGEST_ALLOWLIST.includes(email.trim().toLowerCase());
+  return isDigestTester(email);
 }

@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import type { DocumentData } from 'firebase-admin/firestore';
 import { runDailyDigest } from './runDailyDigest';
-import { isDigestAllowed } from './rollout';
+import { isDigestAllowed, isDigestTester } from './rollout';
 import { sendResendEmail } from '../email/resendClient';
 import { buildDigestEmail } from './digestEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
@@ -112,6 +112,9 @@ export const debugSendMyDigest = functions
     if (!authUser.email) throw new functions.https.HttpsError('failed-precondition', 'no_email_on_account');
     if (!authUser.emailVerified) {
       throw new functions.https.HttpsError('failed-precondition', 'email_not_verified');
+    }
+    if (!isDigestTester(authUser.email)) {
+      throw new functions.https.HttpsError('permission-denied', 'not_a_tester');
     }
 
     const now = Date.now();

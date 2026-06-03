@@ -1,4 +1,4 @@
-import { isDigestAllowed, DIGEST_ALLOWLIST } from '../../notifications/rollout';
+import { isDigestAllowed, isDigestTester, DIGEST_ALLOWLIST } from '../../notifications/rollout';
 
 describe('isDigestAllowed', () => {
   it('allows allowlisted emails (case-insensitive) during staging', () => {
@@ -7,5 +7,10 @@ describe('isDigestAllowed', () => {
   });
   it('blocks non-allowlisted recipients during staging', () => {
     expect(isDigestAllowed('uid', 'stranger@example.com')).toBe(false);
+  });
+  it('isDigestTester is true only for allowlisted emails (case-insensitive, STAGING-independent)', () => {
+    expect(isDigestTester(DIGEST_ALLOWLIST[0].toUpperCase())).toBe(true);
+    expect(isDigestTester('  ' + DIGEST_ALLOWLIST[0] + '  ')).toBe(true);
+    expect(isDigestTester('stranger@example.com')).toBe(false);
   });
 });
