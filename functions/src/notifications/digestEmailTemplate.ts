@@ -56,7 +56,7 @@ export function buildDigestEmail(model: DigestModel, tailorName: string): { subj
 <h1 style="margin:0 0 18px;font-family:${SERIF_STACK};font-size:26px;font-weight:700;color:${INDIGO};line-height:1.2;">Good morning, ${escapeHtml(name)}</h1>
 <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:${INK};">Here's what needs your attention today.</p>
 ${htmlSections}
-<p style="margin:30px 0 0;font-size:12px;line-height:1.6;color:${FAINT};">You're getting this because daily summaries are on. Turn them off in Settings → Notifications.</p>
+<p style="margin:30px 0 0;font-size:12px;line-height:1.6;color:${FAINT};">You're getting this because daily summaries are on. Turn them off any time under Settings → Preferences → Daily summary email.</p>
 </td></tr></table></td></tr></table></body></html>`;
 
   const textSections = sections.filter((s) => s.total > 0).map((s) => {
@@ -64,7 +64,7 @@ ${htmlSections}
     const more = s.total > s.items.length ? `\n  +${s.total - s.items.length} more` : '';
     return `${s.title} (${s.total}):\n${rows}${more}`;
   }).join('\n\n');
-  const text = `Good morning, ${name}\nHere's what needs your attention today.\n\n${textSections}\n\nTurn off daily summaries in Settings → Notifications.`;
+  const text = `Good morning, ${name}\nHere's what needs your attention today.\n\n${textSections}\n\nTurn off daily summaries any time under Settings → Preferences → Daily summary email.`;
 
   return { subject, html, text };
 }

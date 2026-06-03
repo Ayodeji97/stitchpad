@@ -48,4 +48,15 @@ describe('buildDigestEmail', () => {
     }), 'Ada');
     expect(html).toContain('₦15,000');
   });
+
+  it('footer points opt-out to the real toggle location (Settings → Preferences)', () => {
+    const { html, text } = buildDigestEmail(model({
+      overdue: [{ customerName: 'Bola', garmentSummary: 'Agbada', deadline: 0 }],
+      overdueTotal: 1,
+    }), 'Ada');
+    for (const body of [html, text]) {
+      expect(body).toContain('Settings → Preferences → Daily summary email');
+      expect(body).not.toContain('Settings → Notifications'); // the toggle is NOT in a Notifications section
+    }
+  });
 });
