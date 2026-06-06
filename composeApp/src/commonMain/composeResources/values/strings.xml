@@ -31,6 +31,7 @@
     <!-- Common -->
     <string name="cd_password_show">Show password</string>
     <string name="cd_password_hide">Hide password</string>
+    <string name="cd_button_loading">Loading, please wait</string>
     <string name="placeholder_email">tailor@gmail.com</string>
     <string name="placeholder_password">Enter your password</string>
 
