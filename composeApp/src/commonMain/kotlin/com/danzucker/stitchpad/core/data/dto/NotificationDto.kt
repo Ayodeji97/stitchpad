@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class NotificationDto(
+    /** Present in the doc body only by default; the mapper uses the Firestore document ID instead. */
     val id: String = "",
     val orderId: String = "",
     val type: String = "UNKNOWN",

@@ -42,24 +42,16 @@ class FirebaseNotificationRepository(
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
 
-    // The GitLive Firebase SDK doesn't support `whereEqualTo(field, false)` cleanly
-    // across platforms (same constraint as archived-orders filtering in
-    // FirebaseOrderRepository). Count client-side from the full collection snapshot —
-    // the per-user notification set is small enough that this is fine.
-    @Suppress("INLINE_FROM_HIGHER_PLATFORM")
+    // Derives the unread count from the same observeNotifications flow so there is
+    // a single Firestore snapshot listener feeding both consumers. The dashboard
+    // gets its own independent listener because it calls this method directly.
     override fun observeUnreadCount(userId: String): Flow<Int> =
-        collection(userId).snapshots()
-            .map { snapshot ->
-                snapshot.documents.count { doc ->
-                    runCatching {
-                        doc.data(NotificationDto.serializer()).isRead
-                    }.getOrDefault(true).not()
-                }
+        observeNotifications(userId).map { result ->
+            when (result) {
+                is Result.Success -> result.data.count { !it.isRead }
+                is Result.Error -> 0
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeUnreadCount failed" }
-                emit(0)
-            }
+        }
 
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override suspend fun markAsRead(userId: String, notificationId: String): EmptyResult<DataError.Network> {
@@ -69,28 +61,14 @@ class FirebaseNotificationRepository(
         return if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
     }
 
-    // Fetch the full collection, filter unread client-side (same platform-safety
-    // rationale as observeUnreadCount), then fire-and-forget an update per doc.
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
-    override suspend fun markAllRead(userId: String): EmptyResult<DataError.Network> {
-        return try {
-            val snapshot = collection(userId).get()
-            snapshot.documents.forEach { doc ->
-                val isRead = runCatching {
-                    doc.data(NotificationDto.serializer()).isRead
-                }.getOrDefault(true)
-                if (!isRead) {
-                    offlineWrites.enqueue("markAllRead userId=$userId id=${doc.id}") {
-                        collection(userId).document(doc.id).set(mapOf("isRead" to true), merge = true)
-                    }
-                }
+    override suspend fun markAllRead(userId: String, notificationIds: List<String>): EmptyResult<DataError.Network> {
+        if (notificationIds.isEmpty()) return Result.Success(Unit)
+        notificationIds.forEach { id ->
+            offlineWrites.enqueue("markAllRead userId=$userId id=$id") {
+                collection(userId).document(id).set(mapOf("isRead" to true), merge = true)
             }
-            Result.Success(Unit)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.e(tag = TAG, throwable = e) { "markAllRead failed userId=$userId" }
-            Result.Error(DataError.Network.UNKNOWN)
         }
+        return Result.Success(Unit)
     }
 }

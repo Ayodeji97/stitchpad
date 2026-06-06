@@ -15,5 +15,10 @@ interface NotificationRepository {
 
     suspend fun markAsRead(userId: String, notificationId: String): EmptyResult<DataError.Network>
 
-    suspend fun markAllRead(userId: String): EmptyResult<DataError.Network>
+    /**
+     * Marks all notifications in [notificationIds] as read.
+     * The caller (inbox ViewModel) passes the ids it already holds in state,
+     * so the repository never needs a blocking network read to discover them.
+     */
+    suspend fun markAllRead(userId: String, notificationIds: List<String>): EmptyResult<DataError.Network>
 }
