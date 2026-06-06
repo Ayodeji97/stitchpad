@@ -11,6 +11,7 @@ const STAGING = true;
 // during staging. Replace/extend with the real tester emails before the
 // STAGING=false flip to broad rollout.
 export const DIGEST_ALLOWLIST: string[] = [
+  'danielayodeji97@gmail.com',
   'danielayodeji97+fola@gmail.com',
   'danielayodeji97+gabby@gmail.com',
 ];
