@@ -90,8 +90,12 @@ platform :android do
     # freshly evaluated, so a warm config cache cannot serve a stale versionCode.
     sh "cd .. && ./gradlew :composeApp:bundleRelease --console=plain --no-configuration-cache"
 
-    aab = "../composeApp/build/outputs/bundle/release/composeApp-release.aab"
-    UI.user_error!("AAB not found at #{aab}") unless File.exist?(File.join(__dir__, aab))
+    # Absolute path (anchored to fastlane/) so upload_to_play_store resolves the
+    # AAB regardless of the CWD fastlane runs the action from. A relative
+    # "../composeApp/..." passed the local File.exist? check (joined to __dir__)
+    # but broke inside supply, which resolves it against a different CWD.
+    aab = File.expand_path("../composeApp/build/outputs/bundle/release/composeApp-release.aab", __dir__)
+    UI.user_error!("AAB not found at #{aab}") unless File.exist?(aab)
 
     upload_to_play_store(
       package_name: package_name,
