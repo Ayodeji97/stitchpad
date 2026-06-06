@@ -30,10 +30,11 @@ describe('buildDigestEmail', () => {
   });
 
   it('shows a +N more line when a bucket is capped', () => {
-    const { html } = buildDigestEmail(model({
+    const { html, text } = buildDigestEmail(model({
       overdue: Array.from({ length: 8 }, (_, i) => ({ orderId: `o${i}`, customerName: `c${i}`, garmentSummary: 'x', deadline: 0 })),
     }), 'Ada');
     expect(html).toContain('+3 more');
+    expect(text).toContain('+3 more');
   });
 
   it('escapes HTML in customer/garment names (no raw script tags in output)', () => {

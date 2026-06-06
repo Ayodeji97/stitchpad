@@ -46,7 +46,7 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
     }
   }
 
-  overdue.sort((a, b) => (a.deadline! - b.deadline!));  // most overdue first
+  overdue.sort((a, b) => (a.deadline! - b.deadline!));  // ascending = oldest deadline first = most overdue
   dueSoon.sort((a, b) => (a.deadline! - b.deadline!));  // soonest first
   outstanding.sort((a, b) => (b.amount! - a.amount!)); // biggest owed first
 

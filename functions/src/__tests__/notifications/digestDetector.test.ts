@@ -67,8 +67,14 @@ describe('digestDetector', () => {
   });
 
   it('carries orderId on every item', () => {
-    const m = digestDetector([order({ id: 'o1', deadline: NOW - DAY })], NOW);
+    const m = digestDetector([
+      order({ id: 'o1', deadline: NOW - DAY }),                                  // overdue
+      order({ id: 'o2', deadline: NOW + DAY }),                                  // due soon
+      order({ id: 'o3', status: 'DELIVERED', totalPrice: 5000, payments: [] }), // outstanding
+    ], NOW);
     expect(m.overdue[0].orderId).toBe('o1');
+    expect(m.dueSoon[0].orderId).toBe('o2');
+    expect(m.outstanding[0].orderId).toBe('o3');
   });
 
   it('lists a READY past-deadline unpaid order in both overdue and outstanding', () => {
