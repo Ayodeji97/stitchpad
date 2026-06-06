@@ -13,8 +13,8 @@ import com.danzucker.stitchpad.di.goalsDataModule
 import com.danzucker.stitchpad.di.goalsPresentationModule
 import com.danzucker.stitchpad.di.measurementDataModule
 import com.danzucker.stitchpad.di.measurementPresentationModule
-import com.danzucker.stitchpad.di.onboardingModule
 import com.danzucker.stitchpad.di.notificationDataModule
+import com.danzucker.stitchpad.di.onboardingModule
 import com.danzucker.stitchpad.di.orderDataModule
 import com.danzucker.stitchpad.di.orderPresentationModule
 import com.danzucker.stitchpad.di.platformModule
