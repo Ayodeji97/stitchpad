@@ -50,11 +50,13 @@ com.danzucker.stitchpad/
 - Catch exceptions at the layer that owns them, convert to Result.Error
 - toUiText() extensions in presentation layer
 
-## Design System
-- Primary: Deep Saffron #E8A800
-- Fonts: Plus Jakarta Sans (body) + JetBrains Mono (measurements)
+## Design System (Adire Atelier)
+- Primary: Indigo 500 #2C3E7C. Secondary warmth: Sienna 500 #B85A30. Saffron #E8A800 is a RARE heritage accent only (PRO badges, the logo's heritage tick) — never primary, never body text on white.
+- Backgrounds: Paper Light #FAF6EC (light), Ink Dark #14110E (dark)
+- Fonts: Fraunces (display/wordmark) + Manrope (body) + JetBrains Mono (measurements)
 - Light + dark mode defined
 - All tokens in DesignTokens.kt, theme in StitchPadTheme
+- Canonical brand source: Figma "StitchPad — Brand Kit (Adire Atelier)", file key vtoN4SvhU1utiuXJTG2i4i (Icons + Marketing pages have export-ready app icons, feature graphic, OG card)
 
 ## Build & Run
 - Android: ./gradlew :composeApp:assembleDebug
