@@ -131,7 +131,14 @@ service cloud.firestore {
       // and no client delete in V1.
       match /notifications/{notificationId} {
         allow read: if isOwner(uid);
-        allow update: if isOwner(uid) && fieldUnchanged('createdAt');
+        allow update: if isOwner(uid)
+          && fieldUnchanged('createdAt')
+          && fieldUnchanged('orderId')
+          && fieldUnchanged('type')
+          && fieldUnchanged('customerName')
+          && fieldUnchanged('garmentSummary')
+          && fieldUnchanged('amount')
+          && fieldUnchanged('deadline');
         allow create, delete: if false;
       }
 
