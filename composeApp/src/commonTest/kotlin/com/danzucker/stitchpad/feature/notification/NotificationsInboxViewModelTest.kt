@@ -8,9 +8,7 @@ import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
-import com.danzucker.stitchpad.feature.auth.domain.AuthError
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
-import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxAction
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxEvent
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxViewModel
@@ -26,6 +24,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 private class FakeNotificationRepository : NotificationRepository {
@@ -47,39 +46,6 @@ private class FakeNotificationRepository : NotificationRepository {
     }
 }
 
-private class FakeAuthRepositoryReturning(private val uid: String) : AuthRepository {
-    private val user = User(
-        id = uid,
-        email = "test@example.com",
-        displayName = "Test User",
-        businessName = null,
-        phoneNumber = null,
-        whatsappNumber = null,
-        avatarColorIndex = 0,
-    )
-
-    override suspend fun getCurrentUser(): User = user
-    override val isLoggedIn: Boolean get() = true
-
-    override suspend fun signUpWithEmail(email: String, password: String, displayName: String): Result<User, AuthError> = Result.Success(user)
-    override suspend fun signInWithEmail(email: String, password: String): Result<User, AuthError> = Result.Success(user)
-    override suspend fun signInWithGoogle(): Result<User, AuthError> = Result.Success(user)
-    override suspend fun signInWithApple(): Result<User, AuthError> = Result.Success(user)
-    override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun sendEmailVerification(): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun reloadUser(): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun isEmailVerified(): Boolean = true
-    override suspend fun signOut(): Result<Unit, AuthError> = Result.Success(Unit)
-    override suspend fun getSignInProvider(): SignInProvider = SignInProvider.EMAIL_PASSWORD
-    override suspend fun reauthenticateWithPassword(password: String): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun reauthenticateWithApple(): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun reauthenticateWithGoogle(): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun updateEmail(newEmail: String): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun updatePassword(newPassword: String): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun updateAuthDisplayName(name: String?): EmptyResult<AuthError> = Result.Success(Unit)
-    override suspend fun deleteAccount(): EmptyResult<AuthError> = Result.Success(Unit)
-}
-
 private fun notif(id: String, read: Boolean = false) = Notification(
     id = id,
     orderId = "ord-$id",
@@ -99,10 +65,24 @@ class NotificationsInboxViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
+    private fun fakeAuth(): FakeAuthRepository {
+        val auth = FakeAuthRepository()
+        auth.currentUser = User(
+            id = "u1",
+            email = "test@example.com",
+            displayName = "Test User",
+            businessName = null,
+            phoneNumber = null,
+            whatsappNumber = null,
+            avatarColorIndex = 0,
+        )
+        return auth
+    }
+
     @Test
     fun emitsNotificationsFromRepo() = runTest {
         val repo = FakeNotificationRepository()
-        val vm = NotificationsInboxViewModel(repo, FakeAuthRepositoryReturning("u1"))
+        val vm = NotificationsInboxViewModel(repo, fakeAuth())
         vm.state.test {
             awaitItem() // initial loading state
             repo.flow.value = Result.Success(listOf(notif("a"), notif("b", read = true)))
@@ -116,7 +96,7 @@ class NotificationsInboxViewModelTest {
     @Test
     fun tapMarksReadAndNavigates() = runTest {
         val repo = FakeNotificationRepository()
-        val vm = NotificationsInboxViewModel(repo, FakeAuthRepositoryReturning("u1"))
+        val vm = NotificationsInboxViewModel(repo, fakeAuth())
         vm.state.test { awaitItem(); cancelAndIgnoreRemainingEvents() } // trigger onStart
         vm.events.test {
             vm.onAction(NotificationsInboxAction.OnNotificationClick(notif("a")))
@@ -130,7 +110,7 @@ class NotificationsInboxViewModelTest {
     @Test
     fun markAllReadPassesUnreadIdsToRepo() = runTest {
         val repo = FakeNotificationRepository()
-        val vm = NotificationsInboxViewModel(repo, FakeAuthRepositoryReturning("u1"))
+        val vm = NotificationsInboxViewModel(repo, fakeAuth())
         // Push two notifications: one unread, one read.
         vm.state.test {
             awaitItem()
@@ -140,5 +120,32 @@ class NotificationsInboxViewModelTest {
         }
         vm.onAction(NotificationsInboxAction.OnMarkAllReadClick)
         assertEquals(listOf("a"), repo.markAllReadCalledWithIds)
+    }
+
+    @Test
+    fun networkErrorSetsErrorMessageAndStopsLoading() = runTest {
+        val repo = FakeNotificationRepository()
+        val vm = NotificationsInboxViewModel(repo, fakeAuth())
+        vm.state.test {
+            awaitItem() // initial loading state
+            repo.flow.value = Result.Error(DataError.Network.UNKNOWN)
+            val s = awaitItem()
+            assertNotNull(s.errorMessage)
+            assertTrue(!s.isLoading)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun onBackClickEmitsNavigateBack() = runTest {
+        val repo = FakeNotificationRepository()
+        val vm = NotificationsInboxViewModel(repo, fakeAuth())
+        vm.state.test { awaitItem(); cancelAndIgnoreRemainingEvents() } // trigger onStart
+        vm.events.test {
+            vm.onAction(NotificationsInboxAction.OnBackClick)
+            val e = awaitItem()
+            assertTrue(e is NotificationsInboxEvent.NavigateBack)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }
