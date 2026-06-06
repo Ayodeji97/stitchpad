@@ -42,7 +42,6 @@ class NotificationsInboxViewModel(
                 viewModelScope.launch { _events.send(NotificationsInboxEvent.NavigateBack) }
             is NotificationsInboxAction.OnNotificationClick -> onNotificationClick(action)
             NotificationsInboxAction.OnMarkAllReadClick -> markAllRead()
-            NotificationsInboxAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }
 
