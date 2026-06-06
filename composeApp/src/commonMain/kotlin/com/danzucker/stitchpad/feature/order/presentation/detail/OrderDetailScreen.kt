@@ -70,6 +70,7 @@ import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementDetailSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCustomerCard
@@ -160,6 +161,7 @@ fun OrderDetailRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToCustomerForm: (customerId: String) -> Unit,
     onNavigateToMeasurementForm: (customerId: String, linkToOrderId: String) -> Unit,
+    onNavigateToViewMeasurement: (customerId: String, measurementId: String) -> Unit,
     onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
     onNavigateToStyleForm: (customerId: String, linkToOrderId: String) -> Unit,
     onNavigateBack: () -> Unit,
@@ -224,6 +226,8 @@ fun OrderDetailRoot(
                 onNavigateToDuplicateOrder(event.seedFromOrderId)
             is OrderDetailEvent.NavigateToMeasurementForm ->
                 onNavigateToMeasurementForm(event.customerId, event.linkToOrderId)
+            is OrderDetailEvent.NavigateToViewMeasurement ->
+                onNavigateToViewMeasurement(event.customerId, event.measurementId)
             is OrderDetailEvent.NavigateToStyleForm ->
                 onNavigateToStyleForm(event.customerId, event.linkToOrderId)
         }
@@ -432,9 +436,21 @@ fun OrderDetailScreen(
         MeasurementPickerSheet(
             measurements = state.availableMeasurements,
             selectedMeasurementId = state.order.items.firstOrNull()?.measurementId,
+            customFieldLabels = state.customFieldLabels,
             onSelectMeasurement = { onAction(OrderDetailAction.OnSelectMeasurement(it)) },
             onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewMeasurementClick) },
             onDismiss = { onAction(OrderDetailAction.OnDismissMeasurementPickerSheet) },
+        )
+    }
+
+    // Read-only measurement quick-view — opened by tapping the populated card.
+    if (state.showMeasurementDetailSheet && state.measurement != null) {
+        MeasurementDetailSheet(
+            measurement = state.measurement,
+            customFieldLabels = state.customFieldLabels,
+            onViewFull = { onAction(OrderDetailAction.OnViewFullMeasurementClick) },
+            onChangeMeasurement = { onAction(OrderDetailAction.OnLinkMeasurementsClick) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissMeasurementDetailSheet) },
         )
     }
 
@@ -822,7 +838,6 @@ private fun OrderDetailContent(
 
     val firstItem = order.items.firstOrNull()
     val garmentName = firstItem?.let { garmentDisplayName(it) }.orEmpty()
-    val primaryFieldLabels = firstItem?.garmentType?.fieldLabels?.take(3).orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
     val styleImageUrls: List<String> = firstItem?.styleImages.orEmpty().mapNotNull { ref ->
         when (ref.source) {
@@ -896,8 +911,15 @@ private fun OrderDetailContent(
         item {
             OrderMeasurementsPreviewCard(
                 measurement = state.measurement,
-                primaryFieldLabels = primaryFieldLabels,
-                onCardClick = { onAction(OrderDetailAction.OnLinkMeasurementsClick) },
+                customFieldLabels = state.customFieldLabels,
+                // Linked → open the read-only quick-view; empty → open the picker.
+                onCardClick = {
+                    if (state.measurement != null) {
+                        onAction(OrderDetailAction.OnViewMeasurementClick)
+                    } else {
+                        onAction(OrderDetailAction.OnLinkMeasurementsClick)
+                    }
+                },
                 onLinkMeasurementsClick = { onAction(OrderDetailAction.OnLinkMeasurementsClick) },
             )
         }

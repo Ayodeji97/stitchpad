@@ -62,6 +62,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -742,14 +743,6 @@ private fun epochToDateString(epochMs: Long): String {
     )
     val monthName = monthNames.getOrElse((m - 1).toInt()) { "" }
     return "$d $monthName $year"
-}
-
-private fun formatMeasurementValue(value: Double): String {
-    return if (value == value.toLong().toDouble()) {
-        value.toLong().toString()
-    } else {
-        value.toString()
-    }
 }
 
 @Suppress("UnusedPrivateMember")

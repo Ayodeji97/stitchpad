@@ -17,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
+import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -66,6 +67,7 @@ class OrderDetailViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val measurementRepository: MeasurementRepository,
+    private val customFieldRepository: CustomMeasurementFieldRepository,
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -100,6 +102,7 @@ class OrderDetailViewModel(
                 }
                 observeOrder()
                 loadUser()
+                observeCustomFieldLabels()
             }
         }
         .stateIn(
@@ -317,7 +320,9 @@ class OrderDetailViewModel(
 
             // Measurements
             OrderDetailAction.OnLinkMeasurementsClick ->
-                _state.update { it.copy(showMeasurementPickerSheet = true) }
+                _state.update {
+                    it.copy(showMeasurementPickerSheet = true, showMeasurementDetailSheet = false)
+                }
 
             is OrderDetailAction.OnSelectMeasurement -> linkExistingMeasurement(action.measurementId)
 
@@ -332,6 +337,21 @@ class OrderDetailViewModel(
 
             OrderDetailAction.OnDismissMeasurementPickerSheet ->
                 _state.update { it.copy(showMeasurementPickerSheet = false) }
+
+            OrderDetailAction.OnViewMeasurementClick ->
+                _state.update { it.copy(showMeasurementDetailSheet = true) }
+
+            OrderDetailAction.OnDismissMeasurementDetailSheet ->
+                _state.update { it.copy(showMeasurementDetailSheet = false) }
+
+            OrderDetailAction.OnViewFullMeasurementClick -> {
+                val customerId = _state.value.order?.customerId ?: return
+                val measurementId = _state.value.measurement?.id ?: return
+                _state.update { it.copy(showMeasurementDetailSheet = false) }
+                viewModelScope.launch {
+                    _events.send(OrderDetailEvent.NavigateToViewMeasurement(customerId, measurementId))
+                }
+            }
 
             // Deadline
             OrderDetailAction.OnSetDeadlineClick ->
@@ -514,6 +534,21 @@ class OrderDetailViewModel(
             customerRepository.observeCustomer(userId, customerId).collect { res ->
                 if (res is Result.Success) {
                     _state.update { it.copy(customer = res.data) }
+                }
+            }
+        }
+    }
+
+    // Custom-field id -> label, so custom measurement values render by name in the
+    // preview card and detail sheet. Mirrors CustomerDetailViewModel; includes
+    // archived fields so previously recorded values keep their labels.
+    private fun observeCustomFieldLabels() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            customFieldRepository.observeFields(userId).collect { result ->
+                if (result is Result.Success) {
+                    val labels = result.data.associate { it.id to it.label }
+                    _state.update { it.copy(customFieldLabels = labels) }
                 }
             }
         }

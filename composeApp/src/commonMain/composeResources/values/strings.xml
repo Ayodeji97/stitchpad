@@ -978,8 +978,12 @@
     <string name="order_detail_link_measurements">Link measurements</string>
     <string name="measurement_picker_title">Link a measurement</string>
     <string name="measurement_picker_empty">No measurements yet for this customer.</string>
-    <string name="measurement_picker_taken_caption">Taken %1$s · %2$d fields</string>
+    <string name="measurement_picker_taken_date">Taken %1$s</string>
     <string name="measurement_picker_create_new">Create new measurement</string>
+    <string name="measurement_detail_title">Customer measurement</string>
+    <string name="measurement_detail_view_full">View full measurement</string>
+    <string name="measurement_detail_change">Change measurement</string>
+    <string name="measurement_detail_empty">No values recorded yet.</string>
     <string name="style_picker_title">Link a style</string>
     <string name="style_picker_empty">No styles yet for this customer.</string>
     <string name="style_picker_created_caption">Created %1$s</string>
