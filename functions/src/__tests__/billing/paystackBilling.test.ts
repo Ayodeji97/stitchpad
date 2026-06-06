@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import {
   buildReference,
@@ -191,6 +192,69 @@ describe('paystackWebhookHandler', () => {
       status: 'paid',
       failureReason: null,
     });
+  });
+
+  it('stacks an early renewal on top of an active paid subscription', async () => {
+    const reference = 'stp_uid1_1_renew';
+    const currentEnd = admin.firestore.Timestamp.fromDate(new Date('2026-06-20T00:00:00Z'));
+    const { db, store } = dbWithTransaction(
+      reference,
+      { tier: 'pro', cadence: 'monthly', amountKobo: 200_000, status: 'pending' },
+      { subscriptionTier: 'pro', subscriptionStatus: 'active', subscriptionEndsAt: currentEnd },
+    );
+    const payload = signed({
+      event: 'charge.success',
+      data: {
+        reference,
+        amount: 200_000,
+        currency: 'NGN',
+        status: 'success',
+        paid_at: '2026-06-01T10:00:00Z',
+        metadata: { uid: 'uid-1', tier: 'pro', cadence: 'monthly', purpose: 'stitchpad_subscription' },
+      },
+    });
+
+    await paystackWebhookHandler(payload.event, payload.signature, payload.raw, {
+      db: db as never,
+      secretKey: 'secret',
+      now: () => new Date('2026-06-01T10:01:00Z'),
+    });
+
+    // Period stacks from the existing end date (2026-06-20 + 30d), not the payment time.
+    const endsAt = store.get('users/uid-1').subscriptionEndsAt.toDate() as Date;
+    expect(endsAt.toISOString()).toBe('2026-07-20T00:00:00.000Z');
+  });
+
+  it('ignores a client-planted subscriptionEndsAt on a non-paid user', async () => {
+    const reference = 'stp_uid1_1_plant';
+    // Attacker planted a far-future end date at user-doc creation while still on free.
+    const planted = admin.firestore.Timestamp.fromDate(new Date('2050-01-01T00:00:00Z'));
+    const { db, store } = dbWithTransaction(
+      reference,
+      { tier: 'pro', cadence: 'monthly', amountKobo: 200_000, status: 'pending' },
+      { subscriptionTier: 'free', subscriptionStatus: 'active', subscriptionEndsAt: planted },
+    );
+    const payload = signed({
+      event: 'charge.success',
+      data: {
+        reference,
+        amount: 200_000,
+        currency: 'NGN',
+        status: 'success',
+        paid_at: '2026-06-01T10:00:00Z',
+        metadata: { uid: 'uid-1', tier: 'pro', cadence: 'monthly', purpose: 'stitchpad_subscription' },
+      },
+    });
+
+    await paystackWebhookHandler(payload.event, payload.signature, payload.raw, {
+      db: db as never,
+      secretKey: 'secret',
+      now: () => new Date('2026-06-01T10:01:00Z'),
+    });
+
+    // A fresh period starts from the payment time (2026-07-01), NOT the planted 2050 date.
+    const endsAt = store.get('users/uid-1').subscriptionEndsAt.toDate() as Date;
+    expect(endsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
   });
 
   it('does not upgrade on amount mismatch', async () => {

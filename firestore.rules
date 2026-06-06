@@ -80,7 +80,11 @@ service cloud.firestore {
         && (!('bonusCoins' in request.resource.data) ||
             request.resource.data.bonusCoins == 30)
         && (!('welcomeBonusAppliedAt' in request.resource.data) ||
-            request.resource.data.welcomeBonusAppliedAt == request.time);
+            request.resource.data.welcomeBonusAppliedAt == request.time)
+        // subscriptionEndsAt is server-owned (set only by the Paystack webhook
+        // via the Admin SDK). A client must never plant it at creation, or it
+        // could ride a far-future date by buying a single prepaid period.
+        && (!('subscriptionEndsAt' in request.resource.data));
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these

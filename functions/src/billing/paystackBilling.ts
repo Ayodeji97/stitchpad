@@ -273,8 +273,21 @@ export async function paystackWebhookHandler(
     }
 
     const userSnap = await tx.get(userRef);
-    const currentEndsAt = toDate((userSnap.data() as { subscriptionEndsAt?: unknown } | undefined)?.subscriptionEndsAt);
-    const periodStart = currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
+    const userData = userSnap.data() as
+      | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
+      | undefined;
+    // Only stack the new period on top of an existing end date when the user is
+    // genuinely on an active paid plan (a true early renewal). The create rules do
+    // not gate `subscriptionEndsAt`, so a signed-in user could plant a far-future
+    // value at user-doc creation and then buy a single period to ride that date.
+    // Both `subscriptionTier` and `subscriptionStatus` are server-owned (create
+    // forces tier='free', and updates lock both), so a free/expired user always
+    // starts a fresh period from the payment time.
+    const onActivePaidPlan =
+      (userData?.subscriptionTier === 'pro' || userData?.subscriptionTier === 'atelier') &&
+      userData?.subscriptionStatus === 'active';
+    const currentEndsAt = toDate(userData?.subscriptionEndsAt);
+    const periodStart = onActivePaidPlan && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
       ? currentEndsAt
       : paidAt;
     const subscriptionEndsAt = addPeriod(periodStart, cadence);

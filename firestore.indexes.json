@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionTier", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionRenews", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionEndsAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
