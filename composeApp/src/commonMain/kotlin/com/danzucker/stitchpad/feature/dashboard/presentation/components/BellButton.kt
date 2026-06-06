@@ -14,15 +14,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_notifications
+import stitchpad.composeapp.generated.resources.cd_notifications_with_count
 
 private const val UNREAD_COUNT_CAP = 9
-private const val UNREAD_BUBBLE_SIZE = 16
+private const val UNREAD_BUBBLE_SIZE = 18
 private const val UNREAD_BUBBLE_ICON_INSET = 36
 
 @Composable
@@ -45,7 +48,11 @@ fun BellButton(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Notifications,
-                contentDescription = stringResource(Res.string.cd_notifications),
+                contentDescription = if (unreadCount > 0) {
+                    stringResource(Res.string.cd_notifications_with_count, unreadCount)
+                } else {
+                    stringResource(Res.string.cd_notifications)
+                },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -54,13 +61,17 @@ fun BellButton(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .background(MaterialTheme.colorScheme.error, CircleShape)
-                    .requiredSize(UNREAD_BUBBLE_SIZE.dp),
+                    .requiredSize(UNREAD_BUBBLE_SIZE.dp)
+                    .clearAndSetSemantics {},
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = if (unreadCount > UNREAD_COUNT_CAP) "9+" else unreadCount.toString(),
                     color = MaterialTheme.colorScheme.onError,
                     style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
                 )
             }
         }

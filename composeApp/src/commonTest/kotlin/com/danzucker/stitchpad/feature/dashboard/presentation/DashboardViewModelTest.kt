@@ -56,10 +56,12 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private class FakeDashboardNotificationRepository : NotificationRepository {
+    val unreadCountFlow = MutableStateFlow(0)
+
     override fun observeNotifications(userId: String): Flow<Result<List<Notification>, DataError.Network>> =
         flowOf(Result.Success(emptyList()))
 
-    override fun observeUnreadCount(userId: String): Flow<Int> = flowOf(0)
+    override fun observeUnreadCount(userId: String): Flow<Int> = unreadCountFlow
 
     override suspend fun markAsRead(userId: String, notificationId: String): EmptyResult<DataError.Network> =
         Result.Success(Unit)
@@ -1546,6 +1548,28 @@ class DashboardViewModelTest {
             com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.PipelineSteady,
             vm.state.value.uiState
         )
+    }
+
+    // --- Notification unread count ---
+
+    @Test
+    fun observeUnreadCount_reflectsRepositoryValue_inState() = runTest {
+        signIn()
+        notificationRepository.unreadCountFlow.value = 5
+
+        val vm = createViewModel()
+
+        assertEquals(5, vm.state.value.unreadNotificationCount)
+    }
+
+    @Test
+    fun onNotificationsClick_emitsNavigateToNotifications() = runTest {
+        signIn()
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnNotificationsClick)
+
+        assertIs<DashboardEvent.NavigateToNotifications>(vm.events.first())
     }
 
 }
