@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.EventBusy
@@ -56,6 +57,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
 import stitchpad.composeapp.generated.resources.order_detail_confirm_fitting
 import stitchpad.composeapp.generated.resources.order_detail_duplicate_order
+import stitchpad.composeapp.generated.resources.order_detail_edit_deadline
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_one
@@ -228,7 +230,12 @@ private fun HeroDetails(
             verticalAlignment = Alignment.Top,
         ) {
             if (dueLabel != null) {
-                DueDateSection(dueLabel = dueLabel, isOverdue = isOverdue, status = status)
+                DueDateSection(
+                    dueLabel = dueLabel,
+                    isOverdue = isOverdue,
+                    status = status,
+                    onEditClick = onSetDeadlineClick,
+                )
             } else {
                 SetDeadlineCta(onClick = onSetDeadlineClick)
             }
@@ -346,6 +353,7 @@ private fun DueDateSection(
     dueLabel: UiText,
     isOverdue: Boolean,
     status: OrderStatus,
+    onEditClick: () -> Unit,
 ) {
     val dateColor = if (isOverdue) DesignTokens.error500 else MaterialTheme.colorScheme.onSurfaceVariant
     val dateIcon = when {
@@ -353,8 +361,16 @@ private fun DueDateSection(
         status == OrderStatus.DELIVERED -> Icons.Default.EventAvailable
         else -> Icons.Default.Event
     }
+    val editLabel = stringResource(Res.string.order_detail_edit_deadline)
 
+    // The whole due-date row is tappable so a deadline can be changed after it's
+    // been set (previously the date was read-only and only the empty-state CTA
+    // opened the picker). A trailing pencil makes the affordance discoverable.
     Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(DesignTokens.radiusFull))
+            .clickable(onClick = onEditClick, onClickLabel = editLabel, role = Role.Button)
+            .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -368,6 +384,12 @@ private fun DueDateSection(
             text = dueLabel.asString(),
             style = MaterialTheme.typography.bodySmall,
             color = dateColor,
+        )
+        Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(13.dp),
         )
     }
 }

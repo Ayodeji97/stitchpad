@@ -962,6 +962,7 @@
     <string name="order_detail_was_due_label">Was due %1$s</string>
     <string name="order_detail_pickup_today">Pickup today</string>
     <string name="order_detail_set_deadline">Set deadline</string>
+    <string name="order_detail_edit_deadline">Edit delivery date</string>
     <string name="order_detail_fitting_at_label">Fitting %1$s</string>
     <string name="order_detail_delivered_label">Delivered %1$s</string>
     <string name="order_detail_overdue_banner">Customer is waiting · %1$s overdue</string>
