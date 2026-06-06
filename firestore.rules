@@ -39,8 +39,13 @@ service cloud.firestore {
     // client did not attempt to change it). Compatible with merge-true updates
     // where `request.resource.data` is the full merged result.
     function fieldUnchanged(field) {
-      return !(field in request.resource.data) ||
-             request.resource.data[field] == resource.data[field];
+      // "Unchanged" must mean presence AND value match on both sides. Using
+      // get(field, null) blocks not just edits but also ADDING the field (planting
+      // a value) and DELETING it (FieldValue.delete()). The delete case matters:
+      // dropping a server-owned field like subscriptionEndsAt/subscriptionRenews
+      // would make the user fall out of the expirePrepaidSubscriptions query and
+      // keep paid access forever. Absent-on-both stays allowed (null == null).
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
     }
 
     // ── /users/{uid} ───────────────────────────────────────────────────────
