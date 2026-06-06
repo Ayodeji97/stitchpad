@@ -44,7 +44,10 @@ async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: strin
       await col.doc(spec.id).create({ ...spec.data, isRead: false, createdAt });
     } catch (err) {
       const code = (err as { code?: number }).code;
-      if (code !== admin.firestore.GrpcStatus.ALREADY_EXISTS) {
+      // gRPC ALREADY_EXISTS = 6. We compare the numeric code directly because
+      // firebase-admin does not expose admin.firestore.GrpcStatus as a RUNTIME
+      // value in this version (it's a .d.ts type only — using it throws at runtime).
+      if (code !== 6) {
         functions.logger.warn('writeNotification failed', { uid, id: spec.id, error: err instanceof Error ? err.message : String(err) });
       }
     }
