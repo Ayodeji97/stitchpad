@@ -36,14 +36,15 @@ function mapOrder(id: string, d: DocumentData): OrderScanDoc {
 
 async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: string, model: DigestModel): Promise<void> {
   const col = db.collection('users').doc(uid).collection('notifications');
+  const createdAt = Date.now();
   for (const spec of notificationDocsFromModel(model)) {
     try {
       // .create() throws ALREADY_EXISTS if the deterministic-id doc exists →
       // dedup: first time only, and read-state on the existing doc is preserved.
-      await col.doc(spec.id).create({ ...spec.data, isRead: false, createdAt: Date.now() });
+      await col.doc(spec.id).create({ ...spec.data, isRead: false, createdAt });
     } catch (err) {
       const code = (err as { code?: number }).code;
-      if (code !== 6 /* ALREADY_EXISTS */) {
+      if (code !== admin.firestore.GrpcStatus.ALREADY_EXISTS) {
         functions.logger.warn('writeNotification failed', { uid, id: spec.id, error: err instanceof Error ? err.message : String(err) });
       }
     }

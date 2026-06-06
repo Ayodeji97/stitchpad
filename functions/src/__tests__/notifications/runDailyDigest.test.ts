@@ -64,7 +64,7 @@ describe('runDailyDigest', () => {
   });
 
   it('isolates a failing recipient so others still send', async () => {
-    const { io, sent } = fakeIO({
+    const { io, sent, notified } = fakeIO({
       recipients: [recip({ uid: 'u1', email: 'u1@x.com' }), recip({ uid: 'u2', email: 'u2@x.com' })],
       ordersByUid: { u1: [order({ deadline: NOW - DAY })], u2: [order({ deadline: NOW - DAY })] },
     });
@@ -73,6 +73,7 @@ describe('runDailyDigest', () => {
     expect(r.sent).toBe(1);
     expect(r.failed).toBe(1);
     expect(sent.map((s) => s.to)).toEqual(['u2@x.com']);
+    expect(notified.u1).toBeUndefined(); // loadOrders threw before writeNotifications → no zombie write
   });
 
   it('writes notifications for a disabled recipient even though no email is sent', async () => {
