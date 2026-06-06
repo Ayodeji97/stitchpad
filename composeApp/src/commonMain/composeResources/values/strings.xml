@@ -1374,6 +1374,15 @@
     <string name="smart_error_unknown">Something went wrong. Please try again.</string>
     <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
 
+    <!-- Notifications inbox -->
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_mark_all_read">Mark all read</string>
+    <string name="notifications_empty_title">No notifications yet</string>
+    <string name="notifications_empty_subtitle">Order reminders will show up here.</string>
+    <string name="notification_overdue">%1$s&apos;s %2$s is overdue</string>
+    <string name="notification_due_soon">%1$s&apos;s %2$s is due soon</string>
+    <string name="notification_to_collect">%1$s owes %2$s</string>
+
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>
     <string name="smart_upgrade_sheet_message">You&apos;ve used your 5 free drafts. Upgrade to draft as many as you need.</string>
