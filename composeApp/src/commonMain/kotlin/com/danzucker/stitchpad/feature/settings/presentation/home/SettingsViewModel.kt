@@ -114,6 +114,7 @@ class SettingsViewModel(
             SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
+            is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
         }
     }
 
@@ -213,6 +214,7 @@ class SettingsViewModel(
             welcomeDaysLeft = entitlements.welcomeDaysLeft,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
+            dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
@@ -252,6 +254,19 @@ class SettingsViewModel(
                 current.copy(themePreference = nextTheme)
             }
             themePreferencesStore.setTheme(nextTheme)
+        }
+    }
+
+    private fun setDailyDigest(enabled: Boolean) {
+        // Firestore-backed flag: persist fire-and-forget and let the user-doc
+        // snapshot (already in the state combine) drive the switch — same as
+        // every other server-backed field on this screen. No optimistic override,
+        // so the switch can never get stuck showing a value that diverges from
+        // the server. getCurrentUser() is null only when signed out (impossible
+        // on Settings); guarded so we never write users/"".
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            userRepository.setDailyDigestEmailEnabled(userId, enabled)
         }
     }
 

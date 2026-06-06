@@ -7,6 +7,8 @@ import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DebugTestAccounts
+import com.danzucker.stitchpad.core.debug.DigestDebugActions
+import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
 import com.danzucker.stitchpad.core.debug.SessionActionResult
@@ -23,6 +25,7 @@ class DebugMenuViewModel(
     private val seeder: DebugSeeder,
     private val sessionActions: DebugSessionActions,
     private val freemiumActions: FreemiumDebugActions,
+    private val digestActions: DigestDebugActions,
     private val now: () -> Long,
     private val testAccountsConfigured: Boolean = DebugTestAccounts.isConfigured,
 ) : ViewModel() {
@@ -83,6 +86,7 @@ class DebugMenuViewModel(
                 )
             }
             DebugMenuAction.OnWipeDataClick -> runWipe()
+            DebugMenuAction.OnSendDailyDigestClick -> runSendDigest()
             else -> Unit // freemium branch handled above
         }
     }
@@ -165,6 +169,16 @@ class DebugMenuViewModel(
                 UiText.DynamicString("Data wiped")
             }
             is SeedResult.Failure -> UiText.DynamicString("Wipe failed: ${r.reason}")
+        }
+        emit(DebugMenuEvent.ShowSnackbar(message))
+    }
+
+    private fun runSendDigest() = runJob {
+        val message = when (val r = digestActions.sendNow()) {
+            DigestSendResult.Sent -> UiText.DynamicString("Daily digest sent — check your inbox / Resend")
+            DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — digest suppressed")
+            DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
+            is DigestSendResult.Failure -> UiText.DynamicString("Digest failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
     }

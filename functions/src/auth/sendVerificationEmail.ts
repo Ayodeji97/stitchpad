@@ -1,12 +1,10 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { buildVerificationEmailHtml } from './verificationEmailTemplate';
+import { sendResendEmail } from '../email/resendClient';
 
 const REGION = 'europe-west1';
-const FROM = 'StitchPad <noreply@send.getstitchpad.com>';
-const REPLY_TO = 'support@getstitchpad.com';
 const SUBJECT = 'Verify your email for StitchPad';
-const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 // Server-side backstop matching the client's 60s resend cooldown, so a client
 // calling the callable directly can't bypass the UI throttle and burn Resend
 // quota / sender reputation.
@@ -82,28 +80,8 @@ async function sendViaResend(
   apiKey: string,
   params: { to: string; displayName?: string; verifyLink: string },
 ): Promise<void> {
-  const html = buildVerificationEmailHtml({
-    displayName: params.displayName,
-    verifyLink: params.verifyLink,
-  });
-  const response = await fetch(RESEND_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: FROM,
-      to: [params.to],
-      reply_to: REPLY_TO,
-      subject: SUBJECT,
-      html,
-    }),
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`Resend responded ${response.status}: ${detail}`);
-  }
+  const html = buildVerificationEmailHtml({ displayName: params.displayName, verifyLink: params.verifyLink });
+  await sendResendEmail(apiKey, { to: params.to, subject: SUBJECT, html });
 }
 
 function productionIO(apiKey: string): VerificationEmailIO {

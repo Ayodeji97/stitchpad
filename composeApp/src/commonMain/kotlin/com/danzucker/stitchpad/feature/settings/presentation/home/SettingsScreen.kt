@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Straighten
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -60,6 +62,7 @@ import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
 import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_daily_digest
 import stitchpad.composeapp.generated.resources.settings_row_debug_menu
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
@@ -190,6 +193,18 @@ fun SettingsScreen(
                                     ThemePreference.DARK -> Res.string.settings_theme_dark
                                 }
                             ),
+                        )
+                    },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Notifications,
+                    label = stringResource(Res.string.settings_row_daily_digest),
+                    onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
+                    trailing = {
+                        Switch(
+                            checked = state.dailyDigestEmailEnabled,
+                            onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
                         )
                     },
                 )

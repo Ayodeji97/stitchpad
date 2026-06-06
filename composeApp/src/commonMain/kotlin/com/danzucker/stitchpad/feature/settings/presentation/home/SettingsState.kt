@@ -40,6 +40,7 @@ data class SettingsState(
     val welcomeDaysLeft: Int? = null,
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val dailyDigestEmailEnabled: Boolean = true,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 ) {

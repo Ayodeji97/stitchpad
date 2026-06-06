@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Star
@@ -225,6 +226,19 @@ fun DebugMenuScreen(
                     icon = Icons.Outlined.Sync,
                     label = "Reconcile customer slots",
                     onClick = { onAction(DebugMenuAction.OnReconcileSlotsClick) },
+                )
+            }
+
+            SettingsSectionCard(label = "Notifications") {
+                val onSendDigestClick: (() -> Unit)? = if (state.isWorking) {
+                    null
+                } else {
+                    { onAction(DebugMenuAction.OnSendDailyDigestClick) }
+                }
+                SettingsRow(
+                    icon = Icons.Outlined.Mail,
+                    label = "Send daily digest now",
+                    onClick = onSendDigestClick,
                 )
             }
 

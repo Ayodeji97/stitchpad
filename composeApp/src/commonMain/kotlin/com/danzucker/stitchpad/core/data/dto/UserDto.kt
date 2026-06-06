@@ -46,4 +46,6 @@ data class UserDto(
     val bankAccountNumber: String? = null,
     @SerialName("whatsappConfirmed")
     val whatsappConfirmed: Boolean = false,
+    @SerialName("dailyDigestEmailEnabled")
+    val dailyDigestEmailEnabled: Boolean = true,
 )

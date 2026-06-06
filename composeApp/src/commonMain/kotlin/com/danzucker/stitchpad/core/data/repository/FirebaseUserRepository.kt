@@ -279,6 +279,21 @@ class FirebaseUserRepository(
         }
     }
 
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM")
+    override suspend fun setDailyDigestEmailEnabled(
+        userId: String,
+        enabled: Boolean,
+    ): EmptyResult<DataError.Network> {
+        val data = mapOf<String, Any>(
+            "dailyDigestEmailEnabled" to enabled,
+            "updatedAt" to FieldValue.serverTimestamp,
+        )
+        val accepted = offlineWrites.enqueue("setDailyDigestEmailEnabled userId=$userId") {
+            firestore.collection(USERS).document(userId).set(data, merge = true)
+        }
+        return if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+    }
+
     companion object {
         const val WELCOME_BONUS_COIN_COUNT: Int = 30
     }

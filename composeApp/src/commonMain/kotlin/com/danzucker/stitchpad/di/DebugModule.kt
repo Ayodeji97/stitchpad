@@ -3,7 +3,9 @@ package com.danzucker.stitchpad.di
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DefaultDebugSeeder
+import com.danzucker.stitchpad.core.debug.DefaultDigestDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultFreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuViewModel
 import org.koin.core.module.dsl.viewModel
@@ -33,6 +35,7 @@ val debugModule = module {
             freemiumRepository = get(),
         )
     }
+    single<DigestDebugActions> { DefaultDigestDebugActions(functions = get()) }
     // Explicit `viewModel { ... }` factory rather than viewModelOf(::DebugMenuViewModel) because
     // the VM takes a defaulted Boolean param (testAccountsConfigured) — viewModelOf can't skip
     // defaulted params (see feedback_ios_clock_injection memory).
@@ -41,6 +44,7 @@ val debugModule = module {
             seeder = get(),
             sessionActions = get(),
             freemiumActions = get(),
+            digestActions = get(),
             now = ::nowEpochMs,
         )
     }

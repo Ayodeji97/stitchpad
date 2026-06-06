@@ -18,6 +18,7 @@ fun UserDto.toUser(): User = User(
     bankAccountName = bankAccountName,
     bankAccountNumber = bankAccountNumber,
     whatsappConfirmed = whatsappConfirmed,
+    dailyDigestEmailEnabled = dailyDigestEmailEnabled,
 )
 
 fun User.toUserDto(): UserDto = UserDto(
@@ -35,4 +36,5 @@ fun User.toUserDto(): UserDto = UserDto(
     bankAccountName = bankAccountName,
     bankAccountNumber = bankAccountNumber,
     whatsappConfirmed = whatsappConfirmed,
+    dailyDigestEmailEnabled = dailyDigestEmailEnabled,
 )

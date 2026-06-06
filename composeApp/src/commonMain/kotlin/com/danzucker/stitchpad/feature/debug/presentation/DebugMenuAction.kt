@@ -36,4 +36,6 @@ sealed interface DebugMenuAction {
     data class OnSetSmartUsageBonusUsedChange(val value: String) : DebugMenuAction
     data object OnSetSmartUsageConfirm : DebugMenuAction
     data object OnReconcileSlotsClick : DebugMenuAction
+
+    data object OnSendDailyDigestClick : DebugMenuAction
 }

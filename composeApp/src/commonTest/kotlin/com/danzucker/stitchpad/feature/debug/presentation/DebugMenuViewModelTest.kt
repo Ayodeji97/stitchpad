@@ -3,10 +3,13 @@ package com.danzucker.stitchpad.feature.debug.presentation
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
+import com.danzucker.stitchpad.core.debug.DigestDebugActions
+import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
@@ -53,17 +56,30 @@ class DebugMenuViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun TestScope.createViewModel(testAccountsConfigured: Boolean = true): DebugMenuViewModel {
+    private fun TestScope.createViewModel(
+        testAccountsConfigured: Boolean = true,
+        digestActions: DigestDebugActions = NoopDigestDebugActions,
+    ): DebugMenuViewModel {
         val vm = DebugMenuViewModel(
             seeder = seeder,
             sessionActions = sessionActions,
             freemiumActions = NoopFreemiumDebugActions,
+            digestActions = digestActions,
             now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
     }
+
+    private class FakeDigestDebugActions(
+        var result: DigestSendResult = DigestSendResult.Empty,
+    ) : DigestDebugActions {
+        override suspend fun sendNow(): DigestSendResult = result
+    }
+
+    // Backward-compat alias used by createViewModel default arg
+    private val NoopDigestDebugActions get() = FakeDigestDebugActions()
 
     private object NoopFreemiumDebugActions : FreemiumDebugActions {
         override suspend fun setTier(tier: SubscriptionTier): DebugActionResult = DebugActionResult.Success
@@ -255,6 +271,70 @@ class DebugMenuViewModelTest {
         assertEquals(0, seeder.seedBulkCustomersCalls)
         // Dialog remains open so user can fix input
         assertTrue(vm.state.first().bulkSeed != null)
+    }
+
+    @Test
+    fun `OnSendDailyDigestClick emits ShowSnackbar when digest is sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Sent)
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("sent", ignoreCase = true))
+    }
+
+    @Test
+    fun `OnSendDailyDigestClick emits snackbar containing 'suppressed' when digest is empty`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Empty)
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("suppressed", ignoreCase = true))
+    }
+
+    @Test
+    fun `OnSendDailyDigestClick emits snackbar containing 'off' when digest is disabled`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Disabled)
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("off", ignoreCase = true))
+    }
+
+    @Test
+    fun `OnSendDailyDigestClick emits snackbar containing failure reason on Failure`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Failure("boom"))
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("boom", ignoreCase = true))
     }
 
     private class FakeDebugSeeder : DebugSeeder {
