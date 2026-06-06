@@ -1395,6 +1395,11 @@
     <string name="notification_overdue">%1$s&apos;s %2$s is overdue</string>
     <string name="notification_due_soon">%1$s&apos;s %2$s is due soon</string>
     <string name="notification_to_collect">%1$s owes %2$s</string>
+    <string name="notifications_section_today">Today</string>
+    <string name="notifications_section_earlier">Earlier</string>
+    <string name="notification_tag_overdue">overdue</string>
+    <string name="notification_tag_due_soon">due soon</string>
+    <string name="notification_tag_owes">owes %1$s</string>
 
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>
