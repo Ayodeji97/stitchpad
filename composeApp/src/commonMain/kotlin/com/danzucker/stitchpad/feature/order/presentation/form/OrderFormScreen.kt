@@ -80,8 +80,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -144,6 +146,7 @@ import stitchpad.composeapp.generated.resources.order_form_image_badge_library
 import stitchpad.composeapp.generated.resources.order_form_image_badge_new
 import stitchpad.composeapp.generated.resources.order_form_image_count_fmt
 import stitchpad.composeapp.generated.resources.order_form_item_number
+import stitchpad.composeapp.generated.resources.order_form_line_total
 import stitchpad.composeapp.generated.resources.order_form_measurement_label
 import stitchpad.composeapp.generated.resources.order_form_next
 import stitchpad.composeapp.generated.resources.order_form_next_blocked_customer
@@ -175,6 +178,9 @@ import stitchpad.composeapp.generated.resources.order_form_style_pick_from_saved
 import stitchpad.composeapp.generated.resources.order_form_style_save_to_gallery
 import stitchpad.composeapp.generated.resources.order_form_style_section_title
 import stitchpad.composeapp.generated.resources.order_form_style_sheet_title
+import stitchpad.composeapp.generated.resources.order_form_summary_item_qty
+import stitchpad.composeapp.generated.resources.order_form_summary_title
+import stitchpad.composeapp.generated.resources.order_form_summary_total
 import stitchpad.composeapp.generated.resources.order_form_title_add
 import stitchpad.composeapp.generated.resources.order_form_title_edit
 import stitchpad.composeapp.generated.resources.order_priority_normal
@@ -837,6 +843,28 @@ private fun OrderItemCard(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // PTSP-26: the price field is per item, so multiplying by quantity
+            // used to be a silent surprise at save time. When more than one is
+            // ordered, show the resulting line total right here. Mirrors the
+            // VM's unit-price × quantity math (OrderFormViewModel.save).
+            val unitPrice = item.price.toDoubleOrNull()
+            val lineQty = item.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1
+            if (unitPrice != null && unitPrice > 0.0 && lineQty > 1) {
+                Spacer(Modifier.height(DesignTokens.space1))
+                Text(
+                    text = stringResource(
+                        Res.string.order_form_line_total,
+                        lineQty,
+                        formatPrice(unitPrice),
+                        formatPrice(unitPrice * lineQty),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.End),
+                )
+            }
+
             MeasurementPickerField(
                 item = item,
                 availableMeasurements = availableMeasurements,
@@ -1099,6 +1127,11 @@ private fun DetailsStep(
             modifier = Modifier.fillMaxWidth()
         )
 
+        // PTSP-26: a per-item + grand total summary so the full order cost
+        // (after unit price × quantity) is shown before the order is created.
+        Spacer(Modifier.height(DesignTokens.space4))
+        OrderTotalSummary(items = state.items)
+
         Spacer(Modifier.height(DesignTokens.space4))
     }
 
@@ -1125,6 +1158,111 @@ private fun DetailsStep(
             onConfirm = { onAction(OrderFormAction.OnConfirmDepositChange) },
             onDismiss = { onAction(OrderFormAction.OnDismissDepositPrompt) },
         )
+    }
+}
+
+/**
+ * PTSP-26: order cost summary shown on the Details step. Lists each priced
+ * item (quantity × unit price → line total) and the grand total, so the figure
+ * the order will actually be created with is explicit before saving. The line
+ * math mirrors OrderFormViewModel's save path (price × quantity).
+ */
+@Suppress("CyclomaticComplexMethod")
+@Composable
+private fun OrderTotalSummary(items: List<OrderItemFormState>) {
+    data class PricedLine(val name: String, val qty: Int, val unit: Double)
+
+    val lines = items.mapNotNull { item ->
+        // Only count items the save path will actually persist, otherwise a
+        // priced-but-incomplete row (no garment type) inflates the total beyond
+        // the order that gets created. Mirrors OrderFormViewModel's save filter.
+        val isPersisted = item.garmentType != null &&
+            (item.garmentType != GarmentType.OTHER || !item.customGarmentName.isNullOrBlank())
+        if (!isPersisted) return@mapNotNull null
+        val unit = item.price.toDoubleOrNull()
+        if (unit == null || unit <= 0.0) return@mapNotNull null
+        val qty = item.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1
+        val name = when {
+            item.garmentType == GarmentType.OTHER && !item.customGarmentName.isNullOrBlank() ->
+                item.customGarmentName
+            item.garmentType != null -> garmentDisplayName(item.garmentType)
+            else -> ""
+        }
+        PricedLine(name = name ?: "", qty = qty, unit = unit)
+    }
+
+    if (lines.isEmpty()) return
+
+    val grandTotal = lines.sumOf { it.unit * it.qty }
+
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(DesignTokens.space3)) {
+            Text(
+                text = stringResource(Res.string.order_form_summary_title),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(DesignTokens.space2))
+            lines.forEach { line ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (line.name.isNotBlank()) {
+                            Text(
+                                text = line.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            text = stringResource(
+                                Res.string.order_form_summary_item_qty,
+                                line.qty,
+                                formatPrice(line.unit),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = "₦${formatPrice(line.unit * line.qty)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            }
+            Spacer(Modifier.height(DesignTokens.space2))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(DesignTokens.space2))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.order_form_summary_total),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "₦${formatPrice(grandTotal)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
     }
 }
 
