@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
+import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -45,7 +47,7 @@ import stitchpad.composeapp.generated.resources.gender_female
 import stitchpad.composeapp.generated.resources.gender_male
 import stitchpad.composeapp.generated.resources.measurement_picker_create_new
 import stitchpad.composeapp.generated.resources.measurement_picker_empty
-import stitchpad.composeapp.generated.resources.measurement_picker_taken_caption
+import stitchpad.composeapp.generated.resources.measurement_picker_taken_date
 import stitchpad.composeapp.generated.resources.measurement_picker_title
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +55,7 @@ import stitchpad.composeapp.generated.resources.measurement_picker_title
 fun MeasurementPickerSheet(
     measurements: List<Measurement>,
     selectedMeasurementId: String?,
+    customFieldLabels: Map<String, String>,
     onSelectMeasurement: (measurementId: String) -> Unit,
     onCreateNewClick: () -> Unit,
     onDismiss: () -> Unit,
@@ -64,6 +67,7 @@ fun MeasurementPickerSheet(
         MeasurementPickerSheetContent(
             measurements = measurements,
             selectedMeasurementId = selectedMeasurementId,
+            customFieldLabels = customFieldLabels,
             onSelectMeasurement = onSelectMeasurement,
             onCreateNewClick = onCreateNewClick,
         )
@@ -74,6 +78,7 @@ fun MeasurementPickerSheet(
 private fun MeasurementPickerSheetContent(
     measurements: List<Measurement>,
     selectedMeasurementId: String?,
+    customFieldLabels: Map<String, String>,
     onSelectMeasurement: (measurementId: String) -> Unit,
     onCreateNewClick: () -> Unit,
 ) {
@@ -97,6 +102,7 @@ private fun MeasurementPickerSheetContent(
             measurements.forEach { measurement ->
                 MeasurementRow(
                     measurement = measurement,
+                    customFieldLabels = customFieldLabels,
                     isSelected = measurement.id == selectedMeasurementId,
                     onClick = { onSelectMeasurement(measurement.id) },
                 )
@@ -128,9 +134,12 @@ private fun MeasurementPickerSheetContent(
     }
 }
 
+private const val PICKER_PREVIEW_FIELDS = 3
+
 @Composable
 private fun MeasurementRow(
     measurement: Measurement,
+    customFieldLabels: Map<String, String>,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -169,13 +178,24 @@ private fun MeasurementRow(
             Spacer(Modifier.height(2.dp))
             Text(
                 text = stringResource(
-                    Res.string.measurement_picker_taken_caption,
+                    Res.string.measurement_picker_taken_date,
                     formatShortDate(measurement.dateTaken),
-                    measurement.fields.size,
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Preview the fields the tailor actually filled (top 3), so similar
+            // measurements are distinguishable when linking — not just a count.
+            val unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "″" else "cm"
+            val preview = measurement.filledPreviewFields(customFieldLabels, max = PICKER_PREVIEW_FIELDS)
+            if (preview.isNotEmpty()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = preview.joinToString("  ") { "${it.label} ${formatMeasurementValue(it.value)}$unitSuffix" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         if (isSelected) {
@@ -212,7 +232,7 @@ private fun MeasurementPickerSheetPopulatedLightPreview() {
                     id = "m1",
                     customerId = "c1",
                     gender = CustomerGender.MALE,
-                    fields = mapOf("Chest" to 42.0, "Waist" to 34.0, "Length" to 38.0),
+                    fields = mapOf("chest" to 42.0, "trouser_waist" to 34.0, "shirt_length" to 38.0),
                     unit = MeasurementUnit.INCHES,
                     notes = null,
                     dateTaken = 1_746_316_800_000L,
@@ -222,7 +242,7 @@ private fun MeasurementPickerSheetPopulatedLightPreview() {
                     id = "m2",
                     customerId = "c1",
                     gender = CustomerGender.FEMALE,
-                    fields = mapOf("Bust" to 38.0, "Waist" to 28.0),
+                    fields = mapOf("bust_circumference" to 38.0, "waist" to 28.0),
                     unit = MeasurementUnit.INCHES,
                     notes = null,
                     dateTaken = 1_743_638_400_000L,
@@ -230,6 +250,7 @@ private fun MeasurementPickerSheetPopulatedLightPreview() {
                 ),
             ),
             selectedMeasurementId = "m1",
+            customFieldLabels = emptyMap(),
             onSelectMeasurement = {},
             onCreateNewClick = {},
         )
@@ -244,6 +265,7 @@ private fun MeasurementPickerSheetEmptyDarkPreview() {
         MeasurementPickerSheetContent(
             measurements = emptyList(),
             selectedMeasurementId = null,
+            customFieldLabels = emptyMap(),
             onSelectMeasurement = {},
             onCreateNewClick = {},
         )

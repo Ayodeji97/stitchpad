@@ -408,6 +408,7 @@
     <string name="custom_field_sheet_save_changes">Save changes</string>
     <string name="custom_field_sheet_cancel">Cancel</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
+    <string name="measurement_delete_content_description">Delete measurement</string>
     <string name="custom_field_sheet_archive">Delete custom field</string>
     <string name="custom_field_archive_dialog_title">Delete this field?</string>
     <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>
@@ -530,7 +531,11 @@
     <string name="garment_picker_add_new_cta">Add a new garment type</string>
     <string name="garment_picker_add_new_hint">Save to your list for next time</string>
 
-    <string name="order_form_price_label">Price (₦)</string>
+    <string name="order_form_price_label">Unit price (₦)</string>
+    <string name="order_form_line_total">%1$d × ₦%2$s = ₦%3$s</string>
+    <string name="order_form_summary_title">Order summary</string>
+    <string name="order_form_summary_total">Total</string>
+    <string name="order_form_summary_item_qty">%1$d × ₦%2$s</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
     <string name="order_form_remove_item">Remove item</string>
@@ -958,6 +963,7 @@
     <string name="order_detail_was_due_label">Was due %1$s</string>
     <string name="order_detail_pickup_today">Pickup today</string>
     <string name="order_detail_set_deadline">Set deadline</string>
+    <string name="order_detail_edit_deadline">Edit delivery date</string>
     <string name="order_detail_fitting_at_label">Fitting %1$s</string>
     <string name="order_detail_delivered_label">Delivered %1$s</string>
     <string name="order_detail_overdue_banner">Customer is waiting · %1$s overdue</string>
@@ -972,8 +978,12 @@
     <string name="order_detail_link_measurements">Link measurements</string>
     <string name="measurement_picker_title">Link a measurement</string>
     <string name="measurement_picker_empty">No measurements yet for this customer.</string>
-    <string name="measurement_picker_taken_caption">Taken %1$s · %2$d fields</string>
+    <string name="measurement_picker_taken_date">Taken %1$s</string>
     <string name="measurement_picker_create_new">Create new measurement</string>
+    <string name="measurement_detail_title">Customer measurement</string>
+    <string name="measurement_detail_view_full">View full measurement</string>
+    <string name="measurement_detail_change">Change measurement</string>
+    <string name="measurement_detail_empty">No values recorded yet.</string>
     <string name="style_picker_title">Link a style</string>
     <string name="style_picker_empty">No styles yet for this customer.</string>
     <string name="style_picker_created_caption">Created %1$s</string>

@@ -22,6 +22,10 @@ data class OrderDetailState(
 
     val showMeasurementPickerSheet: Boolean = false,
     val availableMeasurements: List<Measurement> = emptyList(),
+    /** Read-only quick-view of the linked measurement (opened by tapping the card). */
+    val showMeasurementDetailSheet: Boolean = false,
+    /** Custom-field id -> label, so custom measurement values can render by name. */
+    val customFieldLabels: Map<String, String> = emptyMap(),
 
     val showStylePickerSheet: Boolean = false,
     val availableStyles: List<Style> = emptyList(),

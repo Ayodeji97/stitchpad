@@ -17,7 +17,7 @@ enum class SecondaryCta {
     StartWork,
     UpdateStatus,
     MarkDelivered,
-    DuplicateOrder,
+    ShareReceipt,
 }
 
 data class CtaPair(val primary: PrimaryCta, val secondary: SecondaryCta?)
@@ -29,14 +29,21 @@ internal fun resolvePrimaryCta(
     isOverdue: Boolean,
     balanceRemaining: Double,
 ): CtaPair {
+    // PTSP-29: the secondary slot defaults to "Share Receipt" so the card always
+    // shows two buttons — the primary action never spreads full-width. When a
+    // balance is owed, "Record Payment" takes that slot instead (more urgent).
     val balanceSecondary = if (balanceRemaining > 0.0) {
         SecondaryCta.RecordPayment
     } else {
-        null
+        SecondaryCta.ShareReceipt
     }
     return when {
+        // PTSP-29: keep "Update Status" on the card even when delivered (so the
+        // status can still be moved back — PTSP-28), and put "Share Receipt"
+        // beside it as the secondary. Duplicate now lives only in the top-bar
+        // overflow menu, not on the card.
         status == OrderStatus.DELIVERED ->
-            CtaPair(PrimaryCta.ShareReceipt, SecondaryCta.DuplicateOrder)
+            CtaPair(PrimaryCta.UpdateStatus, SecondaryCta.ShareReceipt)
         isOverdue && status == OrderStatus.PENDING ->
             CtaPair(PrimaryCta.SendReminder, SecondaryCta.StartWork)
         isOverdue && status == OrderStatus.IN_PROGRESS ->

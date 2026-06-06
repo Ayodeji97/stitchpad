@@ -29,10 +29,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
+import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -50,7 +51,7 @@ private const val MAX_PREVIEW_FIELDS = 3
 @Composable
 fun OrderMeasurementsPreviewCard(
     measurement: Measurement?,
-    primaryFieldLabels: List<String>,
+    customFieldLabels: Map<String, String>,
     onCardClick: () -> Unit,
     onLinkMeasurementsClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -85,44 +86,42 @@ fun OrderMeasurementsPreviewCard(
 
             if (measurement != null) {
                 val unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "″" else "cm"
-                val fields = primaryFieldLabels.take(MAX_PREVIEW_FIELDS)
+                // Show the fields the tailor actually filled (top 3), template-first
+                // then custom — never the garment's expected-but-empty fields.
+                val preview = measurement.filledPreviewFields(customFieldLabels, max = MAX_PREVIEW_FIELDS)
 
-                // Horizontal value row: Label + value pairs separated by " · " dots
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    fields.forEachIndexed { index, label ->
-                        val value = resolveFieldValue(measurement, label)
-                        val displayValue = if (value != null) "${value.toInt()}$unitSuffix" else "—"
-
-                        if (index > 0) {
-                            Text(
-                                text = "·",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.Start) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = displayValue,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
+                if (preview.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        preview.forEachIndexed { index, field ->
+                            if (index > 0) {
+                                Text(
+                                    text = "·",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text(
+                                    text = field.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = "${formatMeasurementValue(field.value)}$unitSuffix",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     }
+                    Spacer(Modifier.height(DesignTokens.space2))
                 }
-
-                Spacer(Modifier.height(DesignTokens.space2))
 
                 // "Measured DD MMM YYYY" caption
                 Text(
@@ -151,19 +150,6 @@ fun OrderMeasurementsPreviewCard(
             }
         }
     }
-}
-
-// GarmentType.fieldLabels uses display strings ("Neck", "Chest"), but
-// Measurement.fields is keyed by MeasurementField.key (snake_case like
-// "neck_circumference", "trouser_waist"). Resolve via BodyProfileTemplate by
-// matching the display label to a MeasurementField, then look up by its key.
-private fun resolveFieldValue(measurement: Measurement, label: String): Double? {
-    val key = BodyProfileTemplate
-        .sectionsFor(measurement.gender)
-        .flatMap { it.fields }
-        .firstOrNull { it.label.equals(label, ignoreCase = true) }
-        ?.key
-    return key?.let { measurement.fields[it] }
 }
 
 private fun formatShortDate(epochMillis: Long): String {
@@ -208,13 +194,13 @@ private fun OrderMeasurementsPreviewCardPopulatedLightPreview() {
                 id = "m1",
                 customerId = "c1",
                 gender = CustomerGender.MALE,
-                fields = mapOf("Chest" to 42.0, "Waist" to 34.0, "Length" to 38.0),
+                fields = mapOf("chest" to 42.0, "trouser_waist" to 34.0, "shirt_length" to 38.0),
                 unit = MeasurementUnit.INCHES,
                 notes = null,
                 dateTaken = 1_743_638_400_000L, // 3 Apr 2025
                 createdAt = 0L,
             ),
-            primaryFieldLabels = listOf("Chest", "Waist", "Length"),
+            customFieldLabels = emptyMap(),
             onCardClick = {},
             onLinkMeasurementsClick = {},
         )
@@ -230,14 +216,14 @@ private fun OrderMeasurementsPreviewCardPopulatedDarkPreview() {
             measurement = Measurement(
                 id = "m1",
                 customerId = "c1",
-                gender = CustomerGender.MALE,
-                fields = mapOf("Chest" to 42.0, "Waist" to 34.0, "Length" to 38.0),
+                gender = CustomerGender.FEMALE,
+                fields = mapOf("bust_circumference" to 36.0, "waist" to 28.0),
                 unit = MeasurementUnit.INCHES,
                 notes = null,
                 dateTaken = 1_743_638_400_000L, // 3 Apr 2025
                 createdAt = 0L,
             ),
-            primaryFieldLabels = listOf("Chest", "Waist", "Length"),
+            customFieldLabels = emptyMap(),
             onCardClick = {},
             onLinkMeasurementsClick = {},
         )
@@ -251,7 +237,7 @@ private fun OrderMeasurementsPreviewCardEmptyLightPreview() {
     StitchPadTheme {
         OrderMeasurementsPreviewCard(
             measurement = null,
-            primaryFieldLabels = listOf("Chest", "Waist", "Length"),
+            customFieldLabels = emptyMap(),
             onCardClick = {},
             onLinkMeasurementsClick = {},
         )

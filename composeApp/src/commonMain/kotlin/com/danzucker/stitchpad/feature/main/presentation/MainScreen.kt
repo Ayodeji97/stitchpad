@@ -286,6 +286,11 @@ private fun MainNavGraph(
                         MeasurementFormRoute(customerId = customerId, linkToOrderId = linkToOrderId),
                     )
                 },
+                onNavigateToViewMeasurement = { customerId, measurementId ->
+                    navController.navigate(
+                        MeasurementFormRoute(customerId = customerId, measurementId = measurementId),
+                    )
+                },
                 onNavigateToDuplicateOrder = { sourceOrderId ->
                     navController.navigate(OrderFormRoute(seedFromOrderId = sourceOrderId))
                 },

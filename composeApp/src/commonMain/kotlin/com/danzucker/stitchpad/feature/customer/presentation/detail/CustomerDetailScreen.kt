@@ -62,6 +62,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -79,6 +80,7 @@ import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_bo
 import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_title
 import stitchpad.composeapp.generated.resources.customer_locked_detail_unlock_cta
 import stitchpad.composeapp.generated.resources.fab_add_measurement
+import stitchpad.composeapp.generated.resources.measurement_delete_content_description
 import stitchpad.composeapp.generated.resources.measurement_delete_message
 import stitchpad.composeapp.generated.resources.measurement_delete_title
 import stitchpad.composeapp.generated.resources.measurement_female_profile
@@ -487,6 +489,7 @@ private fun SwipeableMeasurementItem(
                 measurement = measurement,
                 customFieldLabels = customFieldLabels,
                 onClick = onClick,
+                onDelete = onDelete,
             )
         }
     }
@@ -622,6 +625,7 @@ private fun MeasurementListItem(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
     onClick: (() -> Unit)?,
+    onDelete: (() -> Unit)? = null,
 ) {
     val profileTitle = if (measurement.gender == CustomerGender.FEMALE) {
         stringResource(Res.string.measurement_female_profile)
@@ -699,6 +703,21 @@ private fun MeasurementListItem(
                 }
             }
         }
+
+        // Explicit, always-visible delete affordance. Swipe-to-delete alone was
+        // undiscoverable and unreliable (especially on iOS), so a tappable trash
+        // icon guarantees deletion works on every platform. Routes through the
+        // same confirm dialog as the swipe.
+        if (onDelete != null) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(Res.string.measurement_delete_content_description),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
     }
 }
 
@@ -724,14 +743,6 @@ private fun epochToDateString(epochMs: Long): String {
     )
     val monthName = monthNames.getOrElse((m - 1).toInt()) { "" }
     return "$d $monthName $year"
-}
-
-private fun formatMeasurementValue(value: Double): String {
-    return if (value == value.toLong().toDouble()) {
-        value.toLong().toString()
-    } else {
-        value.toString()
-    }
 }
 
 @Suppress("UnusedPrivateMember")

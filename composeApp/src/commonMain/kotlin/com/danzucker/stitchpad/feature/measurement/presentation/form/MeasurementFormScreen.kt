@@ -1037,15 +1037,18 @@ private fun CustomFieldsSection(
                         )
                         IconButton(
                             onClick = { onDeleteField(field.id) },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = stringResource(
                                     Res.string.custom_field_delete_content_description,
                                 ),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp),
+                                // Error tint + larger touch target so the delete
+                                // affordance is discoverable (PTSP-30) — it read
+                                // as decorative at the muted onSurfaceVariant tint.
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
