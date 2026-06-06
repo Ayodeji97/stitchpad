@@ -59,16 +59,23 @@ class FirebaseNotificationRepository(
                 true // keep the listener alive
             }
 
-    // Derives the unread count from the same observeNotifications flow so there is
-    // a single Firestore snapshot listener feeding both consumers. The dashboard
-    // gets its own independent listener because it calls this method directly.
+    // Server-side isRead==false query: only unread docs are transferred, so
+    // the dashboard's bell badge doesn't pay the cost of the full historical
+    // inbox (which may grow to hundreds of entries over a tailor's lifetime).
+    // This is a boolean equality filter (not a null-equality filter), so GitLive
+    // handles it correctly across platforms. The FirebaseOrderRepository comment
+    // about `whereEqualTo(field, null)` applies only to null values — boolean
+    // equality is a standard, well-supported case.
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override fun observeUnreadCount(userId: String): Flow<Int> =
-        observeNotifications(userId).map { result ->
-            when (result) {
-                is Result.Success -> result.data.count { !it.isRead }
-                is Result.Error -> 0
+        collection(userId).where { "isRead" equalTo false }.snapshots()
+            .map { it.documents.size }
+            .retryWhen { cause, _ ->
+                AppLogger.e(tag = TAG, throwable = cause) { "observeUnreadCount failed; retrying" }
+                emit(0)
+                delay(SNAPSHOT_RETRY_DELAY_MS)
+                true
             }
-        }
 
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override suspend fun markAsRead(userId: String, notificationId: String): EmptyResult<DataError.Network> {
