@@ -42,6 +42,7 @@ fun BellButton(
     ) {
         // requiredSize lets the 48dp IconButton overflow the 36dp Box without clipping,
         // giving the full Material accessible tap target while keeping the visual at 36dp.
+        val cappedDisplayText = if (unreadCount > UNREAD_COUNT_CAP) "$UNREAD_COUNT_CAP+" else unreadCount.toString()
         IconButton(
             onClick = onClick,
             modifier = Modifier.requiredSize(48.dp),
@@ -49,7 +50,7 @@ fun BellButton(
             Icon(
                 imageVector = Icons.Outlined.Notifications,
                 contentDescription = if (unreadCount > 0) {
-                    stringResource(Res.string.cd_notifications_with_count, unreadCount)
+                    stringResource(Res.string.cd_notifications_with_count, cappedDisplayText)
                 } else {
                     stringResource(Res.string.cd_notifications)
                 },
@@ -66,7 +67,7 @@ fun BellButton(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (unreadCount > UNREAD_COUNT_CAP) "9+" else unreadCount.toString(),
+                    text = cappedDisplayText,
                     color = MaterialTheme.colorScheme.onError,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,

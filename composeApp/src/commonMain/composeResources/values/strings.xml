@@ -675,7 +675,7 @@
 
     <!-- Dashboard header buttons -->
     <string name="cd_notifications">Notifications</string>
-    <string name="cd_notifications_with_count">Notifications, %1$d unread</string>
+    <string name="cd_notifications_with_count">Notifications, %1$s unread</string>
     <string name="cd_open_settings">Open settings</string>
     <string name="cd_close_image_viewer">Close image viewer</string>
 

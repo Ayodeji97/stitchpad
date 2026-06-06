@@ -69,7 +69,11 @@ class FirebaseNotificationRepository(
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override fun observeUnreadCount(userId: String): Flow<Int> =
         collection(userId).where { "isRead" equalTo false }.snapshots()
-            .map { it.documents.size }
+            .map { snapshot ->
+                snapshot.documents.count { doc ->
+                    runCatching { doc.data(NotificationDto.serializer()) }.isSuccess
+                }
+            }
             .retryWhen { cause, _ ->
                 AppLogger.e(tag = TAG, throwable = cause) { "observeUnreadCount failed; retrying" }
                 emit(0)
