@@ -97,7 +97,12 @@ describe('deleteUserFirestoreData', () => {
     const recursiveDelete = jest.fn().mockResolvedValue(undefined);
     const listCollections = jest
       .fn()
-      .mockResolvedValue([{ id: 'customers' }, { id: 'invoices' }, { id: 'orders' }]);
+      .mockResolvedValue([
+        { id: 'customers' },
+        { id: 'invoices' },
+        { id: 'notifications' },
+        { id: 'orders' },
+      ]);
     const { db } = makeDbMock({ recursiveDelete, listCollections });
     const warnSpy = jest
       .spyOn(functions.logger, 'warn')
@@ -105,8 +110,9 @@ describe('deleteUserFirestoreData', () => {
 
     await deleteUserFirestoreData(uid, db as never);
 
-    // Allow-listed names not warned about
-    for (const sub of ['customers', 'orders']) {
+    // Allow-listed names not warned about (including notifications, which holds
+    // PII and must be swept on account deletion)
+    for (const sub of ['customers', 'notifications', 'orders']) {
       expect(warnSpy).not.toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ unexpectedSubcollection: sub }),
