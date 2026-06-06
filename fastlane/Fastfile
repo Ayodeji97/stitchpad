@@ -60,7 +60,9 @@ platform :android do
     # ANY track — not just the closed track we upload to. Querying only play_track
     # would miss builds previously shipped to internal/beta/production and let the
     # lane rebuild + re-upload a versionCode Play then rejects. (Cursor Bugbot, PR #125.)
-    tracks_to_check = [play_track, "internal", "beta", "production"].uniq
+    # Always include the built-in "alpha" closed track even when PLAY_TRACK names
+    # a custom track, so a prior default-Alpha upload still counts toward the guard.
+    tracks_to_check = [play_track, "alpha", "internal", "beta", "production"].uniq
     last = tracks_to_check.flat_map do |t|
       begin
         google_play_track_version_codes(
