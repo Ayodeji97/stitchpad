@@ -585,13 +585,14 @@ class MeasurementFormViewModel(
             val result = customFieldRepository.archiveField(userId, fieldId)
             if (result is Result.Success) {
                 _state.update { current ->
-                    val updatedFields = if (current.isEditMode) {
-                        current.fields
-                    } else {
-                        current.fields - fieldId
-                    }
+                    // PTSP-30: deleting a custom field also clears its value on the
+                    // measurement being edited, so the row disappears immediately
+                    // (otherwise the recorded-value branch in observeCustomFields
+                    // re-adds it on the next snapshot) and the value is dropped from
+                    // this measurement on save. Other measurements that recorded the
+                    // field keep their values — their documents are untouched.
                     current.copy(
-                        fields = updatedFields,
+                        fields = current.fields - fieldId,
                         customFields = current.customFields.filterNot { it.id == fieldId },
                         customFieldSheet = null,
                     )

@@ -899,7 +899,12 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun onArchiveCustomFieldConfirm_inEditMode_preservesRecordedFieldValue() = runTest {
+    fun onArchiveCustomFieldConfirm_inEditMode_clearsRecordedFieldValueOnThisMeasurement() = runTest {
+        // PTSP-30: deleting a custom field while editing a measurement that
+        // recorded it clears the value here too, so the row disappears
+        // immediately and the value is dropped from THIS measurement on save.
+        // (Other measurements that recorded the field keep their values — their
+        // documents are untouched.)
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
@@ -911,8 +916,9 @@ class MeasurementFormViewModelTest {
         vm.onAction(MeasurementFormAction.OnArchiveCustomFieldConfirm("f1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
-        assertEquals("12.5", vm.state.value.fields["f1"])
-        assertEquals(12.5, measurementRepository.lastUpdatedMeasurement?.fields?.get("f1"))
+        assertNull(vm.state.value.fields["f1"])
+        assertEquals(emptyList(), vm.state.value.customFields.map { it.id })
+        assertNull(measurementRepository.lastUpdatedMeasurement?.fields?.get("f1"))
     }
 
     @Test

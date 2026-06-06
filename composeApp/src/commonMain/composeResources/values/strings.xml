@@ -408,6 +408,7 @@
     <string name="custom_field_sheet_save_changes">Save changes</string>
     <string name="custom_field_sheet_cancel">Cancel</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
+    <string name="measurement_delete_content_description">Delete measurement</string>
     <string name="custom_field_sheet_archive">Delete custom field</string>
     <string name="custom_field_archive_dialog_title">Delete this field?</string>
     <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>
