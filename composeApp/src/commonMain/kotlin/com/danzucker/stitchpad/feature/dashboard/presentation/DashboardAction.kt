@@ -69,4 +69,7 @@ sealed interface DashboardAction {
      * launch WhatsApp using the customer's name + phone.
      */
     data class OnCustomerReadyMessageClick(val customerId: String) : DashboardAction
+
+    /** Tapped the bell / notifications button → navigate to the in-app inbox. */
+    data object OnNotificationsClick : DashboardAction
 }

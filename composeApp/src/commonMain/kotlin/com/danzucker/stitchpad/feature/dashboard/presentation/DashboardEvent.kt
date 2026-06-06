@@ -38,4 +38,7 @@ sealed interface DashboardEvent {
 
     /** Welcome-ending banner CTA: navigate to the Upgrade / Tailor Pro screen. */
     data object NavigateToUpgrade : DashboardEvent
+
+    /** Bell button tapped: navigate to the in-app notifications inbox. */
+    data object NavigateToNotifications : DashboardEvent
 }

@@ -351,6 +351,9 @@ private fun MainNavGraph(
                 onNavigateToUpgrade = {
                     navController.navigate(UpgradeRoute)
                 },
+                onNavigateToNotifications = {
+                    navController.navigate(NotificationsInboxRoute)
+                },
             )
         }
         composable<AddCustomerFirstRoute> {

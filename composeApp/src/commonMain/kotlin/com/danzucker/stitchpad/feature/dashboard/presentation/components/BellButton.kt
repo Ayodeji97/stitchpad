@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,16 +21,20 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_notifications
 
+private const val UNREAD_COUNT_CAP = 9
+private const val UNREAD_BUBBLE_SIZE = 16
+private const val UNREAD_BUBBLE_ICON_INSET = 36
+
 @Composable
 fun BellButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    hasUnread: Boolean = false,
+    unreadCount: Int = 0,
 ) {
     // Outer Box is sized to the visual footprint (36dp) so the badge TopEnd anchor
     // tracks the icon circle, not the expanded 48dp hit area.
     Box(
-        modifier = modifier.size(36.dp),
+        modifier = modifier.size(UNREAD_BUBBLE_ICON_INSET.dp),
         contentAlignment = Alignment.Center,
     ) {
         // requiredSize lets the 48dp IconButton overflow the 36dp Box without clipping,
@@ -44,18 +49,18 @@ fun BellButton(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (hasUnread) {
+        if (unreadCount > 0) {
             Box(
                 modifier = Modifier
-                    .size(12.dp)
                     .align(Alignment.TopEnd)
-                    .background(MaterialTheme.colorScheme.surface, CircleShape),
+                    .background(MaterialTheme.colorScheme.error, CircleShape)
+                    .requiredSize(UNREAD_BUBBLE_SIZE.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(MaterialTheme.colorScheme.error, CircleShape),
+                Text(
+                    text = if (unreadCount > UNREAD_COUNT_CAP) "9+" else unreadCount.toString(),
+                    color = MaterialTheme.colorScheme.onError,
+                    style = MaterialTheme.typography.labelSmall,
                 )
             }
         }
@@ -67,7 +72,7 @@ fun BellButton(
 @Composable
 private fun BellButtonNoBadgePreview() {
     StitchPadTheme {
-        BellButton(onClick = {}, hasUnread = false)
+        BellButton(onClick = {}, unreadCount = 0)
     }
 }
 
@@ -76,7 +81,7 @@ private fun BellButtonNoBadgePreview() {
 @Composable
 private fun BellButtonWithBadgePreview() {
     StitchPadTheme {
-        BellButton(onClick = {}, hasUnread = true)
+        BellButton(onClick = {}, unreadCount = 3)
     }
 }
 
@@ -85,7 +90,7 @@ private fun BellButtonWithBadgePreview() {
 @Composable
 private fun BellButtonNoBadgeDarkPreview() {
     StitchPadTheme(darkTheme = true) {
-        BellButton(onClick = {}, hasUnread = false)
+        BellButton(onClick = {}, unreadCount = 0)
     }
 }
 
@@ -94,6 +99,6 @@ private fun BellButtonNoBadgeDarkPreview() {
 @Composable
 private fun BellButtonWithBadgeDarkPreview() {
     StitchPadTheme(darkTheme = true) {
-        BellButton(onClick = {}, hasUnread = true)
+        BellButton(onClick = {}, unreadCount = 3)
     }
 }
