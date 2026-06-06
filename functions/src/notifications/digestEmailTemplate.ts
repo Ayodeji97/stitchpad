@@ -26,16 +26,17 @@ function naira(amount: number): string {
 export function buildDigestEmail(model: DigestModel, tailorName: string): { subject: string; html: string; text: string } {
   const name = tailorName?.trim() ? tailorName.trim() : 'there';
 
+  const CAP = 5;
   const subjectParts: string[] = [];
-  if (model.overdueTotal > 0) subjectParts.push(`${model.overdueTotal} overdue`);
-  if (model.dueSoonTotal > 0) subjectParts.push(`${model.dueSoonTotal} due soon`);
-  if (model.outstandingTotal > 0) subjectParts.push(`${model.outstandingTotal} to collect`);
+  if (model.overdue.length > 0) subjectParts.push(`${model.overdue.length} overdue`);
+  if (model.dueSoon.length > 0) subjectParts.push(`${model.dueSoon.length} due soon`);
+  if (model.outstanding.length > 0) subjectParts.push(`${model.outstanding.length} to collect`);
   const subject = `StitchPad: ${subjectParts.join(', ')}`;
 
   const sections: { title: string; items: DigestItem[]; total: number; line: (i: DigestItem) => string }[] = [
-    { title: 'Overdue', items: model.overdue, total: model.overdueTotal, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
-    { title: 'Due soon', items: model.dueSoon, total: model.dueSoonTotal, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
-    { title: 'To collect', items: model.outstanding, total: model.outstandingTotal, line: (i) => `${i.customerName} · ${i.garmentSummary} — ${naira(i.amount || 0)}` },
+    { title: 'Overdue', items: model.overdue.slice(0, CAP), total: model.overdue.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
+    { title: 'Due soon', items: model.dueSoon.slice(0, CAP), total: model.dueSoon.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
+    { title: 'To collect', items: model.outstanding.slice(0, CAP), total: model.outstanding.length, line: (i) => `${i.customerName} · ${i.garmentSummary} — ${naira(i.amount || 0)}` },
   ];
 
   const htmlSections = sections.filter((s) => s.total > 0).map((s) => {
