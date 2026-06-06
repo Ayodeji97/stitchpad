@@ -52,10 +52,11 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun readyFullyPaid_offersMarkDeliveredNoSecondary() {
-        // Nothing to record once the balance is cleared — primary goes full-width.
+    fun readyFullyPaid_offersMarkDeliveredPlusShareReceipt() {
+        // PTSP-29: with nothing to record, the secondary defaults to Share
+        // Receipt so the primary never spreads full-width across the card.
         assertEquals(
-            CtaPair(PrimaryCta.MarkDelivered, null),
+            CtaPair(PrimaryCta.MarkDelivered, SecondaryCta.ShareReceipt),
             cta(OrderStatus.READY),
         )
     }
@@ -71,19 +72,22 @@ class PrimaryCtaResolverTest {
     }
 
     @Test
-    fun delivered_offersShareReceiptPlusDuplicate() {
+    fun delivered_keepsUpdateStatusPrimaryWithShareReceiptSecondary() {
+        // PTSP-29: a delivered order keeps "Update Status" on the card (so the
+        // status can still be moved back) with "Share Receipt" beside it.
+        // Duplicate moves to the top-bar overflow menu, off the card.
         assertEquals(
-            CtaPair(PrimaryCta.ShareReceipt, SecondaryCta.DuplicateOrder),
+            CtaPair(PrimaryCta.UpdateStatus, SecondaryCta.ShareReceipt),
             cta(OrderStatus.DELIVERED, balance = 0.0),
         )
     }
 
     @Test
-    fun zeroBalance_dropsSecondary() {
-        // With nothing to record and Call/WhatsApp already on the Customer card,
-        // the secondary slot is empty — the primary goes full-width.
+    fun zeroBalance_fallsBackToShareReceiptSecondary() {
+        // PTSP-29: no balance to record, so the secondary is Share Receipt rather
+        // than empty — keeps the two-button layout, primary not full-width.
         assertEquals(
-            CtaPair(PrimaryCta.UpdateStatus, null),
+            CtaPair(PrimaryCta.UpdateStatus, SecondaryCta.ShareReceipt),
             cta(OrderStatus.IN_PROGRESS, sub = OrderSubStatus.CUTTING, balance = 0.0),
         )
     }

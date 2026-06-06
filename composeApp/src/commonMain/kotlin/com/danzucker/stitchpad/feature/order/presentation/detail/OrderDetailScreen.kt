@@ -951,7 +951,7 @@ private fun handleSecondaryCta(cta: SecondaryCta?, onAction: (OrderDetailAction)
         SecondaryCta.StartWork,
         SecondaryCta.UpdateStatus,
         SecondaryCta.MarkDelivered -> onAction(OrderDetailAction.OnUpdateStatusClick)
-        SecondaryCta.DuplicateOrder -> onAction(OrderDetailAction.OnDuplicateClick)
+        SecondaryCta.ShareReceipt -> onAction(OrderDetailAction.OnShareClick)
     }
 }
 

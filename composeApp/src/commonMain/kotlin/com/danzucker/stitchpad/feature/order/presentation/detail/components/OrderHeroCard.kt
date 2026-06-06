@@ -56,7 +56,6 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
 import stitchpad.composeapp.generated.resources.order_detail_confirm_fitting
-import stitchpad.composeapp.generated.resources.order_detail_duplicate_order
 import stitchpad.composeapp.generated.resources.order_detail_edit_deadline
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
@@ -544,6 +543,15 @@ private fun CtaRow(
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = secondaryContentColor),
             ) {
+                if (secondary == SecondaryCta.ShareReceipt) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(end = 4.dp),
+                    )
+                }
                 Text(text = secondaryCtaLabel(secondary))
             }
         }
@@ -566,7 +574,7 @@ private fun secondaryCtaLabel(cta: SecondaryCta): String = when (cta) {
     SecondaryCta.StartWork -> stringResource(Res.string.order_detail_start_work)
     SecondaryCta.UpdateStatus -> stringResource(Res.string.order_detail_update_status)
     SecondaryCta.MarkDelivered -> stringResource(Res.string.order_detail_mark_delivered)
-    SecondaryCta.DuplicateOrder -> stringResource(Res.string.order_detail_duplicate_order)
+    SecondaryCta.ShareReceipt -> stringResource(Res.string.order_detail_share_receipt)
 }
 
 // region — Previews
