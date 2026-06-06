@@ -7,74 +7,57 @@ import kotlin.test.assertEquals
 
 class StatusTransitionsTest {
 
+    private val allStages = listOf(
+        StatusTransition(OrderStatus.PENDING, null),
+        StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.CUTTING),
+        StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.SEWING),
+        StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.FITTING),
+        StatusTransition(OrderStatus.READY, null),
+        StatusTransition(OrderStatus.DELIVERED, null),
+    )
+
     @Test
-    fun pendingOffersAllForwardStages() {
-        val moves = nextStatusTransitions(OrderStatus.PENDING, null)
-        assertEquals(
-            listOf(
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.CUTTING),
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.SEWING),
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.FITTING),
-                StatusTransition(OrderStatus.READY, null),
-                StatusTransition(OrderStatus.DELIVERED, null),
-            ),
-            moves,
-        )
+    fun pendingShowsEveryOtherStageInForwardOrder() {
+        val moves = allStatusTransitions(OrderStatus.PENDING, null)
+        assertEquals(allStages.drop(1), moves)
     }
 
     @Test
-    fun cuttingOffersForwardPlusBackToPending() {
-        val moves = nextStatusTransitions(OrderStatus.IN_PROGRESS, OrderSubStatus.CUTTING)
-        assertEquals(
-            listOf(
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.SEWING),
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.FITTING),
-                StatusTransition(OrderStatus.READY, null),
-                StatusTransition(OrderStatus.DELIVERED, null),
-                StatusTransition(OrderStatus.PENDING, null),
-            ),
-            moves,
-        )
+    fun cuttingShowsAllStagesExceptCutting() {
+        val moves = allStatusTransitions(OrderStatus.IN_PROGRESS, OrderSubStatus.CUTTING)
+        assertEquals(allStages.filterNot { it.toSubStatus == OrderSubStatus.CUTTING }, moves)
+        // Includes the back-move to Pending and forward to Delivered.
+        assertEquals(true, moves.contains(StatusTransition(OrderStatus.PENDING, null)))
+        assertEquals(true, moves.contains(StatusTransition(OrderStatus.DELIVERED, null)))
     }
 
     @Test
-    fun fittingOffersReadyDeliveredAndBackToSewing() {
-        val moves = nextStatusTransitions(OrderStatus.IN_PROGRESS, OrderSubStatus.FITTING)
-        assertEquals(
-            listOf(
-                StatusTransition(OrderStatus.READY, null),
-                StatusTransition(OrderStatus.DELIVERED, null),
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.SEWING),
-            ),
-            moves,
-        )
+    fun fittingShowsAllStagesExceptFitting() {
+        val moves = allStatusTransitions(OrderStatus.IN_PROGRESS, OrderSubStatus.FITTING)
+        assertEquals(allStages.filterNot { it.toSubStatus == OrderSubStatus.FITTING }, moves)
     }
 
     @Test
-    fun readyOffersDeliveredPlusBackToFitting() {
-        val moves = nextStatusTransitions(OrderStatus.READY, null)
-        assertEquals(
-            listOf(
-                StatusTransition(OrderStatus.DELIVERED, null),
-                StatusTransition(OrderStatus.IN_PROGRESS, OrderSubStatus.FITTING),
-            ),
-            moves,
-        )
+    fun readyShowsAllStagesExceptReady() {
+        val moves = allStatusTransitions(OrderStatus.READY, null)
+        assertEquals(allStages.filterNot { it == StatusTransition(OrderStatus.READY, null) }, moves)
     }
 
     @Test
-    fun deliveredOffersNoMoves() {
-        val moves = nextStatusTransitions(OrderStatus.DELIVERED, null)
-        assertEquals(emptyList(), moves)
+    fun deliveredStillShowsEveryEarlierStage() {
+        // PTSP-28: a delivered order must still be able to move back, so the
+        // sheet is non-empty (it was empty under the old next-only picker).
+        val moves = allStatusTransitions(OrderStatus.DELIVERED, null)
+        assertEquals(allStages.dropLast(1), moves)
     }
 
     @Test
     fun inProgressWithNullSubStatusBehavesAsCutting() {
         // Legacy data: status = IN_PROGRESS but no subStatus persisted.
-        // Treat as CUTTING for the picker so the user can move forward.
-        val moves = nextStatusTransitions(OrderStatus.IN_PROGRESS, null)
+        // Treat as CUTTING so the current stage is excluded correctly.
+        val moves = allStatusTransitions(OrderStatus.IN_PROGRESS, null)
         assertEquals(
-            nextStatusTransitions(OrderStatus.IN_PROGRESS, OrderSubStatus.CUTTING),
+            allStatusTransitions(OrderStatus.IN_PROGRESS, OrderSubStatus.CUTTING),
             moves,
         )
     }

@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.feature.order.presentation.detail.StatusTransition
-import com.danzucker.stitchpad.feature.order.presentation.detail.nextStatusTransitions
+import com.danzucker.stitchpad.feature.order.presentation.detail.allStatusTransitions
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -123,7 +123,7 @@ private fun StatusTransitionSheetContent(
 ) {
     val currentStage = resolveTransitionStage(currentStatus, currentSubStatus)
     val currentStageLabel = stageName(currentStage)
-    val transitions = nextStatusTransitions(currentStatus, currentSubStatus)
+    val transitions = allStatusTransitions(currentStatus, currentSubStatus)
 
     Column(
         modifier = Modifier
