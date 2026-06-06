@@ -104,6 +104,7 @@ import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.BackHandler
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
@@ -235,6 +236,13 @@ fun OrderFormScreen(
         stringResource(Res.string.order_form_step_details)
     )
     val focusManager = LocalFocusManager.current
+
+    // Android hardware/gesture back steps to the previous wizard step instead of
+    // abandoning the form. On step 1 it stays disabled so back exits normally.
+    // (iOS is a no-op here and relies on the top-bar arrow via OnNavigateBack.)
+    BackHandler(enabled = state.currentStep > 1) {
+        onAction(OrderFormAction.OnPreviousStep)
+    }
 
     Scaffold(
         topBar = {

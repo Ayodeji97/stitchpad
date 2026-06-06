@@ -110,7 +110,16 @@ class OrderFormViewModel(
                 if (current > 1) _state.update { it.copy(currentStep = current - 1) }
             }
             OrderFormAction.OnNavigateBack -> {
-                viewModelScope.launch { _events.send(OrderFormEvent.NavigateBack) }
+                // Back steps through the wizard rather than abandoning it: from
+                // step 2/3 it returns to the previous step; only step 1 actually
+                // leaves the form. Drives both the top-bar arrow (all platforms)
+                // and the Android system back handler.
+                val current = _state.value.currentStep
+                if (current > 1) {
+                    _state.update { it.copy(currentStep = current - 1) }
+                } else {
+                    viewModelScope.launch { _events.send(OrderFormEvent.NavigateBack) }
+                }
             }
             is OrderFormAction.OnSelectCustomer -> {
                 _state.update { it.copy(selectedCustomer = action.customer) }
