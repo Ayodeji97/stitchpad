@@ -7,7 +7,8 @@ import { sendResendEmail } from '../email/resendClient';
 import { buildDigestEmail } from './digestEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
 import { lagosDateKey } from './lagosTime';
-import { DigestIO, DigestRecipient, OrderScanDoc } from './types';
+import { notificationDocsFromModel } from './notificationDocs';
+import { DigestIO, DigestModel, DigestRecipient, OrderScanDoc } from './types';
 
 const REGION = 'europe-west1';
 const SCHEDULE = '0 7 * * *';
@@ -31,6 +32,26 @@ function mapOrder(id: string, d: DocumentData): OrderScanDoc {
       garmentType: i?.garmentType, customGarmentName: i?.customGarmentName, description: i?.description,
     })) : [],
   };
+}
+
+async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: string, model: DigestModel): Promise<void> {
+  const col = db.collection('users').doc(uid).collection('notifications');
+  const createdAt = Date.now();
+  for (const spec of notificationDocsFromModel(model)) {
+    try {
+      // .create() throws ALREADY_EXISTS if the deterministic-id doc exists →
+      // dedup: first time only, and read-state on the existing doc is preserved.
+      await col.doc(spec.id).create({ ...spec.data, isRead: false, createdAt });
+    } catch (err) {
+      const code = (err as { code?: number }).code;
+      // gRPC ALREADY_EXISTS = 6. We compare the numeric code directly because
+      // firebase-admin does not expose admin.firestore.GrpcStatus as a RUNTIME
+      // value in this version (it's a .d.ts type only — using it throws at runtime).
+      if (code !== 6) {
+        functions.logger.warn('writeNotification failed', { uid, id: spec.id, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+  }
 }
 
 function productionDigestIO(apiKey: string): DigestIO {
@@ -67,6 +88,9 @@ function productionDigestIO(apiKey: string): DigestIO {
     },
     async setLastSentDate(uid, dateKey) {
       await digestStateRef(uid).set({ lastSentDate: dateKey }, { merge: true });
+    },
+    writeNotifications(uid, model) {
+      return writeNotificationsAdmin(db, uid, model);
     },
     sendEmail(p) {
       return sendResendEmail(apiKey, p);
@@ -120,6 +144,7 @@ export const debugSendMyDigest = functions
     const now = Date.now();
     const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
     const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), now);
+    await writeNotificationsAdmin(db, uid, model);   // populate the inbox for QA
     if (isDigestEmpty(model)) return { sent: false, reason: 'empty' };
 
     const data = userDoc.data() || {};

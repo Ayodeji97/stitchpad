@@ -680,6 +680,7 @@
 
     <!-- Dashboard header buttons -->
     <string name="cd_notifications">Notifications</string>
+    <string name="cd_notifications_with_count">Notifications, %1$s unread</string>
     <string name="cd_open_settings">Open settings</string>
     <string name="cd_close_image_viewer">Close image viewer</string>
 
@@ -1383,6 +1384,17 @@
     <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again in a moment.</string>
     <string name="smart_error_unknown">Something went wrong. Please try again.</string>
     <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
+
+    <!-- Notifications inbox -->
+    <string name="notifications_back_cd">Back</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_mark_all_read">Mark all read</string>
+    <string name="notifications_empty_title">No notifications yet</string>
+    <string name="notifications_empty_subtitle">Order reminders will show up here.</string>
+    <string name="notifications_load_error">Couldn&#39;t load notifications. Check your connection.</string>
+    <string name="notification_overdue">%1$s&apos;s %2$s is overdue</string>
+    <string name="notification_due_soon">%1$s&apos;s %2$s is due soon</string>
+    <string name="notification_to_collect">%1$s owes %2$s</string>
 
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>

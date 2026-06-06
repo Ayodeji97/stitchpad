@@ -110,3 +110,6 @@ data object UpgradeRoute
 
 @Serializable
 data object FoundersNoteRoute
+
+@Serializable
+data object NotificationsInboxRoute
