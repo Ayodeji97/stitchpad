@@ -39,6 +39,7 @@ export interface DigestIO {
   loadOrders(uid: string): Promise<OrderScanDoc[]>;
   getLastSentDate(uid: string): Promise<string | null>;
   setLastSentDate(uid: string, dateKey: string): Promise<void>;
+  writeNotifications(uid: string, model: DigestModel): Promise<void>;
   sendEmail(p: { to: string; subject: string; html: string; text: string }): Promise<void>;
   isAllowed(uid: string, email: string): boolean;
 }

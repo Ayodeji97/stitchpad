@@ -5,19 +5,21 @@ const NOW = Date.parse('2026-06-03T06:00:00Z');
 const DAY = 86_400_000;
 
 function fakeIO(over: Partial<DigestIO> & { recipients: DigestRecipient[]; ordersByUid: Record<string, OrderScanDoc[]> }): {
-  io: DigestIO; sent: { to: string; subject: string }[]; stamps: Record<string, string>;
+  io: DigestIO; sent: { to: string; subject: string }[]; stamps: Record<string, string>; notified: Record<string, number>;
 } {
   const sent: { to: string; subject: string }[] = [];
   const stamps: Record<string, string> = {};
+  const notified: Record<string, number> = {};
   const io: DigestIO = {
     listRecipients: async () => over.recipients,
     loadOrders: async (uid) => over.ordersByUid[uid] || [],
     getLastSentDate: async (uid) => stamps[uid] ?? null,
     setLastSentDate: async (uid, d) => { stamps[uid] = d; },
+    writeNotifications: async (uid) => { notified[uid] = (notified[uid] || 0) + 1; },
     sendEmail: async (p) => { sent.push({ to: p.to, subject: p.subject }); },
     isAllowed: over.isAllowed ?? (() => true),
   };
-  return { io, sent, stamps };
+  return { io, sent, stamps, notified };
 }
 
 const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', name: 'Ada', digestEnabled: true, ...p });
@@ -71,5 +73,19 @@ describe('runDailyDigest', () => {
     expect(r.sent).toBe(1);
     expect(r.failed).toBe(1);
     expect(sent.map((s) => s.to)).toEqual(['u2@x.com']);
+  });
+
+  it('writes notifications for a disabled recipient even though no email is sent', async () => {
+    const { io, sent, notified } = fakeIO({ recipients: [recip({ digestEnabled: false })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
+    await runDailyDigest(io, NOW);
+    expect(sent).toHaveLength(0);
+    expect(notified.u1).toBe(1);
+  });
+
+  it('writes notifications even when the digest is empty (no email)', async () => {
+    const { io, sent, notified } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
+    await runDailyDigest(io, NOW);
+    expect(sent).toHaveLength(0);
+    expect(notified.u1).toBe(1);
   });
 });
