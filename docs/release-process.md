@@ -80,7 +80,7 @@ Make sure `composeApp/google-services.json` (production) and `iosApp/iosApp/Goog
 - [ ] App Store Connect beta test info populated (what to test, contact email)
 - [ ] Play Console app dashboard checklist green (privacy policy, data safety, content rating, target audience)
 - [ ] TestFlight external testing group `pilot-tailors-ios` exists
-- [ ] Play Console internal testing tester list populated
+- [ ] Play Console closed testing (Alpha) tester list populated — Google Group attached to the Alpha track (NOT Internal; only closed testing counts toward the 12-testers/14-day production-access requirement)
 - [ ] Sign in with Apple verified working on a manual Release archive built from Xcode
 
 ## Day-to-day: ship a beta build
@@ -89,7 +89,8 @@ Make sure `composeApp/google-services.json` (production) and `iosApp/iosApp/Goog
 # From repo root
 cd fastlane
 
-# Android → Play internal testing (draft; promote manually after sanity check)
+# Android → Play closed testing / Alpha (draft; promote manually after sanity check)
+# Override the track with PLAY_TRACK=<name> for a custom closed track.
 fastlane android beta
 
 # iOS → TestFlight external group
@@ -106,8 +107,8 @@ Android lane: ~5–8 min on a warm cache. iOS lane: ~5–8 min upload + 15–45 
 
 ### After `android beta`
 
-1. Open Play Console → Internal testing → review the draft release.
-2. Click "Start rollout to internal testing."
+1. Open Play Console → Closed testing → Alpha → review the draft release.
+2. Click "Review release", then "Start rollout to Closed testing".
 3. Testers' Play Store updates automatically within minutes.
 
 ### After `ios beta`
@@ -133,7 +134,7 @@ git commit -am "chore(release): cut beta 0.9.1"
 
 The build numbers (`versionCode` / `CURRENT_PROJECT_VERSION`) auto-increment from `git rev-list --count HEAD`.
 
-Note: `MARKETING_VERSION` MUST be period-separated digits only (`A.B.C`). Suffixes like `-beta` cause App Store Connect to reject the build at upload time (`CFBundleShortVersionString` validation). The "beta" status is implicit in being on TestFlight / Play internal testing.
+Note: `MARKETING_VERSION` MUST be period-separated digits only (`A.B.C`). Suffixes like `-beta` cause App Store Connect to reject the build at upload time (`CFBundleShortVersionString` validation). The "beta" status is implicit in being on TestFlight / Play closed testing.
 
 ## Common failures and recovery
 
@@ -149,7 +150,7 @@ Note: `MARKETING_VERSION` MUST be period-separated digits only (`A.B.C`). Suffix
 | Play upload fails with "no privacy policy" | Play dashboard checklist incomplete | Play Console → App dashboard → fill in missing items |
 | Detekt / tests fail in preflight | Pre-existing issue on HEAD | Fix the underlying issue (don't bypass — the lane gates exist to keep beta builds shippable) |
 | `git rev-list failed — are you in a git checkout?` | Lane invoked outside a git working tree | `cd` back to the repo root; the lane requires git |
-| `Could not query Play internal track` / `Could not query TestFlight build number` (UI.important log) | Service account or ASC API auth misconfigured, OR genuinely first upload | First-time uploads are fine — the lane proceeds. If you see this every time and uploads also fail later, the API credentials are wrong. |
+| `Could not query Play <track> track` / `Could not query TestFlight build number` (UI.important log) | Service account or ASC API auth misconfigured, OR genuinely first upload | First-time uploads are fine — the lane proceeds. If you see this every time and uploads also fail later, the API credentials are wrong. |
 
 ## What's deferred (not in this release flow)
 

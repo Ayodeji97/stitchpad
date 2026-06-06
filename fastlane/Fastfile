@@ -40,7 +40,14 @@ end
 platform :android do
   package_name = "com.danzucker.stitchpad"
 
-  desc "Build a signed AAB and upload to Play internal testing track"
+  # Closed testing track. Google's "12 testers / 14 continuous days" production-
+  # eligibility requirement for new personal accounts only counts CLOSED testing —
+  # the "internal" track does NOT satisfy it. "alpha" is Play's built-in closed
+  # track. To use a custom-named closed track instead, create it in Play Console
+  # first and set PLAY_TRACK to its exact name.
+  play_track = ENV.fetch("PLAY_TRACK", "alpha")
+
+  desc "Build a signed AAB and upload to Play closed testing track (#{ENV.fetch('PLAY_TRACK', 'alpha')})"
   lane :beta do
     json_key = ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON_PATH")
     UI.user_error!("Service account JSON not found at #{json_key}") unless File.exist?(json_key)
@@ -48,19 +55,27 @@ platform :android do
     current = current_build_number
     UI.message "Current git commit count: #{current}"
 
-    # No-new-commits guard — query Play for the highest versionCode in the internal track.
-    track_codes = begin
-      google_play_track_version_codes(
-        package_name: package_name,
-        track: "internal",
-        json_key: json_key
-      )
-    rescue => e
-      UI.important "Could not query Play internal track (first upload? auth issue?): #{e.message}"
-      []
-    end
-    last = (track_codes || []).max || 0
-    UI.message "Last internal-track versionCode on Play: #{last}"
+    # No-new-commits guard. Play assigns versionCode APP-WIDE (unique + monotonic
+    # across every track), so we must compare against the highest versionCode on
+    # ANY track — not just the closed track we upload to. Querying only play_track
+    # would miss builds previously shipped to internal/beta/production and let the
+    # lane rebuild + re-upload a versionCode Play then rejects. (Cursor Bugbot, PR #125.)
+    # Always include the built-in "alpha" closed track even when PLAY_TRACK names
+    # a custom track, so a prior default-Alpha upload still counts toward the guard.
+    tracks_to_check = [play_track, "alpha", "internal", "beta", "production"].uniq
+    last = tracks_to_check.flat_map do |t|
+      begin
+        google_play_track_version_codes(
+          package_name: package_name,
+          track: t,
+          json_key: json_key
+        ) || []
+      rescue => e
+        UI.important "Could not query Play #{t} track (missing track? first upload? auth issue?): #{e.message}"
+        []
+      end
+    end.max || 0
+    UI.message "Highest versionCode across [#{tracks_to_check.join(', ')}] on Play: #{last}"
 
     if current <= last
       UI.user_error!(
@@ -80,7 +95,7 @@ platform :android do
 
     upload_to_play_store(
       package_name: package_name,
-      track: "internal",
+      track: play_track,
       aab: aab,
       json_key: json_key,
       release_status: "draft", # promote manually in Play Console after sanity check
@@ -90,8 +105,8 @@ platform :android do
       skip_upload_screenshots: true
     )
 
-    UI.success "Uploaded AAB versionCode=#{current} to Play internal track. " \
-               "Open Play Console → Internal testing → review & roll out."
+    UI.success "Uploaded AAB versionCode=#{current} to Play #{play_track} (closed) track. " \
+               "Open Play Console → Closed testing → review & roll out."
   end
 end
 
