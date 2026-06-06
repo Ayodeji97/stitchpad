@@ -10,11 +10,18 @@ import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 
 private const val TAG = "NotificationRepo"
+
+// Backoff between snapshot-listener retries when Firestore errors out
+// (permission-denied transient, network blip, deserialization crash).
+// retryWhen keeps the listener alive so a transient failure doesn't leave
+// the inbox permanently frozen until the ViewModel is recreated.
+private const val SNAPSHOT_RETRY_DELAY_MS = 5_000L
 
 class FirebaseNotificationRepository(
     private val firestore: FirebaseFirestore,
@@ -37,9 +44,19 @@ class FirebaseNotificationRepository(
                     .sortedByDescending { it.createdAt }
                 Result.Success(list) as Result<List<Notification>, DataError.Network>
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeNotifications failed" }
+            // retryWhen (not .catch) so the Firestore listener keeps running
+            // after a transient failure (permission-denied, network blip,
+            // deserialization crash). .catch + emit would END the flow and
+            // leave the inbox + bell permanently frozen until the ViewModel
+            // is recreated. Here we emit a Result.Error so the UI shows an
+            // error state, then retry after a delay to self-heal.
+            .retryWhen { cause, _ ->
+                AppLogger.e(tag = TAG, throwable = cause) {
+                    "observeNotifications failed; emitting error + retrying"
+                }
                 emit(Result.Error(DataError.Network.UNKNOWN))
+                delay(SNAPSHOT_RETRY_DELAY_MS)
+                true // keep the listener alive
             }
 
     // Derives the unread count from the same observeNotifications flow so there is

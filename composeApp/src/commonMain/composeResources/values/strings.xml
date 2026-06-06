@@ -1381,6 +1381,7 @@
     <string name="notifications_mark_all_read">Mark all read</string>
     <string name="notifications_empty_title">No notifications yet</string>
     <string name="notifications_empty_subtitle">Order reminders will show up here.</string>
+    <string name="notifications_load_error">Couldn&#39;t load notifications. Check your connection.</string>
     <string name="notification_overdue">%1$s&apos;s %2$s is overdue</string>
     <string name="notification_due_soon">%1$s&apos;s %2$s is due soon</string>
     <string name="notification_to_collect">%1$s owes %2$s</string>

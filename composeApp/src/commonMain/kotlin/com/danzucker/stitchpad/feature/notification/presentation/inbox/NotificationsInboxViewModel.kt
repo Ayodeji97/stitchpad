@@ -55,7 +55,9 @@ class NotificationsInboxViewModel(
             notificationRepository.observeNotifications(uid).collect { result ->
                 when (result) {
                     is Result.Success -> _state.update {
-                        it.copy(notifications = result.data, isLoading = false)
+                        // Also clear any prior errorMessage so a recovered load
+                        // (after retryWhen self-heals) clears the error state.
+                        it.copy(notifications = result.data, isLoading = false, errorMessage = null)
                     }
                     is Result.Error -> _state.update {
                         it.copy(

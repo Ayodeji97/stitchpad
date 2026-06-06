@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.components.NotificationRow
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -47,6 +49,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.notifications_back_cd
 import stitchpad.composeapp.generated.resources.notifications_empty_subtitle
 import stitchpad.composeapp.generated.resources.notifications_empty_title
+import stitchpad.composeapp.generated.resources.notifications_load_error
 import stitchpad.composeapp.generated.resources.notifications_mark_all_read
 import stitchpad.composeapp.generated.resources.notifications_title
 
@@ -106,7 +109,18 @@ fun NotificationsInboxScreen(
                     LoadingDots()
                 }
             }
+            state.notifications.isEmpty() && state.errorMessage != null -> {
+                // Load failed and we have nothing cached — show a distinct error
+                // state rather than the empty illustration, which would mislead
+                // the user into thinking they genuinely have no notifications.
+                NotificationsErrorState(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                )
+            }
             state.notifications.isEmpty() -> {
+                // Genuinely empty — no notifications at all.
                 NotificationsEmptyState(
                     modifier = Modifier
                         .fillMaxSize()
@@ -138,6 +152,42 @@ fun NotificationsInboxScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NotificationsErrorState(modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.padding(horizontal = DesignTokens.space8),
+    ) {
+        Spacer(Modifier.weight(1f))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(DesignTokens.radiusXl))
+                    .background(MaterialTheme.colorScheme.errorContainer),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.WifiOff,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+            Text(
+                text = stringResource(Res.string.notifications_load_error),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Spacer(Modifier.weight(3f))
     }
 }
 
@@ -180,6 +230,21 @@ private fun NotificationsEmptyState(modifier: Modifier = Modifier) {
             )
         }
         Spacer(Modifier.weight(3f))
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun NotificationsInboxScreenErrorPreview() {
+    StitchPadTheme {
+        NotificationsInboxScreen(
+            state = NotificationsInboxState(
+                isLoading = false,
+                errorMessage = UiText.DynamicString("Couldn't load notifications. Check your connection."),
+            ),
+            onAction = {},
+        )
     }
 }
 
