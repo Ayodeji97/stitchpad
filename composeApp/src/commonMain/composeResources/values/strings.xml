@@ -1375,6 +1375,7 @@
     <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
 
     <!-- Notifications inbox -->
+    <string name="notifications_back_cd">Back</string>
     <string name="notifications_title">Notifications</string>
     <string name="notifications_mark_all_read">Mark all read</string>
     <string name="notifications_empty_title">No notifications yet</string>

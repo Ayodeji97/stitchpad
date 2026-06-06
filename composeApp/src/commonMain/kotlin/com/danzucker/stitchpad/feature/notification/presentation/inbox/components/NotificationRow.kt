@@ -19,11 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.notification_due_soon
@@ -49,11 +51,15 @@ fun NotificationRow(
             notification.customerName,
             notification.garmentSummary,
         )
-        NotificationType.TO_COLLECT -> stringResource(
-            Res.string.notification_to_collect,
-            notification.customerName,
-            "₦${formatPrice(notification.amount ?: 0.0)}",
-        )
+        NotificationType.TO_COLLECT -> if (notification.amount != null) {
+            stringResource(
+                Res.string.notification_to_collect,
+                notification.customerName,
+                "₦${formatPrice(notification.amount)}",
+            )
+        } else {
+            "${notification.customerName} · ${notification.garmentSummary}"
+        }
         NotificationType.UNKNOWN -> "${notification.customerName} · ${notification.garmentSummary}"
     }
 
@@ -94,5 +100,87 @@ fun NotificationRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotificationRowUnreadOverduePreview() {
+    StitchPadTheme {
+        NotificationRow(
+            notification = Notification(
+                id = "o1__OVERDUE",
+                orderId = "o1",
+                type = NotificationType.OVERDUE,
+                customerName = "Fola Sunday",
+                garmentSummary = "Agbada",
+                isRead = false,
+                createdAt = 0L,
+            ),
+            onClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotificationRowReadDueSoonPreview() {
+    StitchPadTheme {
+        NotificationRow(
+            notification = Notification(
+                id = "o2__DUE_SOON",
+                orderId = "o2",
+                type = NotificationType.DUE_SOON,
+                customerName = "Aina Paul",
+                garmentSummary = "Ankara suit",
+                isRead = true,
+                createdAt = 0L,
+            ),
+            onClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotificationRowToCollectWithAmountPreview() {
+    StitchPadTheme {
+        NotificationRow(
+            notification = Notification(
+                id = "o3__TO_COLLECT",
+                orderId = "o3",
+                type = NotificationType.TO_COLLECT,
+                customerName = "Dayyo Au",
+                garmentSummary = "Buba",
+                amount = 15_000.0,
+                isRead = false,
+                createdAt = 0L,
+            ),
+            onClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotificationRowToCollectNullAmountPreview() {
+    StitchPadTheme {
+        NotificationRow(
+            notification = Notification(
+                id = "o4__TO_COLLECT_NULL",
+                orderId = "o4",
+                type = NotificationType.TO_COLLECT,
+                customerName = "Tunde Bello",
+                garmentSummary = "Senator kaftan",
+                amount = null,
+                isRead = true,
+                createdAt = 0L,
+            ),
+            onClick = {},
+        )
     }
 }

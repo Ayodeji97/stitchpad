@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,6 +44,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.notifications_back_cd
 import stitchpad.composeapp.generated.resources.notifications_empty_subtitle
 import stitchpad.composeapp.generated.resources.notifications_empty_title
 import stitchpad.composeapp.generated.resources.notifications_mark_all_read
@@ -71,7 +71,7 @@ fun NotificationsInboxScreen(
                     IconButton(onClick = { onAction(NotificationsInboxAction.OnBackClick) }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
+                            contentDescription = stringResource(Res.string.notifications_back_cd),
                         )
                     }
                 },
@@ -127,7 +127,12 @@ fun NotificationsInboxScreen(
                         )
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant,
-                            modifier = Modifier.padding(start = DesignTokens.space4),
+                            // Align with the text column: row horizontal padding + dot box +
+                            // spacedBy gap + explicit spacer + spacedBy gap
+                            modifier = Modifier.padding(
+                                start = DesignTokens.space4 + 8.dp + DesignTokens.space3 +
+                                    DesignTokens.space1 + DesignTokens.space3,
+                            ),
                         )
                     }
                 }
@@ -167,7 +172,6 @@ private fun NotificationsEmptyState(modifier: Modifier = Modifier) {
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            Spacer(Modifier.height(0.dp))
             Text(
                 text = stringResource(Res.string.notifications_empty_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
