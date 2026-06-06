@@ -140,6 +140,7 @@ export const debugSendMyDigest = functions
     const now = Date.now();
     const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
     const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), now);
+    await writeNotificationsAdmin(db, uid, model);   // populate the inbox for QA
     if (isDigestEmpty(model)) return { sent: false, reason: 'empty' };
 
     const data = userDoc.data() || {};
