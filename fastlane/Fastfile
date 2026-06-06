@@ -55,19 +55,25 @@ platform :android do
     current = current_build_number
     UI.message "Current git commit count: #{current}"
 
-    # No-new-commits guard — query Play for the highest versionCode in the closed track.
-    track_codes = begin
-      google_play_track_version_codes(
-        package_name: package_name,
-        track: play_track,
-        json_key: json_key
-      )
-    rescue => e
-      UI.important "Could not query Play #{play_track} track (first upload? auth issue?): #{e.message}"
-      []
-    end
-    last = (track_codes || []).max || 0
-    UI.message "Last #{play_track}-track versionCode on Play: #{last}"
+    # No-new-commits guard. Play assigns versionCode APP-WIDE (unique + monotonic
+    # across every track), so we must compare against the highest versionCode on
+    # ANY track — not just the closed track we upload to. Querying only play_track
+    # would miss builds previously shipped to internal/beta/production and let the
+    # lane rebuild + re-upload a versionCode Play then rejects. (Cursor Bugbot, PR #125.)
+    tracks_to_check = [play_track, "internal", "beta", "production"].uniq
+    last = tracks_to_check.flat_map do |t|
+      begin
+        google_play_track_version_codes(
+          package_name: package_name,
+          track: t,
+          json_key: json_key
+        ) || []
+      rescue => e
+        UI.important "Could not query Play #{t} track (missing track? first upload? auth issue?): #{e.message}"
+        []
+      end
+    end.max || 0
+    UI.message "Highest versionCode across [#{tracks_to_check.join(', ')}] on Play: #{last}"
 
     if current <= last
       UI.user_error!(
