@@ -163,4 +163,17 @@ describe('runDailyDigest — push', () => {
     await runDailyDigest(f.io, 1_000_000_000_000);
     expect(f.deletedTokens).toEqual([{ uid: 'u1', tokens: ['bad'] }]);
   });
+  it('a push failure does not block the email digest', async () => {
+    const f = fakeIO({
+      recipients: [recipient()],
+      ordersByUid: { u1: [overdueOrder] },
+      tokensByUid: { u1: ['tok1'] },
+    });
+    // Make the push path throw.
+    f.io.sendPush = async () => { throw new Error('FCM down'); };
+    const result = await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.sent).toHaveLength(1);        // email still went out
+    expect(result.sent).toBe(1);
+    expect(result.failed).toBe(0);         // push failure not counted as a recipient failure
+  });
 });
