@@ -209,18 +209,20 @@ fun SettingsScreen(
                         )
                     },
                 )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Notifications,
-                    label = stringResource(Res.string.settings_row_daily_push),
-                    onClick = { onAction(SettingsAction.OnDailyPushToggle(!state.dailyPushEnabled)) },
-                    trailing = {
-                        Switch(
-                            checked = state.dailyPushEnabled,
-                            onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
-                        )
-                    },
-                )
+                if (state.pushReminderSupported) {
+                    SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Notifications,
+                        label = stringResource(Res.string.settings_row_daily_push),
+                        onClick = { onAction(SettingsAction.OnDailyPushToggle(!state.dailyPushEnabled)) },
+                        trailing = {
+                            Switch(
+                                checked = state.dailyPushEnabled,
+                                onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
+                            )
+                        },
+                    )
+                }
             }
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_account)) {

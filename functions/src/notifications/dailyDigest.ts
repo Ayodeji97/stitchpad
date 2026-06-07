@@ -114,22 +114,24 @@ function productionDigestIO(apiKey: string): DigestIO {
     },
 
     sendPush: async (tokens, payload) => {
-      const res = await admin.messaging().sendEachForMulticast({
-        tokens,
-        notification: { title: payload.title, body: payload.body },
-        android: { notification: { channelId: 'daily_reminders' } },
-        data: { target: 'inbox' },
-      });
+      const FCM_MULTICAST_LIMIT = 500;
       const invalidTokens: string[] = [];
-      res.responses.forEach((r, i) => {
-        // GrpcStatus/named admin constants are type-only at runtime — compare the
-        // string error code (see the firebase-admin GrpcStatus type-only gotcha).
-        const code = r.error?.code;
-        if (code === 'messaging/registration-token-not-registered' ||
-            code === 'messaging/invalid-registration-token') {
-          invalidTokens.push(tokens[i]);
-        }
-      });
+      for (let i = 0; i < tokens.length; i += FCM_MULTICAST_LIMIT) {
+        const batch = tokens.slice(i, i + FCM_MULTICAST_LIMIT);
+        const res = await admin.messaging().sendEachForMulticast({
+          tokens: batch,
+          notification: { title: payload.title, body: payload.body },
+          android: { notification: { channelId: 'daily_reminders' } },
+          data: { target: 'inbox' },
+        });
+        res.responses.forEach((r, j) => {
+          const code = r.error?.code;
+          if (code === 'messaging/registration-token-not-registered' ||
+              code === 'messaging/invalid-registration-token') {
+            invalidTokens.push(batch[j]);
+          }
+        });
+      }
       return { invalidTokens };
     },
 

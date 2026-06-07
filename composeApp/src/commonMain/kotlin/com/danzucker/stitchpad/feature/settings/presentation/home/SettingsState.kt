@@ -42,6 +42,7 @@ data class SettingsState(
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val dailyDigestEmailEnabled: Boolean = true,
     val dailyPushEnabled: Boolean = true,
+    val pushReminderSupported: Boolean = true,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 ) {

@@ -21,6 +21,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -221,6 +222,7 @@ class SettingsViewModel(
             themePreference = ui.themePreference,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
             dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
+            pushReminderSupported = !Platform.isIos,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
