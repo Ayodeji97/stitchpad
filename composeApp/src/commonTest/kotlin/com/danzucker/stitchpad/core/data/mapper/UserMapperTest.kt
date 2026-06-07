@@ -148,4 +148,10 @@ class UserMapperTest {
     fun whatsappConfirmed_defaultsFalseWhenAbsent() {
         assertFalse(UserDto(id = "u2").toUser().whatsappConfirmed)
     }
+
+    @Test
+    fun dailyPushEnabled_defaultsTrue_andRoundTrips() {
+        assertTrue(UserDto(id = "u1").toUser().dailyPushEnabled)          // absent -> true
+        assertFalse(UserDto(id = "u1", dailyPushEnabled = false).toUser().dailyPushEnabled)
+    }
 }
