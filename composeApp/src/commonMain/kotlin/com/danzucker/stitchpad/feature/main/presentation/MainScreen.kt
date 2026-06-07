@@ -94,7 +94,7 @@ fun MainRoot(
     LaunchedEffect(deepLinkTarget) {
         if (deepLinkTarget == DeepLinkTarget.INBOX) {
             pendingDeepLink.clear()
-            innerNavController.navigate(NotificationsInboxRoute)
+            innerNavController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
         }
     }
 
@@ -371,7 +371,7 @@ private fun MainNavGraph(
                     navController.navigate(UpgradeRoute)
                 },
                 onNavigateToNotifications = {
-                    navController.navigate(NotificationsInboxRoute)
+                    navController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
                 },
             )
         }

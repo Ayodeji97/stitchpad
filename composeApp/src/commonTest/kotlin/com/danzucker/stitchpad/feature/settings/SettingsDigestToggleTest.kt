@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -109,11 +110,18 @@ private fun buildSettingsVmForDigest(
         themePreferencesStore = FakeThemePreferencesStore(),
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
+        pushTokenRegistrar = NoOpPushTokenRegistrar(),
     )
     return vm to userRepo
 }
 
 // ── Minimal inline fakes ──────────────────────────────────────────────────────
+
+private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+    override suspend fun registerForUser(userId: String) {}
+    override suspend fun register(userId: String, token: String) {}
+    override suspend fun unregisterForUser(userId: String) {}
+}
 
 private class FakeEntitlementsProvider : EntitlementsProvider {
     private val _flow = MutableStateFlow(

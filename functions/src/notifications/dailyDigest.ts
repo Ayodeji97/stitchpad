@@ -200,10 +200,11 @@ export const debugSendMyDigest = functions
     await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
     await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
 
-    const pushTokens = await productionDigestIO(apiKey).loadPushTokens(uid);
+    const io = productionDigestIO(apiKey);
+    const pushTokens = await io.loadPushTokens(uid);
     if (pushTokens.length > 0 && !isDigestEmpty(model)) {
-      const { invalidTokens } = await productionDigestIO(apiKey).sendPush(pushTokens, pushSummary(model));
-      if (invalidTokens.length > 0) await productionDigestIO(apiKey).deletePushTokens(uid, invalidTokens);
+      const { invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
+      if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
     }
 
     return { sent: true };
