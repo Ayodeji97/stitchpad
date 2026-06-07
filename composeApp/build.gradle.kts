@@ -41,9 +41,11 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.ktor.client.okhttp)
 
-            // Firebase Android (native) — Crashlytics only. Version resolved via BoM.
+            // Firebase Android (native) — Crashlytics + Messaging. Version resolved via BoM.
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.crashlytics)
+            implementation(libs.firebase.messaging)
+            implementation(libs.kotlinx.coroutines.play.services)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

@@ -76,9 +76,10 @@ firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "fir
 firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "firebase-gitlive" }
 firebase-functions = { module = "dev.gitlive:firebase-functions", version.ref = "firebase-gitlive" }
 
-# Firebase Android (native — used only in androidMain for Crashlytics)
+# Firebase Android (native — used only in androidMain for Crashlytics + Messaging)
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 # Coil 3 (KMP image loading)
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
@@ -103,6 +104,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 # Coroutines
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
 
 # Turbine (Flow testing)
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
