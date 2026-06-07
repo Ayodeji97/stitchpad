@@ -8,17 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -46,6 +41,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.auth.presentation.components.SsoButtonRow
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -217,30 +213,13 @@ fun LoginScreen(
                 }
 
                 // 5. Sign-in button
-                Button(
+                StitchPadButton(
+                    text = stringResource(Res.string.login_button),
                     onClick = { onAction(LoginAction.OnLoginClick) },
-                    enabled = !state.isLoading &&
-                        state.email.isNotBlank() &&
-                        state.password.isNotBlank(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = DesignTokens.neutral700,
-                        disabledContentColor = DesignTokens.neutral500,
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.login_button),
-                        style = TextStyle(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                    )
-                }
+                    enabled = state.email.isNotBlank() && state.password.isNotBlank(),
+                    isLoading = state.isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
                 // 6. Sign-up footer
                 val noAccount = stringResource(Res.string.login_no_account)

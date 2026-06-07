@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,8 +20,6 @@ import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -57,6 +54,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.auth.presentation.components.SsoButtonRow
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -345,28 +343,13 @@ fun SignUpScreen(
                 }
 
                 // 8. Create account button
-                Button(
+                StitchPadButton(
+                    text = stringResource(Res.string.signup_create_account),
                     onClick = { onAction(SignUpAction.OnSignUpClick) },
-                    enabled = !state.isLoading && state.acceptedTerms,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = DesignTokens.neutral700,
-                        disabledContentColor = DesignTokens.neutral500,
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.signup_create_account),
-                        style = TextStyle(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                    )
-                }
+                    enabled = state.acceptedTerms,
+                    isLoading = state.isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
                 // 9. Footer — already have an account
                 val haveAccount = stringResource(Res.string.signup_have_account)

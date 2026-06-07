@@ -6,7 +6,10 @@ import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -17,10 +20,13 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +55,21 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+private class FakeDashboardNotificationRepository : NotificationRepository {
+    val unreadCountFlow = MutableStateFlow(0)
+
+    override fun observeNotifications(userId: String): Flow<Result<List<Notification>, DataError.Network>> =
+        flowOf(Result.Success(emptyList()))
+
+    override fun observeUnreadCount(userId: String): Flow<Int> = unreadCountFlow
+
+    override suspend fun markAsRead(userId: String, notificationId: String): EmptyResult<DataError.Network> =
+        Result.Success(Unit)
+
+    override suspend fun markAllRead(userId: String, notificationIds: List<String>): EmptyResult<DataError.Network> =
+        Result.Success(Unit)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
 
@@ -58,6 +79,7 @@ class DashboardViewModelTest {
     private lateinit var userRepository: FakeUserRepository
     private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
     private lateinit var smartUsageStore: FakeSmartUsageStore
+    private lateinit var notificationRepository: FakeDashboardNotificationRepository
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -71,6 +93,7 @@ class DashboardViewModelTest {
         userRepository = FakeUserRepository()
         weeklyGoalRepository = FakeWeeklyGoalRepository()
         smartUsageStore = FakeSmartUsageStore()
+        notificationRepository = FakeDashboardNotificationRepository()
     }
 
     @AfterTest
@@ -93,6 +116,7 @@ class DashboardViewModelTest {
             weeklyGoalRepository = weeklyGoalRepository,
             smartUsageStore = smartUsageStore,
             entitlements = entitlements,
+            notificationRepository = notificationRepository,
             nowMillis = nowMillis,
             timeZone = testTimeZone
         )
@@ -1524,6 +1548,28 @@ class DashboardViewModelTest {
             com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState.PipelineSteady,
             vm.state.value.uiState
         )
+    }
+
+    // --- Notification unread count ---
+
+    @Test
+    fun observeUnreadCount_reflectsRepositoryValue_inState() = runTest {
+        signIn()
+        notificationRepository.unreadCountFlow.value = 5
+
+        val vm = createViewModel()
+
+        assertEquals(5, vm.state.value.unreadNotificationCount)
+    }
+
+    @Test
+    fun onNotificationsClick_emitsNavigateToNotifications() = runTest {
+        signIn()
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnNotificationsClick)
+
+        assertIs<DashboardEvent.NavigateToNotifications>(vm.events.first())
     }
 
 }

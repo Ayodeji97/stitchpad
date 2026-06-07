@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
@@ -47,7 +48,7 @@ private const val AFTERNOON_CUTOFF_HOUR = 17
 private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 
 @OptIn(ExperimentalTime::class)
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class DashboardViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
@@ -56,6 +57,7 @@ class DashboardViewModel(
     private val weeklyGoalRepository: WeeklyGoalRepository,
     private val smartUsageStore: SmartUsageStore,
     private val entitlements: EntitlementsProvider,
+    private val notificationRepository: NotificationRepository,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) : ViewModel() {
@@ -73,6 +75,7 @@ class DashboardViewModel(
                 loadData()
                 observeSmartQuota()
                 observeEntitlements()
+                observeUnreadNotifications()
             }
         }
         .stateIn(
@@ -111,6 +114,19 @@ class DashboardViewModel(
                         showWelcomeBanner = e.isWithinWelcomeEndingWarning,
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Mirrors the live unread notification count from [NotificationRepository] into
+     * dashboard state so the bell badge in the header stays in sync.
+     */
+    private fun observeUnreadNotifications() {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUser()?.id ?: return@launch
+            notificationRepository.observeUnreadCount(uid).collect { count ->
+                _state.update { it.copy(unreadNotificationCount = count) }
             }
         }
     }
@@ -195,6 +211,7 @@ class DashboardViewModel(
             )
             DashboardAction.OnDraftMessageClick -> emitEvent(DashboardEvent.NavigateToDraftMessage)
             DashboardAction.OpenUpgrade -> emitEvent(DashboardEvent.NavigateToUpgrade)
+            DashboardAction.OnNotificationsClick -> emitEvent(DashboardEvent.NavigateToNotifications)
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }

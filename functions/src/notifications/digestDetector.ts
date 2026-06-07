@@ -1,7 +1,6 @@
 import { lagosDayIndex } from './lagosTime';
 import { DigestItem, DigestModel, OrderScanDoc } from './types';
 
-const CAP = 5;
 const MIN_BALANCE = 1; // ignore sub-naira rounding residue from totalPrice - payments
 
 function balanceRemaining(o: OrderScanDoc): number {
@@ -33,7 +32,7 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
 
     if (open && o.deadline != null) {
       const day = lagosDayIndex(o.deadline);
-      const item: DigestItem = { customerName: o.customerName, garmentSummary: summariseGarments(o.items), deadline: o.deadline };
+      const item: DigestItem = { orderId: o.id, customerName: o.customerName, garmentSummary: summariseGarments(o.items), deadline: o.deadline };
       if (day < today) overdue.push(item);
       else if (day === today || day === today + 1) dueSoon.push(item);
     }
@@ -42,25 +41,18 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
     if ((o.status === 'READY' || o.status === 'DELIVERED') && o.archivedAt == null) {
       const bal = balanceRemaining(o);
       if (bal >= MIN_BALANCE) {
-        outstanding.push({ customerName: o.customerName, garmentSummary: summariseGarments(o.items), amount: Math.round(bal) });
+        outstanding.push({ orderId: o.id, customerName: o.customerName, garmentSummary: summariseGarments(o.items), amount: Math.round(bal) });
       }
     }
   }
 
-  overdue.sort((a, b) => (a.deadline! - b.deadline!));  // most overdue first
+  overdue.sort((a, b) => (a.deadline! - b.deadline!));  // ascending = oldest deadline first = most overdue
   dueSoon.sort((a, b) => (a.deadline! - b.deadline!));  // soonest first
   outstanding.sort((a, b) => (b.amount! - a.amount!)); // biggest owed first
 
-  return {
-    dueSoon: dueSoon.slice(0, CAP),
-    overdue: overdue.slice(0, CAP),
-    outstanding: outstanding.slice(0, CAP),
-    dueSoonTotal: dueSoon.length,
-    overdueTotal: overdue.length,
-    outstandingTotal: outstanding.length,
-  };
+  return { dueSoon, overdue, outstanding };
 }
 
 export function isDigestEmpty(m: DigestModel): boolean {
-  return m.dueSoonTotal === 0 && m.overdueTotal === 0 && m.outstandingTotal === 0;
+  return m.dueSoon.length === 0 && m.overdue.length === 0 && m.outstanding.length === 0;
 }

@@ -17,8 +17,9 @@ import type { Firestore } from 'firebase-admin/firestore';
  */
 export const ALLOWED_SUBCOLLECTIONS = [
   'customers',
-  'orders',
   'goals',
+  'notifications',
+  'orders',
   // Server-only per-user state (e.g. emailThrottle written by
   // sendVerificationEmail). Never client-readable; swept on account deletion.
   'private',

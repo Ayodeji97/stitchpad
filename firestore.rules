@@ -124,6 +124,19 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      // ── Notifications inbox subcollection ───────────────────────────────
+      // Server (Admin SDK) creates docs via create-if-absent; client reads
+      // them and marks isRead. No client create (deterministic ids would
+      // resurrect a dismissed-but-still-open notification on the next scan)
+      // and no client delete in V1.
+      match /notifications/{notificationId} {
+        allow read: if isOwner(uid);
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+          && request.resource.data.isRead is bool;
+        allow create, delete: if false;
+      }
+
       // ── Custom garment types subcollection ───────────────────────────────
       // Stores tailor-defined garment names (e.g. "Iro/Buba"). Client reads
       // these in the garment picker and writes on upsert / touch. No

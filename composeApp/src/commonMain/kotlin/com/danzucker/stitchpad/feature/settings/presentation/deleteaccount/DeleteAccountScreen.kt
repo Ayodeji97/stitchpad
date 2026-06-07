@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -38,6 +35,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.domain.DeletionReason
 import com.danzucker.stitchpad.feature.settings.presentation.components.ReauthBottomSheet
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.BackHandler
@@ -213,22 +211,11 @@ private fun GoodbyeContent(onContinue: () -> Unit) {
             modifier = Modifier.padding(horizontal = DesignTokens.space2),
         )
         Spacer(Modifier.height(DesignTokens.space5))
-        Button(
+        StitchPadButton(
+            text = stringResource(Res.string.delete_account_goodbye_cta),
             onClick = onContinue,
-            shape = RoundedCornerShape(DesignTokens.radiusLg),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.delete_account_goodbye_cta),
-                fontWeight = FontWeight.Bold,
-            )
-        }
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

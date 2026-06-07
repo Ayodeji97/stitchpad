@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -28,6 +26,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.StitchPadButtonVariant
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
@@ -120,18 +120,15 @@ fun ReauthBottomSheet(
                 ) {
                     Text(stringResource(Res.string.reauth_cancel))
                 }
-                Button(
+                StitchPadButton(
+                    text = confirmButtonLabel,
                     onClick = onConfirm,
-                    enabled = !isLoading && (provider != SignInProvider.EMAIL_PASSWORD || password.isNotBlank()),
+                    enabled = provider != SignInProvider.EMAIL_PASSWORD || password.isNotBlank(),
+                    isLoading = isLoading,
+                    variant = StitchPadButtonVariant.Destructive,
                     shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                    ),
                     modifier = Modifier.weight(1f),
-                ) {
-                    Text(text = confirmButtonLabel, fontWeight = FontWeight.Bold)
-                }
+                )
             }
 
             if (provider == SignInProvider.EMAIL_PASSWORD) {

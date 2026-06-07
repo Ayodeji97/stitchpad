@@ -31,6 +31,7 @@
     <!-- Common -->
     <string name="cd_password_show">Show password</string>
     <string name="cd_password_hide">Hide password</string>
+    <string name="cd_button_loading">Loading, please wait</string>
     <string name="placeholder_email">tailor@gmail.com</string>
     <string name="placeholder_password">Enter your password</string>
 
@@ -680,6 +681,7 @@
 
     <!-- Dashboard header buttons -->
     <string name="cd_notifications">Notifications</string>
+    <string name="cd_notifications_with_count">Notifications, %1$s unread</string>
     <string name="cd_open_settings">Open settings</string>
     <string name="cd_close_image_viewer">Close image viewer</string>
 
@@ -1383,6 +1385,47 @@
     <string name="smart_error_service_unavailable">Couldn&apos;t draft right now. Try again in a moment.</string>
     <string name="smart_error_unknown">Something went wrong. Please try again.</string>
     <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
+
+    <!-- Relative time labels (notifications inbox, reusable) -->
+    <string name="relative_time_now">now</string>
+    <string name="relative_time_minutes">%1$sm</string>
+    <string name="relative_time_hours">%1$sh</string>
+    <string name="relative_time_date">%1$s %2$s</string>
+    <string name="weekday_abbrev_mon">Mon</string>
+    <string name="weekday_abbrev_tue">Tue</string>
+    <string name="weekday_abbrev_wed">Wed</string>
+    <string name="weekday_abbrev_thu">Thu</string>
+    <string name="weekday_abbrev_fri">Fri</string>
+    <string name="weekday_abbrev_sat">Sat</string>
+    <string name="weekday_abbrev_sun">Sun</string>
+    <string name="month_abbrev_jan">Jan</string>
+    <string name="month_abbrev_feb">Feb</string>
+    <string name="month_abbrev_mar">Mar</string>
+    <string name="month_abbrev_apr">Apr</string>
+    <string name="month_abbrev_may">May</string>
+    <string name="month_abbrev_jun">Jun</string>
+    <string name="month_abbrev_jul">Jul</string>
+    <string name="month_abbrev_aug">Aug</string>
+    <string name="month_abbrev_sep">Sep</string>
+    <string name="month_abbrev_oct">Oct</string>
+    <string name="month_abbrev_nov">Nov</string>
+    <string name="month_abbrev_dec">Dec</string>
+
+    <!-- Notifications inbox -->
+    <string name="notifications_back_cd">Back</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_mark_all_read">Mark all read</string>
+    <string name="notifications_empty_title">No notifications yet</string>
+    <string name="notifications_empty_subtitle">Order reminders will show up here.</string>
+    <string name="notifications_load_error">Couldn&#39;t load notifications. Check your connection.</string>
+    <string name="notification_overdue">%1$s&apos;s %2$s is overdue</string>
+    <string name="notification_due_soon">%1$s&apos;s %2$s is due soon</string>
+    <string name="notification_to_collect">%1$s owes %2$s</string>
+    <string name="notifications_section_today">Today</string>
+    <string name="notifications_section_earlier">Earlier</string>
+    <string name="notification_tag_overdue">overdue</string>
+    <string name="notification_tag_due_soon">due soon</string>
+    <string name="notification_tag_owes">owes %1$s</string>
 
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>
