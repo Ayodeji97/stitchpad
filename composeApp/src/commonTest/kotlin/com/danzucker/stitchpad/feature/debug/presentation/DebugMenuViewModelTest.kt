@@ -337,6 +337,38 @@ class DebugMenuViewModelTest {
         assertTrue(messageText.contains("boom", ignoreCase = true))
     }
 
+    @Test
+    fun `OnSendTestPushClick emits ShowSnackbar mentioning 'push' when sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Sent)
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("push", ignoreCase = true))
+    }
+
+    @Test
+    fun `OnSendTestPushClick emits snackbar containing failure reason on Failure`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Failure("timeout"))
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("timeout", ignoreCase = true))
+    }
+
     private class FakeDebugSeeder : DebugSeeder {
         var seedBrandNewResult: SeedResult = SeedResult.Success
         var seedActiveWorkshopResult: SeedResult = SeedResult.Success

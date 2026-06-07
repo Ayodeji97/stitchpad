@@ -87,6 +87,7 @@ class DebugMenuViewModel(
             }
             DebugMenuAction.OnWipeDataClick -> runWipe()
             DebugMenuAction.OnSendDailyDigestClick -> runSendDigest()
+            DebugMenuAction.OnSendTestPushClick -> runSendTestPush()
             else -> Unit // freemium branch handled above
         }
     }
@@ -179,6 +180,19 @@ class DebugMenuViewModel(
             DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — digest suppressed")
             DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
             is DigestSendResult.Failure -> UiText.DynamicString("Digest failed: ${r.reason}")
+        }
+        emit(DebugMenuEvent.ShowSnackbar(message))
+    }
+
+    private fun runSendTestPush() = runJob {
+        val message = when (val r = digestActions.sendNow()) {
+            DigestSendResult.Sent ->
+                UiText.DynamicString(
+                    "Test push sent — needs an actionable order + granted notification permission to appear."
+                )
+            DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — push suppressed (no eligible orders)")
+            DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
+            is DigestSendResult.Failure -> UiText.DynamicString("Test push failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
     }

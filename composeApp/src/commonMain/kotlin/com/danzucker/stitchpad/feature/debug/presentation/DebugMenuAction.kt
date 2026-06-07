@@ -38,4 +38,5 @@ sealed interface DebugMenuAction {
     data object OnReconcileSlotsClick : DebugMenuAction
 
     data object OnSendDailyDigestClick : DebugMenuAction
+    data object OnSendTestPushClick : DebugMenuAction
 }

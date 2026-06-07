@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.MonetizationOn
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -235,10 +236,21 @@ fun DebugMenuScreen(
                 } else {
                     { onAction(DebugMenuAction.OnSendDailyDigestClick) }
                 }
+                val onSendTestPushClick: (() -> Unit)? = if (state.isWorking) {
+                    null
+                } else {
+                    { onAction(DebugMenuAction.OnSendTestPushClick) }
+                }
                 SettingsRow(
                     icon = Icons.Outlined.Mail,
                     label = "Send daily digest now",
                     onClick = onSendDigestClick,
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.NotificationsNone,
+                    label = "Send test push to me",
+                    onClick = onSendTestPushClick,
                 )
             }
 
