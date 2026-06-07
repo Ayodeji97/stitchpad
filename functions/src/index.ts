@@ -46,4 +46,5 @@ function serialiseSettledError(error: unknown): unknown {
 export { smartDraftMessage } from './smart/draftMessage';
 export { reconcileCustomerSlots } from './freemium/reconcileSlots';
 export { sendVerificationEmail } from './auth/sendVerificationEmail';
+export { sendPasswordResetEmail } from './auth/sendPasswordResetEmail';
 export { dailyDigest, debugSendMyDigest } from './notifications/dailyDigest';

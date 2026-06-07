@@ -38,6 +38,7 @@ class FirebaseAuthRepository(
     private val ssoCredentialProvider: SsoCredentialProvider,
     private val userRepository: UserRepository,
     private val verificationEmailSender: VerificationEmailSender,
+    private val passwordResetEmailSender: PasswordResetEmailSender,
 ) : AuthRepository {
 
     override suspend fun signUpWithEmail(
@@ -164,16 +165,10 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {
-        return try {
-            firebaseAuth.sendPasswordResetEmail(email)
-            Result.Success(Unit)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            val error = e.toAuthError()
-            AppLogger.e(tag = TAG, throwable = e) { "sendPasswordResetEmail failed error=$error" }
-            Result.Error(error)
-        }
+        // Delegated to the sendPasswordResetEmail Cloud Function (branded email
+        // via Resend on a custom domain) rather than Firebase Auth's default
+        // sender, whose firebaseapp.com reputation lands the mail in spam.
+        return passwordResetEmailSender.send(email)
     }
 
     override suspend fun sendEmailVerification(): EmptyResult<AuthError> {
