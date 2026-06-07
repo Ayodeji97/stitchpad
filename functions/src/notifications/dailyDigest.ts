@@ -80,7 +80,12 @@ function productionDigestIO(apiKey: string): DigestIO {
           email,
           name,
           digestEnabled: data.dailyDigestEmailEnabled !== false,
-          pushEnabled: data.dailyPushEnabled !== false, // default ON when absent (mirror digestEnabled)
+          // Push opt-out: honor an explicit dailyPushEnabled; otherwise inherit the email
+          // digest preference so users who opted out of the daily summary aren't silently
+          // opted into push. New users (both absent) default ON.
+          pushEnabled: data.dailyPushEnabled !== undefined
+            ? data.dailyPushEnabled !== false
+            : data.dailyDigestEmailEnabled !== false,
         });
       }
       return recipients;

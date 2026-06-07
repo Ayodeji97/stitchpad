@@ -288,7 +288,7 @@ class SettingsViewModel(
             // the push token fire-and-forget so the logout is never blocked by it.
             val userId = authRepository.getCurrentUser()?.id
             if (userId != null) {
-                launch { pushTokenRegistrar.unregisterForUser(userId) }
+                pushTokenRegistrar.unregisterForUserAsync(userId)
             }
             when (val result = authRepository.signOut()) {
                 is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
