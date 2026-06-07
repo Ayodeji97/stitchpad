@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -27,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 import com.danzucker.stitchpad.core.presentation.UiText
@@ -41,6 +43,7 @@ import com.danzucker.stitchpad.feature.notification.presentation.inbox.component
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.notifications_back_cd
@@ -48,12 +51,17 @@ import stitchpad.composeapp.generated.resources.notifications_empty_subtitle
 import stitchpad.composeapp.generated.resources.notifications_empty_title
 import stitchpad.composeapp.generated.resources.notifications_load_error
 import stitchpad.composeapp.generated.resources.notifications_mark_all_read
+import stitchpad.composeapp.generated.resources.notifications_section_earlier
+import stitchpad.composeapp.generated.resources.notifications_section_today
 import stitchpad.composeapp.generated.resources.notifications_title
+
+private val SectionLetterSpacing = 0.8.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsInboxScreen(
     state: NotificationsInboxState,
+    now: Long,
     onAction: (NotificationsInboxAction) -> Unit,
 ) {
     Scaffold(
@@ -123,26 +131,55 @@ fun NotificationsInboxScreen(
                 )
             }
             else -> {
+                val tz = remember { TimeZone.currentSystemDefault() }
+                val sections = remember(state.notifications, now, tz) {
+                    groupNotificationsByDay(state.notifications, now, tz)
+                }
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 80.dp),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
                 ) {
-                    items(items = state.notifications, key = { it.id }) { notification ->
-                        NotificationRow(
-                            notification = notification,
-                            onClick = { onAction(NotificationsInboxAction.OnNotificationClick(it)) },
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                            // Align with the text column: row horizontal padding + dot box +
-                            // spacedBy gap + explicit spacer + spacedBy gap
-                            modifier = Modifier.padding(
-                                start = DesignTokens.space4 + 8.dp + DesignTokens.space3 +
-                                    DesignTokens.space1 + DesignTokens.space3,
-                            ),
-                        )
+                    sections.forEach { section ->
+                        item(key = "header_${section.isToday}") {
+                            Text(
+                                text = stringResource(
+                                    if (section.isToday) {
+                                        Res.string.notifications_section_today
+                                    } else {
+                                        Res.string.notifications_section_earlier
+                                    },
+                                ).uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = SectionLetterSpacing,
+                                modifier = Modifier.padding(
+                                    start = DesignTokens.space4,
+                                    end = DesignTokens.space4,
+                                    top = DesignTokens.space4,
+                                    bottom = DesignTokens.space2,
+                                ),
+                            )
+                        }
+                        itemsIndexed(section.items, key = { _, n -> n.id }) { index, n ->
+                            NotificationRow(
+                                notification = n,
+                                relativeTime = notificationRelativeTime(n.createdAt, now, tz),
+                                onClick = { onAction(NotificationsInboxAction.OnNotificationClick(it)) },
+                            )
+                            if (index < section.items.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    // Align divider under text column:
+                                    // horizontal padding + icon square + spacedBy gap
+                                    modifier = Modifier.padding(
+                                        start = DesignTokens.space4 + 40.dp + DesignTokens.space3,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -238,6 +275,7 @@ private fun NotificationsInboxScreenErrorPreview() {
                 isLoading = false,
                 errorMessage = UiText.DynamicString("Couldn't load notifications. Check your connection."),
             ),
+            now = 1_780_484_400_000L,
             onAction = {},
         )
     }
@@ -250,6 +288,7 @@ private fun NotificationsInboxScreenEmptyPreview() {
     StitchPadTheme {
         NotificationsInboxScreen(
             state = NotificationsInboxState(isLoading = false),
+            now = 1_780_484_400_000L,
             onAction = {},
         )
     }
@@ -259,6 +298,7 @@ private fun NotificationsInboxScreenEmptyPreview() {
 @Composable
 @Preview
 private fun NotificationsInboxScreenFilledPreview() {
+    // Two today items + one earlier item so both section headers appear.
     StitchPadTheme {
         NotificationsInboxScreen(
             state = NotificationsInboxState(
@@ -271,7 +311,7 @@ private fun NotificationsInboxScreenFilledPreview() {
                         customerName = "Fola Sunday",
                         garmentSummary = "Agbada",
                         isRead = false,
-                        createdAt = 0L,
+                        createdAt = 1_780_484_400_000L - 2 * 3_600_000L,
                     ),
                     Notification(
                         id = "o2__DUE_SOON",
@@ -280,7 +320,7 @@ private fun NotificationsInboxScreenFilledPreview() {
                         customerName = "Aina Paul",
                         garmentSummary = "Ankara suit",
                         isRead = false,
-                        createdAt = 0L,
+                        createdAt = 1_780_484_400_000L - 5 * 3_600_000L,
                     ),
                     Notification(
                         id = "o3__TO_COLLECT",
@@ -290,10 +330,11 @@ private fun NotificationsInboxScreenFilledPreview() {
                         garmentSummary = "Buba",
                         amount = 15_000.0,
                         isRead = true,
-                        createdAt = 0L,
+                        createdAt = 1_780_484_400_000L - 3 * 86_400_000L,
                     ),
                 ),
             ),
+            now = 1_780_484_400_000L,
             onAction = {},
         )
     }
