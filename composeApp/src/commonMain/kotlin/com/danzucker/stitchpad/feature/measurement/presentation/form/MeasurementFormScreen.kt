@@ -43,9 +43,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -88,6 +86,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.AddCustomFieldSheet
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -372,42 +371,18 @@ fun MeasurementFormScreen(
                     onNotesChange = { onAction(MeasurementFormAction.OnNotesChange(it)) }
                 )
                 Spacer(Modifier.height(DesignTokens.space2))
-                Button(
+                StitchPadButton(
+                    text = if (state.fromCustomerCreation) {
+                        stringResource(Res.string.measurement_create_flow_save_button)
+                    } else {
+                        stringResource(Res.string.measurement_save_button)
+                    },
                     onClick = { onAction(MeasurementFormAction.OnSaveClick) },
                     enabled = canSave,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = if (state.fromCustomerCreation) {
-                                    stringResource(Res.string.measurement_create_flow_save_button)
-                                } else {
-                                    stringResource(Res.string.measurement_save_button)
-                                },
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+                    isLoading = state.isLoading,
+                    leadingIcon = Icons.Default.Check,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 if (state.fromCustomerCreation) {
                     Spacer(Modifier.height(DesignTokens.space1))
                     TextButton(

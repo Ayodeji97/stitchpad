@@ -8,14 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,10 +35,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.presentation.components.ReauthBottomSheet
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
@@ -94,35 +90,18 @@ fun ChangePasswordScreen(
                         .fillMaxWidth()
                         .imePadding(),
                 ) {
-                    Button(
+                    StitchPadButton(
+                        text = stringResource(Res.string.change_password_cta),
                         onClick = { onAction(ChangePasswordAction.OnSubmitClick) },
                         enabled = state.canSubmit,
-                        shape = RoundedCornerShape(DesignTokens.radiusLg),
+                        isLoading = state.isSubmitting,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(
                                 horizontal = DesignTokens.space4,
                                 vertical = DesignTokens.space3,
-                            )
-                            .height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    ) {
-                        if (state.isSubmitting) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(Res.string.change_password_cta),
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
+                            ),
+                    )
                 }
             }
         },

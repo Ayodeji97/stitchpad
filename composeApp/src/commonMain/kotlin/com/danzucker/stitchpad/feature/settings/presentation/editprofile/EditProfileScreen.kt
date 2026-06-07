@@ -24,9 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +63,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGr
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -143,35 +141,18 @@ fun EditProfileScreen(
                     .fillMaxWidth()
                     .imePadding(),
             ) {
-                Button(
+                StitchPadButton(
+                    text = stringResource(Res.string.edit_profile_save),
                     onClick = { onAction(EditProfileAction.OnSaveClick) },
                     enabled = state.canSave,
-                    shape = RoundedCornerShape(DesignTokens.radiusLg),
+                    isLoading = state.isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
                             horizontal = DesignTokens.space4,
                             vertical = DesignTokens.space3,
-                        )
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                ) {
-                    if (state.isSaving) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(Res.string.edit_profile_save),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
+                        ),
+                )
             }
         },
     ) { padding ->
