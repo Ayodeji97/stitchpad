@@ -295,6 +295,12 @@ class SettingsViewModel(
                     pushTokenRegistrar.unregisterForUser(userId)
                 }
             }
+            // Invalidate the local FCM token so any token doc we couldn't delete (offline/
+            // timeout) becomes UNREGISTERED and is pruned server-side on the next push —
+            // prevents the old account's pushes reaching this device after logout.
+            withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) {
+                pushTokenRegistrar.invalidateToken()
+            }
             when (val result = authRepository.signOut()) {
                 is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
                 is Result.Error -> {

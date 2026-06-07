@@ -12,6 +12,9 @@ interface PushTokenRegistrar {
 
     /** Remove this device's token on logout. */
     suspend fun unregisterForUser(userId: String)
+
+    /** Invalidate the device's FCM token on logout so a token doc we couldn't delete becomes UNREGISTERED and is pruned server-side. */
+    suspend fun invalidateToken()
 }
 
 class DefaultPushTokenRegistrar(
@@ -34,5 +37,10 @@ class DefaultPushTokenRegistrar(
         val token = provider.currentToken() ?: return
         runCatching { repository.unregisterToken(userId, token) }
             .onFailure { AppLogger.w { "push token unregister failed: ${it.message}" } }
+    }
+
+    override suspend fun invalidateToken() {
+        runCatching { provider.invalidateToken() }
+            .onFailure { AppLogger.w { "push token invalidate failed: ${it.message}" } }
     }
 }

@@ -121,6 +121,7 @@ private class NoOpPushTokenRegistrar : PushTokenRegistrar {
     override suspend fun registerForUser(userId: String) {}
     override suspend fun register(userId: String, token: String) {}
     override suspend fun unregisterForUser(userId: String) {}
+    override suspend fun invalidateToken() {}
 }
 
 private class FakeEntitlementsProvider : EntitlementsProvider {
