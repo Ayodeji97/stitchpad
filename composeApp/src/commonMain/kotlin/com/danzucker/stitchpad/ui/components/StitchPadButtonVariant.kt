@@ -7,4 +7,7 @@ enum class StitchPadButtonVariant {
 
     /** Outlined secondary action — primary content on a bordered, transparent fill. */
     Secondary,
+
+    /** Filled destructive CTA — `colorScheme.error` / `onError`, for irreversible actions. */
+    Destructive,
 }

@@ -22,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -188,6 +189,21 @@ fun StitchPadButton(
             interactionSource = interactionSource,
             content = buttonContent,
         )
+
+        StitchPadButtonVariant.Destructive -> Button(
+            onClick = onClick,
+            modifier = buttonModifier,
+            enabled = enabled && !isLoading,
+            shape = shape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+                disabledContainerColor = DesignTokens.neutral700,
+                disabledContentColor = DesignTokens.neutral500,
+            ),
+            interactionSource = interactionSource,
+            content = buttonContent,
+        )
     }
 }
 
@@ -247,6 +263,22 @@ private fun StitchPadButtonDisabledPreview() {
             text = "Sign In",
             onClick = {},
             enabled = false,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(DesignTokens.space4),
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun StitchPadButtonDestructivePreview() {
+    StitchPadTheme {
+        StitchPadButton(
+            text = "Delete account",
+            onClick = {},
+            variant = StitchPadButtonVariant.Destructive,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(DesignTokens.space4),
