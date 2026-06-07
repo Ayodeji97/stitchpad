@@ -42,18 +42,93 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.notification.presentation.inbox.RelativeTime
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Month
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.month_abbrev_apr
+import stitchpad.composeapp.generated.resources.month_abbrev_aug
+import stitchpad.composeapp.generated.resources.month_abbrev_dec
+import stitchpad.composeapp.generated.resources.month_abbrev_feb
+import stitchpad.composeapp.generated.resources.month_abbrev_jan
+import stitchpad.composeapp.generated.resources.month_abbrev_jul
+import stitchpad.composeapp.generated.resources.month_abbrev_jun
+import stitchpad.composeapp.generated.resources.month_abbrev_mar
+import stitchpad.composeapp.generated.resources.month_abbrev_may
+import stitchpad.composeapp.generated.resources.month_abbrev_nov
+import stitchpad.composeapp.generated.resources.month_abbrev_oct
+import stitchpad.composeapp.generated.resources.month_abbrev_sep
 import stitchpad.composeapp.generated.resources.notification_due_soon
 import stitchpad.composeapp.generated.resources.notification_overdue
 import stitchpad.composeapp.generated.resources.notification_tag_due_soon
 import stitchpad.composeapp.generated.resources.notification_tag_overdue
 import stitchpad.composeapp.generated.resources.notification_tag_owes
 import stitchpad.composeapp.generated.resources.notification_to_collect
+import stitchpad.composeapp.generated.resources.relative_time_date
+import stitchpad.composeapp.generated.resources.relative_time_hours
+import stitchpad.composeapp.generated.resources.relative_time_minutes
+import stitchpad.composeapp.generated.resources.relative_time_now
+import stitchpad.composeapp.generated.resources.weekday_abbrev_fri
+import stitchpad.composeapp.generated.resources.weekday_abbrev_mon
+import stitchpad.composeapp.generated.resources.weekday_abbrev_sat
+import stitchpad.composeapp.generated.resources.weekday_abbrev_sun
+import stitchpad.composeapp.generated.resources.weekday_abbrev_thu
+import stitchpad.composeapp.generated.resources.weekday_abbrev_tue
+import stitchpad.composeapp.generated.resources.weekday_abbrev_wed
+
+// ---------------------------------------------------------------------------
+// Relative-time UI formatter
+// ---------------------------------------------------------------------------
+
+private fun weekdayAbbrevRes(d: DayOfWeek): StringResource = when (d) {
+    DayOfWeek.MONDAY -> Res.string.weekday_abbrev_mon
+    DayOfWeek.TUESDAY -> Res.string.weekday_abbrev_tue
+    DayOfWeek.WEDNESDAY -> Res.string.weekday_abbrev_wed
+    DayOfWeek.THURSDAY -> Res.string.weekday_abbrev_thu
+    DayOfWeek.FRIDAY -> Res.string.weekday_abbrev_fri
+    DayOfWeek.SATURDAY -> Res.string.weekday_abbrev_sat
+    DayOfWeek.SUNDAY -> Res.string.weekday_abbrev_sun
+}
+
+private fun monthAbbrevRes(m: Month): StringResource = when (m) {
+    Month.JANUARY -> Res.string.month_abbrev_jan
+    Month.FEBRUARY -> Res.string.month_abbrev_feb
+    Month.MARCH -> Res.string.month_abbrev_mar
+    Month.APRIL -> Res.string.month_abbrev_apr
+    Month.MAY -> Res.string.month_abbrev_may
+    Month.JUNE -> Res.string.month_abbrev_jun
+    Month.JULY -> Res.string.month_abbrev_jul
+    Month.AUGUST -> Res.string.month_abbrev_aug
+    Month.SEPTEMBER -> Res.string.month_abbrev_sep
+    Month.OCTOBER -> Res.string.month_abbrev_oct
+    Month.NOVEMBER -> Res.string.month_abbrev_nov
+    Month.DECEMBER -> Res.string.month_abbrev_dec
+}
+
+/**
+ * Resolves a [RelativeTime] sealed value to a localized display string.
+ * Must be called from composable scope.
+ */
+@Composable
+internal fun relativeTimeLabel(rt: RelativeTime): String = when (rt) {
+    is RelativeTime.Now -> stringResource(Res.string.relative_time_now)
+    is RelativeTime.Minutes -> stringResource(Res.string.relative_time_minutes, rt.value.toString())
+    is RelativeTime.Hours -> stringResource(Res.string.relative_time_hours, rt.value.toString())
+    is RelativeTime.Weekday -> stringResource(weekdayAbbrevRes(rt.day))
+    is RelativeTime.MonthDay -> stringResource(
+        Res.string.relative_time_date,
+        rt.day.toString(),
+        stringResource(monthAbbrevRes(rt.month)),
+    )
+}
+
+// ---------------------------------------------------------------------------
 
 private val IconSquareSize = 40.dp
 private val UnreadDotSize = 8.dp

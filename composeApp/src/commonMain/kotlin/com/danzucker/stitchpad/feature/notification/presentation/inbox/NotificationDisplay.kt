@@ -10,9 +10,22 @@ import kotlinx.datetime.toLocalDateTime
 private const val MILLIS_PER_MINUTE = 60_000L
 private const val MINUTES_PER_HOUR = 60L
 
-fun notificationRelativeTime(createdAtMillis: Long, nowMillis: Long, tz: TimeZone): String {
+/**
+ * Structured result for relative-time display. All user-facing text is resolved
+ * in the UI layer via compose string resources — see [relativeTimeLabel] in
+ * NotificationRow.kt.
+ */
+sealed interface RelativeTime {
+    data object Now : RelativeTime
+    data class Minutes(val value: Long) : RelativeTime
+    data class Hours(val value: Long) : RelativeTime
+    data class Weekday(val day: DayOfWeek) : RelativeTime
+    data class MonthDay(val day: Int, val month: Month) : RelativeTime
+}
+
+fun notificationRelativeTime(createdAtMillis: Long, nowMillis: Long, tz: TimeZone): RelativeTime {
     if (createdAtMillis > nowMillis) {
-        return "now"
+        return RelativeTime.Now
     }
 
     val now = Instant.fromEpochMilliseconds(nowMillis).toLocalDateTime(tz)
@@ -26,39 +39,14 @@ fun notificationRelativeTime(createdAtMillis: Long, nowMillis: Long, tz: TimeZon
         epochDayDiff == 0L -> {
             val totalMinutes = (nowMillis - createdAtMillis) / MILLIS_PER_MINUTE
             when {
-                totalMinutes < 1L -> "now"
-                totalMinutes < MINUTES_PER_HOUR -> "${totalMinutes}m"
-                else -> "${totalMinutes / MINUTES_PER_HOUR}h"
+                totalMinutes < 1L -> RelativeTime.Now
+                totalMinutes < MINUTES_PER_HOUR -> RelativeTime.Minutes(totalMinutes)
+                else -> RelativeTime.Hours(totalMinutes / MINUTES_PER_HOUR)
             }
         }
-        epochDayDiff in 1L..6L -> dayOfWeekAbbrev(created.dayOfWeek)
-        else -> "${created.dayOfMonth} ${monthAbbrev(created.month)}"
+        epochDayDiff in 1L..6L -> RelativeTime.Weekday(created.dayOfWeek)
+        else -> RelativeTime.MonthDay(created.dayOfMonth, created.month)
     }
-}
-
-private fun dayOfWeekAbbrev(d: DayOfWeek): String = when (d) {
-    DayOfWeek.MONDAY -> "Mon"
-    DayOfWeek.TUESDAY -> "Tue"
-    DayOfWeek.WEDNESDAY -> "Wed"
-    DayOfWeek.THURSDAY -> "Thu"
-    DayOfWeek.FRIDAY -> "Fri"
-    DayOfWeek.SATURDAY -> "Sat"
-    DayOfWeek.SUNDAY -> "Sun"
-}
-
-private fun monthAbbrev(m: Month): String = when (m) {
-    Month.JANUARY -> "Jan"
-    Month.FEBRUARY -> "Feb"
-    Month.MARCH -> "Mar"
-    Month.APRIL -> "Apr"
-    Month.MAY -> "May"
-    Month.JUNE -> "Jun"
-    Month.JULY -> "Jul"
-    Month.AUGUST -> "Aug"
-    Month.SEPTEMBER -> "Sep"
-    Month.OCTOBER -> "Oct"
-    Month.NOVEMBER -> "Nov"
-    Month.DECEMBER -> "Dec"
 }
 
 data class NotificationSection(val isToday: Boolean, val items: List<Notification>)

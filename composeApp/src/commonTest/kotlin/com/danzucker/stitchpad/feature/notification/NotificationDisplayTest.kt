@@ -3,8 +3,11 @@ package com.danzucker.stitchpad.feature.notification
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationSection
+import com.danzucker.stitchpad.feature.notification.presentation.inbox.RelativeTime
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.groupNotificationsByDay
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.notificationRelativeTime
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,35 +34,35 @@ class NotificationDisplayTest {
     @Test
     fun relativeTime_sameDay_30min_returns30m() {
         val created = NOW - 30 * 60 * 1000L
-        assertEquals("30m", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Minutes(30), notificationRelativeTime(created, NOW, LAGOS))
     }
 
     @Test
     fun relativeTime_sameDay_2hours_returns2h() {
         val created = NOW - 2 * 60 * 60 * 1000L
-        assertEquals("2h", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Hours(2), notificationRelativeTime(created, NOW, LAGOS))
     }
 
     @Test
     fun relativeTime_sameDay_90min_returns1h() {
         val created = NOW - 90 * 60 * 1000L
-        assertEquals("1h", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Hours(1), notificationRelativeTime(created, NOW, LAGOS))
     }
 
     @Test
     fun relativeTime_sameDay_30sec_returnsNow() {
         val created = NOW - 30 * 1000L
-        assertEquals("now", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Now, notificationRelativeTime(created, NOW, LAGOS))
     }
 
     // ------------------------------------------------------------------ //
-    // notificationRelativeTime — future returns "now"
+    // notificationRelativeTime — future returns Now
     // ------------------------------------------------------------------ //
 
     @Test
     fun relativeTime_future_returnsNow() {
         val created = NOW + 60 * 60 * 1000L // +1h in the future
-        assertEquals("now", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Now, notificationRelativeTime(created, NOW, LAGOS))
     }
 
     // ------------------------------------------------------------------ //
@@ -67,17 +70,17 @@ class NotificationDisplayTest {
     // ------------------------------------------------------------------ //
 
     @Test
-    fun relativeTime_25hoursAgo_previousCalendarDay_returnsTue() {
-        // now - 25h = 2026-06-02 11:00 Lagos → Tuesday, epochDayDiff=1 → "Tue"
+    fun relativeTime_25hoursAgo_previousCalendarDay_returnsTuesday() {
+        // now - 25h = 2026-06-02 11:00 Lagos → Tuesday, epochDayDiff=1
         val created = NOW - 25 * 60 * 60 * 1000L
-        assertEquals("Tue", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Weekday(DayOfWeek.TUESDAY), notificationRelativeTime(created, NOW, LAGOS))
     }
 
     @Test
-    fun relativeTime_6daysBefore_returnsThursdayAbbrev() {
-        // now - 6d = 2026-05-28 12:00 Lagos → Thursday, epochDayDiff=6 → "Thu"
+    fun relativeTime_6daysBefore_returnsThursday() {
+        // now - 6d = 2026-05-28 12:00 Lagos → Thursday, epochDayDiff=6
         val created = NOW - 6 * 24 * 60 * 60 * 1000L
-        assertEquals("Thu", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.Weekday(DayOfWeek.THURSDAY), notificationRelativeTime(created, NOW, LAGOS))
     }
 
     // ------------------------------------------------------------------ //
@@ -86,9 +89,9 @@ class NotificationDisplayTest {
 
     @Test
     fun relativeTime_7daysBefore_returnsDayMonth() {
-        // now - 7d = 2026-05-27 12:00 Lagos → epochDayDiff=7 → "27 May"
+        // now - 7d = 2026-05-27 12:00 Lagos → epochDayDiff=7 → MonthDay(27, MAY)
         val created = NOW - 7 * 24 * 60 * 60 * 1000L
-        assertEquals("27 May", notificationRelativeTime(created, NOW, LAGOS))
+        assertEquals(RelativeTime.MonthDay(27, Month.MAY), notificationRelativeTime(created, NOW, LAGOS))
     }
 
     // ------------------------------------------------------------------ //

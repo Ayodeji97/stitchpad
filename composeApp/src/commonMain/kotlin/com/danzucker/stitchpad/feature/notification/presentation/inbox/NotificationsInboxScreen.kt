@@ -40,6 +40,7 @@ import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.components.NotificationRow
+import com.danzucker.stitchpad.feature.notification.presentation.inbox.components.relativeTimeLabel
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -166,7 +167,7 @@ fun NotificationsInboxScreen(
                         itemsIndexed(section.items, key = { _, n -> n.id }) { index, n ->
                             NotificationRow(
                                 notification = n,
-                                relativeTime = notificationRelativeTime(n.createdAt, now, tz),
+                                relativeTime = relativeTimeLabel(notificationRelativeTime(n.createdAt, now, tz)),
                                 onClick = { onAction(NotificationsInboxAction.OnNotificationClick(it)) },
                             )
                             if (index < section.items.lastIndex) {

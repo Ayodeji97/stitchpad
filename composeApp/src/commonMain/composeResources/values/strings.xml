@@ -1385,6 +1385,31 @@
     <string name="smart_error_unknown">Something went wrong. Please try again.</string>
     <string name="smart_error_pro_quota_exhausted">You&apos;ve used your 50 Pro drafts this month. They reset on the 1st.</string>
 
+    <!-- Relative time labels (notifications inbox, reusable) -->
+    <string name="relative_time_now">now</string>
+    <string name="relative_time_minutes">%1$sm</string>
+    <string name="relative_time_hours">%1$sh</string>
+    <string name="relative_time_date">%1$s %2$s</string>
+    <string name="weekday_abbrev_mon">Mon</string>
+    <string name="weekday_abbrev_tue">Tue</string>
+    <string name="weekday_abbrev_wed">Wed</string>
+    <string name="weekday_abbrev_thu">Thu</string>
+    <string name="weekday_abbrev_fri">Fri</string>
+    <string name="weekday_abbrev_sat">Sat</string>
+    <string name="weekday_abbrev_sun">Sun</string>
+    <string name="month_abbrev_jan">Jan</string>
+    <string name="month_abbrev_feb">Feb</string>
+    <string name="month_abbrev_mar">Mar</string>
+    <string name="month_abbrev_apr">Apr</string>
+    <string name="month_abbrev_may">May</string>
+    <string name="month_abbrev_jun">Jun</string>
+    <string name="month_abbrev_jul">Jul</string>
+    <string name="month_abbrev_aug">Aug</string>
+    <string name="month_abbrev_sep">Sep</string>
+    <string name="month_abbrev_oct">Oct</string>
+    <string name="month_abbrev_nov">Nov</string>
+    <string name="month_abbrev_dec">Dec</string>
+
     <!-- Notifications inbox -->
     <string name="notifications_back_cd">Back</string>
     <string name="notifications_title">Notifications</string>
