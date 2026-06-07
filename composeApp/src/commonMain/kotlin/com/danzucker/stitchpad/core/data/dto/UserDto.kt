@@ -49,5 +49,5 @@ data class UserDto(
     @SerialName("dailyDigestEmailEnabled")
     val dailyDigestEmailEnabled: Boolean = true,
     @SerialName("dailyPushEnabled")
-    val dailyPushEnabled: Boolean = true,
+    val dailyPushEnabled: Boolean? = null,
 )

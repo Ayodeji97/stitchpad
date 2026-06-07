@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.settings_invite_share_message
 import stitchpad.composeapp.generated.resources.settings_support_intro_message
@@ -41,6 +42,7 @@ private const val TERMS_URL = "https://getstitchpad.com/terms"
 private const val SUPPORT_WHATSAPP_NUMBER = "+2348064816696"
 
 private const val TAG = "SettingsVM"
+private const val UNREGISTER_TIMEOUT_MS = 3000L
 
 /**
  * Slice of state that the user (or one-shot reads) drives directly. Lives in a
@@ -284,11 +286,14 @@ class SettingsViewModel(
     private fun signOut() {
         viewModelScope.launch {
             uiState.update { it.copy(isSigningOut = true, showSignOutDialog = false) }
-            // Capture the uid before sign-out clears the session, then unregister
-            // the push token fire-and-forget so the logout is never blocked by it.
+            // Capture the uid before sign-out clears the session.
             val userId = authRepository.getCurrentUser()?.id
             if (userId != null) {
-                pushTokenRegistrar.unregisterForUserAsync(userId)
+                // Remove this device's token while still authenticated — the owner-only
+                // rule rejects the delete after sign-out. Bounded so offline logout isn't blocked.
+                withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) {
+                    pushTokenRegistrar.unregisterForUser(userId)
+                }
             }
             when (val result = authRepository.signOut()) {
                 is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)

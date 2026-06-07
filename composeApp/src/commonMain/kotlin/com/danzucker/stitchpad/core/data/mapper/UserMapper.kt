@@ -19,7 +19,9 @@ fun UserDto.toUser(): User = User(
     bankAccountNumber = bankAccountNumber,
     whatsappConfirmed = whatsappConfirmed,
     dailyDigestEmailEnabled = dailyDigestEmailEnabled,
-    dailyPushEnabled = dailyPushEnabled,
+    // Absent push flag inherits the digest opt-in/out — same resolution as the backend
+    // productionDigestIO. Explicit push value always wins over the digest default.
+    dailyPushEnabled = dailyPushEnabled ?: dailyDigestEmailEnabled,
 )
 
 fun User.toUserDto(): UserDto = UserDto(
