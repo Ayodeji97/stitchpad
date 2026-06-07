@@ -8,6 +8,7 @@ import { buildDigestEmail } from './digestEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
 import { lagosDateKey } from './lagosTime';
 import { notificationDocsFromModel } from './notificationDocs';
+import { pushSummary } from './pushSummary';
 import { DigestIO, DigestModel, DigestRecipient, OrderScanDoc } from './types';
 
 const REGION = 'europe-west1';
@@ -79,7 +80,7 @@ function productionDigestIO(apiKey: string): DigestIO {
           email,
           name,
           digestEnabled: data.dailyDigestEmailEnabled !== false,
-          pushEnabled: data.pushNotificationsEnabled !== false,
+          pushEnabled: data.dailyPushEnabled !== false, // default ON when absent (mirror digestEnabled)
         });
       }
       return recipients;
@@ -102,30 +103,44 @@ function productionDigestIO(apiKey: string): DigestIO {
       return sendResendEmail(apiKey, p);
     },
     isAllowed: isDigestAllowed,
-    async loadPushTokens(uid) {
-      const snap = await db.collection('users').doc(uid).collection('private').doc('pushTokens').get();
-      const data = snap.data();
-      if (!data) return [];
-      return Array.isArray(data.tokens) ? (data.tokens as string[]) : [];
+    loadPushTokens: async (uid: string): Promise<string[]> => {
+      const snap = await db.collection('users').doc(uid).collection('notificationTokens').get();
+      return snap.docs.map((d) => d.id);
     },
-    async sendPush(_tokens, _payload) {
-      // FCM send will be wired in push infra slice (Slice 3b).
-      return { invalidTokens: [] };
+
+    sendPush: async (tokens, payload) => {
+      const res = await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: { title: payload.title, body: payload.body },
+        android: { notification: { channelId: 'daily_reminders' } },
+        data: { target: 'inbox' },
+      });
+      const invalidTokens: string[] = [];
+      res.responses.forEach((r, i) => {
+        // GrpcStatus/named admin constants are type-only at runtime — compare the
+        // string error code (see the firebase-admin GrpcStatus type-only gotcha).
+        const code = r.error?.code;
+        if (code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token') {
+          invalidTokens.push(tokens[i]);
+        }
+      });
+      return { invalidTokens };
     },
-    async deletePushTokens(uid, tokens) {
-      const ref = db.collection('users').doc(uid).collection('private').doc('pushTokens');
-      const snap = await ref.get();
-      const data = snap.data();
-      if (!data) return;
-      const existing: string[] = Array.isArray(data.tokens) ? (data.tokens as string[]) : [];
-      const pruned = existing.filter((t) => !tokens.includes(t));
-      await ref.set({ tokens: pruned }, { merge: false });
+
+    deletePushTokens: async (uid: string, tokens: string[]): Promise<void> => {
+      const col = db.collection('users').doc(uid).collection('notificationTokens');
+      const batch = db.batch();
+      for (const t of tokens) batch.delete(col.doc(t));
+      await batch.commit();
     },
-    async getLastPushDate(uid) {
+
+    getLastPushDate: async (uid: string): Promise<string | null> => {
       const snap = await digestStateRef(uid).get();
-      return (snap.exists && snap.data()?.lastPushDate) || null;
+      return (snap.data()?.lastPushDate as string | undefined) ?? null;
     },
-    async setLastPushDate(uid, dateKey) {
+
+    setLastPushDate: async (uid: string, dateKey: string): Promise<void> => {
       await digestStateRef(uid).set({ lastPushDate: dateKey }, { merge: true });
     },
   };
@@ -184,5 +199,12 @@ export const debugSendMyDigest = functions
     const { subject, html, text } = buildDigestEmail(model, name);
     await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
     await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
+
+    const pushTokens = await productionDigestIO(apiKey).loadPushTokens(uid);
+    if (pushTokens.length > 0 && !isDigestEmpty(model)) {
+      const { invalidTokens } = await productionDigestIO(apiKey).sendPush(pushTokens, pushSummary(model));
+      if (invalidTokens.length > 0) await productionDigestIO(apiKey).deletePushTokens(uid, invalidTokens);
+    }
+
     return { sent: true };
   });
