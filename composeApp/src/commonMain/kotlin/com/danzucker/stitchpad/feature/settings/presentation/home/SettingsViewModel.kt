@@ -115,6 +115,7 @@ class SettingsViewModel(
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
+            is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
         }
     }
 
@@ -215,6 +216,7 @@ class SettingsViewModel(
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
+            dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
@@ -254,6 +256,13 @@ class SettingsViewModel(
                 current.copy(themePreference = nextTheme)
             }
             themePreferencesStore.setTheme(nextTheme)
+        }
+    }
+
+    private fun setDailyPush(enabled: Boolean) {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            userRepository.setDailyPushEnabled(userId, enabled)
         }
     }
 

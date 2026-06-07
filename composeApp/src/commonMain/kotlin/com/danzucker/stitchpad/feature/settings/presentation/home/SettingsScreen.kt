@@ -63,6 +63,7 @@ import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
 import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_daily_digest
+import stitchpad.composeapp.generated.resources.settings_row_daily_push
 import stitchpad.composeapp.generated.resources.settings_row_debug_menu
 import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
@@ -205,6 +206,18 @@ fun SettingsScreen(
                         Switch(
                             checked = state.dailyDigestEmailEnabled,
                             onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
+                        )
+                    },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Notifications,
+                    label = stringResource(Res.string.settings_row_daily_push),
+                    onClick = { onAction(SettingsAction.OnDailyPushToggle(!state.dailyPushEnabled)) },
+                    trailing = {
+                        Switch(
+                            checked = state.dailyPushEnabled,
+                            onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
                         )
                     },
                 )
