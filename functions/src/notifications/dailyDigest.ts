@@ -208,10 +208,15 @@ export const debugSendMyDigest = functions
     await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
 
     const io = productionDigestIO(apiKey);
-    const pushTokens = await io.loadPushTokens(uid);
-    if (pushTokens.length > 0 && !isDigestEmpty(model)) {
-      const { invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
-      if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
+    const pushEnabled = data.dailyPushEnabled !== undefined
+      ? data.dailyPushEnabled !== false
+      : data.dailyDigestEmailEnabled !== false;
+    if (pushEnabled) {
+      const pushTokens = await io.loadPushTokens(uid);
+      if (pushTokens.length > 0 && !isDigestEmpty(model)) {
+        const { invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
+        if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
+      }
     }
 
     return { sent: true };
