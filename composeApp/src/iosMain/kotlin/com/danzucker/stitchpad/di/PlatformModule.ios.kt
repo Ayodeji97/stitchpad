@@ -15,6 +15,8 @@ import com.danzucker.stitchpad.feature.auth.data.NativeAppleSignInLauncher
 import com.danzucker.stitchpad.feature.auth.data.NativeGoogleSignInLauncher
 import com.danzucker.stitchpad.feature.auth.data.SsoCredentialProvider
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
+import com.danzucker.stitchpad.feature.notification.push.IosPushPermissionController
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import org.koin.core.module.Module
@@ -42,6 +44,7 @@ actual val platformModule: Module = module {
     single { OrderReceiptSharer() }
     single { WhatsAppLauncher() }
     single { DialerLauncher() }
+    single<PushPermissionController> { IosPushPermissionController() }
     single<SsoCredentialProvider> {
         val google = iosNativeGoogleSignInLauncher
             ?: error(

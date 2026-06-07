@@ -4,6 +4,7 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
     var onboardingSeen = false
     var workshopSetupCompleted = false
     var emailVerificationBypassed = false
+    var askedPushPermission = false
 
     override suspend fun hasSeenOnboarding() = onboardingSeen
     override suspend fun setOnboardingSeen() { onboardingSeen = true }
@@ -11,9 +12,12 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
     override suspend fun setWorkshopSetupCompleted() { workshopSetupCompleted = true }
     override suspend fun hasBypassedEmailVerification() = emailVerificationBypassed
     override suspend fun setEmailVerificationBypassed() { emailVerificationBypassed = true }
+    override suspend fun hasAskedPushPermission() = askedPushPermission
+    override suspend fun setAskedPushPermission() { askedPushPermission = true }
     override suspend fun resetForDebug() {
         onboardingSeen = false
         workshopSetupCompleted = false
         emailVerificationBypassed = false
+        askedPushPermission = false
     }
 }

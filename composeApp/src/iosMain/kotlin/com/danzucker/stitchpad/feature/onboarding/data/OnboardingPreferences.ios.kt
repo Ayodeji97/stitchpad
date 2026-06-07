@@ -29,6 +29,11 @@ actual class OnboardingPreferences : OnboardingPreferencesStore {
         defaults.setBool(true, forKey = KEY_BYPASSED_EMAIL_VERIFICATION)
     }
 
+    // iOS permission is handled natively via UNUserNotificationCenter —
+    // this flag is never set from iOS code, always false.
+    override suspend fun hasAskedPushPermission(): Boolean = false
+    override suspend fun setAskedPushPermission() = Unit
+
     override suspend fun resetForDebug() {
         defaults.setBool(false, forKey = KEY_HAS_SEEN_ONBOARDING)
         defaults.setBool(false, forKey = KEY_HAS_COMPLETED_WORKSHOP)

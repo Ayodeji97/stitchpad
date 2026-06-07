@@ -16,6 +16,15 @@ interface OnboardingPreferencesStore {
     suspend fun setEmailVerificationBypassed()
 
     /**
+     * Whether the Android push-permission pre-prompt has been shown on this device.
+     * Once set we never show the sheet again — even if the user dismissed it — to
+     * avoid nagging. On iOS this flag is never set (iOS handles its own permission
+     * flow via UNUserNotificationCenter).
+     */
+    suspend fun hasAskedPushPermission(): Boolean
+    suspend fun setAskedPushPermission()
+
+    /**
      * Resets all onboarding flags to false. Debug-menu use only — production
      * code should not call this. Idempotent.
      */
