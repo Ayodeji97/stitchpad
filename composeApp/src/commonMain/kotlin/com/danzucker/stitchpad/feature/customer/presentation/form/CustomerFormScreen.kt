@@ -25,9 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
@@ -63,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -273,19 +271,20 @@ fun CustomerFormScreen(
             }
 
             val showMeasureCta = !state.isEditMode && state.addMeasurementsNext
-            SaveButton(
-                isLoading = state.isLoading,
-                label = if (showMeasureCta) {
+            StitchPadButton(
+                text = if (showMeasureCta) {
                     stringResource(Res.string.customer_form_save_and_measure_button)
                 } else {
                     stringResource(Res.string.customer_form_save_button)
                 },
+                onClick = { onAction(CustomerFormAction.OnSaveClick) },
+                isLoading = state.isLoading,
                 leadingIcon = if (showMeasureCta) {
                     Icons.AutoMirrored.Filled.ArrowForward
                 } else {
                     Icons.Default.Check
                 },
-                onClick = { onAction(CustomerFormAction.OnSaveClick) }
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -390,48 +389,6 @@ private fun StitchPadField(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = DesignTokens.space1, start = DesignTokens.space1)
             )
-        }
-    }
-}
-
-@Composable
-private fun SaveButton(
-    isLoading: Boolean,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    leadingIcon: ImageVector = Icons.Default.Check,
-) {
-    Button(
-        onClick = onClick,
-        enabled = !isLoading,
-        shape = RoundedCornerShape(DesignTokens.radiusMd),
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp)
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.onPrimary,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(22.dp)
-            )
-        } else {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = leadingIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }
