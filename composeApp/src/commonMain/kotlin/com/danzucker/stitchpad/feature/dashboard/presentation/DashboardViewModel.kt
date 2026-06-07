@@ -27,6 +27,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSe
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -58,6 +59,7 @@ class DashboardViewModel(
     private val smartUsageStore: SmartUsageStore,
     private val entitlements: EntitlementsProvider,
     private val notificationRepository: NotificationRepository,
+    private val pushTokenRegistrar: PushTokenRegistrar,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) : ViewModel() {
@@ -285,6 +287,9 @@ class DashboardViewModel(
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
+            // Fire-and-forget: register the device's push token for this user.
+            // The merge-write is idempotent so running on every cold start is safe.
+            viewModelScope.launch { pushTokenRegistrar.registerForUser(authUser.id) }
             // Include the Firestore user doc in the combine so logo + workshop name
             // updates from Edit Profile flow through to the dashboard live, without
             // needing the ViewModel to be recreated. Falls back to the Auth user

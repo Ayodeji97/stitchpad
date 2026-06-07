@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,6 +64,7 @@ class SettingsViewModel(
     private val themePreferencesStore: ThemePreferencesStore,
     private val smartUsageStore: SmartUsageStore,
     private val smartUsageDocSource: SmartUsageDocSource,
+    private val pushTokenRegistrar: PushTokenRegistrar,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -282,6 +284,12 @@ class SettingsViewModel(
     private fun signOut() {
         viewModelScope.launch {
             uiState.update { it.copy(isSigningOut = true, showSignOutDialog = false) }
+            // Capture the uid before sign-out clears the session, then unregister
+            // the push token fire-and-forget so the logout is never blocked by it.
+            val userId = authRepository.getCurrentUser()?.id
+            if (userId != null) {
+                launch { pushTokenRegistrar.unregisterForUser(userId) }
+            }
             when (val result = authRepository.signOut()) {
                 is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
                 is Result.Error -> {
