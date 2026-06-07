@@ -1,56 +1,44 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { getFunctions } from 'firebase-admin/functions';
 import { createHash } from 'crypto';
-import { buildPasswordResetEmail } from './passwordResetEmailTemplate';
-import { sendResendEmail } from '../email/resendClient';
+import { normalizeEmail } from './passwordResetShared';
 
 const REGION = 'europe-west1';
-const SUBJECT = 'Reset your StitchPad password';
+// Fully-qualified target so the enqueue resolves the queue in the right region
+// (the worker is deployed to europe-west1, not the admin SDK's default location).
+const WORKER_RESOURCE = `locations/${REGION}/functions/processPasswordResetEmail`;
 // Server-side rate limit, keyed by email (the caller is unauthenticated — these
-// users have forgotten their password, so there's no uid to key on). Mirrors the
-// verification email's 60s cooldown: stops anyone from spamming the reset
-// endpoint to burn Resend quota / sender reputation, or to harass an inbox.
+// users have forgotten their password, so there's no uid to key on). Stops anyone
+// from spamming the reset endpoint to burn Resend quota / sender reputation, or to
+// harass an inbox. Also bounds how often we enqueue work.
 const THROTTLE_MS = 60_000;
 
 export interface SendPasswordResetResult {
   // A constant acknowledgement. Deliberately carries NO signal about whether the
-  // address was registered or an email actually went out — the callable is
-  // unauthenticated, so any per-account distinction in the response would let a
-  // caller enumerate StitchPad accounts. Registered and unregistered emails get
-  // the exact same payload (and the same throttle); the real send/no-send
-  // decision happens server-side only.
+  // address was registered or an email actually went out. The callable does the
+  // SAME work for every email — normalize, throttle, enqueue — and the real
+  // send/no-send decision happens later in the worker, off the response path. So
+  // neither the payload NOR the response timing can be used to enumerate accounts.
   ok: true;
 }
 
 const ACK: SendPasswordResetResult = { ok: true };
 
 /**
- * Test seam over Firebase Auth + the email provider. Production wires this to
- * admin.auth() and Resend; tests inject fakes so the handler runs offline.
+ * Test seam. Production wires this to the throttle (Firestore) and the Cloud
+ * Tasks queue; tests inject fakes so the handler runs offline.
  */
-export interface PasswordResetEmailIO {
-  /** Returns the account's display name, or null if no account has this email. */
-  getUserByEmail(email: string): Promise<{ displayName?: string } | null>;
-  generateLink(email: string): Promise<string>;
-  sendEmail(params: { to: string; displayName?: string; resetLink: string }): Promise<void>;
+export interface PasswordResetEnqueuerIO {
   /**
    * Atomically reserves a send for this email key, returning false if one
    * happened within the throttle window. The server-side rate limit.
    */
   reserveSend(emailKey: string): Promise<boolean>;
-  /** Releases a reservation so a failed delivery doesn't block retries. */
+  /** Releases a reservation so a failed enqueue doesn't block retries. */
   releaseSend(emailKey: string): Promise<void>;
-}
-
-function normalizeEmail(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const email = raw.trim().toLowerCase();
-  // Deliberately permissive: just enough to reject obvious junk before we hit
-  // Firebase Auth. Real validation is Firebase's job.
-  if (email.length === 0 || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return null;
-  }
-  return email;
+  /** Hands the actual send off to the worker queue. */
+  enqueue(email: string): Promise<void>;
 }
 
 // Hash the email so the throttle doc id isn't a plaintext address sitting in a
@@ -63,12 +51,14 @@ function emailKeyOf(email: string): string {
 /**
  * Pure handler for testing. Production wraps this in functions.https.onCall.
  * Intentionally UNauthenticated — password reset is for users who are locked
- * out. Sends a branded reset email via the injected IO, but never reveals
- * whether the address is registered.
+ * out. Constant-time by construction: it never checks whether the account
+ * exists, never generates a link, and never sends — it just throttles and
+ * enqueues, identically for every email. The worker does the existence-dependent
+ * work where its timing can't be observed by the caller.
  */
 export async function sendPasswordResetEmailHandler(
   data: unknown,
-  io: PasswordResetEmailIO,
+  io: PasswordResetEnqueuerIO,
 ): Promise<SendPasswordResetResult> {
   const email = normalizeEmail((data as { email?: unknown } | null | undefined)?.email);
   if (!email) {
@@ -82,63 +72,23 @@ export async function sendPasswordResetEmailHandler(
   }
 
   try {
-    const user = await io.getUserByEmail(email);
-    if (!user) {
-      // No account: succeed silently without sending. The reservation stays so
-      // repeated probes get throttled identically to real addresses, and the
-      // ACK below is byte-for-byte identical to the real-send path — no timing,
-      // rate-limit, or payload signal to enumerate from.
-      return ACK;
-    }
-    const resetLink = await io.generateLink(email);
-    await io.sendEmail({ to: email, displayName: user.displayName, resetLink });
+    await io.enqueue(email);
     return ACK;
   } catch (err) {
-    // Release the reservation so a genuine delivery failure doesn't lock the
-    // user out of retrying for the full throttle window.
+    // Enqueue failed before any work happened (e.g. IAM/quota) — release the
+    // reservation so the user can retry immediately instead of waiting out 60s.
     await io.releaseSend(key).catch(() => undefined);
-    functions.logger.error('password reset email send failed', {
+    functions.logger.error('password reset enqueue failed', {
       error: err instanceof Error ? err.message : String(err),
     });
     throw new functions.https.HttpsError('unavailable', 'email_send_failed');
   }
 }
 
-async function sendViaResend(
-  apiKey: string,
-  params: { to: string; displayName?: string; resetLink: string },
-): Promise<void> {
-  const { html, text } = buildPasswordResetEmail({
-    displayName: params.displayName,
-    resetLink: params.resetLink,
-  });
-  await sendResendEmail(apiKey, { to: params.to, subject: SUBJECT, html, text });
-}
-
-function productionIO(apiKey: string): PasswordResetEmailIO {
+function productionIO(): PasswordResetEnqueuerIO {
   const db = admin.firestore();
   const throttleRef = (key: string) => db.collection('mailThrottle').doc(key);
   return {
-    async getUserByEmail(email) {
-      try {
-        const user = await admin.auth().getUserByEmail(email);
-        return { displayName: user.displayName };
-      } catch (err) {
-        if ((err as { code?: string }).code === 'auth/user-not-found') {
-          return null;
-        }
-        throw err;
-      }
-    },
-    generateLink(email) {
-      // No ActionCodeSettings yet → Firebase's default hosted reset page. When
-      // the app deep-link infra lands, pass ActionCodeSettings here to open the
-      // app instead (the email template needs no change).
-      return admin.auth().generatePasswordResetLink(email);
-    },
-    sendEmail(params) {
-      return sendViaResend(apiKey, params);
-    },
     reserveSend(key) {
       const ref = throttleRef(key);
       return db.runTransaction(async (tx) => {
@@ -163,17 +113,14 @@ function productionIO(apiKey: string): PasswordResetEmailIO {
     async releaseSend(key) {
       await throttleRef(key).delete();
     },
+    async enqueue(email) {
+      await getFunctions().taskQueue(WORKER_RESOURCE).enqueue({ email });
+    },
   };
 }
 
 export const sendPasswordResetEmail = functions
   .region(REGION)
-  .runWith({ secrets: ['RESEND_API_KEY'] })
   .https.onCall(async (data) => {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      functions.logger.error('RESEND_API_KEY secret is not configured');
-      throw new functions.https.HttpsError('failed-precondition', 'email_not_configured');
-    }
-    return sendPasswordResetEmailHandler(data, productionIO(apiKey));
+    return sendPasswordResetEmailHandler(data, productionIO());
   });
