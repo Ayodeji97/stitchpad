@@ -14,7 +14,7 @@ describe('pushSummary', () => {
 
   it('leads with the single overdue item, no tail', () => {
     expect(pushSummary(model({ overdue: [item('Folake', 'Asoebi')] })).body)
-      .toBe("Folake's Asoebi is overdue");
+      .toBe('Folake\'s Asoebi is overdue');
   });
 
   it('prioritises overdue over due-soon and outstanding for the lead, and counts the rest', () => {
@@ -23,12 +23,12 @@ describe('pushSummary', () => {
       dueSoon: [item('Aina', 'Buba')],
       outstanding: [item('Ngozi', 'Shirt', { amount: 18000 })],
     });
-    expect(pushSummary(m).body).toBe("Folake's Asoebi is overdue + 2 more need attention");
+    expect(pushSummary(m).body).toBe('Folake\'s Asoebi is overdue + 2 more need attention');
   });
 
   it('falls back to due-soon when no overdue', () => {
     expect(pushSummary(model({ dueSoon: [item('Aina', 'Buba')] })).body)
-      .toBe("Aina's Buba is due soon");
+      .toBe('Aina\'s Buba is due soon');
   });
 
   it('falls back to outstanding (owes, formatted naira) when only outstanding', () => {
