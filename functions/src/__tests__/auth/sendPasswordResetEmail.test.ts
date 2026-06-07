@@ -55,7 +55,7 @@ describe('sendPasswordResetEmailHandler', () => {
   it('generates a link and sends the email on the happy path', async () => {
     const { io, generateLink, sendEmail } = makeIO({ link: 'https://reset.example/abc' });
     const result = await sendPasswordResetEmailHandler({ email: 'Tunde@Example.com ' }, io);
-    expect(result).toEqual({ sent: true });
+    expect(result).toEqual({ ok: true });
     // Email is normalized (trimmed + lowercased) before use.
     expect(generateLink).toHaveBeenCalledWith('tunde@example.com');
     expect(sendEmail).toHaveBeenCalledWith({
@@ -65,15 +65,27 @@ describe('sendPasswordResetEmailHandler', () => {
     });
   });
 
-  it('succeeds silently without sending when the email is not registered', async () => {
+  it('returns an indistinguishable ack and sends nothing for an unregistered email', async () => {
     const { io, generateLink, sendEmail, releaseSend } = makeIO({ user: null });
     const result = await sendPasswordResetEmailHandler({ email: 'ghost@example.com' }, io);
-    // No error and no "user not found" signal — enumeration guard.
-    expect(result).toEqual({ sent: false });
+    // Byte-for-byte identical to the happy-path payload — no enumeration signal.
+    expect(result).toEqual({ ok: true });
     expect(generateLink).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
     // Reservation is held (not released) so probes are throttled identically.
     expect(releaseSend).not.toHaveBeenCalled();
+  });
+
+  it('returns the same payload whether or not the email is registered', async () => {
+    const registered = await sendPasswordResetEmailHandler(
+      { email: 'real@example.com' },
+      makeIO({ user: { displayName: 'Real Person' } }).io,
+    );
+    const unregistered = await sendPasswordResetEmailHandler(
+      { email: 'ghost@example.com' },
+      makeIO({ user: null }).io,
+    );
+    expect(registered).toEqual(unregistered);
   });
 
   it('throttles when a send was reserved too recently', async () => {

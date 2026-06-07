@@ -13,10 +13,16 @@ const SUBJECT = 'Reset your StitchPad password';
 const THROTTLE_MS = 60_000;
 
 export interface SendPasswordResetResult {
-  // false when the email isn't registered — returned WITHOUT an error so the
-  // client can't distinguish "sent" from "no such account" (enumeration guard).
-  sent: boolean;
+  // A constant acknowledgement. Deliberately carries NO signal about whether the
+  // address was registered or an email actually went out — the callable is
+  // unauthenticated, so any per-account distinction in the response would let a
+  // caller enumerate StitchPad accounts. Registered and unregistered emails get
+  // the exact same payload (and the same throttle); the real send/no-send
+  // decision happens server-side only.
+  ok: true;
 }
+
+const ACK: SendPasswordResetResult = { ok: true };
 
 /**
  * Test seam over Firebase Auth + the email provider. Production wires this to
@@ -79,13 +85,14 @@ export async function sendPasswordResetEmailHandler(
     const user = await io.getUserByEmail(email);
     if (!user) {
       // No account: succeed silently without sending. The reservation stays so
-      // repeated probes get throttled identically to real addresses (no timing
-      // or rate-limit signal to enumerate from).
-      return { sent: false };
+      // repeated probes get throttled identically to real addresses, and the
+      // ACK below is byte-for-byte identical to the real-send path — no timing,
+      // rate-limit, or payload signal to enumerate from.
+      return ACK;
     }
     const resetLink = await io.generateLink(email);
     await io.sendEmail({ to: email, displayName: user.displayName, resetLink });
-    return { sent: true };
+    return ACK;
   } catch (err) {
     // Release the reservation so a genuine delivery failure doesn't lock the
     // user out of retrying for the full throttle window.
