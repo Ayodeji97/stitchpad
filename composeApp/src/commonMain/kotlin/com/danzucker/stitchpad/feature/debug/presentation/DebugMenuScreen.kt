@@ -249,7 +249,7 @@ fun DebugMenuScreen(
                 SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.Outlined.NotificationsNone,
-                    label = "Send test push to me",
+                    label = "Send digest + push (test)",
                     onClick = onSendTestPushClick,
                 )
             }

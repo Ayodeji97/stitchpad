@@ -188,7 +188,7 @@ class DebugMenuViewModel(
         val message = when (val r = digestActions.sendNow()) {
             DigestSendResult.Sent ->
                 UiText.DynamicString(
-                    "Test push sent — needs an actionable order + granted notification permission to appear."
+                    "Test sent — digest email + push + inbox (push needs permission + an actionable order)."
                 )
             DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — push suppressed (no eligible orders)")
             DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
