@@ -20,9 +20,11 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -58,6 +60,7 @@ import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
+import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.DeleteAccountRoute
 import com.danzucker.stitchpad.navigation.DraftMessageRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
@@ -68,12 +71,14 @@ import com.danzucker.stitchpad.navigation.NotificationsInboxRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 @Composable
 fun MainRoot(
@@ -83,6 +88,15 @@ fun MainRoot(
     val innerNavController = rememberNavController()
     val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    val pendingDeepLink: PendingDeepLinkHolder = koinInject()
+    val deepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
+    LaunchedEffect(deepLinkTarget) {
+        if (deepLinkTarget == DeepLinkTarget.INBOX) {
+            pendingDeepLink.clear()
+            innerNavController.navigate(NotificationsInboxRoute)
+        }
+    }
 
     val showBottomBar = BottomNavItem.all.any { item ->
         currentDestination?.hasRoute(item.route::class) == true

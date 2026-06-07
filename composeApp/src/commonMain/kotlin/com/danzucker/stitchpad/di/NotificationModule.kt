@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.notification.push.FirebasePushTokenReposi
 import com.danzucker.stitchpad.feature.notification.push.PushTokenProvider
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRepository
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
@@ -17,6 +18,7 @@ val notificationDataModule = module {
     single<PushTokenProvider> { PushTokenProvider() }
     single<PushTokenRepository> { FirebasePushTokenRepository(get()) }
     single { PushTokenRegistrar(get(), get()) }
+    single { PendingDeepLinkHolder() }
 }
 
 val notificationPresentationModule = module {
