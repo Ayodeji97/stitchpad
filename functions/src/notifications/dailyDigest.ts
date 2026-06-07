@@ -74,7 +74,13 @@ function productionDigestIO(apiKey: string): DigestIO {
           continue; // doc with no matching/verified auth user — skip
         }
         const name = (data.businessName?.trim() || data.displayName?.trim() || email.split('@')[0]);
-        recipients.push({ uid: doc.id, email, name, digestEnabled: data.dailyDigestEmailEnabled !== false });
+        recipients.push({
+          uid: doc.id,
+          email,
+          name,
+          digestEnabled: data.dailyDigestEmailEnabled !== false,
+          pushEnabled: data.pushNotificationsEnabled !== false,
+        });
       }
       return recipients;
     },
@@ -96,6 +102,32 @@ function productionDigestIO(apiKey: string): DigestIO {
       return sendResendEmail(apiKey, p);
     },
     isAllowed: isDigestAllowed,
+    async loadPushTokens(uid) {
+      const snap = await db.collection('users').doc(uid).collection('private').doc('pushTokens').get();
+      const data = snap.data();
+      if (!data) return [];
+      return Array.isArray(data.tokens) ? (data.tokens as string[]) : [];
+    },
+    async sendPush(_tokens, _payload) {
+      // FCM send will be wired in push infra slice (Slice 3b).
+      return { invalidTokens: [] };
+    },
+    async deletePushTokens(uid, tokens) {
+      const ref = db.collection('users').doc(uid).collection('private').doc('pushTokens');
+      const snap = await ref.get();
+      const data = snap.data();
+      if (!data) return;
+      const existing: string[] = Array.isArray(data.tokens) ? (data.tokens as string[]) : [];
+      const pruned = existing.filter((t) => !tokens.includes(t));
+      await ref.set({ tokens: pruned }, { merge: false });
+    },
+    async getLastPushDate(uid) {
+      const snap = await digestStateRef(uid).get();
+      return (snap.exists && snap.data()?.lastPushDate) || null;
+    },
+    async setLastPushDate(uid, dateKey) {
+      await digestStateRef(uid).set({ lastPushDate: dateKey }, { merge: true });
+    },
   };
 }
 

@@ -1,4 +1,5 @@
 // functions/src/notifications/types.ts
+import { PushSummary } from './pushSummary';
 
 /** A tailor's order as read from `users/{uid}/orders` (raw Admin SDK shape). */
 export interface OrderScanDoc {
@@ -32,6 +33,7 @@ export interface DigestRecipient {
   email: string;
   name: string;          // businessName || displayName || email prefix
   digestEnabled: boolean; // false only when explicitly opted out
+  pushEnabled: boolean;  // false only when explicitly opted out of push
 }
 
 export interface DigestIO {
@@ -42,6 +44,11 @@ export interface DigestIO {
   writeNotifications(uid: string, model: DigestModel): Promise<void>;
   sendEmail(p: { to: string; subject: string; html: string; text: string }): Promise<void>;
   isAllowed(uid: string, email: string): boolean;
+  loadPushTokens(uid: string): Promise<string[]>;
+  sendPush(tokens: string[], payload: PushSummary): Promise<{ invalidTokens: string[] }>;
+  deletePushTokens(uid: string, tokens: string[]): Promise<void>;
+  getLastPushDate(uid: string): Promise<string | null>;
+  setLastPushDate(uid: string, dateKey: string): Promise<void>;
 }
 
 export interface DigestRunResult {

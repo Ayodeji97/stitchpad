@@ -1,14 +1,29 @@
 import { runDailyDigest } from '../../notifications/runDailyDigest';
 import { DigestIO, DigestRecipient, OrderScanDoc } from '../../notifications/types';
+import { lagosDateKey } from '../../notifications/lagosTime';
 
 const NOW = Date.parse('2026-06-03T06:00:00Z');
 const DAY = 86_400_000;
 
-function fakeIO(over: Partial<DigestIO> & { recipients: DigestRecipient[]; ordersByUid: Record<string, OrderScanDoc[]> }): {
-  io: DigestIO; sent: { to: string; subject: string }[]; stamps: Record<string, string>; notified: Record<string, number>;
+function fakeIO(over: Partial<DigestIO> & {
+  recipients: DigestRecipient[];
+  ordersByUid: Record<string, OrderScanDoc[]>;
+  tokensByUid?: Record<string, string[]>;
+  invalidTokens?: string[];
+}): {
+  io: DigestIO;
+  sent: { to: string; subject: string }[];
+  pushes: { tokens: string[]; body: string }[];
+  pushStamps: Record<string, string>;
+  deletedTokens: { uid: string; tokens: string[] }[];
+  stamps: Record<string, string>;
+  notified: Record<string, number>;
 } {
   const sent: { to: string; subject: string }[] = [];
   const stamps: Record<string, string> = {};
+  const pushStamps: Record<string, string> = {};
+  const pushes: { tokens: string[]; body: string }[] = [];
+  const deletedTokens: { uid: string; tokens: string[] }[] = [];
   const notified: Record<string, number> = {};
   const io: DigestIO = {
     listRecipients: async () => over.recipients,
@@ -18,11 +33,19 @@ function fakeIO(over: Partial<DigestIO> & { recipients: DigestRecipient[]; order
     writeNotifications: async (uid) => { notified[uid] = (notified[uid] || 0) + 1; },
     sendEmail: async (p) => { sent.push({ to: p.to, subject: p.subject }); },
     isAllowed: over.isAllowed ?? (() => true),
+    loadPushTokens: async (uid) => over.tokensByUid?.[uid] ?? [],
+    sendPush: async (tokens, payload) => {
+      pushes.push({ tokens, body: payload.body });
+      return { invalidTokens: over.invalidTokens ?? [] };
+    },
+    deletePushTokens: async (uid, tokens) => { deletedTokens.push({ uid, tokens }); },
+    getLastPushDate: async (uid) => pushStamps[uid] ?? null,
+    setLastPushDate: async (uid, d) => { pushStamps[uid] = d; },
   };
-  return { io, sent, stamps, notified };
+  return { io, sent, pushes, pushStamps, deletedTokens, stamps, notified };
 }
 
-const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', name: 'Ada', digestEnabled: true, ...p });
+const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', name: 'Ada', digestEnabled: true, pushEnabled: true, ...p });
 const order = (p: Partial<OrderScanDoc>): OrderScanDoc => ({ id: 'o', customerName: 'C', status: 'IN_PROGRESS', deadline: null, archivedAt: null, totalPrice: 0, payments: [], items: [], ...p });
 
 describe('runDailyDigest', () => {
@@ -88,5 +111,56 @@ describe('runDailyDigest', () => {
     await runDailyDigest(io, NOW);
     expect(sent).toHaveLength(0);
     expect(notified.u1).toBe(1);
+  });
+});
+
+describe('runDailyDigest — push', () => {
+  const overdueOrder: OrderScanDoc = {
+    id: 'o1', customerName: 'Folake', status: 'IN_PROGRESS',
+    deadline: 0, archivedAt: null, totalPrice: 1000, payments: [],
+    items: [{ garmentType: 'Asoebi' }],
+  };
+  const recipient = (over: Partial<DigestRecipient> = {}): DigestRecipient =>
+    ({ uid: 'u1', email: 'a@b.com', name: 'Shop', digestEnabled: true, pushEnabled: true, ...over });
+
+  it('sends one push for an enabled, allowed recipient with actionable orders + a token', async () => {
+    const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.pushes).toHaveLength(1);
+    expect(f.pushes[0].tokens).toEqual(['tok1']);
+    expect(f.pushStamps.u1).toBeTruthy();
+  });
+  it('skips push when pushEnabled is false (but still emails)', async () => {
+    const f = fakeIO({ recipients: [recipient({ pushEnabled: false })], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.pushes).toHaveLength(0);
+    expect(f.sent).toHaveLength(1);
+  });
+  it('skips push when the recipient has no tokens', async () => {
+    const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: [] } });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.pushes).toHaveLength(0);
+    expect(f.pushStamps.u1).toBeUndefined();
+  });
+  it('skips push when not allowed by the rollout allowlist', async () => {
+    const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] }, isAllowed: () => false });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.pushes).toHaveLength(0);
+  });
+  it('skips push when the model is empty (suppress-when-empty)', async () => {
+    const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [] }, tokensByUid: { u1: ['tok1'] } });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.pushes).toHaveLength(0);
+  });
+  it('skips push when already pushed today', async () => {
+    const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
+    f.pushStamps.u1 = lagosDateKey(1_000_000_000_000);
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.pushes).toHaveLength(0);
+  });
+  it('prunes invalid tokens reported by sendPush', async () => {
+    const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1', 'bad'] }, invalidTokens: ['bad'] });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    expect(f.deletedTokens).toEqual([{ uid: 'u1', tokens: ['bad'] }]);
   });
 });
