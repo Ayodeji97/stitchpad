@@ -137,9 +137,14 @@ function productionDigestIO(apiKey: string): DigestIO {
 
     deletePushTokens: async (uid: string, tokens: string[]): Promise<void> => {
       const col = db.collection('users').doc(uid).collection('notificationTokens');
-      const batch = db.batch();
-      for (const t of tokens) batch.delete(col.doc(t));
-      await batch.commit();
+      const FIRESTORE_BATCH_LIMIT = 500;
+      for (let i = 0; i < tokens.length; i += FIRESTORE_BATCH_LIMIT) {
+        const batch = db.batch();
+        for (const t of tokens.slice(i, i + FIRESTORE_BATCH_LIMIT)) {
+          batch.delete(col.doc(t));
+        }
+        await batch.commit();
+      }
     },
 
     getLastPushDate: async (uid: string): Promise<string | null> => {
