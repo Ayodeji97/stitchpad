@@ -5,11 +5,25 @@ import { createWhatsAppClient } from './cloudApiClient';
 import { productionDedupIO } from './dedup';
 import { productionConversationIO } from './conversationIO';
 import { productionKbIO } from './ai/knowledgeBase';
+import { productionEscalationIO } from './escalation';
 import { getVertexClient } from '../smart/vertexClient';
+import { REPLY_TO } from '../email/resendClient';
 import { handleInboundPayload } from './messageHandler';
 
 const REGION = 'europe-west1';
-const SECRETS = ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'WHATSAPP_PHONE_NUMBER_ID'];
+const SECRETS = [
+  'WHATSAPP_TOKEN',
+  'WHATSAPP_VERIFY_TOKEN',
+  'WHATSAPP_APP_SECRET',
+  'WHATSAPP_PHONE_NUMBER_ID',
+  'WHATSAPP_FOUNDER_NUMBERS',
+  'RESEND_API_KEY',
+];
+
+/** Parses the comma-separated founder/support allowlist secret. */
+function parseFounderNumbers(raw: string | undefined): string[] {
+  return (raw ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+}
 
 /**
  * GET verify-token handshake. Meta calls this once when you register the
@@ -98,6 +112,8 @@ export const whatsappWebhook = functions
         conversations: productionConversationIO(db),
         knowledge: productionKbIO(db),
         vertex: getVertexClient(),
+        escalation: productionEscalationIO(process.env.RESEND_API_KEY ?? '', REPLY_TO),
+        founderNumbers: parseFounderNumbers(process.env.WHATSAPP_FOUNDER_NUMBERS),
       });
       res.sendStatus(200);
     } catch (err) {

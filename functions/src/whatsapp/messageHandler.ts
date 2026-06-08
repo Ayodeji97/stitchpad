@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions/v1';
 import { parseInboundMessages, BotLanguage, InboundMessage } from './types';
 import { WhatsAppClient, WHATSAPP_MAX_TEXT_LENGTH } from './cloudApiClient';
 import { DedupIO } from './dedup';
@@ -6,6 +7,14 @@ import { KbIO } from './ai/knowledgeBase';
 import { VertexClient } from '../smart/vertexClient';
 import { handleOnboarding } from './onboarding';
 import { answerSupportQuestion } from './ai/answerer';
+import {
+  EscalationIO,
+  EscalationReason,
+  detectExplicitEscalation,
+  isFounder,
+  parseFounderCommand,
+  FounderCommand,
+} from './escalation';
 
 /** Everything the inbound dispatcher needs, injectable for tests. */
 export interface MessageHandlerDeps {
@@ -14,15 +23,19 @@ export interface MessageHandlerDeps {
   conversations: ConversationIO;
   knowledge: KbIO;
   vertex: VertexClient;
+  escalation: EscalationIO;
+  /** Allow-listed founder/support numbers that may use #reply / #resolve. */
+  founderNumbers: string[];
 }
 
-// Sent when the bot couldn't answer (model failure, off-topic, or low
-// confidence). Slice 2 has no in-thread handoff yet, so this points to a real
-// channel that works today rather than promising a follow-up nobody is wired to
-// deliver. Slice 3 replaces this with a live human takeover + notification.
-const HANDOFF_FALLBACK: Record<BotLanguage, string> = {
-  en: 'Sorry, I could not answer that one. Please email our team at support@getstitchpad.com and we will help you out.',
-  pcm: 'Abeg, I no fit answer that one. Make you email our team for support@getstitchpad.com, we go help you.',
+const ESCALATION_ACK: Record<BotLanguage, string> = {
+  en: 'Thanks — I am connecting you with someone on our team. They will reply here shortly.',
+  pcm: 'Thank you — I dey connect you with person for our team. Dem go reply you here shortly.',
+};
+
+const RESOLVED_NOTICE: Record<BotLanguage, string> = {
+  en: 'You are back with our support assistant. How else can I help?',
+  pcm: 'You don come back to our support assistant. Wetin else I fit help you?',
 };
 
 function cap(text: string): string {
@@ -30,9 +43,9 @@ function cap(text: string): string {
 }
 
 /**
- * Inbound dispatch: dedup each message, then run it through onboarding and (once
- * onboarded) AI answering. On a send failure the dedup marker is released and
- * the error rethrown, so the webhook returns 500 and Meta retries.
+ * Inbound dispatch: dedup each message, then route it (founder command, human
+ * handoff, onboarding, or AI answer). On a send failure the dedup marker is
+ * released and the error rethrown, so the webhook returns 500 and Meta retries.
  */
 export async function handleInboundPayload(payload: unknown, deps: MessageHandlerDeps): Promise<void> {
   for (const msg of parseInboundMessages(payload)) {
@@ -49,23 +62,30 @@ export async function handleInboundPayload(payload: unknown, deps: MessageHandle
 }
 
 async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): Promise<void> {
+  // 0. Founder admin commands run first — the founder isn't a normal user, so
+  // they must bypass onboarding/state. A founder message that isn't a command
+  // falls through and is treated as a normal user (lets them test the bot).
+  if (isFounder(msg.waId, deps.founderNumbers)) {
+    const cmd = parseFounderCommand(msg.text);
+    if (cmd) {
+      await handleFounderCommand(cmd, deps);
+      return;
+    }
+  }
+
   const conv = await deps.conversations.get(msg.waId);
 
-  // 0. A non-BOT state means a human owns this thread (set during escalation in
-  // Slice 3). The inbound is already recorded via dedup; stay silent so the bot
-  // never talks over an agent or interrupts an active handoff.
+  // 1. A non-BOT state means a human owns this thread. Relay the user's message
+  // to the founder (best-effort) so they can keep the conversation going, and
+  // never let the bot reply over them.
   if (conv.state !== 'BOT') {
+    await relayToFounders(msg, deps);
     return;
   }
 
-  // 1. Onboarding gate: terms, then language. Returns a reply to send and/or
-  // doc updates to persist, and only proceeds once fully onboarded.
+  // 2. Onboarding gate: terms, then language. Send the reply BEFORE persisting
+  // so a failed send releases with no state change and replays cleanly.
   const onboarding = handleOnboarding(conv, msg.text);
-  // Send the reply BEFORE persisting the state change. If we persisted first and
-  // the send then failed, the marker is released and Meta's retry of the same
-  // "1"/"2" would hit an already-onboarded conversation and route it to the AI.
-  // Sending first means a failed step releases with no state change and replays
-  // cleanly (worst case: a duplicate prompt, which is harmless).
   if (onboarding.reply) {
     await deps.client.sendText(msg.waId, cap(onboarding.reply));
   }
@@ -74,21 +94,70 @@ async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): 
   }
   if (!onboarding.proceedToAnswer) return;
 
-  // 2. Onboarded → answer from the knowledge base.
   const language: BotLanguage = conv.language ?? 'en';
+
+  // 3. Explicit escalation (asks for a human / sensitive account action) skips
+  // the model entirely.
+  const explicit = detectExplicitEscalation(msg.text);
+  if (explicit) {
+    await escalate(msg, explicit, language, deps);
+    return;
+  }
+
+  // 4. Otherwise answer from the knowledge base; escalate if the answer is not
+  // trustworthy (off-topic, low confidence, no grounding, or model failure).
   const knowledge = await deps.knowledge.loadKnowledge();
-  const result = await answerSupportQuestion({
-    question: msg.text,
-    language,
-    knowledge,
-    client: deps.vertex,
-  });
-  // On escalation the answer is untrusted (off-topic, low-confidence, or an
-  // un-formatted completion) — send the handoff message, never the model text.
-  const outgoing = !result.escalate && result.answer.trim().length > 0
-    ? result.answer
-    : HANDOFF_FALLBACK[language];
-  await deps.client.sendText(msg.waId, cap(outgoing));
-  // Slice 3: when result.escalate, also flip state to AWAITING_HUMAN, notify a
-  // human, and email the transcript to support@.
+  const result = await answerSupportQuestion({ question: msg.text, language, knowledge, client: deps.vertex });
+  if (result.escalate) {
+    await escalate(msg, 'low_confidence', language, deps);
+    return;
+  }
+  await deps.client.sendText(msg.waId, cap(result.answer));
+}
+
+/**
+ * Hands the conversation to a human: ack the user, park the thread, then notify
+ * (best-effort). The ack is sent BEFORE the state change so a failed ack
+ * replays cleanly; notifications never throw so they can't trigger a retry.
+ */
+async function escalate(msg: InboundMessage, reason: EscalationReason, language: BotLanguage, deps: MessageHandlerDeps): Promise<void> {
+  await deps.client.sendText(msg.waId, cap(ESCALATION_ACK[language]));
+  await deps.conversations.update(msg.waId, { state: 'AWAITING_HUMAN' });
+
+  await bestEffort('escalation ticket', () =>
+    deps.escalation.sendTicket({ waId: msg.waId, reason, message: msg.text }));
+  await relayToFounders(msg, deps);
+}
+
+async function handleFounderCommand(cmd: FounderCommand, deps: MessageHandlerDeps): Promise<void> {
+  if (cmd.kind === 'reply') {
+    await deps.client.sendText(cmd.target, cap(cmd.body));
+    await deps.conversations.update(cmd.target, { state: 'HUMAN_ACTIVE' });
+    return;
+  }
+  // resolve
+  const target = await deps.conversations.get(cmd.target);
+  await deps.conversations.update(cmd.target, { state: 'BOT' });
+  await bestEffort('resolve notice', () =>
+    deps.client.sendText(cmd.target, cap(RESOLVED_NOTICE[target.language ?? 'en'])));
+}
+
+/** Forwards a user message to each founder so they can reply via #reply. Best-effort. */
+async function relayToFounders(msg: InboundMessage, deps: MessageHandlerDeps): Promise<void> {
+  for (const founder of deps.founderNumbers) {
+    await bestEffort('founder relay', () =>
+      deps.client.sendText(founder, cap(`📩 From ${msg.waId}: ${msg.text}\nReply: #reply ${msg.waId} <message>`)));
+  }
+}
+
+/** Runs a non-critical side effect, swallowing+logging failures so it can never
+ * trigger a dedup release / Meta retry of the whole message. */
+async function bestEffort(label: string, fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (err) {
+    functions.logger.warn(`whatsapp ${label} failed`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
