@@ -176,9 +176,15 @@ class DebugMenuViewModel(
 
     private fun runSendDigest() = runJob {
         val message = when (val r = digestActions.sendNow()) {
-            DigestSendResult.Sent -> UiText.DynamicString("Daily digest sent — check your inbox / Resend")
+            is DigestSendResult.Sent -> {
+                val channels = buildList {
+                    if (r.emailSent) add("email")
+                    if (r.pushSent) add("push")
+                }
+                UiText.DynamicString("Digest sent — ${channels.joinToString(" + ")}")
+            }
             DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — digest suppressed")
-            DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
+            DigestSendResult.Disabled -> UiText.DynamicString("Both channels off — turn on email or push in Settings")
             is DigestSendResult.Failure -> UiText.DynamicString("Digest failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
@@ -186,12 +192,15 @@ class DebugMenuViewModel(
 
     private fun runSendTestPush() = runJob {
         val message = when (val r = digestActions.sendNow()) {
-            DigestSendResult.Sent ->
-                UiText.DynamicString(
-                    "Test sent — digest email + push + inbox (push needs permission + an actionable order)."
-                )
+            is DigestSendResult.Sent ->
+                if (r.pushSent) {
+                    UiText.DynamicString("Test push sent")
+                } else {
+                    UiText.DynamicString("No push sent (push off or no token) — email sent instead")
+                }
             DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — push suppressed (no eligible orders)")
-            DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
+            DigestSendResult.Disabled ->
+                UiText.DynamicString("No push sent (check permission / opt-out / actionable order)")
             is DigestSendResult.Failure -> UiText.DynamicString("Test push failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
