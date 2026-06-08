@@ -37,11 +37,8 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -103,6 +100,7 @@ import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -442,47 +440,21 @@ fun OrderFormScreen(
                 }
 
                 if (state.currentStep < 3) {
-                    Button(
+                    StitchPadButton(
+                        text = stringResource(Res.string.order_form_next),
                         onClick = { onAction(OrderFormAction.OnNextStep) },
                         enabled = canAdvance,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(DesignTokens.radiusMd)
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.order_form_next),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    )
                 } else {
-                    Button(
-                        onClick = { onAction(OrderFormAction.OnSave) },
-                        enabled = !state.isSaving,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(DesignTokens.radiusMd)
-                    ) {
-                        if (state.isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
+                    StitchPadButton(
+                        text = if (state.isEditMode) {
+                            stringResource(Res.string.order_form_save_button)
                         } else {
-                            Text(
-                                text = if (state.isEditMode) {
-                                    stringResource(Res.string.order_form_save_button)
-                                } else {
-                                    stringResource(Res.string.order_form_create_button)
-                                },
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                            stringResource(Res.string.order_form_create_button)
+                        },
+                        onClick = { onAction(OrderFormAction.OnSave) },
+                        isLoading = state.isSaving,
+                    )
                 }
             }
         }

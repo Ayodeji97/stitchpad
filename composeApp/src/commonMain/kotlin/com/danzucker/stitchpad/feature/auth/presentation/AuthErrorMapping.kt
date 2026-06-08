@@ -9,6 +9,7 @@ import stitchpad.composeapp.generated.resources.error_invalid_email
 import stitchpad.composeapp.generated.resources.error_no_internet
 import stitchpad.composeapp.generated.resources.error_provider_not_supported
 import stitchpad.composeapp.generated.resources.error_requires_recent_login
+import stitchpad.composeapp.generated.resources.error_service_unavailable
 import stitchpad.composeapp.generated.resources.error_sso_cancelled
 import stitchpad.composeapp.generated.resources.error_sso_email_collision
 import stitchpad.composeapp.generated.resources.error_sso_unavailable
@@ -17,6 +18,7 @@ import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.error_user_not_found
 import stitchpad.composeapp.generated.resources.error_weak_password
 
+@Suppress("CyclomaticComplexMethod")
 fun AuthError.toUiText(): UiText = when (this) {
     AuthError.INVALID_CREDENTIALS -> UiText.StringResourceText(Res.string.error_invalid_credentials)
     AuthError.EMAIL_ALREADY_IN_USE -> UiText.StringResourceText(Res.string.error_email_in_use)
@@ -30,5 +32,6 @@ fun AuthError.toUiText(): UiText = when (this) {
     AuthError.SSO_UNAVAILABLE -> UiText.StringResourceText(Res.string.error_sso_unavailable)
     AuthError.INVALID_EMAIL -> UiText.StringResourceText(Res.string.error_invalid_email)
     AuthError.PROVIDER_NOT_SUPPORTED -> UiText.StringResourceText(Res.string.error_provider_not_supported)
+    AuthError.SERVICE_UNAVAILABLE -> UiText.StringResourceText(Res.string.error_service_unavailable)
     AuthError.UNKNOWN -> UiText.StringResourceText(Res.string.error_unknown)
 }

@@ -37,6 +37,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
+import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
@@ -63,6 +64,7 @@ import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.FoundersNoteRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
+import com.danzucker.stitchpad.navigation.NotificationsInboxRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
@@ -302,6 +304,14 @@ private fun MainNavGraph(
                 onNavigateBack = { navController.navigateUp() },
             )
         }
+        composable<NotificationsInboxRoute> {
+            NotificationsInboxRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToOrder = { orderId ->
+                    navController.navigate(OrderDetailRoute(orderId = orderId))
+                },
+            )
+        }
         composable<DashboardRoute> {
             DashboardRoot(
                 onNavigateToOrderDetail = { orderId ->
@@ -345,6 +355,9 @@ private fun MainNavGraph(
                 },
                 onNavigateToUpgrade = {
                     navController.navigate(UpgradeRoute)
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(NotificationsInboxRoute)
                 },
             )
         }

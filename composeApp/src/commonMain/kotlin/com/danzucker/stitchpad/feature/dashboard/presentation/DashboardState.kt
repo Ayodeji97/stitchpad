@@ -62,5 +62,7 @@ data class DashboardState(
     // false so rendering code can guard on both fields safely.
     val welcomeBannerDaysLeft: Int? = null,
     val showWelcomeBanner: Boolean = false,
+    // Live unread notification count — drives the bell badge in the dashboard header.
+    val unreadNotificationCount: Int = 0,
     val errorMessage: UiText? = null
 )

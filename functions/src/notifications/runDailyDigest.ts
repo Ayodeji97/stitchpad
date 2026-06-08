@@ -15,11 +15,12 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
 
   for (const r of recipients) {
     try {
+      const model = digestDetector(await io.loadOrders(r.uid), now);
+      await io.writeNotifications(r.uid, model);   // ALWAYS — in-app inbox is ungated
+
       if (!r.digestEnabled) { result.skippedDisabled++; continue; }
       if (!io.isAllowed(r.uid, r.email)) { result.skippedNotAllowed++; continue; }
       if ((await io.getLastSentDate(r.uid)) === todayKey) { result.skippedAlreadySent++; continue; }
-
-      const model = digestDetector(await io.loadOrders(r.uid), now);
       if (isDigestEmpty(model)) { result.suppressedEmpty++; continue; }
 
       const { subject, html, text } = buildDigestEmail(model, r.name);

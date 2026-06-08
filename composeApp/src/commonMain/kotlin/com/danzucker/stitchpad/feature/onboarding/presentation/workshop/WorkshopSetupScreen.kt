@@ -26,8 +26,6 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -61,6 +59,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
@@ -403,28 +402,13 @@ fun WorkshopSetupScreen(
                 }
 
                 // 6. Continue button
-                Button(
+                StitchPadButton(
+                    text = stringResource(Res.string.workshop_continue_button),
                     onClick = { onAction(WorkshopSetupAction.OnContinueClick) },
-                    enabled = !state.isLoading && !state.isAwaitingLogo && state.businessName.isNotBlank(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = DesignTokens.neutral700,
-                        disabledContentColor = DesignTokens.neutral500,
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.workshop_continue_button),
-                        style = TextStyle(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                    )
-                }
+                    enabled = !state.isAwaitingLogo && state.businessName.isNotBlank(),
+                    isLoading = state.isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
                 // 7. Skip button
                 TextButton(

@@ -14,6 +14,7 @@ val dashboardPresentationModule = module {
             weeklyGoalRepository = get(),
             smartUsageStore = get(),
             entitlements = get(),
+            notificationRepository = get(),
         )
     }
 }

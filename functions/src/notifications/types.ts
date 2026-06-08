@@ -14,6 +14,7 @@ export interface OrderScanDoc {
 }
 
 export interface DigestItem {
+  orderId: string;
   customerName: string;
   garmentSummary: string;
   deadline?: number; // present for dueSoon / overdue
@@ -21,12 +22,9 @@ export interface DigestItem {
 }
 
 export interface DigestModel {
-  dueSoon: DigestItem[];      // capped
-  overdue: DigestItem[];      // capped
-  outstanding: DigestItem[];  // capped
-  dueSoonTotal: number;       // pre-cap counts, for "+N more"
-  overdueTotal: number;
-  outstandingTotal: number;
+  dueSoon: DigestItem[];      // FULL, sorted soonest-first
+  overdue: DigestItem[];      // FULL, sorted most-overdue-first
+  outstanding: DigestItem[];  // FULL, sorted biggest-owed-first
 }
 
 export interface DigestRecipient {
@@ -41,6 +39,7 @@ export interface DigestIO {
   loadOrders(uid: string): Promise<OrderScanDoc[]>;
   getLastSentDate(uid: string): Promise<string | null>;
   setLastSentDate(uid: string, dateKey: string): Promise<void>;
+  writeNotifications(uid: string, model: DigestModel): Promise<void>;
   sendEmail(p: { to: string; subject: string; html: string; text: string }): Promise<void>;
   isAllowed(uid: string, email: string): boolean;
 }

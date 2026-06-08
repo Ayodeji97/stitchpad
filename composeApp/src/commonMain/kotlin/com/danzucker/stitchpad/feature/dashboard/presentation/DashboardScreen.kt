@@ -268,6 +268,7 @@ fun DashboardRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -295,6 +296,7 @@ fun DashboardRoot(
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
             onNavigateToUpgrade = onNavigateToUpgrade,
+            onNavigateToNotifications = onNavigateToNotifications,
         )
     }
 
@@ -332,6 +334,7 @@ private fun handleDashboardEvent(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
@@ -346,6 +349,7 @@ private fun handleDashboardEvent(
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
         DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
+        DashboardEvent.NavigateToNotifications -> onNavigateToNotifications()
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
             scope,
             snackbarHostState,
@@ -549,7 +553,9 @@ private fun DashboardContent(
             businessLogoUrl = state.businessLogoUrl,
             greeting = state.greeting,
             todayDate = state.todayDate,
+            unreadNotificationCount = state.unreadNotificationCount,
             onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
+            onNotificationsClick = { onAction(DashboardAction.OnNotificationsClick) },
         )
 
         // 2. Illustrated focus card (null headline means no card to show)
@@ -1155,7 +1161,9 @@ private fun DashboardHeader(
     businessLogoUrl: String?,
     greeting: Greeting,
     todayDate: LocalDate?,
+    unreadNotificationCount: Int,
     onAvatarClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val name = firstName.ifBlank { "?" }
@@ -1190,8 +1198,8 @@ private fun DashboardHeader(
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
             BellButton(
-                onClick = { /* notifications screen ships later */ },
-                hasUnread = false,
+                onClick = onNotificationsClick,
+                unreadCount = unreadNotificationCount,
             )
             Box(
                 modifier = Modifier
