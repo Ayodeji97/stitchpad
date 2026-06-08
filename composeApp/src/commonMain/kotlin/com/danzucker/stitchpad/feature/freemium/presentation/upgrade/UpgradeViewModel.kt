@@ -3,7 +3,10 @@ package com.danzucker.stitchpad.feature.freemium.presentation.upgrade
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
+import com.danzucker.stitchpad.feature.freemium.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +17,7 @@ import kotlinx.coroutines.launch
 
 class UpgradeViewModel(
     private val entitlements: EntitlementsProvider,
+    private val paymentRepository: PaymentRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -54,39 +58,40 @@ class UpgradeViewModel(
         ordinal > other.ordinal
 
     fun onAction(action: UpgradeAction) {
+        // Ignore plan changes once a checkout is in flight: otherwise the user
+        // could switch tier/cadence while the spinner shows and be sent to a
+        // Paystack session for the plan captured at tap time while the UI shows
+        // the new selection. The Pay button is already disabled via isStartingCheckout.
         when (action) {
-            is UpgradeAction.SelectTier -> _state.update { it.copy(selectedTier = action.tier) }
-            is UpgradeAction.SelectCadence -> _state.update { it.copy(billingCadence = action.cadence) }
-            UpgradeAction.PayWithPaystack -> launchPaystack()
+            is UpgradeAction.SelectTier ->
+                if (!_state.value.isStartingCheckout) _state.update { it.copy(selectedTier = action.tier) }
+            is UpgradeAction.SelectCadence ->
+                if (!_state.value.isStartingCheckout) _state.update { it.copy(billingCadence = action.cadence) }
+            UpgradeAction.PayWithPaystack -> startCheckout()
         }
     }
 
-    private fun launchPaystack() {
+    private fun startCheckout() {
         val s = _state.value
-        val amountKobo = when {
-            s.selectedTier == SubscriptionTier.PRO && s.billingCadence == BillingCadence.MONTHLY ->
-                PRO_MONTHLY_KOBO
-            s.selectedTier == SubscriptionTier.PRO && s.billingCadence == BillingCadence.ANNUAL ->
-                PRO_ANNUAL_KOBO
-            s.selectedTier == SubscriptionTier.ATELIER && s.billingCadence == BillingCadence.MONTHLY ->
-                ATELIER_MONTHLY_KOBO
-            s.selectedTier == SubscriptionTier.ATELIER && s.billingCadence == BillingCadence.ANNUAL ->
-                ATELIER_ANNUAL_KOBO
-            else -> return
-        }
-        // V1.0 placeholder: open a generic Paystack URL with the amount.
-        // V1.1 will replace this with a server-issued init that returns a
-        // real subscription auth_url tied to the user's email + plan code.
-        val url = "https://paystack.com/pay/stitchpad?amount=$amountKobo"
+        if (s.isStartingCheckout) return
+        if (s.selectedTier == SubscriptionTier.FREE) return
+        _state.update { it.copy(isStartingCheckout = true) }
         viewModelScope.launch {
-            _events.send(UpgradeEvent.OpenExternalBrowser(url))
+            when (
+                val result = paymentRepository.initializeSubscriptionCheckout(
+                    tier = s.selectedTier,
+                    cadence = s.billingCadence,
+                )
+            ) {
+                is Result.Success -> {
+                    _state.update { it.copy(isStartingCheckout = false) }
+                    _events.send(UpgradeEvent.OpenExternalBrowser(result.data.authorizationUrl))
+                }
+                is Result.Error -> {
+                    _state.update { it.copy(isStartingCheckout = false) }
+                    _events.send(UpgradeEvent.ShowSnackbar(result.error.toUiText()))
+                }
+            }
         }
-    }
-
-    companion object {
-        private const val PRO_MONTHLY_KOBO = 200_000
-        private const val PRO_ANNUAL_KOBO = 2_000_000
-        private const val ATELIER_MONTHLY_KOBO = 400_000
-        private const val ATELIER_ANNUAL_KOBO = 4_000_000
     }
 }

@@ -18,7 +18,7 @@ StitchPad is a Kotlin Multiplatform (Android + iOS) app (`com.danzucker.stitchpa
 | **Cloudflare** | DNS + email routing | Authoritative DNS for `getstitchpad.com`; Email Routing forwards `support@` | **Free plan** | Free |
 | **Vercel** | Web hosting | Hosts the marketing site (`getstitchpad.com`) | Hobby/free (separate `stitchpad-web` repo) | Free now |
 | **Namecheap** | Domain registrar | Registers `getstitchpad.com` (DNS delegated to Cloudflare) | Paid registration | ~$10–12/yr |
-| **Paystack** | Payments (Nigeria) | Subscription upgrades (freemium → Pro/Atelier) | **Placeholder / in progress** | Per-transaction fee |
+| **Paystack** | Payments (Nigeria) | Prepaid subscription upgrades (freemium → Pro/Atelier) | **Live infra (prepaid)** | Per-transaction fee |
 | **Termly** | Legal docs | Hosts Privacy Policy + Terms | Free tier | Free |
 | **Google Sign-In** | Auth provider | OAuth login (Android + iOS) | Free | Free |
 | **Apple Sign-In** | Auth provider | OAuth login (iOS); mandatory App Store peer to Google | Free (needs Apple Developer Program) | — |
@@ -27,7 +27,7 @@ StitchPad is a Kotlin Multiplatform (Android + iOS) app (`com.danzucker.stitchpa
 | **GitHub + GitHub Actions** | Source + CI | Repo, PRs, CI (gitleaks, detekt, builds, functions tests) | Free tier | Free |
 | **Cursor Bugbot + codex** | PR review bots | Automated code review on PRs (review rotation) | Per existing subscriptions | — |
 
-**Not yet integrated (planned):** Firebase Cloud Messaging / push (FCM + APNs), Paystack webhooks/recurring billing.
+**Not yet integrated (planned):** Firebase Cloud Messaging / push (FCM + APNs), Paystack Plans/Subscriptions (auto-renew) + renewal reminders. (Paystack prepaid checkout + webhook are live.)
 
 ---
 
@@ -97,13 +97,15 @@ Registers `getstitchpad.com`. DNS is now **delegated to Cloudflare** (Custom DNS
 
 ---
 
-## Paystack — payments *(placeholder / in progress)*
+## Paystack — payments *(prepaid subscriptions)*
 
-The intended payment processor for Nigeria (freemium upgrades to Pro/Atelier).
+The payment processor for Nigeria (freemium upgrades to Pro/Atelier).
 
-- **Current state:** placeholder — the upgrade flow opens a Paystack checkout URL in the browser (`UpgradeViewModel`). No SDK, **no webhook**, no recurring-billing wiring yet. Tier flips are manual/server-side.
-- Real payment infrastructure is in progress on the `codex/paystack-payment-infra` branch.
-- **Tier:** Paystack charges per-transaction fees (no monthly fee); test mode is free for development.
+- **Model:** **prepaid** — a one-off Paystack `transaction/initialize` grants a fixed Pro/Atelier period; **no auto-renew** (`subscriptionRenews` is always `false`). A daily `expirePrepaidSubscriptions` job downgrades expired users to Free.
+- **Wiring:** callable `initializeSubscriptionCheckout` + HTTP `paystackWebhook` (signature-verified) + scheduled `expirePrepaidSubscriptions`, all in `functions/src/billing/paystackBilling.ts`. Client: `UpgradeViewModel` → `CloudFunctionsPaymentRepository`. See the **deployment runbook** in `integration-guide.md`.
+- **Secrets:** `PAYSTACK_SECRET_KEY` (API + webhook HMAC); optional `PAYSTACK_CALLBACK_URL`.
+- **Tier:** Paystack charges per-transaction fees (no monthly fee); **test mode is free and needs no account activation** (activation only gates live settlement).
+- **Not yet:** true Paystack Plans/Subscriptions (auto-renew) and renewal reminders — both deferred (reminders are the next stacked PR).
 
 ---
 
@@ -140,6 +142,6 @@ Hosts the **Privacy Policy** and **Terms of Service** (linked from the app and t
 | **FCM (Android) + APNs (iOS)** push | Needed for **push notifications** (next milestone) | Not configured anywhere |
 | **Email notifications** (beyond verification) | Reuse the Resend path for reminders/alerts | Resend wired only for verification today |
 | **In-app notifications** | New surface (likely Firestore-backed) | Not built |
-| **Paystack webhooks / recurring billing** | Automatic tier flips on payment | Placeholder only |
+| **Paystack Plans/Subscriptions (auto-renew) + renewal reminders** | Auto-renew instead of manual re-pay; remind before prepaid period ends | Prepaid + webhook live; auto-renew & reminders deferred |
 | **iOS Crashlytics** | Crash parity with Android | Android only |
 | **`storage.rules`** | Lock down Cloud Storage (default rules now) | Hardening to-do |

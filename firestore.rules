@@ -37,10 +37,28 @@ service cloud.firestore {
 
     // True iff the incoming update keeps `field` at its existing value (i.e. the
     // client did not attempt to change it). Compatible with merge-true updates
-    // where `request.resource.data` is the full merged result.
+    // where `request.resource.data` is the full merged result. NOTE: this returns
+    // true when the field is absent from the update, so it does NOT block
+    // FieldValue.delete() — only use it for fields where deletion is harmless.
     function fieldUnchanged(field) {
       return !(field in request.resource.data) ||
              request.resource.data[field] == resource.data[field];
+    }
+
+    // A server-only field (written solely by the Admin SDK, e.g. the Paystack
+    // webhook). Once present it must stay present and equal — which blocks edits
+    // AND deletes — and a client may never add it. Used for the prepaid-expiry
+    // fields: deleting subscriptionEndsAt or subscriptionRenews would drop the
+    // user out of the expirePrepaidSubscriptions query (subscriptionRenews ==
+    // false AND subscriptionEndsAt <= now) and keep paid access indefinitely.
+    // Deliberately NOT used for welcomeBonusAppliedAt/bonusCoins/tier/etc.: those
+    // are added by createUserProfile's seed and deleting them only downgrades the
+    // user, so blocking adds there would break seeding for no security gain.
+    function serverOnlyField(field) {
+      return (field in resource.data)
+        ? (field in request.resource.data
+           && request.resource.data[field] == resource.data[field])
+        : !(field in request.resource.data);
     }
 
     // ── /users/{uid} ───────────────────────────────────────────────────────
@@ -80,7 +98,11 @@ service cloud.firestore {
         && (!('bonusCoins' in request.resource.data) ||
             request.resource.data.bonusCoins == 30)
         && (!('welcomeBonusAppliedAt' in request.resource.data) ||
-            request.resource.data.welcomeBonusAppliedAt == request.time);
+            request.resource.data.welcomeBonusAppliedAt == request.time)
+        // subscriptionEndsAt is server-owned (set only by the Paystack webhook
+        // via the Admin SDK). A client must never plant it at creation, or it
+        // could ride a far-future date by buying a single prepaid period.
+        && (!('subscriptionEndsAt' in request.resource.data));
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these
@@ -88,7 +110,8 @@ service cloud.firestore {
       allow update: if isOwner(uid)
         && fieldUnchanged('subscriptionTier')
         && fieldUnchanged('subscriptionStatus')
-        && fieldUnchanged('subscriptionRenews')
+        && serverOnlyField('subscriptionEndsAt')
+        && serverOnlyField('subscriptionRenews')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount');
@@ -159,6 +182,15 @@ service cloud.firestore {
       // A successful client write here would let a user reset their AI quota
       // mid-month. Hard deny.
       match /usage/{usageDoc} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // ── Billing transactions — server-only writes ───────────────────────
+      // The app can observe checkout/payment status for its own account, but
+      // transaction creation, Paystack references, paid markers, and entitlement
+      // updates must come only from Cloud Functions using the Admin SDK.
+      match /billingTransactions/{transactionId} {
         allow read: if isOwner(uid);
         allow write: if false;
       }
