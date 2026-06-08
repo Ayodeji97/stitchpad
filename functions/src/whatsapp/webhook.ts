@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { parseInboundMessages } from './types';
@@ -75,6 +76,17 @@ export async function handleInboundPayload(
 }
 
 /**
+ * Maps an opaque WhatsApp message id to a Firestore-safe document id. WAMIDs
+ * are base64-flavored and can contain `/`, which is illegal in a Firestore
+ * path segment and would throw. A sha256 hex digest is deterministic (so the
+ * dedup still catches retries) and always path-safe. The original id is kept
+ * in the document body.
+ */
+export function messageDocId(messageId: string): string {
+  return crypto.createHash('sha256').update(messageId).digest('hex');
+}
+
+/**
  * Firestore-backed dedup. Uses `.create()` on a deterministic id: it throws
  * ALREADY_EXISTS (gRPC code 6) on the second delivery of the same message, so
  * a `true` return means "first time, go process it". The doc lives in the
@@ -82,11 +94,11 @@ export async function handleInboundPayload(
  */
 export function productionWebhookIO(db: admin.firestore.Firestore): WebhookIO {
   const messageRef = (waId: string, messageId: string) =>
-    db.collection('whatsappConversations').doc(waId).collection('messages').doc(messageId);
+    db.collection('whatsappConversations').doc(waId).collection('messages').doc(messageDocId(messageId));
   return {
     async markProcessed(waId, messageId) {
       try {
-        await messageRef(waId, messageId).create({ direction: 'inbound', receivedAt: Date.now() });
+        await messageRef(waId, messageId).create({ messageId, direction: 'inbound', receivedAt: Date.now() });
         return true;
       } catch (err) {
         // gRPC ALREADY_EXISTS = 6 — a retry of a message we already handled.

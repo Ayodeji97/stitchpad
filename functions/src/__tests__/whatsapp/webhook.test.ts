@@ -1,4 +1,4 @@
-import { verifyChallenge, handleInboundPayload, WebhookIO } from '../../whatsapp/webhook';
+import { verifyChallenge, handleInboundPayload, messageDocId, WebhookIO } from '../../whatsapp/webhook';
 import { WhatsAppClient } from '../../whatsapp/cloudApiClient';
 
 function textPayload(from: string, id: string, body: string): unknown {
@@ -46,6 +46,22 @@ describe('verifyChallenge', () => {
 
   it('returns null when the mode is not subscribe', () => {
     expect(verifyChallenge({ mode: 'unsubscribe', token: 'secret', challenge: '12345' }, 'secret')).toBeNull();
+  });
+});
+
+describe('messageDocId', () => {
+  it('is deterministic for the same id (so dedup still works across retries)', () => {
+    expect(messageDocId('wamid.ABC')).toBe(messageDocId('wamid.ABC'));
+  });
+
+  it('maps distinct ids to distinct doc ids', () => {
+    expect(messageDocId('wamid.ABC')).not.toBe(messageDocId('wamid.XYZ'));
+  });
+
+  it('produces a Firestore-safe id (hex only) even for ids containing slashes', () => {
+    const id = messageDocId('wamid.HBg/Mr+oo==');
+    expect(id).toMatch(/^[0-9a-f]+$/);
+    expect(id).not.toContain('/');
   });
 });
 
