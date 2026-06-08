@@ -5,7 +5,7 @@ import { createWhatsAppClient } from './cloudApiClient';
 import { productionDedupIO } from './dedup';
 import { productionConversationIO } from './conversationIO';
 import { productionKbIO } from './ai/knowledgeBase';
-import { productionEscalationIO } from './escalation';
+import { productionEscalationIO, parseFounderNumbers } from './escalation';
 import { getVertexClient } from '../smart/vertexClient';
 import { REPLY_TO } from '../email/resendClient';
 import { handleInboundPayload } from './messageHandler';
@@ -19,11 +19,6 @@ const SECRETS = [
   'WHATSAPP_FOUNDER_NUMBERS',
   'RESEND_API_KEY',
 ];
-
-/** Parses the comma-separated founder/support allowlist secret. */
-function parseFounderNumbers(raw: string | undefined): string[] {
-  return (raw ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-}
 
 /**
  * GET verify-token handshake. Meta calls this once when you register the
@@ -105,6 +100,14 @@ export const whatsappWebhook = functions
     // run — ACK-first would silently drop the write and reply. The work is small
     // and the per-message dedup makes a retry safe if we are ever slow.
     try {
+      // Escalation has two notification channels (support@ email + founder
+      // WhatsApp relay). We don't fail the whole webhook on a missing Resend key
+      // — the bot can still answer and relay — but we log it loudly so a deploy
+      // that can't email tickets is visible in Cloud Logging.
+      const resendKey = process.env.RESEND_API_KEY;
+      if (!resendKey) {
+        functions.logger.error('RESEND_API_KEY not configured — escalation tickets will not be emailed');
+      }
       const db = admin.firestore();
       await handleInboundPayload(req.body, {
         client: createWhatsAppClient(token, phoneNumberId),
@@ -112,7 +115,7 @@ export const whatsappWebhook = functions
         conversations: productionConversationIO(db),
         knowledge: productionKbIO(db),
         vertex: getVertexClient(),
-        escalation: productionEscalationIO(process.env.RESEND_API_KEY ?? '', REPLY_TO),
+        escalation: productionEscalationIO(resendKey ?? '', REPLY_TO),
         founderNumbers: parseFounderNumbers(process.env.WHATSAPP_FOUNDER_NUMBERS),
       });
       res.sendStatus(200);

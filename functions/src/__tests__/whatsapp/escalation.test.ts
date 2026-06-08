@@ -4,6 +4,7 @@ import {
   parseFounderCommand,
   buildTicketEmail,
   productionEscalationIO,
+  parseFounderNumbers,
 } from '../../whatsapp/escalation';
 
 describe('detectExplicitEscalation', () => {
@@ -37,6 +38,17 @@ describe('isFounder', () => {
 
   it('is false for an empty allowlist', () => {
     expect(isFounder('2348012345678', [])).toBe(false);
+  });
+});
+
+describe('parseFounderNumbers', () => {
+  it('splits and strips formatting to digits-only (Cloud API needs no + or spaces)', () => {
+    expect(parseFounderNumbers('+234 801 234 5678, 2349999999999')).toEqual(['2348012345678', '2349999999999']);
+  });
+
+  it('returns an empty array for undefined/blank', () => {
+    expect(parseFounderNumbers(undefined)).toEqual([]);
+    expect(parseFounderNumbers('  ')).toEqual([]);
   });
 });
 

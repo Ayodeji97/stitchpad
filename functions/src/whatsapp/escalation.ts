@@ -39,6 +39,15 @@ export function isFounder(waId: string, allowlist: string[]): boolean {
   return allowlist.some((n) => digitsOnly(n) === target && target.length > 0);
 }
 
+/**
+ * Parses the comma-separated founder allowlist into digit-only numbers. The
+ * Cloud API send target must be unformatted (no '+' or spaces), so we normalize
+ * here — `relayToFounders` sends to these directly.
+ */
+export function parseFounderNumbers(raw: string | undefined): string[] {
+  return (raw ?? '').split(',').map((s) => digitsOnly(s)).filter(Boolean);
+}
+
 export type FounderCommand =
   | { kind: 'reply'; target: string; body: string }
   | { kind: 'resolve'; target: string };
