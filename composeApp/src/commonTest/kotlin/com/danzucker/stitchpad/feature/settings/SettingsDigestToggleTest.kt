@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
@@ -110,7 +111,7 @@ private fun buildSettingsVmForDigest(
         themePreferencesStore = FakeThemePreferencesStore(),
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
-        pushTokenRegistrar = NoOpPushTokenRegistrar(),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar()),
     )
     return vm to userRepo
 }

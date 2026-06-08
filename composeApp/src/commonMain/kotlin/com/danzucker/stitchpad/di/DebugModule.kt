@@ -27,7 +27,7 @@ val debugModule = module {
             now = ::nowEpochMs,
         )
     }
-    single { DebugSessionActions(authRepository = get(), onboardingPreferences = get()) }
+    single { DebugSessionActions(authRepository = get(), onboardingPreferences = get(), signOutUseCase = get()) }
     single<FreemiumDebugActions> {
         DefaultFreemiumDebugActions(
             firestore = get(),

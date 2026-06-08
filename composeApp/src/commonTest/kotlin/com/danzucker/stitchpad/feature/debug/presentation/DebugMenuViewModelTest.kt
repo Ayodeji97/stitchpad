@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,7 +50,18 @@ class DebugMenuViewModelTest {
             )
         }
         fakeOnboarding = FakeOnboardingPreferences()
-        sessionActions = DebugSessionActions(fakeAuth, fakeOnboarding)
+        sessionActions = DebugSessionActions(
+            authRepository = fakeAuth,
+            onboardingPreferences = fakeOnboarding,
+            signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar()),
+        )
+    }
+
+    private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+        override suspend fun registerForUser(userId: String) {}
+        override suspend fun register(userId: String, token: String) {}
+        override suspend fun unregisterForUser(userId: String) {}
+        override suspend fun invalidateToken() {}
     }
 
     @AfterTest
