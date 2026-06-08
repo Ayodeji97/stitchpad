@@ -98,6 +98,17 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(sent[0].body.toLowerCase()).toMatch(/team|connect|human/);
   });
 
+  it('stays silent when a human owns the conversation (non-BOT state)', async () => {
+    const { client, sent } = fakeClient();
+    let vertexCalled = false;
+    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; } };
+    const conv = fakeConversations({ a: { state: 'AWAITING_HUMAN', termsAccepted: true, language: 'en' } });
+    await handleInboundPayload(textPayload('a', '1', 'are you there?'), deps({ client, conversations: conv.io, vertex }));
+
+    expect(sent).toEqual([]);
+    expect(vertexCalled).toBe(false);
+  });
+
   it('does not reprocess a duplicate delivery', async () => {
     const { client, sent } = fakeClient();
     const dedup = fakeDedup();

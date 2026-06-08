@@ -49,6 +49,13 @@ export async function handleInboundPayload(payload: unknown, deps: MessageHandle
 async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): Promise<void> {
   const conv = await deps.conversations.get(msg.waId);
 
+  // 0. A non-BOT state means a human owns this thread (set during escalation in
+  // Slice 3). The inbound is already recorded via dedup; stay silent so the bot
+  // never talks over an agent or interrupts an active handoff.
+  if (conv.state !== 'BOT') {
+    return;
+  }
+
   // 1. Onboarding gate: terms, then language. Returns a reply to send and/or
   // doc updates to persist, and only proceeds once fully onboarded.
   const onboarding = handleOnboarding(conv, msg.text);
