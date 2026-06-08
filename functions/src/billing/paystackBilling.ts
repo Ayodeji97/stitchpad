@@ -97,6 +97,7 @@ export interface ExpireDeps {
 
 export const initializeSubscriptionCheckout = functions
   .region(REGION)
+  .runWith({ secrets: ['PAYSTACK_SECRET_KEY'] })
   .https.onCall(async (data, context): Promise<InitializeCheckoutResponse> => {
     return initializeSubscriptionCheckoutHandler(
       data as InitializeCheckoutRequest,
@@ -113,6 +114,7 @@ export const initializeSubscriptionCheckout = functions
 
 export const paystackWebhook = functions
   .region(REGION)
+  .runWith({ secrets: ['PAYSTACK_SECRET_KEY'] })
   .https.onRequest(async (req, res) => {
     try {
       await paystackWebhookHandler(
