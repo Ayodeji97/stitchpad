@@ -163,27 +163,54 @@ describe('users/{uid}/billingTransactions', () => {
   });
 });
 
-describe('expiry-field delete bypass (task #4 — deferred)', () => {
-  // A paid user can currently FieldValue.delete() subscriptionEndsAt / subscriptionRenews
-  // to drop out of the expirePrepaidSubscriptions query and keep access. The current
-  // production-proven fieldUnchanged helper allows this. Un-skip these when the rules
-  // are hardened (with a default-aware update rule) so they assert the delete is blocked.
-  beforeEach(async () => {
-    await asAdmin(async (admin) => {
-      await setDoc(doc(admin, 'users/alice'), {
-        ...SEED_DEFAULTS,
-        subscriptionTier: 'pro',
-        subscriptionStatus: 'active',
-        subscriptionEndsAt: Timestamp.fromDate(new Date('2026-08-01T00:00:00Z')),
+describe('server-owned field hardening', () => {
+  describe('on an active paid user', () => {
+    beforeEach(async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), {
+          ...SEED_DEFAULTS,
+          subscriptionTier: 'pro',
+          subscriptionStatus: 'active',
+          subscriptionEndsAt: Timestamp.fromDate(new Date('2026-08-01T00:00:00Z')),
+        });
       });
+    });
+
+    it('blocks deleting subscriptionEndsAt (expiry-query bypass)', async () => {
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionEndsAt: deleteField() }));
+    });
+
+    it('blocks deleting subscriptionRenews (expiry-query bypass)', async () => {
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionRenews: deleteField() }));
     });
   });
 
-  it.skip('blocks deleting subscriptionEndsAt', async () => {
-    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionEndsAt: deleteField() }));
-  });
+  describe('seed-via-update and plant guards', () => {
+    it('allows the seed transaction to add entitlement defaults to a profile-only doc', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), { displayName: 'Alice', updatedAt: serverTimestamp() });
+      });
+      await assertSucceeds(setDoc(doc(db('alice'), 'users/alice'), SEED_DEFAULTS, { merge: true }));
+    });
 
-  it.skip('blocks deleting subscriptionRenews', async () => {
-    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionRenews: deleteField() }));
+    it('rejects adding a paid tier to a profile-only doc via update', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), { displayName: 'Alice' });
+      });
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice'), { subscriptionTier: 'pro' }, { merge: true }),
+      );
+    });
+
+    it('rejects adding subscriptionEndsAt to a free user via update', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), SEED_DEFAULTS);
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice'), {
+          subscriptionEndsAt: Timestamp.fromDate(new Date('2050-01-01T00:00:00Z')),
+        }),
+      );
+    });
   });
 });
