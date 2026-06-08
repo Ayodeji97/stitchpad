@@ -119,19 +119,26 @@ export const whatsappWebhook = functions
       return;
     }
 
-    // ACK first so Meta doesn't retry on our processing latency.
-    res.sendStatus(200);
-
+    // Process BEFORE responding. In Cloud Functions, the instance can be
+    // frozen the moment the response is sent, so any await after res.send()
+    // may never run — ACK-first would silently drop the dedup write and the
+    // reply. The work here is tiny (one Firestore .create() + one Graph send),
+    // well within Meta's webhook timeout, and the per-message .create() dedup
+    // makes a retry safe if we ever are slow.
     try {
       const token = process.env.WHATSAPP_TOKEN ?? '';
       const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
       const client = createWhatsAppClient(token, phoneNumberId);
       const io = productionWebhookIO(admin.firestore());
       await handleInboundPayload(req.body, io, client);
+      res.sendStatus(200);
     } catch (err) {
       functions.logger.error('whatsapp webhook processing failed', {
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
       });
+      // 500 → Meta retries; the dedup doc prevents re-handling whatever
+      // already succeeded on the first attempt.
+      res.sendStatus(500);
     }
   });
