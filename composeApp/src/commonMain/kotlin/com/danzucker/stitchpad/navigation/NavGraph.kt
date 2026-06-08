@@ -54,14 +54,20 @@ fun StitchPadNavHost(
     // A push-tap inbox deep-link is consumed inside MainRoot's inner nav (the inbox
     // route). If the tap arrives while the user is on a non-Home OUTER route (e.g. the
     // debug menu), MainRoot isn't composed to consume it — so bring the app back to
-    // Home first, then MainRoot's own effect routes to the inbox. Gated on isLoggedIn
-    // so a pending link waits for auth instead of bypassing the login flow.
+    // Home first, then MainRoot's own effect routes to the inbox. Gated on Home being
+    // ALREADY in the back stack (not merely isLoggedIn): the user must have cleared the
+    // splash / email-verification / workshop-setup gates. Otherwise the pending link
+    // waits until they reach Home naturally, so a tap (e.g. from a stale token during a
+    // new account's setup) can never bypass those gates into MainRoot.
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
     val pendingDeepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
     val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(pendingDeepLinkTarget, currentEntry) {
         val onHome = currentEntry?.destination?.hasRoute<HomeRoute>() == true
-        if (pendingDeepLinkTarget != null && !onHome && authRepository.isLoggedIn) {
+        val homeInBackStack = navController.currentBackStack.value.any {
+            it.destination.hasRoute<HomeRoute>()
+        }
+        if (pendingDeepLinkTarget != null && !onHome && homeInBackStack) {
             navController.navigate(HomeRoute) {
                 launchSingleTop = true
                 popUpTo(HomeRoute) { inclusive = false }
