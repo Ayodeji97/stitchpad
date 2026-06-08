@@ -49,3 +49,4 @@ export { sendVerificationEmail } from './auth/sendVerificationEmail';
 export { sendPasswordResetEmail } from './auth/sendPasswordResetEmail';
 export { processPasswordResetEmail } from './auth/processPasswordResetEmail';
 export { dailyDigest, debugSendMyDigest } from './notifications/dailyDigest';
+export { whatsappWebhook } from './whatsapp';
