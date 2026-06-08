@@ -97,6 +97,14 @@ export function productionWebhookIO(db: admin.firestore.Firestore): WebhookIO {
     db.collection('whatsappConversations').doc(waId).collection('messages').doc(messageDocId(messageId));
   return {
     async markProcessed(waId, messageId) {
+      // KNOWN LIMITATION (deferred to Slice 3): this is a single-state marker.
+      // If Meta retries WHILE the first attempt is still inside sendText, the
+      // retry sees the doc and skips; if the first attempt then fails and
+      // releases, the message can be dropped. Fixing it properly needs a
+      // pending/completed state + orphaned-pending TTL — which arrives with the
+      // conversation state machine in Slice 3. The race window is the sub-second
+      // send duration and Meta retries are not sub-second, so it is acceptable
+      // for the Slice 1 echo.
       try {
         await messageRef(waId, messageId).create({ messageId, direction: 'inbound', receivedAt: Date.now() });
         return true;
