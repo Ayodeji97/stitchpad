@@ -350,9 +350,13 @@ fun DashboardRoot(
                 onConfirm = {
                     scope.launch {
                         if (pushPermissionController.requestPermission()) {
+                            // Dialog actually launched — record it and close the sheet.
                             onboardingPrefs.setAskedPushPermission()
+                            showPushPromptSheet = false
                         }
-                        showPushPromptSheet = false
+                        // Else the request was a no-op (no Activity): keep the sheet open
+                        // so the tap can be retried, and don't mark "asked" — otherwise the
+                        // one-time pre-prompt would be silently consumed without ever asking.
                     }
                 },
                 onDismiss = {
