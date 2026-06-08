@@ -184,7 +184,8 @@ class DebugMenuViewModel(
                 UiText.DynamicString("Digest sent — ${channels.joinToString(" + ")}")
             }
             DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — digest suppressed")
-            DigestSendResult.Disabled -> UiText.DynamicString("Both channels off — turn on email or push in Settings")
+            DigestSendResult.Disabled ->
+                UiText.DynamicString("Nothing sent — email/push may be off, no token, or no order. Check Settings.")
             is DigestSendResult.Failure -> UiText.DynamicString("Digest failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))

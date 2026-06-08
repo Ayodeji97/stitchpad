@@ -349,8 +349,9 @@ fun DashboardRoot(
             PushPermissionSheetContent(
                 onConfirm = {
                     scope.launch {
-                        pushPermissionController.requestPermission()
-                        onboardingPrefs.setAskedPushPermission()
+                        if (pushPermissionController.requestPermission()) {
+                            onboardingPrefs.setAskedPushPermission()
+                        }
                         showPushPromptSheet = false
                     }
                 },

@@ -36,13 +36,16 @@ class AndroidPushPermissionController(
         ) != PackageManager.PERMISSION_GRANTED
     }
 
-    override fun requestPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val activity = activityHolder.activity ?: return
-        ActivityCompat.requestPermissions(
-            activity,
-            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-            PUSH_PERMISSION_REQUEST_CODE,
-        )
+    override fun requestPermission(): Boolean {
+        val activity = activityHolder.activity
+        val canRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && activity != null
+        if (canRequest && activity != null) {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                PUSH_PERMISSION_REQUEST_CODE,
+            )
+        }
+        return canRequest
     }
 }

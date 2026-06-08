@@ -17,6 +17,9 @@ interface PushPermissionController {
     /**
      * Launch the OS notification-permission dialog. No-op below Android 13 / on iOS.
      * Does nothing if [shouldRequest] is false.
+     *
+     * @return `true` if the OS dialog was actually launched; `false` if the call
+     *   was a no-op (unsupported SDK version, no Activity, or iOS stub).
      */
-    fun requestPermission()
+    fun requestPermission(): Boolean
 }

@@ -10,5 +10,5 @@ package com.danzucker.stitchpad.feature.notification.push
  */
 class IosPushPermissionController : PushPermissionController {
     override fun shouldRequest(): Boolean = false
-    override fun requestPermission() = Unit
+    override fun requestPermission(): Boolean = false
 }
