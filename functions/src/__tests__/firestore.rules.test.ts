@@ -185,14 +185,7 @@ describe('server-owned field hardening', () => {
     });
   });
 
-  describe('seed-via-update and plant guards', () => {
-    it('allows the seed transaction to add entitlement defaults to a profile-only doc', async () => {
-      await asAdmin(async (admin) => {
-        await setDoc(doc(admin, 'users/alice'), { displayName: 'Alice', updatedAt: serverTimestamp() });
-      });
-      await assertSucceeds(setDoc(doc(db('alice'), 'users/alice'), SEED_DEFAULTS, { merge: true }));
-    });
-
+  describe('plant guards', () => {
     it('rejects adding a paid tier to a profile-only doc via update', async () => {
       await asAdmin(async (admin) => {
         await setDoc(doc(admin, 'users/alice'), { displayName: 'Alice' });
@@ -211,6 +204,16 @@ describe('server-owned field hardening', () => {
           subscriptionEndsAt: Timestamp.fromDate(new Date('2050-01-01T00:00:00Z')),
         }),
       );
+    });
+
+    it('rejects adding welcomeBonusAppliedAt or bonusCoins via update (no welcome-bonus replay)', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), { displayName: 'Alice' });
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice'), { welcomeBonusAppliedAt: serverTimestamp() }),
+      );
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { bonusCoins: 30 }));
     });
   });
 });

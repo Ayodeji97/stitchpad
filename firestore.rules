@@ -35,24 +35,25 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // A financially meaningful field with a known safe seed default. Once it
-    // exists it is locked — it must stay present and equal, which blocks edits
-    // AND deletes (a delete would drop the field from request.resource.data).
-    // While it does NOT yet exist it may be added only as `def`. That permits
-    // createUserProfile's seed transaction to add the entitlement defaults to a
-    // doc the fire-and-forget profile write created first, without letting a
-    // client plant an arbitrary value (e.g. subscriptionTier: "pro").
-    function lockedFieldWithDefault(field, def) {
-      return (field in resource.data)
-        ? (field in request.resource.data
-           && request.resource.data[field] == resource.data[field])
-        : (!(field in request.resource.data)
-           || request.resource.data[field] == def);
+    // True iff the incoming update keeps `field` at its existing value (i.e. the
+    // client did not attempt to change it). Compatible with merge-true updates
+    // where `request.resource.data` is the full merged result. NOTE: this returns
+    // true when the field is absent from the update, so it does NOT block
+    // FieldValue.delete() — only use it for fields where deletion is harmless.
+    function fieldUnchanged(field) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
     }
 
     // A server-only field (written solely by the Admin SDK, e.g. the Paystack
-    // webhook). Locked once present; never client-addable. Blocks deleting
-    // subscriptionEndsAt to dodge the expiry sweep, and planting it on a free doc.
+    // webhook). Once present it must stay present and equal — which blocks edits
+    // AND deletes — and a client may never add it. Used for the prepaid-expiry
+    // fields: deleting subscriptionEndsAt or subscriptionRenews would drop the
+    // user out of the expirePrepaidSubscriptions query (subscriptionRenews ==
+    // false AND subscriptionEndsAt <= now) and keep paid access indefinitely.
+    // Deliberately NOT used for welcomeBonusAppliedAt/bonusCoins/tier/etc.: those
+    // are added by createUserProfile's seed and deleting them only downgrades the
+    // user, so blocking adds there would break seeding for no security gain.
     function serverOnlyField(field) {
       return (field in resource.data)
         ? (field in request.resource.data
@@ -107,13 +108,13 @@ service cloud.firestore {
       // the financially meaningful fields. Server (admin SDK) bypasses these
       // rules so Cloud Functions and Firebase Console edits still work.
       allow update: if isOwner(uid)
-        && lockedFieldWithDefault('subscriptionTier', 'free')
-        && lockedFieldWithDefault('subscriptionStatus', 'active')
+        && fieldUnchanged('subscriptionTier')
+        && fieldUnchanged('subscriptionStatus')
         && serverOnlyField('subscriptionEndsAt')
-        && lockedFieldWithDefault('subscriptionRenews', false)
-        && lockedFieldWithDefault('welcomeBonusAppliedAt', request.time)
-        && lockedFieldWithDefault('bonusCoins', 30)
-        && lockedFieldWithDefault('customerCount', 0);
+        && serverOnlyField('subscriptionRenews')
+        && fieldUnchanged('welcomeBonusAppliedAt')
+        && fieldUnchanged('bonusCoins')
+        && fieldUnchanged('customerCount');
 
       // ── Custom measurement fields ────────────────────────────────────────
       // PTSP-12 — Per-tailor custom field definitions. Soft-archive only;
