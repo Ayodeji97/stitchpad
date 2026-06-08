@@ -109,6 +109,19 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(vertexCalled).toBe(false);
   });
 
+  it('sends the handoff fallback, not the model text, when the answer is flagged to escalate', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
+    // Freeform output with no CONFIDENCE/ESCALATE tail -> answerer escalates,
+    // but still has answer text. That untrusted text must NOT reach the user.
+    const vertex = fakeVertex('Here is some unverified freeform answer.');
+    await handleInboundPayload(textPayload('a', '1', 'obscure question'), deps({ client, conversations: conv.io, vertex }));
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].body).not.toMatch(/unverified freeform/);
+    expect(sent[0].body.toLowerCase()).toMatch(/team|connect|human/);
+  });
+
   it('does not reprocess a duplicate delivery', async () => {
     const { client, sent } = fakeClient();
     const dedup = fakeDedup();

@@ -76,8 +76,12 @@ async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): 
     knowledge,
     client: deps.vertex,
   });
-  const outgoing = result.answer.trim().length > 0 ? result.answer : HANDOFF_FALLBACK[language];
+  // On escalation the answer is untrusted (off-topic, low-confidence, or an
+  // un-formatted completion) — send the handoff message, never the model text.
+  const outgoing = !result.escalate && result.answer.trim().length > 0
+    ? result.answer
+    : HANDOFF_FALLBACK[language];
   await deps.client.sendText(msg.waId, cap(outgoing));
-  // Slice 3: when result.escalate, flip state to AWAITING_HUMAN, notify a human,
-  // and email the transcript to support@.
+  // Slice 3: when result.escalate, also flip state to AWAITING_HUMAN, notify a
+  // human, and email the transcript to support@.
 }
