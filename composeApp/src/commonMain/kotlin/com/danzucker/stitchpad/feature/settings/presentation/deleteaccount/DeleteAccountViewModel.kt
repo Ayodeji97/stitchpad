@@ -208,16 +208,16 @@ class DeleteAccountViewModel(
                     AppLogger.e(tag = TAG, throwable = error) { "submitFeedback threw" }
                 }
 
-            // Invalidate the local FCM token before the account is deleted so the
-            // server-side onAuthUserDeleted cascade (which removes notificationTokens
-            // docs) doesn't race with a still-active token on this device. Bounded
-            // so an offline delete is never blocked by the token operation.
-            withTimeoutOrNull(TOKEN_INVALIDATE_TIMEOUT_MS) {
-                pushTokenRegistrar.invalidateToken()
-            }
-
             when (val result = authRepository.deleteAccount()) {
                 is Result.Success -> {
+                    // Only AFTER the account is actually deleted: the onAuthUserDeleted
+                    // cascade removes the notificationTokens docs, so invalidate the local
+                    // FCM token too. On a FAILED delete (e.g. REQUIRES_RECENT_LOGIN) the
+                    // account stays active and the token is still needed, so we must NOT
+                    // invalidate it. Bounded so an offline delete isn't blocked.
+                    withTimeoutOrNull(TOKEN_INVALIDATE_TIMEOUT_MS) {
+                        pushTokenRegistrar.invalidateToken()
+                    }
                     _state.update { it.copy(phase = DeletePhase.Goodbye) }
                     // Auto-navigate after the user has had time to read the goodbye
                     // copy. Stored as a cancellable Job so OnGoodbyeContinue can
