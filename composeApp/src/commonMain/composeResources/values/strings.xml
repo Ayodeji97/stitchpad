@@ -1156,6 +1156,7 @@
     <string name="settings_row_reminders_subtitle">Order due dates &amp; pickups</string>
     <string name="settings_row_appearance">Appearance</string>
     <string name="settings_row_daily_digest">Daily summary email</string>
+    <string name="settings_row_daily_push">Daily push reminder</string>
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
@@ -1445,4 +1446,10 @@
     <string name="welcome_ending_banner_title_other">Your first month ends in %1$d days</string>
     <string name="welcome_ending_banner_body">After your first month, your 15 most active customers stay active. The rest stay safe and searchable — unlock or swap to take new orders. Upgrade to Pro to keep all of them active.</string>
     <string name="welcome_ending_banner_cta">See Tailor Pro</string>
+
+    <!-- Push permission pre-prompt sheet -->
+    <string name="push_prompt_title">Never miss a deadline</string>
+    <string name="push_prompt_body">Get a quick morning reminder of orders due and money owed.</string>
+    <string name="push_prompt_confirm">Turn on reminders</string>
+    <string name="push_prompt_dismiss">Not now</string>
 </resources>

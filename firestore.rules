@@ -160,6 +160,12 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
+      // ── Push notification tokens subcollection ──────────────────────
+      // Owner-managed: the device registers/refreshes/removes its own token.
+      match /notificationTokens/{token} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
       // ── Custom garment types subcollection ───────────────────────────────
       // Stores tailor-defined garment names (e.g. "Iro/Buba"). Client reads
       // these in the garment picker and writes on upsert / touch. No

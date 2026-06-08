@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.core.debug
 
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
@@ -23,7 +25,18 @@ class DebugSessionActionsTest {
             onboardingSeen = true
             workshopSetupCompleted = true
         }
-        sessionActions = DebugSessionActions(authRepository, onboardingPreferences)
+        sessionActions = DebugSessionActions(
+            authRepository = authRepository,
+            onboardingPreferences = onboardingPreferences,
+            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar()),
+        )
+    }
+
+    private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+        override suspend fun registerForUser(userId: String) {}
+        override suspend fun register(userId: String, token: String) {}
+        override suspend fun unregisterForUser(userId: String) {}
+        override suspend fun invalidateToken() {}
     }
 
     @Test

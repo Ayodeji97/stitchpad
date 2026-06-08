@@ -7,9 +7,15 @@ import kotlinx.serialization.Serializable
 
 /** Outcome of the debug "send daily digest now" trigger. */
 sealed interface DigestSendResult {
-    data object Sent : DigestSendResult
+    /** At least one channel (email or push) delivered something. */
+    data class Sent(val emailSent: Boolean, val pushSent: Boolean) : DigestSendResult
+
+    /** Digest model was empty — no actionable orders. */
     data object Empty : DigestSendResult
+
+    /** Both channels disabled (opted out) but there were actionable orders. */
     data object Disabled : DigestSendResult
+
     data class Failure(val reason: String) : DigestSendResult
 }
 
@@ -22,6 +28,8 @@ interface DigestDebugActions {
 private data class DebugDigestResultDto(
     val sent: Boolean = false,
     val reason: String? = null,
+    val emailSent: Boolean = false,
+    val pushSent: Boolean = false,
 )
 
 private const val TAG = "DigestDebugActions"
@@ -37,10 +45,11 @@ class DefaultDigestDebugActions(
                 .invoke()
                 .data<DebugDigestResultDto>()
             when {
-                result.sent -> DigestSendResult.Sent
-                result.reason == "disabled" -> DigestSendResult.Disabled
+                result.sent || result.emailSent || result.pushSent ->
+                    DigestSendResult.Sent(emailSent = result.emailSent, pushSent = result.pushSent)
                 result.reason == "empty" -> DigestSendResult.Empty
-                else -> DigestSendResult.Failure(result.reason ?: "unknown")
+                // sent=false with no "empty" reason means both channels were disabled
+                else -> DigestSendResult.Disabled
             }
         } catch (e: FirebaseFunctionsException) {
             AppLogger.e(tag = TAG, throwable = e) { "debugSendMyDigest failed: code=${e.code} ${e.message}" }

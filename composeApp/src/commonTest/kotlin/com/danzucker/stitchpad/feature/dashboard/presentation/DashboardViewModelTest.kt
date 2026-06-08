@@ -23,6 +23,7 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import kotlinx.coroutines.flow.Flow
@@ -54,6 +55,13 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+    override suspend fun registerForUser(userId: String) {}
+    override suspend fun register(userId: String, token: String) {}
+    override suspend fun unregisterForUser(userId: String) {}
+    override suspend fun invalidateToken() {}
+}
 
 private class FakeDashboardNotificationRepository : NotificationRepository {
     val unreadCountFlow = MutableStateFlow(0)
@@ -117,6 +125,7 @@ class DashboardViewModelTest {
             smartUsageStore = smartUsageStore,
             entitlements = entitlements,
             notificationRepository = notificationRepository,
+            pushTokenRegistrar = NoOpPushTokenRegistrar(),
             nowMillis = nowMillis,
             timeZone = testTimeZone
         )

@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.feature.auth.data.PasswordResetEmailSender
 import com.danzucker.stitchpad.feature.auth.data.VerificationEmailSender
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpViewModel
@@ -24,6 +25,7 @@ import org.koin.dsl.module
 
 val authDataModule = module {
     singleOf(::FirebaseAuthRepository) bind AuthRepository::class
+    singleOf(::SignOutUseCase)
     // FirebaseFunctions is provided by smartDataModule (Firebase.functions("europe-west1")).
     singleOf(::GitLiveVerificationEmailSender) bind VerificationEmailSender::class
     singleOf(::GitLivePasswordResetEmailSender) bind PasswordResetEmailSender::class

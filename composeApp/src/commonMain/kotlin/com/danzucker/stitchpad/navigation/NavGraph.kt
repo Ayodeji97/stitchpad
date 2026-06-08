@@ -1,10 +1,15 @@
 package com.danzucker.stitchpad.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
@@ -39,12 +44,48 @@ private suspend fun AuthRepository.needsEmailVerification(
     return !isEmailVerified()
 }
 
+/**
+ * Outer-nav handler for a pending push-tap deep link. The inbox route lives in MainRoot's
+ * INNER nav, so if a tap arrives while the user is on a non-Home OUTER route (e.g. the
+ * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
+ * (MainRoot then routes to the inbox). Only when Home is ALREADY in the back stack (the
+ * user has cleared the splash / email-verification / workshop-setup gates), so a tap can
+ * never bypass those gates. When signed out, the pending link is dropped so it can't
+ * auto-navigate the next session's user to the inbox without a fresh tap.
+ */
+@Composable
+private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
+    val authRepository: AuthRepository = koinInject()
+    val pendingDeepLink: PendingDeepLinkHolder = koinInject()
+    val pendingDeepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(pendingDeepLinkTarget, currentEntry) {
+        if (pendingDeepLinkTarget == null) return@LaunchedEffect
+        if (!authRepository.isLoggedIn) {
+            pendingDeepLink.clear()
+            return@LaunchedEffect
+        }
+        val onHome = currentEntry?.destination?.hasRoute<HomeRoute>() == true
+        val homeInBackStack = navController.currentBackStack.value.any {
+            it.destination.hasRoute<HomeRoute>()
+        }
+        if (!onHome && homeInBackStack) {
+            navController.navigate(HomeRoute) {
+                launchSingleTop = true
+                popUpTo(HomeRoute) { inclusive = false }
+            }
+        }
+    }
+}
+
 @Composable
 fun StitchPadNavHost(
     navController: NavHostController,
     onboardingPreferences: OnboardingPreferences
 ) {
     val authRepository: AuthRepository = koinInject()
+
+    PushDeepLinkRedirectEffect(navController)
 
     NavHost(
         navController = navController,
@@ -162,14 +203,13 @@ fun StitchPadNavHost(
             )
         }
         composable<HomeRoute> {
-            val scope = rememberCoroutineScope()
             MainRoot(
+                // Sign-out (and push-token revocation) is owned by SettingsViewModel /
+                // DeleteAccountViewModel via SignOutUseCase. By the time this callback
+                // fires, the session is already cleared — navigate only.
                 onSignedOut = {
-                    scope.launch {
-                        authRepository.signOut()
-                        navController.navigate(LoginRoute) {
-                            popUpTo(HomeRoute) { inclusive = true }
-                        }
+                    navController.navigate(LoginRoute) {
+                        popUpTo(HomeRoute) { inclusive = true }
                     }
                 },
                 onNavigateToDebugMenu = { navController.navigate(DebugMenuRoute) },

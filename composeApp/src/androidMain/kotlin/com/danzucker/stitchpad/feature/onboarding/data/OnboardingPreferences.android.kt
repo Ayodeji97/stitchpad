@@ -33,11 +33,20 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         prefs.edit().putBoolean(KEY_BYPASSED_EMAIL_VERIFICATION, true).apply()
     }
 
+    override suspend fun hasAskedPushPermission(): Boolean {
+        return prefs.getBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, false)
+    }
+
+    override suspend fun setAskedPushPermission() {
+        prefs.edit().putBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, true).apply()
+    }
+
     override suspend fun resetForDebug() {
         prefs.edit()
             .putBoolean(KEY_HAS_SEEN_ONBOARDING, false)
             .putBoolean(KEY_HAS_COMPLETED_WORKSHOP, false)
             .putBoolean(KEY_BYPASSED_EMAIL_VERIFICATION, false)
+            .putBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, false)
             .commit()
     }
 
@@ -45,5 +54,6 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
         private const val KEY_HAS_COMPLETED_WORKSHOP = "has_completed_workshop_setup"
         private const val KEY_BYPASSED_EMAIL_VERIFICATION = "bypassed_email_verification"
+        private const val KEY_HAS_ASKED_PUSH_PERMISSION = "has_asked_push_permission"
     }
 }

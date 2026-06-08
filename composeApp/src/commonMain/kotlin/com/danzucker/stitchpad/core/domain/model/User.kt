@@ -44,4 +44,6 @@ data class User(
      * Settings → Notifications.
      */
     val dailyDigestEmailEnabled: Boolean = true,
+    /** Whether the tailor receives the daily push reminder. Opt-out: true by default. */
+    val dailyPushEnabled: Boolean = true,
 )

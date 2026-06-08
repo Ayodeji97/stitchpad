@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Notifications design directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet" />
+<style>
+:root{
+  --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo500:#2C3E7C; --indigo700:#1E2B5C; --indigo900:#121B3B;
+  --sienna50:#FCEFE5; --sienna500:#B85A30; --sienna700:#8E4524;
+  --paper:#FAF6EC; --white:#FFFFFF;
+  --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0; --n400:#A8A49D;
+  --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320;
+  --err:#D93B3B; --err50:#FCEAEA; --warn:#E07B20; --warn50:#FEF3E8; --suc:#2D9E6B; --suc50:#E8F7F1;
+  --serif:'Fraunces',Georgia,serif; --body:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:var(--paper);font-family:var(--body);color:var(--n800);padding:40px 28px 80px;}
+.page-head{max-width:1680px;margin:0 auto 32px;}
+.page-head h1{font-family:var(--serif);font-weight:600;font-size:30px;color:var(--indigo900);letter-spacing:-.3px;}
+.page-head p{color:var(--n600);font-size:15px;margin-top:8px;max-width:760px;line-height:1.55;}
+.legend{display:flex;gap:18px;margin-top:18px;flex-wrap:wrap;}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--n600);font-weight:600;}
+.swatch{width:11px;height:11px;border-radius:3px;}
+.grid{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1680px;margin:0 auto;}
+.col{width:392px;}
+.col-tag{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+.col-tag b{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--indigo700);}
+.col-tag .k{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--n400);text-transform:uppercase;}
+.col-desc{font-size:13px;color:var(--n600);line-height:1.5;margin-bottom:16px;min-height:38px;}
+
+/* phone shell */
+.phone{width:392px;border-radius:42px;background:#0f0e0d;padding:11px;box-shadow:0 28px 60px -24px rgba(18,17,16,.45),0 4px 14px rgba(18,17,16,.12);}
+.screen{border-radius:32px;overflow:hidden;background:var(--white);height:812px;display:flex;flex-direction:column;position:relative;}
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13.5px;font-weight:700;color:var(--n800);flex:0 0 auto;}
+.statusbar .dots{display:flex;gap:5px;align-items:center;}
+.statusbar .dots .ms{font-size:16px;color:var(--n800);}
+.ms{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;line-height:1;letter-spacing:normal;display:inline-block;}
+
+/* app bar */
+.appbar{display:flex;align-items:center;gap:6px;padding:6px 14px 10px;flex:0 0 auto;}
+.appbar .back{width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--n700);}
+.appbar .back .ms{font-size:24px;}
+.appbar .title{font-family:var(--serif);font-weight:600;font-size:21px;color:var(--n800);flex:1;letter-spacing:-.2px;}
+.appbar .mark{font-size:13px;font-weight:700;color:var(--indigo500);padding:8px 10px;border-radius:999px;}
+.list{flex:1;overflow:hidden;}
+.sec{font-size:11px;font-weight:800;letter-spacing:.13em;color:var(--n400);text-transform:uppercase;padding:14px 20px 8px;}
+
+/* type tokens */
+.t-over{--c:var(--err);--c50:var(--err50);}
+.t-due{--c:var(--warn);--c50:var(--warn50);}
+.t-coll{--c:var(--sienna500);--c50:var(--sienna50);}
+.amt{font-family:var(--mono);font-weight:600;font-feature-settings:"tnum";}
+
+/* ============ A — Refined minimal ============ */
+.A .row{display:flex;gap:13px;align-items:flex-start;padding:13px 20px;position:relative;}
+.A .row+.row::before{content:"";position:absolute;left:69px;right:20px;top:0;border-top:1px solid var(--n100);}
+.A .ic{width:38px;height:38px;border-radius:11px;background:var(--c50);color:var(--c);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.A .ic .ms{font-size:21px;}
+.A .body{flex:1;min-width:0;padding-top:1px;}
+.A .l1{font-size:14.5px;color:var(--n800);line-height:1.3;}
+.A .l1 b{font-weight:700;}
+.A .l2{font-size:12.5px;color:var(--n500);margin-top:3px;font-weight:500;}
+.A .l2 .tag{color:var(--c);font-weight:700;}
+.A .l2 .amt{color:var(--n700);}
+.A .un{width:8px;height:8px;border-radius:999px;background:var(--indigo500);margin-top:7px;flex:0 0 auto;}
+.A .read .l1{color:var(--n600);} .A .read .l1 b{font-weight:600;}
+
+/* ============ B — Accent-bar cards ============ */
+.B .list{padding:6px 16px;overflow:hidden;}
+.B .sec{padding:12px 4px 8px;}
+.B .card{position:relative;background:var(--white);border:1px solid var(--n200);border-radius:15px;padding:13px 14px 13px 16px;margin-bottom:11px;overflow:hidden;box-shadow:0 1px 2px rgba(18,17,16,.03);}
+.B .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c);}
+.B .top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.B .pill{display:inline-flex;align-items:center;gap:5px;background:var(--c50);color:var(--c);font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:999px;}
+.B .pill .ms{font-size:14px;}
+.B .time{margin-left:auto;font-size:11.5px;color:var(--n400);font-weight:600;}
+.B .name{font-size:15.5px;font-weight:700;color:var(--n800);}
+.B .meta{font-size:13px;color:var(--n600);margin-top:2px;font-weight:500;display:flex;align-items:center;gap:8px;}
+.B .meta .amt{margin-left:auto;font-size:14px;color:var(--sienna700);}
+.B .un{background:var(--indigo50);border-color:var(--indigo100);}
+.B .read{opacity:.72;}
+
+/* ============ C — Avatar feed ============ */
+.C .row{display:flex;gap:12px;align-items:center;padding:12px 18px;}
+.C .un{background:var(--indigo50);}
+.C .av{width:42px;height:42px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;flex:0 0 auto;font-family:var(--body);}
+.C .body{flex:1;min-width:0;}
+.C .l1{font-size:14.5px;color:var(--n800);line-height:1.25;}
+.C .l1 b{font-weight:700;}
+.C .l2{font-size:12.5px;color:var(--n500);margin-top:3px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.C .chip{display:inline-flex;align-items:center;gap:4px;background:var(--c50);color:var(--c);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px;flex:0 0 auto;}
+.C .chip .ms{font-size:13px;}
+.C .read{opacity:.7;}.C .read .l1 b{font-weight:600;}
+
+/* ============ D — Premium editorial ============ */
+.D .screen{background:var(--paper);}
+.D .appbar .title{font-style:italic;}
+.D .sec{font-family:var(--serif);font-style:italic;font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--n500);padding:18px 22px 6px;}
+.D .row{display:flex;gap:15px;align-items:flex-start;padding:13px 22px 15px;position:relative;}
+.D .row+.row::before{content:"";position:absolute;left:22px;right:22px;top:0;border-top:1px solid var(--n200);}
+.D .gl{width:44px;height:44px;border-radius:999px;background:var(--white);border:1.5px solid var(--c);color:var(--c);display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 1px 3px rgba(18,17,16,.05);}
+.D .gl .ms{font-size:22px;}
+.D .body{flex:1;min-width:0;padding-top:1px;}
+.D .l1{font-family:var(--serif);font-size:16.5px;font-weight:600;color:var(--n800);line-height:1.3;letter-spacing:-.1px;}
+.D .l2{font-size:12.5px;color:var(--n500);margin-top:4px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.D .l2 .date{font-family:var(--mono);font-size:11.5px;color:var(--n500);}
+.D .l2 .amt{font-family:var(--mono);font-size:14.5px;font-weight:600;color:var(--sienna700);}
+.D .un{position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:999px;background:var(--sienna500);}
+.D .read .l1{color:var(--n600);font-weight:500;}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>Notifications — design directions</h1>
+  <p>Four treatments of the same inbox, on the real Adire Atelier system (indigo + sienna, warm paper, Fraunces / Manrope / JetBrains&nbsp;Mono). Same five notifications in each so you compare the <em>look</em>, not the content. Pick one (or mix — e.g. “B's cards with D's serif”).</p>
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--err)"></i>Overdue</span>
+    <span><i class="swatch" style="background:var(--warn)"></i>Due soon</span>
+    <span><i class="swatch" style="background:var(--sienna500)"></i>To collect</span>
+    <span><i class="swatch" style="background:var(--indigo500)"></i>Unread marker</span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- ========== A ========== -->
+  <div class="col">
+    <div class="col-tag"><b>Refined minimal</b><span class="k">A</span></div>
+    <div class="col-desc">Quiet editorial list. Tinted type-icon, two clean lines, hairline dividers, lots of air. Closest to the current screen, just polished.</div>
+    <div class="phone"><div class="screen A">
+      <div class="statusbar"><span>9:41</span><span class="dots"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar"><div class="back"><span class="ms">arrow_back_ios_new</span></div><div class="title">Notifications</div><div class="mark">Mark all read</div></div>
+      <div class="list">
+        <div class="sec">Today</div>
+        <div class="row t-over"><div class="ic"><span class="ms">priority_high</span></div><div class="body"><div class="l1"><b>Folake Adebayo</b></div><div class="l2"><span class="tag">Asoebi · overdue</span> · 2h</div></div><div class="un"></div></div>
+        <div class="row t-coll"><div class="ic"><span class="ms">payments</span></div><div class="body"><div class="l1"><b>Ngozi Okafor</b></div><div class="l2">Senator kaftan · owes <span class="amt">₦18,000</span> · 5h</div></div><div class="un"></div></div>
+        <div class="row t-due"><div class="ic"><span class="ms">schedule</span></div><div class="body"><div class="l1"><b>Adaeze Bello</b></div><div class="l2"><span class="tag">Agbada · due tomorrow</span> · 7h</div></div><div class="un"></div></div>
+        <div class="sec">Earlier</div>
+        <div class="row t-coll read"><div class="ic"><span class="ms">payments</span></div><div class="body"><div class="l1"><b>Tunde Bakare</b></div><div class="l2">Buba · owes <span class="amt">₦8,500</span> · Tue</div></div></div>
+        <div class="row t-over read"><div class="ic"><span class="ms">priority_high</span></div><div class="body"><div class="l1"><b>Chioma Eze</b></div><div class="l2"><span class="tag">Wrapper set · overdue</span> · Mon</div></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ========== B ========== -->
+  <div class="col">
+    <div class="col-tag"><b>Accent-bar cards</b><span class="k">B</span></div>
+    <div class="col-desc">Each notification is a card with a coloured left bar + a type pill. Most scannable / structured; unread cards get a soft indigo wash. Mirrors the order rows.</div>
+    <div class="phone"><div class="screen B">
+      <div class="statusbar"><span>9:41</span><span class="dots"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar"><div class="back"><span class="ms">arrow_back_ios_new</span></div><div class="title">Notifications</div><div class="mark">Mark all read</div></div>
+      <div class="list">
+        <div class="sec">Today</div>
+        <div class="card un t-over"><div class="top"><span class="pill"><span class="ms">priority_high</span>Overdue</span><span class="time">2h</span></div><div class="name">Folake Adebayo</div><div class="meta">Asoebi</div></div>
+        <div class="card un t-coll"><div class="top"><span class="pill"><span class="ms">payments</span>To collect</span><span class="time">5h</span></div><div class="name">Ngozi Okafor</div><div class="meta">Senator kaftan<span class="amt">₦18,000</span></div></div>
+        <div class="card un t-due"><div class="top"><span class="pill"><span class="ms">schedule</span>Due soon</span><span class="time">7h</span></div><div class="name">Adaeze Bello</div><div class="meta">Agbada · due tomorrow</div></div>
+        <div class="sec">Earlier</div>
+        <div class="card read t-coll"><div class="top"><span class="pill"><span class="ms">payments</span>To collect</span><span class="time">Tue</span></div><div class="name">Tunde Bakare</div><div class="meta">Buba<span class="amt">₦8,500</span></div></div>
+        <div class="card read t-over"><div class="top"><span class="pill"><span class="ms">priority_high</span>Overdue</span><span class="time">Mon</span></div><div class="name">Chioma Eze</div><div class="meta">Wrapper set</div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ========== C ========== -->
+  <div class="col">
+    <div class="col-tag"><b>Avatar feed</b><span class="k">C</span></div>
+    <div class="col-desc">Customer initial avatar + two lines + a trailing type chip. Human, familiar “notifications feed” feel; unread rows tint indigo. Puts the customer first.</div>
+    <div class="phone"><div class="screen C">
+      <div class="statusbar"><span>9:41</span><span class="dots"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar"><div class="back"><span class="ms">arrow_back_ios_new</span></div><div class="title">Notifications</div><div class="mark">Mark all read</div></div>
+      <div class="list">
+        <div class="sec">Today</div>
+        <div class="row un t-over"><div class="av" style="background:var(--err)">F</div><div class="body"><div class="l1"><b>Folake’s</b> Asoebi is overdue</div><div class="l2"><span class="chip"><span class="ms">priority_high</span>Overdue</span>2h</div></div></div>
+        <div class="row un t-coll"><div class="av" style="background:var(--sienna500)">N</div><div class="body"><div class="l1"><b>Ngozi</b> owes <span class="amt" style="color:var(--sienna700)">₦18,000</span></div><div class="l2"><span class="chip"><span class="ms">payments</span>To collect</span>Senator kaftan · 5h</div></div></div>
+        <div class="row un t-due"><div class="av" style="background:var(--warn)">A</div><div class="body"><div class="l1"><b>Adaeze’s</b> Agbada is due tomorrow</div><div class="l2"><span class="chip"><span class="ms">schedule</span>Due soon</span>7h</div></div></div>
+        <div class="sec">Earlier</div>
+        <div class="row read t-coll"><div class="av" style="background:var(--n400)">T</div><div class="body"><div class="l1"><b>Tunde</b> owes <span class="amt" style="color:var(--n600)">₦8,500</span></div><div class="l2"><span class="chip"><span class="ms">payments</span>To collect</span>Buba · Tue</div></div></div>
+        <div class="row read t-over"><div class="av" style="background:var(--n400)">C</div><div class="body"><div class="l1"><b>Chioma’s</b> Wrapper set is overdue</div><div class="l2"><span class="chip"><span class="ms">priority_high</span>Overdue</span>Mon</div></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ========== D ========== -->
+  <div class="col">
+    <div class="col-tag"><b>Premium editorial</b><span class="k">D</span></div>
+    <div class="col-desc">Brand-forward: Fraunces serif event lines, mono numbers/dates, an outlined type-glyph, sienna unread bar, warm-paper canvas. Most distinctive, most “StitchPad”.</div>
+    <div class="phone"><div class="screen D">
+      <div class="statusbar"><span>9:41</span><span class="dots"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar"><div class="back"><span class="ms">arrow_back_ios_new</span></div><div class="title">Notifications</div><div class="mark">Mark all read</div></div>
+      <div class="list">
+        <div class="sec">Today</div>
+        <div class="row t-over"><div class="un"></div><div class="gl"><span class="ms">priority_high</span></div><div class="body"><div class="l1">Folake’s Asoebi is overdue</div><div class="l2">Folake Adebayo<span class="date">· 2h</span></div></div></div>
+        <div class="row t-coll"><div class="un"></div><div class="gl"><span class="ms">payments</span></div><div class="body"><div class="l1">Ngozi owes <span class="amt">₦18,000</span></div><div class="l2">Senator kaftan<span class="date">· 5h</span></div></div></div>
+        <div class="row t-due"><div class="un"></div><div class="gl"><span class="ms">schedule</span></div><div class="body"><div class="l1">Adaeze’s Agbada is due tomorrow</div><div class="l2">Adaeze Bello<span class="date">· 7h</span></div></div></div>
+        <div class="sec">Earlier</div>
+        <div class="row read t-coll"><div class="gl"><span class="ms">payments</span></div><div class="body"><div class="l1">Tunde owes <span class="amt" style="color:var(--n600)">₦8,500</span></div><div class="l2">Buba<span class="date">· Tue</span></div></div></div>
+        <div class="row read t-over"><div class="gl"><span class="ms">priority_high</span></div><div class="body"><div class="l1">Chioma’s Wrapper set is overdue</div><div class="l2">Chioma Eze<span class="date">· Mon</span></div></div></div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>
