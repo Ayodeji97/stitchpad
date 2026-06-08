@@ -48,8 +48,19 @@ class FirebaseAuthRepository(
     ): Result<User, AuthError> {
         return try {
             val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password)
-            val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
-            firebaseUser.updateProfile(displayName = displayName)
+            val firebaseUser = authResult.user ?: run {
+                AppLogger.w(tag = TAG) { "signUpWithEmail: createUser succeeded but authResult.user was null" }
+                return Result.Error(AuthError.UNKNOWN)
+            }
+            // Best-effort: the account already exists at this point, so a failed
+            // displayName write must not fail the whole signup (mirrors the Apple
+            // path). The name is re-applied later via updateAuthDisplayName.
+            runCatching { firebaseUser.updateProfile(displayName = displayName) }
+                .onFailure {
+                    AppLogger.w(tag = TAG, throwable = it) {
+                        "signUpWithEmail: displayName update failed (non-fatal)"
+                    }
+                }
             Result.Success(firebaseUser.toDomainUser())
         } catch (e: CancellationException) {
             throw e
@@ -66,7 +77,10 @@ class FirebaseAuthRepository(
     ): Result<User, AuthError> {
         return try {
             val authResult = firebaseAuth.signInWithEmailAndPassword(email, password)
-            val firebaseUser = authResult.user ?: return Result.Error(AuthError.UNKNOWN)
+            val firebaseUser = authResult.user ?: run {
+                AppLogger.w(tag = TAG) { "signInWithEmail: signIn succeeded but authResult.user was null" }
+                return Result.Error(AuthError.UNKNOWN)
+            }
             Result.Success(firebaseUser.toDomainUser())
         } catch (e: CancellationException) {
             throw e
@@ -376,6 +390,19 @@ private fun Exception.toAuthError(): AuthError = when {
     message?.contains("WEAK_PASSWORD", ignoreCase = true) == true -> AuthError.WEAK_PASSWORD
     message?.contains("TOO_MANY_ATTEMPTS", ignoreCase = true) == true -> AuthError.TOO_MANY_REQUESTS
     message?.contains("NETWORK", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
+    message?.contains("unable to resolve host", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
+    message?.contains("failed to connect", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
+    // Transport / backend-config failures (timeouts, "internal error has occurred",
+    // and the API-key block "Requests from this Android client ... are blocked").
+    // These previously fell through to UNKNOWN ("Something went wrong"), which hid
+    // the API-key/SHA allow-list misconfig that blocked Play-signed builds. Surface
+    // an actionable retry/contact-support message instead. See runbook note.
+    message?.contains("blocked", ignoreCase = true) == true -> AuthError.SERVICE_UNAVAILABLE
+    message?.contains("internal error", ignoreCase = true) == true -> AuthError.SERVICE_UNAVAILABLE
+    message?.contains("INTERNAL", ignoreCase = false) == true -> AuthError.SERVICE_UNAVAILABLE
+    message?.contains("timeout", ignoreCase = true) == true -> AuthError.SERVICE_UNAVAILABLE
+    message?.contains("timed out", ignoreCase = true) == true -> AuthError.SERVICE_UNAVAILABLE
+    message?.contains("unavailable", ignoreCase = true) == true -> AuthError.SERVICE_UNAVAILABLE
     else -> AuthError.UNKNOWN
 }
 
