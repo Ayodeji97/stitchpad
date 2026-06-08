@@ -47,4 +47,5 @@ export { smartDraftMessage } from './smart/draftMessage';
 export { reconcileCustomerSlots } from './freemium/reconcileSlots';
 export { sendVerificationEmail } from './auth/sendVerificationEmail';
 export { sendPasswordResetEmail } from './auth/sendPasswordResetEmail';
+export { processPasswordResetEmail } from './auth/processPasswordResetEmail';
 export { dailyDigest, debugSendMyDigest } from './notifications/dailyDigest';
