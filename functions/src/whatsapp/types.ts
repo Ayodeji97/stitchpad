@@ -25,6 +25,16 @@ export type ConversationState = 'BOT' | 'AWAITING_HUMAN' | 'HUMAN_ACTIVE';
 /** Supported reply languages — mirrors the Smart Draft `Language` union. */
 export type BotLanguage = 'en' | 'pcm';
 
+/**
+ * Persisted per-conversation state (`whatsappConversations/{waId}`). Slice 2
+ * needs terms + language; Slice 3 extends this with handoff/window fields.
+ */
+export interface ConversationDoc {
+  state: ConversationState;
+  termsAccepted: boolean;
+  language?: BotLanguage;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
 }

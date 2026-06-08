@@ -1,6 +1,9 @@
 /** Graph API version pinned for the Cloud API send/read endpoints. */
 export const GRAPH_VERSION = 'v21.0';
 
+/** WhatsApp Cloud API rejects text bodies longer than 4096 chars. */
+export const WHATSAPP_MAX_TEXT_LENGTH = 4096;
+
 /**
  * Thin interface over the WhatsApp Cloud API send endpoints, so the message
  * handler can be tested with a fake client (no real Graph calls in CI). Mirrors

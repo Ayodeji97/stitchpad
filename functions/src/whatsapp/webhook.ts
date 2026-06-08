@@ -1,34 +1,15 @@
-import * as crypto from 'crypto';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { parseInboundMessages } from './types';
 import { verifyMetaSignature } from './signature';
-import { WhatsAppClient, createWhatsAppClient } from './cloudApiClient';
+import { createWhatsAppClient } from './cloudApiClient';
+import { productionDedupIO } from './dedup';
+import { productionConversationIO } from './conversationIO';
+import { productionKbIO } from './ai/knowledgeBase';
+import { getVertexClient } from '../smart/vertexClient';
+import { handleInboundPayload } from './messageHandler';
 
 const REGION = 'europe-west1';
 const SECRETS = ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'WHATSAPP_PHONE_NUMBER_ID'];
-/** WhatsApp Cloud API rejects text bodies longer than 4096 chars. */
-export const WHATSAPP_MAX_TEXT_LENGTH = 4096;
-
-/**
- * Side-effect seam for the webhook handler. Slice 1 only needs idempotency;
- * later slices extend this with conversation state + transcript reads.
- */
-export interface WebhookIO {
-  /**
-   * Records an inbound message id as processed. Returns true the FIRST time a
-   * given (waId, messageId) is seen, false on any repeat — Meta retries
-   * deliveries aggressively, so this is what stops a slow response from
-   * producing duplicate replies.
-   */
-  markProcessed(waId: string, messageId: string): Promise<boolean>;
-  /**
-   * Undoes a `markProcessed` when the side effect (the reply) failed, so a
-   * Meta retry re-processes the message instead of skipping it as a duplicate.
-   * Mirrors the reserve/release pattern in sendVerificationEmail.
-   */
-  release(waId: string, messageId: string): Promise<void>;
-}
 
 /**
  * GET verify-token handshake. Meta calls this once when you register the
@@ -43,85 +24,6 @@ export function verifyChallenge(
     return query.challenge ?? '';
   }
   return null;
-}
-
-/**
- * Pure inbound dispatch. Slice 1 behavior: dedup, then echo each new text
- * message. Slices 2+ replace the echo with onboarding / AI answering /
- * escalation while keeping this same shape.
- */
-export async function handleInboundPayload(
-  payload: unknown,
-  io: WebhookIO,
-  client: WhatsAppClient,
-): Promise<void> {
-  for (const msg of parseInboundMessages(payload)) {
-    const isNew = await io.markProcessed(msg.waId, msg.messageId);
-    if (!isNew) continue;
-    if (msg.text.trim().length === 0) continue;
-    try {
-      // Cap the body: a near-max inbound plus the prefix would otherwise
-      // exceed the Cloud API limit and fail every retry forever.
-      const body = `You said: ${msg.text}`.slice(0, WHATSAPP_MAX_TEXT_LENGTH);
-      await client.sendText(msg.waId, body);
-    } catch (err) {
-      // The dedup marker was written before the reply. Release it so the
-      // retry re-sends this message; messages already replied to in this
-      // payload keep their marker and won't be double-sent. Then rethrow so
-      // the webhook returns 500 and Meta retries.
-      await io.release(msg.waId, msg.messageId);
-      throw err;
-    }
-  }
-}
-
-/**
- * Maps an opaque WhatsApp message id to a Firestore-safe document id. WAMIDs
- * are base64-flavored and can contain `/`, which is illegal in a Firestore
- * path segment and would throw. A sha256 hex digest is deterministic (so the
- * dedup still catches retries) and always path-safe. The original id is kept
- * in the document body.
- */
-export function messageDocId(messageId: string): string {
-  return crypto.createHash('sha256').update(messageId).digest('hex');
-}
-
-/**
- * Firestore-backed dedup. Uses `.create()` on a deterministic id: it throws
- * ALREADY_EXISTS (gRPC code 6) on the second delivery of the same message, so
- * a `true` return means "first time, go process it". The doc lives in the
- * conversation's transcript subcollection (per the bot's data model).
- */
-export function productionWebhookIO(db: admin.firestore.Firestore): WebhookIO {
-  const messageRef = (waId: string, messageId: string) =>
-    db.collection('whatsappConversations').doc(waId).collection('messages').doc(messageDocId(messageId));
-  return {
-    async markProcessed(waId, messageId) {
-      // KNOWN LIMITATION (deferred to Slice 3): this is a single-state marker.
-      // If Meta retries WHILE the first attempt is still inside sendText, the
-      // retry sees the doc and skips; if the first attempt then fails and
-      // releases, the message can be dropped. Fixing it properly needs a
-      // pending/completed state + orphaned-pending TTL — which arrives with the
-      // conversation state machine in Slice 3. The race window is the sub-second
-      // send duration and Meta retries are not sub-second, so it is acceptable
-      // for the Slice 1 echo.
-      try {
-        await messageRef(waId, messageId).create({ messageId, direction: 'inbound', receivedAt: Date.now() });
-        return true;
-      } catch (err) {
-        // gRPC ALREADY_EXISTS = 6 — a retry of a message we already handled.
-        // admin.firestore.GrpcStatus is a type-only export at runtime, so we
-        // compare the numeric code directly (same trick as dailyDigest).
-        if ((err as { code?: number }).code === 6) {
-          return false;
-        }
-        throw err;
-      }
-    },
-    async release(waId, messageId) {
-      await messageRef(waId, messageId).delete();
-    },
-  };
 }
 
 /**
@@ -176,12 +78,6 @@ export const whatsappWebhook = functions
       return;
     }
 
-    // Process BEFORE responding. In Cloud Functions, the instance can be
-    // frozen the moment the response is sent, so any await after res.send()
-    // may never run — ACK-first would silently drop the dedup write and the
-    // reply. The work here is tiny (one Firestore .create() + one Graph send),
-    // well within Meta's webhook timeout, and the per-message .create() dedup
-    // makes a retry safe if we ever are slow.
     const token = process.env.WHATSAPP_TOKEN;
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
     if (!token || !phoneNumberId) {
@@ -190,18 +86,26 @@ export const whatsappWebhook = functions
       return;
     }
 
+    // Process BEFORE responding. In Cloud Functions the instance can be frozen
+    // the moment the response is sent, so any await after res.send() may never
+    // run — ACK-first would silently drop the write and reply. The work is small
+    // and the per-message dedup makes a retry safe if we are ever slow.
     try {
-      const client = createWhatsAppClient(token, phoneNumberId);
-      const io = productionWebhookIO(admin.firestore());
-      await handleInboundPayload(req.body, io, client);
+      const db = admin.firestore();
+      await handleInboundPayload(req.body, {
+        client: createWhatsAppClient(token, phoneNumberId),
+        dedup: productionDedupIO(db),
+        conversations: productionConversationIO(db),
+        knowledge: productionKbIO(db),
+        vertex: getVertexClient(),
+      });
       res.sendStatus(200);
     } catch (err) {
       functions.logger.error('whatsapp webhook processing failed', {
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
       });
-      // 500 → Meta retries; the dedup doc prevents re-handling whatever
-      // already succeeded on the first attempt.
+      // 500 → Meta retries; released dedup markers let the retry re-process.
       res.sendStatus(500);
     }
   });
