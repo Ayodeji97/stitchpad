@@ -276,18 +276,22 @@ export async function paystackWebhookHandler(
     const userData = userSnap.data() as
       | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
       | undefined;
-    // Only stack the new period on top of an existing end date when the user is
-    // genuinely on an active paid plan (a true early renewal). The create rules do
-    // not gate `subscriptionEndsAt`, so a signed-in user could plant a far-future
-    // value at user-doc creation and then buy a single period to ride that date.
-    // Both `subscriptionTier` and `subscriptionStatus` are server-owned (create
-    // forces tier='free', and updates lock both), so a free/expired user always
-    // starts a fresh period from the payment time.
+    // Only stack the new period on top of an existing end date for a true
+    // SAME-TIER early renewal: the user is on an active paid plan AND is buying the
+    // same tier they already hold. This guards two things:
+    //   1. Security — the create rules don't gate `subscriptionEndsAt`, so a user
+    //      could plant a far-future value at creation; requiring an active paid
+    //      plan (both fields server-owned) ignores any planted date on a free doc.
+    //   2. Proration — a tier switch (e.g. Pro → Atelier) must NOT stack, or the
+    //      buyer would get the higher tier through leftover lower-tier days they
+    //      only paid lower-tier rates for. A switch starts a fresh period instead.
+    // Anyone else (free/expired user, or a tier switch) starts fresh from paidAt.
     const onActivePaidPlan =
       (userData?.subscriptionTier === 'pro' || userData?.subscriptionTier === 'atelier') &&
       userData?.subscriptionStatus === 'active';
+    const sameTierRenewal = onActivePaidPlan && userData?.subscriptionTier === tier;
     const currentEndsAt = toDate(userData?.subscriptionEndsAt);
-    const periodStart = onActivePaidPlan && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
+    const periodStart = sameTierRenewal && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
       ? currentEndsAt
       : paidAt;
     const subscriptionEndsAt = addPeriod(periodStart, cadence);

@@ -225,6 +225,40 @@ describe('paystackWebhookHandler', () => {
     expect(endsAt.toISOString()).toBe('2026-07-20T00:00:00.000Z');
   });
 
+  it('starts a fresh period on a tier switch instead of stacking', async () => {
+    const reference = 'stp_uid1_1_switch';
+    // Active Pro user with time remaining buys Atelier — must NOT inherit the
+    // leftover Pro days at Atelier level; the Atelier period starts from payment.
+    const currentEnd = admin.firestore.Timestamp.fromDate(new Date('2026-06-20T00:00:00Z'));
+    const { db, store } = dbWithTransaction(
+      reference,
+      { tier: 'atelier', cadence: 'monthly', amountKobo: 400_000, status: 'pending' },
+      { subscriptionTier: 'pro', subscriptionStatus: 'active', subscriptionEndsAt: currentEnd },
+    );
+    const payload = signed({
+      event: 'charge.success',
+      data: {
+        reference,
+        amount: 400_000,
+        currency: 'NGN',
+        status: 'success',
+        paid_at: '2026-06-01T10:00:00Z',
+        metadata: { uid: 'uid-1', tier: 'atelier', cadence: 'monthly', purpose: 'stitchpad_subscription' },
+      },
+    });
+
+    await paystackWebhookHandler(payload.event, payload.signature, payload.raw, {
+      db: db as never,
+      secretKey: 'secret',
+      now: () => new Date('2026-06-01T10:01:00Z'),
+    });
+
+    const user = store.get('users/uid-1');
+    expect(user.subscriptionTier).toBe('atelier');
+    // Fresh period from payment time (2026-07-01), not stacked onto 2026-06-20.
+    expect((user.subscriptionEndsAt.toDate() as Date).toISOString()).toBe('2026-07-01T10:00:00.000Z');
+  });
+
   it('ignores a client-planted subscriptionEndsAt on a non-paid user', async () => {
     const reference = 'stp_uid1_1_plant';
     // Attacker planted a far-future end date at user-doc creation while still on free.
