@@ -44,31 +44,24 @@ private suspend fun AuthRepository.needsEmailVerification(
     return !isEmailVerified()
 }
 
+/**
+ * Outer-nav handler for a pending push-tap deep link. The inbox route lives in MainRoot's
+ * INNER nav, so if a tap arrives while the user is on a non-Home OUTER route (e.g. the
+ * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
+ * (MainRoot then routes to the inbox). Only when Home is ALREADY in the back stack (the
+ * user has cleared the splash / email-verification / workshop-setup gates), so a tap can
+ * never bypass those gates. When signed out, the pending link is dropped so it can't
+ * auto-navigate the next session's user to the inbox without a fresh tap.
+ */
 @Composable
-fun StitchPadNavHost(
-    navController: NavHostController,
-    onboardingPreferences: OnboardingPreferences
-) {
+private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
     val authRepository: AuthRepository = koinInject()
-
-    // A push-tap inbox deep-link is consumed inside MainRoot's inner nav (the inbox
-    // route). If the tap arrives while the user is on a non-Home OUTER route (e.g. the
-    // debug menu), MainRoot isn't composed to consume it — so bring the app back to
-    // Home first, then MainRoot's own effect routes to the inbox. Gated on Home being
-    // ALREADY in the back stack (not merely isLoggedIn): the user must have cleared the
-    // splash / email-verification / workshop-setup gates. Otherwise the pending link
-    // waits until they reach Home naturally, so a tap (e.g. from a stale token during a
-    // new account's setup) can never bypass those gates into MainRoot.
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
     val pendingDeepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
     val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(pendingDeepLinkTarget, currentEntry) {
         if (pendingDeepLinkTarget == null) return@LaunchedEffect
         if (!authRepository.isLoggedIn) {
-            // Signed out — drop any pending push deep link so it can't auto-navigate the
-            // NEXT session's user to the inbox without a fresh tap. (The holder is a
-            // process-wide singleton, so a tap that was never consumed would otherwise
-            // survive across sign-out.)
             pendingDeepLink.clear()
             return@LaunchedEffect
         }
@@ -83,6 +76,16 @@ fun StitchPadNavHost(
             }
         }
     }
+}
+
+@Composable
+fun StitchPadNavHost(
+    navController: NavHostController,
+    onboardingPreferences: OnboardingPreferences
+) {
+    val authRepository: AuthRepository = koinInject()
+
+    PushDeepLinkRedirectEffect(navController)
 
     NavHost(
         navController = navController,
