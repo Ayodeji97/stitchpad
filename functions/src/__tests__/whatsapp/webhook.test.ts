@@ -29,6 +29,9 @@ function fakeIO(): WebhookIO & { seen: Set<string> } {
       seen.add(key);
       return true;
     },
+    async release(waId, messageId) {
+      seen.delete(`${waId}/${messageId}`);
+    },
   };
 }
 
@@ -81,6 +84,51 @@ describe('handleInboundPayload', () => {
       { to: 'a', body: 'You said: one' },
       { to: 'b', body: 'You said: two' },
     ]);
+  });
+
+  it('releases the processed marker when the reply fails, so a retry re-sends', async () => {
+    const io = fakeIO();
+    const sent: { to: string; body: string }[] = [];
+    let failNext = true;
+    const client: WhatsAppClient = {
+      async sendText(to, body) {
+        if (failNext) { failNext = false; throw new Error('graph down'); }
+        sent.push({ to, body });
+      },
+      async markRead() { /* unused */ },
+    };
+    const payload = textPayload('234801', 'wamid.1', 'Hello');
+
+    // First attempt: send fails -> handler rethrows and the marker is released.
+    await expect(handleInboundPayload(payload, io, client)).rejects.toThrow('graph down');
+    expect(io.seen.has('234801/wamid.1')).toBe(false);
+
+    // Meta retries: now the send succeeds and the message is finally answered.
+    await handleInboundPayload(payload, io, client);
+    expect(sent).toEqual([{ to: '234801', body: 'You said: Hello' }]);
+  });
+
+  it('keeps already-sent messages deduped when a later message in the payload fails', async () => {
+    const io = fakeIO();
+    const sent: { to: string; body: string }[] = [];
+    const client: WhatsAppClient = {
+      async sendText(to, body) {
+        if (to === 'b') throw new Error('graph down');
+        sent.push({ to, body });
+      },
+      async markRead() { /* unused */ },
+    };
+    const payload = {
+      entry: [{ changes: [{ field: 'messages', value: { messages: [
+        { from: 'a', id: '1', type: 'text', text: { body: 'one' } },
+        { from: 'b', id: '2', type: 'text', text: { body: 'two' } },
+      ] } }] }],
+    };
+
+    await expect(handleInboundPayload(payload, io, client)).rejects.toThrow('graph down');
+    // 'a' succeeded and stays marked; 'b' failed and was released for retry.
+    expect(io.seen.has('a/1')).toBe(true);
+    expect(io.seen.has('b/2')).toBe(false);
   });
 
   it('records but does not echo a non-text message', async () => {

@@ -19,6 +19,12 @@ export interface WebhookIO {
    * producing duplicate replies.
    */
   markProcessed(waId: string, messageId: string): Promise<boolean>;
+  /**
+   * Undoes a `markProcessed` when the side effect (the reply) failed, so a
+   * Meta retry re-processes the message instead of skipping it as a duplicate.
+   * Mirrors the reserve/release pattern in sendVerificationEmail.
+   */
+  release(waId: string, messageId: string): Promise<void>;
 }
 
 /**
@@ -50,7 +56,16 @@ export async function handleInboundPayload(
     const isNew = await io.markProcessed(msg.waId, msg.messageId);
     if (!isNew) continue;
     if (msg.text.trim().length === 0) continue;
-    await client.sendText(msg.waId, `You said: ${msg.text}`);
+    try {
+      await client.sendText(msg.waId, `You said: ${msg.text}`);
+    } catch (err) {
+      // The dedup marker was written before the reply. Release it so the
+      // retry re-sends this message; messages already replied to in this
+      // payload keep their marker and won't be double-sent. Then rethrow so
+      // the webhook returns 500 and Meta retries.
+      await io.release(msg.waId, msg.messageId);
+      throw err;
+    }
   }
 }
 
@@ -61,11 +76,12 @@ export async function handleInboundPayload(
  * conversation's transcript subcollection (per the bot's data model).
  */
 export function productionWebhookIO(db: admin.firestore.Firestore): WebhookIO {
+  const messageRef = (waId: string, messageId: string) =>
+    db.collection('whatsappConversations').doc(waId).collection('messages').doc(messageId);
   return {
     async markProcessed(waId, messageId) {
-      const ref = db.collection('whatsappConversations').doc(waId).collection('messages').doc(messageId);
       try {
-        await ref.create({ direction: 'inbound', receivedAt: Date.now() });
+        await messageRef(waId, messageId).create({ direction: 'inbound', receivedAt: Date.now() });
         return true;
       } catch (err) {
         // gRPC ALREADY_EXISTS = 6 — a retry of a message we already handled.
@@ -76,6 +92,9 @@ export function productionWebhookIO(db: admin.firestore.Firestore): WebhookIO {
         }
         throw err;
       }
+    },
+    async release(waId, messageId) {
+      await messageRef(waId, messageId).delete();
     },
   };
 }
