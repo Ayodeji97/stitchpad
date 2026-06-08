@@ -55,13 +55,23 @@ export type FounderCommand =
 const REPLY_RE = /^#reply\s+(\S+)\s+([\s\S]+)$/i;
 const RESOLVE_RE = /^#resolve\s+(\S+)\s*$/i;
 
-/** Parses a founder admin command, or null if the text isn't a valid command. */
+/**
+ * Parses a founder admin command, or null if the text isn't a valid command.
+ * The target is normalized to digits-only (so `#reply +234…` works and `#resolve`
+ * touches the same `234…` conversation doc); a target with no digits is rejected.
+ */
 export function parseFounderCommand(text: string): FounderCommand | null {
   const trimmed = text.trim();
   const reply = trimmed.match(REPLY_RE);
-  if (reply) return { kind: 'reply', target: reply[1], body: reply[2] };
+  if (reply) {
+    const target = digitsOnly(reply[1]);
+    return target ? { kind: 'reply', target, body: reply[2] } : null;
+  }
   const resolve = trimmed.match(RESOLVE_RE);
-  if (resolve) return { kind: 'resolve', target: resolve[1] };
+  if (resolve) {
+    const target = digitsOnly(resolve[1]);
+    return target ? { kind: 'resolve', target } : null;
+  }
   return null;
 }
 

@@ -67,10 +67,16 @@ describe('parseFounderCommand', () => {
     expect(parseFounderCommand('#resolve 2348012345678')).toEqual({ kind: 'resolve', target: '2348012345678' });
   });
 
+  it('normalizes the target to digits-only (handles a leading +)', () => {
+    expect(parseFounderCommand('#reply +2348012345678 hello there')).toEqual({ kind: 'reply', target: '2348012345678', body: 'hello there' });
+    expect(parseFounderCommand('#resolve +2348012345678')).toEqual({ kind: 'resolve', target: '2348012345678' });
+  });
+
   it('returns null for non-commands or malformed commands', () => {
     expect(parseFounderCommand('hello there')).toBeNull();
     expect(parseFounderCommand('#reply 2348012345678')).toBeNull(); // no body
     expect(parseFounderCommand('#resolve')).toBeNull(); // no target
+    expect(parseFounderCommand('#reply abc hello')).toBeNull(); // target has no digits
   });
 });
 
