@@ -39,17 +39,8 @@ service cloud.firestore {
     // client did not attempt to change it). Compatible with merge-true updates
     // where `request.resource.data` is the full merged result.
     function fieldUnchanged(field) {
-      // A field that does NOT yet exist may be added — this is required by the
-      // first-creation seed (createUserProfile's fire-and-forget profile write
-      // creates users/{uid} without billing fields, then a transaction adds the
-      // entitlement defaults as a merge UPDATE). But once a field EXISTS it must
-      // stay present and equal: that blocks both edits AND deletes. The delete
-      // case matters — dropping a server-owned field like subscriptionEndsAt /
-      // subscriptionRenews via FieldValue.delete() would make the user fall out of
-      // the expirePrepaidSubscriptions query and keep paid access forever.
-      return !(field in resource.data)
-          || (field in request.resource.data
-              && request.resource.data[field] == resource.data[field]);
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
     }
 
     // ── /users/{uid} ───────────────────────────────────────────────────────
