@@ -131,6 +131,14 @@ describe('handleInboundPayload', () => {
     expect(io.seen.has('b/2')).toBe(false);
   });
 
+  it('truncates the outgoing echo to WhatsApp max text length', async () => {
+    const { client, sent } = fakeClient();
+    const io = fakeIO();
+    await handleInboundPayload(textPayload('a', '1', 'x'.repeat(5000)), io, client);
+    expect(sent[0].body.length).toBe(4096);
+    expect(sent[0].body.startsWith('You said: ')).toBe(true);
+  });
+
   it('records but does not echo a non-text message', async () => {
     const { client, sent } = fakeClient();
     const io = fakeIO();

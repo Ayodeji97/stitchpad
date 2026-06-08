@@ -6,6 +6,8 @@ import { WhatsAppClient, createWhatsAppClient } from './cloudApiClient';
 
 const REGION = 'europe-west1';
 const SECRETS = ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'WHATSAPP_PHONE_NUMBER_ID'];
+/** WhatsApp Cloud API rejects text bodies longer than 4096 chars. */
+export const WHATSAPP_MAX_TEXT_LENGTH = 4096;
 
 /**
  * Side-effect seam for the webhook handler. Slice 1 only needs idempotency;
@@ -57,7 +59,10 @@ export async function handleInboundPayload(
     if (!isNew) continue;
     if (msg.text.trim().length === 0) continue;
     try {
-      await client.sendText(msg.waId, `You said: ${msg.text}`);
+      // Cap the body: a near-max inbound plus the prefix would otherwise
+      // exceed the Cloud API limit and fail every retry forever.
+      const body = `You said: ${msg.text}`.slice(0, WHATSAPP_MAX_TEXT_LENGTH);
+      await client.sendText(msg.waId, body);
     } catch (err) {
       // The dedup marker was written before the reply. Release it so the
       // retry re-sends this message; messages already replied to in this
@@ -101,21 +106,29 @@ export function productionWebhookIO(db: admin.firestore.Firestore): WebhookIO {
 
 /**
  * Production webhook. GET = verify handshake; POST = signature-verified inbound
- * dispatch. We ACK 200 before doing the async work so Meta never times out and
- * retries — the dedup doc protects us if it retries anyway.
+ * dispatch. Every config check FAILS CLOSED: a missing secret rejects the
+ * request rather than defaulting to an empty value that could accept spoofed
+ * traffic (an empty app secret would otherwise validate an attacker's empty-key
+ * HMAC) or complete the verify handshake with an empty token.
  */
 export const whatsappWebhook = functions
   .region(REGION)
   .runWith({ secrets: SECRETS })
   .https.onRequest(async (req, res) => {
     if (req.method === 'GET') {
+      const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+      if (!verifyToken) {
+        functions.logger.error('WHATSAPP_VERIFY_TOKEN not configured');
+        res.sendStatus(403);
+        return;
+      }
       const challenge = verifyChallenge(
         {
           mode: req.query['hub.mode'] as string | undefined,
           token: req.query['hub.verify_token'] as string | undefined,
           challenge: req.query['hub.challenge'] as string | undefined,
         },
-        process.env.WHATSAPP_VERIFY_TOKEN ?? '',
+        verifyToken,
       );
       if (challenge === null) {
         res.sendStatus(403);
@@ -130,7 +143,12 @@ export const whatsappWebhook = functions
       return;
     }
 
-    const appSecret = process.env.WHATSAPP_APP_SECRET ?? '';
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
+    if (!appSecret) {
+      functions.logger.error('WHATSAPP_APP_SECRET not configured');
+      res.sendStatus(401);
+      return;
+    }
     const signature = req.get('x-hub-signature-256');
     if (!verifyMetaSignature(appSecret, req.rawBody, signature)) {
       functions.logger.warn('whatsapp webhook rejected: bad signature');
@@ -144,9 +162,15 @@ export const whatsappWebhook = functions
     // reply. The work here is tiny (one Firestore .create() + one Graph send),
     // well within Meta's webhook timeout, and the per-message .create() dedup
     // makes a retry safe if we ever are slow.
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (!token || !phoneNumberId) {
+      functions.logger.error('WhatsApp send credentials not configured');
+      res.sendStatus(500);
+      return;
+    }
+
     try {
-      const token = process.env.WHATSAPP_TOKEN ?? '';
-      const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
       const client = createWhatsAppClient(token, phoneNumberId);
       const io = productionWebhookIO(admin.firestore());
       await handleInboundPayload(req.body, io, client);
