@@ -95,7 +95,9 @@ describe('handleInboundPayload (orchestration)', () => {
     await handleInboundPayload(textPayload('a', '1', 'something obscure'), deps({ client, conversations: conv.io, vertex }));
 
     expect(sent).toHaveLength(1);
-    expect(sent[0].body.toLowerCase()).toMatch(/team|connect|human/);
+    // Honest fallback: points to a real channel that works today, rather than
+    // promising an in-thread human handoff that only exists from Slice 3.
+    expect(sent[0].body).toMatch(/support@getstitchpad\.com/i);
   });
 
   it('stays silent when a human owns the conversation (non-BOT state)', async () => {
@@ -119,7 +121,7 @@ describe('handleInboundPayload (orchestration)', () => {
 
     expect(sent).toHaveLength(1);
     expect(sent[0].body).not.toMatch(/unverified freeform/);
-    expect(sent[0].body.toLowerCase()).toMatch(/team|connect|human/);
+    expect(sent[0].body).toMatch(/support@getstitchpad\.com/i);
   });
 
   it('does not reprocess a duplicate delivery', async () => {

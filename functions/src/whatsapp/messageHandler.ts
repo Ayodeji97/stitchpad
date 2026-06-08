@@ -16,11 +16,13 @@ export interface MessageHandlerDeps {
   vertex: VertexClient;
 }
 
-// Sent when the bot couldn't produce an answer (model failure or escalation
-// with no text). Slice 3 turns this into a real human handoff + notification.
+// Sent when the bot couldn't answer (model failure, off-topic, or low
+// confidence). Slice 2 has no in-thread handoff yet, so this points to a real
+// channel that works today rather than promising a follow-up nobody is wired to
+// deliver. Slice 3 replaces this with a live human takeover + notification.
 const HANDOFF_FALLBACK: Record<BotLanguage, string> = {
-  en: 'Let me connect you with someone on our team — they will get back to you shortly.',
-  pcm: 'Make I connect you with person for our team — dem go reply you shortly.',
+  en: 'Sorry, I could not answer that one. Please email our team at support@getstitchpad.com and we will help you out.',
+  pcm: 'Abeg, I no fit answer that one. Make you email our team for support@getstitchpad.com, we go help you.',
 };
 
 function cap(text: string): string {
