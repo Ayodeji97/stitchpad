@@ -63,11 +63,20 @@ fun StitchPadNavHost(
     val pendingDeepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
     val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(pendingDeepLinkTarget, currentEntry) {
+        if (pendingDeepLinkTarget == null) return@LaunchedEffect
+        if (!authRepository.isLoggedIn) {
+            // Signed out — drop any pending push deep link so it can't auto-navigate the
+            // NEXT session's user to the inbox without a fresh tap. (The holder is a
+            // process-wide singleton, so a tap that was never consumed would otherwise
+            // survive across sign-out.)
+            pendingDeepLink.clear()
+            return@LaunchedEffect
+        }
         val onHome = currentEntry?.destination?.hasRoute<HomeRoute>() == true
         val homeInBackStack = navController.currentBackStack.value.any {
             it.destination.hasRoute<HomeRoute>()
         }
-        if (pendingDeepLinkTarget != null && !onHome && homeInBackStack) {
+        if (!onHome && homeInBackStack) {
             navController.navigate(HomeRoute) {
                 launchSingleTop = true
                 popUpTo(HomeRoute) { inclusive = false }
