@@ -21,6 +21,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +57,7 @@ private data class LocalUiState(
     val isSigningOut: Boolean = false,
 )
 
+@Suppress("LongParameterList")
 class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -66,6 +68,7 @@ class SettingsViewModel(
     private val smartUsageStore: SmartUsageStore,
     private val smartUsageDocSource: SmartUsageDocSource,
     private val signOutUseCase: SignOutUseCase,
+    private val pushPermissionController: PushPermissionController,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -267,6 +270,15 @@ class SettingsViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             userRepository.setDailyPushEnabled(userId, enabled)
+            // On Android 13+ the OS must grant POST_NOTIFICATIONS before pushes
+            // can arrive. If the user enables this toggle while the permission is
+            // still missing (e.g. they dismissed the dashboard pre-prompt), surface
+            // the system dialog immediately so the setting has a real chance of
+            // taking effect. viewModelScope uses the main dispatcher, so this is
+            // safe to call here — it interacts with the Activity directly.
+            if (enabled && pushPermissionController.shouldRequest()) {
+                pushPermissionController.requestPermission()
+            }
         }
     }
 

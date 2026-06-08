@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
@@ -72,10 +73,69 @@ class SettingsDigestToggleTest {
     }
 }
 
+class SettingsPushToggleTest {
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun enablePushToggle_whenPermissionMissing_callsRequestPermission() = runTest {
+        val fakePermissionController = RecordingPushPermissionController(shouldRequestResult = true)
+        val (vm, _) = buildSettingsVmForDigest(
+            initialEnabled = false,
+            pushPermissionController = fakePermissionController,
+        )
+        vm.state.test {
+            awaitItem() // settle initial state
+            vm.onAction(SettingsAction.OnDailyPushToggle(true))
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertTrue(fakePermissionController.requestPermissionCalled, "requestPermission() should be called when permission is missing")
+    }
+
+    @Test
+    fun enablePushToggle_whenPermissionAlreadyGranted_doesNotCallRequestPermission() = runTest {
+        val fakePermissionController = RecordingPushPermissionController(shouldRequestResult = false)
+        val (vm, _) = buildSettingsVmForDigest(
+            initialEnabled = false,
+            pushPermissionController = fakePermissionController,
+        )
+        vm.state.test {
+            awaitItem()
+            vm.onAction(SettingsAction.OnDailyPushToggle(true))
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(fakePermissionController.requestPermissionCalled, "requestPermission() should NOT be called when permission is already granted")
+    }
+
+    @Test
+    fun disablePushToggle_whenPermissionMissing_doesNotCallRequestPermission() = runTest {
+        val fakePermissionController = RecordingPushPermissionController(shouldRequestResult = true)
+        val (vm, _) = buildSettingsVmForDigest(
+            initialEnabled = true,
+            pushPermissionController = fakePermissionController,
+        )
+        vm.state.test {
+            awaitItem()
+            vm.onAction(SettingsAction.OnDailyPushToggle(false))
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(fakePermissionController.requestPermissionCalled, "requestPermission() should NOT be called when disabling the toggle")
+    }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 private fun buildSettingsVmForDigest(
     initialEnabled: Boolean = true,
+    pushPermissionController: PushPermissionController = NoOpPushPermissionController(),
 ): Pair<SettingsViewModel, FakeUserRepository> {
     val authRepo = FakeAuthRepository().apply {
         currentUser = User(
@@ -112,6 +172,7 @@ private fun buildSettingsVmForDigest(
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
         signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar()),
+        pushPermissionController = pushPermissionController,
     )
     return vm to userRepo
 }
@@ -123,6 +184,23 @@ private class NoOpPushTokenRegistrar : PushTokenRegistrar {
     override suspend fun register(userId: String, token: String) {}
     override suspend fun unregisterForUser(userId: String) {}
     override suspend fun invalidateToken() {}
+}
+
+/** No-op fake: permission already granted (shouldRequest = false). Default for existing tests. */
+private class NoOpPushPermissionController : PushPermissionController {
+    override fun shouldRequest(): Boolean = false
+    override fun requestPermission() {}
+}
+
+/** Recording fake: captures whether requestPermission() was called. */
+private class RecordingPushPermissionController(
+    private val shouldRequestResult: Boolean,
+) : PushPermissionController {
+    var requestPermissionCalled: Boolean = false
+        private set
+
+    override fun shouldRequest(): Boolean = shouldRequestResult
+    override fun requestPermission() { requestPermissionCalled = true }
 }
 
 private class FakeEntitlementsProvider : EntitlementsProvider {
