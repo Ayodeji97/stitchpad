@@ -59,11 +59,16 @@ async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): 
   // 1. Onboarding gate: terms, then language. Returns a reply to send and/or
   // doc updates to persist, and only proceeds once fully onboarded.
   const onboarding = handleOnboarding(conv, msg.text);
-  if (onboarding.updates) {
-    await deps.conversations.update(msg.waId, onboarding.updates);
-  }
+  // Send the reply BEFORE persisting the state change. If we persisted first and
+  // the send then failed, the marker is released and Meta's retry of the same
+  // "1"/"2" would hit an already-onboarded conversation and route it to the AI.
+  // Sending first means a failed step releases with no state change and replays
+  // cleanly (worst case: a duplicate prompt, which is harmless).
   if (onboarding.reply) {
     await deps.client.sendText(msg.waId, cap(onboarding.reply));
+  }
+  if (onboarding.updates) {
+    await deps.conversations.update(msg.waId, onboarding.updates);
   }
   if (!onboarding.proceedToAnswer) return;
 

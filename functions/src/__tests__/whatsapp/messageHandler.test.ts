@@ -139,6 +139,18 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(dedup.seen.has('a/1')).toBe(false);
   });
 
+  it('does not persist onboarding state when the reply send fails (retry replays the step)', async () => {
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true } }); // language not yet set
+    const dedup = fakeDedup();
+    const client: WhatsAppClient = { async sendText() { throw new Error('graph down'); }, async markRead() { /* noop */ } };
+    await expect(
+      handleInboundPayload(textPayload('a', '1', '1'), deps({ client, dedup, conversations: conv.io })),
+    ).rejects.toThrow('graph down');
+
+    expect(conv.store.get('a')?.language).toBeUndefined(); // not persisted ahead of a failed send
+    expect(dedup.seen.has('a/1')).toBe(false); // released, so Meta's retry replays language selection
+  });
+
   it('ignores empty/non-text messages', async () => {
     const { client, sent } = fakeClient();
     const payload = { entry: [{ changes: [{ field: 'messages', value: { messages: [{ from: 'a', id: '9', type: 'image', image: {} }] } }] }] };
