@@ -45,15 +45,17 @@ service cloud.firestore {
              request.resource.data[field] == resource.data[field];
     }
 
-    // A server-only field (written solely by the Admin SDK, e.g. the Paystack
-    // webhook). Once present it must stay present and equal — which blocks edits
-    // AND deletes — and a client may never add it. Used for the prepaid-expiry
-    // fields: deleting subscriptionEndsAt or subscriptionRenews would drop the
-    // user out of the expirePrepaidSubscriptions query (subscriptionRenews ==
-    // false AND subscriptionEndsAt <= now) and keep paid access indefinitely.
-    // Deliberately NOT used for welcomeBonusAppliedAt/bonusCoins/tier/etc.: those
-    // are added by createUserProfile's seed and deleting them only downgrades the
-    // user, so blocking adds there would break seeding for no security gain.
+    // A server-only field. Once present it must stay present and equal — which
+    // blocks edits AND deletes (a delete drops the field from request.resource.data)
+    // — and a client may never add it via update. Used for the subscription fields,
+    // all set by the Paystack webhook / createUserProfile seed (Admin SDK, which
+    // bypasses rules): subscriptionTier, subscriptionStatus, subscriptionEndsAt,
+    // subscriptionRenews. This closes two holes: deleting subscriptionEndsAt /
+    // subscriptionRenews to dodge the expirePrepaidSubscriptions query (and keep
+    // paid access), and deleting subscriptionTier / subscriptionStatus to corrupt
+    // billing state. NOT used for welcomeBonusAppliedAt / bonusCoins: blocking adds
+    // there is unnecessary (deleting them only downgrades the user) and those use
+    // fieldUnchanged to avoid any interaction with the welcome-bonus create rule.
     function serverOnlyField(field) {
       return (field in resource.data)
         ? (field in request.resource.data
@@ -108,8 +110,8 @@ service cloud.firestore {
       // the financially meaningful fields. Server (admin SDK) bypasses these
       // rules so Cloud Functions and Firebase Console edits still work.
       allow update: if isOwner(uid)
-        && fieldUnchanged('subscriptionTier')
-        && fieldUnchanged('subscriptionStatus')
+        && serverOnlyField('subscriptionTier')
+        && serverOnlyField('subscriptionStatus')
         && serverOnlyField('subscriptionEndsAt')
         && serverOnlyField('subscriptionRenews')
         && fieldUnchanged('welcomeBonusAppliedAt')

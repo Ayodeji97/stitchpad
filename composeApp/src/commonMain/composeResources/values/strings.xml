@@ -1266,6 +1266,7 @@
     <string name="upgrade_terms">Prepaid access via Paystack. No automatic renewal; renew when your period ends.</string>
     <string name="upgrade_back_content_description">Back</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
+    <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
     <string name="payment_error_invalid_plan">That plan is not available. Choose another plan and try again.</string>
     <string name="payment_error_provider_unavailable">Paystack checkout is temporarily unavailable. Try again in a moment.</string>
 

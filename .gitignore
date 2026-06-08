@@ -72,3 +72,6 @@ AGENTS.md
 # Misc
 *.log
 *.tmp
+
+# Local Gradle home used by ad-hoc tooling runs
+.gradle-home/

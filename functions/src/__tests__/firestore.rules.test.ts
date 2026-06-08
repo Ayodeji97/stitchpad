@@ -183,6 +183,14 @@ describe('server-owned field hardening', () => {
     it('blocks deleting subscriptionRenews (expiry-query bypass)', async () => {
       await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionRenews: deleteField() }));
     });
+
+    it('blocks deleting subscriptionTier (billing-state corruption)', async () => {
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionTier: deleteField() }));
+    });
+
+    it('blocks deleting subscriptionStatus (billing-state corruption)', async () => {
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionStatus: deleteField() }));
+    });
   });
 
   describe('plant guards', () => {

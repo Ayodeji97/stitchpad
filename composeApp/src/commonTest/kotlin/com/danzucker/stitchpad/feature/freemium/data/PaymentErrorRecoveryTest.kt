@@ -33,6 +33,11 @@ class PaymentErrorRecoveryTest {
     }
 
     @Test
+    fun missingEmailMarkerRecoversMissingEmail() {
+        assertEquals(PaymentError.MISSING_EMAIL, recoverPaymentError("missing_email", PaymentError.NETWORK))
+    }
+
+    @Test
     fun nullMessageReturnsFallback() {
         assertEquals(PaymentError.NETWORK, recoverPaymentError(null, PaymentError.NETWORK))
     }
