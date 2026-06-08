@@ -15,5 +15,6 @@ enum class AuthError : Error {
     SSO_UNAVAILABLE,
     INVALID_EMAIL,
     PROVIDER_NOT_SUPPORTED,
+    SERVICE_UNAVAILABLE,
     UNKNOWN,
 }
