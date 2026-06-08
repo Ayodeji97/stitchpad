@@ -88,6 +88,34 @@ class UpgradeViewModelTest {
     }
 
     @Test
+    fun plan_selection_is_ignored_while_checkout_is_starting() = runTest {
+        val checkout = CompletableDeferred<Result<CheckoutSession, PaymentError>>()
+        payments.deferred = checkout
+        val vm = newVm() // FREE → defaults to PRO / MONTHLY
+
+        vm.onAction(UpgradeAction.PayWithPaystack)
+        runCurrent()
+        assertTrue(vm.state.value.isStartingCheckout)
+
+        // Switching plans while the spinner shows must be ignored, so the UI can't
+        // drift from the plan the in-flight Paystack session was opened for.
+        vm.onAction(UpgradeAction.SelectTier(SubscriptionTier.ATELIER))
+        vm.onAction(UpgradeAction.SelectCadence(BillingCadence.ANNUAL))
+        runCurrent()
+
+        assertEquals(SubscriptionTier.PRO, vm.state.value.selectedTier)
+        assertEquals(BillingCadence.MONTHLY, vm.state.value.billingCadence)
+
+        checkout.complete(Result.Success(CheckoutSession("https://checkout.paystack.com/x", "ref")))
+        runCurrent()
+
+        // Once checkout settles, selection is editable again.
+        vm.onAction(UpgradeAction.SelectTier(SubscriptionTier.ATELIER))
+        runCurrent()
+        assertEquals(SubscriptionTier.ATELIER, vm.state.value.selectedTier)
+    }
+
+    @Test
     fun payWithPaystack_on_error_emits_snackbar() = runTest {
         payments.result = Result.Error(PaymentError.PROVIDER_UNAVAILABLE)
         val vm = newVm()

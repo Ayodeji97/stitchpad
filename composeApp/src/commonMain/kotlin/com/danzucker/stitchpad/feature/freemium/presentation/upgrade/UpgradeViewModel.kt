@@ -58,9 +58,15 @@ class UpgradeViewModel(
         ordinal > other.ordinal
 
     fun onAction(action: UpgradeAction) {
+        // Ignore plan changes once a checkout is in flight: otherwise the user
+        // could switch tier/cadence while the spinner shows and be sent to a
+        // Paystack session for the plan captured at tap time while the UI shows
+        // the new selection. The Pay button is already disabled via isStartingCheckout.
         when (action) {
-            is UpgradeAction.SelectTier -> _state.update { it.copy(selectedTier = action.tier) }
-            is UpgradeAction.SelectCadence -> _state.update { it.copy(billingCadence = action.cadence) }
+            is UpgradeAction.SelectTier ->
+                if (!_state.value.isStartingCheckout) _state.update { it.copy(selectedTier = action.tier) }
+            is UpgradeAction.SelectCadence ->
+                if (!_state.value.isStartingCheckout) _state.update { it.copy(billingCadence = action.cadence) }
             UpgradeAction.PayWithPaystack -> startCheckout()
         }
     }

@@ -47,7 +47,13 @@ internal class CloudFunctionsPaymentRepository(
             AppLogger.e(tag = TAG, throwable = e) {
                 "initializeSubscriptionCheckout threw ${e::class.simpleName}: ${e.message}"
             }
-            Result.Error(PaymentError.NETWORK)
+            // GitLive on iOS can surface the callable HttpsError as a plain
+            // Throwable with the canonical code lost, so a real payment error
+            // (invalid_plan / payment_provider_unavailable) would otherwise be
+            // misreported as "no internet". Recover the intent from the server
+            // message marker before defaulting to NETWORK (the genuine transport
+            // failure case).
+            Result.Error(recoverPaymentError(e.message, fallback = PaymentError.NETWORK))
         }
     }
 
@@ -56,8 +62,21 @@ internal class CloudFunctionsPaymentRepository(
             FunctionsExceptionCode.UNAUTHENTICATED -> PaymentError.UNAUTHENTICATED
             FunctionsExceptionCode.INVALID_ARGUMENT -> PaymentError.INVALID_PLAN
             FunctionsExceptionCode.UNAVAILABLE -> PaymentError.PROVIDER_UNAVAILABLE
-            else -> PaymentError.UNKNOWN
+            else -> recoverPaymentError(e.message, fallback = PaymentError.UNKNOWN)
         }
+}
+
+// Server message markers from functions/src/billing/paystackBilling.ts. Kept in
+// sync there — they are how the iOS GitLive wrapper recovers the server error's
+// intent when the canonical FunctionsExceptionCode is lost.
+private const val MARKER_INVALID_PLAN = "invalid_plan"
+private const val MARKER_PROVIDER_UNAVAILABLE = "payment_provider_unavailable"
+
+internal fun recoverPaymentError(message: String?, fallback: PaymentError): PaymentError = when {
+    message == null -> fallback
+    message.contains(MARKER_INVALID_PLAN) -> PaymentError.INVALID_PLAN
+    message.contains(MARKER_PROVIDER_UNAVAILABLE) -> PaymentError.PROVIDER_UNAVAILABLE
+    else -> fallback
 }
 
 @Serializable
