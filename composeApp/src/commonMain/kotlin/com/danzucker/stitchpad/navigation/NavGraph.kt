@@ -191,14 +191,13 @@ fun StitchPadNavHost(
             )
         }
         composable<HomeRoute> {
-            val scope = rememberCoroutineScope()
             MainRoot(
+                // Sign-out (and push-token revocation) is owned by SettingsViewModel /
+                // DeleteAccountViewModel via SignOutUseCase. By the time this callback
+                // fires, the session is already cleared — navigate only.
                 onSignedOut = {
-                    scope.launch {
-                        authRepository.signOut()
-                        navController.navigate(LoginRoute) {
-                            popUpTo(HomeRoute) { inclusive = true }
-                        }
+                    navController.navigate(LoginRoute) {
+                        popUpTo(HomeRoute) { inclusive = true }
                     }
                 },
                 onNavigateToDebugMenu = { navController.navigate(DebugMenuRoute) },

@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ private const val ONE_SECOND_MS = 1000L
 class EmailVerificationViewModel(
     private val authRepository: AuthRepository,
     private val onboardingPreferences: OnboardingPreferencesStore,
+    private val signOutUseCase: SignOutUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EmailVerificationState())
@@ -172,7 +174,7 @@ class EmailVerificationViewModel(
     private fun logOut() {
         viewModelScope.launch {
             pollingJob?.cancel()
-            authRepository.signOut()
+            signOutUseCase()
             _events.send(EmailVerificationEvent.NavigateToLogin)
         }
     }

@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedback
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedbackRepository
 import kotlinx.coroutines.Job
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.delete_account_failed
 import stitchpad.composeapp.generated.resources.error_provider_not_supported
@@ -31,6 +33,7 @@ import stitchpad.composeapp.generated.resources.password_reset_email_sent
 
 private const val TAG = "DeleteAccountVM"
 private const val GOODBYE_DELAY_MS = 2_500L
+private const val TOKEN_INVALIDATE_TIMEOUT_MS = 3_000L
 
 // V1 product is English-only (per PRD). Locale here is a literal until the
 // app supports multiple locales; revisit alongside the i18n rollout.
@@ -40,6 +43,7 @@ private const val LOCALE = "en"
 class DeleteAccountViewModel(
     private val authRepository: AuthRepository,
     private val deletionFeedbackRepository: DeletionFeedbackRepository,
+    private val pushTokenRegistrar: PushTokenRegistrar,
 ) : ViewModel() {
 
     private var hasLoaded = false
@@ -203,6 +207,14 @@ class DeleteAccountViewModel(
                 .onFailure { error ->
                     AppLogger.e(tag = TAG, throwable = error) { "submitFeedback threw" }
                 }
+
+            // Invalidate the local FCM token before the account is deleted so the
+            // server-side onAuthUserDeleted cascade (which removes notificationTokens
+            // docs) doesn't race with a still-active token on this device. Bounded
+            // so an offline delete is never blocked by the token operation.
+            withTimeoutOrNull(TOKEN_INVALIDATE_TIMEOUT_MS) {
+                pushTokenRegistrar.invalidateToken()
+            }
 
             when (val result = authRepository.deleteAccount()) {
                 is Result.Success -> {
