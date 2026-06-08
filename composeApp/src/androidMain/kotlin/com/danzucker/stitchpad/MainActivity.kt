@@ -42,8 +42,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handlePushIntent(intent: Intent?) {
-        if (intent?.getStringExtra(PUSH_TARGET_EXTRA) == PUSH_TARGET_INBOX) {
+        intent ?: return
+        if (intent.getStringExtra(PUSH_TARGET_EXTRA) == PUSH_TARGET_INBOX) {
             pendingDeepLink.set(DeepLinkTarget.INBOX)
+            // Consume the extra so a later recreate (e.g. rotation) doesn't re-fire the
+            // deep link and yank the user back to the inbox.
+            intent.removeExtra(PUSH_TARGET_EXTRA)
+            setIntent(intent)
         }
     }
 }
