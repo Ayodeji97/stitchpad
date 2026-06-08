@@ -140,6 +140,19 @@ Secrets / env (Firebase Functions):
 > **Test mode needs no Paystack account activation** — full activation/compliance only
 > gates live settlement.
 
+### Backlog — stale `pending` billing transactions
+
+Every "Pay with Paystack" tap writes a new `pending` `billingTransactions/{reference}`
+doc. Abandoned checkouts (user closes the page, fails card entry, etc.) never receive a
+`charge.success`, so they stay `pending` forever. This is harmless — the webhook only
+applies the matching reference, entitlements are unaffected — but the docs accumulate.
+
+**Backlog:** a scheduled sweep that marks `pending` transactions older than **48h** as
+`abandoned` (or deletes them). Likely a sibling of `expirePrepaidSubscriptions` (daily,
+Africa/Lagos) querying `status == 'pending'` AND `createdAt <= now - 48h`. Low priority;
+not a blocker for launch. Related: account-deletion already sweeps the whole subcollection
+([[project_orphan_firestore_cleanup]]-style housekeeping).
+
 ---
 
 ## Auth providers (Google / Apple Sign-In)
