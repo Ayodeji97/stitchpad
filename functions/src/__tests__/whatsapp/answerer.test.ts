@@ -35,6 +35,12 @@ describe('answerSupportQuestion', () => {
     expect(result.confidence).toBe('low');
   });
 
+  it('escalates a low-confidence answer even when the model says ESCALATE: no', async () => {
+    const { client } = fakeClient('Maybe try resetting it.\nCONFIDENCE: low\nESCALATE: no');
+    const result = await answerSupportQuestion({ question: 'forgot password', language: 'en', knowledge: kb, client });
+    expect(result.escalate).toBe(true);
+  });
+
   it('defaults to escalate when the model omits the tail (untrusted output)', async () => {
     const { client } = fakeClient('Some freeform answer with no markers.');
     const result = await answerSupportQuestion({ question: 'q', language: 'en', knowledge: kb, client });

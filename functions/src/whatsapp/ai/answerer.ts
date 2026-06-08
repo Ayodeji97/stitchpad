@@ -74,9 +74,13 @@ export function parseSupportCompletion(raw: string): SupportAnswer {
     .trim();
 
   const confidence: 'high' | 'low' = confidenceMatch?.[1].toLowerCase() === 'high' ? 'high' : 'low';
-  // Default to escalation whenever the marker is absent — an un-formatted
-  // completion means the model didn't follow instructions, so don't trust it.
-  const escalate = escalateMatch ? escalateMatch[1].toLowerCase() === 'yes' : true;
+  // Escalate when: the model says so; OR the marker is absent (un-formatted
+  // output isn't trustworthy); OR confidence is low. A low-confidence answer is
+  // one the model itself flagged as shaky — for app/billing guidance to tailors
+  // we hand off rather than send uncertain info, so only high-confidence,
+  // explicitly-non-escalated answers reach the user.
+  const explicitEscalate = escalateMatch ? escalateMatch[1].toLowerCase() === 'yes' : true;
+  const escalate = explicitEscalate || confidence === 'low';
 
   return { answer, confidence, escalate };
 }
