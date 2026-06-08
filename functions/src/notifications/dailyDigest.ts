@@ -116,6 +116,7 @@ function productionDigestIO(apiKey: string): DigestIO {
     sendPush: async (tokens, payload) => {
       const FCM_MULTICAST_LIMIT = 500;
       const invalidTokens: string[] = [];
+      let successCount = 0;
       for (let i = 0; i < tokens.length; i += FCM_MULTICAST_LIMIT) {
         const batch = tokens.slice(i, i + FCM_MULTICAST_LIMIT);
         const res = await admin.messaging().sendEachForMulticast({
@@ -125,14 +126,18 @@ function productionDigestIO(apiKey: string): DigestIO {
           data: { target: 'inbox' },
         });
         res.responses.forEach((r, j) => {
-          const code = r.error?.code;
-          if (code === 'messaging/registration-token-not-registered' ||
-              code === 'messaging/invalid-registration-token') {
-            invalidTokens.push(batch[j]);
+          if (r.success) {
+            successCount++;
+          } else {
+            const code = r.error?.code;
+            if (code === 'messaging/registration-token-not-registered' ||
+                code === 'messaging/invalid-registration-token') {
+              invalidTokens.push(batch[j]);
+            }
           }
         });
       }
-      return { invalidTokens };
+      return { successCount, invalidTokens };
     },
 
     deletePushTokens: async (uid: string, tokens: string[]): Promise<void> => {
@@ -188,9 +193,6 @@ export const debugSendMyDigest = functions
 
     const db = admin.firestore();
     const userDoc = await db.collection('users').doc(uid).get();
-    if (userDoc.data()?.dailyDigestEmailEnabled === false) {
-      return { sent: false, reason: 'disabled' };
-    }
     const authUser = await admin.auth().getUser(uid);
     if (!authUser.email) throw new functions.https.HttpsError('failed-precondition', 'no_email_on_account');
     if (!authUser.emailVerified) {
@@ -201,28 +203,40 @@ export const debugSendMyDigest = functions
     }
 
     const now = Date.now();
+    const data = userDoc.data() || {};
     const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
     const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), now);
-    await writeNotificationsAdmin(db, uid, model);   // populate the inbox for QA
+
+    // Inbox always populated for QA (ungated, same as production runDailyDigest)
+    await writeNotificationsAdmin(db, uid, model);
+
     if (isDigestEmpty(model)) return { sent: false, reason: 'empty' };
 
-    const data = userDoc.data() || {};
-    const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
-    const { subject, html, text } = buildDigestEmail(model, name);
-    await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
-    await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
-
+    // Push — gated on its own resolved pushEnabled flag (bypass stamp/allowlist for debug)
     const io = productionDigestIO(apiKey);
     const pushEnabled = data.dailyPushEnabled !== undefined
       ? data.dailyPushEnabled !== false
       : data.dailyDigestEmailEnabled !== false;
+    let pushSent = false;
     if (pushEnabled) {
       const pushTokens = await io.loadPushTokens(uid);
-      if (pushTokens.length > 0 && !isDigestEmpty(model)) {
-        const { invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
+      if (pushTokens.length > 0) {
+        const { successCount, invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
         if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
+        pushSent = successCount > 0;
       }
     }
 
-    return { sent: true };
+    // Email — only when dailyDigestEmailEnabled is not explicitly false
+    const emailEnabled = data.dailyDigestEmailEnabled !== false;
+    let emailSent = false;
+    if (emailEnabled) {
+      const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
+      const { subject, html, text } = buildDigestEmail(model, name);
+      await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
+      await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
+      emailSent = true;
+    }
+
+    return { sent: emailSent || pushSent, emailSent, pushSent };
   });

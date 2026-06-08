@@ -30,11 +30,13 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
         ) {
           const tokens = await io.loadPushTokens(r.uid);
           if (tokens.length > 0) {
-            const { invalidTokens } = await io.sendPush(tokens, pushSummary(model));
+            const { successCount, invalidTokens } = await io.sendPush(tokens, pushSummary(model));
             if (invalidTokens.length > 0) {
               await io.deletePushTokens(r.uid, invalidTokens);
             }
-            await io.setLastPushDate(r.uid, todayKey);
+            if (successCount > 0) {
+              await io.setLastPushDate(r.uid, todayKey);
+            }
           }
         }
       } catch (pushErr) {

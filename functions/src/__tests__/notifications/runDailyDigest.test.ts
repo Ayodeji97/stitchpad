@@ -10,6 +10,7 @@ function fakeIO(over: Partial<DigestIO> & {
   ordersByUid: Record<string, OrderScanDoc[]>;
   tokensByUid?: Record<string, string[]>;
   invalidTokens?: string[];
+  pushSuccessCount?: number;
 }): {
   io: DigestIO;
   sent: { to: string; subject: string }[];
@@ -36,7 +37,11 @@ function fakeIO(over: Partial<DigestIO> & {
     loadPushTokens: async (uid) => over.tokensByUid?.[uid] ?? [],
     sendPush: async (tokens, payload) => {
       pushes.push({ tokens, body: payload.body });
-      return { invalidTokens: over.invalidTokens ?? [] };
+      const invalid = over.invalidTokens ?? [];
+      const successCount = over.pushSuccessCount !== undefined
+        ? over.pushSuccessCount
+        : tokens.length - invalid.length;
+      return { successCount, invalidTokens: invalid };
     },
     deletePushTokens: async (uid, tokens) => { deletedTokens.push({ uid, tokens }); },
     getLastPushDate: async (uid) => pushStamps[uid] ?? null,
@@ -163,6 +168,23 @@ describe('runDailyDigest — push', () => {
     await runDailyDigest(f.io, 1_000_000_000_000);
     expect(f.deletedTokens).toEqual([{ uid: 'u1', tokens: ['bad'] }]);
   });
+  it('does NOT stamp lastPushDate when all tokens are invalid (successCount 0)', async () => {
+    const f = fakeIO({
+      recipients: [recipient()],
+      ordersByUid: { u1: [overdueOrder] },
+      tokensByUid: { u1: ['bad1', 'bad2'] },
+      invalidTokens: ['bad1', 'bad2'],
+      pushSuccessCount: 0,
+    });
+    await runDailyDigest(f.io, 1_000_000_000_000);
+    // push was attempted
+    expect(f.pushes).toHaveLength(1);
+    // invalid tokens were still pruned
+    expect(f.deletedTokens).toEqual([{ uid: 'u1', tokens: ['bad1', 'bad2'] }]);
+    // but the once-per-day guard must NOT be stamped
+    expect(f.pushStamps.u1).toBeUndefined();
+  });
+
   it('a push failure does not block the email digest', async () => {
     const f = fakeIO({
       recipients: [recipient()],
