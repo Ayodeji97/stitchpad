@@ -47,6 +47,14 @@ describe('answerSupportQuestion', () => {
     expect(calls[0].maxOutputTokens).toBeGreaterThan(200);
   });
 
+  it('escalates without calling the model when no knowledge matches (no ungrounded answers)', async () => {
+    let called = false;
+    const client: VertexClient = { async generateText() { called = true; return 'anything\nCONFIDENCE: high\nESCALATE: no'; } };
+    const result = await answerSupportQuestion({ question: 'what is the weather today', language: 'en', knowledge: kb, client });
+    expect(called).toBe(false);
+    expect(result.escalate).toBe(true);
+  });
+
   it('escalates without throwing when the model call fails', async () => {
     const result = await answerSupportQuestion({ question: 'q', language: 'en', knowledge: kb, client: throwingClient() });
     expect(result.escalate).toBe(true);

@@ -33,6 +33,14 @@ export async function answerSupportQuestion(args: AnswerArgs): Promise<SupportAn
   const { question, language, knowledge, client } = args;
   const relevant = selectRelevant(question, knowledge);
 
+  // No grounding → don't even call the model. The safety rule is "answer only
+  // from supplied knowledge", so an empty knowledge set can only produce an
+  // ungrounded guess (or off-topic chatter). Escalate straight to a human and
+  // save the round-trip.
+  if (relevant.length === 0) {
+    return { answer: '', confidence: 'low', escalate: true };
+  }
+
   const systemPrompt = buildSupportSystemPrompt(language);
   const userPrompt = buildSupportUserPrompt({ question, articles: relevant, language });
 
