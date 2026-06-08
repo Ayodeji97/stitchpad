@@ -75,12 +75,14 @@ export function parseSupportCompletion(raw: string): SupportAnswer {
 
   const confidence: 'high' | 'low' = confidenceMatch?.[1].toLowerCase() === 'high' ? 'high' : 'low';
   // Escalate when: the model says so; OR the marker is absent (un-formatted
-  // output isn't trustworthy); OR confidence is low. A low-confidence answer is
-  // one the model itself flagged as shaky — for app/billing guidance to tailors
-  // we hand off rather than send uncertain info, so only high-confidence,
-  // explicitly-non-escalated answers reach the user.
+  // output isn't trustworthy); OR confidence is low; OR the answer body is empty
+  // (nothing to send — an empty WhatsApp body is rejected and would 500-loop). A
+  // low-confidence answer is one the model itself flagged as shaky — for
+  // app/billing guidance to tailors we hand off rather than send uncertain info,
+  // so only high-confidence, non-empty, explicitly-non-escalated answers reach
+  // the user.
   const explicitEscalate = escalateMatch ? escalateMatch[1].toLowerCase() === 'yes' : true;
-  const escalate = explicitEscalate || confidence === 'low';
+  const escalate = explicitEscalate || confidence === 'low' || answer.length === 0;
 
   return { answer, confidence, escalate };
 }

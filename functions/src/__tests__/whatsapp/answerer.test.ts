@@ -41,6 +41,12 @@ describe('answerSupportQuestion', () => {
     expect(result.escalate).toBe(true);
   });
 
+  it('escalates when the model returns an empty answer body (only tail markers)', async () => {
+    const { client } = fakeClient('CONFIDENCE: high\nESCALATE: no');
+    const result = await answerSupportQuestion({ question: 'forgot password', language: 'en', knowledge: kb, client });
+    expect(result.escalate).toBe(true);
+  });
+
   it('defaults to escalate when the model omits the tail (untrusted output)', async () => {
     const { client } = fakeClient('Some freeform answer with no markers.');
     const result = await answerSupportQuestion({ question: 'q', language: 'en', knowledge: kb, client });
