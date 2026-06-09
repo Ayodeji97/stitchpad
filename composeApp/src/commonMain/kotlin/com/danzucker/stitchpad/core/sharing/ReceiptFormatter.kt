@@ -137,6 +137,17 @@ object ReceiptFormatter {
     }
 
     /**
+     * Public view of the doc type that [format] will actually produce for a
+     * given natural type + user override. The share sheet uses this to title
+     * itself ("Share Invoice" / "Share Receipt" / "Share Deposit Receipt") so
+     * the title can never drift from the generated document (PTSP-29).
+     */
+    fun effectiveDocumentType(
+        natural: ReceiptDocumentType,
+        force: ReceiptDocumentType?,
+    ): ReceiptDocumentType = applyDocTypeOverride(natural, force)
+
+    /**
      * The override only flips the *framing* of a partial-paid order between
      * Invoice and Deposit Receipt. Every other transition would produce a
      * label that contradicts the totals (e.g. RECEIPT with positive balance,

@@ -149,7 +149,9 @@ import stitchpad.composeapp.generated.resources.share_as_pdf_title
 import stitchpad.composeapp.generated.resources.share_doc_type_deposit_receipt
 import stitchpad.composeapp.generated.resources.share_doc_type_invoice
 import stitchpad.composeapp.generated.resources.share_doc_type_picker_label
-import stitchpad.composeapp.generated.resources.share_receipt_title
+import stitchpad.composeapp.generated.resources.share_sheet_title_deposit_receipt
+import stitchpad.composeapp.generated.resources.share_sheet_title_invoice
+import stitchpad.composeapp.generated.resources.share_sheet_title_receipt
 import kotlin.time.Clock
 
 private const val MILLIS_PER_DAY: Long = 86_400_000L
@@ -635,6 +637,16 @@ private fun ShareReceiptBottomSheet(
     // No-payments → Invoice only; fully-paid → Receipt only.
     val showPicker = naturalDocType == ReceiptDocumentType.DEPOSIT_RECEIPT
     val effectiveChoice = chosenDocType ?: ReceiptDocumentType.DEPOSIT_RECEIPT
+    // Title tracks the document that will actually be generated (PTSP-29) — read
+    // from the formatter's own resolver so it can never contradict the output.
+    val effectiveDocType = naturalDocType?.let {
+        ReceiptFormatter.effectiveDocumentType(it, chosenDocType)
+    }
+    val titleRes = when (effectiveDocType) {
+        ReceiptDocumentType.INVOICE -> Res.string.share_sheet_title_invoice
+        ReceiptDocumentType.DEPOSIT_RECEIPT -> Res.string.share_sheet_title_deposit_receipt
+        ReceiptDocumentType.RECEIPT, null -> Res.string.share_sheet_title_receipt
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
@@ -649,7 +661,7 @@ private fun ShareReceiptBottomSheet(
             )
         ) {
             Text(
-                text = stringResource(Res.string.share_receipt_title),
+                text = stringResource(titleRes),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = DesignTokens.space4)
