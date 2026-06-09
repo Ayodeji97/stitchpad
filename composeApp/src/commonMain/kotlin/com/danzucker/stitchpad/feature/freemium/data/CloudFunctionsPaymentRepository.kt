@@ -60,6 +60,7 @@ internal class CloudFunctionsPaymentRepository(
     private fun mapFunctionsError(e: FirebaseFunctionsException): PaymentError =
         when (e.code) {
             FunctionsExceptionCode.UNAUTHENTICATED -> PaymentError.UNAUTHENTICATED
+            FunctionsExceptionCode.FAILED_PRECONDITION -> PaymentError.MISSING_EMAIL
             FunctionsExceptionCode.INVALID_ARGUMENT -> PaymentError.INVALID_PLAN
             FunctionsExceptionCode.UNAVAILABLE -> PaymentError.PROVIDER_UNAVAILABLE
             else -> recoverPaymentError(e.message, fallback = PaymentError.UNKNOWN)
@@ -71,11 +72,13 @@ internal class CloudFunctionsPaymentRepository(
 // intent when the canonical FunctionsExceptionCode is lost.
 private const val MARKER_INVALID_PLAN = "invalid_plan"
 private const val MARKER_PROVIDER_UNAVAILABLE = "payment_provider_unavailable"
+private const val MARKER_MISSING_EMAIL = "missing_email"
 
 internal fun recoverPaymentError(message: String?, fallback: PaymentError): PaymentError = when {
     message == null -> fallback
     message.contains(MARKER_INVALID_PLAN) -> PaymentError.INVALID_PLAN
     message.contains(MARKER_PROVIDER_UNAVAILABLE) -> PaymentError.PROVIDER_UNAVAILABLE
+    message.contains(MARKER_MISSING_EMAIL) -> PaymentError.MISSING_EMAIL
     else -> fallback
 }
 

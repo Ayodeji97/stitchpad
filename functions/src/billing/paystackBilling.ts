@@ -8,8 +8,6 @@ export type BillingStatus = 'pending' | 'paid' | 'failed';
 
 const REGION = 'europe-west1';
 const CURRENCY = 'NGN';
-const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 const PRICES_KOBO: Record<BillingTier, Record<BillingCadence, number>> = {
   pro: {
@@ -138,7 +136,10 @@ export const paystackWebhook = functions
 
 export const expirePrepaidSubscriptions = functions
   .region(REGION)
-  .pubsub.schedule('every 24 hours')
+  // Cron expression (not an 'every N hours' interval) so the timeZone is honored —
+  // App Engine interval schedules ignore timeZone and drift off Lagos time. Runs
+  // 01:00 Africa/Lagos daily.
+  .pubsub.schedule('0 1 * * *')
   .timeZone('Africa/Lagos')
   .onRun(async () => {
     await expirePrepaidSubscriptionsHandler({
@@ -428,9 +429,19 @@ function parsePaystackPaidAt(data: PaystackChargeSuccessData, fallback: Date): D
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
 
-function addPeriod(start: Date, cadence: BillingCadence): Date {
-  const duration = cadence === 'annual' ? YEAR_MS : MONTH_MS;
-  return new Date(start.getTime() + duration);
+// Calendar arithmetic so a paid period lands on the anniversary date rather than
+// N fixed days later: monthly Jan 15 -> Feb 15, annual respects leap years. Fixed
+// 30/365-day windows short-changed monthly subscribers (~5 days/year) and were a
+// day off for annual leap-year purchases. JS normalizes month-end overflow (Jan 31
+// + 1 month -> Mar 3), which is the standard subscription convention.
+export function addPeriod(start: Date, cadence: BillingCadence): Date {
+  const d = new Date(start.getTime());
+  if (cadence === 'annual') {
+    d.setUTCFullYear(d.getUTCFullYear() + 1);
+  } else {
+    d.setUTCMonth(d.getUTCMonth() + 1);
+  }
+  return d;
 }
 
 function toDate(value: unknown): Date | null {

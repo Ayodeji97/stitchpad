@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import {
+  addPeriod,
   buildReference,
   expirePrepaidSubscriptionsHandler,
   initializeSubscriptionCheckoutHandler,
@@ -327,6 +328,36 @@ describe('paystackWebhookHandler', () => {
       failureReason: 'paystack_payload_mismatch',
     });
   });
+
+  it('ignores a charge.success for an unknown reference (no billing doc)', async () => {
+    // A valid HMAC over a reference we never created (e.g. a stale/forged replay)
+    // must not upgrade anyone or crash — the handler returns without writing.
+    const { db, store } = dbWithTransaction('stp_uid1_1_known', {
+      tier: 'pro',
+      cadence: 'monthly',
+      amountKobo: 200_000,
+      status: 'pending',
+    });
+    const payload = signed({
+      event: 'charge.success',
+      data: {
+        reference: 'stp_uid1_1_GHOST',
+        amount: 200_000,
+        currency: 'NGN',
+        status: 'success',
+        metadata: { uid: 'uid-1', tier: 'pro', cadence: 'monthly', purpose: 'stitchpad_subscription' },
+      },
+    });
+
+    await paystackWebhookHandler(payload.event, payload.signature, payload.raw, {
+      db: db as never,
+      secretKey: 'secret',
+      now: () => new Date('2026-06-01T10:01:00Z'),
+    });
+
+    expect(store.get('users/uid-1')).toEqual({});
+    expect(store.get('users/uid-1/billingTransactions/stp_uid1_1_GHOST')).toBeUndefined();
+  });
 });
 
 describe('expirePrepaidSubscriptionsHandler', () => {
@@ -355,7 +386,36 @@ describe('expirePrepaidSubscriptionsHandler', () => {
 
     expect(query.where).toHaveBeenCalledWith('subscriptionTier', 'in', ['pro', 'atelier']);
     expect(query.where).toHaveBeenCalledWith('subscriptionRenews', '==', false);
+    // The endsAt filter is what scopes the sweep to ACTUALLY-expired users; without
+    // it, every prepaid subscriber would be downgraded on each run.
+    expect(query.where).toHaveBeenCalledWith(
+      'subscriptionEndsAt',
+      '<=',
+      admin.firestore.Timestamp.fromDate(new Date('2026-07-01T00:00:00Z')),
+    );
     expect(writes).toEqual(['users/expired:free:expired']);
+  });
+});
+
+describe('addPeriod (calendar arithmetic)', () => {
+  it('adds one calendar month, landing on the anniversary day', () => {
+    expect(addPeriod(new Date('2027-03-15T10:00:00Z'), 'monthly').toISOString())
+      .toBe('2027-04-15T10:00:00.000Z');
+  });
+
+  it('adds one calendar year, landing on the anniversary day', () => {
+    expect(addPeriod(new Date('2027-03-15T10:00:00Z'), 'annual').toISOString())
+      .toBe('2028-03-15T10:00:00.000Z');
+  });
+
+  it('respects leap years for annual (Feb 29 -> Mar 1 the next non-leap year)', () => {
+    expect(addPeriod(new Date('2028-02-29T00:00:00Z'), 'annual').toISOString())
+      .toBe('2029-03-01T00:00:00.000Z');
+  });
+
+  it('normalizes month-end overflow (Jan 31 + 1 month -> Mar 3 in a non-leap year)', () => {
+    expect(addPeriod(new Date('2027-01-31T00:00:00Z'), 'monthly').toISOString())
+      .toBe('2027-03-03T00:00:00.000Z');
   });
 });
 
@@ -376,5 +436,13 @@ describe('billing helpers', () => {
     const raw = Buffer.from('{"event":"charge.success"}');
     const signature = crypto.createHmac('sha512', 'secret').update(raw).digest('hex');
     expect(isValidPaystackSignature(raw, signature, 'secret')).toBe(true);
+  });
+
+  it('rejects a signature of the wrong length without throwing', () => {
+    // Node's timingSafeEqual throws on length mismatch, so the length guard must
+    // short-circuit to false rather than letting the comparison blow up.
+    const raw = Buffer.from('{"event":"charge.success"}');
+    expect(isValidPaystackSignature(raw, 'too-short', 'secret')).toBe(false);
+    expect(isValidPaystackSignature(raw, undefined, 'secret')).toBe(false);
   });
 });
