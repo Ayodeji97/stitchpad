@@ -23,6 +23,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         open url: URL,
         options: [UIApplication.OpenURLOptionsKey: Any] = [:]
     ) -> Bool {
+        // Renewal-reminder email "Renew" button: stitchpad://upgrade
+        if IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString) {
+            return true
+        }
         return GIDSignIn.sharedInstance.handle(url)
     }
 }

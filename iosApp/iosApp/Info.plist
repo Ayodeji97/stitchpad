@@ -27,6 +27,14 @@
 				<string>com.googleusercontent.apps.683791063936-9s6315iaq9plqfq98k23ra4r9gninai8</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.danzucker.stitchpad.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>stitchpad</string>
+			</array>
+		</dict>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
