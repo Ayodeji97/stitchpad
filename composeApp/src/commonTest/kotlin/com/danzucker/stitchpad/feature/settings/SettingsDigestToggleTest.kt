@@ -129,6 +129,15 @@ class SettingsPushToggleTest {
         }
         assertFalse(fakePermissionController.requestPermissionCalled, "requestPermission() should NOT be called when disabling the toggle")
     }
+
+    @Test
+    fun pushReminderSupported_isTrue_onAllPlatforms() = runTest {
+        val (vm, _) = buildSettingsVmForDigest()
+        vm.state.test {
+            assertTrue(awaitItem().pushReminderSupported, "Daily push toggle must be visible on both Android and iOS")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
