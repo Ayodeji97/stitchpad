@@ -201,6 +201,7 @@
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
     <!-- Customer row actions sheet (PTSP-15) -->
+    <string name="customer_actions_message_whatsapp">Message on WhatsApp</string>
     <string name="customer_actions_edit">Edit</string>
     <string name="customer_actions_new_measurement">New measurement</string>
     <string name="customer_actions_new_order">New order</string>
@@ -1065,6 +1066,10 @@
     <string name="whatsapp_message_in_progress">Hi %1$s, quick update on your outfit — work is in progress and on track.</string>
     <string name="whatsapp_message_ready">Hi %1$s, your outfit is ready for pickup — let me know what time works for you.</string>
     <string name="whatsapp_message_delivered">Hi %1$s, hope the outfit suits you well — would love a photo when you wear it!</string>
+    <!-- Generic greeting when messaging a customer outside any order (PTSP-32/33) -->
+    <string name="whatsapp_message_customer_greeting">Hi %1$s, hope you&apos;re keeping well! Just checking in from the workshop.</string>
+    <!-- Shown when WhatsApp can&apos;t be opened from the customer screens -->
+    <string name="whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>

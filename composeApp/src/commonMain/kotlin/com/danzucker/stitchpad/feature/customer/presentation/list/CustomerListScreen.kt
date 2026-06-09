@@ -69,6 +69,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.customer.presentation.list.components.CustomerActionsSheet
 import com.danzucker.stitchpad.feature.freemium.presentation.swap.SwapSheet
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
@@ -80,6 +81,7 @@ import com.danzucker.stitchpad.util.clearFocusOnTap
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_customer_overflow
@@ -104,6 +106,7 @@ import stitchpad.composeapp.generated.resources.customer_search_no_results_subti
 import stitchpad.composeapp.generated.resources.customer_search_no_results_title
 import stitchpad.composeapp.generated.resources.customer_swap_failure
 import stitchpad.composeapp.generated.resources.customer_swap_success
+import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 @Composable
 fun CustomerListRoot(
@@ -117,6 +120,7 @@ fun CustomerListRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -132,6 +136,12 @@ fun CustomerListRoot(
             }
             CustomerListEvent.SwapFailed -> scope.launch {
                 snackbarHostState.showSnackbar(getString(Res.string.customer_swap_failure))
+            }
+            is CustomerListEvent.LaunchWhatsApp -> scope.launch {
+                val launched = whatsAppLauncher.launch(event.phone, event.message)
+                if (!launched) {
+                    snackbarHostState.showSnackbar(getString(Res.string.whatsapp_launch_failed))
+                }
             }
         }
     }
@@ -314,6 +324,7 @@ fun CustomerListScreen(
             CustomerActionsSheet(
                 customer = customer,
                 onView = { id -> onAction(CustomerListAction.OnViewCustomerFromSheet(id)) },
+                onMessageWhatsApp = { c -> onAction(CustomerListAction.OnMessageWhatsApp(c)) },
                 onEdit = { id -> onAction(CustomerListAction.OnEditCustomerFromRow(id)) },
                 onNewMeasurement = { id -> onAction(CustomerListAction.OnAddMeasurementFromRow(id)) },
                 onNewOrder = { id -> onAction(CustomerListAction.OnNewOrderFromRow(id)) },
