@@ -4,9 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
@@ -19,6 +22,9 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.customer_delete_orders_load_failed
+import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_load
 
 class CustomerDetailViewModel(
     savedStateHandle: SavedStateHandle,
@@ -26,9 +32,13 @@ class CustomerDetailViewModel(
     private val measurementRepository: MeasurementRepository,
     private val authRepository: AuthRepository,
     private val customFieldRepository: CustomMeasurementFieldRepository,
+    private val orderRepository: OrderRepository,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
+
+    /** Count of this customer's non-delivered orders, maintained by [observeOrders]. */
+    private var activeOrderCount: Int = 0
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(CustomerDetailState())
@@ -54,7 +64,7 @@ class CustomerDetailViewModel(
             initialValue = CustomerDetailState()
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: CustomerDetailAction) {
         when (action) {
             CustomerDetailAction.OnEditCustomerClick -> {
@@ -84,6 +94,27 @@ class CustomerDetailViewModel(
             CustomerDetailAction.OnConfirmDelete -> deleteMeasurement()
             CustomerDetailAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, measurementToDelete = null) }
+            }
+            CustomerDetailAction.OnOverflowClick -> {
+                _state.update { it.copy(showOverflowMenu = true) }
+            }
+            CustomerDetailAction.OnDismissOverflow -> {
+                _state.update { it.copy(showOverflowMenu = false) }
+            }
+            CustomerDetailAction.OnDeleteCustomerClick -> {
+                _state.update {
+                    it.copy(
+                        showOverflowMenu = false,
+                        showDeleteCustomerDialog = true,
+                        customerDeleteActiveOrderCount = activeOrderCount,
+                    )
+                }
+            }
+            CustomerDetailAction.OnConfirmDeleteCustomer -> deleteCustomer()
+            CustomerDetailAction.OnDismissDeleteCustomerDialog -> {
+                _state.update {
+                    it.copy(showDeleteCustomerDialog = false, customerDeleteActiveOrderCount = 0)
+                }
             }
             CustomerDetailAction.OnViewStylesClick -> {
                 withCustomerId {
@@ -118,6 +149,7 @@ class CustomerDetailViewModel(
             }
             launch { observeCustomer(userId, customerId) }
             launch { observeCustomFieldLabels(userId) }
+            launch { observeOrders(userId, customerId) }
             observeMeasurements(userId, customerId)
         }
     }
@@ -158,6 +190,62 @@ class CustomerDetailViewModel(
                 is Result.Error -> _state.update {
                     it.copy(isLoading = false, errorMessage = result.error.toMeasurementUiText())
                 }
+            }
+        }
+    }
+
+    // Mirrors CustomerListViewModel.observeOrders, scoped to this one customer.
+    // deleteCustomer is a single-doc delete with no cascade, so we must know the
+    // active-order count before allowing it — otherwise we'd orphan live orders.
+    private suspend fun observeOrders(userId: String, customerId: String) {
+        orderRepository.observeOrders(userId).collect { result ->
+            when (result) {
+                is Result.Success -> {
+                    activeOrderCount = result.data.count {
+                        it.customerId == customerId && it.status != OrderStatus.DELIVERED
+                    }
+                    _state.update { it.copy(ordersLoaded = true, ordersLoadFailed = false) }
+                }
+                is Result.Error -> _state.update { it.copy(ordersLoadFailed = true) }
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun deleteCustomer() {
+        val customerId = customerId ?: return
+        val current = _state.value
+
+        // Race guard #1: no trustworthy order count yet — refuse rather than risk
+        // orphaning non-delivered orders on a stale empty count.
+        if (!current.ordersLoaded) {
+            val message = if (current.ordersLoadFailed) {
+                Res.string.customer_delete_orders_load_failed
+            } else {
+                Res.string.customer_delete_pending_orders_load
+            }
+            _state.update { it.copy(errorMessage = UiText.StringResourceText(message)) }
+            return
+        }
+
+        // Race guard #2: count may have changed since the dialog opened — morph
+        // into the "blocked" variant by writing the live count back into state.
+        if (activeOrderCount > 0) {
+            _state.update { it.copy(customerDeleteActiveOrderCount = activeOrderCount) }
+            return
+        }
+
+        _state.update {
+            it.copy(showDeleteCustomerDialog = false, customerDeleteActiveOrderCount = 0)
+        }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val result = customerRepository.deleteCustomer(userId, customerId)) {
+                is Result.Error ->
+                    _state.update { it.copy(errorMessage = result.error.toCustomerUiText()) }
+                is Result.Success ->
+                    // Customer doc is gone — leave the now-empty detail screen.
+                    _events.send(CustomerDetailEvent.NavigateBack)
             }
         }
     }

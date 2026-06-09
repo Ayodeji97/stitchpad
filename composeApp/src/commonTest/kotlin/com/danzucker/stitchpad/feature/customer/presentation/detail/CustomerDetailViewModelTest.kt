@@ -4,11 +4,15 @@ import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
+import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +41,7 @@ class CustomerDetailViewModelTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var customFieldRepository: FakeCustomMeasurementFieldRepository
+    private lateinit var orderRepository: FakeOrderRepository
 
     @BeforeTest
     fun setUp() {
@@ -45,6 +50,7 @@ class CustomerDetailViewModelTest {
         measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository()
         customFieldRepository = FakeCustomMeasurementFieldRepository()
+        orderRepository = FakeOrderRepository()
     }
 
     @AfterTest
@@ -61,6 +67,7 @@ class CustomerDetailViewModelTest {
             measurementRepository = measurementRepository,
             authRepository = authRepository,
             customFieldRepository = customFieldRepository,
+            orderRepository = orderRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -96,6 +103,7 @@ class CustomerDetailViewModelTest {
             measurementRepository = measurementRepository,
             authRepository = authRepository,
             customFieldRepository = customFieldRepository,
+            orderRepository = orderRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
@@ -275,6 +283,113 @@ class CustomerDetailViewModelTest {
         vm.onAction(CustomerDetailAction.OnConfirmDelete)
 
         assertNull(measurementRepository.lastDeletedMeasurementId)
+    }
+
+    // --- Delete customer flow (PTSP-31) ---
+
+    private fun fakeOrder(
+        id: String = "order-1",
+        customerId: String = "customer-1",
+        status: OrderStatus = OrderStatus.PENDING,
+    ) = Order(
+        id = id,
+        userId = "test-uid",
+        customerId = customerId,
+        customerName = "Ade Fashions",
+        items = emptyList(),
+        status = status,
+        priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = 0.0,
+        deadline = null,
+        notes = null,
+        createdAt = 0L,
+        updatedAt = 0L,
+    )
+
+    @Test
+    fun onDeleteCustomerClick_showsDialog_withActiveOrderCount() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.PENDING))
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+
+        assertTrue(vm.state.value.showDeleteCustomerDialog)
+        assertEquals(1, vm.state.value.customerDeleteActiveOrderCount)
+    }
+
+    @Test
+    fun confirmDeleteCustomer_withActiveOrders_isBlocked_andDoesNotDelete() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.IN_PROGRESS))
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+        vm.onAction(CustomerDetailAction.OnConfirmDeleteCustomer)
+
+        // Blocked variant stays open; customer is not removed.
+        assertTrue(vm.state.value.showDeleteCustomerDialog)
+        assertEquals(1, vm.state.value.customerDeleteActiveOrderCount)
+        assertTrue(customerRepository.customersList.any { it.id == "customer-1" })
+    }
+
+    @Test
+    fun confirmDeleteCustomer_deliveredOrdersOnly_deletes_andNavigatesBack() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        // Delivered orders don't count as active, so deletion is allowed.
+        orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.DELIVERED))
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+        vm.onAction(CustomerDetailAction.OnConfirmDeleteCustomer)
+
+        assertIs<CustomerDetailEvent.NavigateBack>(vm.events.first())
+        assertFalse(customerRepository.customersList.any { it.id == "customer-1" })
+    }
+
+    @Test
+    fun confirmDeleteCustomer_whenOrdersLoadFailed_setsError_andDoesNotDelete() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        // Orders flow errors → ordersLoaded never flips true → delete is refused.
+        orderRepository.shouldReturnError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+        vm.onAction(CustomerDetailAction.OnConfirmDeleteCustomer)
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertTrue(customerRepository.customersList.any { it.id == "customer-1" })
+    }
+
+    @Test
+    fun onDismissDeleteCustomerDialog_hidesDialog_andClearsCount() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.PENDING))
+        val vm = createViewModel()
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+        assertTrue(vm.state.value.showDeleteCustomerDialog)
+
+        vm.onAction(CustomerDetailAction.OnDismissDeleteCustomerDialog)
+
+        assertFalse(vm.state.value.showDeleteCustomerDialog)
+        assertEquals(0, vm.state.value.customerDeleteActiveOrderCount)
+    }
+
+    @Test
+    fun overflowMenu_openAndDismiss_togglesState() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnOverflowClick)
+        assertTrue(vm.state.value.showOverflowMenu)
+
+        vm.onAction(CustomerDetailAction.OnDismissOverflow)
+        assertFalse(vm.state.value.showOverflowMenu)
     }
 
     // --- Error dismiss ---

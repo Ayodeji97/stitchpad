@@ -9,6 +9,13 @@ sealed interface CustomerDetailAction {
     data class OnDeleteMeasurementClick(val measurement: Measurement) : CustomerDetailAction
     data object OnConfirmDelete : CustomerDetailAction
     data object OnDismissDeleteDialog : CustomerDetailAction
+
+    // PTSP-31: top-bar overflow menu + delete-customer flow.
+    data object OnOverflowClick : CustomerDetailAction
+    data object OnDismissOverflow : CustomerDetailAction
+    data object OnDeleteCustomerClick : CustomerDetailAction
+    data object OnConfirmDeleteCustomer : CustomerDetailAction
+    data object OnDismissDeleteCustomerDialog : CustomerDetailAction
     data object OnViewStylesClick : CustomerDetailAction
     data object OnUpgradeClick : CustomerDetailAction
     data object OnNavigateBack : CustomerDetailAction
