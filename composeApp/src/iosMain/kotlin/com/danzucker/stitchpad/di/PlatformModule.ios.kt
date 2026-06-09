@@ -31,6 +31,13 @@ import org.koin.dsl.module
  */
 var iosNativeGoogleSignInLauncher: NativeGoogleSignInLauncher? = null
 var iosNativeAppleSignInLauncher: NativeAppleSignInLauncher? = null
+
+/**
+ * Set from Swift's AppDelegate before doInitKoin is invoked.
+ * Unlike [iosNativeGoogleSignInLauncher] and [iosNativeAppleSignInLauncher], which hard-error
+ * if unset, the push subsystem degrades gracefully — [PushTokenProvider] returns null tokens
+ * and [IosPushPermissionController] is a no-op — so no crash results from omitting this.
+ */
 var iosNativePushService: NativePushService? = null
 
 actual val platformModule: Module = module {

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.notification.push
 
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.util.Platform
 
 /** Fetches the device token and registers/unregisters it for the signed-in user. */
 interface PushTokenRegistrar {
@@ -24,13 +25,15 @@ class DefaultPushTokenRegistrar(
 
     override suspend fun registerForUser(userId: String) {
         val token = provider.currentToken() ?: return
-        runCatching { repository.registerToken(userId, token) }
-            .onFailure { AppLogger.w { "push token register failed: ${it.message}" } }
+        runCatching {
+            repository.registerToken(userId, token, platform = if (Platform.isIos) "ios" else "android")
+        }.onFailure { AppLogger.w { "push token register failed: ${it.message}" } }
     }
 
     override suspend fun register(userId: String, token: String) {
-        runCatching { repository.registerToken(userId, token) }
-            .onFailure { AppLogger.w { "push token register failed: ${it.message}" } }
+        runCatching {
+            repository.registerToken(userId, token, platform = if (Platform.isIos) "ios" else "android")
+        }.onFailure { AppLogger.w { "push token register failed: ${it.message}" } }
     }
 
     override suspend fun unregisterForUser(userId: String) {
