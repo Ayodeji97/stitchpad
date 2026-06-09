@@ -33,6 +33,12 @@ export interface ConversationDoc {
   state: ConversationState;
   termsAccepted: boolean;
   language?: BotLanguage;
+  // Optional account linking (Slice 4): the matched user, whether they consented
+  // to the bot reading their account, and a one-turn pending-consent memory.
+  linkedUid?: string;
+  linkingConsent?: boolean;
+  awaitingLinkConsent?: boolean;
+  pendingAccountIntent?: 'tier' | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

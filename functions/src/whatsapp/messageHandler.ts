@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions/v1';
-import { parseInboundMessages, BotLanguage, InboundMessage } from './types';
+import { parseInboundMessages, BotLanguage, InboundMessage, ConversationDoc } from './types';
 import { WhatsAppClient, WHATSAPP_MAX_TEXT_LENGTH } from './cloudApiClient';
 import { DedupIO } from './dedup';
 import { ConversationIO } from './conversationIO';
@@ -15,6 +15,7 @@ import {
   parseFounderCommand,
   FounderCommand,
 } from './escalation';
+import { AccountLinkIO, detectAccountIntent } from './accountLinking';
 
 /** Everything the inbound dispatcher needs, injectable for tests. */
 export interface MessageHandlerDeps {
@@ -24,8 +25,40 @@ export interface MessageHandlerDeps {
   knowledge: KbIO;
   vertex: VertexClient;
   escalation: EscalationIO;
+  accountLink: AccountLinkIO;
   /** Allow-listed founder/support numbers that may use #reply / #resolve. */
   founderNumbers: string[];
+}
+
+const TIER_LABELS: Record<string, string> = {
+  free: 'Free',
+  pro: 'Tailor Pro',
+  premium: 'Tailor Pro',
+  atelier: 'Tailor Atelier',
+};
+
+const CONSENT_PROMPT: Record<BotLanguage, string> = {
+  en: 'I found a StitchPad account registered to this number. Reply YES to let me share your account details here.',
+  pcm: 'I see StitchPad account wey register with this number. Reply YES make I fit share your account details here.',
+};
+
+const NO_ACCOUNT_FOUND: Record<BotLanguage, string> = {
+  en: 'I could not find a StitchPad account registered to this number. Please message from the number on your StitchPad profile.',
+  pcm: 'I no fit find StitchPad account wey register with this number. Abeg message from the number wey dey your StitchPad profile.',
+};
+
+const ACCOUNT_LINKED: Record<BotLanguage, string> = {
+  en: 'Done — your account is linked. What would you like to know? (for example, your plan)',
+  pcm: 'Done — your account don link. Wetin you wan know? (like your plan)',
+};
+
+function tierMessage(language: BotLanguage, tier: string | null): string {
+  const label = tier ? (TIER_LABELS[tier.toLowerCase()] ?? tier) : 'Free';
+  return language === 'pcm' ? `You dey for the ${label} plan.` : `You are on the ${label} plan.`;
+}
+
+function isAffirmative(text: string): boolean {
+  return text.trim().toUpperCase() === 'YES';
 }
 
 const ESCALATION_ACK: Record<BotLanguage, string> = {
@@ -96,7 +129,13 @@ async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): 
 
   const language: BotLanguage = conv.language ?? 'en';
 
-  // 3. Explicit escalation (asks for a human / sensitive account action) skips
+  // 3. Optional account linking / personalization (consent-gated). Returns true
+  // when it fully handled the turn (asked consent, revealed tier, etc.).
+  if (await handleAccountTurn(conv, msg, language, deps)) {
+    return;
+  }
+
+  // 4. Explicit escalation (asks for a human / sensitive account action) skips
   // the model entirely.
   const explicit = detectExplicitEscalation(msg.text);
   if (explicit) {
@@ -127,6 +166,54 @@ async function escalate(msg: InboundMessage, reason: EscalationReason, language:
   await bestEffort('escalation ticket', () =>
     deps.escalation.sendTicket({ waId: msg.waId, reason, message: msg.text }));
   await relayToFounders(msg, deps);
+}
+
+/**
+ * Consent-gated account personalization. Returns true if it owned this turn.
+ * Sends happen BEFORE the persisted state change so a failed send replays the
+ * same step cleanly (consistent with onboarding). No account data is ever sent
+ * before the user has explicitly consented.
+ */
+async function handleAccountTurn(conv: ConversationDoc, msg: InboundMessage, language: BotLanguage, deps: MessageHandlerDeps): Promise<boolean> {
+  // A consent prompt is outstanding: a bare YES grants it (and fulfils the
+  // remembered intent); anything else cancels and falls through to normal flow.
+  if (conv.awaitingLinkConsent) {
+    if (isAffirmative(msg.text)) {
+      if (conv.pendingAccountIntent === 'tier' && conv.linkedUid) {
+        await sendTier(conv.linkedUid, msg.waId, language, deps);
+      } else {
+        await deps.client.sendText(msg.waId, cap(ACCOUNT_LINKED[language]));
+      }
+      await deps.conversations.update(msg.waId, { linkingConsent: true, awaitingLinkConsent: false, pendingAccountIntent: null });
+      return true;
+    }
+    await deps.conversations.update(msg.waId, { awaitingLinkConsent: false, pendingAccountIntent: null });
+    return false;
+  }
+
+  const intent = detectAccountIntent(msg.text);
+  if (!intent) return false;
+
+  // Already linked + consented → answer directly.
+  if (conv.linkingConsent && conv.linkedUid) {
+    await sendTier(conv.linkedUid, msg.waId, language, deps);
+    return true;
+  }
+
+  // Need to link the number + ask consent first.
+  const uid = conv.linkedUid ?? await deps.accountLink.findUidByNumber(msg.waId);
+  if (!uid) {
+    await deps.client.sendText(msg.waId, cap(NO_ACCOUNT_FOUND[language]));
+    return true;
+  }
+  await deps.client.sendText(msg.waId, cap(CONSENT_PROMPT[language]));
+  await deps.conversations.update(msg.waId, { linkedUid: uid, awaitingLinkConsent: true, pendingAccountIntent: intent });
+  return true;
+}
+
+async function sendTier(uid: string, waId: string, language: BotLanguage, deps: MessageHandlerDeps): Promise<void> {
+  const tier = await deps.accountLink.getTier(uid);
+  await deps.client.sendText(waId, cap(tierMessage(language, tier)));
 }
 
 async function handleFounderCommand(cmd: FounderCommand, deps: MessageHandlerDeps): Promise<void> {

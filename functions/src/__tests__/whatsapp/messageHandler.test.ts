@@ -4,6 +4,7 @@ import { DedupIO } from '../../whatsapp/dedup';
 import { WhatsAppClient } from '../../whatsapp/cloudApiClient';
 import { KbIO, KbArticle } from '../../whatsapp/ai/knowledgeBase';
 import { EscalationIO } from '../../whatsapp/escalation';
+import { AccountLinkIO } from '../../whatsapp/accountLinking';
 import { VertexClient } from '../../smart/vertexClient';
 import { ConversationDoc } from '../../whatsapp/types';
 
@@ -53,6 +54,13 @@ function fakeEscalation() {
   return { io, tickets };
 }
 
+function fakeAccountLink(opts: { uid?: string | null; tier?: string | null } = {}): AccountLinkIO {
+  return {
+    async findUidByNumber() { return opts.uid ?? null; },
+    async getTier() { return opts.tier ?? null; },
+  };
+}
+
 function deps(over: Partial<MessageHandlerDeps>): MessageHandlerDeps {
   return {
     client: fakeClient().client,
@@ -61,6 +69,7 @@ function deps(over: Partial<MessageHandlerDeps>): MessageHandlerDeps {
     knowledge: fakeKnowledge(),
     vertex: fakeVertex('ok\nCONFIDENCE: high\nESCALATE: no'),
     escalation: fakeEscalation().io,
+    accountLink: fakeAccountLink(),
     founderNumbers: [],
     ...over,
   };
@@ -191,6 +200,61 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].to).toBe('2347000');
     expect(sent[0].body).toMatch(/any update\?/);
+  });
+
+  it('asks for consent (not the data) when an account question comes from a linkable number', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
+    await handleInboundPayload(
+      textPayload('a', '1', 'what plan am I on?'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: 'uid-1', tier: 'pro' }) }),
+    );
+    expect(sent[0].body.toLowerCase()).toMatch(/reply yes/);
+    expect(sent[0].body.toLowerCase()).not.toMatch(/pro/); // no data before consent
+    expect(conv.store.get('a')?.awaitingLinkConsent).toBe(true);
+  });
+
+  it('reveals the tier after the user consents, fulfilling the remembered intent', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'uid-1', awaitingLinkConsent: true, pendingAccountIntent: 'tier' } });
+    await handleInboundPayload(
+      textPayload('a', '1', 'YES'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: 'uid-1', tier: 'pro' }) }),
+    );
+    expect(sent[0].body).toMatch(/Tailor Pro/);
+    expect(conv.store.get('a')?.linkingConsent).toBe(true);
+  });
+
+  it('answers the tier directly when already linked and consented', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'uid-1', linkingConsent: true } });
+    await handleInboundPayload(
+      textPayload('a', '1', 'which tier is my account'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: 'uid-1', tier: 'atelier' }) }),
+    );
+    expect(sent[0].body).toMatch(/Tailor Atelier/);
+  });
+
+  it('tells the user when no account is registered to their number', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
+    await handleInboundPayload(
+      textPayload('a', '1', 'what plan am I on'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: null }) }),
+    );
+    expect(sent[0].body.toLowerCase()).toMatch(/could not find|no stitchpad account|not find/);
+  });
+
+  it('cancels a pending consent and handles a different message normally', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', awaitingLinkConsent: true, pendingAccountIntent: 'tier' } });
+    const vertex = fakeVertex('Tap Forgot Password.\nCONFIDENCE: high\nESCALATE: no');
+    await handleInboundPayload(
+      textPayload('a', '1', 'I forgot my password'),
+      deps({ client, conversations: conv.io, vertex }),
+    );
+    expect(conv.store.get('a')?.awaitingLinkConsent).toBe(false);
+    expect(sent[0].body).toBe('Tap Forgot Password.');
   });
 
   it('does not reprocess a duplicate delivery', async () => {

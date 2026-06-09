@@ -6,6 +6,7 @@ import { productionDedupIO } from './dedup';
 import { productionConversationIO } from './conversationIO';
 import { productionKbIO } from './ai/knowledgeBase';
 import { productionEscalationIO, parseFounderNumbers } from './escalation';
+import { productionAccountLinkIO } from './accountLinking';
 import { getVertexClient } from '../smart/vertexClient';
 import { REPLY_TO } from '../email/resendClient';
 import { handleInboundPayload } from './messageHandler';
@@ -116,6 +117,7 @@ export const whatsappWebhook = functions
         knowledge: productionKbIO(db),
         vertex: getVertexClient(),
         escalation: productionEscalationIO(resendKey ?? '', REPLY_TO),
+        accountLink: productionAccountLinkIO(db),
         founderNumbers: parseFounderNumbers(process.env.WHATSAPP_FOUNDER_NUMBERS),
       });
       res.sendStatus(200);
