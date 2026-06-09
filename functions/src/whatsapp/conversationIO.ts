@@ -9,20 +9,30 @@ export interface ConversationIO {
   update(waId: string, updates: Partial<ConversationDoc>): Promise<void>;
 }
 
-const DEFAULT: ConversationDoc = { state: 'BOT', termsAccepted: false };
+/**
+ * Maps a raw Firestore doc to a ConversationDoc, applying defaults. Kept pure
+ * and exported so every persisted field (including the account-linking state)
+ * is guaranteed to survive a read — dropping a field here silently breaks the
+ * flows that depend on it across messages.
+ */
+export function mapConversationDoc(d: Partial<ConversationDoc> | undefined): ConversationDoc {
+  return {
+    state: d?.state ?? 'BOT',
+    termsAccepted: d?.termsAccepted ?? false,
+    language: d?.language,
+    linkedUid: d?.linkedUid,
+    linkingConsent: d?.linkingConsent,
+    awaitingLinkConsent: d?.awaitingLinkConsent,
+    pendingAccountIntent: d?.pendingAccountIntent,
+  };
+}
 
 export function productionConversationIO(db: admin.firestore.Firestore): ConversationIO {
   const ref = (waId: string) => db.collection('whatsappConversations').doc(waId);
   return {
     async get(waId) {
       const snap = await ref(waId).get();
-      if (!snap.exists) return { ...DEFAULT };
-      const d = snap.data() as Partial<ConversationDoc> | undefined;
-      return {
-        state: d?.state ?? 'BOT',
-        termsAccepted: d?.termsAccepted ?? false,
-        language: d?.language,
-      };
+      return mapConversationDoc(snap.exists ? (snap.data() as Partial<ConversationDoc> | undefined) : undefined);
     },
     async update(waId, updates) {
       await ref(waId).set(updates, { merge: true });
