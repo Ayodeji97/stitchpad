@@ -55,7 +55,6 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
-import stitchpad.composeapp.generated.resources.order_detail_confirm_fitting
 import stitchpad.composeapp.generated.resources.order_detail_edit_deadline
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
@@ -71,6 +70,9 @@ import stitchpad.composeapp.generated.resources.order_overdue_label
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
 import stitchpad.composeapp.generated.resources.order_record_payment_button
+import stitchpad.composeapp.generated.resources.order_stage_cutting
+import stitchpad.composeapp.generated.resources.order_stage_fitting
+import stitchpad.composeapp.generated.resources.order_stage_sewing
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -132,6 +134,8 @@ fun OrderHeroCard(
 
             CtaRow(
                 cta = cta,
+                status = status,
+                subStatus = subStatus,
                 isOverdue = isOverdue,
                 onPrimaryCta = onPrimaryCta,
                 onSecondaryCta = onSecondaryCta,
@@ -481,6 +485,8 @@ private fun OverdueBanner(overdueDaysAgo: Int) {
 @Composable
 private fun CtaRow(
     cta: CtaPair,
+    status: OrderStatus,
+    subStatus: OrderSubStatus?,
     isOverdue: Boolean,
     onPrimaryCta: () -> Unit,
     onSecondaryCta: () -> Unit,
@@ -504,7 +510,7 @@ private fun CtaRow(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
         ) {
-            val label = primaryCtaLabel(cta.primary)
+            val label = primaryCtaLabel(cta.primary, status, subStatus)
             when (cta.primary) {
                 PrimaryCta.ShareReceipt -> {
                     Icon(
@@ -559,13 +565,36 @@ private fun CtaRow(
 }
 
 @Composable
-private fun primaryCtaLabel(cta: PrimaryCta): String = when (cta) {
+private fun primaryCtaLabel(
+    cta: PrimaryCta,
+    status: OrderStatus,
+    subStatus: OrderSubStatus?,
+): String = when (cta) {
     PrimaryCta.StartWork -> stringResource(Res.string.order_detail_start_work)
-    PrimaryCta.UpdateStatus -> stringResource(Res.string.order_detail_update_status)
-    PrimaryCta.ConfirmFitting -> stringResource(Res.string.order_detail_confirm_fitting)
+    // PTSP-28: while in progress, the button reflects the CURRENT stage
+    // (Cutting / Sewing / Fitting) instead of a generic "Update Status" —
+    // testers couldn't tell which stage they'd moved to. Tapping still opens
+    // the same status picker. ConfirmFitting collapses into this too: at the
+    // fitting stage the button reads "Fitting".
+    PrimaryCta.UpdateStatus,
+    PrimaryCta.ConfirmFitting ->
+        if (status == OrderStatus.IN_PROGRESS) {
+            inProgressStageLabel(subStatus)
+        } else {
+            stringResource(Res.string.order_detail_update_status)
+        }
     PrimaryCta.MarkDelivered -> stringResource(Res.string.order_detail_mark_delivered)
     PrimaryCta.ShareReceipt -> stringResource(Res.string.order_detail_share_receipt)
     PrimaryCta.SendReminder -> stringResource(Res.string.order_detail_send_reminder)
+}
+
+@Composable
+private fun inProgressStageLabel(subStatus: OrderSubStatus?): String = when (subStatus) {
+    OrderSubStatus.SEWING -> stringResource(Res.string.order_stage_sewing)
+    OrderSubStatus.FITTING -> stringResource(Res.string.order_stage_fitting)
+    // CUTTING is the entry sub-stage; a null sub-status on an in-progress order
+    // means work just started, which is the cutting stage.
+    OrderSubStatus.CUTTING, null -> stringResource(Res.string.order_stage_cutting)
 }
 
 @Composable
