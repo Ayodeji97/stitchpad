@@ -95,6 +95,12 @@ function reminderStateRef(uid: string) {
 }
 
 function toDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
   if (value && typeof value === 'object' && 'toDate' in value &&
       typeof (value as { toDate: () => Date }).toDate === 'function') {
     return (value as { toDate: () => Date }).toDate();
@@ -112,23 +118,26 @@ function productionIO(apiKey: string): SubscriptionReminderIO {
         .where('subscriptionEndsAt', '>', admin.firestore.Timestamp.fromDate(new Date(nowMs)))
         .where('subscriptionEndsAt', '<=', admin.firestore.Timestamp.fromDate(new Date(nowMs + windowMs)))
         .get();
-      const recipients: ReminderRecipient[] = [];
-      for (const doc of snap.docs) {
+      // Resolve email/verified status concurrently — the candidate set is small
+      // (paid users expiring within the window), but the per-user admin.auth()
+      // lookup is an N+1, so parallelize it rather than awaiting serially.
+      const resolved = await Promise.all(snap.docs.map(async (doc): Promise<ReminderRecipient | null> => {
         const data = doc.data();
         const endsAt = toDate(data.subscriptionEndsAt);
-        if (!endsAt) continue;
-        let email: string;
+        if (!endsAt) {
+          functions.logger.warn('subscription reminder: unparseable subscriptionEndsAt', { uid: doc.id });
+          return null;
+        }
         try {
           const authUser = await admin.auth().getUser(doc.id);
-          if (!authUser.email || !authUser.emailVerified) continue;
-          email = authUser.email;
+          if (!authUser.email || !authUser.emailVerified) return null;
+          const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
+          return { uid: doc.id, email: authUser.email, name, tier: data.subscriptionTier as BillingTier, subscriptionEndsAt: endsAt };
         } catch {
-          continue;
+          return null;
         }
-        const name = (data.businessName?.trim() || data.displayName?.trim() || email.split('@')[0]);
-        recipients.push({ uid: doc.id, email, name, tier: data.subscriptionTier as BillingTier, subscriptionEndsAt: endsAt });
-      }
-      return recipients;
+      }));
+      return resolved.filter((r): r is ReminderRecipient => r !== null);
     },
     async getRemindedForEndsAt(uid) {
       const snap = await reminderStateRef(uid).get();

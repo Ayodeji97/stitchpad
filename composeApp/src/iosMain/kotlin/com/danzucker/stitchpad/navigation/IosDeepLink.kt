@@ -13,7 +13,12 @@ import org.koin.mp.KoinPlatform
  * can stop (and not pass it on to Google Sign-In).
  */
 fun handleIosDeepLink(url: String): Boolean {
-    if (!url.startsWith("stitchpad://upgrade")) return false
+    // Exact host match (mirrors the Android scheme+host check) so a future
+    // stitchpad://upgrade-something isn't swallowed as an Upgrade deep link.
+    val isUpgrade = url == "stitchpad://upgrade" ||
+        url.startsWith("stitchpad://upgrade?") ||
+        url.startsWith("stitchpad://upgrade/")
+    if (!isUpgrade) return false
     KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.UPGRADE)
     return true
 }

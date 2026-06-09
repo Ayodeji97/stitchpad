@@ -14,6 +14,7 @@ class FakeIO implements SubscriptionReminderIO {
   reminded = new Map<string, number>();
   sent: { to: string; subject: string }[] = [];
   failOn: string | null = null;
+  failStampOn: string | null = null;
 
   async listExpiring(): Promise<ReminderRecipient[]> {
     return this.recipients;
@@ -22,6 +23,7 @@ class FakeIO implements SubscriptionReminderIO {
     return this.reminded.get(uid) ?? null;
   }
   async setRemindedForEndsAt(uid: string, endsAtMs: number): Promise<void> {
+    if (this.failStampOn === uid) throw new Error('stamp boom');
     this.reminded.set(uid, endsAtMs);
   }
   async sendEmail(p: { to: string; subject: string; html: string; text: string }): Promise<void> {
@@ -75,6 +77,28 @@ describe('runSubscriptionReminder', () => {
 
     expect(result).toMatchObject({ sent: 1, skippedAlreadyReminded: 0 });
     expect(io.reminded.get('uid-1')).toBe(NOW + 1 * DAY);
+  });
+
+  it('does not stamp when stamping fails, so the reminder retries (at-least-once)', async () => {
+    const io = new FakeIO();
+    io.failStampOn = 'uid-1';
+    io.recipients = [recipient()];
+
+    const result = await runSubscriptionReminder(io, NOW);
+
+    // The email went out, but the stamp failed → counted as failed, not stamped.
+    expect(result).toMatchObject({ sent: 0, failed: 1 });
+    expect(io.sent).toHaveLength(1);
+    expect(io.reminded.has('uid-1')).toBe(false);
+  });
+
+  it('says "1 day" when less than a full day remains', async () => {
+    const io = new FakeIO();
+    io.recipients = [recipient({ subscriptionEndsAt: new Date(NOW + 3 * 60 * 60 * 1000) })]; // 3 hours
+
+    await runSubscriptionReminder(io, NOW);
+
+    expect(io.sent[0].subject).toContain('1 day');
   });
 
   it('isolates a failed send so other recipients still get reminded', async () => {
