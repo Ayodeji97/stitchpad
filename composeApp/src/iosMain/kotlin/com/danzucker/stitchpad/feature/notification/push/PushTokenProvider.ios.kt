@@ -1,9 +1,10 @@
 package com.danzucker.stitchpad.feature.notification.push
 
-// iOS APNs is a fast-follow slice — this stub keeps the KMP build green.
-actual class PushTokenProvider {
-    actual suspend fun currentToken(): String? = null
+import com.danzucker.stitchpad.di.iosNativePushService
 
-    @Suppress("EmptyFunctionBlock")
-    actual suspend fun invalidateToken() {}
+actual class PushTokenProvider {
+    actual suspend fun currentToken(): String? = iosNativePushService?.currentFcmToken()
+    actual suspend fun invalidateToken() {
+        iosNativePushService?.deleteToken()
+    }
 }
