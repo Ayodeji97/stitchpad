@@ -252,6 +252,17 @@ fun DebugMenuScreen(
                     label = "Send digest + push (test)",
                     onClick = onSendTestPushClick,
                 )
+                SettingsRowDivider()
+                val onSendReminderClick: (() -> Unit)? = if (state.isWorking) {
+                    null
+                } else {
+                    { onAction(DebugMenuAction.OnSendRenewalReminderClick) }
+                }
+                SettingsRow(
+                    icon = Icons.Outlined.Mail,
+                    label = "Send renewal reminder now",
+                    onClick = onSendReminderClick,
+                )
             }
 
             SettingsSectionCard(label = "Danger zone") {

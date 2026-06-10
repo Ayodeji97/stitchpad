@@ -39,4 +39,5 @@ sealed interface DebugMenuAction {
 
     data object OnSendDailyDigestClick : DebugMenuAction
     data object OnSendTestPushClick : DebugMenuAction
+    data object OnSendRenewalReminderClick : DebugMenuAction
 }
