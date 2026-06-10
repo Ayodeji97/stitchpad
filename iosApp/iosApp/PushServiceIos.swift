@@ -12,13 +12,6 @@ final class PushServiceIos: NativePushService {
     static let shared = PushServiceIos()
     private init() {}
 
-    /// Latest FCM registration token (set from `messaging(_:didReceiveRegistrationToken:)`).
-    private var latestToken: String?
-
-    func updateToken(_ token: String?) {
-        latestToken = token
-    }
-
     /// (Re)register for remote notifications when already authorized. Called on launch
     /// (didFinishLaunching, before any UI) and every `applicationDidBecomeActive`, because
     /// iOS does NOT persist the APNs token across launches and FCM needs a fresh one to
@@ -34,8 +27,13 @@ final class PushServiceIos: NativePushService {
 
     // MARK: NativePushService (Kotlin pull-direction)
 
-    func currentFcmToken() -> String? {
-        latestToken
+    /// Ask Firebase for the current FCM token (minting a fresh one if needed) rather than
+    /// returning a stored value, so the pull path recovers a token after sign-out/deleteToken
+    /// without waiting for an app restart. The Kotlin side awaits the callback.
+    func currentFcmToken(callback: FcmTokenCallback) {
+        Messaging.messaging().token { token, _ in
+            callback.onResult(value: token)
+        }
     }
 
     /// Read the OS authorization status fresh (no cache) and report whether it is
@@ -59,6 +57,5 @@ final class PushServiceIos: NativePushService {
 
     func deleteToken() {
         Messaging.messaging().deleteToken { _ in }
-        latestToken = nil
     }
 }

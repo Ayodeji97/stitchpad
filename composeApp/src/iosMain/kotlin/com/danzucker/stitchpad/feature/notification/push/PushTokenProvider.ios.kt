@@ -1,9 +1,18 @@
 package com.danzucker.stitchpad.feature.notification.push
 
 import com.danzucker.stitchpad.di.iosNativePushService
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 actual class PushTokenProvider {
-    actual suspend fun currentToken(): String? = iosNativePushService?.currentFcmToken()
+    actual suspend fun currentToken(): String? {
+        val service = iosNativePushService ?: return null
+        return suspendCancellableCoroutine { cont ->
+            service.currentFcmToken(
+                FcmTokenCallback { value -> if (cont.isActive) cont.resume(value) }
+            )
+        }
+    }
 
     /**
      * Fire-and-forget: Swift's Messaging.deleteToken invalidates the local token immediately,

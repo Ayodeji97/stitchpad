@@ -64,7 +64,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
 
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let token = fcmToken else { return }
-        PushServiceIos.shared.updateToken(token)
         IosPushBridgeKt.iosOnFcmTokenReceived(token: token)
     }
 
