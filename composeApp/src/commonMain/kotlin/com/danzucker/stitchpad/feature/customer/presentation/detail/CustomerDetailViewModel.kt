@@ -40,6 +40,9 @@ class CustomerDetailViewModel(
     /** Count of this customer's non-delivered orders, maintained by [observeOrders]. */
     private var activeOrderCount: Int = 0
 
+    /** Set when a delete is in flight so [observeCustomer] ignores the doc's NOT_FOUND. */
+    private var isDeletingCustomer: Boolean = false
+
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(CustomerDetailState())
 
@@ -176,8 +179,13 @@ class CustomerDetailViewModel(
         customerRepository.observeCustomer(userId, customerId).collect { result ->
             when (result) {
                 is Result.Success -> _state.update { it.copy(customer = result.data, isLoading = false) }
-                is Result.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+                // Once we've deleted the customer, the observed doc legitimately
+                // disappears and emits NOT_FOUND — that's expected, not an error to
+                // surface (we're already navigating back). Suppress it (Bugbot #147).
+                is Result.Error -> if (!isDeletingCustomer) {
+                    _state.update {
+                        it.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+                    }
                 }
             }
         }
@@ -238,11 +246,17 @@ class CustomerDetailViewModel(
         _state.update {
             it.copy(showDeleteCustomerDialog = false, customerDeleteActiveOrderCount = 0)
         }
+        // Tell observeCustomer to ignore the impending NOT_FOUND from the doc we're
+        // about to delete, so a stale "customer not found" snackbar doesn't flash.
+        isDeletingCustomer = true
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val result = customerRepository.deleteCustomer(userId, customerId)) {
-                is Result.Error ->
+                is Result.Error -> {
+                    // Delete failed — re-arm the observer and surface the error.
+                    isDeletingCustomer = false
                     _state.update { it.copy(errorMessage = result.error.toCustomerUiText()) }
+                }
                 is Result.Success ->
                     // Customer doc is gone — leave the now-empty detail screen.
                     _events.send(CustomerDetailEvent.NavigateBack)

@@ -349,6 +349,9 @@ class CustomerDetailViewModelTest {
 
         assertIs<CustomerDetailEvent.NavigateBack>(vm.events.first())
         assertFalse(customerRepository.customersList.any { it.id == "customer-1" })
+        // The observed doc now emits NOT_FOUND, but a successful delete must not
+        // flash a stale "customer not found" error (Bugbot #147).
+        assertNull(vm.state.value.errorMessage)
     }
 
     @Test
