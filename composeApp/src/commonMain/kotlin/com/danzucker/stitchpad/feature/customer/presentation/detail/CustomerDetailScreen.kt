@@ -23,11 +23,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -71,9 +74,16 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.cd_customer_overflow
 import stitchpad.composeapp.generated.resources.cd_edit_customer
+import stitchpad.composeapp.generated.resources.customer_delete_blocked_dismiss
+import stitchpad.composeapp.generated.resources.customer_delete_blocked_message
+import stitchpad.composeapp.generated.resources.customer_delete_blocked_title
 import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
+import stitchpad.composeapp.generated.resources.customer_delete_message
+import stitchpad.composeapp.generated.resources.customer_delete_title
+import stitchpad.composeapp.generated.resources.customer_detail_delete_menu_item
 import stitchpad.composeapp.generated.resources.customer_detail_measurements_section
 import stitchpad.composeapp.generated.resources.customer_detail_no_measurements
 import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_body
@@ -138,6 +148,10 @@ fun CustomerDetailRoot(
     )
 }
 
+// Inherently stateful screen (loading / locked / unlocked + measurement-delete
+// and customer-delete dialogs). Actions and dialog bodies are already extracted;
+// the remaining branching is the screen's own state matrix.
+@Suppress("CyclomaticComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerDetailScreen(
@@ -172,13 +186,7 @@ fun CustomerDetailScreen(
                     // surfaces are read-only). Upgrade unlocks; the Upgrade CTA inside the body
                     // is the user's path forward.
                     if (!state.isLocked) {
-                        IconButton(onClick = { onAction(CustomerDetailAction.OnEditCustomerClick) }) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(Res.string.cd_edit_customer),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
+                        CustomerDetailTopBarActions(state = state, onAction = onAction)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -348,6 +356,154 @@ fun CustomerDetailScreen(
             },
             shape = RoundedCornerShape(DesignTokens.radiusXl),
             containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // PTSP-31: delete-customer dialog, two states mirroring the customer list.
+    if (state.showDeleteCustomerDialog && state.customer != null) {
+        DeleteCustomerDialog(
+            customerName = state.customer.name,
+            activeOrderCount = state.customerDeleteActiveOrderCount,
+            onConfirm = { onAction(CustomerDetailAction.OnConfirmDeleteCustomer) },
+            onDismiss = { onAction(CustomerDetailAction.OnDismissDeleteCustomerDialog) },
+        )
+    }
+}
+
+// Top-bar Edit + overflow (Delete). Extracted from CustomerDetailScreen so the
+// screen composable stays within detekt's complexity budget.
+@Composable
+private fun CustomerDetailTopBarActions(
+    state: CustomerDetailState,
+    onAction: (CustomerDetailAction) -> Unit,
+) {
+    IconButton(onClick = { onAction(CustomerDetailAction.OnEditCustomerClick) }) {
+        Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = stringResource(Res.string.cd_edit_customer),
+            tint = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+    // PTSP-31: overflow menu hosts the rare, destructive Delete action.
+    Box {
+        IconButton(onClick = { onAction(CustomerDetailAction.OnOverflowClick) }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(
+                    Res.string.cd_customer_overflow,
+                    state.customer?.name ?: "",
+                ),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        DropdownMenu(
+            expanded = state.showOverflowMenu,
+            onDismissRequest = { onAction(CustomerDetailAction.OnDismissOverflow) },
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.customer_detail_delete_menu_item),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                },
+                onClick = { onAction(CustomerDetailAction.OnDeleteCustomerClick) },
+            )
+        }
+    }
+}
+
+// PTSP-31: blocked variant when the customer still has non-delivered orders,
+// otherwise the destructive confirm. Mirrors the customer-list delete dialog.
+@Composable
+private fun DeleteCustomerDialog(
+    customerName: String,
+    activeOrderCount: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (activeOrderCount > 0) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(
+                    text = stringResource(Res.string.customer_delete_blocked_title, customerName),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(
+                        Res.string.customer_delete_blocked_message,
+                        customerName,
+                        activeOrderCount,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.customer_delete_blocked_dismiss),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            },
+            shape = RoundedCornerShape(DesignTokens.radiusXl),
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(
+                    text = stringResource(Res.string.customer_delete_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(Res.string.customer_delete_message, customerName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = onConfirm,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.customer_delete_confirm),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(Res.string.customer_delete_cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            shape = RoundedCornerShape(DesignTokens.radiusXl),
+            containerColor = MaterialTheme.colorScheme.surface,
         )
     }
 }

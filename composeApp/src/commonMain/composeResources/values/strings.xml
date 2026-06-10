@@ -185,6 +185,8 @@
     <string name="customer_fab_cd">Add customer</string>
 
     <!-- Customer delete dialog -->
+    <!-- Overflow-menu entry on the customer detail screen (PTSP-31) -->
+    <string name="customer_detail_delete_menu_item">Delete customer</string>
     <string name="customer_delete_title">Delete customer?</string>
     <string name="customer_delete_message">Remove %1$s from your customer list? This cannot be undone.</string>
     <string name="customer_delete_confirm">Delete</string>
