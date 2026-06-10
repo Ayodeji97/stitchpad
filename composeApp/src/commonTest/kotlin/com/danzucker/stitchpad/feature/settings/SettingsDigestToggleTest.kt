@@ -197,7 +197,7 @@ private class NoOpPushTokenRegistrar : PushTokenRegistrar {
 
 /** No-op fake: permission already granted (shouldRequest = false). Default for existing tests. */
 private class NoOpPushPermissionController : PushPermissionController {
-    override fun shouldRequest(): Boolean = false
+    override suspend fun shouldRequest(): Boolean = false
     override fun requestPermission(): Boolean = false
 }
 
@@ -208,7 +208,7 @@ private class RecordingPushPermissionController(
     var requestPermissionCalled: Boolean = false
         private set
 
-    override fun shouldRequest(): Boolean = shouldRequestResult
+    override suspend fun shouldRequest(): Boolean = shouldRequestResult
     override fun requestPermission(): Boolean {
         requestPermissionCalled = true
         return true

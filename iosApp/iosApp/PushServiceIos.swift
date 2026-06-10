@@ -14,31 +14,20 @@ final class PushServiceIos: NativePushService {
 
     /// Latest FCM registration token (set from `messaging(_:didReceiveRegistrationToken:)`).
     private var latestToken: String?
-    /// Cached authorization status, refreshed by `refreshAuthorizationStatus()` which
-    /// runs at launch (didFinishLaunching, before any UI) and every foreground. Seeded
-    /// `false` — NOT `true` — so a stale cache can't over-show the one-time pre-prompt
-    /// to a returning already-authorized/denied user before the async refresh lands.
-    /// A genuine fresh install flips this to `true` via the launch refresh
-    /// (`getNotificationSettings` returns in ms, long before the user reaches the
-    /// dashboard), so the pre-prompt still fires when it should.
-    private var notDetermined = false
 
     func updateToken(_ token: String?) {
         latestToken = token
     }
 
-    /// Re-read the OS authorization status into the cache. Called on launch and
-    /// every `applicationDidBecomeActive` (catches the user changing it in Settings).
-    /// When already authorized, (re)register for remote notifications so a fresh
-    /// APNs token is delivered every launch — iOS does NOT persist the APNs token
-    /// across launches, and FCM needs it to mint/deliver the FCM registration token.
+    /// (Re)register for remote notifications when already authorized. Called on launch
+    /// (didFinishLaunching, before any UI) and every `applicationDidBecomeActive`, because
+    /// iOS does NOT persist the APNs token across launches and FCM needs a fresh one to
+    /// mint/deliver the FCM registration token.
     func refreshAuthorizationStatus() {
-        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
-            self?.notDetermined = settings.authorizationStatus == .notDetermined
-            if settings.authorizationStatus == .authorized {
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else { return }
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
             }
         }
     }
@@ -49,8 +38,13 @@ final class PushServiceIos: NativePushService {
         latestToken
     }
 
-    func authorizationUndetermined() -> Bool {
-        notDetermined
+    /// Read the OS authorization status fresh (no cache) and report whether it is
+    /// `.notDetermined`. The Kotlin side awaits this, so the pre-prompt decision never
+    /// races a stale value.
+    func authorizationUndetermined(callback: BooleanCallback) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            callback.onResult(value: settings.authorizationStatus == .notDetermined)
+        }
     }
 
     func requestAuthorization() {

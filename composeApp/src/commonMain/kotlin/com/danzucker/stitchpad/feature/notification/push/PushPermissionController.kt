@@ -9,10 +9,16 @@ package com.danzucker.stitchpad.feature.notification.push
  */
 interface PushPermissionController {
     /**
-     * True if we should surface the value pre-prompt: Android 13+ AND
-     * POST_NOTIFICATIONS not yet granted. Always false on older Android and iOS.
+     * True if we should surface the pre-prompt: Android 13+ AND POST_NOTIFICATIONS
+     * not yet granted; on iOS, the OS authorization status is `.notDetermined`.
+     *
+     * `suspend` because iOS only exposes the authorization status asynchronously
+     * (`getNotificationSettings`) — awaiting the real status avoids a cache-read race
+     * where a stale value either over-shows the one-time pre-prompt (already
+     * authorized/denied) or skips it entirely (fresh install). Android resolves
+     * synchronously and returns immediately.
      */
-    fun shouldRequest(): Boolean
+    suspend fun shouldRequest(): Boolean
 
     /**
      * Launch the OS notification-permission dialog. No-op below Android 13 / on iOS.
