@@ -31,4 +31,7 @@ sealed interface CustomerListAction {
 
     /** Tapped "New order" in the actions sheet. Routes to the order form with customer pre-selected. */
     data class OnNewOrderFromRow(val customerId: String) : CustomerListAction
+
+    /** Tapped "Message on WhatsApp" in the actions sheet (PTSP-32). */
+    data class OnMessageWhatsApp(val customer: Customer) : CustomerListAction
 }

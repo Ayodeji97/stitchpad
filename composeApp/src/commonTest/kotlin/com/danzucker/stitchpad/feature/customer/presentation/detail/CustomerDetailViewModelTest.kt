@@ -424,6 +424,21 @@ class CustomerDetailViewModelTest {
         assertFalse(vm.state.value.showOverflowMenu)
     }
 
+    // --- Contact actions (PTSP-33) ---
+
+    @Test
+    fun onCallClick_emitsLaunchDialer_withCustomerPhone() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer(phone = "+2348012345678"))
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnCallClick)
+
+        val event = vm.events.first()
+        assertIs<CustomerDetailEvent.LaunchDialer>(event)
+        assertEquals("+2348012345678", event.phone)
+    }
+
     // --- Error dismiss ---
 
     @Test

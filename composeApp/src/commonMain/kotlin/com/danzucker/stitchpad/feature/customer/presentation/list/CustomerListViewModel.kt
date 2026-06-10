@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
@@ -154,6 +155,20 @@ class CustomerListViewModel(
             is CustomerListAction.OnNewOrderFromRow -> {
                 navigateFromSheet { CustomerListEvent.NavigateToOrderForm(action.customerId) }
             }
+            is CustomerListAction.OnMessageWhatsApp -> messageOnWhatsApp(action.customer)
+        }
+    }
+
+    // PTSP-32: dismiss the sheet, then (after the same 450ms UIKit-timing delay
+    // navigateFromSheet uses — WhatsApp launch is openURL on iOS) emit the launch
+    // event with a generic customer greeting. Guarded on a usable number.
+    private fun messageOnWhatsApp(customer: Customer) {
+        if (customer.phone.isBlank()) return
+        _state.update { it.copy(actionsSheetForId = null) }
+        viewModelScope.launch {
+            delay(SHEET_DISMISS_DELAY_MS)
+            val message = WhatsAppMessageBuilder.buildForCustomer(customer)
+            _events.send(CustomerListEvent.LaunchWhatsApp(customer.phone, message))
         }
     }
 
