@@ -666,7 +666,11 @@ private fun ShareReceiptBottomSheet(
         ReceiptDocumentType.DEPOSIT_RECEIPT -> Res.string.share_sheet_title_deposit_receipt
         ReceiptDocumentType.RECEIPT, null -> Res.string.share_sheet_title_receipt
     }
-    val subtitleRes = when (effectiveDocType) {
+    // Title + badge follow the chosen framing (effective), but the subtitle
+    // describes payment *reality*, so it keys off the natural type. Otherwise a
+    // part-paid order re-framed as "Invoice" would read "No payment recorded yet"
+    // while the summary still shows a balance due (Bugbot, PR #146).
+    val subtitleRes = when (naturalDocType) {
         ReceiptDocumentType.INVOICE -> Res.string.share_sheet_subtitle_invoice
         ReceiptDocumentType.DEPOSIT_RECEIPT -> Res.string.share_sheet_subtitle_deposit_receipt
         ReceiptDocumentType.RECEIPT, null -> Res.string.share_sheet_subtitle_receipt
