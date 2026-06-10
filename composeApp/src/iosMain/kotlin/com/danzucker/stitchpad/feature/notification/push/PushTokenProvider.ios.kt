@@ -9,7 +9,7 @@ actual class PushTokenProvider {
         val service = iosNativePushService ?: return null
         return suspendCancellableCoroutine { cont ->
             service.currentFcmToken(
-                FcmTokenCallback { value -> if (cont.isActive) cont.resume(value) }
+                FcmTokenCallback { token -> if (cont.isActive) cont.resume(token) }
             )
         }
     }

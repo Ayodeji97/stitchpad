@@ -12,9 +12,14 @@ fun interface BooleanCallback {
 /**
  * One-shot callback for the async [NativePushService.currentFcmToken] bridge.
  * Carries the FCM token (or null when unavailable) back from Swift's Messaging.token.
+ *
+ * The parameter is named `token` (not `value`) on purpose: [BooleanCallback.onResult] also
+ * takes `value`, and two `onResult(value:)` methods of different types export the SAME Obj-C
+ * selector, which Kotlin/Native disambiguates by mangling one to `onResult(value_:)` — a
+ * fragile, build-dependent label. A distinct name keeps the Swift call site stable.
  */
 fun interface FcmTokenCallback {
-    fun onResult(value: String?)
+    fun onResult(token: String?)
 }
 
 /**
