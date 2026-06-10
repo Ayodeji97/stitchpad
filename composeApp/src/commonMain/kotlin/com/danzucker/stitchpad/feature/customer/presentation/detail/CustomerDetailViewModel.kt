@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
@@ -123,6 +124,11 @@ class CustomerDetailViewModel(
                     it.copy(showDeleteCustomerDialog = false, customerDeleteActiveOrderCount = 0)
                 }
             }
+            CustomerDetailAction.OnMessageWhatsAppClick -> messageOnWhatsApp()
+            CustomerDetailAction.OnCallClick -> {
+                val phone = _state.value.customer?.phone?.takeIf { it.isNotBlank() } ?: return
+                viewModelScope.launch { _events.send(CustomerDetailEvent.LaunchDialer(phone)) }
+            }
             CustomerDetailAction.OnViewStylesClick -> {
                 withCustomerId {
                     viewModelScope.launch {
@@ -139,6 +145,17 @@ class CustomerDetailViewModel(
             CustomerDetailAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+        }
+    }
+
+    // PTSP-33: build a generic greeting and launch WhatsApp. No sheet to dismiss
+    // here (chips live in the screen body), so no UIKit-timing delay is needed.
+    private fun messageOnWhatsApp() {
+        val customer = _state.value.customer ?: return
+        if (customer.phone.isBlank()) return
+        viewModelScope.launch {
+            val message = WhatsAppMessageBuilder.buildForCustomer(customer)
+            _events.send(CustomerDetailEvent.LaunchWhatsApp(customer.phone, message))
         }
     }
 

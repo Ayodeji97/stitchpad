@@ -7,4 +7,8 @@ sealed interface CustomerDetailEvent {
     data class NavigateToEditMeasurement(val customerId: String, val measurementId: String) : CustomerDetailEvent
     data class NavigateToStyleGallery(val customerId: String) : CustomerDetailEvent
     data object NavigateToUpgrade : CustomerDetailEvent
+
+    // PTSP-33: contact the customer from the detail header.
+    data class LaunchWhatsApp(val phone: String, val message: String) : CustomerDetailEvent
+    data class LaunchDialer(val phone: String) : CustomerDetailEvent
 }

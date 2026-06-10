@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.customer.presentation.detail
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,12 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
@@ -51,9 +55,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,13 +72,17 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.sharing.DialerLauncher
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_customer_overflow
@@ -83,12 +94,15 @@ import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
 import stitchpad.composeapp.generated.resources.customer_delete_message
 import stitchpad.composeapp.generated.resources.customer_delete_title
+import stitchpad.composeapp.generated.resources.customer_detail_call_chip
 import stitchpad.composeapp.generated.resources.customer_detail_delete_menu_item
 import stitchpad.composeapp.generated.resources.customer_detail_measurements_section
+import stitchpad.composeapp.generated.resources.customer_detail_message_chip
 import stitchpad.composeapp.generated.resources.customer_detail_no_measurements
 import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_body
 import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_title
 import stitchpad.composeapp.generated.resources.customer_locked_detail_unlock_cta
+import stitchpad.composeapp.generated.resources.dialer_launch_failed
 import stitchpad.composeapp.generated.resources.fab_add_measurement
 import stitchpad.composeapp.generated.resources.measurement_delete_content_description
 import stitchpad.composeapp.generated.resources.measurement_delete_message
@@ -99,6 +113,7 @@ import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_section_header
+import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 // Inert surfaces on a locked customer's detail page render at this alpha so the
 // visual hierarchy matches the affordance. 0.5f tested as the sweet spot — high
@@ -118,6 +133,11 @@ fun CustomerDetailRoot(
     val viewModel: CustomerDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
+    val dialerLauncher: DialerLauncher = koinInject()
+    val whatsAppFailed = stringResource(Res.string.whatsapp_launch_failed)
+    val dialerFailed = stringResource(Res.string.dialer_launch_failed)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -130,6 +150,16 @@ fun CustomerDetailRoot(
             )
             is CustomerDetailEvent.NavigateToStyleGallery -> onNavigateToStyleGallery(event.customerId)
             CustomerDetailEvent.NavigateToUpgrade -> onNavigateToUpgrade()
+            is CustomerDetailEvent.LaunchWhatsApp -> scope.launch {
+                if (!whatsAppLauncher.launch(event.phone, event.message)) {
+                    snackbarHostState.showSnackbar(whatsAppFailed)
+                }
+            }
+            is CustomerDetailEvent.LaunchDialer -> scope.launch {
+                if (!dialerLauncher.launch(event.phone)) {
+                    snackbarHostState.showSnackbar(dialerFailed)
+                }
+            }
         }
     }
 
@@ -149,8 +179,9 @@ fun CustomerDetailRoot(
 }
 
 // Inherently stateful screen (loading / locked / unlocked + measurement-delete
-// and customer-delete dialogs). Actions and dialog bodies are already extracted;
-// the remaining branching is the screen's own state matrix.
+// and customer-delete dialogs + header contact actions). Actions, dialog bodies,
+// and sub-sections are already extracted; the remaining branching is the screen's
+// own state matrix.
 @Suppress("CyclomaticComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -235,7 +266,20 @@ fun CustomerDetailScreen(
                         }
                     }
                     item {
-                        CustomerHeaderSection(customer = state.customer)
+                        CustomerHeaderSection(
+                            customer = state.customer,
+                            // Locked customers are read-only; contact chips only for active.
+                            onMessageWhatsApp = if (state.isLocked) {
+                                null
+                            } else {
+                                { onAction(CustomerDetailAction.OnMessageWhatsAppClick) }
+                            },
+                            onCall = if (state.isLocked) {
+                                null
+                            } else {
+                                { onAction(CustomerDetailAction.OnCallClick) }
+                            },
+                        )
                     }
                     item {
                         MeasurementsSectionHeader()
@@ -509,7 +553,11 @@ private fun DeleteCustomerDialog(
 }
 
 @Composable
-private fun CustomerHeaderSection(customer: Customer?) {
+private fun CustomerHeaderSection(
+    customer: Customer?,
+    onMessageWhatsApp: (() -> Unit)? = null,
+    onCall: (() -> Unit)? = null,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -530,6 +578,68 @@ private fun CustomerHeaderSection(customer: Customer?) {
                 text = customer.phone,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // PTSP-33: visible contact actions. Only rendered when callbacks are
+            // supplied (active, non-locked customer with a usable number).
+            if (onMessageWhatsApp != null && onCall != null) {
+                Spacer(Modifier.height(DesignTokens.space4))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    QuickActionChip(
+                        icon = Icons.AutoMirrored.Filled.Chat,
+                        label = stringResource(Res.string.customer_detail_message_chip),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        onClick = onMessageWhatsApp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    QuickActionChip(
+                        icon = Icons.Default.Call,
+                        label = stringResource(Res.string.customer_detail_call_chip),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        onClick = onCall,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionChip(
+    icon: ImageVector,
+    label: String,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = DesignTokens.space3),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(DesignTokens.space2))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
             )
         }
     }

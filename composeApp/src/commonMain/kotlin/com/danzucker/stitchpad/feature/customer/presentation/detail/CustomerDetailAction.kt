@@ -16,6 +16,10 @@ sealed interface CustomerDetailAction {
     data object OnDeleteCustomerClick : CustomerDetailAction
     data object OnConfirmDeleteCustomer : CustomerDetailAction
     data object OnDismissDeleteCustomerDialog : CustomerDetailAction
+
+    // PTSP-33: visible contact actions in the customer header.
+    data object OnMessageWhatsAppClick : CustomerDetailAction
+    data object OnCallClick : CustomerDetailAction
     data object OnViewStylesClick : CustomerDetailAction
     data object OnUpgradeClick : CustomerDetailAction
     data object OnNavigateBack : CustomerDetailAction
