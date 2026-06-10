@@ -140,18 +140,21 @@ Secrets / env (Firebase Functions):
 > **Test mode needs no Paystack account activation** — full activation/compliance only
 > gates live settlement.
 
-### Backlog — stale `pending` billing transactions
+### Stale `pending` billing transactions — `abandonStalePendingCheckouts`
 
 Every "Pay with Paystack" tap writes a new `pending` `billingTransactions/{reference}`
 doc. Abandoned checkouts (user closes the page, fails card entry, etc.) never receive a
-`charge.success`, so they stay `pending` forever. This is harmless — the webhook only
-applies the matching reference, entitlements are unaffected — but the docs accumulate.
+`charge.success`, so they'd stay `pending` forever. Harmless (the webhook only applies the
+matching reference) but they accumulate.
 
-**Backlog:** a scheduled sweep that marks `pending` transactions older than **48h** as
-`abandoned` (or deletes them). Likely a sibling of `expirePrepaidSubscriptions` (daily,
-Africa/Lagos) querying `status == 'pending'` AND `createdAt <= now - 48h`. Low priority;
-not a blocker for launch. Related: account-deletion already sweeps the whole subcollection
-([[project_orphan_firestore_cleanup]]-style housekeeping).
+`abandonStalePendingCheckouts` (`functions/src/billing/abandonStalePending.ts`, daily
+02:00 Africa/Lagos) collection-group-queries `billingTransactions` where `status ==
+'pending'` AND `createdAt <= now - 120h` (5 working days) and **marks** them `abandoned`
+(needs the `billingTransactions` composite index in `firestore.indexes.json`). It **marks,
+not deletes**: the webhook's idempotency guard only short-circuits on `appliedAt` /
+`status == 'paid'`, so a late Paystack transfer/USSD `charge.success` on an abandoned doc
+still applies the upgrade. 120h gives ample buffer to verify a genuinely-pending payment
+before it's flagged. Account deletion still sweeps the whole subcollection separately.
 
 ---
 

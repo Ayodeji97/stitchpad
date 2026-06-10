@@ -8,6 +8,14 @@
         { "fieldPath": "subscriptionRenews", "order": "ASCENDING" },
         { "fieldPath": "subscriptionEndsAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "billingTransactions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
