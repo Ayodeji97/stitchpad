@@ -40,20 +40,27 @@ export async function abandonStalePendingCheckoutsHandler(
     .where('createdAt', '<=', cutoff)
     .get();
 
-  const BATCH_LIMIT = 500;
-  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
-    const batch = deps.db.batch();
-    for (const doc of snap.docs.slice(i, i + BATCH_LIMIT)) {
-      batch.set(doc.ref, {
+  let abandoned = 0;
+  for (const doc of snap.docs) {
+    // Re-check inside a transaction rather than batch-overwriting the query result:
+    // a late charge.success (the exact case mark-not-delete protects) could flip this
+    // doc to `paid` between the query and the write. Only mark `abandoned` if it is
+    // STILL `pending`, so the sweep never clobbers a freshly-paid record (which would
+    // leave status:'abandoned' alongside appliedAt/paidAt — a corrupt billing row).
+    const marked = await deps.db.runTransaction(async (tx) => {
+      const fresh = await tx.get(doc.ref);
+      if (fresh.data()?.status !== 'pending') return false;
+      tx.set(doc.ref, {
         status: 'abandoned',
         failureReason: 'checkout_abandoned',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
-    }
-    await batch.commit();
+      return true;
+    });
+    if (marked) abandoned++;
   }
 
-  const result: AbandonStaleResult = { scanned: snap.docs.length, abandoned: snap.docs.length };
+  const result: AbandonStaleResult = { scanned: snap.docs.length, abandoned };
   functions.logger.info('abandon stale pending checkouts complete', { ...result });
   return result;
 }
