@@ -250,7 +250,13 @@ class CustomerDetailViewModel(
         // about to delete, so a stale "customer not found" snackbar doesn't flash.
         isDeletingCustomer = true
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = authRepository.getCurrentUser()?.id
+            if (userId == null) {
+                // No signed-in user — nothing was deleted, so re-arm the observer
+                // rather than leaving it permanently swallowing errors (Bugbot #147).
+                isDeletingCustomer = false
+                return@launch
+            }
             when (val result = customerRepository.deleteCustomer(userId, customerId)) {
                 is Result.Error -> {
                     // Delete failed — re-arm the observer and surface the error.

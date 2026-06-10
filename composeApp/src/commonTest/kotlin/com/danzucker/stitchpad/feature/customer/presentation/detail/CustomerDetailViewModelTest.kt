@@ -355,6 +355,22 @@ class CustomerDetailViewModelTest {
     }
 
     @Test
+    fun confirmDeleteCustomer_whenSignedOutMidSession_doesNotDelete() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.DELIVERED))
+        val vm = createViewModel()
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+
+        // Auth lost after the orders loaded but before confirm — delete must bail
+        // and re-arm the observer (not leave isDeletingCustomer stuck), Bugbot #147.
+        authRepository.signOut()
+        vm.onAction(CustomerDetailAction.OnConfirmDeleteCustomer)
+
+        assertTrue(customerRepository.customersList.any { it.id == "customer-1" })
+    }
+
+    @Test
     fun confirmDeleteCustomer_whenOrdersLoadFailed_setsError_andDoesNotDelete() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
