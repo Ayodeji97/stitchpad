@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.core.debug
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
@@ -28,7 +30,7 @@ class DebugSessionActionsTest {
         sessionActions = DebugSessionActions(
             authRepository = authRepository,
             onboardingPreferences = onboardingPreferences,
-            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar()),
+            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
         )
     }
 

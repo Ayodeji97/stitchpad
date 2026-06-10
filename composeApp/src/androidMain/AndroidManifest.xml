@@ -33,6 +33,15 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Deep link from the renewal-reminder email "Renew" button. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="stitchpad" android:host="upgrade" />
+            </intent-filter>
         </activity>
         <provider
             android:name="androidx.core.content.FileProvider"

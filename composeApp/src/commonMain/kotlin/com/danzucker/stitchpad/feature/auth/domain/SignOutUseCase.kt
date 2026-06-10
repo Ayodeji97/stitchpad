@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.auth.domain
 
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val UNREGISTER_TIMEOUT_MS = 3_000L
@@ -26,6 +27,7 @@ private const val UNREGISTER_TIMEOUT_MS = 3_000L
 class SignOutUseCase(
     private val authRepository: AuthRepository,
     private val pushTokenRegistrar: PushTokenRegistrar,
+    private val pendingDeepLink: PendingDeepLinkHolder,
 ) {
     suspend operator fun invoke(): Result<Unit, AuthError> {
         // Owner-authorised token-doc removal must happen before the session is cleared.
@@ -35,6 +37,10 @@ class SignOutUseCase(
         }
         val result = authRepository.signOut()
         if (result is Result.Success) {
+            // Drop any pending deep-link target (e.g. an UPGRADE email-link tap) so it
+            // can't auto-route the NEXT user who signs in on this device after an account
+            // switch — the link belonged to the user who just signed out.
+            pendingDeepLink.clear()
             // Backup only on confirmed sign-out: rotate the local FCM token so any doc the
             // step above couldn't delete (offline) gets pruned server-side on the next push.
             withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) { pushTokenRegistrar.invalidateToken() }

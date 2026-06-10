@@ -92,9 +92,17 @@ fun MainRoot(
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
     val deepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
     LaunchedEffect(deepLinkTarget) {
-        if (deepLinkTarget == DeepLinkTarget.INBOX) {
-            pendingDeepLink.clear()
-            innerNavController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
+        when (deepLinkTarget) {
+            DeepLinkTarget.INBOX -> {
+                pendingDeepLink.clear()
+                innerNavController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
+            }
+            // Renewal-reminder email "Renew" button (stitchpad://upgrade) lands here.
+            DeepLinkTarget.UPGRADE -> {
+                pendingDeepLink.clear()
+                innerNavController.navigate(UpgradeRoute) { launchSingleTop = true }
+            }
+            null -> Unit
         }
     }
 

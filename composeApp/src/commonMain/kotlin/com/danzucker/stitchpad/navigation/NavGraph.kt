@@ -50,8 +50,10 @@ private suspend fun AuthRepository.needsEmailVerification(
  * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
  * (MainRoot then routes to the inbox). Only when Home is ALREADY in the back stack (the
  * user has cleared the splash / email-verification / workshop-setup gates), so a tap can
- * never bypass those gates. When signed out, the pending link is dropped so it can't
- * auto-navigate the next session's user to the inbox without a fresh tap.
+ * never bypass those gates. When signed out, a push INBOX link is dropped so it can't
+ * auto-navigate the next session's user to the inbox without a fresh tap; an UPGRADE
+ * email-link target is preserved across login (the account owner asked to renew and
+ * must sign in to do so) and consumed once Home is reached.
  */
 @Composable
 private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
@@ -62,7 +64,13 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
     LaunchedEffect(pendingDeepLinkTarget, currentEntry) {
         if (pendingDeepLinkTarget == null) return@LaunchedEffect
         if (!authRepository.isLoggedIn) {
-            pendingDeepLink.clear()
+            // A push INBOX tap shouldn't auto-route a freshly-signed-in (possibly
+            // different) user, so drop it. But an UPGRADE email-link tap is the account
+            // owner asking to renew — and they must sign in to upgrade anyway — so
+            // preserve it across login. Once Home is reached, MainRoot consumes it.
+            if (pendingDeepLinkTarget == DeepLinkTarget.INBOX) {
+                pendingDeepLink.clear()
+            }
             return@LaunchedEffect
         }
         val onHome = currentEntry?.destination?.hasRoute<HomeRoute>() == true

@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.settings
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
@@ -171,7 +173,7 @@ private fun buildSettingsVmForDigest(
         themePreferencesStore = FakeThemePreferencesStore(),
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
-        signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
         pushPermissionController = pushPermissionController,
     )
     return vm to userRepo

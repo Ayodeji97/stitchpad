@@ -50,5 +50,13 @@ class MainActivity : ComponentActivity() {
             intent.removeExtra(PUSH_TARGET_EXTRA)
             setIntent(intent)
         }
+        // Renewal-reminder email "Renew" button: stitchpad://upgrade
+        val data = intent.data
+        if (intent.action == Intent.ACTION_VIEW && data?.scheme == "stitchpad" && data.host == "upgrade") {
+            pendingDeepLink.set(DeepLinkTarget.UPGRADE)
+            // Consume so a recreate (e.g. rotation) doesn't re-fire the deep link.
+            intent.data = null
+            setIntent(intent)
+        }
     }
 }

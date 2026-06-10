@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.debug.presentation
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
@@ -53,7 +55,7 @@ class DebugMenuViewModelTest {
         sessionActions = DebugSessionActions(
             authRepository = fakeAuth,
             onboardingPreferences = fakeOnboarding,
-            signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar()),
+            signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
         )
     }
 
