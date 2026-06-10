@@ -47,7 +47,6 @@ import stitchpad.composeapp.generated.resources.order_stage_fitting
 import stitchpad.composeapp.generated.resources.order_stage_pending
 import stitchpad.composeapp.generated.resources.order_stage_ready
 import stitchpad.composeapp.generated.resources.order_stage_sewing
-import stitchpad.composeapp.generated.resources.status_sheet_back_to_prefix
 import stitchpad.composeapp.generated.resources.status_sheet_subtitle_cutting
 import stitchpad.composeapp.generated.resources.status_sheet_subtitle_delivered
 import stitchpad.composeapp.generated.resources.status_sheet_subtitle_fitting
@@ -155,17 +154,15 @@ private fun TransitionRow(
 ) {
     val targetStage = transitionToStage(transition)
     val isBackMove = targetStage.ordinal < currentStage.ordinal
+    // PTSP-28: every option renders uniformly as its plain stage name — no
+    // "Back to …" relabeling. We keep a subtler icon tint for backward moves so
+    // direction is still legible without changing the label the tester reads.
     val iconTint = if (isBackMove) {
         MaterialTheme.colorScheme.onSurfaceVariant
     } else {
         MaterialTheme.colorScheme.primary
     }
-    val targetStageName = stageName(targetStage)
-    val title = if (isBackMove) {
-        stringResource(Res.string.status_sheet_back_to_prefix, targetStageName)
-    } else {
-        targetStageName
-    }
+    val title = stageName(targetStage)
     val subtitle = stageSubtitle(targetStage)
 
     Surface(

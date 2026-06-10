@@ -1043,7 +1043,6 @@
 
     <!-- Status transition sheet -->
     <string name="status_sheet_title">Move from &quot;%1$s&quot; to…</string>
-    <string name="status_sheet_back_to_prefix">Back to %1$s</string>
     <string name="status_sheet_subtitle_pending">Move backward in the timeline</string>
     <string name="status_sheet_subtitle_cutting">Cut the fabric</string>
     <string name="status_sheet_subtitle_sewing">Stitch the garment</string>
