@@ -14,9 +14,14 @@ final class PushServiceIos: NativePushService {
 
     /// Latest FCM registration token (set from `messaging(_:didReceiveRegistrationToken:)`).
     private var latestToken: String?
-    /// Cached authorization status. Defaults to `true` (undetermined) for a fresh
-    /// install so the pre-prompt fires; refreshed asynchronously on launch + foreground.
-    private var notDetermined = true
+    /// Cached authorization status, refreshed by `refreshAuthorizationStatus()` which
+    /// runs at launch (didFinishLaunching, before any UI) and every foreground. Seeded
+    /// `false` — NOT `true` — so a stale cache can't over-show the one-time pre-prompt
+    /// to a returning already-authorized/denied user before the async refresh lands.
+    /// A genuine fresh install flips this to `true` via the launch refresh
+    /// (`getNotificationSettings` returns in ms, long before the user reaches the
+    /// dashboard), so the pre-prompt still fires when it should.
+    private var notDetermined = false
 
     func updateToken(_ token: String?) {
         latestToken = token
