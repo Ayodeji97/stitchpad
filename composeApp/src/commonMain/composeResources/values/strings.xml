@@ -665,6 +665,15 @@
     <string name="share_doc_type_picker_label">Send as</string>
     <string name="share_doc_type_invoice">Invoice</string>
     <string name="share_doc_type_deposit_receipt">Deposit receipt</string>
+    <string name="share_doc_type_receipt">Receipt</string>
+    <!-- Share sheet contextual subtitle per document type (PTSP-29 Variant A) -->
+    <string name="share_sheet_subtitle_invoice">No payment recorded yet — this is a request for payment.</string>
+    <string name="share_sheet_subtitle_deposit_receipt">Part-paid — balance still outstanding.</string>
+    <string name="share_sheet_subtitle_receipt">Fully paid — thank-you receipt.</string>
+    <!-- Share sheet order summary rows (PTSP-29 Variant A) -->
+    <string name="share_summary_total">Total</string>
+    <string name="share_summary_balance_due">Balance due</string>
+    <string name="share_summary_paid">Paid in full</string>
     <!-- Snackbar action shown after a payment is recorded -->
     <string name="order_record_payment_snackbar_share_action">Share receipt</string>
 
