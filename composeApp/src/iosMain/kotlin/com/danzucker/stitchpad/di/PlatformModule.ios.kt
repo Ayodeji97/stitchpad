@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.feature.auth.data.NativeGoogleSignInLauncher
 import com.danzucker.stitchpad.feature.auth.data.SsoCredentialProvider
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
 import com.danzucker.stitchpad.feature.notification.push.IosPushPermissionController
+import com.danzucker.stitchpad.feature.notification.push.NativePushService
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
@@ -30,6 +31,14 @@ import org.koin.dsl.module
  */
 var iosNativeGoogleSignInLauncher: NativeGoogleSignInLauncher? = null
 var iosNativeAppleSignInLauncher: NativeAppleSignInLauncher? = null
+
+/**
+ * Set from Swift's AppDelegate before doInitKoin is invoked.
+ * Unlike [iosNativeGoogleSignInLauncher] and [iosNativeAppleSignInLauncher], which hard-error
+ * if unset, the push subsystem degrades gracefully — [PushTokenProvider] returns null tokens
+ * and [IosPushPermissionController] is a no-op — so no crash results from omitting this.
+ */
+var iosNativePushService: NativePushService? = null
 
 actual val platformModule: Module = module {
     // Expose the Coil singleton ImageLoader and PlatformContext so ViewModels can

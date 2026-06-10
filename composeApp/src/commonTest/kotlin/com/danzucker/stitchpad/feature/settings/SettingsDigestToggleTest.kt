@@ -131,6 +131,15 @@ class SettingsPushToggleTest {
         }
         assertFalse(fakePermissionController.requestPermissionCalled, "requestPermission() should NOT be called when disabling the toggle")
     }
+
+    @Test
+    fun pushReminderSupported_isTrue_onAllPlatforms() = runTest {
+        val (vm, _) = buildSettingsVmForDigest()
+        vm.state.test {
+            assertTrue(awaitItem().pushReminderSupported, "Daily push toggle must be visible on both Android and iOS")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -190,8 +199,8 @@ private class NoOpPushTokenRegistrar : PushTokenRegistrar {
 
 /** No-op fake: permission already granted (shouldRequest = false). Default for existing tests. */
 private class NoOpPushPermissionController : PushPermissionController {
-    override fun shouldRequest(): Boolean = false
-    override fun requestPermission(): Boolean = false
+    override suspend fun shouldRequest(): Boolean = false
+    override suspend fun requestPermission(): Boolean = false
 }
 
 /** Recording fake: captures whether requestPermission() was called. */
@@ -201,8 +210,8 @@ private class RecordingPushPermissionController(
     var requestPermissionCalled: Boolean = false
         private set
 
-    override fun shouldRequest(): Boolean = shouldRequestResult
-    override fun requestPermission(): Boolean {
+    override suspend fun shouldRequest(): Boolean = shouldRequestResult
+    override suspend fun requestPermission(): Boolean {
         requestPermissionCalled = true
         return true
     }
