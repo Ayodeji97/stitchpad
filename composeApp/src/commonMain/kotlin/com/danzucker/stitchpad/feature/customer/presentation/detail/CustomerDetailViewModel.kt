@@ -105,10 +105,14 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(showOverflowMenu = false) }
             }
             CustomerDetailAction.OnDeleteCustomerClick -> {
+                // The dialog only renders when customer != null, so don't arm it
+                // before the customer has loaded — otherwise the flag sticks true
+                // with no visible dialog and no dismiss path (Bugbot #147). Just
+                // close the menu in that case.
                 _state.update {
                     it.copy(
                         showOverflowMenu = false,
-                        showDeleteCustomerDialog = true,
+                        showDeleteCustomerDialog = it.customer != null,
                         customerDeleteActiveOrderCount = activeOrderCount,
                     )
                 }

@@ -355,6 +355,19 @@ class CustomerDetailViewModelTest {
     }
 
     @Test
+    fun onDeleteCustomerClick_whenCustomerNotLoaded_doesNotArmDialog() = runTest {
+        // No signed-in user → customer never loads (stays null). Tapping Delete
+        // must not set showDeleteCustomerDialog, since the dialog can't render and
+        // there'd be no dismiss path (Bugbot #147).
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
+
+        assertFalse(vm.state.value.showDeleteCustomerDialog)
+        assertNull(vm.state.value.customer)
+    }
+
+    @Test
     fun confirmDeleteCustomer_whenSignedOutMidSession_doesNotDelete() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
