@@ -130,6 +130,14 @@ function productionDigestIO(apiKey: string): DigestIO {
             successCount++;
           } else {
             const code = r.error?.code;
+            // Log every failed send, not just the two token-invalid codes we prune on.
+            // Other failures (APNs auth/credential, propagation, internal) were silently
+            // swallowed, leaving "no push sent" undiagnosable. Token is truncated (not PII).
+            functions.logger.error('digest push: FCM send failed', {
+              code,
+              message: r.error?.message,
+              tokenPrefix: batch[j].slice(0, 24),
+            });
             if (code === 'messaging/registration-token-not-registered' ||
                 code === 'messaging/invalid-registration-token') {
               invalidTokens.push(batch[j]);
