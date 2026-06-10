@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,9 +50,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -149,7 +153,16 @@ import stitchpad.composeapp.generated.resources.share_as_pdf_title
 import stitchpad.composeapp.generated.resources.share_doc_type_deposit_receipt
 import stitchpad.composeapp.generated.resources.share_doc_type_invoice
 import stitchpad.composeapp.generated.resources.share_doc_type_picker_label
-import stitchpad.composeapp.generated.resources.share_receipt_title
+import stitchpad.composeapp.generated.resources.share_doc_type_receipt
+import stitchpad.composeapp.generated.resources.share_sheet_subtitle_deposit_receipt
+import stitchpad.composeapp.generated.resources.share_sheet_subtitle_invoice
+import stitchpad.composeapp.generated.resources.share_sheet_subtitle_receipt
+import stitchpad.composeapp.generated.resources.share_sheet_title_deposit_receipt
+import stitchpad.composeapp.generated.resources.share_sheet_title_invoice
+import stitchpad.composeapp.generated.resources.share_sheet_title_receipt
+import stitchpad.composeapp.generated.resources.share_summary_balance_due
+import stitchpad.composeapp.generated.resources.share_summary_paid
+import stitchpad.composeapp.generated.resources.share_summary_total
 import kotlin.time.Clock
 
 private const val MILLIS_PER_DAY: Long = 86_400_000L
@@ -515,6 +528,10 @@ fun OrderDetailScreen(
         ShareReceiptBottomSheet(
             naturalDocType = naturalDocType,
             chosenDocType = state.documentTypeChoice,
+            customerName = state.order?.customerName,
+            totalFormatted = state.order?.let { "₦${formatPrice(it.totalPrice)}" },
+            balanceFormatted = state.order?.let { "₦${formatPrice(it.balanceRemaining)}" },
+            balanceDue = (state.order?.balanceRemaining ?: 0.0) > 0.0,
             onDocTypeChoice = { onAction(OrderDetailAction.OnDocumentTypeChoice(it)) },
             onShareAsImage = { onAction(OrderDetailAction.OnShareAsImageClick) },
             onShareAsPdf = { onAction(OrderDetailAction.OnShareAsPdfClick) },
@@ -625,6 +642,10 @@ private fun FabricNameDialog(
 private fun ShareReceiptBottomSheet(
     naturalDocType: ReceiptDocumentType?,
     chosenDocType: ReceiptDocumentType?,
+    customerName: String?,
+    totalFormatted: String?,
+    balanceFormatted: String?,
+    balanceDue: Boolean,
     onDocTypeChoice: (ReceiptDocumentType) -> Unit,
     onShareAsImage: () -> Unit,
     onShareAsPdf: () -> Unit,
@@ -635,6 +656,25 @@ private fun ShareReceiptBottomSheet(
     // No-payments → Invoice only; fully-paid → Receipt only.
     val showPicker = naturalDocType == ReceiptDocumentType.DEPOSIT_RECEIPT
     val effectiveChoice = chosenDocType ?: ReceiptDocumentType.DEPOSIT_RECEIPT
+    // Title + badge track the document that will actually be generated (PTSP-29)
+    // — read from the formatter's own resolver so they can never contradict it.
+    val effectiveDocType = naturalDocType?.let {
+        ReceiptFormatter.effectiveDocumentType(it, chosenDocType)
+    }
+    val titleRes = when (effectiveDocType) {
+        ReceiptDocumentType.INVOICE -> Res.string.share_sheet_title_invoice
+        ReceiptDocumentType.DEPOSIT_RECEIPT -> Res.string.share_sheet_title_deposit_receipt
+        ReceiptDocumentType.RECEIPT, null -> Res.string.share_sheet_title_receipt
+    }
+    // Title + badge follow the chosen framing (effective), but the subtitle
+    // describes payment *reality*, so it keys off the natural type. Otherwise a
+    // part-paid order re-framed as "Invoice" would read "No payment recorded yet"
+    // while the summary still shows a balance due (Bugbot, PR #146).
+    val subtitleRes = when (naturalDocType) {
+        ReceiptDocumentType.INVOICE -> Res.string.share_sheet_subtitle_invoice
+        ReceiptDocumentType.DEPOSIT_RECEIPT -> Res.string.share_sheet_subtitle_deposit_receipt
+        ReceiptDocumentType.RECEIPT, null -> Res.string.share_sheet_subtitle_receipt
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
@@ -648,12 +688,34 @@ private fun ShareReceiptBottomSheet(
                 bottom = DesignTokens.space8
             )
         ) {
+            // PTSP-29: bold doc-type badge so the tailor can't confuse an invoice
+            // with a receipt before sharing.
+            if (effectiveDocType != null) {
+                ShareDocTypeBadge(docType = effectiveDocType)
+                Spacer(Modifier.height(DesignTokens.space2))
+            }
             Text(
-                text = stringResource(Res.string.share_receipt_title),
-                style = MaterialTheme.typography.titleMedium,
+                text = stringResource(titleRes),
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = DesignTokens.space4)
             )
+            Text(
+                text = stringResource(subtitleRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = DesignTokens.space3),
+            )
+
+            // Order summary — confirm who + how much before sending.
+            if (customerName != null && totalFormatted != null && balanceFormatted != null) {
+                ShareOrderSummary(
+                    customerName = customerName,
+                    totalFormatted = totalFormatted,
+                    balanceFormatted = balanceFormatted,
+                    balanceDue = balanceDue,
+                )
+                Spacer(Modifier.height(DesignTokens.space4))
+            }
 
             if (showPicker) {
                 Text(
@@ -693,6 +755,104 @@ private fun ShareReceiptBottomSheet(
                 onClick = onShareAsPdf
             )
         }
+    }
+}
+
+// PTSP-29 Variant A: bold, color-coded doc-type pill. Invoice = sienna warmth
+// (payment requested), Deposit receipt = indigo (partial), Receipt = green (paid).
+@Composable
+private fun ShareDocTypeBadge(docType: ReceiptDocumentType) {
+    val dark = isSystemInDarkTheme()
+    val (container, content) = when (docType) {
+        ReceiptDocumentType.INVOICE ->
+            MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        ReceiptDocumentType.DEPOSIT_RECEIPT ->
+            MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        ReceiptDocumentType.RECEIPT ->
+            (if (dark) DesignTokens.successDarkBg else DesignTokens.success50) to
+                (if (dark) DesignTokens.successDarkText else DesignTokens.success500)
+    }
+    val labelRes = when (docType) {
+        ReceiptDocumentType.INVOICE -> Res.string.share_doc_type_invoice
+        ReceiptDocumentType.DEPOSIT_RECEIPT -> Res.string.share_doc_type_deposit_receipt
+        ReceiptDocumentType.RECEIPT -> Res.string.share_doc_type_receipt
+    }
+    Surface(
+        shape = RoundedCornerShape(percent = 50),
+        color = container,
+        contentColor = content,
+    ) {
+        Text(
+            text = stringResource(labelRes).uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = DesignTokens.space3, vertical = 6.dp),
+        )
+    }
+}
+
+@Composable
+private fun ShareOrderSummary(
+    customerName: String,
+    totalFormatted: String,
+    balanceFormatted: String,
+    balanceDue: Boolean,
+) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(DesignTokens.space3),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        ) {
+            Text(
+                text = customerName,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            ShareSummaryRow(
+                label = stringResource(Res.string.share_summary_total),
+                value = totalFormatted,
+                valueColor = MaterialTheme.colorScheme.onSurface,
+            )
+            if (balanceDue) {
+                ShareSummaryRow(
+                    label = stringResource(Res.string.share_summary_balance_due),
+                    value = balanceFormatted,
+                    valueColor = MaterialTheme.colorScheme.tertiary,
+                )
+            } else {
+                ShareSummaryRow(
+                    label = stringResource(Res.string.share_summary_paid),
+                    value = totalFormatted,
+                    valueColor = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareSummaryRow(label: String, value: String, valueColor: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = valueColor,
+        )
     }
 }
 

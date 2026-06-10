@@ -652,7 +652,10 @@
     <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>
 
     <!-- Receipt sharing -->
-    <string name="share_receipt_title">Share Receipt</string>
+    <!-- Sheet title reflects the document that will actually be generated (PTSP-29) -->
+    <string name="share_sheet_title_invoice">Share Invoice</string>
+    <string name="share_sheet_title_receipt">Share Receipt</string>
+    <string name="share_sheet_title_deposit_receipt">Share Deposit Receipt</string>
     <string name="share_as_image_title">Share as Image</string>
     <string name="share_as_image_description">Best for WhatsApp &amp; social media</string>
     <string name="share_as_pdf_title">Share as PDF</string>
@@ -662,6 +665,15 @@
     <string name="share_doc_type_picker_label">Send as</string>
     <string name="share_doc_type_invoice">Invoice</string>
     <string name="share_doc_type_deposit_receipt">Deposit receipt</string>
+    <string name="share_doc_type_receipt">Receipt</string>
+    <!-- Share sheet contextual subtitle per document type (PTSP-29 Variant A) -->
+    <string name="share_sheet_subtitle_invoice">No payment recorded yet — this is a request for payment.</string>
+    <string name="share_sheet_subtitle_deposit_receipt">Part-paid — balance still outstanding.</string>
+    <string name="share_sheet_subtitle_receipt">Fully paid — thank-you receipt.</string>
+    <!-- Share sheet order summary rows (PTSP-29 Variant A) -->
+    <string name="share_summary_total">Total</string>
+    <string name="share_summary_balance_due">Balance due</string>
+    <string name="share_summary_paid">Paid in full</string>
     <!-- Snackbar action shown after a payment is recorded -->
     <string name="order_record_payment_snackbar_share_action">Share receipt</string>
 

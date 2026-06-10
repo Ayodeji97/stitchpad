@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Share popup redesign (PTSP-29) + Message placement (PTSP-33)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo400:#5871B8; --indigo500:#2C3E7C; --indigo700:#1E2B5C;
+    --sienna300:#D9885F; --sienna500:#B85A30; --sienna700:#8E4524;
+    --saffron:#E8A800;
+    --paper:#FAF6EC; --ink:#14110E;
+    --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320; --n900:#121110;
+    --success:#2D9E6B; --success50:#E8F7F1; --error:#D93B3B; --error50:#FCEAEA;
+    --wa:#25D366; --wa-dark:#1DA851;
+
+    --bg:var(--paper); --surface:var(--n0); --surface2:var(--n100); --onSurface:var(--n800); --onVariant:var(--n600);
+    --primary:var(--indigo500); --onPrimary:#fff; --primaryContainer:var(--indigo50); --onPrimaryContainer:var(--indigo700);
+    --outline:var(--n200); --outlineVariant:var(--n100); --sheet:var(--n0);
+    --shadow: 0 -8px 40px rgba(20,17,14,.14);
+  }
+  body.dark {
+    --bg:var(--ink); --surface:#1E1C1A; --surface2:#2A2825; --onSurface:#E5E3DF; --onVariant:#A8A49D;
+    --primary:var(--indigo400); --onPrimary:#fff; --primaryContainer:#2D3B6B; --onPrimaryContainer:var(--indigo100);
+    --outline:#3A3731; --outlineVariant:#2A2825; --sheet:#1E1C1A;
+    --success:#5EDBA0; --success50:#0E3D2A; --error:#F08A8A; --error50:#3a1a1a;
+    --shadow: 0 -8px 40px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--onSurface); font-family:'Manrope',sans-serif; transition:background .25s,color .25s; padding-bottom:80px; }
+  h1,h2,h3,.display { font-family:'Fraunces',serif; }
+  .mono { font-family:'JetBrains Mono',monospace; }
+
+  header.top { position:sticky; top:0; z-index:50; background:var(--bg); border-bottom:1px solid var(--outline); padding:18px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  header.top h1 { font-size:20px; margin:0; font-weight:700; }
+  header.top p { margin:2px 0 0; font-size:13px; color:var(--onVariant); }
+  .controls { display:flex; gap:8px; align-items:center; }
+  .toggle, .tabbtn { font-family:'Manrope'; font-weight:600; font-size:13px; border:1px solid var(--outline); background:var(--surface); color:var(--onSurface); padding:9px 16px; border-radius:999px; cursor:pointer; }
+  .tabbtn.active { background:var(--primary); color:var(--onPrimary); border-color:var(--primary); }
+
+  main { max-width:1200px; margin:0 auto; padding:28px; }
+  .section-title { font-size:26px; font-weight:600; margin:36px 0 6px; }
+  .section-sub { color:var(--onVariant); font-size:14px; margin:0 0 24px; max-width:760px; line-height:1.55; }
+
+  .row { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+  .variant { flex:1; min-width:300px; }
+  .variant > .label { font-weight:700; font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px;}
+  .variant > .desc { color:var(--onVariant); font-size:12.5px; margin:0 0 14px; line-height:1.5; min-height:34px;}
+  .pick { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--onPrimary); background:var(--primary); padding:3px 9px; border-radius:999px; }
+
+  .phone { background:var(--bg); border:1px solid var(--outline); border-radius:30px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.12); position:relative; }
+  .phone .appbar { padding:14px 16px; display:flex; align-items:center; gap:12px; background:var(--bg);}
+  .icon-btn { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; background:transparent; border:none; color:var(--onSurface); }
+  .phone .fakebody { padding:0 16px 16px; opacity:.4; }
+  .fakeline { height:12px; border-radius:6px; background:var(--surface2); margin:10px 0; }
+
+  .sheet { background:var(--sheet); border-radius:24px 24px 0 0; box-shadow:var(--shadow); padding:8px 0 20px; }
+  .grab { width:36px; height:4px; border-radius:2px; background:var(--n300); margin:8px auto 6px; }
+  body.dark .grab { background:#3A3731;}
+  .sheet-pad { padding:8px 18px 4px; }
+
+  .doc-badge { display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:12px; letter-spacing:.05em; padding:6px 12px; border-radius:999px; text-transform:uppercase; }
+  .badge-invoice { background:var(--saffron); color:#3a2c00; }
+  .badge-deposit { background:var(--primaryContainer); color:var(--onPrimaryContainer); }
+
+  .opt { display:flex; align-items:center; gap:14px; padding:16px; border:1px solid var(--outline); border-radius:16px; margin-top:10px; cursor:pointer; transition:.15s; background:var(--surface);}
+  .opt:hover { border-color:var(--primary); }
+  .opt .ic { width:44px; height:44px; border-radius:12px; display:grid; place-items:center; flex:none; font-size:20px;}
+  .opt .ic.img { background:var(--primaryContainer); }
+  .opt .ic.pdf { background:var(--success50); }
+  .opt .t { font-weight:700; font-size:15px; }
+  .opt .s { color:var(--onVariant); font-size:12.5px; margin-top:2px;}
+  .opt .chev { margin-left:auto; color:var(--n400); }
+
+  .seg { display:flex; background:var(--surface2); border-radius:12px; padding:4px; gap:4px; }
+  .seg button { flex:1; border:none; background:transparent; color:var(--onVariant); font-family:'Manrope'; font-weight:600; font-size:13px; padding:9px; border-radius:9px; cursor:pointer;}
+  .seg button.on { background:var(--surface); color:var(--onSurface); box-shadow:0 1px 4px rgba(0,0,0,.12); }
+
+  svg { display:block; }
+
+  .summ { background:var(--surface2); border-radius:16px; padding:14px 16px; display:flex; flex-direction:column; gap:8px;}
+  .summ .line { display:flex; justify-content:space-between; font-size:13px; }
+  .summ .line .k { color:var(--onVariant); }
+  .summ .line .v { font-weight:600; }
+  .summ .line .v.bal { color:var(--sienna500); }
+  body.dark .summ .line .v.bal { color:var(--sienna300); }
+  .summ .cust { font-weight:700; font-size:15px; }
+
+  .heading-xl { font-family:'Fraunces'; font-weight:600; font-size:22px; margin:6px 0 2px; }
+  .sub-help { color:var(--onVariant); font-size:12.5px; margin:0 0 12px;}
+
+  .thumb { width:84px; height:108px; border-radius:10px; background:var(--surface); border:1px solid var(--outline); padding:8px; flex:none; }
+  .thumb .band { height:14px; border-radius:3px; background:var(--primary); margin-bottom:6px; }
+  .thumb .tl { height:5px; border-radius:3px; background:var(--n200); margin:4px 0; }
+  body.dark .thumb .tl { background:#34322e;}
+
+  .cd { width:360px; background:var(--bg); border:1px solid var(--outline); border-radius:26px; overflow:hidden; }
+  .cd .bar { padding:12px 12px; display:flex; align-items:center; gap:6px; }
+  .cd .bar .title { font-family:'Fraunces'; font-weight:700; font-size:19px; flex:1; }
+  .cd .hdr { padding:18px 20px 22px; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; }
+  .avatar { width:74px; height:74px; border-radius:50%; background:var(--primaryContainer); color:var(--primary); display:grid; place-items:center; font-family:'Fraunces'; font-weight:700; font-size:28px; }
+  .cd .name { font-family:'Fraunces'; font-weight:700; font-size:21px; }
+  .cd .phone { color:var(--onVariant); font-size:13.5px; }
+  .wa-btn { display:inline-flex; align-items:center; justify-content:center; gap:9px; background:var(--wa); color:#063; font-weight:700; font-size:14.5px; border:none; border-radius:14px; padding:13px 20px; width:100%; cursor:pointer; }
+  .chiprow { display:flex; gap:10px; width:100%; }
+  .qchip { flex:1; display:flex; align-items:center; justify-content:center; gap:7px; background:var(--surface2); border:1px solid var(--outline); border-radius:13px; padding:11px; font-weight:600; font-size:13.5px; cursor:pointer; color:var(--onSurface);}
+  .qchip.wa { color:var(--wa-dark); }
+  body.dark .qchip.wa { color:var(--wa); }
+  .cd .sect { padding:14px 20px; border-top:1px solid var(--outline); }
+  .cd .sect h4 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--onVariant); }
+  .cd .mrow { display:flex; justify-content:space-between; font-size:14px; padding:8px 0;}
+  .cd .mrow .mv { font-family:'JetBrains Mono'; font-weight:600;}
+  .note { font-size:12px; color:var(--onVariant); margin-top:10px; line-height:1.5;}
+  .hide { display:none !important; }
+</style>
+</head>
+<body class="">
+<header class="top">
+  <div>
+    <h1>Share popup redesign + customer-message placement</h1>
+    <p>PTSP-29 (share invoice/receipt) · PTSP-33 (message customer) — pick one of each. Adire Atelier palette.</p>
+  </div>
+  <div class="controls">
+    <button class="tabbtn active" id="tab-share" onclick="showTab('share')">① Share popup</button>
+    <button class="tabbtn" id="tab-msg" onclick="showTab('msg')">② Message placement</button>
+    <button class="toggle" onclick="document.body.classList.toggle('dark')">◐ Light / Dark</button>
+  </div>
+</header>
+
+<main>
+  <div id="panel-share">
+    <div class="section-title display">Share popup — 3 directions</div>
+    <p class="section-sub">All three boldly indicate <b>Invoice vs Receipt vs Deposit receipt</b> before sharing (ticket requirement), replace the emoji rows with real icons, and keep the existing two share targets (Image / PDF) and the partial-paid doc-type picker. Shown here on an <b>unpaid order → Invoice</b>. Toggle dark mode to check parity.</p>
+
+    <div class="row">
+      <div class="variant">
+        <p class="label">A — Badge + order summary <span class="pick">Recommended</span></p>
+        <p class="desc">A prominent doc-type badge and a tiny order summary (who / total / balance) so the tailor confirms what they're sending before they send it.</p>
+        <div class="phone">
+          <div class="appbar"><div style="flex:1"></div></div>
+          <div class="fakebody"><div class="fakeline" style="width:70%"></div><div class="fakeline" style="width:90%"></div><div class="fakeline" style="width:55%"></div></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sheet-pad">
+              <span class="doc-badge badge-invoice">📄 Invoice</span>
+              <div class="heading-xl">Share Invoice</div>
+              <p class="sub-help">No payment recorded yet — this is a request for payment.</p>
+              <div class="summ">
+                <div class="cust">Adunni Okafor</div>
+                <div class="line"><span class="k">Total</span><span class="v mono">₦45,000</span></div>
+                <div class="line"><span class="k">Balance due</span><span class="v bal mono">₦45,000</span></div>
+              </div>
+              <div class="opt"><div class="ic img">🖼️</div><div><div class="t">Share as image</div><div class="s">Best for WhatsApp &amp; social media</div></div><div class="chev">›</div></div>
+              <div class="opt"><div class="ic pdf">📄</div><div><div class="t">Share as PDF</div><div class="s">Best for printing &amp; email</div></div><div class="chev">›</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="variant">
+        <p class="label">B — Doc preview thumbnail</p>
+        <p class="desc">Shows a small thumbnail of the document beside the title, so the tailor literally sees the Invoice/Receipt before choosing a share format.</p>
+        <div class="phone">
+          <div class="appbar"><div style="flex:1"></div></div>
+          <div class="fakebody"><div class="fakeline" style="width:70%"></div><div class="fakeline" style="width:90%"></div><div class="fakeline" style="width:55%"></div></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sheet-pad">
+              <div style="display:flex; gap:14px; align-items:center; margin-bottom:14px;">
+                <div class="thumb"><div class="band"></div><div class="tl" style="width:60%"></div><div class="tl" style="width:90%"></div><div class="tl" style="width:80%"></div><div class="tl" style="width:40%"></div></div>
+                <div>
+                  <span class="doc-badge badge-invoice">Invoice</span>
+                  <div class="heading-xl" style="margin-top:8px;">Share Invoice</div>
+                  <div class="mono" style="font-size:12px; color:var(--onVariant)">₦45,000 due</div>
+                </div>
+              </div>
+              <div class="opt"><div class="ic img">🖼️</div><div><div class="t">Share as image</div><div class="s">Best for WhatsApp &amp; social media</div></div><div class="chev">›</div></div>
+              <div class="opt"><div class="ic pdf">📄</div><div><div class="t">Share as PDF</div><div class="s">Best for printing &amp; email</div></div><div class="chev">›</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="variant">
+        <p class="label">C — Minimal refined</p>
+        <p class="desc">Closest to today: just polished. Bold title with a colored accent bar, real icons, tighter cards. Smallest change, lowest risk.</p>
+        <div class="phone">
+          <div class="appbar"><div style="flex:1"></div></div>
+          <div class="fakebody"><div class="fakeline" style="width:70%"></div><div class="fakeline" style="width:90%"></div><div class="fakeline" style="width:55%"></div></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sheet-pad">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:4px;">
+                <div style="width:4px; height:32px; border-radius:3px; background:var(--saffron)"></div>
+                <div><div class="heading-xl" style="margin:0">Share Invoice</div><div style="font-size:11.5px; font-weight:700; letter-spacing:.05em; color:var(--saffron); text-transform:uppercase;">Invoice · unpaid</div></div>
+              </div>
+              <div style="height:12px"></div>
+              <div class="opt"><div class="ic img">🖼️</div><div><div class="t">Share as image</div><div class="s">Best for WhatsApp &amp; social media</div></div><div class="chev">›</div></div>
+              <div class="opt"><div class="ic pdf">📄</div><div><div class="t">Share as PDF</div><div class="s">Best for printing &amp; email</div></div><div class="chev">›</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title display" style="margin-top:44px;">Partial-paid order → doc-type picker</div>
+    <p class="section-sub">When a deposit is paid but a balance remains, the tailor can frame it as an Invoice or a Deposit receipt. Here's the picker in the recommended Variant A, with badge + title reacting to the choice.</p>
+    <div class="row">
+      <div class="variant" style="max-width:340px;">
+        <p class="label">Deposit receipt selected</p>
+        <div class="phone">
+          <div class="sheet" style="border-radius:24px;">
+            <div class="grab"></div>
+            <div class="sheet-pad">
+              <span class="doc-badge badge-deposit">Deposit receipt</span>
+              <div class="heading-xl">Share Deposit Receipt</div>
+              <p class="sub-help">₦20,000 paid · ₦25,000 still due.</p>
+              <div class="seg" style="margin-bottom:14px;"><button>Invoice</button><button class="on">Deposit receipt</button></div>
+              <div class="opt"><div class="ic img">🖼️</div><div><div class="t">Share as image</div><div class="s">Best for WhatsApp &amp; social media</div></div><div class="chev">›</div></div>
+              <div class="opt"><div class="ic pdf">📄</div><div><div class="t">Share as PDF</div><div class="s">Best for printing &amp; email</div></div><div class="chev">›</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="variant" style="max-width:340px;">
+        <p class="label">Invoice selected (same order)</p>
+        <div class="phone">
+          <div class="sheet" style="border-radius:24px;">
+            <div class="grab"></div>
+            <div class="sheet-pad">
+              <span class="doc-badge badge-invoice">Invoice</span>
+              <div class="heading-xl">Share Invoice</div>
+              <p class="sub-help">₦20,000 paid · ₦25,000 still due.</p>
+              <div class="seg" style="margin-bottom:14px;"><button class="on">Invoice</button><button>Deposit receipt</button></div>
+              <div class="opt"><div class="ic img">🖼️</div><div><div class="t">Share as image</div><div class="s">Best for WhatsApp &amp; social media</div></div><div class="chev">›</div></div>
+              <div class="opt"><div class="ic pdf">📄</div><div><div class="t">Share as PDF</div><div class="s">Best for printing &amp; email</div></div><div class="chev">›</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-msg" class="hide">
+    <div class="section-title display">Message customer — visible placement on the detail screen</div>
+    <p class="section-sub">PTSP-33: the WhatsApp action must be <b>visible</b>, not hidden in the 3-dot menu. Three on-brand options. (The 3-dot menu still exists — it's where the rare <b>Delete</b> action from PTSP-31 lives.)</p>
+
+    <div class="row">
+      <div class="variant" style="flex:none">
+        <p class="label">A — Header button <span class="pick">Recommended</span></p>
+        <p class="desc">A full-width WhatsApp button right under the name/phone. Most discoverable; one tap; reads as the primary thing you do with a customer.</p>
+        <div class="cd">
+          <div class="bar"><button class="icon-btn">‹</button><div class="title">Adunni Okafor</div><button class="icon-btn">✎</button><button class="icon-btn">⋮</button></div>
+          <div class="hdr">
+            <div class="avatar">A</div>
+            <div class="name">Adunni Okafor</div>
+            <div class="phone">+234 803 123 4567</div>
+            <button class="wa-btn" style="margin-top:6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#063"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2zm5.8 14.2c-.2.7-1.4 1.3-2 1.4-.5.1-1.2.1-1.9-.1-.4-.1-1-.3-1.7-.6-3-1.3-4.9-4.3-5-4.5-.2-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.2-.3.5-.4.7-.4h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.5-.3.3c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.9c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg>Message on WhatsApp</button>
+          </div>
+          <div class="sect"><h4>Measurements</h4>
+            <div class="mrow"><span>Bust</span><span class="mv">38"</span></div>
+            <div class="mrow"><span>Waist</span><span class="mv">30"</span></div>
+            <div class="mrow"><span>Hips</span><span class="mv">42"</span></div>
+          </div>
+        </div>
+        <p class="note">Reuses the existing WhatsApp launcher. Hidden/disabled if the customer has no WhatsApp/phone number.</p>
+      </div>
+
+      <div class="variant" style="flex:none">
+        <p class="label">B — Top-bar WhatsApp icon</p>
+        <p class="desc">A WhatsApp icon in the app bar beside Edit. Always reachable, very compact, but a small target and less obviously "message".</p>
+        <div class="cd">
+          <div class="bar">
+            <button class="icon-btn">‹</button><div class="title">Adunni Okafor</div>
+            <button class="icon-btn" style="color:var(--wa-dark)"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2zm5.8 14.2c-.2.7-1.4 1.3-2 1.4-.5.1-1.2.1-1.9-.1-.4-.1-1-.3-1.7-.6-3-1.3-4.9-4.3-5-4.5-.2-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.2-.3.5-.4.7-.4h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.5-.3.3c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.9c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg></button>
+            <button class="icon-btn">✎</button><button class="icon-btn">⋮</button>
+          </div>
+          <div class="hdr">
+            <div class="avatar">A</div>
+            <div class="name">Adunni Okafor</div>
+            <div class="phone">+234 803 123 4567</div>
+          </div>
+          <div class="sect"><h4>Measurements</h4>
+            <div class="mrow"><span>Bust</span><span class="mv">38"</span></div>
+            <div class="mrow"><span>Waist</span><span class="mv">30"</span></div>
+            <div class="mrow"><span>Hips</span><span class="mv">42"</span></div>
+          </div>
+        </div>
+        <p class="note">Cleanest header, but icon-only is less discoverable for non-technical tailors — the testers' exact complaint.</p>
+      </div>
+
+      <div class="variant" style="flex:none">
+        <p class="label">C — Quick-action chips (Message + Call)</p>
+        <p class="desc">A small row of actions in the header. Room to grow (Call, New order) and very tappable, but two buttons compete more than one clear CTA.</p>
+        <div class="cd">
+          <div class="bar"><button class="icon-btn">‹</button><div class="title">Adunni Okafor</div><button class="icon-btn">✎</button><button class="icon-btn">⋮</button></div>
+          <div class="hdr">
+            <div class="avatar">A</div>
+            <div class="name">Adunni Okafor</div>
+            <div class="phone">+234 803 123 4567</div>
+            <div class="chiprow" style="margin-top:8px;">
+              <button class="qchip wa"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2zm5.8 14.2c-.2.7-1.4 1.3-2 1.4-.5.1-1.2.1-1.9-.1-.4-.1-1-.3-1.7-.6-3-1.3-4.9-4.3-5-4.5-.2-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.2-.3.5-.4.7-.4h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.5-.3.3c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.9c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg>Message</button>
+              <button class="qchip">📞 Call</button>
+            </div>
+          </div>
+          <div class="sect"><h4>Measurements</h4>
+            <div class="mrow"><span>Bust</span><span class="mv">38"</span></div>
+            <div class="mrow"><span>Waist</span><span class="mv">30"</span></div>
+            <div class="mrow"><span>Hips</span><span class="mv">42"</span></div>
+          </div>
+        </div>
+        <p class="note">Call is out of scope for these tickets — shown only to illustrate the pattern's headroom.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  function showTab(which){
+    document.getElementById('panel-share').classList.toggle('hide', which!=='share');
+    document.getElementById('panel-msg').classList.toggle('hide', which!=='msg');
+    document.getElementById('tab-share').classList.toggle('active', which==='share');
+    document.getElementById('tab-msg').classList.toggle('active', which==='msg');
+    window.scrollTo({top:0});
+  }
+</script>
+</body>
+</html>
