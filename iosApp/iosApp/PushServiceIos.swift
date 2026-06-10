@@ -32,7 +32,7 @@ final class PushServiceIos: NativePushService {
     /// without waiting for an app restart. The Kotlin side awaits the callback.
     func currentFcmToken(callback: FcmTokenCallback) {
         Messaging.messaging().token { token, _ in
-            callback.onResult(value: token)
+            callback.onResult(token: token)
         }
     }
 
