@@ -17,9 +17,19 @@ class IosPushPermissionController : PushPermissionController {
         }
     }
 
-    override fun requestPermission(): Boolean {
+    // Only the `.notDetermined` state presents a system dialog; requesting when the
+    // status is already authorized/denied is a no-op. Confirm undetermined first and
+    // report false otherwise, so the caller never consumes the one-shot pre-prompt
+    // without a dialog actually appearing.
+    override suspend fun requestPermission(): Boolean {
         val service = iosNativePushService ?: return false
-        service.requestAuthorization()
-        return true
+        val undetermined = suspendCancellableCoroutine { cont ->
+            service.authorizationUndetermined(
+                BooleanCallback { value -> if (cont.isActive) cont.resume(value) }
+            )
+        }
+        // Only request (and report a launched dialog) when the status is undetermined.
+        if (undetermined) service.requestAuthorization()
+        return undetermined
     }
 }

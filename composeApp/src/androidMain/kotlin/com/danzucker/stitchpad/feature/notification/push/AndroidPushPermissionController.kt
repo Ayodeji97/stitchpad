@@ -36,7 +36,7 @@ class AndroidPushPermissionController(
         ) != PackageManager.PERMISSION_GRANTED
     }
 
-    override fun requestPermission(): Boolean {
+    override suspend fun requestPermission(): Boolean {
         val activity = activityHolder.activity
         val canRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && activity != null
         if (canRequest && activity != null) {
