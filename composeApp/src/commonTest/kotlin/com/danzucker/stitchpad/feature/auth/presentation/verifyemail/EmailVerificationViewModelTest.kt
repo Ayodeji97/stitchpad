@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.auth.presentation.verifyemail
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
@@ -54,7 +56,7 @@ class EmailVerificationViewModelTest {
     private fun buildViewModel() = EmailVerificationViewModel(
         authRepository = authRepository,
         onboardingPreferences = preferences,
-        signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar()),
+        signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
     )
 
     private class NoOpPushTokenRegistrar : PushTokenRegistrar {
