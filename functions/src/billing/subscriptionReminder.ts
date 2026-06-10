@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { sendResendEmail } from '../email/resendClient';
+import { isDigestTester } from '../notifications/rollout';
 import { BillingTier } from './paystackBilling';
 import { buildRenewalReminderEmail } from './subscriptionReminderTemplate';
 
@@ -165,4 +166,41 @@ export const prepaidSubscriptionReminder = functions
       return;
     }
     await runSubscriptionReminder(productionIO(apiKey), Date.now());
+  });
+
+/**
+ * Debug/QA trigger: sends a renewal reminder to the CALLER on demand, bypassing the
+ * schedule, the 3-day window, and the per-period dedup, so a tester can preview the
+ * email and exercise the stitchpad://upgrade deep link without hand-editing Firestore.
+ * Tester-allowlisted (same gate as debugSendMyDigest). Uses the caller's real tier when
+ * they're on a paid plan, otherwise a representative Pro sample.
+ */
+export const debugSendMyRenewalReminder = functions
+  .region(REGION)
+  .runWith({ secrets: ['RESEND_API_KEY'] })
+  .https.onCall(async (_data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) throw new functions.https.HttpsError('failed-precondition', 'email_not_configured');
+
+    const db = admin.firestore();
+    const userDoc = await db.collection('users').doc(uid).get();
+    const authUser = await admin.auth().getUser(uid);
+    if (!authUser.email) throw new functions.https.HttpsError('failed-precondition', 'no_email_on_account');
+    if (!authUser.emailVerified) throw new functions.https.HttpsError('failed-precondition', 'email_not_verified');
+    if (!isDigestTester(authUser.email)) throw new functions.https.HttpsError('permission-denied', 'not_a_tester');
+
+    const data = userDoc.data() || {};
+    const tier: BillingTier = data.subscriptionTier === 'atelier' ? 'atelier' : 'pro';
+    const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
+    const { subject, html, text } = buildRenewalReminderEmail({
+      name,
+      tier,
+      daysLeft: 3,
+      renewalDate: new Date(Date.now() + REMINDER_WINDOW_MS),
+      payUrl: PAY_DEEP_LINK,
+    });
+    await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
+    return { sent: true, to: authUser.email };
   });

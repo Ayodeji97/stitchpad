@@ -10,6 +10,8 @@ import com.danzucker.stitchpad.core.debug.DebugTestAccounts
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderSendResult
 import com.danzucker.stitchpad.core.debug.SeedResult
 import com.danzucker.stitchpad.core.debug.SessionActionResult
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -21,11 +23,15 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// A cohesive debug-only menu VM: one runX() per debug action. Splitting it would
+// just scatter trivial one-liner handlers across files for no readability gain.
+@Suppress("TooManyFunctions")
 class DebugMenuViewModel(
     private val seeder: DebugSeeder,
     private val sessionActions: DebugSessionActions,
     private val freemiumActions: FreemiumDebugActions,
     private val digestActions: DigestDebugActions,
+    private val reminderActions: ReminderDebugActions,
     private val now: () -> Long,
     private val testAccountsConfigured: Boolean = DebugTestAccounts.isConfigured,
 ) : ViewModel() {
@@ -88,6 +94,7 @@ class DebugMenuViewModel(
             DebugMenuAction.OnWipeDataClick -> runWipe()
             DebugMenuAction.OnSendDailyDigestClick -> runSendDigest()
             DebugMenuAction.OnSendTestPushClick -> runSendTestPush()
+            DebugMenuAction.OnSendRenewalReminderClick -> runSendReminder()
             else -> Unit // freemium branch handled above
         }
     }
@@ -187,6 +194,14 @@ class DebugMenuViewModel(
             DigestSendResult.Disabled ->
                 UiText.DynamicString("Nothing sent — email/push may be off, no token, or no order. Check Settings.")
             is DigestSendResult.Failure -> UiText.DynamicString("Digest failed: ${r.reason}")
+        }
+        emit(DebugMenuEvent.ShowSnackbar(message))
+    }
+
+    private fun runSendReminder() = runJob {
+        val message = when (val r = reminderActions.sendNow()) {
+            is ReminderSendResult.Sent -> UiText.DynamicString("Renewal reminder sent to ${r.to}")
+            is ReminderSendResult.Failure -> UiText.DynamicString("Reminder failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
     }

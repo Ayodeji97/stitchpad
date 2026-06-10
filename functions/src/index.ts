@@ -54,4 +54,4 @@ export {
   paystackWebhook,
   expirePrepaidSubscriptions,
 } from './billing/paystackBilling';
-export { prepaidSubscriptionReminder } from './billing/subscriptionReminder';
+export { prepaidSubscriptionReminder, debugSendMyRenewalReminder } from './billing/subscriptionReminder';

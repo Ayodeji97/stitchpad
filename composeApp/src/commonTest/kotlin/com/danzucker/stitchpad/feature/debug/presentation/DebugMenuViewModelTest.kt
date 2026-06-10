@@ -6,6 +6,8 @@ import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderSendResult
 import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
@@ -74,18 +76,28 @@ class DebugMenuViewModelTest {
     private fun TestScope.createViewModel(
         testAccountsConfigured: Boolean = true,
         digestActions: DigestDebugActions = NoopDigestDebugActions,
+        reminderActions: ReminderDebugActions = NoopReminderDebugActions,
     ): DebugMenuViewModel {
         val vm = DebugMenuViewModel(
             seeder = seeder,
             sessionActions = sessionActions,
             freemiumActions = NoopFreemiumDebugActions,
             digestActions = digestActions,
+            reminderActions = reminderActions,
             now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
     }
+
+    private class FakeReminderDebugActions(
+        var result: ReminderSendResult = ReminderSendResult.Sent("fola@gmail.com"),
+    ) : ReminderDebugActions {
+        override suspend fun sendNow(): ReminderSendResult = result
+    }
+
+    private val NoopReminderDebugActions get() = FakeReminderDebugActions()
 
     private class FakeDigestDebugActions(
         var result: DigestSendResult = DigestSendResult.Empty,
@@ -291,6 +303,38 @@ class DebugMenuViewModelTest {
         assertEquals(0, seeder.seedBulkCustomersCalls)
         // Dialog remains open so user can fix input
         assertTrue(vm.state.first().bulkSeed != null)
+    }
+
+    @Test
+    fun `OnSendRenewalReminderClick emits ShowSnackbar with recipient when sent`() = runTest {
+        val fake = FakeReminderDebugActions(result = ReminderSendResult.Sent("fola@gmail.com"))
+        val vm = createViewModel(reminderActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendRenewalReminderClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("fola@gmail.com"))
+    }
+
+    @Test
+    fun `OnSendRenewalReminderClick emits failure snackbar on failure`() = runTest {
+        val fake = FakeReminderDebugActions(result = ReminderSendResult.Failure("not_a_tester"))
+        val vm = createViewModel(reminderActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendRenewalReminderClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("failed", ignoreCase = true))
     }
 
     @Test
