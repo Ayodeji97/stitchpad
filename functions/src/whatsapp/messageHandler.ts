@@ -194,20 +194,31 @@ async function handleAccountTurn(conv: ConversationDoc, msg: InboundMessage, lan
   const intent = detectAccountIntent(msg.text);
   if (!intent) return false;
 
-  // Already linked + consented → answer directly.
-  if (conv.linkingConsent && conv.linkedUid) {
-    await sendTier(conv.linkedUid, msg.waId, language, deps);
-    return true;
-  }
-
-  // Need to link the number + ask consent first.
-  const uid = conv.linkedUid ?? await deps.accountLink.findUidByNumber(msg.waId);
+  // ALWAYS re-resolve the current number → uid binding before disclosing
+  // anything. A cached link can go stale (the user edits/removes their number,
+  // or the SIM is reassigned to someone else), and consent only ever applied to
+  // the account that was linked at consent time.
+  const uid = await deps.accountLink.findUidByNumber(msg.waId);
   if (!uid) {
+    // Revoke any stale consent so a later re-match can't ride on it. We leave
+    // linkedUid as-is (harmless — every disclosure re-resolves and compares it).
+    if (conv.linkingConsent || conv.awaitingLinkConsent) {
+      await deps.conversations.update(msg.waId, { linkingConsent: false, awaitingLinkConsent: false, pendingAccountIntent: null });
+    }
     await deps.client.sendText(msg.waId, cap(NO_ACCOUNT_FOUND[language]));
     return true;
   }
+
+  // Consent is valid only for the SAME account the user consented to.
+  if (conv.linkingConsent && conv.linkedUid === uid) {
+    await sendTier(uid, msg.waId, language, deps);
+    return true;
+  }
+
+  // New or changed binding → (re)ask consent for the current account, resetting
+  // any consent that was granted for a different (now-stale) account.
   await deps.client.sendText(msg.waId, cap(CONSENT_PROMPT[language]));
-  await deps.conversations.update(msg.waId, { linkedUid: uid, awaitingLinkConsent: true, pendingAccountIntent: intent });
+  await deps.conversations.update(msg.waId, { linkedUid: uid, linkingConsent: false, awaitingLinkConsent: true, pendingAccountIntent: intent });
   return true;
 }
 

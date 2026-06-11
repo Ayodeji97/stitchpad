@@ -235,6 +235,31 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(sent[0].body).toMatch(/Tailor Atelier/);
   });
 
+  it('does not disclose a stale cached link when the number now maps to a different account', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'old-uid', linkingConsent: true } });
+    // The number now resolves to a DIFFERENT user (e.g. SIM reassigned).
+    await handleInboundPayload(
+      textPayload('a', '1', 'what plan am I on'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: 'new-uid', tier: 'pro' }) }),
+    );
+    expect(sent[0].body.toLowerCase()).toMatch(/reply yes/); // re-consent for the new binding
+    expect(sent[0].body).not.toMatch(/plan\./); // no tier disclosed
+    expect(conv.store.get('a')?.linkedUid).toBe('new-uid');
+    expect(conv.store.get('a')?.linkingConsent).toBe(false);
+  });
+
+  it('clears a stale link and reports no account when the number no longer matches anyone', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'old-uid', linkingConsent: true } });
+    await handleInboundPayload(
+      textPayload('a', '1', 'what tier am I on'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: null }) }),
+    );
+    expect(sent[0].body.toLowerCase()).toMatch(/could not find|not find|no stitchpad account/);
+    expect(conv.store.get('a')?.linkingConsent).toBe(false);
+  });
+
   it('tells the user when no account is registered to their number', async () => {
     const { client, sent } = fakeClient();
     const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
