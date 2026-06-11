@@ -46,20 +46,34 @@ interface RawUserTierDoc {
   tier?: string;
 }
 
+/**
+ * Given the matching uids from each queried field, returns the single linked uid
+ * or null. Links ONLY when exactly one distinct user matches across all fields —
+ * if the number hits one user's whatsappNumber and a different user's phone, that
+ * is ambiguous and we must not disclose either account.
+ */
+export function resolveUniqueUid(uidGroups: string[][]): string | null {
+  const uids = new Set<string>();
+  for (const group of uidGroups) {
+    for (const id of group) uids.add(id);
+  }
+  return uids.size === 1 ? [...uids][0] : null;
+}
+
 export function productionAccountLinkIO(db: admin.firestore.Firestore): AccountLinkIO {
   const users = db.collection('users');
   return {
     async findUidByNumber(waId) {
       const candidates = phoneCandidates(waId);
-      // Firestore 'in' caps at 30 values; we pass 4. Check whatsappNumber first,
-      // then fall back to the reserved `phone` field.
+      // Firestore 'in' caps at 30 values; we pass 4. Collect matches across BOTH
+      // whatsappNumber and phone, then link only if exactly one distinct user
+      // matched (a cross-field collision between two users is ambiguous).
+      const groups: string[][] = [];
       for (const field of ['whatsappNumber', 'phone']) {
         const snap = await users.where(field, 'in', candidates).get();
-        // Exactly one match links; 0 or >1 (ambiguous) does not.
-        if (snap.size === 1) return snap.docs[0].id;
-        if (snap.size > 1) return null;
+        groups.push(snap.docs.map((d) => d.id));
       }
-      return null;
+      return resolveUniqueUid(groups);
     },
     async getTier(uid) {
       const snap = await users.doc(uid).get();
