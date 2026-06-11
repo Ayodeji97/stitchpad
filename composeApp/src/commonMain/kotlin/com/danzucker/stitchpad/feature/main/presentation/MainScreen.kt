@@ -100,7 +100,13 @@ fun MainRoot(
             // Renewal-reminder email "Renew" button (stitchpad://upgrade) lands here.
             DeepLinkTarget.UPGRADE -> {
                 pendingDeepLink.clear()
-                innerNavController.navigate(UpgradeRoute) { launchSingleTop = true }
+                // popUpTo<UpgradeRoute> forces a FRESH UpgradeViewModel so it consumes the
+                // deep link's plan pre-select on init. launchSingleTop alone would reuse an
+                // already-open Upgrade screen's VM and skip the pre-select (leaving it stale).
+                innerNavController.navigate(UpgradeRoute) {
+                    popUpTo(UpgradeRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
             }
             null -> Unit
         }
