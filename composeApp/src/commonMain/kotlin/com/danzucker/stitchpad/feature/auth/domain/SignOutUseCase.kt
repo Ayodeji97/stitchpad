@@ -37,10 +37,11 @@ class SignOutUseCase(
         }
         val result = authRepository.signOut()
         if (result is Result.Success) {
-            // Drop any pending deep-link target (e.g. an UPGRADE email-link tap) so it
-            // can't auto-route the NEXT user who signs in on this device after an account
-            // switch — the link belonged to the user who just signed out.
+            // Drop any pending deep-link target AND its pre-select (e.g. an UPGRADE
+            // email-link tap) so it can't auto-route / pre-select for the NEXT user who
+            // signs in on this device — the link belonged to the user who just signed out.
             pendingDeepLink.clear()
+            pendingDeepLink.consumeUpgradePreselect()
             // Backup only on confirmed sign-out: rotate the local FCM token so any doc the
             // step above couldn't delete (offline) gets pruned server-side on the next push.
             withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) { pushTokenRegistrar.invalidateToken() }

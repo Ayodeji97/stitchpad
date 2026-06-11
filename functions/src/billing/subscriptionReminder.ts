@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { sendResendEmail } from '../email/resendClient';
 import { isDigestTester } from '../notifications/rollout';
-import { BillingTier } from './paystackBilling';
+import { BillingCadence, BillingTier } from './paystackBilling';
 import { buildRenewalReminderEmail } from './subscriptionReminderTemplate';
 
 const REGION = 'europe-west1';
@@ -20,11 +20,21 @@ export const REMINDER_WINDOW_MS = 3 * DAY_MS;
  */
 export const PAY_DEEP_LINK = 'stitchpad://upgrade';
 
+/**
+ * Deep link carrying the plan to renew, so the Upgrade screen pre-selects the
+ * tailor's current tier + cadence (one tap from paying) instead of defaulting to
+ * the Atelier upsell. The app reads ?tier= and ?cadence= from the URL.
+ */
+export function buildUpgradeDeepLink(tier: BillingTier, cadence: BillingCadence): string {
+  return `${PAY_DEEP_LINK}?tier=${tier}&cadence=${cadence}`;
+}
+
 export interface ReminderRecipient {
   uid: string;
   email: string;
   name: string;
   tier: BillingTier;
+  cadence: BillingCadence;
   subscriptionEndsAt: Date;
 }
 
@@ -72,7 +82,7 @@ export async function runSubscriptionReminder(
         tier: r.tier,
         daysLeft,
         renewalDate: r.subscriptionEndsAt,
-        payUrl: PAY_DEEP_LINK,
+        payUrl: buildUpgradeDeepLink(r.tier, r.cadence),
       });
       // Stamp AFTER a successful send (at-least-once): a failure stamping after the
       // email went out may re-send next run — preferred over losing the reminder.
@@ -109,6 +119,28 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
+/**
+ * Cadence (monthly/annual) of the user's most recent paid checkout, so the renewal
+ * deep link can pre-select it. The user doc only stores tier, not cadence. Uses a
+ * single-field `status == 'paid'` filter (auto-indexed; no composite index) and
+ * picks the latest by paidAt in code. Defaults to monthly when none is found.
+ */
+async function getLatestPaidCadence(db: admin.firestore.Firestore, uid: string): Promise<BillingCadence> {
+  const snap = await db.collection('users').doc(uid).collection('billingTransactions')
+    .where('status', '==', 'paid').get();
+  let latestMs = -1;
+  let cadence: BillingCadence = 'monthly';
+  for (const d of snap.docs) {
+    const data = d.data();
+    const paidAtMs = toDate(data.paidAt)?.getTime() ?? 0;
+    if (paidAtMs > latestMs) {
+      latestMs = paidAtMs;
+      cadence = data.cadence === 'annual' ? 'annual' : 'monthly';
+    }
+  }
+  return cadence;
+}
+
 function productionIO(apiKey: string): SubscriptionReminderIO {
   const db = admin.firestore();
   return {
@@ -133,7 +165,15 @@ function productionIO(apiKey: string): SubscriptionReminderIO {
           const authUser = await admin.auth().getUser(doc.id);
           if (!authUser.email || !authUser.emailVerified) return null;
           const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
-          return { uid: doc.id, email: authUser.email, name, tier: data.subscriptionTier as BillingTier, subscriptionEndsAt: endsAt };
+          const cadence = await getLatestPaidCadence(db, doc.id);
+          return {
+            uid: doc.id,
+            email: authUser.email,
+            name,
+            tier: data.subscriptionTier as BillingTier,
+            cadence,
+            subscriptionEndsAt: endsAt,
+          };
         } catch {
           return null;
         }
@@ -193,13 +233,14 @@ export const debugSendMyRenewalReminder = functions
 
     const data = userDoc.data() || {};
     const tier: BillingTier = data.subscriptionTier === 'atelier' ? 'atelier' : 'pro';
+    const cadence = await getLatestPaidCadence(db, uid);
     const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
     const { subject, html, text } = buildRenewalReminderEmail({
       name,
       tier,
       daysLeft: 3,
       renewalDate: new Date(Date.now() + REMINDER_WINDOW_MS),
-      payUrl: PAY_DEEP_LINK,
+      payUrl: buildUpgradeDeepLink(tier, cadence),
     });
     await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
     return { sent: true, to: authUser.email };

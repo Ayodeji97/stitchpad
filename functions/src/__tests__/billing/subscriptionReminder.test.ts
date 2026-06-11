@@ -1,4 +1,5 @@
 import {
+  buildUpgradeDeepLink,
   PAY_DEEP_LINK,
   ReminderRecipient,
   runSubscriptionReminder,
@@ -12,7 +13,7 @@ const NOW = Date.parse('2026-06-09T00:00:00Z');
 class FakeIO implements SubscriptionReminderIO {
   recipients: ReminderRecipient[] = [];
   reminded = new Map<string, number>();
-  sent: { to: string; subject: string }[] = [];
+  sent: { to: string; subject: string; html: string }[] = [];
   failOn: string | null = null;
   failStampOn: string | null = null;
 
@@ -28,7 +29,7 @@ class FakeIO implements SubscriptionReminderIO {
   }
   async sendEmail(p: { to: string; subject: string; html: string; text: string }): Promise<void> {
     if (this.failOn === p.to) throw new Error('resend boom');
-    this.sent.push({ to: p.to, subject: p.subject });
+    this.sent.push({ to: p.to, subject: p.subject, html: p.html });
   }
 }
 
@@ -38,6 +39,7 @@ function recipient(over: Partial<ReminderRecipient> = {}): ReminderRecipient {
     email: 'ada@example.com',
     name: 'Ada',
     tier: 'pro',
+    cadence: 'monthly',
     subscriptionEndsAt: new Date(NOW + 2 * DAY),
     ...over,
   };
@@ -55,6 +57,15 @@ describe('runSubscriptionReminder', () => {
     expect(io.sent[0].to).toBe('ada@example.com');
     expect(io.sent[0].subject).toContain('2 days');
     expect(io.reminded.get('uid-1')).toBe(NOW + 2 * DAY);
+  });
+
+  it('embeds the renewing tier + cadence in the deep link so the app pre-selects them', async () => {
+    const io = new FakeIO();
+    io.recipients = [recipient({ tier: 'atelier', cadence: 'annual' })];
+
+    await runSubscriptionReminder(io, NOW);
+
+    expect(io.sent[0].html).toContain('stitchpad://upgrade?tier=atelier&amp;cadence=annual');
   });
 
   it('skips a user already reminded for the same period', async () => {
@@ -115,6 +126,13 @@ describe('runSubscriptionReminder', () => {
     expect(io.sent.map((s) => s.to)).toEqual(['good@example.com']);
     expect(io.reminded.has('a')).toBe(false); // not stamped when send failed
     expect(io.reminded.get('b')).toBe(NOW + 2 * DAY);
+  });
+});
+
+describe('buildUpgradeDeepLink', () => {
+  it('carries tier + cadence as query params on the upgrade scheme', () => {
+    expect(buildUpgradeDeepLink('pro', 'monthly')).toBe('stitchpad://upgrade?tier=pro&cadence=monthly');
+    expect(buildUpgradeDeepLink('atelier', 'annual')).toBe('stitchpad://upgrade?tier=atelier&cadence=annual');
   });
 });
 

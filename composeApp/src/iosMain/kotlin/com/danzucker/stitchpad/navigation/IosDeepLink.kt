@@ -19,6 +19,17 @@ fun handleIosDeepLink(url: String): Boolean {
         url.startsWith("stitchpad://upgrade?") ||
         url.startsWith("stitchpad://upgrade/")
     if (!isUpgrade) return false
-    KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.UPGRADE)
+    val params = parseQuery(url)
+    KoinPlatform.getKoin().get<PendingDeepLinkHolder>().setUpgrade(params["tier"], params["cadence"])
     return true
+}
+
+/** Minimal query-string parse (no android.net.Uri on iOS): "a=1&b=2" -> map. */
+private fun parseQuery(url: String): Map<String, String> {
+    val query = url.substringAfter('?', "")
+    if (query.isEmpty()) return emptyMap()
+    return query.split("&").mapNotNull { pair ->
+        val parts = pair.split("=", limit = 2)
+        if (parts.size == 2 && parts[0].isNotEmpty()) parts[0] to parts[1] else null
+    }.toMap()
 }
