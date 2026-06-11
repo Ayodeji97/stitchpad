@@ -15,6 +15,9 @@ class FirebasePushTokenRepository(
         // Fire-and-forget shape (call from a background scope) — GitLive set() awaits the
         // server ACK, so do NOT block UI on it.
         val data = mapOf(
+            // Stored as a field (the doc id is also the token) so the server-side
+            // pruneTokenOwnership trigger can collectionGroup-query by token.
+            "token" to token,
             "platform" to platform,
             "updatedAt" to FieldValue.serverTimestamp,
         )
