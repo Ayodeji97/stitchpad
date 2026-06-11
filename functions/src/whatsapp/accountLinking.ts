@@ -81,7 +81,13 @@ export function productionAccountLinkIO(db: admin.firestore.Firestore): AccountL
       const groups: string[][] = [];
       for (const field of ACCOUNT_LINK_FIELDS) {
         const snap = await users.where(field, 'in', candidates).get();
-        groups.push(snap.docs.map((d) => d.id));
+        // Only link CONFIRMED WhatsApp numbers. The app stores the number before
+        // it is confirmed, so a stale/mistyped number on someone else's account
+        // could otherwise let this sender consent into the wrong account.
+        const confirmed = snap.docs
+          .filter((d) => (d.data() as { whatsappConfirmed?: boolean }).whatsappConfirmed === true)
+          .map((d) => d.id);
+        groups.push(confirmed);
       }
       return resolveUniqueUid(groups);
     },
