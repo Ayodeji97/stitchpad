@@ -22,6 +22,14 @@ describe('selectRelevant', () => {
     expect(result.map((a) => a.id)).toContain('login');
   });
 
+  it('matches a multi-word phrase keyword via token overlap', () => {
+    const phrase: KbArticle[] = [
+      { id: 'cap', category: 'billing', question: 'Plan limits', answerEn: '…', keywords: ['how many customers'] },
+    ];
+    const result = selectRelevant('how many customers can I add?', phrase);
+    expect(result.map((a) => a.id)).toContain('cap');
+  });
+
   it('returns an empty array when nothing matches (lets the bot escalate)', () => {
     expect(selectRelevant('what is the weather today', articles)).toEqual([]);
   });

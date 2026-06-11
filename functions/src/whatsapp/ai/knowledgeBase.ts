@@ -49,8 +49,10 @@ export function selectRelevant(question: string, articles: KbArticle[], limit = 
   if (tokens.size === 0) return [];
 
   const scored = articles.map((article) => {
+    // Tokenize keywords too, so multi-word phrase keywords ("how many customers")
+    // match a user's individual question tokens ("many", "customers").
     const haystack = new Set([
-      ...article.keywords.map((k) => k.toLowerCase()),
+      ...article.keywords.flatMap((k) => tokenize(k)),
       ...tokenize(article.question),
     ]);
     let score = 0;
