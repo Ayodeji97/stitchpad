@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutSession
@@ -35,12 +36,14 @@ class UpgradeViewModelTest {
 
     private lateinit var entitlements: FakeEntitlementsProvider
     private lateinit var payments: FakePaymentRepository
+    private lateinit var pendingDeepLink: PendingDeepLinkHolder
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE)
         payments = FakePaymentRepository()
+        pendingDeepLink = PendingDeepLinkHolder()
     }
 
     @AfterTest
@@ -141,9 +144,36 @@ class UpgradeViewModelTest {
         assertEquals(UpgradeEvent.UpgradeDetected, eventDeferred.await())
     }
 
+    @Test
+    fun renewal_deep_link_preselects_the_tier_and_cadence() = runTest {
+        pendingDeepLink.setUpgrade(tier = "atelier", cadence = "annual")
+
+        val vm = newVm()
+
+        assertEquals(SubscriptionTier.ATELIER, vm.state.value.selectedTier)
+        assertEquals(BillingCadence.ANNUAL, vm.state.value.billingCadence)
+        // Consumed once — a second screen open falls back to the default.
+        assertEquals(SubscriptionTier.PRO, newVm().state.value.selectedTier)
+    }
+
+    @Test
+    fun no_deep_link_uses_the_default_selection() = runTest {
+        val vm = newVm() // FREE → PRO / MONTHLY
+        assertEquals(SubscriptionTier.PRO, vm.state.value.selectedTier)
+        assertEquals(BillingCadence.MONTHLY, vm.state.value.billingCadence)
+    }
+
+    @Test
+    fun preselected_free_is_ignored_and_falls_back_to_default() = runTest {
+        pendingDeepLink.setUpgrade(tier = "free", cadence = null)
+        val vm = newVm()
+        assertEquals(SubscriptionTier.PRO, vm.state.value.selectedTier)
+    }
+
     private fun newVm(): UpgradeViewModel = UpgradeViewModel(
         entitlements = entitlements,
         paymentRepository = payments,
+        pendingDeepLink = pendingDeepLink,
     )
 
     private class FakePaymentRepository : PaymentRepository {

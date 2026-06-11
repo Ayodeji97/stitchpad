@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.freemium.presentation.toUiText
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,19 +20,10 @@ import kotlinx.coroutines.launch
 class UpgradeViewModel(
     private val entitlements: EntitlementsProvider,
     private val paymentRepository: PaymentRepository,
+    pendingDeepLink: PendingDeepLinkHolder,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(
-        UpgradeState(
-            currentTier = entitlements.current().tier,
-            // Default selection: if currently Free → suggest Pro; if Pro → suggest Atelier.
-            selectedTier = if (entitlements.current().tier == SubscriptionTier.FREE) {
-                SubscriptionTier.PRO
-            } else {
-                SubscriptionTier.ATELIER
-            },
-        )
-    )
+    private val _state = MutableStateFlow(initialState(entitlements, pendingDeepLink))
     val state: StateFlow<UpgradeState> = _state.asStateFlow()
 
     private val _events = Channel<UpgradeEvent>(Channel.BUFFERED)
@@ -56,6 +49,30 @@ class UpgradeViewModel(
 
     private fun SubscriptionTier.isHigherThan(other: SubscriptionTier): Boolean =
         ordinal > other.ordinal
+
+    private companion object {
+        /**
+         * A renewal deep link (stitchpad://upgrade?tier=&cadence=) carries the plan the
+         * tailor is renewing, so pre-select that tier + cadence — one tap from paying.
+         * Falls back to the upsell default (Free → Pro, Pro → Atelier) for a normal
+         * upgrade with no pre-select. A pre-selected FREE is ignored (you don't renew to
+         * Free). The pre-select is consumed once so it doesn't stick across navigations.
+         */
+        fun initialState(
+            entitlements: EntitlementsProvider,
+            pendingDeepLink: PendingDeepLinkHolder,
+        ): UpgradeState {
+            val preselect = pendingDeepLink.consumeUpgradePreselect()
+            val currentTier = entitlements.current().tier
+            val preselectedTier = preselect?.tier
+                ?.let { SubscriptionTier.fromWire(it) }
+                ?.takeIf { it != SubscriptionTier.FREE }
+            val selectedTier = preselectedTier
+                ?: if (currentTier == SubscriptionTier.FREE) SubscriptionTier.PRO else SubscriptionTier.ATELIER
+            val cadence = preselect?.cadence?.let { BillingCadence.fromWire(it) } ?: BillingCadence.MONTHLY
+            return UpgradeState(currentTier = currentTier, selectedTier = selectedTier, billingCadence = cadence)
+        }
+    }
 
     fun onAction(action: UpgradeAction) {
         // Ignore plan changes once a checkout is in flight: otherwise the user
