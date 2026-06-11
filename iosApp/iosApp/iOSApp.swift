@@ -103,15 +103,15 @@ struct iOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-        }
-        .onOpenURL { url in
-            // SwiftUI App-lifecycle apps deliver custom-scheme opens HERE, not via the
-            // AppDelegate's application(_:open:) — so the renewal email's
-            // stitchpad://upgrade link must be handled on this path. Falls through to
-            // Google Sign-In for its callback URL.
-            if !IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString) {
-                _ = GIDSignIn.sharedInstance.handle(url)
-            }
+                .onOpenURL { url in
+                    // SwiftUI App-lifecycle apps deliver custom-scheme opens HERE (a View
+                    // modifier on the root view), not via the AppDelegate's
+                    // application(_:open:) — so the renewal email's stitchpad://upgrade
+                    // link must be handled on this path. Falls through to Google Sign-In.
+                    if !IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString) {
+                        _ = GIDSignIn.sharedInstance.handle(url)
+                    }
+                }
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
