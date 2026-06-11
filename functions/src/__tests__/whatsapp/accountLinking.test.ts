@@ -15,17 +15,19 @@ describe('detectAccountIntent', () => {
 });
 
 describe('phoneCandidates', () => {
-  it('produces the common Nigerian formats from an E.164 WhatsApp id', () => {
+  it('produces the common Nigerian formats from a 234 E.164 WhatsApp id', () => {
     const c = phoneCandidates('2348012345678');
     expect(c).toEqual(expect.arrayContaining(['+2348012345678', '2348012345678', '08012345678', '8012345678']));
   });
 
-  it('normalizes a local 0-prefixed number to the same candidate set', () => {
-    expect(phoneCandidates('08012345678')).toEqual(expect.arrayContaining(['+2348012345678', '08012345678']));
+  it('handles a +234 formatted number too', () => {
+    expect(phoneCandidates('+234 801 234 5678')).toEqual(expect.arrayContaining(['2348012345678', '8012345678']));
   });
 
-  it('normalizes a +234 formatted number too', () => {
-    expect(phoneCandidates('+234 801 234 5678')).toEqual(expect.arrayContaining(['2348012345678', '8012345678']));
+  it('does NOT reshape a non-Nigerian sender into a +234 number (no cross-national collisions)', () => {
+    const c = phoneCandidates('15551234567'); // US E.164
+    expect(c).toEqual(expect.arrayContaining(['+15551234567', '15551234567']));
+    expect(c.some((x) => x.startsWith('234') || x.startsWith('+234'))).toBe(false);
   });
 });
 

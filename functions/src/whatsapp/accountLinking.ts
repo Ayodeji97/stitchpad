@@ -17,20 +17,21 @@ export function detectAccountIntent(text: string): AccountIntent | null {
   return TIER_RE.test(text) ? 'tier' : null;
 }
 
-/** The Nigerian national (10-digit) part of a number, from any format. */
-function nationalNumber(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  return digits.length >= 10 ? digits.slice(-10) : digits;
-}
-
 /**
- * The common stored formats a Nigerian number might appear as, so a single
- * Firestore lookup can match however the tailor saved their number (E.164 with
- * or without +, or the local 0-prefixed form).
+ * The stored formats a number might appear as, so a single Firestore lookup can
+ * match however the tailor saved it. We ONLY expand to the Nigerian variants
+ * (+234 / 234 / 0-prefixed / bare national) when the sender is actually a 234
+ * E.164 number — otherwise a foreign sender whose last 10 digits happen to match
+ * a Nigerian user's number could be linked to that account. Non-Nigerian senders
+ * are matched on their exact E.164 form only.
  */
 export function phoneCandidates(waId: string): string[] {
-  const nat = nationalNumber(waId);
-  return [`+234${nat}`, `234${nat}`, `0${nat}`, nat];
+  const digits = waId.replace(/\D/g, '');
+  if (digits.startsWith('234') && digits.length === 13) {
+    const nat = digits.slice(3);
+    return [`+234${nat}`, `234${nat}`, `0${nat}`, nat];
+  }
+  return [`+${digits}`, digits];
 }
 
 /** Read seam over the users collection for linking + tier lookup. */
