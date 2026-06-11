@@ -225,6 +225,18 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(conv.store.get('a')?.linkingConsent).toBe(true);
   });
 
+  it('re-checks the binding on YES and refuses if the number no longer matches the consented account', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'uid-1', awaitingLinkConsent: true, pendingAccountIntent: 'tier' } });
+    // The number now resolves to a different user between prompt and confirmation.
+    await handleInboundPayload(
+      textPayload('a', '1', 'YES'),
+      deps({ client, conversations: conv.io, accountLink: fakeAccountLink({ uid: 'uid-2', tier: 'pro' }) }),
+    );
+    expect(sent[0].body).not.toMatch(/plan\./); // no tier disclosed
+    expect(conv.store.get('a')?.linkingConsent).not.toBe(true);
+  });
+
   it('answers the tier directly when already linked and consented', async () => {
     const { client, sent } = fakeClient();
     const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'uid-1', linkingConsent: true } });

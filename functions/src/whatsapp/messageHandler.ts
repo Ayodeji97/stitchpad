@@ -179,8 +179,17 @@ async function handleAccountTurn(conv: ConversationDoc, msg: InboundMessage, lan
   // remembered intent); anything else cancels and falls through to normal flow.
   if (conv.awaitingLinkConsent) {
     if (isAffirmative(msg.text)) {
-      if (conv.pendingAccountIntent === 'tier' && conv.linkedUid) {
-        await sendTier(conv.linkedUid, msg.waId, language, deps);
+      // Re-resolve before honoring consent — the binding may have changed
+      // between the prompt and this YES. Only disclose if it still maps to the
+      // account the user was shown.
+      const confirmedUid = await deps.accountLink.findUidByNumber(msg.waId);
+      if (!confirmedUid || confirmedUid !== conv.linkedUid) {
+        await deps.conversations.update(msg.waId, { linkingConsent: false, awaitingLinkConsent: false, pendingAccountIntent: null });
+        await deps.client.sendText(msg.waId, cap(NO_ACCOUNT_FOUND[language]));
+        return true;
+      }
+      if (conv.pendingAccountIntent === 'tier') {
+        await sendTier(confirmedUid, msg.waId, language, deps);
       } else {
         await deps.client.sendText(msg.waId, cap(ACCOUNT_LINKED[language]));
       }
