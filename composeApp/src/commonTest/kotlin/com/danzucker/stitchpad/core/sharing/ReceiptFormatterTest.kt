@@ -387,6 +387,44 @@ class ReceiptFormatterTest {
         assertEquals("GTBank", bank.bankName)
     }
 
+    // --- effectiveDocumentType (public helper the share-sheet title reads) ---
+
+    @Test
+    fun effectiveDocTypeMirrorsFormatOutput() {
+        // The sheet title must match what format() will actually produce.
+        ReceiptDocumentType.entries.forEach { natural ->
+            listOf(null, *ReceiptDocumentType.entries.toTypedArray()).forEach { force ->
+                val effective = ReceiptFormatter.effectiveDocumentType(natural, force)
+                // No payments -> Invoice only; fully-paid -> Receipt only;
+                // partial -> Invoice/Deposit flip allowed.
+                when (natural) {
+                    ReceiptDocumentType.INVOICE -> assertEquals(ReceiptDocumentType.INVOICE, effective)
+                    ReceiptDocumentType.RECEIPT -> assertEquals(ReceiptDocumentType.RECEIPT, effective)
+                    ReceiptDocumentType.DEPOSIT_RECEIPT -> {
+                        val expected = if (force == ReceiptDocumentType.INVOICE) {
+                            ReceiptDocumentType.INVOICE
+                        } else {
+                            ReceiptDocumentType.DEPOSIT_RECEIPT
+                        }
+                        assertEquals(expected, effective)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun effectiveDocTypeNoOverrideReturnsNatural() {
+        assertEquals(
+            ReceiptDocumentType.INVOICE,
+            ReceiptFormatter.effectiveDocumentType(ReceiptDocumentType.INVOICE, null),
+        )
+        assertEquals(
+            ReceiptDocumentType.DEPOSIT_RECEIPT,
+            ReceiptFormatter.effectiveDocumentType(ReceiptDocumentType.DEPOSIT_RECEIPT, null),
+        )
+    }
+
     // --- Tier-keyed attribution + watermark matrix ---
 
     private val logoBytes: ByteArray = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47) + ByteArray(8)

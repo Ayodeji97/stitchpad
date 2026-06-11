@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -29,12 +30,17 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,6 +85,8 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPa
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
 import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndingBanner
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
+import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import com.danzucker.stitchpad.feature.smart.presentation.SmartSectionCard
 import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
@@ -160,6 +168,10 @@ import stitchpad.composeapp.generated.resources.goals_set_first_section
 import stitchpad.composeapp.generated.resources.goals_set_first_supporting
 import stitchpad.composeapp.generated.resources.goals_supporting
 import stitchpad.composeapp.generated.resources.goals_to_go
+import stitchpad.composeapp.generated.resources.push_prompt_body
+import stitchpad.composeapp.generated.resources.push_prompt_confirm
+import stitchpad.composeapp.generated.resources.push_prompt_dismiss
+import stitchpad.composeapp.generated.resources.push_prompt_title
 import stitchpad.composeapp.generated.resources.reconnect_whatsapp_template
 import kotlin.math.roundToLong
 
@@ -254,6 +266,7 @@ private fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep> 
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardRoot(
     onNavigateToOrderDetail: (String) -> Unit,
@@ -270,12 +283,23 @@ fun DashboardRoot(
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
-    whatsAppLauncher: WhatsAppLauncher = koinInject()
+    whatsAppLauncher: WhatsAppLauncher = koinInject(),
+    pushPermissionController: PushPermissionController = koinInject(),
+    onboardingPrefs: OnboardingPreferencesStore = koinInject(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signature = state.businessName ?: state.firstName
+
+    // Push-permission pre-prompt: show once, on first dashboard landing,
+    // only when Android 13+ and POST_NOTIFICATIONS is not yet granted.
+    var showPushPromptSheet by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (pushPermissionController.shouldRequest() && !onboardingPrefs.hasAskedPushPermission()) {
+            showPushPromptSheet = true
+        }
+    }
 
     ObserveAsEvents(viewModel.events) { event ->
         handleDashboardEvent(
@@ -313,6 +337,91 @@ fun DashboardRoot(
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction
     )
+
+    if (showPushPromptSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { onboardingPrefs.setAskedPushPermission() }
+                showPushPromptSheet = false
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            PushPermissionSheetContent(
+                onConfirm = {
+                    scope.launch {
+                        if (pushPermissionController.requestPermission()) {
+                            // Dialog actually launched — record it and close the sheet.
+                            onboardingPrefs.setAskedPushPermission()
+                            showPushPromptSheet = false
+                        }
+                        // Else the request was a no-op (no Activity): keep the sheet open
+                        // so the tap can be retried, and don't mark "asked" — otherwise the
+                        // one-time pre-prompt would be silently consumed without ever asking.
+                    }
+                },
+                onDismiss = {
+                    scope.launch {
+                        onboardingPrefs.setAskedPushPermission()
+                        showPushPromptSheet = false
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PushPermissionSheetContent(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = DesignTokens.space4)
+            .padding(bottom = DesignTokens.space5),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
+        Text(
+            text = stringResource(Res.string.push_prompt_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = stringResource(Res.string.push_prompt_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(DesignTokens.space3))
+        Button(
+            onClick = onConfirm,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(DesignTokens.radiusLg),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
+            Text(
+                text = stringResource(Res.string.push_prompt_confirm),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        TextButton(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(Res.string.push_prompt_dismiss),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Suppress("LongParameterList", "CyclomaticComplexMethod")

@@ -10,6 +10,8 @@ import com.danzucker.stitchpad.core.debug.DebugTestAccounts
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderSendResult
 import com.danzucker.stitchpad.core.debug.SeedResult
 import com.danzucker.stitchpad.core.debug.SessionActionResult
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -21,11 +23,15 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// A cohesive debug-only menu VM: one runX() per debug action. Splitting it would
+// just scatter trivial one-liner handlers across files for no readability gain.
+@Suppress("TooManyFunctions")
 class DebugMenuViewModel(
     private val seeder: DebugSeeder,
     private val sessionActions: DebugSessionActions,
     private val freemiumActions: FreemiumDebugActions,
     private val digestActions: DigestDebugActions,
+    private val reminderActions: ReminderDebugActions,
     private val now: () -> Long,
     private val testAccountsConfigured: Boolean = DebugTestAccounts.isConfigured,
 ) : ViewModel() {
@@ -87,6 +93,8 @@ class DebugMenuViewModel(
             }
             DebugMenuAction.OnWipeDataClick -> runWipe()
             DebugMenuAction.OnSendDailyDigestClick -> runSendDigest()
+            DebugMenuAction.OnSendTestPushClick -> runSendTestPush()
+            DebugMenuAction.OnSendRenewalReminderClick -> runSendReminder()
             else -> Unit // freemium branch handled above
         }
     }
@@ -175,10 +183,41 @@ class DebugMenuViewModel(
 
     private fun runSendDigest() = runJob {
         val message = when (val r = digestActions.sendNow()) {
-            DigestSendResult.Sent -> UiText.DynamicString("Daily digest sent — check your inbox / Resend")
+            is DigestSendResult.Sent -> {
+                val channels = buildList {
+                    if (r.emailSent) add("email")
+                    if (r.pushSent) add("push")
+                }
+                UiText.DynamicString("Digest sent — ${channels.joinToString(" + ")}")
+            }
             DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — digest suppressed")
-            DigestSendResult.Disabled -> UiText.DynamicString("Daily summary is off — turn it on in Settings")
+            DigestSendResult.Disabled ->
+                UiText.DynamicString("Nothing sent — email/push may be off, no token, or no order. Check Settings.")
             is DigestSendResult.Failure -> UiText.DynamicString("Digest failed: ${r.reason}")
+        }
+        emit(DebugMenuEvent.ShowSnackbar(message))
+    }
+
+    private fun runSendReminder() = runJob {
+        val message = when (val r = reminderActions.sendNow()) {
+            is ReminderSendResult.Sent -> UiText.DynamicString("Renewal reminder sent to ${r.to}")
+            is ReminderSendResult.Failure -> UiText.DynamicString("Reminder failed: ${r.reason}")
+        }
+        emit(DebugMenuEvent.ShowSnackbar(message))
+    }
+
+    private fun runSendTestPush() = runJob {
+        val message = when (val r = digestActions.sendNow()) {
+            is DigestSendResult.Sent ->
+                if (r.pushSent) {
+                    UiText.DynamicString("Test push sent")
+                } else {
+                    UiText.DynamicString("No push sent (push off or no token) — email sent instead")
+                }
+            DigestSendResult.Empty -> UiText.DynamicString("Nothing actionable — push suppressed (no eligible orders)")
+            DigestSendResult.Disabled ->
+                UiText.DynamicString("No push sent (check permission / opt-out / actionable order)")
+            is DigestSendResult.Failure -> UiText.DynamicString("Test push failed: ${r.reason}")
         }
         emit(DebugMenuEvent.ShowSnackbar(message))
     }

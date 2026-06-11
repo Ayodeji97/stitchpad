@@ -37,10 +37,30 @@ service cloud.firestore {
 
     // True iff the incoming update keeps `field` at its existing value (i.e. the
     // client did not attempt to change it). Compatible with merge-true updates
-    // where `request.resource.data` is the full merged result.
+    // where `request.resource.data` is the full merged result. NOTE: this returns
+    // true when the field is absent from the update, so it does NOT block
+    // FieldValue.delete() — only use it for fields where deletion is harmless.
     function fieldUnchanged(field) {
       return !(field in request.resource.data) ||
              request.resource.data[field] == resource.data[field];
+    }
+
+    // A server-only field. Once present it must stay present and equal — which
+    // blocks edits AND deletes (a delete drops the field from request.resource.data)
+    // — and a client may never add it via update. Used for the subscription fields,
+    // all set by the Paystack webhook / createUserProfile seed (Admin SDK, which
+    // bypasses rules): subscriptionTier, subscriptionStatus, subscriptionEndsAt,
+    // subscriptionRenews. This closes two holes: deleting subscriptionEndsAt /
+    // subscriptionRenews to dodge the expirePrepaidSubscriptions query (and keep
+    // paid access), and deleting subscriptionTier / subscriptionStatus to corrupt
+    // billing state. NOT used for welcomeBonusAppliedAt / bonusCoins: blocking adds
+    // there is unnecessary (deleting them only downgrades the user) and those use
+    // fieldUnchanged to avoid any interaction with the welcome-bonus create rule.
+    function serverOnlyField(field) {
+      return (field in resource.data)
+        ? (field in request.resource.data
+           && request.resource.data[field] == resource.data[field])
+        : !(field in request.resource.data);
     }
 
     // ── /users/{uid} ───────────────────────────────────────────────────────
@@ -80,15 +100,20 @@ service cloud.firestore {
         && (!('bonusCoins' in request.resource.data) ||
             request.resource.data.bonusCoins == 30)
         && (!('welcomeBonusAppliedAt' in request.resource.data) ||
-            request.resource.data.welcomeBonusAppliedAt == request.time);
+            request.resource.data.welcomeBonusAppliedAt == request.time)
+        // subscriptionEndsAt is server-owned (set only by the Paystack webhook
+        // via the Admin SDK). A client must never plant it at creation, or it
+        // could ride a far-future date by buying a single prepaid period.
+        && (!('subscriptionEndsAt' in request.resource.data));
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these
       // rules so Cloud Functions and Firebase Console edits still work.
       allow update: if isOwner(uid)
-        && fieldUnchanged('subscriptionTier')
-        && fieldUnchanged('subscriptionStatus')
-        && fieldUnchanged('subscriptionRenews')
+        && serverOnlyField('subscriptionTier')
+        && serverOnlyField('subscriptionStatus')
+        && serverOnlyField('subscriptionEndsAt')
+        && serverOnlyField('subscriptionRenews')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount');
@@ -137,6 +162,12 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
+      // ── Push notification tokens subcollection ──────────────────────
+      // Owner-managed: the device registers/refreshes/removes its own token.
+      match /notificationTokens/{token} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
       // ── Custom garment types subcollection ───────────────────────────────
       // Stores tailor-defined garment names (e.g. "Iro/Buba"). Client reads
       // these in the garment picker and writes on upsert / touch. No
@@ -159,6 +190,15 @@ service cloud.firestore {
       // A successful client write here would let a user reset their AI quota
       // mid-month. Hard deny.
       match /usage/{usageDoc} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // ── Billing transactions — server-only writes ───────────────────────
+      // The app can observe checkout/payment status for its own account, but
+      // transaction creation, Paystack references, paid markers, and entitlement
+      // updates must come only from Cloud Functions using the Admin SDK.
+      match /billingTransactions/{transactionId} {
         allow read: if isOwner(uid);
         allow write: if false;
       }

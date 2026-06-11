@@ -18,4 +18,5 @@ sealed interface SettingsAction {
     data object OnUpgradeClick : SettingsAction
     data object OnFoundersNoteClick : SettingsAction
     data class OnDailyDigestToggle(val enabled: Boolean) : SettingsAction
+    data class OnDailyPushToggle(val enabled: Boolean) : SettingsAction
 }

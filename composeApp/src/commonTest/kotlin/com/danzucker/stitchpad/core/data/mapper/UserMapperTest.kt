@@ -102,6 +102,10 @@ class UserMapperTest {
 
     @Test
     fun roundTripDtoToUserToDto() {
+        // dailyPushEnabled is nullable in the DTO; absent (null) maps to User's resolved Boolean,
+        // then toUserDto() writes it back as an explicit value — so round-trip produces explicit true
+        // (inherits dailyDigestEmailEnabled=true default) rather than null. We assert the resolved
+        // value is correct rather than strict DTO equality.
         val original = UserDto(
             id = "uid-789",
             email = "test@test.com",
@@ -114,7 +118,7 @@ class UserMapperTest {
 
         val roundTripped = original.toUser().toUserDto()
 
-        assertEquals(original, roundTripped)
+        assertEquals(original.copy(dailyPushEnabled = true), roundTripped)
     }
 
     @Test
@@ -147,5 +151,15 @@ class UserMapperTest {
     @Test
     fun whatsappConfirmed_defaultsFalseWhenAbsent() {
         assertFalse(UserDto(id = "u2").toUser().whatsappConfirmed)
+    }
+
+    @Test
+    fun dailyPushEnabled_defaultsTrue_andRoundTrips() {
+        assertTrue(UserDto(id = "u1").toUser().dailyPushEnabled)          // absent push, absent email → both default true → true
+        assertFalse(UserDto(id = "u1", dailyPushEnabled = false).toUser().dailyPushEnabled) // explicit push=false wins
+        // inherit: absent push inherits digest opt-out (same as backend productionDigestIO)
+        assertFalse(UserDto(id = "u1", dailyDigestEmailEnabled = false).toUser().dailyPushEnabled)
+        // explicit push wins over digest value
+        assertTrue(UserDto(id = "u1", dailyPushEnabled = true, dailyDigestEmailEnabled = false).toUser().dailyPushEnabled)
     }
 }

@@ -48,4 +48,6 @@ data class UserDto(
     val whatsappConfirmed: Boolean = false,
     @SerialName("dailyDigestEmailEnabled")
     val dailyDigestEmailEnabled: Boolean = true,
+    @SerialName("dailyPushEnabled")
+    val dailyPushEnabled: Boolean? = null,
 )

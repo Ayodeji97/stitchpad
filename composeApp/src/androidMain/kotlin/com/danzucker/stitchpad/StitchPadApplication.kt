@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.pm.ApplicationInfo
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.logging.CrashlyticsAntilog
+import com.danzucker.stitchpad.feature.notification.push.ensureNotificationChannels
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import org.koin.android.ext.koin.androidContext
 
@@ -20,5 +21,6 @@ class StitchPadApplication : Application() {
         initKoin {
             androidContext(this@StitchPadApplication)
         }
+        ensureNotificationChannels(this)
     }
 }

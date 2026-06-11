@@ -1,9 +1,13 @@
 package com.danzucker.stitchpad.feature.debug.presentation
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderSendResult
 import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
 import com.danzucker.stitchpad.core.debug.SeedResult
@@ -11,6 +15,8 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,7 +54,18 @@ class DebugMenuViewModelTest {
             )
         }
         fakeOnboarding = FakeOnboardingPreferences()
-        sessionActions = DebugSessionActions(fakeAuth, fakeOnboarding)
+        sessionActions = DebugSessionActions(
+            authRepository = fakeAuth,
+            onboardingPreferences = fakeOnboarding,
+            signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+        )
+    }
+
+    private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+        override suspend fun registerForUser(userId: String) {}
+        override suspend fun register(userId: String, token: String) {}
+        override suspend fun unregisterForUser(userId: String) {}
+        override suspend fun invalidateToken() {}
     }
 
     @AfterTest
@@ -59,12 +76,14 @@ class DebugMenuViewModelTest {
     private fun TestScope.createViewModel(
         testAccountsConfigured: Boolean = true,
         digestActions: DigestDebugActions = NoopDigestDebugActions,
+        reminderActions: ReminderDebugActions = NoopReminderDebugActions,
     ): DebugMenuViewModel {
         val vm = DebugMenuViewModel(
             seeder = seeder,
             sessionActions = sessionActions,
             freemiumActions = NoopFreemiumDebugActions,
             digestActions = digestActions,
+            reminderActions = reminderActions,
             now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
@@ -72,11 +91,24 @@ class DebugMenuViewModelTest {
         return vm
     }
 
+    private class FakeReminderDebugActions(
+        var result: ReminderSendResult = ReminderSendResult.Sent("fola@gmail.com"),
+    ) : ReminderDebugActions {
+        override suspend fun sendNow(): ReminderSendResult = result
+    }
+
+    private val NoopReminderDebugActions get() = FakeReminderDebugActions()
+
     private class FakeDigestDebugActions(
         var result: DigestSendResult = DigestSendResult.Empty,
     ) : DigestDebugActions {
         override suspend fun sendNow(): DigestSendResult = result
     }
+
+    /** Convenience factory for the common "both channels delivered" case. */
+    private fun sentBoth() = DigestSendResult.Sent(emailSent = true, pushSent = true)
+    private fun sentPushOnly() = DigestSendResult.Sent(emailSent = false, pushSent = true)
+    private fun sentEmailOnly() = DigestSendResult.Sent(emailSent = true, pushSent = false)
 
     // Backward-compat alias used by createViewModel default arg
     private val NoopDigestDebugActions get() = FakeDigestDebugActions()
@@ -274,8 +306,40 @@ class DebugMenuViewModelTest {
     }
 
     @Test
+    fun `OnSendRenewalReminderClick emits ShowSnackbar with recipient when sent`() = runTest {
+        val fake = FakeReminderDebugActions(result = ReminderSendResult.Sent("fola@gmail.com"))
+        val vm = createViewModel(reminderActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendRenewalReminderClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("fola@gmail.com"))
+    }
+
+    @Test
+    fun `OnSendRenewalReminderClick emits failure snackbar on failure`() = runTest {
+        val fake = FakeReminderDebugActions(result = ReminderSendResult.Failure("not_a_tester"))
+        val vm = createViewModel(reminderActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendRenewalReminderClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("failed", ignoreCase = true))
+    }
+
+    @Test
     fun `OnSendDailyDigestClick emits ShowSnackbar when digest is sent`() = runTest {
-        val fake = FakeDigestDebugActions(result = DigestSendResult.Sent)
+        val fake = FakeDigestDebugActions(result = sentBoth())
         val vm = createViewModel(digestActions = fake)
 
         val events = mutableListOf<DebugMenuEvent>()
@@ -335,6 +399,129 @@ class DebugMenuViewModelTest {
         val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
         val messageText = (snackbar.message as UiText.DynamicString).value
         assertTrue(messageText.contains("boom", ignoreCase = true))
+    }
+
+    @Test
+    fun `OnSendTestPushClick emits ShowSnackbar mentioning 'push' when sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = sentBoth())
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("push", ignoreCase = true))
+    }
+
+    @Test
+    fun `OnSendTestPushClick emits snackbar containing failure reason on Failure`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Failure("timeout"))
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val snackbar = events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first()
+        val messageText = (snackbar.message as UiText.DynamicString).value
+        assertTrue(messageText.contains("timeout", ignoreCase = true))
+    }
+
+    // --- Cursor finding #6: both channels off → Disabled, not generic failure ---
+
+    @Test
+    fun `OnSendDailyDigestClick shows opt-out message when both channels disabled`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Disabled)
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val messageText = (events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first().message as UiText.DynamicString).value
+        // Must NOT say "failed" — it's an intentional opt-out
+        assertFalse(messageText.contains("failed", ignoreCase = true), "Expected opt-out message, got: $messageText")
+        assertTrue(messageText.contains("off", ignoreCase = true), "Expected 'off' in opt-out message, got: $messageText")
+    }
+
+    @Test
+    fun `OnSendTestPushClick shows no-push opt-out message when both channels disabled`() = runTest {
+        val fake = FakeDigestDebugActions(result = DigestSendResult.Disabled)
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val messageText = (events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first().message as UiText.DynamicString).value
+        assertFalse(messageText.contains("failed", ignoreCase = true), "Expected opt-out message, got: $messageText")
+        assertTrue(messageText.contains("push", ignoreCase = true), "Expected 'push' in message, got: $messageText")
+    }
+
+    // --- Cursor finding #7: per-channel accuracy ---
+
+    @Test
+    fun `OnSendDailyDigestClick shows email-only message when only email sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = sentEmailOnly())
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val messageText = (events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first().message as UiText.DynamicString).value
+        assertTrue(messageText.contains("email", ignoreCase = true), "Expected 'email' in message, got: $messageText")
+        assertFalse(messageText.contains("push", ignoreCase = true), "Should not claim push, got: $messageText")
+    }
+
+    @Test
+    fun `OnSendDailyDigestClick shows push-only message when only push sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = sentPushOnly())
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
+        vm.onAction(DebugMenuAction.OnSendDailyDigestClick)
+
+        val messageText = (events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first().message as UiText.DynamicString).value
+        assertTrue(messageText.contains("push", ignoreCase = true), "Expected 'push' in message, got: $messageText")
+        assertFalse(messageText.contains("email", ignoreCase = true), "Should not claim email, got: $messageText")
+    }
+
+    @Test
+    fun `OnSendTestPushClick shows push-specific success when push sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = sentPushOnly())
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val messageText = (events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first().message as UiText.DynamicString).value
+        assertTrue(messageText.contains("push", ignoreCase = true), "Expected 'push' in message, got: $messageText")
+        // Should be a success message, not a failure
+        assertFalse(messageText.contains("failed", ignoreCase = true), "Should not say failed, got: $messageText")
+    }
+
+    @Test
+    fun `OnSendTestPushClick reports no push when only email sent`() = runTest {
+        val fake = FakeDigestDebugActions(result = sentEmailOnly())
+        val vm = createViewModel(digestActions = fake)
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) { vm.events.collect { events.add(it) } }
+        vm.onAction(DebugMenuAction.OnSendTestPushClick)
+
+        val messageText = (events.filterIsInstance<DebugMenuEvent.ShowSnackbar>().first().message as UiText.DynamicString).value
+        // Should mention push but NOT claim it was sent
+        assertTrue(messageText.contains("push", ignoreCase = true), "Expected 'push' in message, got: $messageText")
+        assertFalse(messageText.lowercase().startsWith("test push sent"), "Should not claim push was sent, got: $messageText")
     }
 
     private class FakeDebugSeeder : DebugSeeder {

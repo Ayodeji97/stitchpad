@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.settings
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
@@ -15,6 +17,9 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -70,10 +75,78 @@ class SettingsDigestToggleTest {
     }
 }
 
+class SettingsPushToggleTest {
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun enablePushToggle_whenPermissionMissing_callsRequestPermission() = runTest {
+        val fakePermissionController = RecordingPushPermissionController(shouldRequestResult = true)
+        val (vm, _) = buildSettingsVmForDigest(
+            initialEnabled = false,
+            pushPermissionController = fakePermissionController,
+        )
+        vm.state.test {
+            awaitItem() // settle initial state
+            vm.onAction(SettingsAction.OnDailyPushToggle(true))
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertTrue(fakePermissionController.requestPermissionCalled, "requestPermission() should be called when permission is missing")
+    }
+
+    @Test
+    fun enablePushToggle_whenPermissionAlreadyGranted_doesNotCallRequestPermission() = runTest {
+        val fakePermissionController = RecordingPushPermissionController(shouldRequestResult = false)
+        val (vm, _) = buildSettingsVmForDigest(
+            initialEnabled = false,
+            pushPermissionController = fakePermissionController,
+        )
+        vm.state.test {
+            awaitItem()
+            vm.onAction(SettingsAction.OnDailyPushToggle(true))
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(fakePermissionController.requestPermissionCalled, "requestPermission() should NOT be called when permission is already granted")
+    }
+
+    @Test
+    fun disablePushToggle_whenPermissionMissing_doesNotCallRequestPermission() = runTest {
+        val fakePermissionController = RecordingPushPermissionController(shouldRequestResult = true)
+        val (vm, _) = buildSettingsVmForDigest(
+            initialEnabled = true,
+            pushPermissionController = fakePermissionController,
+        )
+        vm.state.test {
+            awaitItem()
+            vm.onAction(SettingsAction.OnDailyPushToggle(false))
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(fakePermissionController.requestPermissionCalled, "requestPermission() should NOT be called when disabling the toggle")
+    }
+
+    @Test
+    fun pushReminderSupported_isTrue_onAllPlatforms() = runTest {
+        val (vm, _) = buildSettingsVmForDigest()
+        vm.state.test {
+            assertTrue(awaitItem().pushReminderSupported, "Daily push toggle must be visible on both Android and iOS")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 private fun buildSettingsVmForDigest(
     initialEnabled: Boolean = true,
+    pushPermissionController: PushPermissionController = NoOpPushPermissionController(),
 ): Pair<SettingsViewModel, FakeUserRepository> {
     val authRepo = FakeAuthRepository().apply {
         currentUser = User(
@@ -109,11 +182,40 @@ private fun buildSettingsVmForDigest(
         themePreferencesStore = FakeThemePreferencesStore(),
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+        pushPermissionController = pushPermissionController,
     )
     return vm to userRepo
 }
 
 // ── Minimal inline fakes ──────────────────────────────────────────────────────
+
+private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+    override suspend fun registerForUser(userId: String) {}
+    override suspend fun register(userId: String, token: String) {}
+    override suspend fun unregisterForUser(userId: String) {}
+    override suspend fun invalidateToken() {}
+}
+
+/** No-op fake: permission already granted (shouldRequest = false). Default for existing tests. */
+private class NoOpPushPermissionController : PushPermissionController {
+    override suspend fun shouldRequest(): Boolean = false
+    override suspend fun requestPermission(): Boolean = false
+}
+
+/** Recording fake: captures whether requestPermission() was called. */
+private class RecordingPushPermissionController(
+    private val shouldRequestResult: Boolean,
+) : PushPermissionController {
+    var requestPermissionCalled: Boolean = false
+        private set
+
+    override suspend fun shouldRequest(): Boolean = shouldRequestResult
+    override suspend fun requestPermission(): Boolean {
+        requestPermissionCalled = true
+        return true
+    }
+}
 
 private class FakeEntitlementsProvider : EntitlementsProvider {
     private val _flow = MutableStateFlow(

@@ -19,7 +19,9 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +56,7 @@ private data class LocalUiState(
     val isSigningOut: Boolean = false,
 )
 
+@Suppress("LongParameterList")
 class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -63,6 +66,8 @@ class SettingsViewModel(
     private val themePreferencesStore: ThemePreferencesStore,
     private val smartUsageStore: SmartUsageStore,
     private val smartUsageDocSource: SmartUsageDocSource,
+    private val signOutUseCase: SignOutUseCase,
+    private val pushPermissionController: PushPermissionController,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -115,6 +120,7 @@ class SettingsViewModel(
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
+            is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
         }
     }
 
@@ -215,6 +221,8 @@ class SettingsViewModel(
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
+            dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
+            pushReminderSupported = true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
         )
@@ -257,6 +265,22 @@ class SettingsViewModel(
         }
     }
 
+    private fun setDailyPush(enabled: Boolean) {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            userRepository.setDailyPushEnabled(userId, enabled)
+            // On Android 13+ the OS must grant POST_NOTIFICATIONS before pushes
+            // can arrive. If the user enables this toggle while the permission is
+            // still missing (e.g. they dismissed the dashboard pre-prompt), surface
+            // the system dialog immediately so the setting has a real chance of
+            // taking effect. viewModelScope uses the main dispatcher, so this is
+            // safe to call here — it interacts with the Activity directly.
+            if (enabled && pushPermissionController.shouldRequest()) {
+                pushPermissionController.requestPermission()
+            }
+        }
+    }
+
     private fun setDailyDigest(enabled: Boolean) {
         // Firestore-backed flag: persist fire-and-forget and let the user-doc
         // snapshot (already in the state combine) drive the switch — same as
@@ -273,7 +297,7 @@ class SettingsViewModel(
     private fun signOut() {
         viewModelScope.launch {
             uiState.update { it.copy(isSigningOut = true, showSignOutDialog = false) }
-            when (val result = authRepository.signOut()) {
+            when (val result = signOutUseCase()) {
                 is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
                 is Result.Error -> {
                     AppLogger.e(tag = TAG) { "signOut failed error=${result.error}" }

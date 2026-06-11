@@ -19,10 +19,14 @@ export const ALLOWED_SUBCOLLECTIONS = [
   'customers',
   'goals',
   'notifications',
+  'notificationTokens',
   'orders',
   // Server-only per-user state (e.g. emailThrottle written by
   // sendVerificationEmail). Never client-readable; swept on account deletion.
   'private',
+  // Paystack prepaid checkout/payment records (server-written). Swept on account
+  // deletion so payment references/status don't outlive the account.
+  'billingTransactions',
 ] as const;
 
 export async function deleteUserFirestoreData(

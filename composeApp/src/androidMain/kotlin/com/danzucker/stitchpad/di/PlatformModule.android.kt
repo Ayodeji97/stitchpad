@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.feature.auth.data.AndroidSsoCredentialProvider
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
 import com.danzucker.stitchpad.feature.auth.data.SsoCredentialProvider
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
+import com.danzucker.stitchpad.feature.notification.push.AndroidPushPermissionController
+import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import org.koin.android.ext.koin.androidContext
@@ -37,6 +39,12 @@ actual val platformModule: Module = module {
     single { WhatsAppLauncher(androidContext()) }
     single { DialerLauncher(androidContext()) }
     single { CurrentActivityHolder() }
+    single<PushPermissionController> {
+        AndroidPushPermissionController(
+            context = androidContext(),
+            activityHolder = get(),
+        )
+    }
     single<SsoCredentialProvider> {
         AndroidSsoCredentialProvider(
             context = androidContext(),

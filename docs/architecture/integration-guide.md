@@ -76,11 +76,85 @@ The KMP client (`composeApp/`) talks to Firebase via the **GitLive KMP SDK** (`d
 
 ---
 
-## Paystack (payments — placeholder)
+## Paystack (payments — prepaid subscriptions)
 
-- Client: `feature/freemium/presentation/upgrade/UpgradeViewModel.kt` opens a Paystack checkout URL in the browser. No SDK, no webhook yet.
-- Entitlements are read from Firestore (`UserDocEntitlementsProvider`) and reconciled via `reconcileCustomerSlots`; tier flips are currently manual/server-side.
-- Real payment infra is in progress on branch `codex/paystack-payment-infra`.
+StitchPad bills **prepaid** Pro/Atelier periods — a one-off Paystack transaction grants
+a fixed period; there is **no auto-renew** (`subscriptionRenews` is always `false`). A
+daily job downgrades users when their period ends.
+
+### Flow
+
+1. **Client** — `feature/freemium/presentation/upgrade/UpgradeViewModel.kt` calls the
+   `initializeSubscriptionCheckout` callable via `CloudFunctionsPaymentRepository`
+   (`feature/freemium/data/`), passing `tier` + `cadence` (`BillingCadence`). On success it
+   emits `OpenExternalBrowser(authorizationUrl)` to open Paystack checkout in the browser.
+2. **Server — `initializeSubscriptionCheckout`** (`functions/src/billing/paystackBilling.ts`)
+   resolves the price from the server-owned `PRICES_KOBO` map, calls Paystack
+   `transaction/initialize`, and writes a `pending` record under
+   `users/{uid}/billingTransactions/{reference}`.
+3. **Server — `paystackWebhook`** (HTTP, `europe-west1`) verifies the
+   `x-paystack-signature` HMAC-SHA512 against `PAYSTACK_SECRET_KEY`, and on `charge.success`
+   (with matching amount/tier/cadence/currency) sets `subscriptionTier`,
+   `subscriptionStatus: active`, `subscriptionEndsAt`, `subscriptionRenews: false` on
+   `users/{uid}`. Idempotent (no-op if already applied); mismatches mark the txn `failed`.
+4. **Client** observes entitlements (`UserDocEntitlementsProvider`) and reacts to the
+   server-applied upgrade (`UpgradeEvent.UpgradeDetected`) — no client-side tier writes.
+5. **Server — `expirePrepaidSubscriptions`** (daily, Africa/Lagos) downgrades users whose
+   `subscriptionEndsAt` has passed back to Free.
+
+### Security model
+
+- All `subscription*` fields and `billingTransactions` are **server-owned**
+  (`firestore.rules`): clients read their own transactions but cannot write them, and
+  `fieldUnchanged` blocks adding/editing/**deleting** locked fields.
+- Amount, tier, and cadence are validated server-side in the webhook; the client never
+  asserts what it paid.
+
+### Deployment runbook
+
+Secrets / env (Firebase Functions):
+
+| Name | Required | Purpose |
+|---|---|---|
+| `PAYSTACK_SECRET_KEY` | yes | Paystack API calls **and** webhook HMAC verification (same key) |
+| `PAYSTACK_CALLBACK_URL` | optional | return-to-app URL after checkout |
+
+1. **Set the secret (test first):** `firebase functions:secrets:set PAYSTACK_SECRET_KEY`
+   → paste the **test** key (`sk_test_…`). (Live: re-run with `sk_live_…`.)
+2. **Deploy:** `cd functions && npm run deploy` (the `--only` list already includes
+   `initializeSubscriptionCheckout`, `paystackWebhook`, `expirePrepaidSubscriptions`).
+   This also deploys `firestore.indexes.json` only if you run `firebase deploy --only
+   firestore` — deploy the index too, or `expirePrepaidSubscriptions` fails with a
+   missing-index error.
+3. **Register the webhook** in the Paystack dashboard (Settings → API Keys & Webhooks),
+   in the **test** section first, then **live**:
+   `https://europe-west1-stitchpad-30607.cloudfunctions.net/paystackWebhook`
+4. **Smoke test (test mode):** from the app Upgrade screen, pay with a Paystack test card →
+   confirm the webhook fires (Functions logs), `users/{uid}` flips to the paid tier, the
+   `billingTransactions` record is `paid`, and the Upgrade screen reacts. Replay the webhook
+   (idempotent no-op) and tamper the amount (marks `failed`, no upgrade).
+5. **Go live:** swap to the `sk_live_…` secret, register the live webhook, confirm the
+   settlement bank account is in the operating entity's name, then run one real low-value
+   transaction.
+
+> **Test mode needs no Paystack account activation** — full activation/compliance only
+> gates live settlement.
+
+### Stale `pending` billing transactions — `abandonStalePendingCheckouts`
+
+Every "Pay with Paystack" tap writes a new `pending` `billingTransactions/{reference}`
+doc. Abandoned checkouts (user closes the page, fails card entry, etc.) never receive a
+`charge.success`, so they'd stay `pending` forever. Harmless (the webhook only applies the
+matching reference) but they accumulate.
+
+`abandonStalePendingCheckouts` (`functions/src/billing/abandonStalePending.ts`, daily
+02:00 Africa/Lagos) collection-group-queries `billingTransactions` where `status ==
+'pending'` AND `createdAt <= now - 120h` (5 working days) and **marks** them `abandoned`
+(needs the `billingTransactions` composite index in `firestore.indexes.json`). It **marks,
+not deletes**: the webhook's idempotency guard only short-circuits on `appliedAt` /
+`status == 'paid'`, so a late Paystack transfer/USSD `charge.success` on an abandoned doc
+still applies the upgrade. 120h gives ample buffer to verify a genuinely-pending payment
+before it's flagged. Account deletion still sweeps the whole subcollection separately.
 
 ---
 

@@ -12,6 +12,14 @@ data class CustomerDetailState(
     val showDeleteDialog: Boolean = false,
     val measurementToDelete: Measurement? = null,
     val errorMessage: UiText? = null,
+    // PTSP-31: delete-customer flow (distinct from the measurement-delete fields
+    // above). The overflow menu hosts the action; deletion is guarded by the
+    // customer's active (non-delivered) order count, mirroring the list screen.
+    val showOverflowMenu: Boolean = false,
+    val showDeleteCustomerDialog: Boolean = false,
+    val customerDeleteActiveOrderCount: Int = 0,
+    val ordersLoaded: Boolean = false,
+    val ordersLoadFailed: Boolean = false,
     /**
      * PTSP-12: UUID → label map for the tailor's custom measurement fields,
      * INCLUDING archived ones. Used by the measurement preview row so custom

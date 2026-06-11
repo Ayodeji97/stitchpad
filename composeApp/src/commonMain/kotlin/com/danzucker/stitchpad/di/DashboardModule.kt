@@ -15,6 +15,7 @@ val dashboardPresentationModule = module {
             smartUsageStore = get(),
             entitlements = get(),
             notificationRepository = get(),
+            pushTokenRegistrar = get(),
         )
     }
 }

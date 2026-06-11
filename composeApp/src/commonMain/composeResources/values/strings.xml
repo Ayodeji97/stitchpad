@@ -185,6 +185,8 @@
     <string name="customer_fab_cd">Add customer</string>
 
     <!-- Customer delete dialog -->
+    <!-- Overflow-menu entry on the customer detail screen (PTSP-31) -->
+    <string name="customer_detail_delete_menu_item">Delete customer</string>
     <string name="customer_delete_title">Delete customer?</string>
     <string name="customer_delete_message">Remove %1$s from your customer list? This cannot be undone.</string>
     <string name="customer_delete_confirm">Delete</string>
@@ -199,7 +201,13 @@
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
     <!-- Customer row actions sheet (PTSP-15) -->
+    <string name="customer_actions_message_whatsapp">Message on WhatsApp</string>
     <string name="customer_actions_edit">Edit</string>
+    <!-- Customer detail header quick-action chips (PTSP-33) -->
+    <string name="customer_detail_message_chip">Message</string>
+    <string name="customer_detail_call_chip">Call</string>
+    <!-- Shown when the dialer can't be opened from the customer detail screen -->
+    <string name="dialer_launch_failed">Couldn&apos;t open the dialer.</string>
     <string name="customer_actions_new_measurement">New measurement</string>
     <string name="customer_actions_new_order">New order</string>
     <string name="customer_actions_delete">Delete</string>
@@ -652,7 +660,10 @@
     <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>
 
     <!-- Receipt sharing -->
-    <string name="share_receipt_title">Share Receipt</string>
+    <!-- Sheet title reflects the document that will actually be generated (PTSP-29) -->
+    <string name="share_sheet_title_invoice">Share Invoice</string>
+    <string name="share_sheet_title_receipt">Share Receipt</string>
+    <string name="share_sheet_title_deposit_receipt">Share Deposit Receipt</string>
     <string name="share_as_image_title">Share as Image</string>
     <string name="share_as_image_description">Best for WhatsApp &amp; social media</string>
     <string name="share_as_pdf_title">Share as PDF</string>
@@ -662,6 +673,15 @@
     <string name="share_doc_type_picker_label">Send as</string>
     <string name="share_doc_type_invoice">Invoice</string>
     <string name="share_doc_type_deposit_receipt">Deposit receipt</string>
+    <string name="share_doc_type_receipt">Receipt</string>
+    <!-- Share sheet contextual subtitle per document type (PTSP-29 Variant A) -->
+    <string name="share_sheet_subtitle_invoice">No payment recorded yet — this is a request for payment.</string>
+    <string name="share_sheet_subtitle_deposit_receipt">Part-paid — balance still outstanding.</string>
+    <string name="share_sheet_subtitle_receipt">Fully paid — thank-you receipt.</string>
+    <!-- Share sheet order summary rows (PTSP-29 Variant A) -->
+    <string name="share_summary_total">Total</string>
+    <string name="share_summary_balance_due">Balance due</string>
+    <string name="share_summary_paid">Paid in full</string>
     <!-- Snackbar action shown after a payment is recorded -->
     <string name="order_record_payment_snackbar_share_action">Share receipt</string>
 
@@ -1031,7 +1051,6 @@
 
     <!-- Status transition sheet -->
     <string name="status_sheet_title">Move from &quot;%1$s&quot; to…</string>
-    <string name="status_sheet_back_to_prefix">Back to %1$s</string>
     <string name="status_sheet_subtitle_pending">Move backward in the timeline</string>
     <string name="status_sheet_subtitle_cutting">Cut the fabric</string>
     <string name="status_sheet_subtitle_sewing">Stitch the garment</string>
@@ -1052,6 +1071,10 @@
     <string name="whatsapp_message_in_progress">Hi %1$s, quick update on your outfit — work is in progress and on track.</string>
     <string name="whatsapp_message_ready">Hi %1$s, your outfit is ready for pickup — let me know what time works for you.</string>
     <string name="whatsapp_message_delivered">Hi %1$s, hope the outfit suits you well — would love a photo when you wear it!</string>
+    <!-- Generic greeting when messaging a customer outside any order (PTSP-32/33) -->
+    <string name="whatsapp_message_customer_greeting">Hi %1$s, hope you&apos;re keeping well! Just checking in from the workshop.</string>
+    <!-- Shown when WhatsApp can&apos;t be opened from the customer screens -->
+    <string name="whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>
@@ -1156,6 +1179,7 @@
     <string name="settings_row_reminders_subtitle">Order due dates &amp; pickups</string>
     <string name="settings_row_appearance">Appearance</string>
     <string name="settings_row_daily_digest">Daily summary email</string>
+    <string name="settings_row_daily_push">Daily push reminder</string>
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
@@ -1261,8 +1285,13 @@
     <string name="upgrade_cadence_monthly">Monthly</string>
     <string name="upgrade_cadence_annual">Annual</string>
     <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
-    <string name="upgrade_terms">Pay monthly with your card via Paystack. Stop anytime.</string>
+    <string name="upgrade_starting_checkout">Starting secure checkout...</string>
+    <string name="upgrade_terms">Prepaid access via Paystack. No automatic renewal; renew when your period ends.</string>
     <string name="upgrade_back_content_description">Back</string>
+    <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
+    <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
+    <string name="payment_error_invalid_plan">That plan is not available. Choose another plan and try again.</string>
+    <string name="payment_error_provider_unavailable">Paystack checkout is temporarily unavailable. Try again in a moment.</string>
 
     <!-- Edit Profile -->
     <string name="edit_profile_title">Edit profile</string>
@@ -1441,4 +1470,10 @@
     <string name="welcome_ending_banner_title_other">Your first month ends in %1$d days</string>
     <string name="welcome_ending_banner_body">After your first month, your 15 most active customers stay active. The rest stay safe and searchable — unlock or swap to take new orders. Upgrade to Pro to keep all of them active.</string>
     <string name="welcome_ending_banner_cta">See Tailor Pro</string>
+
+    <!-- Push permission pre-prompt sheet -->
+    <string name="push_prompt_title">Never miss a deadline</string>
+    <string name="push_prompt_body">Get a quick morning reminder of orders due and money owed.</string>
+    <string name="push_prompt_confirm">Turn on reminders</string>
+    <string name="push_prompt_dismiss">Not now</string>
 </resources>

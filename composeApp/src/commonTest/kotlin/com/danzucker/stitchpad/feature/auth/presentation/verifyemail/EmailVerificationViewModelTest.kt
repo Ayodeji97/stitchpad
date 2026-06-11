@@ -1,9 +1,13 @@
 package com.danzucker.stitchpad.feature.auth.presentation.verifyemail
 
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
+import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,7 +53,18 @@ class EmailVerificationViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun buildViewModel() = EmailVerificationViewModel(authRepository, preferences)
+    private fun buildViewModel() = EmailVerificationViewModel(
+        authRepository = authRepository,
+        onboardingPreferences = preferences,
+        signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+    )
+
+    private class NoOpPushTokenRegistrar : PushTokenRegistrar {
+        override suspend fun registerForUser(userId: String) {}
+        override suspend fun register(userId: String, token: String) {}
+        override suspend fun unregisterForUser(userId: String) {}
+        override suspend fun invalidateToken() {}
+    }
 
     @Test
     fun loadsCurrentUserEmailIntoState() {

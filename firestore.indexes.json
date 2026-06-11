@@ -1,0 +1,31 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionTier", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionRenews", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionEndsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "billingTransactions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "notificationTokens",
+      "fieldPath": "token",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}

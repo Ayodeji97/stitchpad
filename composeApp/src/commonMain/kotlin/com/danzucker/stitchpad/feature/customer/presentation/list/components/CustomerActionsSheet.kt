@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -42,6 +43,7 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_customer_actions_view
 import stitchpad.composeapp.generated.resources.customer_actions_delete
 import stitchpad.composeapp.generated.resources.customer_actions_edit
+import stitchpad.composeapp.generated.resources.customer_actions_message_whatsapp
 import stitchpad.composeapp.generated.resources.customer_actions_new_measurement
 import stitchpad.composeapp.generated.resources.customer_actions_new_order
 
@@ -50,6 +52,7 @@ import stitchpad.composeapp.generated.resources.customer_actions_new_order
 fun CustomerActionsSheet(
     customer: Customer,
     onView: (String) -> Unit,
+    onMessageWhatsApp: (Customer) -> Unit,
     onEdit: (String) -> Unit,
     onNewMeasurement: (String) -> Unit,
     onNewOrder: (String) -> Unit,
@@ -63,6 +66,7 @@ fun CustomerActionsSheet(
         CustomerActionsSheetContent(
             customer = customer,
             onView = onView,
+            onMessageWhatsApp = onMessageWhatsApp,
             onEdit = onEdit,
             onNewMeasurement = onNewMeasurement,
             onNewOrder = onNewOrder,
@@ -79,6 +83,7 @@ fun CustomerActionsSheet(
 private fun CustomerActionsSheetContent(
     customer: Customer,
     onView: (String) -> Unit,
+    onMessageWhatsApp: (Customer) -> Unit,
     onEdit: (String) -> Unit,
     onNewMeasurement: (String) -> Unit,
     onNewOrder: (String) -> Unit,
@@ -98,6 +103,15 @@ private fun CustomerActionsSheetContent(
             modifier = Modifier.padding(horizontal = DesignTokens.space4),
         )
         Spacer(Modifier.height(DesignTokens.space2))
+        // PTSP-32: message the customer on WhatsApp — only when we have a number
+        // to send to. Communication action sits first, above the edit/create rows.
+        if (customer.phone.isNotBlank()) {
+            ActionRow(
+                icon = Icons.AutoMirrored.Filled.Chat,
+                label = stringResource(Res.string.customer_actions_message_whatsapp),
+                onClick = { onMessageWhatsApp(customer) },
+            )
+        }
         ActionRow(
             icon = Icons.Default.Edit,
             label = stringResource(Res.string.customer_actions_edit),
@@ -216,6 +230,7 @@ private fun CustomerActionsSheetContentPreview() {
                 phone = "+234 801 234 5678",
             ),
             onView = {},
+            onMessageWhatsApp = {},
             onEdit = {},
             onNewMeasurement = {},
             onNewOrder = {},

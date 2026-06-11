@@ -20,9 +20,11 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -58,6 +60,7 @@ import com.danzucker.stitchpad.navigation.CustomerDetailRoute
 import com.danzucker.stitchpad.navigation.CustomerFormRoute
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
+import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.DeleteAccountRoute
 import com.danzucker.stitchpad.navigation.DraftMessageRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
@@ -68,12 +71,14 @@ import com.danzucker.stitchpad.navigation.NotificationsInboxRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
+import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 @Composable
 fun MainRoot(
@@ -83,6 +88,29 @@ fun MainRoot(
     val innerNavController = rememberNavController()
     val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    val pendingDeepLink: PendingDeepLinkHolder = koinInject()
+    val deepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
+    LaunchedEffect(deepLinkTarget) {
+        when (deepLinkTarget) {
+            DeepLinkTarget.INBOX -> {
+                pendingDeepLink.clear()
+                innerNavController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
+            }
+            // Renewal-reminder email "Renew" button (stitchpad://upgrade) lands here.
+            DeepLinkTarget.UPGRADE -> {
+                pendingDeepLink.clear()
+                // popUpTo<UpgradeRoute> forces a FRESH UpgradeViewModel so it consumes the
+                // deep link's plan pre-select on init. launchSingleTop alone would reuse an
+                // already-open Upgrade screen's VM and skip the pre-select (leaving it stale).
+                innerNavController.navigate(UpgradeRoute) {
+                    popUpTo(UpgradeRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            null -> Unit
+        }
+    }
 
     val showBottomBar = BottomNavItem.all.any { item ->
         currentDestination?.hasRoute(item.route::class) == true
@@ -357,7 +385,7 @@ private fun MainNavGraph(
                     navController.navigate(UpgradeRoute)
                 },
                 onNavigateToNotifications = {
-                    navController.navigate(NotificationsInboxRoute)
+                    navController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
                 },
             )
         }

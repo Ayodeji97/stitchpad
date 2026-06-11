@@ -5,8 +5,10 @@ import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DefaultDebugSeeder
 import com.danzucker.stitchpad.core.debug.DefaultDigestDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultFreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.DefaultReminderDebugActions
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.ReminderDebugActions
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -27,7 +29,7 @@ val debugModule = module {
             now = ::nowEpochMs,
         )
     }
-    single { DebugSessionActions(authRepository = get(), onboardingPreferences = get()) }
+    single { DebugSessionActions(authRepository = get(), onboardingPreferences = get(), signOutUseCase = get()) }
     single<FreemiumDebugActions> {
         DefaultFreemiumDebugActions(
             firestore = get(),
@@ -36,6 +38,7 @@ val debugModule = module {
         )
     }
     single<DigestDebugActions> { DefaultDigestDebugActions(functions = get()) }
+    single<ReminderDebugActions> { DefaultReminderDebugActions(functions = get()) }
     // Explicit `viewModel { ... }` factory rather than viewModelOf(::DebugMenuViewModel) because
     // the VM takes a defaulted Boolean param (testAccountsConfigured) — viewModelOf can't skip
     // defaulted params (see feedback_ios_clock_injection memory).
@@ -45,6 +48,7 @@ val debugModule = module {
             sessionActions = get(),
             freemiumActions = get(),
             digestActions = get(),
+            reminderActions = get(),
             now = ::nowEpochMs,
         )
     }
