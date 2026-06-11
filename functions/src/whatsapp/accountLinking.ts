@@ -48,6 +48,15 @@ interface RawUserTierDoc {
 }
 
 /**
+ * Firestore fields to match an inbound WhatsApp number against. The app writes
+ * the primary WhatsApp number to `whatsapp` (FirebaseUserRepository:
+ * `data["whatsapp"] = …`); `whatsappNumber` is the legacy pre-rename slot still
+ * present on accounts not re-saved since. `phone` is a SEPARATE voice/SMS line
+ * (UserDto) — not the WhatsApp number — so it is deliberately excluded.
+ */
+export const ACCOUNT_LINK_FIELDS = ['whatsapp', 'whatsappNumber'] as const;
+
+/**
  * Given the matching uids from each queried field, returns the single linked uid
  * or null. Links ONLY when exactly one distinct user matches across all fields —
  * if the number hits one user's whatsappNumber and a different user's phone, that
@@ -70,7 +79,7 @@ export function productionAccountLinkIO(db: admin.firestore.Firestore): AccountL
       // whatsappNumber and phone, then link only if exactly one distinct user
       // matched (a cross-field collision between two users is ambiguous).
       const groups: string[][] = [];
-      for (const field of ['whatsappNumber', 'phone']) {
+      for (const field of ACCOUNT_LINK_FIELDS) {
         const snap = await users.where(field, 'in', candidates).get();
         groups.push(snap.docs.map((d) => d.id));
       }

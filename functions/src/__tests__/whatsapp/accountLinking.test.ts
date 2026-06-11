@@ -1,4 +1,15 @@
-import { detectAccountIntent, phoneCandidates, resolveUniqueUid } from '../../whatsapp/accountLinking';
+import { detectAccountIntent, phoneCandidates, resolveUniqueUid, ACCOUNT_LINK_FIELDS } from '../../whatsapp/accountLinking';
+
+describe('ACCOUNT_LINK_FIELDS', () => {
+  it('matches the current `whatsapp` field and legacy `whatsappNumber`, not the voice `phone` line', () => {
+    // The app writes the primary WhatsApp number to Firestore `whatsapp`;
+    // `whatsappNumber` is the legacy pre-rename slot; `phone` is a separate
+    // voice/SMS line and must NOT be treated as a WhatsApp match.
+    expect(ACCOUNT_LINK_FIELDS).toContain('whatsapp');
+    expect(ACCOUNT_LINK_FIELDS).toContain('whatsappNumber');
+    expect(ACCOUNT_LINK_FIELDS).not.toContain('phone');
+  });
+});
 
 describe('detectAccountIntent', () => {
   it('detects questions about the user own plan/tier', () => {
