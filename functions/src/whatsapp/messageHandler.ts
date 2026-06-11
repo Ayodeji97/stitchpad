@@ -129,21 +129,23 @@ async function handleOneMessage(msg: InboundMessage, deps: MessageHandlerDeps): 
 
   const language: BotLanguage = conv.language ?? 'en';
 
-  // 3. Optional account linking / personalization (consent-gated). Returns true
-  // when it fully handled the turn (asked consent, revealed tier, etc.).
-  if (await handleAccountTurn(conv, msg, language, deps)) {
-    return;
-  }
-
-  // 4. Explicit escalation (asks for a human / sensitive account action) skips
-  // the model entirely.
+  // 3. Explicit escalation (asks for a human / sensitive account action) takes
+  // priority — and must run BEFORE account linking, because phrases like "cancel
+  // my subscription" or "human help with my plan" also match account-intent
+  // wording. Handling those as account questions would swallow the handoff.
   const explicit = detectExplicitEscalation(msg.text);
   if (explicit) {
     await escalate(msg, explicit, language, deps);
     return;
   }
 
-  // 4. Otherwise answer from the knowledge base; escalate if the answer is not
+  // 4. Optional account linking / personalization (consent-gated). Returns true
+  // when it fully handled the turn (asked consent, revealed tier, etc.).
+  if (await handleAccountTurn(conv, msg, language, deps)) {
+    return;
+  }
+
+  // 5. Otherwise answer from the knowledge base; escalate if the answer is not
   // trustworthy (off-topic, low confidence, no grounding, or model failure).
   const knowledge = await deps.knowledge.loadKnowledge();
   const result = await answerSupportQuestion({ question: msg.text, language, knowledge, client: deps.vertex });

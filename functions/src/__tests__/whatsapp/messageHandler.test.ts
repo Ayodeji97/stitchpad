@@ -237,6 +237,19 @@ describe('handleInboundPayload (orchestration)', () => {
     expect(conv.store.get('a')?.linkingConsent).not.toBe(true);
   });
 
+  it('escalates "cancel my subscription" instead of treating it as an account question', async () => {
+    const { client, sent } = fakeClient();
+    const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
+    const esc = fakeEscalation();
+    await handleInboundPayload(
+      textPayload('a', '1', 'please cancel my subscription'),
+      deps({ client, conversations: conv.io, escalation: esc.io, accountLink: fakeAccountLink({ uid: 'uid-1', tier: 'pro' }) }),
+    );
+    expect(esc.tickets[0]?.reason).toBe('sensitive_action');
+    expect(conv.store.get('a')?.state).toBe('AWAITING_HUMAN');
+    expect(sent[0].body.toLowerCase()).not.toMatch(/reply yes/); // not the consent prompt
+  });
+
   it('answers the tier directly when already linked and consented', async () => {
     const { client, sent } = fakeClient();
     const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en', linkedUid: 'uid-1', linkingConsent: true } });
