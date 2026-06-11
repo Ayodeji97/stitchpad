@@ -18,5 +18,14 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "notificationTokens",
+      "fieldPath": "token",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION", "order": "ASCENDING" }
+      ]
+    }
+  ]
 }
