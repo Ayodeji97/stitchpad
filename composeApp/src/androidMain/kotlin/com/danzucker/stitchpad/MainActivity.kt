@@ -9,6 +9,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
 import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_EXTRA
 import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_INBOX
+import com.danzucker.stitchpad.navigation.DeepLinkParser
 import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import org.koin.android.ext.android.inject
@@ -50,13 +51,16 @@ class MainActivity : ComponentActivity() {
             intent.removeExtra(PUSH_TARGET_EXTRA)
             setIntent(intent)
         }
-        // Renewal-reminder email "Renew" button: stitchpad://upgrade?tier=&cadence=
-        val data = intent.data
-        if (intent.action == Intent.ACTION_VIEW && data?.scheme == "stitchpad" && data.host == "upgrade") {
-            pendingDeepLink.setUpgrade(
-                tier = data.getQueryParameter("tier"),
-                cadence = data.getQueryParameter("cadence"),
-            )
+        // Renewal-reminder email "Renew" button. Accepts both the https App Link
+        // (https://link.getstitchpad.com/upgrade?tier=&cadence=, the form the email uses)
+        // and the legacy custom scheme (stitchpad://upgrade?...), via the shared parser.
+        val preselect = if (intent.action == Intent.ACTION_VIEW) {
+            DeepLinkParser.parseUpgrade(intent.dataString)
+        } else {
+            null
+        }
+        if (preselect != null) {
+            pendingDeepLink.setUpgrade(tier = preselect.tier, cadence = preselect.cadence)
             // Consume so a recreate (e.g. rotation) doesn't re-fire the deep link.
             intent.data = null
             setIntent(intent)

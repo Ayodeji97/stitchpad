@@ -65,7 +65,7 @@ describe('runSubscriptionReminder', () => {
 
     await runSubscriptionReminder(io, NOW);
 
-    expect(io.sent[0].html).toContain('stitchpad://upgrade?tier=atelier&amp;cadence=annual');
+    expect(io.sent[0].html).toContain('https://link.getstitchpad.com/upgrade?tier=atelier&amp;cadence=annual');
   });
 
   it('skips a user already reminded for the same period', async () => {
@@ -130,9 +130,11 @@ describe('runSubscriptionReminder', () => {
 });
 
 describe('buildUpgradeDeepLink', () => {
-  it('carries tier + cadence as query params on the upgrade scheme', () => {
-    expect(buildUpgradeDeepLink('pro', 'monthly')).toBe('stitchpad://upgrade?tier=pro&cadence=monthly');
-    expect(buildUpgradeDeepLink('atelier', 'annual')).toBe('stitchpad://upgrade?tier=atelier&cadence=annual');
+  it('carries tier + cadence as query params on the https app link', () => {
+    expect(buildUpgradeDeepLink('pro', 'monthly'))
+      .toBe('https://link.getstitchpad.com/upgrade?tier=pro&cadence=monthly');
+    expect(buildUpgradeDeepLink('atelier', 'annual'))
+      .toBe('https://link.getstitchpad.com/upgrade?tier=atelier&cadence=annual');
   });
 });
 
@@ -141,8 +143,8 @@ describe('buildRenewalReminderEmail', () => {
     const { html, text } = buildRenewalReminderEmail({
       name: 'Ada', tier: 'pro', daysLeft: 3, renewalDate: new Date('2026-06-12T00:00:00Z'), payUrl: PAY_DEEP_LINK,
     });
-    expect(html).toContain('stitchpad://upgrade');
-    expect(text).toContain('stitchpad://upgrade');
+    expect(html).toContain('https://link.getstitchpad.com/upgrade');
+    expect(text).toContain('https://link.getstitchpad.com/upgrade');
     expect(html).toContain('Tailor Pro');
   });
 

@@ -14,11 +14,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const REMINDER_WINDOW_MS = 3 * DAY_MS;
 
 /**
- * Deep link into the app's Upgrade screen. Registered as a custom scheme on
- * Android (AndroidManifest intent-filter) and iOS (Info.plist CFBundleURLSchemes),
- * routed to UpgradeRoute via DeepLinkTarget.UPGRADE. Kept in sync with those.
+ * Link into the app's Upgrade screen, used as the renewal email's "Renew" button.
+ * An https Universal Link / App Link (NOT the stitchpad:// custom scheme) because
+ * Gmail's iOS app refuses custom-scheme hrefs — it would render as dead text. The
+ * apps verify this host via associated-domains (iOS) / assetlinks.json (Android) and
+ * route it to UpgradeRoute; if the app isn't installed it falls back to a web page.
+ * Kept in sync with applinks:link.getstitchpad.com and the Android intent-filter.
  */
-export const PAY_DEEP_LINK = 'stitchpad://upgrade';
+export const PAY_DEEP_LINK = 'https://link.getstitchpad.com/upgrade';
 
 /**
  * Deep link carrying the plan to renew, so the Upgrade screen pre-selects the
@@ -211,7 +214,7 @@ export const prepaidSubscriptionReminder = functions
 /**
  * Debug/QA trigger: sends a renewal reminder to the CALLER on demand, bypassing the
  * schedule, the 3-day window, and the per-period dedup, so a tester can preview the
- * email and exercise the stitchpad://upgrade deep link without hand-editing Firestore.
+ * email and exercise the renewal app link without hand-editing Firestore.
  * Tester-allowlisted (same gate as debugSendMyDigest). Uses the caller's real tier when
  * they're on a paid plan, otherwise a representative Pro sample.
  */

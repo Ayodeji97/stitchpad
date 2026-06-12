@@ -112,6 +112,14 @@ struct iOSApp: App {
                         _ = GIDSignIn.sharedInstance.handle(url)
                     }
                 }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    // https Universal Links (the renewal email's link.getstitchpad.com URL)
+                    // arrive as a browsing-web user activity, NOT via .onOpenURL. Gmail's iOS
+                    // app refuses custom schemes, so the email uses the https form.
+                    if let url = activity.webpageURL {
+                        _ = IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString)
+                    }
+                }
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
