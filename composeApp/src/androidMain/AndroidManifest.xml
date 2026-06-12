@@ -45,7 +45,7 @@
                 <data
                     android:scheme="https"
                     android:host="link.getstitchpad.com"
-                    android:pathPrefix="/upgrade" />
+                    android:path="/upgrade" />
             </intent-filter>
             <!-- Legacy custom scheme: Apple-Mail-equivalent / manual taps on Android. -->
             <intent-filter>
