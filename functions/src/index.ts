@@ -57,3 +57,4 @@ export {
 } from './billing/paystackBilling';
 export { prepaidSubscriptionReminder, debugSendMyRenewalReminder } from './billing/subscriptionReminder';
 export { abandonStalePendingCheckouts } from './billing/abandonStalePending';
+export { whatsappWebhook } from './whatsapp';

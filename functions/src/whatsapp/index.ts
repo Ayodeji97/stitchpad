@@ -1,0 +1,1 @@
+export { whatsappWebhook } from './webhook';
