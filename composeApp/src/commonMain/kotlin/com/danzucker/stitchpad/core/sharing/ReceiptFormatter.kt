@@ -208,6 +208,10 @@ object ReceiptFormatter {
      * (garmentType == OTHER with a non-blank customGarmentName) get their own
      * line item per distinct name, so the customer sees the tailor's actual
      * label (e.g. "Iro and Buba") instead of a generic "Other" bucket.
+     *
+     * Items also group by unit price: two items of the same garment merge only
+     * when they share a price, so every line can show a truthful unit price
+     * (PTSP-35). Same garment at differing prices stays on separate lines.
      */
     private fun groupReceiptItems(
         items: List<OrderItem>,
@@ -218,11 +222,13 @@ object ReceiptFormatter {
             // (FirebaseCustomGarmentTypeRepository / GarmentPickerFilter). Two items
             // with the same name but differing casing must collapse into one line.
             val customName = item.customGarmentName
-            if (item.garmentType == GarmentType.OTHER && !customName.isNullOrBlank()) {
+            val garmentKey = if (item.garmentType == GarmentType.OTHER && !customName.isNullOrBlank()) {
                 "custom:${customName.trim().lowercase()}"
             } else {
                 item.garmentType.name
             }
+            // Pair garment with unit price so a merged line always shares one price.
+            garmentKey to item.price
         }
         .map { (_, group) ->
             val first = group.first()
@@ -233,10 +239,12 @@ object ReceiptFormatter {
             } else {
                 garmentNames[first.garmentType] ?: first.garmentType.name
             }
+            val totalQuantity = group.sumOf { it.quantity }
             ReceiptItem(
-                quantity = group.sumOf { it.quantity },
+                quantity = totalQuantity,
                 garmentName = garmentName,
-                formattedPrice = "₦${formatPrice(group.sumOf { it.price * it.quantity })}",
+                formattedUnitPrice = "₦${formatPrice(first.price)}",
+                formattedPrice = "₦${formatPrice(first.price * totalQuantity)}",
             )
         }
 

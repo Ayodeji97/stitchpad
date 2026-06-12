@@ -106,18 +106,51 @@ class ReceiptFormatterTest {
     }
 
     @Test
-    fun itemsGroupedByGarmentType() {
+    fun itemsGroupedByGarmentTypeAndUnitPrice() {
+        // Same garment type AND same unit price collapse into one line so the
+        // line can carry an honest unit price (qty summed, total = unit \u00D7 qty).
         val orderWithDuplicates = testOrder.copy(
             items = listOf(
                 OrderItem(id = "i1", garmentType = GarmentType.TROUSER, description = "T1", price = 5000.0, quantity = 2),
-                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 7000.0, quantity = 3)
+                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 5000.0, quantity = 3)
             )
         )
         val names = mapOf(GarmentType.TROUSER to "Trouser")
         val result = ReceiptFormatter.format(orderWithDuplicates, testUser, names)
         assertEquals(1, result.items.size)
         assertEquals(5, result.items[0].quantity)
-        assertEquals("\u20A631,000", result.items[0].formattedPrice)
+        assertEquals("\u20A65,000", result.items[0].formattedUnitPrice)
+        assertEquals("\u20A625,000", result.items[0].formattedPrice)
+    }
+
+    @Test
+    fun sameGarmentDifferentUnitPriceSplitsIntoSeparateLines() {
+        // Differently-priced items of the same garment type must NOT merge \u2014
+        // a blended line could not show a truthful unit price.
+        val orderWithMixedPrices = testOrder.copy(
+            items = listOf(
+                OrderItem(id = "i1", garmentType = GarmentType.TROUSER, description = "T1", price = 5000.0, quantity = 2),
+                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 7000.0, quantity = 3)
+            )
+        )
+        val names = mapOf(GarmentType.TROUSER to "Trouser")
+        val result = ReceiptFormatter.format(orderWithMixedPrices, testUser, names)
+        assertEquals(2, result.items.size)
+        val byUnit = result.items.associateBy { it.formattedUnitPrice }
+        assertEquals(2, byUnit.getValue("\u20A65,000").quantity)
+        assertEquals("\u20A610,000", byUnit.getValue("\u20A65,000").formattedPrice)
+        assertEquals(3, byUnit.getValue("\u20A67,000").quantity)
+        assertEquals("\u20A621,000", byUnit.getValue("\u20A67,000").formattedPrice)
+    }
+
+    @Test
+    fun singleItemExposesUnitPrice() {
+        val result = formatResult()
+        // testOrder's first line: one Agbada at \u20A645,000.
+        val agbada = result.items.first { it.garmentName == "Agbada" }
+        assertEquals(1, agbada.quantity)
+        assertEquals("\u20A645,000", agbada.formattedUnitPrice)
+        assertEquals("\u20A645,000", agbada.formattedPrice)
     }
 
     @Test
