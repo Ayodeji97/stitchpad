@@ -113,6 +113,7 @@ import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_section_header
+import stitchpad.composeapp.generated.resources.style_section_header_format
 import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 // Inert surfaces on a locked customer's detail page render at this alpha so the
@@ -330,7 +331,13 @@ fun CustomerDetailScreen(
                         } else {
                             { onAction(CustomerDetailAction.OnViewStylesClick) }
                         }
-                        StylesSectionRow(onClick = stylesClick)
+                        StylesSectionRow(
+                            customerFirstName = state.customer?.name
+                                ?.trim()
+                                ?.substringBefore(' ')
+                                ?.takeIf { it.isNotBlank() },
+                            onClick = stylesClick,
+                        )
                     }
                     if (state.isLocked) {
                         item(key = "locked_upgrade_cta") {
@@ -823,10 +830,17 @@ private fun LockedDetailBanner(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StylesSectionRow(onClick: (() -> Unit)?) {
+private fun StylesSectionRow(
+    customerFirstName: String?,
+    onClick: (() -> Unit)?,
+) {
     Column(modifier = Modifier.padding(top = DesignTokens.space6)) {
         Text(
-            text = stringResource(Res.string.style_section_header),
+            text = if (customerFirstName != null) {
+                stringResource(Res.string.style_section_header_format, customerFirstName.uppercase())
+            } else {
+                stringResource(Res.string.style_section_header)
+            },
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

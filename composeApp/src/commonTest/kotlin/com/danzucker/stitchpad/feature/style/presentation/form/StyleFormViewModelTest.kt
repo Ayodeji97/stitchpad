@@ -168,26 +168,47 @@ class StyleFormViewModelTest {
     // --- Photo picked ---
 
     @Test
-    fun onPhotoPicked_underLimit_setsSelectedPhotoBytes() = runTest {
+    fun onPhotosPicked_underLimit_setsSelectedPhotos() = runTest {
         val vm = createViewModel()
         val bytes = ByteArray(1024) { it.toByte() }
 
-        vm.onAction(StyleFormAction.OnPhotoPicked(bytes))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(bytes)))
 
-        assertNotNull(vm.state.value.selectedPhotoBytes)
-        assertEquals(1024, vm.state.value.selectedPhotoBytes?.size)
+        assertEquals(1, vm.state.value.selectedPhotos.size)
+        assertEquals(1024, vm.state.value.selectedPhotos.first().size)
         assertNull(vm.state.value.errorMessage)
     }
 
     @Test
-    fun onPhotoPicked_overLimit_setsErrorMessage_andDoesNotUpdatePhoto() = runTest {
+    fun onPhotosPicked_multiple_setsAllSelectedPhotos() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(
+            StyleFormAction.OnPhotosPicked(
+                listOf(ByteArray(10), ByteArray(20), ByteArray(30))
+            )
+        )
+
+        assertEquals(3, vm.state.value.selectedPhotos.size)
+        assertNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun onPhotosPicked_anyOverLimit_setsErrorMessage_andClearsSelection() = runTest {
         val vm = createViewModel()
         val tooLarge = ByteArray(5 * 1024 * 1024 + 1)
 
-        vm.onAction(StyleFormAction.OnPhotoPicked(tooLarge))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10), tooLarge)))
 
         assertNotNull(vm.state.value.errorMessage)
-        assertNull(vm.state.value.selectedPhotoBytes)
+        assertTrue(vm.state.value.selectedPhotos.isEmpty())
+    }
+
+    @Test
+    fun addToCloset_allowsMultiPhoto_butEditAndLinkDoNot() = runTest {
+        assertTrue(createViewModel().state.value.allowMultiPhoto)
+        assertFalse(createViewModel(styleId = "style-7").state.value.allowMultiPhoto)
+        assertFalse(createViewModel(linkToOrderId = "order-1").state.value.allowMultiPhoto)
     }
 
     // --- Save: create flow ---
@@ -196,7 +217,7 @@ class StyleFormViewModelTest {
     fun onSaveClick_createMode_blankDescription_doesNotCallRepository() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(10)))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
         // description is blank
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -221,7 +242,7 @@ class StyleFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada  "))
-        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(10) { it.toByte() }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10) { it.toByte() })))
 
         vm.onAction(StyleFormAction.OnSaveClick)
         val event = vm.events.first()
@@ -233,12 +254,32 @@ class StyleFormViewModelTest {
     }
 
     @Test
+    fun onSaveClick_createMode_multiplePhotos_callsBatchCreate_andEmitsNavigateBack() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(StyleFormAction.OnDescriptionChange("Owambe inspiration"))
+        vm.onAction(
+            StyleFormAction.OnPhotosPicked(listOf(ByteArray(10), ByteArray(20), ByteArray(30)))
+        )
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+        val event = vm.events.first()
+
+        // Batch path used, not the single-create path.
+        assertEquals(3, styleRepository.lastBatchCreatedCount)
+        assertEquals("Owambe inspiration", styleRepository.lastBatchCreatedDescription)
+        assertNull(styleRepository.lastCreatedDescription)
+        assertIs<StyleFormEvent.NavigateBack>(event)
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
     fun onSaveClick_createMode_repositoryError_setsErrorMessage() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
         vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada"))
-        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(10)))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
@@ -251,7 +292,7 @@ class StyleFormViewModelTest {
         // no signUp
         val vm = createViewModel()
         vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada"))
-        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(10)))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
@@ -266,7 +307,7 @@ class StyleFormViewModelTest {
         val vm = createViewModel(styleId = "missing-id")
         // style failed to load → existingStyle is null but isEditMode is true
         vm.onAction(StyleFormAction.OnDescriptionChange("New description"))
-        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(10)))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
@@ -300,7 +341,7 @@ class StyleFormViewModelTest {
         styleRepository.stylesList = listOf(existing)
         val vm = createViewModel(styleId = "style-7")
         val newBytes = ByteArray(20) { (it + 1).toByte() }
-        vm.onAction(StyleFormAction.OnPhotoPicked(newBytes))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(newBytes)))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
@@ -333,7 +374,7 @@ class StyleFormViewModelTest {
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnPhotoPicked(ByteArray(5 * 1024 * 1024 + 1)))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(5 * 1024 * 1024 + 1))))
         assertNotNull(vm.state.value.errorMessage)
 
         vm.onAction(StyleFormAction.OnErrorDismiss)
