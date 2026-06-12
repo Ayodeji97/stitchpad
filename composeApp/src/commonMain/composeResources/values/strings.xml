@@ -465,8 +465,13 @@
     <string name="order_empty_ready_title">No orders ready</string>
     <string name="order_empty_delivered_title">No delivered orders</string>
     <string name="order_empty_filtered_subtitle">Try another tab to see your orders</string>
+    <string name="order_empty_archived_title">No archived orders</string>
+    <string name="order_empty_archived_subtitle">Orders you archive show up here. You can restore them anytime.</string>
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
+    <string name="order_filter_archived">Archived</string>
+    <string name="order_restore_cta">Restore</string>
+    <string name="order_restored_snackbar">Order restored</string>
     <string name="order_items_count_singular">%1$d item</string>
     <string name="order_items_count_plural">%1$d items</string>
     <string name="order_overdue_label">Overdue</string>
@@ -973,7 +978,7 @@
     <string name="order_detail_overflow_archive">Archive order</string>
     <string name="order_detail_overflow_delete">Delete order</string>
     <string name="order_detail_archive_confirm_title">Archive this order?</string>
-    <string name="order_detail_archive_confirm_body">It will be hidden from the dashboard and orders list. You can restore it from Reports.</string>
+    <string name="order_detail_archive_confirm_body">It will be hidden from the dashboard and orders list. You can restore it from the Archived filter on the Orders tab.</string>
     <string name="order_detail_archive_confirm_cta">Archive</string>
     <string name="order_archived_snackbar">Order archived</string>
     <string name="order_detail_send_reminder">Send reminder</string>

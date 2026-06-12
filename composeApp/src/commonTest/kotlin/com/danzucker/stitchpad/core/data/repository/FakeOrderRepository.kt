@@ -32,6 +32,7 @@ class FakeOrderRepository : OrderRepository {
     var lastSubStatusUpdate: Pair<String, OrderSubStatus?>? = null
     var lastNotesUpdate: Pair<String, String?>? = null
     var lastArchivedOrderId: String? = null
+    var lastUnarchivedOrderId: String? = null
     private var nextIdSuffix = 0
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
@@ -40,6 +41,16 @@ class FakeOrderRepository : OrderRepository {
             // Mirror FirebaseOrderRepository's archive filter so VM tests
             // see the same observable surface as production.
             Result.Success(list.filter { it.archivedAt == null })
+        }
+
+    override fun observeArchivedOrders(
+        userId: String,
+    ): Flow<Result<List<Order>, DataError.Network>> =
+        ordersFlow.map { list ->
+            shouldReturnError?.let { return@map Result.Error(it) }
+            Result.Success(
+                list.filter { it.archivedAt != null }.sortedByDescending { it.archivedAt }
+            )
         }
 
     override fun observeOrder(
@@ -157,6 +168,18 @@ class FakeOrderRepository : OrderRepository {
         lastArchivedOrderId = orderId
         ordersFlow.value = ordersFlow.value.map { existing ->
             if (existing.id == orderId) existing.copy(archivedAt = 1L) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun unarchiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastUnarchivedOrderId = orderId
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(archivedAt = null) else existing
         }
         return Result.Success(Unit)
     }
