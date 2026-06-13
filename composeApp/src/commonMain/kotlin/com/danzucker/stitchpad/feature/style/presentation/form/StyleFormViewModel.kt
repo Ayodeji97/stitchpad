@@ -35,8 +35,14 @@ class StyleFormViewModel(
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
+    // Multi-pick only when adding to a closet — not when editing one style and
+    // not when attaching exactly one style to an order (the link flow).
+    private val allowMultiPhoto: Boolean = styleId == null && linkToOrderId == null
+
     private var hasLoadedInitialData = false
-    private val _state = MutableStateFlow(StyleFormState(isEditMode = styleId != null))
+    private val _state = MutableStateFlow(
+        StyleFormState(isEditMode = styleId != null, allowMultiPhoto = allowMultiPhoto)
+    )
 
     private val _events = Channel<StyleFormEvent>()
     val events = _events.receiveAsFlow()
@@ -56,7 +62,7 @@ class StyleFormViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = StyleFormState(isEditMode = styleId != null)
+            initialValue = StyleFormState(isEditMode = styleId != null, allowMultiPhoto = allowMultiPhoto)
         )
 
     fun onAction(action: StyleFormAction) {
@@ -64,7 +70,7 @@ class StyleFormViewModel(
             is StyleFormAction.OnDescriptionChange -> {
                 _state.update { it.copy(description = action.description) }
             }
-            is StyleFormAction.OnPhotoPicked -> onPhotoPicked(action.bytes)
+            is StyleFormAction.OnPhotosPicked -> onPhotosPicked(action.photos)
             StyleFormAction.OnSaveClick -> save()
             StyleFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(StyleFormEvent.NavigateBack) }
@@ -75,17 +81,20 @@ class StyleFormViewModel(
         }
     }
 
-    private fun onPhotoPicked(bytes: ByteArray) {
-        if (bytes.size > MAX_PHOTO_SIZE_BYTES) {
+    private fun onPhotosPicked(photos: List<ByteArray>) {
+        if (photos.isEmpty()) return
+        // A fresh pick replaces the current selection. Reject the whole batch if
+        // any image exceeds the cap so the user sees the failure before saving.
+        if (photos.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
             _state.update {
                 it.copy(
                     errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
-                    selectedPhotoBytes = null
+                    selectedPhotos = emptyList()
                 )
             }
             return
         }
-        _state.update { it.copy(selectedPhotoBytes = bytes, errorMessage = null) }
+        _state.update { it.copy(selectedPhotos = photos, errorMessage = null) }
     }
 
     private fun loadStyle(id: String) {
@@ -128,7 +137,7 @@ class StyleFormViewModel(
         val customerId = customerId ?: return
         val s = _state.value
         val trimmedDescription = s.description.trim()
-        val missingPhotoForCreate = !s.isEditMode && s.selectedPhotoBytes == null
+        val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
         val missingStyleForEdit = s.isEditMode && s.existingStyle == null
         if (trimmedDescription.isBlank() || missingPhotoForCreate || missingStyleForEdit) return
 
@@ -143,7 +152,7 @@ class StyleFormViewModel(
                     userId = userId,
                     customerId = customerId,
                     style = s.existingStyle.copy(description = trimmedDescription),
-                    newPhotoBytes = s.selectedPhotoBytes,
+                    newPhotoBytes = s.selectedPhotos.firstOrNull(),
                 )
                 _state.update { it.copy(isSaving = false) }
                 when (updateResult) {
@@ -154,11 +163,31 @@ class StyleFormViewModel(
                 }
                 return@launch
             }
+
+            // Multi-photo closet add: batch-create and return — the order-link
+            // path below is unreachable here (allowMultiPhoto requires no link).
+            if (s.selectedPhotos.size > 1) {
+                val batchResult = styleRepository.createStyles(
+                    userId = userId,
+                    customerId = customerId,
+                    description = trimmedDescription,
+                    photoBytesList = s.selectedPhotos,
+                )
+                _state.update { it.copy(isSaving = false) }
+                when (batchResult) {
+                    is Result.Success -> _events.send(StyleFormEvent.NavigateBack)
+                    is Result.Error -> _state.update {
+                        it.copy(errorMessage = batchResult.error.toStyleUiText())
+                    }
+                }
+                return@launch
+            }
+
             val createResult = styleRepository.createStyle(
                 userId = userId,
                 customerId = customerId,
                 description = trimmedDescription,
-                photoBytes = s.selectedPhotoBytes ?: ByteArray(0),
+                photoBytes = s.selectedPhotos.firstOrNull() ?: ByteArray(0),
             )
             if (createResult is Result.Error) {
                 _state.update {

@@ -428,17 +428,22 @@
     <string name="settings_measurement_unit_label">Measurement unit</string>
 
     <!-- Style gallery -->
-    <string name="style_gallery_title">Styles</string>
+    <string name="style_gallery_title">Closet</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
     <string name="style_description_label">Description</string>
     <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
+    <string name="style_pick_photos">Tap to add photos</string>
     <string name="style_change_photo">Change photo</string>
+    <!-- Shown above the picked-photos grid; count is always 2 or more here. -->
+    <string name="style_photos_selected">%1$d photos selected · tap to change</string>
     <string name="style_save_button">Save style</string>
     <string name="style_empty_title">No styles yet</string>
     <string name="style_empty_subtitle">Add photos of past work or inspiration for this customer.</string>
-    <string name="style_section_header">STYLES</string>
+    <string name="style_section_header">CLOSET</string>
+    <!-- Prominent closet row title, e.g. "Hauwa&apos;s Closet". Arg is the customer&apos;s first name. -->
+    <string name="style_closet_name_format">%1$s&apos;s Closet</string>
     <string name="style_section_count_singular">%1$d style</string>
     <string name="style_section_count_plural">%1$d styles</string>
     <string name="style_section_empty_cta">Add a style</string>

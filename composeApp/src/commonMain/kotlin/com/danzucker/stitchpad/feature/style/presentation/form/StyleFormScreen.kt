@@ -76,8 +76,15 @@ import stitchpad.composeapp.generated.resources.style_change_photo
 import stitchpad.composeapp.generated.resources.style_description_label
 import stitchpad.composeapp.generated.resources.style_description_placeholder
 import stitchpad.composeapp.generated.resources.style_edit_title
+import stitchpad.composeapp.generated.resources.style_photos_selected
 import stitchpad.composeapp.generated.resources.style_pick_photo
+import stitchpad.composeapp.generated.resources.style_pick_photos
 import stitchpad.composeapp.generated.resources.style_save_button
+
+// Bounds how many photos a single multi-pick can add — each is held in memory as
+// bytes, so cap the batch. MultiPhotoPreview lays thumbnails out 3 per row.
+private const val STYLE_MULTI_PICK_MAX = 10
+private const val MULTI_PREVIEW_COLUMNS = 3
 
 @Composable
 fun StyleFormRoot(onNavigateBack: () -> Unit) {
@@ -125,15 +132,19 @@ fun StyleFormScreen(
     val focusManager = LocalFocusManager.current
 
     val imagePicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
+        selectionMode = if (state.allowMultiPhoto) {
+            SelectionMode.Multiple(maxSelection = STYLE_MULTI_PICK_MAX)
+        } else {
+            SelectionMode.Single
+        },
         scope = pickerScope,
         onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let { onAction(StyleFormAction.OnPhotoPicked(it)) }
+            if (byteArrays.isNotEmpty()) onAction(StyleFormAction.OnPhotosPicked(byteArrays))
         }
     )
 
     val canSave = state.description.trim().isNotBlank() &&
-        (state.isEditMode || state.selectedPhotoBytes != null) &&
+        (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
         !state.isSaving
 
     Scaffold(
@@ -240,8 +251,20 @@ private fun PhotoSection(
     state: StyleFormState,
     onPickClick: () -> Unit
 ) {
+    if (state.selectedPhotos.size > 1) {
+        MultiPhotoPreview(photos = state.selectedPhotos, onPickClick = onPickClick)
+    } else {
+        SinglePhotoPreview(state = state, onPickClick = onPickClick)
+    }
+}
+
+@Composable
+private fun SinglePhotoPreview(
+    state: StyleFormState,
+    onPickClick: () -> Unit
+) {
     val model: Any? = when {
-        state.selectedPhotoBytes != null -> state.selectedPhotoBytes
+        state.selectedPhotos.isNotEmpty() -> state.selectedPhotos.first()
         state.existingStyle != null -> state.existingStyle.localPhotoPath ?: state.existingStyle.photoUrl
         else -> null
     }
@@ -316,10 +339,80 @@ private fun PhotoSection(
                 )
                 Spacer(Modifier.height(DesignTokens.space2))
                 Text(
-                    text = stringResource(Res.string.style_pick_photo),
+                    text = if (state.allowMultiPhoto) {
+                        stringResource(Res.string.style_pick_photos)
+                    } else {
+                        stringResource(Res.string.style_pick_photo)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiPhotoPreview(
+    photos: List<ByteArray>,
+    onPickClick: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                RoundedCornerShape(DesignTokens.radiusMd)
+            )
+            .clickable(onClick = onPickClick)
+            .padding(DesignTokens.space3)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1)
+        ) {
+            Icon(
+                imageVector = Icons.Default.AddAPhoto,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = stringResource(Res.string.style_photos_selected, photos.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        // Manual grid (3 per row): nesting a lazy grid inside the form's vertical
+        // scroll would conflict; the picked set is small and bounded.
+        photos.chunked(MULTI_PREVIEW_COLUMNS).forEach { rowPhotos ->
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                rowPhotos.forEach { bytes ->
+                    SubcomposeAsyncImage(
+                        model = bytes,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        loading = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                LoadingDots()
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(DesignTokens.radiusSm))
+                    )
+                }
+                // Pad a short final row so thumbnails keep a consistent size.
+                repeat(MULTI_PREVIEW_COLUMNS - rowPhotos.size) {
+                    Spacer(Modifier.weight(1f))
+                }
             }
         }
     }
@@ -419,7 +512,23 @@ private fun StyleFormScreenFilledPreview() {
         StyleFormScreen(
             state = StyleFormState(
                 description = "Red agbada with gold trim",
-                selectedPhotoBytes = ByteArray(0)
+                selectedPhotos = listOf(ByteArray(0))
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun StyleFormScreenMultiPhotoPreview() {
+    StitchPadTheme {
+        StyleFormScreen(
+            state = StyleFormState(
+                description = "Owambe inspiration",
+                allowMultiPhoto = true,
+                selectedPhotos = listOf(ByteArray(0), ByteArray(0), ByteArray(0), ByteArray(0))
             ),
             onAction = {}
         )

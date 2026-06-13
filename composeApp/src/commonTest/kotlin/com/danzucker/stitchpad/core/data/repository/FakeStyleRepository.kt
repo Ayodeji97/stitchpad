@@ -15,6 +15,8 @@ class FakeStyleRepository : StyleRepository {
 
     var lastCreatedDescription: String? = null
     var lastCreatedPhotoBytes: ByteArray? = null
+    var lastBatchCreatedDescription: String? = null
+    var lastBatchCreatedCount: Int? = null
     var lastUpdatedStyle: Style? = null
     var lastUpdatedPhotoBytes: ByteArray? = null
     var lastDeletedStyleId: String? = null
@@ -70,6 +72,8 @@ class FakeStyleRepository : StyleRepository {
     ): Result<List<String>, DataError.Network> {
         operationError?.let { return Result.Error(it) }
         if (photoBytesList.isEmpty()) return Result.Success(emptyList())
+        lastBatchCreatedDescription = description
+        lastBatchCreatedCount = photoBytesList.size
         val ids = photoBytesList.indices.map { index -> "fake-style-$index" }
         return Result.Success(ids)
     }
