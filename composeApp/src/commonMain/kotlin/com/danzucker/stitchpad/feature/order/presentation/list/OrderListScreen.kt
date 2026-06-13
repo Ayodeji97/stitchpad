@@ -218,6 +218,13 @@ fun OrderListScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
+                // Don't show the archived empty state until the archived snapshot has
+                // actually loaded — otherwise it flashes "no archived orders" mid-load.
+                state.showArchived && state.isArchivedLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
                 state.showArchived && state.orders.isEmpty() -> {
                     ArchivedEmptyState(modifier = Modifier.fillMaxSize())
                 }

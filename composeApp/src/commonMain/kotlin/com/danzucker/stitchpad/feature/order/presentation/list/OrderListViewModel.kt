@@ -132,14 +132,35 @@ class OrderListViewModel(
 
     private fun observeArchivedOrders() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = authRepository.getCurrentUser()?.id ?: run {
+                _state.update { it.copy(isArchivedLoading = false) }
+                return@launch
+            }
             orderRepository.observeArchivedOrders(userId).collect { result ->
-                // Cache silently; the active flow owns the loading + error surface.
-                // A restore re-emits here (order leaves) and on the active flow (order returns).
-                if (result is Result.Success) {
-                    allArchivedOrders = result.data
-                    _state.update { state ->
-                        if (state.showArchived) state.copy(orders = result.data) else state
+                when (result) {
+                    is Result.Success -> {
+                        allArchivedOrders = result.data
+                        _state.update { state ->
+                            state.copy(
+                                isArchivedLoading = false,
+                                orders = if (state.showArchived) result.data else state.orders
+                            )
+                        }
+                    }
+                    is Result.Error -> {
+                        // Clear loading so the view stops spinning. Surface the error
+                        // only while the archived view is open — on the active view the
+                        // active stream (same Firestore source) owns the error surface.
+                        _state.update { state ->
+                            state.copy(
+                                isArchivedLoading = false,
+                                errorMessage = if (state.showArchived) {
+                                    result.error.toOrderUiText()
+                                } else {
+                                    state.errorMessage
+                                }
+                            )
+                        }
                     }
                 }
             }

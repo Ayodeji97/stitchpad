@@ -25,6 +25,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -192,6 +194,48 @@ class OrderListViewModelTest {
 
         assertFalse(vm.state.value.showArchived)
         assertEquals(listOf("active"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun archivedLoading_clearsAfterSnapshotLoads() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "active"),
+            fakeOrder(id = "archived", archivedAt = 100L),
+        )
+        val vm = createViewModel()
+
+        // Once the archived snapshot emits, the view stops spinning — so the empty
+        // state can never flash before archived orders have loaded.
+        assertFalse(vm.state.value.isArchivedLoading)
+    }
+
+    @Test
+    fun archivedError_clearsLoading_andSurfacesWhileViewingArchived() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(fakeOrder(id = "archived", archivedAt = 100L))
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnShowArchived)
+
+        // Archived stream fails (independent of the active stream) on a fresh emit.
+        orderRepository.archivedError = DataError.Network.UNKNOWN
+        orderRepository.ordersList = listOf(fakeOrder(id = "archived2", archivedAt = 200L))
+
+        assertFalse(vm.state.value.isArchivedLoading)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun archivedError_onActiveView_doesNotSurface_butClearsLoading() = runTest {
+        signIn()
+        orderRepository.archivedError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+
+        // Not viewing archived — the active stream owns the error surface, so an
+        // archived-only failure must not pop an error here, but loading still clears.
+        assertFalse(vm.state.value.showArchived)
+        assertFalse(vm.state.value.isArchivedLoading)
+        assertNull(vm.state.value.errorMessage)
     }
 
     @Test

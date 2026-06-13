@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.map
 class FakeOrderRepository : OrderRepository {
     var shouldReturnError: DataError.Network? = null
 
+    /** Error for the archived stream only (independent of [shouldReturnError]). */
+    var archivedError: DataError.Network? = null
+
     private val ordersFlow = MutableStateFlow<List<Order>>(emptyList())
 
     var ordersList: List<Order>
@@ -47,7 +50,7 @@ class FakeOrderRepository : OrderRepository {
         userId: String,
     ): Flow<Result<List<Order>, DataError.Network>> =
         ordersFlow.map { list ->
-            shouldReturnError?.let { return@map Result.Error(it) }
+            (archivedError ?: shouldReturnError)?.let { return@map Result.Error(it) }
             Result.Success(
                 list.filter { it.archivedAt != null }.sortedByDescending { it.archivedAt }
             )
