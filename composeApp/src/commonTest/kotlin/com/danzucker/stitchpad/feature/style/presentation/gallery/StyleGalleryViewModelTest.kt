@@ -1,8 +1,11 @@
 package com.danzucker.stitchpad.feature.style.presentation.gallery
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
@@ -29,12 +32,14 @@ import kotlin.test.assertTrue
 class StyleGalleryViewModelTest {
 
     private lateinit var styleRepository: FakeStyleRepository
+    private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         styleRepository = FakeStyleRepository()
+        customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
     }
 
@@ -49,11 +54,24 @@ class StyleGalleryViewModelTest {
         val vm = StyleGalleryViewModel(
             savedStateHandle = SavedStateHandle(mapOf("customerId" to customerId)),
             styleRepository = styleRepository,
+            customerRepository = customerRepository,
             authRepository = authRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
     }
+
+    private fun fakeCustomer(
+        id: String,
+        name: String = "Customer $id",
+        slotState: CustomerSlotState = CustomerSlotState.ACTIVE,
+    ) = Customer(
+        id = id,
+        userId = "test-uid",
+        name = name,
+        phone = "+2348012345678",
+        slotState = slotState,
+    )
 
     private fun fakeStyle(
         id: String = "style-1",
@@ -76,6 +94,7 @@ class StyleGalleryViewModelTest {
         val vm = StyleGalleryViewModel(
             savedStateHandle = SavedStateHandle(),
             styleRepository = styleRepository,
+            customerRepository = customerRepository,
             authRepository = authRepository,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -224,6 +243,89 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnConfirmDelete)
 
         assertNull(styleRepository.lastDeletedStyleId)
+    }
+
+    // --- Copy / move transfer (PTSP-38) ---
+
+    @Test
+    fun onStyleLongPress_opensActionSheet() = runTest {
+        val vm = createViewModel()
+        val style = fakeStyle(id = "s1")
+
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(style))
+
+        assertEquals(style, vm.state.value.actionSheetStyle)
+    }
+
+    @Test
+    fun onCopyClick_opensTransfer_withOtherActiveCustomersOnly() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"), // source — excluded
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+            fakeCustomer(id = "locked", slotState = CustomerSlotState.LOCKED), // excluded
+        )
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        val transfer = vm.state.value.transfer
+        assertNotNull(transfer)
+        assertEquals(StyleTransferMode.COPY, transfer.mode)
+        assertEquals(listOf("customer-2"), transfer.targets.map { it.id })
+        assertNull(vm.state.value.actionSheetStyle)
+    }
+
+    @Test
+    fun onTargetCustomerSelected_copy_callsCopyStyle_andEmitsTransferred() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        assertEquals(Triple("customer-1", "s1", "customer-2"), styleRepository.lastCopied)
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.StyleTransferred>(event)
+        assertEquals(StyleTransferMode.COPY, event.mode)
+        assertEquals("Bisi", event.targetName)
+        assertNull(vm.state.value.transfer)
+    }
+
+    @Test
+    fun onTargetCustomerSelected_move_callsMoveStyle() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnMoveClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        assertEquals(Triple("customer-1", "s1", "customer-2"), styleRepository.lastMoved)
+        assertIs<StyleGalleryEvent.StyleTransferred>(vm.events.first())
+    }
+
+    @Test
+    fun onDeleteClick_fromActionSheet_clearsSheet_andShowsDeleteDialog() = runTest {
+        val vm = createViewModel()
+        val style = fakeStyle(id = "s1")
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(style))
+
+        vm.onAction(StyleGalleryAction.OnDeleteClick(style))
+
+        assertNull(vm.state.value.actionSheetStyle)
+        assertTrue(vm.state.value.showDeleteDialog)
+        assertEquals(style, vm.state.value.styleToDelete)
     }
 
     // --- Error dismiss ---

@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
+import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
@@ -11,6 +13,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
 class StyleGalleryViewModel(
     savedStateHandle: SavedStateHandle,
     private val styleRepository: StyleRepository,
+    private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
@@ -49,6 +53,7 @@ class StyleGalleryViewModel(
             initialValue = StyleGalleryState()
         )
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: StyleGalleryAction) {
         when (action) {
             StyleGalleryAction.OnAddClick -> {
@@ -61,8 +66,22 @@ class StyleGalleryViewModel(
                     _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, action.style.id))
                 }
             }
+            is StyleGalleryAction.OnStyleLongPress -> {
+                _state.update { it.copy(actionSheetStyle = action.style) }
+            }
+            StyleGalleryAction.OnDismissActionSheet -> {
+                _state.update { it.copy(actionSheetStyle = null) }
+            }
+            StyleGalleryAction.OnCopyClick -> openTransfer(StyleTransferMode.COPY)
+            StyleGalleryAction.OnMoveClick -> openTransfer(StyleTransferMode.MOVE)
+            is StyleGalleryAction.OnTargetCustomerSelected -> transferTo(action.customerId)
+            StyleGalleryAction.OnDismissTransfer -> {
+                _state.update { it.copy(transfer = null) }
+            }
             is StyleGalleryAction.OnDeleteClick -> {
-                _state.update { it.copy(showDeleteDialog = true, styleToDelete = action.style) }
+                _state.update {
+                    it.copy(actionSheetStyle = null, showDeleteDialog = true, styleToDelete = action.style)
+                }
             }
             StyleGalleryAction.OnConfirmDelete -> deleteStyle()
             StyleGalleryAction.OnDismissDeleteDialog -> {
@@ -73,6 +92,52 @@ class StyleGalleryViewModel(
             }
             StyleGalleryAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+        }
+    }
+
+    private fun openTransfer(mode: StyleTransferMode) {
+        val style = _state.value.actionSheetStyle ?: return
+        val currentCustomerId = customerId ?: return
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            // Other ACTIVE customers only — you can't add to a locked customer, and
+            // the source customer isn't a valid target.
+            val targets = when (val result = customerRepository.observeCustomers(userId).first()) {
+                is Result.Success ->
+                    result.data
+                        .filter { it.id != currentCustomerId && it.slotState == CustomerSlotState.ACTIVE }
+                        .map { TransferTarget(id = it.id, name = it.name) }
+                is Result.Error -> emptyList()
+            }
+            _state.update {
+                it.copy(
+                    actionSheetStyle = null,
+                    transfer = StyleTransfer(style = style, mode = mode, targets = targets)
+                )
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun transferTo(targetCustomerId: String) {
+        val transfer = _state.value.transfer ?: return
+        val fromCustomerId = customerId ?: return
+        val targetName = transfer.targets.firstOrNull { it.id == targetCustomerId }?.name ?: return
+        _state.update { it.copy(transfer = null) }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val result = when (transfer.mode) {
+                StyleTransferMode.COPY ->
+                    styleRepository.copyStyle(userId, fromCustomerId, transfer.style, targetCustomerId)
+                StyleTransferMode.MOVE ->
+                    styleRepository.moveStyle(userId, fromCustomerId, transfer.style, targetCustomerId)
+            }
+            when (result) {
+                is Result.Success ->
+                    _events.send(StyleGalleryEvent.StyleTransferred(transfer.mode, targetName))
+                is Result.Error ->
+                    _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
         }
     }

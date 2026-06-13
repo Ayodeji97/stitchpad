@@ -19,6 +19,7 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlin.time.Clock
 
 private const val TAG = "StyleRepo"
 
@@ -197,7 +198,10 @@ class FirebaseStyleRepository(
         style: Style
     ): EmptyResult<DataError.Network> =
         try {
-            if (style.photoStoragePath.isNotBlank()) {
+            // Only the sole owner cleans up storage. A shared style (copied/moved
+            // across customers) leaves the object in place so the copy elsewhere
+            // keeps rendering — we only remove this Firestore doc.
+            if (style.photoStoragePath.isNotBlank() && !style.sharesImage) {
                 uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
                 runCatching {
                     uploadOutbox.enqueue(
@@ -225,4 +229,79 @@ class FirebaseStyleRepository(
             }
             Result.Error(DataError.Network.UNKNOWN)
         }
+
+    override suspend fun copyStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            // Flag the source as sharing too, so deleting it later won't drop the
+            // image the new copy still points at.
+            val markedSource = offlineWrites.enqueue("markShared styleId=${style.id}") {
+                stylesCollection(userId, fromCustomerId)
+                    .document(style.id)
+                    .set(style.copy(sharesImage = true).toStyleDto())
+            }
+            if (!markedSource) {
+                Result.Error(DataError.Network.UNKNOWN)
+            } else {
+                writeSharedCopy(userId, toCustomerId, style)
+            }
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "copyStyle failed styleId=${style.id}" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+
+    override suspend fun moveStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            // Create the target (sharing the image), preserving any existing share
+            // state, then remove the source doc only — the image stays put.
+            when (val created = writeSharedCopy(userId, toCustomerId, style, share = style.sharesImage)) {
+                is Result.Error -> created
+                is Result.Success -> {
+                    val deleted = offlineWrites.enqueue("moveStyle deleteSource styleId=${style.id}") {
+                        stylesCollection(userId, fromCustomerId)
+                            .document(style.id)
+                            .delete()
+                    }
+                    if (deleted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+                }
+            }
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "moveStyle failed styleId=${style.id}" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+
+    /**
+     * Write a new style doc under [toCustomerId] that points at [source]'s image
+     * (same photoUrl / storage path — no re-upload). [share] flags whether the
+     * new doc shares its image; copy passes true, move preserves the source's flag.
+     */
+    private suspend fun writeSharedCopy(
+        userId: String,
+        toCustomerId: String,
+        source: Style,
+        share: Boolean = true,
+    ): EmptyResult<DataError.Network> {
+        val docRef = stylesCollection(userId, toCustomerId).document
+        val now = Clock.System.now().toEpochMilliseconds()
+        val copy = source.copy(
+            id = docRef.id,
+            customerId = toCustomerId,
+            sharesImage = share,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val accepted = offlineWrites.enqueue("writeSharedCopy styleId=${docRef.id} from=${source.id}") {
+            docRef.set(copy.toStyleDto())
+        }
+        return if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+    }
 }
