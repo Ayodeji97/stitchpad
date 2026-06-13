@@ -3,6 +3,9 @@ package com.danzucker.stitchpad.core.sharing
 data class ReceiptItem(
     val quantity: Int,
     val garmentName: String,
+    /** Per-unit price, pre-formatted (e.g. "₦15,000"). Every item on a line shares this price. */
+    val formattedUnitPrice: String,
+    /** Line total (unit price × quantity), pre-formatted. */
     val formattedPrice: String
 )
 

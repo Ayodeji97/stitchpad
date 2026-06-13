@@ -74,7 +74,8 @@ actual class OrderReceiptSharer {
         var estimatedHeight = headerHeight + padding * 2
         estimatedHeight += 40.0 // document type label
         estimatedHeight += 60.0 + 20.0 // customer row
-        estimatedHeight += 30.0 + data.items.size * lineSpacing + 20.0 // items
+        // Two-line items: name/total + unit-price breakdown (lineSpacing + 16 each).
+        estimatedHeight += 30.0 + data.items.size * (lineSpacing + 16.0) + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
         if (data.bankBlock != null) {
             // Mirrors the y-advances in the draw block exactly: pre-divider gap
@@ -172,8 +173,9 @@ actual class OrderReceiptSharer {
             drawText("ITEMS", padding, y, labelFont(), darkColor("#7D7970"))
             y += 20.0
             data.items.forEach { item ->
+                // Line 1: garment name (left) + line total (right).
                 drawText(
-                    "${item.quantity} × ${item.garmentName}",
+                    item.garmentName,
                     padding,
                     y,
                     regularFont(14.0),
@@ -186,7 +188,16 @@ actual class OrderReceiptSharer {
                     regularFont(14.0),
                     darkColor("#E5E3DF")
                 )
-                y += lineSpacing
+                y += 18.0
+                // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
+                drawText(
+                    "${item.quantity} × ${item.formattedUnitPrice}",
+                    padding,
+                    y,
+                    regularFont(11.0),
+                    darkColor("#7D7970")
+                )
+                y += lineSpacing - 2.0
             }
             y += 8.0
 
@@ -384,8 +395,9 @@ actual class OrderReceiptSharer {
             drawText("ITEMS", padding, y, labelFont(8.0), darkColor("#7D7970"))
             y += 16.0
             data.items.forEach { item ->
+                // Line 1: garment name (left) + line total (right).
                 drawText(
-                    "${item.quantity} × ${item.garmentName}",
+                    item.garmentName,
                     padding,
                     y,
                     regularFont(11.0),
@@ -398,7 +410,16 @@ actual class OrderReceiptSharer {
                     regularFont(11.0),
                     darkColor("#1E1C1A")
                 )
-                y += 18.0
+                y += 13.0
+                // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
+                drawText(
+                    "${item.quantity} × ${item.formattedUnitPrice}",
+                    padding,
+                    y,
+                    regularFont(8.0),
+                    darkColor("#7D7970")
+                )
+                y += 16.0
             }
             y += 6.0
 
