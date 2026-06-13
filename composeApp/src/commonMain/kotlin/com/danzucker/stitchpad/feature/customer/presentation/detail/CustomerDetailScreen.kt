@@ -111,9 +111,9 @@ import stitchpad.composeapp.generated.resources.measurement_female_profile
 import stitchpad.composeapp.generated.resources.measurement_male_profile
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
+import stitchpad.composeapp.generated.resources.style_closet_name_format
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_section_header
-import stitchpad.composeapp.generated.resources.style_section_header_format
 import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 // Inert surfaces on a locked customer's detail page render at this alpha so the
@@ -835,12 +835,10 @@ private fun StylesSectionRow(
     onClick: (() -> Unit)?,
 ) {
     Column(modifier = Modifier.padding(top = DesignTokens.space6)) {
+        // Generic eyebrow label; the personalised "{Name}'s Closet" lives on the
+        // prominent row below where it's most visible (tester feedback).
         Text(
-            text = if (customerFirstName != null) {
-                stringResource(Res.string.style_section_header_format, customerFirstName.uppercase())
-            } else {
-                stringResource(Res.string.style_section_header)
-            },
+            text = stringResource(Res.string.style_section_header),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -883,7 +881,11 @@ private fun StylesSectionRow(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.style_gallery_title),
+                    text = if (customerFirstName != null) {
+                        stringResource(Res.string.style_closet_name_format, customerFirstName)
+                    } else {
+                        stringResource(Res.string.style_gallery_title)
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface

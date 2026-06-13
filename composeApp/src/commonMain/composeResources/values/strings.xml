@@ -442,8 +442,8 @@
     <string name="style_empty_title">No styles yet</string>
     <string name="style_empty_subtitle">Add photos of past work or inspiration for this customer.</string>
     <string name="style_section_header">CLOSET</string>
-    <!-- Personalised closet eyebrow, e.g. "FOLA&apos;S CLOSET". Arg is the customer&apos;s first name, uppercased by the caller. -->
-    <string name="style_section_header_format">%1$s&apos;S CLOSET</string>
+    <!-- Prominent closet row title, e.g. "Hauwa&apos;s Closet". Arg is the customer&apos;s first name. -->
+    <string name="style_closet_name_format">%1$s&apos;s Closet</string>
     <string name="style_section_count_singular">%1$d style</string>
     <string name="style_section_count_plural">%1$d styles</string>
     <string name="style_section_empty_cta">Add a style</string>
