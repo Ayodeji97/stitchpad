@@ -43,6 +43,7 @@ fun KpiTile(
     periodLabel: String,
     modifier: Modifier = Modifier,
     sparklineColor: Color = DesignTokens.success500,
+    valueColor: Color? = null,
     invertDeltaSign: Boolean = false
 ) {
     val mono = JetBrainsMonoFamily()
@@ -89,7 +90,7 @@ fun KpiTile(
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
             letterSpacing = (-0.5).sp,
-            color = MaterialTheme.colorScheme.onSurface
+            color = valueColor ?: MaterialTheme.colorScheme.onSurface
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
