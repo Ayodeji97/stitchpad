@@ -522,21 +522,39 @@ async function commitAppleState(
 
   const nowTs = admin.firestore.Timestamp.fromDate(now);
 
-  const userUpdate: Record<string, unknown> = {
-    subscriptionTier: desired.tier,
-    subscriptionStatus: desired.status,
-    subscriptionRenews: desired.subscriptionRenews,
-    subscriptionSource: 'apple',
-    appleOriginalTransactionId: desired.originalTransactionId,
-    updatedAt: nowTs,
-  };
-  if (desired.endsAtMs != null) {
-    userUpdate.subscriptionEndsAt = admin.firestore.Timestamp.fromMillis(desired.endsAtMs);
+  // A downgrade (expire/refund/revoke) must only clear the SHARED entitlement doc
+  // if it still belongs to THIS Apple subscription. If the user has since moved to
+  // Paystack (subscriptionSource != 'apple') or a different Apple subscription, a
+  // stale Apple notification must not revoke their current paid access. Grants
+  // (active) always win — an active Apple purchase is a real, current entitlement.
+  let writeUserDoc = true;
+  if (desired.tier === 'free') {
+    const userSnap = await tx.get(refs.userRef);
+    const userData = (userSnap.exists ? userSnap.data() : {}) as {
+      subscriptionSource?: string;
+      appleOriginalTransactionId?: string;
+    };
+    writeUserDoc = userData.subscriptionSource === 'apple'
+      && userData.appleOriginalTransactionId === desired.originalTransactionId;
   }
-  if (desired.productId) {
-    userUpdate.appleProductId = desired.productId;
+
+  if (writeUserDoc) {
+    const userUpdate: Record<string, unknown> = {
+      subscriptionTier: desired.tier,
+      subscriptionStatus: desired.status,
+      subscriptionRenews: desired.subscriptionRenews,
+      subscriptionSource: 'apple',
+      appleOriginalTransactionId: desired.originalTransactionId,
+      updatedAt: nowTs,
+    };
+    if (desired.endsAtMs != null) {
+      userUpdate.subscriptionEndsAt = admin.firestore.Timestamp.fromMillis(desired.endsAtMs);
+    }
+    if (desired.productId) {
+      userUpdate.appleProductId = desired.productId;
+    }
+    tx.set(refs.userRef, userUpdate, { merge: true });
   }
-  tx.set(refs.userRef, userUpdate, { merge: true });
 
   tx.set(refs.billingRef, {
     source: 'apple',

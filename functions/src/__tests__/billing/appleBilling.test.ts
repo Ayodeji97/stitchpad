@@ -145,11 +145,9 @@ describe('verifyAppleTransactionHandler', () => {
       { db: db as never, verifier, now: () => new Date('2026-06-01T10:00:00Z') },
     );
     expect(result).toMatchObject({ tier: 'free', status: 'expired' });
-    expect(store.get('users/uid-1')).toMatchObject({
-      subscriptionTier: 'free',
-      subscriptionStatus: 'expired',
-      subscriptionRenews: false,
-    });
+    // The replay granted no paid access — the shared entitlement doc was never
+    // given a paid tier (there was nothing to downgrade; the guard wrote nothing).
+    expect(store.get('users/uid-1')?.subscriptionTier).not.toBe('pro');
   });
 
   it('refuses to grant a subscription already bound to another account', async () => {
@@ -218,7 +216,13 @@ describe('appStoreServerNotificationsHandler', () => {
   it('downgrades to free on EXPIRED', async () => {
     const { db, store } = fakeDb({
       'appleSubscriptions/orig-1': { uid: 'uid-1' },
-      'users/uid-1': { subscriptionTier: 'pro', subscriptionStatus: 'active', subscriptionRenews: true },
+      'users/uid-1': {
+        subscriptionTier: 'pro',
+        subscriptionStatus: 'active',
+        subscriptionRenews: true,
+        subscriptionSource: 'apple',
+        appleOriginalTransactionId: 'orig-1',
+      },
     });
     const verifier = fakeVerifier({
       verifyNotification: jest.fn(async () => notification('EXPIRED', txnFor('uid-1', {
@@ -234,7 +238,13 @@ describe('appStoreServerNotificationsHandler', () => {
   it('downgrades to free on REFUND', async () => {
     const { db, store } = fakeDb({
       'appleSubscriptions/orig-1': { uid: 'uid-1' },
-      'users/uid-1': { subscriptionTier: 'atelier', subscriptionStatus: 'active', subscriptionRenews: true },
+      'users/uid-1': {
+        subscriptionTier: 'atelier',
+        subscriptionStatus: 'active',
+        subscriptionRenews: true,
+        subscriptionSource: 'apple',
+        appleOriginalTransactionId: 'orig-1',
+      },
     });
     const verifier = fakeVerifier({
       verifyNotification: jest.fn(async () => notification('REFUND', txnFor('uid-1', {
@@ -248,8 +258,43 @@ describe('appStoreServerNotificationsHandler', () => {
     expect(store.get('users/uid-1')).toMatchObject({ subscriptionTier: 'free', subscriptionStatus: 'expired' });
   });
 
+  it('does not downgrade when the user has since switched to Paystack', async () => {
+    // User had an Apple sub, cancelled, then bought a Paystack plan. A delayed
+    // Apple EXPIRED for the OLD sub must NOT revoke the active Paystack grant.
+    const { db, store } = fakeDb({
+      'appleSubscriptions/orig-1': { uid: 'uid-1' },
+      'users/uid-1': {
+        subscriptionTier: 'pro',
+        subscriptionStatus: 'active',
+        subscriptionSource: 'paystack',
+      },
+    });
+    const verifier = fakeVerifier({
+      verifyNotification: jest.fn(async () => notification('EXPIRED', txnFor('uid-1', {
+        signedDate: new Date('2026-07-02T00:00:00Z').getTime(),
+      }))),
+    });
+    await appStoreServerNotificationsHandler('payload', {
+      db: db as never, verifier, now: () => new Date('2026-07-02T00:01:00Z'),
+    });
+    // Paystack entitlement is preserved.
+    expect(store.get('users/uid-1')).toMatchObject({
+      subscriptionTier: 'pro',
+      subscriptionStatus: 'active',
+      subscriptionSource: 'paystack',
+    });
+  });
+
   it('ignores a stale, out-of-order notification (older signedDate)', async () => {
-    const { db, store } = fakeDb({ 'appleSubscriptions/orig-1': { uid: 'uid-1' } });
+    const { db, store } = fakeDb({
+      'appleSubscriptions/orig-1': { uid: 'uid-1' },
+      'users/uid-1': {
+        subscriptionTier: 'pro',
+        subscriptionStatus: 'active',
+        subscriptionSource: 'apple',
+        appleOriginalTransactionId: 'orig-1',
+      },
+    });
     const verifier = fakeVerifier({
       verifyNotification: jest.fn()
         // Newer EXPIRED applied first…
