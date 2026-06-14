@@ -392,6 +392,32 @@ class StyleFormViewModelTest {
         assertFalse(vm.state.value.isSaving)
     }
 
+    // --- Multi-pick limit = folder's remaining capacity ---
+
+    @Test
+    fun maxPhotoSelection_proFolderWithExisting_clampsToRemaining() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // PRO customer: maxImagesPerFolder = 3. 2 already in the folder → can pick 1 more.
+        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+
+        assertEquals(1, vm.state.value.maxPhotoSelection)
+    }
+
+    @Test
+    fun maxPhotoSelection_emptyFreeCustomer_isFlatCap() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // FREE customer: flatCap = 5, empty → can pick all 5.
+        styleRepository.stylesList = emptyList()
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        assertEquals(5, vm.state.value.maxPhotoSelection)
+    }
+
     // --- Save: edit flow ---
 
     @Test

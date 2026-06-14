@@ -62,7 +62,7 @@ class StyleFormViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
-                if (styleId != null) loadStyle(styleId)
+                if (styleId != null) loadStyle(styleId) else if (allowMultiPhoto) computeMaxPhotoSelection()
             }
         }
         .stateIn(
@@ -141,6 +141,24 @@ class StyleFormViewModel(
      * Resolves the image cap for the current location, awaiting entitlements hydration
      * on the first call and caching thereafter.
      */
+    /**
+     * Clamp the multi-pick limit to the folder's remaining capacity so a Pro user
+     * with a 5-image folder can't pick 10 only to be blocked at save. Remaining =
+     * cap − current count, coerced into [1, ceiling] (the gallery blocks entry at 0).
+     */
+    private fun computeMaxPhotoSelection() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val cap = resolveImageCap()
+            val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+            val remaining = (cap - current).coerceIn(1, STYLE_MULTI_PICK_CEILING)
+            _state.update { it.copy(maxPhotoSelection = remaining) }
+        }
+    }
+
     private suspend fun resolveImageCap(): Int {
         resolvedImageCap?.let { return it }
         val limits = if (customerId == null) {
