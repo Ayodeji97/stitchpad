@@ -91,6 +91,15 @@ describe('users/{uid} creation', () => {
     );
   });
 
+  it('rejects planting Apple provenance fields at creation', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, subscriptionSource: 'apple' }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, appleOriginalTransactionId: 'orig-1' }),
+    );
+  });
+
   it('rejects another user creating your doc', async () => {
     await assertFails(setDoc(doc(db('bob'), 'users/alice'), SEED_DEFAULTS));
   });
@@ -163,6 +172,23 @@ describe('users/{uid}/billingTransactions', () => {
   });
 });
 
+describe('appleSubscriptions reverse index', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'appleSubscriptions/orig-1'), { uid: 'alice' });
+    });
+  });
+
+  it('rejects any client read (uid ownership map is not enumerable)', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'appleSubscriptions/orig-1')));
+  });
+
+  it('rejects any client write (cannot forge ownership)', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'appleSubscriptions/orig-2'), { uid: 'alice' }));
+    await assertFails(updateDoc(doc(db('alice'), 'appleSubscriptions/orig-1'), { uid: 'mallory' }));
+  });
+});
+
 describe('server-owned field hardening', () => {
   describe('on an active paid user', () => {
     beforeEach(async () => {
@@ -222,6 +248,18 @@ describe('server-owned field hardening', () => {
         updateDoc(doc(db('alice'), 'users/alice'), { welcomeBonusAppliedAt: serverTimestamp() }),
       );
       await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { bonusCoins: 30 }));
+    });
+
+    it('rejects self-marking as an Apple subscriber via update', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), SEED_DEFAULTS);
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice'), { subscriptionSource: 'apple' }),
+      );
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice'), { appleProductId: 'com.danzucker.stitchpad.pro.monthly' }),
+      );
     });
   });
 });

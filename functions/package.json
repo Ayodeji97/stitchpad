@@ -11,9 +11,10 @@
     "lint": "eslint --ext .js,.ts src/",
     "test": "jest",
     "test:rules": "firebase emulators:exec --only firestore --project=demo-stitchpad \"jest --config jest.rules.config.js\"",
-    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted,functions:smartDraftMessage,functions:reconcileCustomerSlots,functions:sendVerificationEmail,functions:sendPasswordResetEmail,functions:processPasswordResetEmail,functions:dailyDigest,functions:debugSendMyDigest,functions:pruneTokenOwnership,functions:initializeSubscriptionCheckout,functions:paystackWebhook,functions:expirePrepaidSubscriptions,functions:prepaidSubscriptionReminder,functions:debugSendMyRenewalReminder,functions:abandonStalePendingCheckouts"
+    "deploy": "npm run build && firebase deploy --only functions:onAuthUserDeleted,functions:smartDraftMessage,functions:reconcileCustomerSlots,functions:sendVerificationEmail,functions:sendPasswordResetEmail,functions:processPasswordResetEmail,functions:dailyDigest,functions:debugSendMyDigest,functions:pruneTokenOwnership,functions:initializeSubscriptionCheckout,functions:paystackWebhook,functions:expirePrepaidSubscriptions,functions:prepaidSubscriptionReminder,functions:debugSendMyRenewalReminder,functions:abandonStalePendingCheckouts,functions:verifyAppleTransaction,functions:appStoreServerNotifications,functions:reconcileAppleSubscriptions"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^1.6.0",
     "@google/genai": "^2.3.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.0.1"

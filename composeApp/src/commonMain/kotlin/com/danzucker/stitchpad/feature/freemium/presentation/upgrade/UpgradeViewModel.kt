@@ -5,10 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
+import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.freemium.presentation.toUiText
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.upgrade_purchase_pending
 
 class UpgradeViewModel(
     private val entitlements: EntitlementsProvider,
@@ -45,6 +50,14 @@ class UpgradeViewModel(
                 }
             }
         }
+
+        // Load Apple's localized prices so the tier cards show what the App Store
+        // actually charges. No-ops on Android (empty catalog → bundled NGN strings).
+        viewModelScope.launch {
+            (paymentRepository.productCatalog() as? Result.Success)?.let { catalog ->
+                _state.update { it.copy(appleDisplayPrices = catalog.data) }
+            }
+        }
     }
 
     private fun SubscriptionTier.isHigherThan(other: SubscriptionTier): Boolean =
@@ -70,21 +83,46 @@ class UpgradeViewModel(
             val selectedTier = preselectedTier
                 ?: if (currentTier == SubscriptionTier.FREE) SubscriptionTier.PRO else SubscriptionTier.ATELIER
             val cadence = preselect?.cadence?.let { BillingCadence.fromWire(it) } ?: BillingCadence.MONTHLY
-            return UpgradeState(currentTier = currentTier, selectedTier = selectedTier, billingCadence = cadence)
+            return UpgradeState(
+                currentTier = currentTier,
+                selectedTier = selectedTier,
+                billingCadence = cadence,
+                // iOS must purchase through Apple IAP (Guideline 3.1.1); Android
+                // continues to use Paystack. The binding is platform-specific, but
+                // the screen also needs the provider to pick the CTA copy.
+                checkoutProvider = if (Platform.isIos) CheckoutProvider.APPLE else CheckoutProvider.PAYSTACK,
+            )
         }
     }
 
     fun onAction(action: UpgradeAction) {
         // Ignore plan changes once a checkout is in flight: otherwise the user
-        // could switch tier/cadence while the spinner shows and be sent to a
-        // Paystack session for the plan captured at tap time while the UI shows
-        // the new selection. The Pay button is already disabled via isStartingCheckout.
+        // could switch tier/cadence while the spinner shows and be charged for the
+        // plan captured at tap time while the UI shows the new selection. The Pay
+        // button is already disabled via isStartingCheckout.
         when (action) {
             is UpgradeAction.SelectTier ->
                 if (!_state.value.isStartingCheckout) _state.update { it.copy(selectedTier = action.tier) }
             is UpgradeAction.SelectCadence ->
                 if (!_state.value.isStartingCheckout) _state.update { it.copy(billingCadence = action.cadence) }
-            UpgradeAction.PayWithPaystack -> startCheckout()
+            UpgradeAction.StartCheckout -> startCheckout()
+            UpgradeAction.RestorePurchases -> restorePurchases()
+        }
+    }
+
+    private fun restorePurchases() {
+        if (_state.value.isStartingCheckout) return
+        _state.update { it.copy(isStartingCheckout = true) }
+        viewModelScope.launch {
+            val result = paymentRepository.restorePurchases()
+            _state.update { it.copy(isStartingCheckout = false) }
+            when (result) {
+                // A restored grant flips the tier → the entitlements collector
+                // fires UpgradeDetected and pops. Nothing restored / cancelled is a
+                // silent no-op; a real failure shows a snackbar.
+                is Result.Success -> Unit
+                is Result.Error -> _events.send(UpgradeEvent.ShowSnackbar(result.error.toUiText()))
+            }
         }
     }
 
@@ -95,14 +133,29 @@ class UpgradeViewModel(
         _state.update { it.copy(isStartingCheckout = true) }
         viewModelScope.launch {
             when (
-                val result = paymentRepository.initializeSubscriptionCheckout(
+                val result = paymentRepository.startCheckout(
                     tier = s.selectedTier,
                     cadence = s.billingCadence,
                 )
             ) {
                 is Result.Success -> {
                     _state.update { it.copy(isStartingCheckout = false) }
-                    _events.send(UpgradeEvent.OpenExternalBrowser(result.data.authorizationUrl))
+                    when (val outcome = result.data) {
+                        is CheckoutOutcome.Redirect ->
+                            _events.send(UpgradeEvent.OpenExternalBrowser(outcome.authorizationUrl))
+                        // Apple grant lands as a user-doc tier change; the
+                        // entitlements collector above fires UpgradeDetected and
+                        // pops back, so no extra event is needed here.
+                        CheckoutOutcome.PurchasedAndGranted -> Unit
+                        CheckoutOutcome.Pending ->
+                            _events.send(
+                                UpgradeEvent.ShowSnackbar(
+                                    UiText.StringResourceText(Res.string.upgrade_purchase_pending),
+                                ),
+                            )
+                        // User dismissed the native sheet — no charge, no feedback.
+                        CheckoutOutcome.Cancelled -> Unit
+                    }
                 }
                 is Result.Error -> {
                     _state.update { it.copy(isStartingCheckout = false) }

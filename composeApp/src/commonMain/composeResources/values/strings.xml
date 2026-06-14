@@ -1306,8 +1306,15 @@
     <string name="upgrade_cadence_monthly">Monthly</string>
     <string name="upgrade_cadence_annual">Annual</string>
     <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
+    <string name="upgrade_subscribe">Subscribe</string>
     <string name="upgrade_starting_checkout">Starting secure checkout...</string>
     <string name="upgrade_terms">Prepaid access via Paystack. No automatic renewal; renew when your period ends.</string>
+    <string name="upgrade_terms_apple">Auto-renewing subscription billed through your Apple ID. Cancel anytime in your device Settings.</string>
+    <string name="upgrade_purchase_pending">Your purchase is pending approval. We&apos;ll unlock your plan once it&apos;s confirmed.</string>
+    <string name="upgrade_price_loading">Loading price…</string>
+    <string name="upgrade_billed_monthly">Billed monthly, renews automatically</string>
+    <string name="upgrade_billed_annually">Billed annually, renews automatically</string>
+    <string name="upgrade_restore">Restore purchases</string>
     <string name="upgrade_back_content_description">Back</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
     <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>

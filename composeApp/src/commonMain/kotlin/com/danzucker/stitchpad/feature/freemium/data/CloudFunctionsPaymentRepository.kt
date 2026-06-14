@@ -4,7 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
-import com.danzucker.stitchpad.feature.freemium.domain.CheckoutSession
+import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentError
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import dev.gitlive.firebase.functions.FirebaseFunctions
@@ -18,10 +18,10 @@ internal class CloudFunctionsPaymentRepository(
     private val functions: FirebaseFunctions,
 ) : PaymentRepository {
 
-    override suspend fun initializeSubscriptionCheckout(
+    override suspend fun startCheckout(
         tier: SubscriptionTier,
         cadence: BillingCadence,
-    ): Result<CheckoutSession, PaymentError> {
+    ): Result<CheckoutOutcome, PaymentError> {
         return try {
             val response = functions
                 .httpsCallable("initializeSubscriptionCheckout")
@@ -33,7 +33,7 @@ internal class CloudFunctionsPaymentRepository(
                 )
                 .data<InitializeCheckoutResponseDto>()
             Result.Success(
-                CheckoutSession(
+                CheckoutOutcome.Redirect(
                     authorizationUrl = response.authorizationUrl,
                     reference = response.reference,
                 )
@@ -56,6 +56,17 @@ internal class CloudFunctionsPaymentRepository(
             Result.Error(recoverPaymentError(e.message, fallback = PaymentError.NETWORK))
         }
     }
+
+    // Paystack has no product catalog to fetch — the UI keeps its bundled NGN
+    // price resources. Returning an empty map keeps the common UpgradeViewModel
+    // platform-agnostic.
+    override suspend fun productCatalog(): Result<Map<String, String>, PaymentError> =
+        Result.Success(emptyMap())
+
+    // Nothing to restore on Android: entitlement is account-based (Firestore), so
+    // a returning user already has their tier on sign-in.
+    override suspend fun restorePurchases(): Result<CheckoutOutcome, PaymentError> =
+        Result.Success(CheckoutOutcome.Cancelled)
 
     private fun mapFunctionsError(e: FirebaseFunctionsException): PaymentError =
         when (e.code) {

@@ -13,6 +13,8 @@ import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.data.AndroidSsoCredentialProvider
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
 import com.danzucker.stitchpad.feature.auth.data.SsoCredentialProvider
+import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsPaymentRepository
+import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
 import com.danzucker.stitchpad.feature.notification.push.AndroidPushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
@@ -52,4 +54,7 @@ actual val platformModule: Module = module {
             webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID,
         )
     }
+    // Android sells subscriptions via Paystack (Google Play's rules permit it);
+    // iOS binds StoreKitPaymentRepository instead (see PlatformModule.ios.kt).
+    single<PaymentRepository> { CloudFunctionsPaymentRepository(functions = get()) }
 }

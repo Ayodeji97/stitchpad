@@ -17,6 +17,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         PlatformModule_iosKt.iosNativeGoogleSignInLauncher = GoogleSignInLauncherIos()
         PlatformModule_iosKt.iosNativeAppleSignInLauncher = AppleSignInLauncherIos()
 
+        // Apple In-App Purchase (StoreKit 2). Register before doInitKoin so the
+        // iOS PaymentRepository (StoreKitPaymentRepository) can resolve it, then
+        // start the Transaction.updates listener for renewals / Ask-to-Buy /
+        // recovery of purchases whose first verify failed.
+        let storeKitPurchaser = StoreKitPurchaserIos()
+        PlatformModule_iosKt.iosNativeStoreKitPurchaser = storeKitPurchaser
+        storeKitPurchaser.startObservingTransactions()
+
         // Push: set the messaging + notification delegates and the Swift→Kotlin
         // bridge BEFORE doInitKoin, mirroring the SSO launchers, so the shared
         // push layer can read the token / permission state through Koin.
