@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.style.data.FirebaseStyleRepository
+import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersViewModel
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormViewModel
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryViewModel
 import org.koin.core.module.dsl.singleOf
@@ -14,6 +15,7 @@ val styleDataModule = module {
 }
 
 val stylePresentationModule = module {
+    viewModelOf(::StyleFoldersViewModel)
     viewModelOf(::StyleGalleryViewModel)
     viewModelOf(::StyleFormViewModel)
 }

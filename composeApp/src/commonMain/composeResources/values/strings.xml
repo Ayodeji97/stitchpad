@@ -474,6 +474,16 @@
     <string name="style_moved_snackbar">Moved to %1$s</string>
     <string name="style_transfer_view_cta">View</string>
 
+    <!-- Style Collections — folders grid -->
+    <string name="style_folders_default_name">My styles</string>
+    <string name="style_folders_create_title">New folder</string>
+    <string name="style_folder_name_placeholder">e.g. Corset</string>
+    <string name="style_folders_rename_title">Rename folder</string>
+    <string name="style_folder_delete_title">Delete folder?</string>
+    <string name="style_folder_delete_message">All styles inside this folder will also be deleted. This cannot be undone.</string>
+    <string name="style_folder_count">%1$d styles</string>
+    <string name="style_folders_create_cd">New folder</string>
+
     <!-- Style errors -->
     <string name="error_style_not_found">Style not found</string>
     <string name="error_style_unknown">Could not save style. Please try again.</string>

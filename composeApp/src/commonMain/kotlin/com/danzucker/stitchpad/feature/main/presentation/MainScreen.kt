@@ -51,6 +51,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditPro
 import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
+import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
@@ -74,6 +75,7 @@ import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
+import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
@@ -230,7 +232,7 @@ private fun MainNavGraph(
                     navController.navigate(MeasurementFormRoute(customerId = customerId, measurementId = measurementId))
                 },
                 onNavigateToStyleGallery = { customerId ->
-                    navController.navigate(StyleGalleryRoute(customerId = customerId))
+                    navController.navigate(StyleFoldersRoute(customerId = customerId))
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
@@ -263,6 +265,22 @@ private fun MainNavGraph(
         composable<MeasurementFormRoute> {
             MeasurementFormRoot(
                 onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+            )
+        }
+        composable<StyleFoldersRoute> {
+            StyleFoldersRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToFolder = { customerId, folderId ->
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId)) {
+                        // Free users are immediately forwarded here (no folder UI).
+                        // Pop the folders screen so back doesn't loop back to it.
+                        if (folderId == null) {
+                            popUpTo<StyleFoldersRoute> { inclusive = true }
+                        }
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
@@ -382,7 +400,7 @@ private fun MainNavGraph(
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
                 onNavigateToInspiration = {
-                    navController.navigate(StyleGalleryRoute(customerId = null)) {
+                    navController.navigate(StyleFoldersRoute(customerId = null)) {
                         launchSingleTop = true
                     }
                 },

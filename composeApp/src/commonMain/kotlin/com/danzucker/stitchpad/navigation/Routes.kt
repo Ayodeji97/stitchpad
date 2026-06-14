@@ -53,13 +53,20 @@ data class MeasurementFormRoute(
 )
 
 @Serializable
-data class StyleGalleryRoute(val customerId: String? = null)
+data class StyleFoldersRoute(val customerId: String? = null)
+
+@Serializable
+data class StyleGalleryRoute(
+    val customerId: String? = null,
+    val folderId: String? = null,
+)
 
 @Serializable
 data class StyleFormRoute(
     val customerId: String? = null,
     val styleId: String? = null,
     val linkToOrderId: String? = null,
+    val folderId: String? = null,
 )
 
 @Serializable
