@@ -96,6 +96,7 @@ import stitchpad.composeapp.generated.resources.style_folders_create_cd
 import stitchpad.composeapp.generated.resources.style_folders_create_title
 import stitchpad.composeapp.generated.resources.style_folders_default_name
 import stitchpad.composeapp.generated.resources.style_folders_rename_title
+import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_inspiration_title
 
 @Composable
@@ -142,11 +143,13 @@ fun StyleFoldersScreen(
 ) {
     val inspirationTitle = stringResource(Res.string.style_inspiration_title)
     val defaultFolderName = stringResource(Res.string.style_folders_default_name)
+    // Generic "Closet" — matches the gallery screen's title for a customer closet.
+    val closetTitle = stringResource(Res.string.style_gallery_title)
 
     val screenTitle = if (state.isInspiration) {
         inspirationTitle
     } else {
-        state.customerName?.let { "$it's Closet" } ?: defaultFolderName
+        state.customerName?.let { "$it's Closet" } ?: closetTitle
     }
 
     val folderCountLabel = if (state.limits.foldersEnabled) {
