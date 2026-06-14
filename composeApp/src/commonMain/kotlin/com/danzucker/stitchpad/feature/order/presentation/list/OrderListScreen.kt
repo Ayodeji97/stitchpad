@@ -213,13 +213,10 @@ fun OrderListScreen(
             )
 
             when {
-                state.isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                // Don't show the archived empty state until the archived snapshot has
-                // actually loaded — otherwise it flashes "no archived orders" mid-load.
+                // The Archived view is independent of the active stream: its own
+                // loading / empty / list branches come first, so an in-flight active
+                // snapshot (isLoading) never hides already-loaded archived rows
+                // behind the global spinner.
                 state.showArchived && state.isArchivedLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -227,13 +224,6 @@ fun OrderListScreen(
                 }
                 state.showArchived && state.orders.isEmpty() -> {
                     ArchivedEmptyState(modifier = Modifier.fillMaxSize())
-                }
-                state.orders.isEmpty() -> {
-                    OrderEmptyState(
-                        statusFilter = state.statusFilter,
-                        onAddOrderClick = { onAction(OrderListAction.OnAddOrderClick) },
-                        modifier = Modifier.fillMaxSize()
-                    )
                 }
                 state.showArchived -> {
                     LazyColumn(
@@ -251,6 +241,18 @@ fun OrderListScreen(
                             )
                         }
                     }
+                }
+                state.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                state.orders.isEmpty() -> {
+                    OrderEmptyState(
+                        statusFilter = state.statusFilter,
+                        onAddOrderClick = { onAction(OrderListAction.OnAddOrderClick) },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
                 else -> {
                     // Stable `now` per snapshot of orders — prevents rows from drifting
