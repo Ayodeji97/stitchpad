@@ -250,8 +250,12 @@ fun StitchPadNavHost(
             composable<DebugMenuRoute> {
                 DebugMenuRoot(
                     onNavigateBack = { navController.navigateUp() },
+                    // Route through Welcome (not straight to Login) so Welcome is the
+                    // back-stack base for the auth screens here too — otherwise a
+                    // successful login's popUpTo(WelcomeRoute) finds nothing and leaves
+                    // the logged-out Login screen reachable via Back while signed in.
                     onNavigateToLogin = {
-                        navController.navigate(LoginRoute) {
+                        navController.navigate(WelcomeRoute) {
                             popUpTo(HomeRoute) { inclusive = true }
                         }
                     },
