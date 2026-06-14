@@ -18,12 +18,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         PlatformModule_iosKt.iosNativeAppleSignInLauncher = AppleSignInLauncherIos()
 
         // Apple In-App Purchase (StoreKit 2). Register before doInitKoin so the
-        // iOS PaymentRepository (StoreKitPaymentRepository) can resolve it, then
-        // start the Transaction.updates listener for renewals / Ask-to-Buy /
-        // recovery of purchases whose first verify failed.
+        // iOS PaymentRepository (StoreKitPaymentRepository) can resolve it. The
+        // Transaction.updates listener is started AFTER doInitKoin (below) because
+        // it forwards into Koin and can fire immediately at launch (Ask-to-Buy /
+        // recovery), which would crash/drop if Koin weren't initialized yet.
         let storeKitPurchaser = StoreKitPurchaserIos()
         PlatformModule_iosKt.iosNativeStoreKitPurchaser = storeKitPurchaser
-        storeKitPurchaser.startObservingTransactions()
 
         // Push: set the messaging + notification delegates and the Swift→Kotlin
         // bridge BEFORE doInitKoin, mirroring the SSO launchers, so the shared
@@ -34,6 +34,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         PushServiceIos.shared.refreshAuthorizationStatus()
 
         StitchPadAppKt.doInitKoin(platformConfig: { _ in })
+
+        // Now that Koin is initialized, start observing StoreKit transactions —
+        // the listener's iosOnStoreKitTransaction bridge resolves PaymentRepository
+        // from Koin, so it must not run before doInitKoin.
+        storeKitPurchaser.startObservingTransactions()
         return true
     }
 
