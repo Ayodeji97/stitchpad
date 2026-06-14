@@ -291,6 +291,11 @@ class StyleFoldersViewModel(
             StyleLocation.CustomerCloset(customerId, folder.id)
         }
 
+    // Prefer the newest style's local file (pending upload / offline) over its
+    // remote URL, mirroring how the gallery renders a thumbnail.
     private fun cover(styles: List<Style>): String? =
-        styles.sortedByDescending { it.createdAt }.firstOrNull { it.photoUrl.isNotBlank() }?.photoUrl
+        styles.sortedByDescending { it.createdAt }
+            .firstNotNullOfOrNull { style ->
+                style.localPhotoPath ?: style.photoUrl.takeIf { it.isNotBlank() }
+            }
 }
