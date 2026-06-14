@@ -458,6 +458,28 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
+    fun onTargetCustomerSelected_destinationFolderFull_emitsCapReached_noCopy() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // FREE customer flat cap is 5 — fill the destination to the cap.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
+            List(5) { fakeStyle(id = "dest-$it") }
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.CapReached>(event)
+        assertEquals(5, event.cap)
+        assertNull(styleRepository.lastCopied)
+    }
+
+    @Test
     fun onDeleteClick_fromActionSheet_clearsSheet_andShowsDeleteDialog() = runTest {
         val vm = createViewModel()
         val style = fakeStyle(id = "s1")

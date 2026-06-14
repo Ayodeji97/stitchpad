@@ -141,6 +141,17 @@ class StyleGalleryViewModel(
         }
     }
 
+    // The destination is the same tailor's own data, so the cap is resolved from the
+    // current tier at the destination's level. Transfers land in the destination's flat
+    // default folder, so the cap is flatCap (Free) or maxImagesPerFolder (paid default).
+    private fun destinationCap(target: TransferTarget): Int {
+        val targetLimits = when (target) {
+            is TransferTarget.Inspiration -> StyleCollectionLimits.forInspiration(entitlements.current().tier)
+            is TransferTarget.Customer -> StyleCollectionLimits.forCustomer(entitlements.current().tier)
+        }
+        return if (!targetLimits.foldersEnabled) targetLimits.flatCap else targetLimits.maxImagesPerFolder
+    }
+
     @Suppress("ReturnCount")
     private fun transferTo(targetCustomerId: String) {
         val transfer = _state.value.transfer ?: return
@@ -148,6 +159,17 @@ class StyleGalleryViewModel(
         _state.update { it.copy(transfer = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            // Block the transfer if the destination's default folder is already full —
+            // keeps copy/move from silently overflowing a folder past its cap.
+            val cap = destinationCap(target)
+            val destCount = when (val r = styleRepository.observeStyles(userId, target.location).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+            if (destCount >= cap) {
+                _events.send(StyleGalleryEvent.CapReached(cap))
+                return@launch
+            }
             val result = when (transfer.mode) {
                 StyleTransferMode.COPY ->
                     styleRepository.copyStyle(
