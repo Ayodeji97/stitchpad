@@ -575,7 +575,7 @@ fun DashboardScreen(
         ),
         SpeedDialAction(
             label = inspirationLabel,
-            icon = Icons.Default.CheckCircle,
+            icon = Icons.Default.CollectionsBookmark,
             contentDescription = inspirationCd,
             onClick = {
                 collapseFab()
@@ -608,7 +608,24 @@ fun DashboardScreen(
         ) {
             val contentModifier = Modifier.fillMaxSize()
             when (state.uiState) {
-                DashboardUiState.Loading -> LoadingState(modifier = contentModifier)
+                // Render the header (with the Inspiration + notifications icons) above
+                // the spinner so those entry points stay reachable while loading.
+                DashboardUiState.Loading -> Column(
+                    modifier = contentModifier.padding(horizontal = DesignTokens.space4),
+                ) {
+                    Spacer(Modifier.height(DesignTokens.space4))
+                    DashboardHeader(
+                        firstName = state.firstName,
+                        businessLogoUrl = state.businessLogoUrl,
+                        greeting = state.greeting,
+                        todayDate = state.todayDate,
+                        unreadNotificationCount = state.unreadNotificationCount,
+                        onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
+                        onNotificationsClick = { onAction(DashboardAction.OnNotificationsClick) },
+                        onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
+                    )
+                    LoadingState(modifier = Modifier.fillMaxSize())
+                }
                 DashboardUiState.BrandNew,
                 DashboardUiState.FirstCustomer,
                 DashboardUiState.QuietDay,
