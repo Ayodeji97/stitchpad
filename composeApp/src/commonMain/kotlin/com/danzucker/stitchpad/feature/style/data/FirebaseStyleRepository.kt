@@ -261,20 +261,31 @@ class FirebaseStyleRepository(
         }
 
     /**
-     * Write a new style doc under [toCustomerId] that points at [source]'s image
-     * (same photoUrl / storage path — no re-upload). The shared object is never
-     * eagerly deleted (see [deleteStyle]), so the copy keeps rendering regardless.
+     * Write a style for [toCustomerId] that shows [source]'s image.
+     *
+     * - If the source image is already in storage (has a [Style.photoUrl]), the
+     *   new doc just points at the same URL/path — no re-upload, marked SYNCED.
+     *   The shared object is never eagerly deleted (see [deleteStyle]).
+     * - If the source is still uploading (no photoUrl yet) we re-upload an
+     *   independent copy from its local bytes. Otherwise the new doc would be
+     *   saved with an empty URL that never fills in — the source's upload only
+     *   patches the source doc, not this copy — leaving a blank image.
      */
     private suspend fun writeSharedCopy(
         userId: String,
         toCustomerId: String,
         source: Style,
     ): EmptyResult<DataError.Network> {
+        if (source.photoUrl.isBlank()) {
+            return reuploadIndependentCopy(userId, toCustomerId, source)
+        }
         val docRef = stylesCollection(userId, toCustomerId).document
         val now = Clock.System.now().toEpochMilliseconds()
         val copy = source.copy(
             id = docRef.id,
             customerId = toCustomerId,
+            syncState = ImageSyncState.SYNCED,
+            localPhotoPath = null,
             createdAt = now,
             updatedAt = now,
         )
@@ -282,5 +293,22 @@ class FirebaseStyleRepository(
             docRef.set(copy.toStyleDto())
         }
         return if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+    }
+
+    @Suppress("ReturnCount")
+    private suspend fun reuploadIndependentCopy(
+        userId: String,
+        toCustomerId: String,
+        source: Style,
+    ): EmptyResult<DataError.Network> {
+        val localPath = source.localPhotoPath
+            ?: uploadOutbox.localPathForStoragePath(source.photoStoragePath)
+            ?: return Result.Error(DataError.Network.UNKNOWN)
+        val bytes = runCatching { photoStore.read(localPath) }.getOrNull()
+            ?: return Result.Error(DataError.Network.UNKNOWN)
+        return when (val result = createStyle(userId, toCustomerId, source.description, bytes)) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> Result.Error(result.error)
+        }
     }
 }
