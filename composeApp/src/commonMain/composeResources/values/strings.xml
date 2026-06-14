@@ -71,6 +71,11 @@
     <!-- Splash -->
     <string name="splash_tagline">Your tailor's notebook</string>
 
+    <!-- Welcome (logged-out video landing) -->
+    <string name="welcome_headline">Every measurement, order, and customer in one place.</string>
+    <string name="welcome_get_started">Get started</string>
+    <string name="welcome_sign_in">Sign in</string>
+
     <!-- Onboarding carousel -->
     <string name="onboarding_title_1">Never lose a customer's measurements again</string>
     <string name="onboarding_subtitle_1">Store chest, waist, hip and all body measurements safely in one place.</string>

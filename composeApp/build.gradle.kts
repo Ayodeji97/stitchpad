@@ -41,6 +41,10 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.ktor.client.okhttp)
 
+            // Media3 / ExoPlayer — looping background video on the welcome screen
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.ui)
+
             // Firebase Android (native) — Crashlytics + Messaging. Version resolved via BoM.
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.crashlytics)
