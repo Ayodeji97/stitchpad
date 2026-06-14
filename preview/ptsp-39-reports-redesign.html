@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Reports UI/UX coherence (PTSP-39)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet" />
+<style>
+:root{
+  --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo200:#9CB0DD; --indigo400:#5871B8; --indigo500:#2C3E7C; --indigo700:#1E2B5C; --indigo900:#121B3B;
+  --sienna50:#FCEFE5; --sienna300:#D9885F; --sienna500:#B85A30; --sienna700:#8E4524;
+  --saffron:#E8A800;
+  --paper:#FAF6EC; --white:#FFFFFF;
+  --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0; --n400:#A8A49D;
+  --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320; --n900:#14110E;
+  --err:#D93B3B; --err50:#FCEAEA; --warn:#E07B20; --warn50:#FEF3E8; --suc:#2D9E6B; --suc50:#E8F7F1; --info:#2B7FD4; --info50:#E7F2FC;
+  --serif:'Fraunces',Georgia,serif; --body:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:#EDEAE0;font-family:var(--body);color:var(--n800);padding:40px 28px 90px;}
+.page-head{max-width:1780px;margin:0 auto 30px;}
+.page-head h1{font-family:var(--serif);font-weight:600;font-size:30px;color:var(--indigo900);letter-spacing:-.3px;}
+.page-head p{color:var(--n600);font-size:15px;margin-top:8px;max-width:880px;line-height:1.6;}
+.page-head p b{color:var(--n800);}
+.legend{display:flex;gap:18px;margin-top:16px;flex-wrap:wrap;}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--n600);font-weight:600;}
+.swatch{width:11px;height:11px;border-radius:3px;}
+.rowhead{max-width:1780px;margin:34px auto 14px;font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--n500);text-transform:uppercase;}
+.grid{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1780px;margin:0 auto;}
+.col{width:392px;}
+.col-tag{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+.col-tag b{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--indigo700);}
+.col-tag .k{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--n400);text-transform:uppercase;}
+.col-desc{font-size:12.5px;color:var(--n600);line-height:1.5;margin-bottom:14px;min-height:54px;}
+.col-desc em{color:var(--err);font-style:normal;font-weight:700;}
+
+/* phone shell */
+.phone{width:392px;border-radius:42px;background:#0f0e0d;padding:11px;box-shadow:0 28px 60px -24px rgba(18,17,16,.45),0 4px 14px rgba(18,17,16,.12);}
+.screen{border-radius:32px;overflow:hidden;background:var(--paper);height:850px;display:flex;flex-direction:column;position:relative;}
+.statusbar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13.5px;font-weight:700;flex:0 0 auto;}
+.ms{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;line-height:1;letter-spacing:normal;display:inline-block;}
+
+/* app bar + tabs */
+.appbar{padding:4px 20px 8px;flex:0 0 auto;}
+.appbar .title{font-family:var(--serif);font-weight:600;font-size:25px;letter-spacing:-.3px;}
+.tabs{display:flex;gap:8px;padding:6px 20px 4px;flex:0 0 auto;}
+.tab{font-size:12.5px;font-weight:700;padding:7px 15px;border-radius:999px;}
+.range{display:flex;align-items:center;gap:6px;margin:8px 20px 2px;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;width:max-content;}
+.range .ms{font-size:15px;}
+
+.body{flex:1;overflow:hidden;padding:8px 16px 18px;}
+.seclabel{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:14px 4px 9px;}
+
+/* ---- shared coherent card ---- */
+.card{border-radius:16px;padding:15px 15px 14px;margin-bottom:13px;}
+
+/* KPI grid */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.kpi{border-radius:16px;padding:13px 13px 12px;}
+.kpi .ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:9px;}
+.kpi .ic .ms{font-size:19px;}
+.kpi .lab{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.kpi .val{font-family:var(--mono);font-weight:700;font-size:19px;letter-spacing:-.5px;margin-top:3px;}
+.kpi .dl{font-size:11.5px;font-weight:700;margin-top:5px;display:flex;align-items:center;gap:3px;}
+.kpi .dl .ms{font-size:13px;}
+
+/* production status */
+.prod{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:9px;}
+.pcell{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.pcell .pic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;}
+.pcell .pic .ms{font-size:20px;}
+.pcell .pn{font-family:var(--mono);font-weight:700;font-size:17px;}
+.pcell .pl{font-size:10.5px;font-weight:700;letter-spacing:.02em;}
+.pbar{width:26px;height:3px;border-radius:2px;}
+
+/* debtor / top rows */
+.drow{display:flex;align-items:center;gap:11px;padding:9px 0;}
+.drow+.drow{border-top:1px solid var(--rowline);}
+.av{width:38px;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex:0 0 auto;}
+.dn{font-size:14px;font-weight:700;line-height:1.2;}
+.dm{font-size:11.5px;font-weight:600;margin-top:2px;}
+.damt{font-family:var(--mono);font-weight:700;font-size:14px;text-align:right;}
+.dage{font-size:10.5px;font-weight:700;margin-top:2px;text-align:right;}
+.wa{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.wa .ms{font-size:18px;}
+.chip{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:999px;}
+.chip .ms{font-size:12px;}
+.cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.cardhead .h{font-size:13.5px;font-weight:800;}
+.cardhead .more{font-size:11.5px;font-weight:700;}
+
+/* paywall */
+.pay{border-radius:16px;padding:16px;text-align:center;}
+.pay .pi{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;}
+.pay .pi .ms{font-size:24px;}
+.pay h4{font-family:var(--serif);font-weight:600;font-size:17px;}
+.pay p{font-size:12.5px;line-height:1.5;margin:5px 0 12px;}
+.pay .cta{font-size:13px;font-weight:700;padding:10px 18px;border-radius:12px;display:inline-block;}
+
+.note{max-width:1780px;margin:30px auto 0;background:var(--white);border:1px solid var(--n200);border-radius:14px;padding:18px 22px;font-size:13.5px;color:var(--n700);line-height:1.65;}
+.note b{color:var(--indigo700);}
+.note code{font-family:var(--mono);font-size:12px;background:var(--n100);padding:1px 6px;border-radius:5px;color:var(--err);}
+
+/* ============ THEME: LIGHT ============ */
+.lt .screen{background:var(--paper);color:var(--n800);}
+.lt .statusbar{color:var(--n800);}
+.lt .appbar .title{color:var(--n900);}
+.lt .tab{background:var(--white);color:var(--n500);border:1px solid var(--n200);}
+.lt .tab.on{background:var(--indigo500);color:#fff;border-color:var(--indigo500);}
+.lt .range{background:var(--indigo50);color:var(--indigo700);border:1px solid var(--indigo200);}
+.lt .seclabel{color:var(--n500);}
+.lt .card,.lt .kpi,.lt .pay{background:var(--white);border:1px solid var(--n200);box-shadow:0 1px 2px rgba(18,17,16,.04);}
+.lt{--rowline:var(--n100);}
+.lt .dn{color:var(--n800);} .lt .dm{color:var(--n500);} .lt .cardhead .h{color:var(--n800);} .lt .cardhead .more{color:var(--indigo500);}
+.lt .kpi .lab{color:var(--n500);} .lt .kpi .val{color:var(--n900);}
+
+/* ============ THEME: DARK ============ */
+.dk .screen{background:var(--n900);color:#E5E3DF;}
+.dk .statusbar{color:#E5E3DF;}
+.dk .appbar .title{color:#F4F1EA;}
+.dk .tab{background:#1E1C1A;color:var(--n400);border:1px solid #2A2825;}
+.dk .tab.on{background:var(--indigo400);color:#0f0e0d;border-color:var(--indigo400);}
+.dk .range{background:#2D3B6B;color:#C7D2F0;border:1px solid #3a4a82;}
+.dk .seclabel{color:var(--n400);}
+.dk .card,.dk .kpi,.dk .pay{background:#1E1C1A;border:1px solid #2A2825;box-shadow:none;}
+.dk{--rowline:#2A2825;}
+.dk .dn{color:#EDEAE2;} .dk .dm{color:var(--n400);} .dk .cardhead .h{color:#EDEAE2;} .dk .cardhead .more{color:var(--indigo200);}
+.dk .kpi .lab{color:var(--n400);} .dk .kpi .val{color:#F4F1EA;}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>Reports — UI/UX coherence (PTSP-39)</h1>
+  <p>Feedback: <b>“too much colour, looks incoherent, doesn't match the rest of the app.”</b> The root cause is three orphan colours that aren't in the design system, plus every card styling itself. Below: <b>Before</b> (today) and two coherent directions — <b>A · Calm</b> and <b>B · Semantic, disciplined</b> — each in light and dark. Pick a direction (or mix).</p>
+  <div class="legend">
+    <span><i class="swatch" style="background:#7B4DB5"></i>orphan purple (Orders KPI)</span>
+    <span><i class="swatch" style="background:#0D9488"></i>orphan teal (Delivered)</span>
+    <span><i class="swatch" style="background:#25D366"></i>WhatsApp green (button)</span>
+    <span><i class="swatch" style="background:var(--indigo500)"></i>indigo</span>
+    <span><i class="swatch" style="background:var(--sienna500)"></i>sienna</span>
+    <span><i class="swatch" style="background:var(--saffron)"></i>saffron (heritage)</span>
+  </div>
+</div>
+
+<div class="rowhead">Light mode</div>
+<div class="grid">
+
+  <!-- ============ BEFORE ============ -->
+  <div class="col">
+    <div class="col-tag"><b>Before</b><span class="k">today</span></div>
+    <div class="col-desc">Today's screen. <em>Purple Orders tile</em>, <em>teal Delivered</em>, <em>green WhatsApp fill</em> — none in the palette. Reads busy.</div>
+    <div class="phone"><div class="screen lt">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">signal_cellular_alt</i> <i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="title">Reports</div></div>
+      <div class="tabs"><div class="tab on">This week</div><div class="tab">This month</div><div class="tab">Custom</div></div>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="ic" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">trending_up</i></div><div class="lab">Revenue</div><div class="val">₦485k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>12%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--suc50);color:var(--suc)"><i class="ms">account_balance_wallet</i></div><div class="lab">Collected</div><div class="val">₦310k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>8%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--err50);color:var(--err)"><i class="ms">receipt_long</i></div><div class="lab">Outstanding</div><div class="val">₦175k</div><div class="dl" style="color:var(--err)"><i class="ms">arrow_upward</i>5%</div></div>
+          <div class="kpi"><div class="ic" style="background:#7B4DB522;color:#7B4DB5"><i class="ms">shopping_bag</i></div><div class="lab">Orders</div><div class="val">23</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>3</div></div>
+        </div>
+        <div class="seclabel">Production</div>
+        <div class="card"><div class="prod">
+          <div class="pcell"><div class="pic" style="background:var(--warn50);color:var(--warn)"><i class="ms">schedule</i></div><div class="pn">5</div><div class="pl" style="color:var(--warn)">Pending</div><div class="pbar" style="background:var(--warn)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--info50);color:var(--info)"><i class="ms">content_cut</i></div><div class="pn">8</div><div class="pl" style="color:var(--info)">Sewing</div><div class="pbar" style="background:var(--info)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--suc50);color:var(--suc)"><i class="ms">task_alt</i></div><div class="pn">3</div><div class="pl" style="color:var(--suc)">Ready</div><div class="pbar" style="background:var(--suc)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#0D948822;color:#0D9488"><i class="ms">local_shipping</i></div><div class="pn">7</div><div class="pl" style="color:#0D9488">Delivered</div><div class="pbar" style="background:#0D9488"></div></div>
+        </div></div>
+        <div class="seclabel">Outstanding balances</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#B85A30">M</div><div style="flex:1"><div class="dn">Mummy AY</div><div class="dm" style="color:var(--err)">3 days overdue</div></div><div><div class="damt" style="color:var(--err)">₦45,000</div></div><div class="wa" style="background:#25D366;color:#fff"><i class="ms">chat</i></div></div>
+          <div class="drow"><div class="av" style="background:#2C3E7C">T</div><div style="flex:1"><div class="dn">Tunde O.</div><div class="dm" style="color:var(--warn)">Due today</div></div><div><div class="damt" style="color:var(--warn)">₦30,000</div></div><div class="wa" style="background:#25D366;color:#fff"><i class="ms">chat</i></div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ A — CALM (light) ============ -->
+  <div class="col">
+    <div class="col-tag"><b>A · Calm</b><span class="k">indigo-led</span></div>
+    <div class="col-desc">Colour earns its place. KPI chips all indigo; colour kept for <b>meaning only</b> (red Outstanding, green deltas). Delivered → grey. WhatsApp → quiet ghost action.</div>
+    <div class="phone"><div class="screen lt">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">signal_cellular_alt</i> <i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="title">Reports</div></div>
+      <div class="tabs"><div class="tab on">This week</div><div class="tab">This month</div><div class="tab">Custom</div></div>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="ic" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">trending_up</i></div><div class="lab">Revenue</div><div class="val">₦485k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>12%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">account_balance_wallet</i></div><div class="lab">Collected</div><div class="val">₦310k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>8%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">receipt_long</i></div><div class="lab">Outstanding</div><div class="val" style="color:var(--err)">₦175k</div><div class="dl" style="color:var(--err)"><i class="ms">arrow_upward</i>5%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">shopping_bag</i></div><div class="lab">Orders</div><div class="val">23</div><div class="dl" style="color:var(--n500)"><i class="ms">arrow_upward</i>3</div></div>
+        </div>
+        <div class="seclabel">Production</div>
+        <div class="card"><div class="prod">
+          <div class="pcell"><div class="pic" style="background:var(--n100);color:var(--n600)"><i class="ms">schedule</i></div><div class="pn">5</div><div class="pl" style="color:var(--n600)">Pending</div><div class="pbar" style="background:var(--warn)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--n100);color:var(--n600)"><i class="ms">content_cut</i></div><div class="pn">8</div><div class="pl" style="color:var(--n600)">Sewing</div><div class="pbar" style="background:var(--info)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--n100);color:var(--n600)"><i class="ms">task_alt</i></div><div class="pn">3</div><div class="pl" style="color:var(--n600)">Ready</div><div class="pbar" style="background:var(--suc)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--n100);color:var(--n600)"><i class="ms">local_shipping</i></div><div class="pn">7</div><div class="pl" style="color:var(--n600)">Delivered</div><div class="pbar" style="background:var(--n400)"></div></div>
+        </div></div>
+        <div class="seclabel">Outstanding balances</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#B85A30">M</div><div style="flex:1"><div class="dn">Mummy AY</div><div class="dm" style="color:var(--err)">3 days overdue</div></div><div><div class="damt" style="color:var(--err)">₦45,000</div></div><div class="wa" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">chat</i></div></div>
+          <div class="drow"><div class="av" style="background:#2C3E7C">T</div><div style="flex:1"><div class="dn">Tunde O.</div><div class="dm" style="color:var(--warn)">Due today</div></div><div><div class="damt" style="color:var(--n700)">₦30,000</div></div><div class="wa" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">chat</i></div></div>
+        </div>
+        <div class="seclabel">Top customers</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#8E4524">F</div><div style="flex:1"><div class="dn">Fola Adeyemi</div><div class="dm">8 orders · ₦620k</div></div><span class="chip" style="background:#E8A80026;color:#9a7400"><i class="ms">workspace_premium</i>VIP</span></div>
+          <div class="drow"><div class="av" style="background:#2C3E7C">G</div><div style="flex:1"><div class="dn">Gabby N.</div><div class="dm">4 orders · ₦210k</div></div><span class="chip" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">replay</i>Repeat</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ B — SEMANTIC (light) ============ -->
+  <div class="col">
+    <div class="col-tag"><b>B · Semantic</b><span class="k">tokens only</span></div>
+    <div class="col-desc">Keeps a colour per KPI but every colour from the system — Orders → sienna (not purple), Delivered → grey, WhatsApp → success green (not brand <code>#25D366</code>).</div>
+    <div class="phone"><div class="screen lt">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">signal_cellular_alt</i> <i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="title">Reports</div></div>
+      <div class="tabs"><div class="tab on">This week</div><div class="tab">This month</div><div class="tab">Custom</div></div>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="ic" style="background:var(--indigo50);color:var(--indigo500)"><i class="ms">trending_up</i></div><div class="lab">Revenue</div><div class="val">₦485k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>12%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--suc50);color:var(--suc)"><i class="ms">account_balance_wallet</i></div><div class="lab">Collected</div><div class="val">₦310k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>8%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--err50);color:var(--err)"><i class="ms">receipt_long</i></div><div class="lab">Outstanding</div><div class="val">₦175k</div><div class="dl" style="color:var(--err)"><i class="ms">arrow_upward</i>5%</div></div>
+          <div class="kpi"><div class="ic" style="background:var(--sienna50);color:var(--sienna500)"><i class="ms">shopping_bag</i></div><div class="lab">Orders</div><div class="val">23</div><div class="dl" style="color:var(--n500)"><i class="ms">arrow_upward</i>3</div></div>
+        </div>
+        <div class="seclabel">Production</div>
+        <div class="card"><div class="prod">
+          <div class="pcell"><div class="pic" style="background:var(--warn50);color:var(--warn)"><i class="ms">schedule</i></div><div class="pn">5</div><div class="pl" style="color:var(--warn)">Pending</div><div class="pbar" style="background:var(--warn)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--info50);color:var(--info)"><i class="ms">content_cut</i></div><div class="pn">8</div><div class="pl" style="color:var(--info)">Sewing</div><div class="pbar" style="background:var(--info)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--suc50);color:var(--suc)"><i class="ms">task_alt</i></div><div class="pn">3</div><div class="pl" style="color:var(--suc)">Ready</div><div class="pbar" style="background:var(--suc)"></div></div>
+          <div class="pcell"><div class="pic" style="background:var(--n100);color:var(--n500)"><i class="ms">local_shipping</i></div><div class="pn">7</div><div class="pl" style="color:var(--n500)">Delivered</div><div class="pbar" style="background:var(--n400)"></div></div>
+        </div></div>
+        <div class="seclabel">Outstanding balances</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#B85A30">M</div><div style="flex:1"><div class="dn">Mummy AY</div><div class="dm" style="color:var(--err)">3 days overdue</div></div><div><div class="damt" style="color:var(--err)">₦45,000</div></div><div class="wa" style="background:var(--suc);color:#fff"><i class="ms">chat</i></div></div>
+          <div class="drow"><div class="av" style="background:#2C3E7C">T</div><div style="flex:1"><div class="dn">Tunde O.</div><div class="dm" style="color:var(--warn)">Due today</div></div><div><div class="damt" style="color:var(--warn)">₦30,000</div></div><div class="wa" style="background:var(--suc);color:#fff"><i class="ms">chat</i></div></div>
+        </div>
+        <div class="seclabel">Top customers</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#8E4524">F</div><div style="flex:1"><div class="dn">Fola Adeyemi</div><div class="dm">8 orders · ₦620k</div></div><span class="chip" style="background:#E8A80026;color:#9a7400"><i class="ms">workspace_premium</i>VIP</span></div>
+          <div class="drow"><div class="av" style="background:#2C3E7C">G</div><div style="flex:1"><div class="dn">Gabby N.</div><div class="dm">4 orders · ₦210k</div></div><span class="chip" style="background:var(--suc50);color:var(--suc)"><i class="ms">replay</i>Repeat</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="rowhead">Dark mode</div>
+<div class="grid">
+
+  <!-- ============ A — CALM (dark) ============ -->
+  <div class="col">
+    <div class="col-tag"><b>A · Calm</b><span class="k">dark</span></div>
+    <div class="col-desc">Same calm direction on Ink Dark. Indigo lifts to <code>indigo400/200</code>; cards on <code>#1E1C1A</code>.</div>
+    <div class="phone"><div class="screen dk">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">signal_cellular_alt</i> <i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="title">Reports</div></div>
+      <div class="tabs"><div class="tab on">This week</div><div class="tab">This month</div><div class="tab">Custom</div></div>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">trending_up</i></div><div class="lab">Revenue</div><div class="val">₦485k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>12%</div></div>
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">account_balance_wallet</i></div><div class="lab">Collected</div><div class="val">₦310k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>8%</div></div>
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">receipt_long</i></div><div class="lab">Outstanding</div><div class="val" style="color:#E89090">₦175k</div><div class="dl" style="color:#E89090"><i class="ms">arrow_upward</i>5%</div></div>
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">shopping_bag</i></div><div class="lab">Orders</div><div class="val">23</div><div class="dl" style="color:var(--n400)"><i class="ms">arrow_upward</i>3</div></div>
+        </div>
+        <div class="seclabel">Production</div>
+        <div class="card"><div class="prod">
+          <div class="pcell"><div class="pic" style="background:#2A2825;color:var(--n300)"><i class="ms">schedule</i></div><div class="pn">5</div><div class="pl" style="color:var(--n400)">Pending</div><div class="pbar" style="background:var(--warn)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#2A2825;color:var(--n300)"><i class="ms">content_cut</i></div><div class="pn">8</div><div class="pl" style="color:var(--n400)">Sewing</div><div class="pbar" style="background:var(--info)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#2A2825;color:var(--n300)"><i class="ms">task_alt</i></div><div class="pn">3</div><div class="pl" style="color:var(--n400)">Ready</div><div class="pbar" style="background:var(--suc)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#2A2825;color:var(--n300)"><i class="ms">local_shipping</i></div><div class="pn">7</div><div class="pl" style="color:var(--n400)">Delivered</div><div class="pbar" style="background:var(--n500)"></div></div>
+        </div></div>
+        <div class="seclabel">Outstanding balances</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#D9885F">M</div><div style="flex:1"><div class="dn">Mummy AY</div><div class="dm" style="color:#E89090">3 days overdue</div></div><div><div class="damt" style="color:#E89090">₦45,000</div></div><div class="wa" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">chat</i></div></div>
+          <div class="drow"><div class="av" style="background:#5871B8">T</div><div style="flex:1"><div class="dn">Tunde O.</div><div class="dm" style="color:var(--warn)">Due today</div></div><div><div class="damt" style="color:var(--n300)">₦30,000</div></div><div class="wa" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">chat</i></div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ B — SEMANTIC (dark) ============ -->
+  <div class="col">
+    <div class="col-tag"><b>B · Semantic</b><span class="k">dark</span></div>
+    <div class="col-desc">Semantic direction on dark. Same token-sourced colours, lifted for contrast on Ink Dark.</div>
+    <div class="phone"><div class="screen dk">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">signal_cellular_alt</i> <i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="title">Reports</div></div>
+      <div class="tabs"><div class="tab on">This week</div><div class="tab">This month</div><div class="tab">Custom</div></div>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">trending_up</i></div><div class="lab">Revenue</div><div class="val">₦485k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>12%</div></div>
+          <div class="kpi"><div class="ic" style="background:#16352a;color:#5fbf95"><i class="ms">account_balance_wallet</i></div><div class="lab">Collected</div><div class="val">₦310k</div><div class="dl" style="color:var(--suc)"><i class="ms">arrow_upward</i>8%</div></div>
+          <div class="kpi"><div class="ic" style="background:#3a201f;color:#E89090"><i class="ms">receipt_long</i></div><div class="lab">Outstanding</div><div class="val">₦175k</div><div class="dl" style="color:#E89090"><i class="ms">arrow_upward</i>5%</div></div>
+          <div class="kpi"><div class="ic" style="background:#3a2a20;color:#D9885F"><i class="ms">shopping_bag</i></div><div class="lab">Orders</div><div class="val">23</div><div class="dl" style="color:var(--n400)"><i class="ms">arrow_upward</i>3</div></div>
+        </div>
+        <div class="seclabel">Production</div>
+        <div class="card"><div class="prod">
+          <div class="pcell"><div class="pic" style="background:#3a2a18;color:#E8A86a"><i class="ms">schedule</i></div><div class="pn">5</div><div class="pl" style="color:#E8A86a">Pending</div><div class="pbar" style="background:var(--warn)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#18324a;color:#6BAEE8"><i class="ms">content_cut</i></div><div class="pn">8</div><div class="pl" style="color:#6BAEE8">Sewing</div><div class="pbar" style="background:var(--info)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#16352a;color:#5fbf95"><i class="ms">task_alt</i></div><div class="pn">3</div><div class="pl" style="color:#5fbf95">Ready</div><div class="pbar" style="background:var(--suc)"></div></div>
+          <div class="pcell"><div class="pic" style="background:#2A2825;color:var(--n400)"><i class="ms">local_shipping</i></div><div class="pn">7</div><div class="pl" style="color:var(--n400)">Delivered</div><div class="pbar" style="background:var(--n500)"></div></div>
+        </div></div>
+        <div class="seclabel">Outstanding balances</div>
+        <div class="card">
+          <div class="drow"><div class="av" style="background:#D9885F">M</div><div style="flex:1"><div class="dn">Mummy AY</div><div class="dm" style="color:#E89090">3 days overdue</div></div><div><div class="damt" style="color:#E89090">₦45,000</div></div><div class="wa" style="background:#16352a;color:#5fbf95"><i class="ms">chat</i></div></div>
+          <div class="drow"><div class="av" style="background:#5871B8">T</div><div style="flex:1"><div class="dn">Tunde O.</div><div class="dm" style="color:var(--warn)">Due today</div></div><div><div class="damt" style="color:#E8A86a">₦30,000</div></div><div class="wa" style="background:#16352a;color:#5fbf95"><i class="ms">chat</i></div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ PAYWALL (free tier) — both directions share this ============ -->
+  <div class="col">
+    <div class="col-tag"><b>Free-tier paywall</b><span class="k">unchanged dir.</span></div>
+    <div class="col-desc">The upgrade prompt free users see. Saffron stays (heritage accent for Pro), indigo CTA — already coherent; shown for completeness in dark.</div>
+    <div class="phone"><div class="screen dk">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">signal_cellular_alt</i> <i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="title">Reports</div></div>
+      <div class="tabs"><div class="tab on">This week</div><div class="tab">This month</div><div class="tab">Custom</div></div>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">trending_up</i></div><div class="lab">Revenue</div><div class="val">₦485k</div><div class="dl" style="color:var(--n400)">—</div></div>
+          <div class="kpi"><div class="ic" style="background:#2D3B6B;color:#9CB0DD"><i class="ms">account_balance_wallet</i></div><div class="lab">Collected</div><div class="val">₦310k</div><div class="dl" style="color:var(--n400)">—</div></div>
+        </div>
+        <div class="pay" style="margin-top:13px">
+          <div class="pi" style="background:#E8A80022;color:var(--saffron)"><i class="ms">lock</i></div>
+          <h4 style="color:#F4F1EA">Unlock full Reports</h4>
+          <p style="color:var(--n400)">See production, top customers, debtors and trends with Tailor&nbsp;Pro.</p>
+          <span class="cta" style="background:var(--indigo400);color:#0f0e0d">Upgrade to Pro</span>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="note">
+  <b>What changes in code (both directions):</b> introduce a shared <code>ReportsCard</code> wrapper (surface + <code>outlineVariant</code> border + radius) so sections stop styling themselves; retire the three orphan colours onto <code>DesignTokens</code> — Delivered → <code>statusDelivered</code> grey, Orders KPI → indigo (A) or sienna (B), WhatsApp button → indigo ghost (A) or <code>success500</code> (B). No maths/calculators touched.<br>
+  <b>The decision for you:</b> <b>A · Calm</b> answers the “too much colour” note most directly — colour only where it means something. <b>B · Semantic</b> keeps a colour-per-KPI but disciplined to the palette. Both are coherent; A is quieter.
+</div>
+
+</body>
+</html>

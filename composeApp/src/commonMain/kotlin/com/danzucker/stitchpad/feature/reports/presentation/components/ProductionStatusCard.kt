@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad.feature.reports.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,26 +39,13 @@ import stitchpad.composeapp.generated.resources.reports_status_in_progress
 import stitchpad.composeapp.generated.resources.reports_status_pending
 import stitchpad.composeapp.generated.resources.reports_status_ready
 
-private val DELIVERED_COLOR = Color(0xFF0D9488)
-
 @Composable
 fun ProductionStatusCard(
     counts: ProductionCounts,
     modifier: Modifier = Modifier
 ) {
     val mono = JetBrainsMonoFamily()
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusLg))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(DesignTokens.radiusLg)
-            )
-            .padding(DesignTokens.space4)
-    ) {
+    ReportsCard(modifier = modifier) {
         Text(
             text = stringResource(Res.string.reports_section_production),
             style = MaterialTheme.typography.titleMedium,
@@ -74,7 +60,7 @@ fun ProductionStatusCard(
             StatusTile(
                 label = stringResource(Res.string.reports_status_pending),
                 count = counts.pending,
-                color = DesignTokens.warning500,
+                accent = DesignTokens.warning500,
                 icon = Icons.Outlined.Schedule,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
@@ -82,7 +68,7 @@ fun ProductionStatusCard(
             StatusTile(
                 label = stringResource(Res.string.reports_status_in_progress),
                 count = counts.inProgress,
-                color = DesignTokens.info500,
+                accent = DesignTokens.info500,
                 icon = Icons.Outlined.ContentCut,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
@@ -90,7 +76,7 @@ fun ProductionStatusCard(
             StatusTile(
                 label = stringResource(Res.string.reports_status_ready),
                 count = counts.ready,
-                color = DesignTokens.success500,
+                accent = DesignTokens.success500,
                 icon = Icons.Outlined.TaskAlt,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
@@ -98,7 +84,9 @@ fun ProductionStatusCard(
             StatusTile(
                 label = stringResource(Res.string.reports_status_delivered),
                 count = counts.delivered,
-                color = DELIVERED_COLOR,
+                // Delivered is a terminal, neutral state — use the design system's
+                // grey status token, not the orphan teal it used to hardcode.
+                accent = DesignTokens.statusDelivered,
                 icon = Icons.Outlined.LocalShipping,
                 monoFamily = mono,
                 modifier = Modifier.weight(1f)
@@ -111,7 +99,7 @@ fun ProductionStatusCard(
 private fun StatusTile(
     label: String,
     count: Int,
-    color: Color,
+    accent: Color,
     icon: ImageVector,
     monoFamily: androidx.compose.ui.text.font.FontFamily,
     modifier: Modifier = Modifier
@@ -121,10 +109,12 @@ private fun StatusTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        // Calm: the icon stays neutral; only the thin accent bar carries the
+        // status colour, so the row reads as one quiet group, not four hues.
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = color,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp)
         )
         Text(
@@ -146,7 +136,7 @@ private fun StatusTile(
                 .width(28.dp)
                 .height(3.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(color)
+                .background(accent)
         )
     }
 }

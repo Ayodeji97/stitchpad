@@ -1,18 +1,17 @@
 package com.danzucker.stitchpad.feature.reports.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.HorizontalDivider
@@ -60,17 +59,12 @@ fun OutstandingBalancesCard(
 ) {
     if (debtors.items.isEmpty()) return
     val mono = JetBrainsMonoFamily()
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusLg))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(DesignTokens.radiusLg)
-            )
-            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
+    ReportsCard(
+        modifier = modifier,
+        contentPadding = PaddingValues(
+            horizontal = DesignTokens.space4,
+            vertical = DesignTokens.space3
+        )
     ) {
         CardHeader(
             title = stringResource(Res.string.reports_section_outstanding),
@@ -162,11 +156,13 @@ private fun OutstandingRow(
 
 @Composable
 private fun WhatsAppButton(onClick: () -> Unit) {
+    // Quiet indigo ghost action, not a native-WhatsApp-green fill — the brand
+    // green was an orphan that fought the palette (PTSP-39).
     Box(
         modifier = Modifier
             .size(28.dp)
             .clip(CircleShape)
-            .background(Color(0xFF25D366))
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -175,7 +171,7 @@ private fun WhatsAppButton(onClick: () -> Unit) {
             contentDescription = stringResource(
                 Res.string.reports_send_whatsapp_reminder_cd
             ),
-            tint = Color.White,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(15.dp)
         )
     }
@@ -190,10 +186,12 @@ private data class UrgencyStyle(
 
 @Composable
 private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
-    val dueSoon = MaterialTheme.colorScheme.tertiary
+    // Calm ramp (PTSP-39): colour signals only the two states that need action —
+    // overdue (red) and due today (orange). Everything further out renders the
+    // amount in plain ink, so the card stops reading as a rainbow.
     val red = DesignTokens.error500
     val orange = DesignTokens.warning500
-    val green = DesignTokens.success500
+    val ink = MaterialTheme.colorScheme.onSurface
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
     if (deadline == null) {
@@ -223,7 +221,7 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             agingWeight = FontWeight.SemiBold
         )
         daysUntil <= DAYS_THIS_WEEK -> UrgencyStyle(
-            amountColor = dueSoon,
+            amountColor = ink,
             agingText = if (daysUntil == 1) {
                 stringResource(Res.string.reports_aging_due_tomorrow)
             } else {
@@ -233,7 +231,7 @@ private fun urgencyOf(deadline: LocalDate?, today: LocalDate): UrgencyStyle {
             agingWeight = FontWeight.Normal
         )
         daysUntil <= DAYS_NEXT_WEEK -> UrgencyStyle(
-            amountColor = green,
+            amountColor = ink,
             agingText = stringResource(Res.string.reports_aging_due_in_days, daysUntil),
             agingColor = muted,
             agingWeight = FontWeight.Normal
