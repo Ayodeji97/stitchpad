@@ -61,17 +61,25 @@ internal class StoreKitPaymentRepository(
         when (val res = purchaser.restore()) {
             is Result.Success -> {
                 var grantedAny = false
+                var lastError: PaymentError? = null
                 for (purchase in res.data) {
-                    if (verifyOnServer(purchase.signedTransactionJws) is Result.Success) {
-                        purchaser.finishTransaction(purchase.transactionId)
-                        grantedAny = true
+                    when (val verified = verifyOnServer(purchase.signedTransactionJws)) {
+                        is Result.Success -> {
+                            purchaser.finishTransaction(purchase.transactionId)
+                            grantedAny = true
+                        }
+                        is Result.Error -> lastError = verified.error
                     }
                 }
-                // No outcome event needed on success — the tier change flows through
-                // the entitlements provider, which pops the screen.
-                Result.Success(
-                    if (grantedAny) CheckoutOutcome.PurchasedAndGranted else CheckoutOutcome.Cancelled,
-                )
+                when {
+                    // Success flows through the entitlements provider, which pops the screen.
+                    grantedAny -> Result.Success(CheckoutOutcome.PurchasedAndGranted)
+                    // Had entitlements but none could be verified (transient/server
+                    // failure) — surface it so the user can retry, not a silent no-op.
+                    lastError != null -> Result.Error(lastError)
+                    // Genuinely nothing to restore.
+                    else -> Result.Success(CheckoutOutcome.Cancelled)
+                }
             }
             is Result.Error -> Result.Error(res.error.toPaymentError())
         }

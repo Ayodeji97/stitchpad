@@ -246,7 +246,13 @@ export async function verifyAppleTransactionHandler(
     throw new functions.https.HttpsError('failed-precondition', 'account_mismatch');
   }
 
+  // Don't grant on a revoked OR already-expired transaction. A user could
+  // otherwise replay their own old (expired) signed transaction to re-grant paid
+  // access until the daily reconciliation / EXPIRED notification corrects it —
+  // the prepaid cron skips subscriptionRenews == true, so it wouldn't catch this.
   const revoked = typeof txn.revocationDate === 'number';
+  const expired = typeof txn.expiresDate === 'number' && txn.expiresDate <= deps.now().getTime();
+  const inactive = revoked || expired;
   const refs: CommitRefs = {
     userRef: deps.db.doc(`users/${uid}`),
     billingRef: deps.db.doc(`users/${uid}/billingTransactions/apple_${txn.originalTransactionId}`),
@@ -254,7 +260,7 @@ export async function verifyAppleTransactionHandler(
     uid,
   };
 
-  const desired: DesiredState = revoked
+  const desired: DesiredState = inactive
     ? {
       tier: 'free',
       status: 'expired',

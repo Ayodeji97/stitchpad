@@ -132,6 +132,26 @@ describe('verifyAppleTransactionHandler', () => {
     expect(store.get('appleSubscriptions/orig-1')).toMatchObject({ uid: 'uid-1' });
   });
 
+  it('does not grant paid access for an already-expired transaction (replay guard)', async () => {
+    const { db, store } = fakeDb();
+    const verifier = fakeVerifier({
+      verifyTransaction: jest.fn(async () => txnFor('uid-1', {
+        expiresDate: new Date('2026-05-01T10:00:00Z').getTime(), // already past at `now`
+      })),
+    });
+    const result = await verifyAppleTransactionHandler(
+      { signedTransactionJws: 'jws' },
+      authCtx('uid-1'),
+      { db: db as never, verifier, now: () => new Date('2026-06-01T10:00:00Z') },
+    );
+    expect(result).toMatchObject({ tier: 'free', status: 'expired' });
+    expect(store.get('users/uid-1')).toMatchObject({
+      subscriptionTier: 'free',
+      subscriptionStatus: 'expired',
+      subscriptionRenews: false,
+    });
+  });
+
   it('refuses to grant a subscription already bound to another account', async () => {
     const { db } = fakeDb({ 'appleSubscriptions/orig-1': { uid: 'first-owner' } });
     const verifier = fakeVerifier({ verifyTransaction: jest.fn(async () => txnFor('uid-2')) });
