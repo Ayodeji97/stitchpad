@@ -34,7 +34,10 @@ class StyleGalleryViewModel(
         customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration
 
     private var hasLoadedInitialData = false
-    private val _state = MutableStateFlow(StyleGalleryState())
+    private val isInspirationGallery = location is StyleLocation.Inspiration
+    private val _state = MutableStateFlow(
+        StyleGalleryState(isInspirationGallery = isInspirationGallery)
+    )
 
     private val _events = Channel<StyleGalleryEvent>()
     val events = _events.receiveAsFlow()
@@ -49,7 +52,7 @@ class StyleGalleryViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = StyleGalleryState()
+            initialValue = StyleGalleryState(isInspirationGallery = isInspirationGallery)
         )
 
     @Suppress("CyclomaticComplexMethod")
@@ -99,13 +102,15 @@ class StyleGalleryViewModel(
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             // Other ACTIVE customers only — you can't add to a locked customer, and
             // the source customer isn't a valid target.
+            val inspirationTargets = listOfNotNull(
+                TransferTarget.Inspiration.takeIf { location is StyleLocation.CustomerCloset }
+            )
             val targets = when (val result = customerRepository.observeCustomers(userId).first()) {
                 is Result.Success ->
-                    listOfNotNull(TransferTarget.Inspiration.takeIf { location is StyleLocation.CustomerCloset }) +
-                        result.data
-                            .filter { it.id != customerId && it.slotState == CustomerSlotState.ACTIVE }
-                            .map { TransferTarget.Customer(customerId = it.id, name = it.name) }
-                is Result.Error -> emptyList()
+                    inspirationTargets + result.data
+                        .filter { it.id != customerId && it.slotState == CustomerSlotState.ACTIVE }
+                        .map { TransferTarget.Customer(customerId = it.id, name = it.name) }
+                is Result.Error -> inspirationTargets
             }
             _state.update {
                 it.copy(

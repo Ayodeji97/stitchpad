@@ -35,6 +35,7 @@ data class StyleTransfer(
 data class StyleGalleryState(
     val styles: List<Style> = emptyList(),
     val isLoading: Boolean = true,
+    val isInspirationGallery: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val styleToDelete: Style? = null,
     /** Long-pressed style whose actions sheet (Copy / Move / Delete) is open. */

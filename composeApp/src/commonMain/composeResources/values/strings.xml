@@ -442,6 +442,8 @@
     <string name="style_save_button">Save style</string>
     <string name="style_empty_title">No styles yet</string>
     <string name="style_empty_subtitle">Add photos of past work or inspiration for this customer.</string>
+    <string name="style_inspiration_empty_title">No saved styles yet</string>
+    <string name="style_inspiration_empty_subtitle">Save looks you love here, then use them for any customer.</string>
     <string name="style_section_header">CLOSET</string>
     <!-- Prominent closet row title, e.g. "Hauwa&apos;s Closet". Arg is the customer&apos;s first name. -->
     <string name="style_closet_name_format">%1$s&apos;s Closet</string>

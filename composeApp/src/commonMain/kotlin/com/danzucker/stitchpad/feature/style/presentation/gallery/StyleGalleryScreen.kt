@@ -85,6 +85,8 @@ import stitchpad.composeapp.generated.resources.style_delete_title
 import stitchpad.composeapp.generated.resources.style_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_empty_title
 import stitchpad.composeapp.generated.resources.style_gallery_title
+import stitchpad.composeapp.generated.resources.style_inspiration_empty_subtitle
+import stitchpad.composeapp.generated.resources.style_inspiration_empty_title
 import stitchpad.composeapp.generated.resources.style_inspiration_title
 import stitchpad.composeapp.generated.resources.style_moved_snackbar
 import stitchpad.composeapp.generated.resources.style_transfer_copy_title
@@ -159,7 +161,13 @@ fun StyleGalleryScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(Res.string.style_gallery_title),
+                        text = stringResource(
+                            if (state.isInspirationGallery) {
+                                Res.string.style_inspiration_title
+                            } else {
+                                Res.string.style_gallery_title
+                            }
+                        ),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -201,6 +209,7 @@ fun StyleGalleryScreen(
             }
             state.styles.isEmpty() -> {
                 StyleGalleryEmptyState(
+                    isInspirationGallery = state.isInspirationGallery,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
@@ -481,7 +490,10 @@ private fun StyleCard(
 }
 
 @Composable
-private fun StyleGalleryEmptyState(modifier: Modifier = Modifier) {
+private fun StyleGalleryEmptyState(
+    isInspirationGallery: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -505,7 +517,13 @@ private fun StyleGalleryEmptyState(modifier: Modifier = Modifier) {
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(DesignTokens.space3))
         Text(
-            text = stringResource(Res.string.style_empty_title),
+            text = stringResource(
+                if (isInspirationGallery) {
+                    Res.string.style_inspiration_empty_title
+                } else {
+                    Res.string.style_empty_title
+                }
+            ),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -513,7 +531,13 @@ private fun StyleGalleryEmptyState(modifier: Modifier = Modifier) {
         )
         androidx.compose.foundation.layout.Spacer(Modifier.height(DesignTokens.space1))
         Text(
-            text = stringResource(Res.string.style_empty_subtitle),
+            text = stringResource(
+                if (isInspirationGallery) {
+                    Res.string.style_inspiration_empty_subtitle
+                } else {
+                    Res.string.style_empty_subtitle
+                }
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

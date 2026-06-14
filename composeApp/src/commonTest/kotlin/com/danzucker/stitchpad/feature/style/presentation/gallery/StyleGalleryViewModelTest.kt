@@ -102,6 +102,7 @@ class StyleGalleryViewModelTest {
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
         assertFalse(vm.state.value.isLoading)
+        assertTrue(vm.state.value.isInspirationGallery)
         assertTrue(vm.state.value.styles.isEmpty())
     }
 
@@ -311,6 +312,20 @@ class StyleGalleryViewModelTest {
         assertEquals(StyleTransferMode.COPY, transfer.mode)
         assertEquals(listOf("inspiration", "customer-2"), transfer.targets.map { it.id })
         assertNull(vm.state.value.actionSheetStyle)
+    }
+
+    @Test
+    fun onCopyClick_fromClosetWithCustomerFetchError_keepsInspirationTarget() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.shouldReturnError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        val transfer = vm.state.value.transfer
+        assertNotNull(transfer)
+        assertEquals(listOf(TransferTarget.Inspiration), transfer.targets)
     }
 
     @Test
