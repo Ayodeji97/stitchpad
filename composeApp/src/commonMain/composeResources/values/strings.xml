@@ -479,6 +479,7 @@
     <string name="style_folders_default_name">My styles</string>
     <string name="style_folders_create_title">New folder</string>
     <string name="style_folder_name_placeholder">e.g. Corset</string>
+    <string name="style_folder_duplicate_name">A folder with that name already exists.</string>
     <string name="style_folders_rename_title">Rename folder</string>
     <string name="style_folder_delete_title">Delete folder?</string>
     <string name="style_folder_delete_message">All styles inside this folder will also be deleted. This cannot be undone.</string>

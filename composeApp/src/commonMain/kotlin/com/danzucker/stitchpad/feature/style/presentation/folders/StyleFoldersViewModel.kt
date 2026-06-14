@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
@@ -26,6 +27,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_folder_duplicate_name
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StyleFoldersViewModel(
@@ -152,15 +155,16 @@ class StyleFoldersViewModel(
         viewModelScope.launch {
             val limits = resolveLimits()
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            // Re-read the AUTHORITATIVE folder count at confirm time. The FAB is
+            // Re-read the AUTHORITATIVE folder list at confirm time. The FAB is
             // tappable while the grid is still loading (state.namedFolderCount == 0),
-            // so the cached state can be stale; fetch the live count before creating.
-            val liveCount = when (val r = styleRepository.observeFolders(userId, rootLocation).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> _state.value.namedFolderCount
-            }
-            if (liveCount + 1 >= limits.maxFolders) {
+            // so the cached state can be stale; fetch live folders before creating.
+            val liveFolders = liveFolders(userId)
+            if ((liveFolders?.size ?: _state.value.namedFolderCount) + 1 >= limits.maxFolders) {
                 _events.send(StyleFoldersEvent.NavigateToUpgrade)
+                return@launch
+            }
+            if (isDuplicateName(name, liveFolders, excludeId = null)) {
+                showDuplicateNameError()
                 return@launch
             }
             val result = styleRepository.createFolder(userId, rootLocation, name)
@@ -177,11 +181,30 @@ class StyleFoldersViewModel(
         _state.update { it.copy(renameTarget = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            // Block a rename that would collide with another folder's name.
+            if (isDuplicateName(name, liveFolders(userId), excludeId = target.id)) {
+                showDuplicateNameError()
+                return@launch
+            }
             val result = styleRepository.renameFolder(userId, rootLocation, target.id, name)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
         }
+    }
+
+    private suspend fun liveFolders(userId: String): List<StyleFolder>? =
+        when (val r = styleRepository.observeFolders(userId, rootLocation).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> null
+        }
+
+    // Folder names must be unique within a collection (case-insensitive, trimmed).
+    private fun isDuplicateName(name: String, folders: List<StyleFolder>?, excludeId: String?): Boolean =
+        folders?.any { it.id != excludeId && it.name.trim().equals(name, ignoreCase = true) } == true
+
+    private fun showDuplicateNameError() {
+        _state.update { it.copy(errorMessage = UiText.StringResourceText(Res.string.style_folder_duplicate_name)) }
     }
 
     private fun handleConfirmDelete() {

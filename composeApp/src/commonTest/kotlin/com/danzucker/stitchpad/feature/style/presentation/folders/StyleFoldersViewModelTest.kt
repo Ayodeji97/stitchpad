@@ -256,6 +256,41 @@ class StyleFoldersViewModelTest {
     }
 
     @Test
+    fun onConfirmCreate_duplicateName_blocked_noCreate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.folders = listOf(
+            StyleFolder(id = "f1", name = "Corset", createdAt = 0L, updatedAt = 0L),
+        )
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+
+        // Case-insensitive / trimmed collision.
+        vm.onAction(StyleFoldersAction.OnConfirmCreate("  corset "))
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertNull(styleRepository.lastCreatedFolderName)
+    }
+
+    @Test
+    fun onConfirmRename_duplicateName_blocked_noRename() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.folders = listOf(
+            StyleFolder(id = "f1", name = "Corset", createdAt = 0L, updatedAt = 0L),
+            StyleFolder(id = "f2", name = "Wedding", createdAt = 0L, updatedAt = 0L),
+        )
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+
+        vm.onAction(
+            StyleFoldersAction.OnRenameClick(
+                StyleFolder(id = "f2", name = "Wedding", createdAt = 0L, updatedAt = 0L),
+            ),
+        )
+        vm.onAction(StyleFoldersAction.OnConfirmRename("Corset"))
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertNull(styleRepository.lastRenamedFolder)
+    }
+
+    @Test
     fun onConfirmCreate_blankName_doesNotCallRepo() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
