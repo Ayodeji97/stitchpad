@@ -19,6 +19,7 @@ sealed interface DashboardEvent {
     data class NavigateToEditOrder(val orderId: String) : DashboardEvent
     data object NavigateToCustomerForm : DashboardEvent
     data object NavigateToCustomers : DashboardEvent
+    data object NavigateToInspiration : DashboardEvent
     data object NavigateToGoalSetup : DashboardEvent
     data object NavigateToSettings : DashboardEvent
 

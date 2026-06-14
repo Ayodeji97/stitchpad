@@ -149,6 +149,12 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      // ── Inspiration style gallery ───────────────────────────────────────
+      // Top-level styles that are not tied to a customer closet.
+      match /inspiration/{styleId} {
+        allow read, write: if isOwner(uid);
+      }
+
       // ── Notifications inbox subcollection ───────────────────────────────
       // Server (Admin SDK) creates docs via create-if-absent; client reads
       // them and marks isRead. No client create (deterministic ids would

@@ -250,12 +250,14 @@ class OfflineUploadOutbox(
         job: OfflineUploadJob,
         downloadUrl: String,
     ) {
-        val docRef = firestore.collection("users")
-            .document(job.userId)
-            .collection("customers")
-            .document(requireNotNull(job.customerId))
-            .collection("styles")
-            .document(requireNotNull(job.styleId))
+        val docRef = if (job.inspirationStyle) {
+            firestore.collection("users").document(job.userId)
+                .collection("inspiration").document(requireNotNull(job.styleId))
+        } else {
+            firestore.collection("users").document(job.userId)
+                .collection("customers").document(requireNotNull(job.customerId))
+                .collection("styles").document(requireNotNull(job.styleId))
+        }
         if (!docRef.get().exists) {
             runCatching { storage.reference.child(job.storagePath).delete() }
             return
@@ -354,6 +356,7 @@ data class OfflineUploadJob(
     val orderId: String? = null,
     val itemId: String? = null,
     val styleId: String? = null,
+    val inspirationStyle: Boolean = false,
     val attempts: Int = 0,
     val nextAttemptAt: Long = 0L,
     val lastError: String? = null,

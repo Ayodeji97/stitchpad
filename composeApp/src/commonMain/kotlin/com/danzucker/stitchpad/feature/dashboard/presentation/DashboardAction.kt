@@ -19,6 +19,7 @@ sealed interface DashboardAction {
     data object OnCreateOrderClick : DashboardAction
 
     data object OnNewCustomerClick : DashboardAction
+    data object OnInspirationClick : DashboardAction
     data object OnAddMeasurementClick : DashboardAction
     data object OnGoalsCardClick : DashboardAction
     data object OnFocusCtaClick : DashboardAction

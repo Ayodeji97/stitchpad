@@ -542,6 +542,14 @@ class DashboardViewModelTest {
         assertIs<DashboardEvent.NavigateToCustomerForm>(vm.events.first())
     }
 
+    @Test
+    fun onInspirationClick_emitsNavigateToInspiration() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnInspirationClick)
+        assertEquals(DashboardEvent.NavigateToInspiration, vm.events.first())
+    }
+
     // --- No auth user ---
 
     @Test

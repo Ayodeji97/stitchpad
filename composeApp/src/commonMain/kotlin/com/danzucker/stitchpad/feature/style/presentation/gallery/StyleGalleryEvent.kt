@@ -2,11 +2,10 @@ package com.danzucker.stitchpad.feature.style.presentation.gallery
 
 sealed interface StyleGalleryEvent {
     data object NavigateBack : StyleGalleryEvent
-    data class NavigateToAddStyle(val customerId: String) : StyleGalleryEvent
-    data class NavigateToEditStyle(val customerId: String, val styleId: String) : StyleGalleryEvent
+    data class NavigateToAddStyle(val customerId: String?) : StyleGalleryEvent
+    data class NavigateToEditStyle(val customerId: String?, val styleId: String) : StyleGalleryEvent
     data class StyleTransferred(
         val mode: StyleTransferMode,
-        val targetCustomerId: String,
-        val targetName: String,
+        val target: TransferTarget,
     ) : StyleGalleryEvent
 }

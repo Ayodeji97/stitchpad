@@ -165,6 +165,7 @@ class DashboardViewModel(
                 }
             )
             DashboardAction.OnNewCustomerClick -> emitEvent(DashboardEvent.NavigateToCustomerForm)
+            DashboardAction.OnInspirationClick -> emitEvent(DashboardEvent.NavigateToInspiration)
             DashboardAction.OnAddMeasurementClick -> emitEvent(
                 if (_state.value.uiState == DashboardUiState.BrandNew) {
                     DashboardEvent.NavigateToAddCustomerFirst

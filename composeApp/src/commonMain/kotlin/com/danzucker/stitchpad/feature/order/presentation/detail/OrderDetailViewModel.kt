@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -601,7 +602,7 @@ class OrderDetailViewModel(
             // hero image resolver in OrderDetailScreen resolves the relevant styles
             // per styleImages[].styleId at render time. Cheaper than per-style
             // subscriptions; the gallery list is small for any tailor.
-            styleRepository.observeStyles(userId, customerId).collect { res ->
+            styleRepository.observeStyles(userId, StyleLocation.CustomerCloset(customerId)).collect { res ->
                 if (res is Result.Success) {
                     _state.update { current ->
                         current.copy(
