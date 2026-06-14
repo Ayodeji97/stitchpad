@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -35,6 +36,9 @@ class StyleFormViewModel(
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
+    private val location: StyleLocation =
+        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration
+
     // Multi-pick only when adding to a closet — not when editing one style and
     // not when attaching exactly one style to an order (the link flow).
     private val allowMultiPhoto: Boolean = styleId == null && linkToOrderId == null
@@ -51,11 +55,6 @@ class StyleFormViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
-                if (customerId == null) {
-                    _state.update { it.copy(isLoading = false) }
-                    _events.send(StyleFormEvent.NavigateBack)
-                    return@onStart
-                }
                 if (styleId != null) loadStyle(styleId)
             }
         }
@@ -98,14 +97,13 @@ class StyleFormViewModel(
     }
 
     private fun loadStyle(id: String) {
-        val customerId = customerId ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            when (val result = styleRepository.observeStyles(userId, customerId).first()) {
+            when (val result = styleRepository.observeStyles(userId, location).first()) {
                 is Result.Success -> {
                     val style = result.data.find { it.id == id }
                     if (style != null) {
@@ -134,7 +132,6 @@ class StyleFormViewModel(
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
-        val customerId = customerId ?: return
         val s = _state.value
         val trimmedDescription = s.description.trim()
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
@@ -150,7 +147,7 @@ class StyleFormViewModel(
             if (s.isEditMode && s.existingStyle != null) {
                 val updateResult = styleRepository.updateStyle(
                     userId = userId,
-                    customerId = customerId,
+                    location = location,
                     style = s.existingStyle.copy(description = trimmedDescription),
                     newPhotoBytes = s.selectedPhotos.firstOrNull(),
                 )
@@ -169,7 +166,7 @@ class StyleFormViewModel(
             if (s.selectedPhotos.size > 1) {
                 val batchResult = styleRepository.createStyles(
                     userId = userId,
-                    customerId = customerId,
+                    location = location,
                     description = trimmedDescription,
                     photoBytesList = s.selectedPhotos,
                 )
@@ -185,7 +182,7 @@ class StyleFormViewModel(
 
             val createResult = styleRepository.createStyle(
                 userId = userId,
-                customerId = customerId,
+                location = location,
                 description = trimmedDescription,
                 photoBytes = s.selectedPhotos.firstOrNull() ?: ByteArray(0),
             )

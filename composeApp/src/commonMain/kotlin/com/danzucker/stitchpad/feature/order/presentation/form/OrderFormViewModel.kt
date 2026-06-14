@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -419,7 +420,7 @@ class OrderFormViewModel(
         val uid = userId ?: return
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            styleRepository.observeStyles(uid, customerId).collect { result ->
+            styleRepository.observeStyles(uid, StyleLocation.CustomerCloset(customerId)).collect { result ->
                 if (result is Result.Success) {
                     _state.update { it.copy(availableStyles = result.data) }
                 }
@@ -829,7 +830,7 @@ class OrderFormViewModel(
         } else if (item.saveStyleToGallery) {
             val createResult = styleRepository.createStyles(
                 userId = userId,
-                customerId = customerId,
+                location = StyleLocation.CustomerCloset(customerId),
                 description = item.styleDescription.trim(),
                 photoBytesList = item.uploadedStyleBytesList,
             )

@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.StyleDto
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -22,7 +23,7 @@ class StyleMapperTest {
             updatedAt = 1_700_000_100_000L,
         )
 
-        val style = dto.toStyle(customerId = "c1")
+        val style = dto.toStyle(StyleLocation.CustomerCloset("c1"))
 
         assertEquals("style-1", style.id)
         assertEquals("c1", style.customerId)
@@ -37,7 +38,7 @@ class StyleMapperTest {
     fun dtoToStyleWithDefaults_producesBlankDomainFields() {
         val dto = StyleDto()
 
-        val style = dto.toStyle(customerId = "c1")
+        val style = dto.toStyle(StyleLocation.CustomerCloset("c1"))
 
         assertEquals("", style.id)
         assertEquals("c1", style.customerId)
@@ -128,7 +129,7 @@ class StyleMapperTest {
             updatedAt = 1_700_000_100_000L,
         )
 
-        val roundTripped = original.toStyle(customerId = "c1").toStyleDto()
+        val roundTripped = original.toStyle(StyleLocation.CustomerCloset("c1")).toStyleDto()
 
         assertEquals(original.id, roundTripped.id)
         assertEquals(original.description, roundTripped.description)

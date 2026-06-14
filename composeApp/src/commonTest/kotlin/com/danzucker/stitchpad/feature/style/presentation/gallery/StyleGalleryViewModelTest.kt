@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -90,7 +91,8 @@ class StyleGalleryViewModelTest {
     // --- Observe styles ---
 
     @Test
-    fun missingCustomerId_navigatesBack_withoutLoading() = runTest {
+    fun missingCustomerId_usesInspirationLocation_withoutNavigatingBack() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = StyleGalleryViewModel(
             savedStateHandle = SavedStateHandle(),
             styleRepository = styleRepository,
@@ -99,8 +101,8 @@ class StyleGalleryViewModelTest {
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
-        assertIs<StyleGalleryEvent.NavigateBack>(vm.events.first())
         assertFalse(vm.state.value.isLoading)
+        assertTrue(vm.state.value.styles.isEmpty())
     }
 
     @Test
@@ -290,7 +292,10 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
 
-        assertEquals(Triple("customer-1", "s1", "customer-2"), styleRepository.lastCopied)
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2")),
+            styleRepository.lastCopied,
+        )
         val event = vm.events.first()
         assertIs<StyleGalleryEvent.StyleTransferred>(event)
         assertEquals(StyleTransferMode.COPY, event.mode)
@@ -312,7 +317,10 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
 
-        assertEquals(Triple("customer-1", "s1", "customer-2"), styleRepository.lastMoved)
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2")),
+            styleRepository.lastMoved,
+        )
         assertIs<StyleGalleryEvent.StyleTransferred>(vm.events.first())
     }
 

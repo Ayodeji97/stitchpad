@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -29,6 +30,9 @@ class StyleGalleryViewModel(
 
     private val customerId: String? = savedStateHandle["customerId"]
 
+    private val location: StyleLocation =
+        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration
+
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(StyleGalleryState())
 
@@ -39,11 +43,6 @@ class StyleGalleryViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
-                if (customerId == null) {
-                    _state.update { it.copy(isLoading = false) }
-                    _events.send(StyleGalleryEvent.NavigateBack)
-                    return@onStart
-                }
                 observeStyles()
             }
         }
@@ -98,7 +97,6 @@ class StyleGalleryViewModel(
 
     private fun openTransfer(mode: StyleTransferMode) {
         val style = _state.value.actionSheetStyle ?: return
-        val currentCustomerId = customerId ?: return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             // Other ACTIVE customers only — you can't add to a locked customer, and
@@ -106,7 +104,7 @@ class StyleGalleryViewModel(
             val targets = when (val result = customerRepository.observeCustomers(userId).first()) {
                 is Result.Success ->
                     result.data
-                        .filter { it.id != currentCustomerId && it.slotState == CustomerSlotState.ACTIVE }
+                        .filter { it.id != customerId && it.slotState == CustomerSlotState.ACTIVE }
                         .map { TransferTarget(id = it.id, name = it.name) }
                 is Result.Error -> emptyList()
             }
@@ -122,16 +120,25 @@ class StyleGalleryViewModel(
     @Suppress("ReturnCount")
     private fun transferTo(targetCustomerId: String) {
         val transfer = _state.value.transfer ?: return
-        val fromCustomerId = customerId ?: return
         val targetName = transfer.targets.firstOrNull { it.id == targetCustomerId }?.name ?: return
         _state.update { it.copy(transfer = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = when (transfer.mode) {
                 StyleTransferMode.COPY ->
-                    styleRepository.copyStyle(userId, fromCustomerId, transfer.style, targetCustomerId)
+                    styleRepository.copyStyle(
+                        userId,
+                        from = location,
+                        transfer.style,
+                        to = StyleLocation.CustomerCloset(targetCustomerId),
+                    )
                 StyleTransferMode.MOVE ->
-                    styleRepository.moveStyle(userId, fromCustomerId, transfer.style, targetCustomerId)
+                    styleRepository.moveStyle(
+                        userId,
+                        from = location,
+                        transfer.style,
+                        to = StyleLocation.CustomerCloset(targetCustomerId),
+                    )
             }
             when (result) {
                 is Result.Success ->
@@ -149,13 +156,12 @@ class StyleGalleryViewModel(
     }
 
     private fun observeStyles() {
-        val customerId = customerId ?: return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            styleRepository.observeStyles(userId, customerId).collect { result ->
+            styleRepository.observeStyles(userId, location).collect { result ->
                 when (result) {
                     is Result.Success -> _state.update {
                         it.copy(styles = result.data, isLoading = false)
@@ -174,7 +180,7 @@ class StyleGalleryViewModel(
         _state.update { it.copy(showDeleteDialog = false, styleToDelete = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.deleteStyle(userId, customerId, style)
+            val result = styleRepository.deleteStyle(userId, StyleLocation.CustomerCloset(customerId), style)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
