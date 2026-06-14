@@ -10,6 +10,7 @@ sealed interface StyleGalleryAction {
     data object OnCopyClick : StyleGalleryAction
     data object OnMoveClick : StyleGalleryAction
     data class OnTargetCustomerSelected(val customerId: String) : StyleGalleryAction
+    data class OnDestinationFolderSelected(val folderId: String?) : StyleGalleryAction
     data object OnDismissTransfer : StyleGalleryAction
     data class OnDeleteClick(val style: Style) : StyleGalleryAction
     data object OnConfirmDelete : StyleGalleryAction

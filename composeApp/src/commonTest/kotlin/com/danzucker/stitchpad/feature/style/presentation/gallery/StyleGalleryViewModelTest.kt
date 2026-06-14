@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
@@ -513,6 +514,106 @@ class StyleGalleryViewModelTest {
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         assertTrue(vm.state.value.isInspirationGallery)
+    }
+
+    // --- Destination-folder picker (paid path) ---
+
+    @Test
+    fun transferToPaidTarget_showsDestinationFolders() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // Seed one named folder in the destination customer's closet.
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        // Seed 1 style in the default location and 0 in the named folder.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
+            listOf(fakeStyle(id = "dest-default"))
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+
+        // PRO tier — forCustomer(PRO): foldersEnabled=true, maxImagesPerFolder=3
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        val transfer = vm.state.value.transfer
+        assertNotNull(transfer)
+        val folders = transfer.destinationFolders
+        assertNotNull(folders)
+        assertEquals(2, folders.size)
+        // First option = default (folderId null)
+        assertNull(folders[0].folderId)
+        assertEquals(1, folders[0].count)
+        assertEquals(3, folders[0].cap)
+        // Second option = named "Wedding"
+        assertEquals("f1", folders[1].folderId)
+        assertEquals("Wedding", folders[1].name)
+        assertEquals(0, folders[1].count)
+        // Transfer is NOT performed yet — no copy happened.
+        assertNull(styleRepository.lastCopied)
+    }
+
+    @Test
+    fun onDestinationFolderSelected_named_copiesToThatFolder() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
+
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2", "f1")),
+            styleRepository.lastCopied,
+        )
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.StyleTransferred>(event)
+        assertEquals("f1", event.destinationFolderId)
+        assertNull(vm.state.value.transfer)
+    }
+
+    @Test
+    fun onDestinationFolderSelected_fullFolder_emitsCapReached_noCopy() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
+        // PRO forCustomer: maxImagesPerFolder = 3 — fill the named folder to cap.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] =
+            List(3) { fakeStyle(id = "dst-$it") }
+
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.CapReached>(event)
+        assertEquals(3, event.cap)
+        assertNull(styleRepository.lastCopied)
     }
 
     // --- Error dismiss ---

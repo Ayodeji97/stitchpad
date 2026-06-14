@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.style.presentation.gallery
 
 import androidx.compose.foundation.background
@@ -23,8 +25,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -86,11 +90,13 @@ import stitchpad.composeapp.generated.resources.style_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_empty_title
 import stitchpad.composeapp.generated.resources.style_folder_full_action
 import stitchpad.composeapp.generated.resources.style_folder_full_snackbar
+import stitchpad.composeapp.generated.resources.style_folders_default_name
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_title
 import stitchpad.composeapp.generated.resources.style_inspiration_title
 import stitchpad.composeapp.generated.resources.style_moved_snackbar
+import stitchpad.composeapp.generated.resources.style_transfer_choose_folder
 import stitchpad.composeapp.generated.resources.style_transfer_copy_title
 import stitchpad.composeapp.generated.resources.style_transfer_empty
 import stitchpad.composeapp.generated.resources.style_transfer_move_title
@@ -101,7 +107,7 @@ fun StyleGalleryRoot(
     onNavigateBack: () -> Unit,
     onNavigateToAddStyle: (String?, String?) -> Unit,
     onNavigateToEditStyle: (String?, String?, String) -> Unit,
-    onNavigateToStyleGallery: (String?) -> Unit,
+    onNavigateToStyleGallery: (customerId: String?, folderId: String?) -> Unit,
     onNavigateToUpgrade: () -> Unit,
 ) {
     val viewModel: StyleGalleryViewModel = koinViewModel()
@@ -128,7 +134,7 @@ fun StyleGalleryRoot(
                     StyleTransferMode.MOVE -> Res.string.style_moved_snackbar
                 }
                 // Longer snackbar + a "View" action that jumps to the target
-                // customer's closet so the user can confirm the transfer landed.
+                // customer's closet (and folder) so the user can confirm the transfer landed.
                 val result = snackbarHostState.showSnackbar(
                     message = getString(template, targetName),
                     actionLabel = viewActionLabel,
@@ -136,7 +142,7 @@ fun StyleGalleryRoot(
                 )
                 if (result == SnackbarResult.ActionPerformed) {
                     val targetCustomerId = (event.target as? TransferTarget.Customer)?.customerId
-                    onNavigateToStyleGallery(targetCustomerId)
+                    onNavigateToStyleGallery(targetCustomerId, event.destinationFolderId)
                 }
             }
             is StyleGalleryEvent.CapReached -> scope.launch {
@@ -318,7 +324,8 @@ fun StyleGalleryScreen(
     state.transfer?.let { transfer ->
         CustomerPickerSheet(
             transfer = transfer,
-            onSelect = { onAction(StyleGalleryAction.OnTargetCustomerSelected(it)) },
+            onSelectTarget = { onAction(StyleGalleryAction.OnTargetCustomerSelected(it)) },
+            onSelectFolder = { onAction(StyleGalleryAction.OnDestinationFolderSelected(it)) },
             onDismiss = { onAction(StyleGalleryAction.OnDismissTransfer) }
         )
     }
@@ -377,11 +384,13 @@ private fun SheetActionRow(
     }
 }
 
+@Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomerPickerSheet(
     transfer: StyleTransfer,
-    onSelect: (String) -> Unit,
+    onSelectTarget: (String) -> Unit,
+    onSelectFolder: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -389,54 +398,108 @@ private fun CustomerPickerSheet(
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(modifier = Modifier.padding(bottom = DesignTokens.space6)) {
-            Text(
-                text = stringResource(
-                    when (transfer.mode) {
-                        StyleTransferMode.COPY -> Res.string.style_transfer_copy_title
-                        StyleTransferMode.MOVE -> Res.string.style_transfer_move_title
-                    }
-                ),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(
-                    horizontal = DesignTokens.space5,
-                    vertical = DesignTokens.space3
-                )
-            )
-            if (transfer.targets.isEmpty()) {
+            val destinationFolders = transfer.destinationFolders
+            if (destinationFolders == null) {
+                // Step 1: pick a destination target (customer / Inspiration).
                 Text(
-                    text = stringResource(Res.string.style_transfer_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = stringResource(
+                        when (transfer.mode) {
+                            StyleTransferMode.COPY -> Res.string.style_transfer_copy_title
+                            StyleTransferMode.MOVE -> Res.string.style_transfer_move_title
+                        }
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(
                         horizontal = DesignTokens.space5,
-                        vertical = DesignTokens.space4
+                        vertical = DesignTokens.space3
                     )
                 )
+                if (transfer.targets.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.style_transfer_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(
+                            horizontal = DesignTokens.space5,
+                            vertical = DesignTokens.space4
+                        )
+                    )
+                } else {
+                    transfer.targets.forEach { target ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectTarget(target.id) }
+                                .padding(horizontal = DesignTokens.space5, vertical = DesignTokens.space3)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Text(
+                                text = transferTargetName(
+                                    target,
+                                    stringResource(Res.string.style_inspiration_title),
+                                ),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
             } else {
-                transfer.targets.forEach { target ->
+                // Step 2: pick a destination folder inside the chosen target.
+                Text(
+                    text = stringResource(Res.string.style_transfer_choose_folder),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(
+                        horizontal = DesignTokens.space5,
+                        vertical = DesignTokens.space3
+                    )
+                )
+                val defaultFolderName = stringResource(Res.string.style_folders_default_name)
+                destinationFolders.forEach { option ->
+                    val isDefault = option.folderId == null
+                    val label = if (isDefault) defaultFolderName else option.name.orEmpty()
+                    val contentAlpha = if (option.isFull) 0.38f else 1f
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelect(target.id) }
+                            .then(
+                                if (!option.isFull) {
+                                    Modifier.clickable { onSelectFolder(option.folderId) }
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .padding(horizontal = DesignTokens.space5, vertical = DesignTokens.space3)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person,
+                            imageVector = if (isDefault) Icons.Default.Star else Icons.Default.Folder,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = contentAlpha),
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
-                            text = transferTargetName(
-                                target,
-                                stringResource(Res.string.style_inspiration_title),
-                            ),
+                            text = label,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "${option.count}/${option.cap}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)
                         )
                     }
                 }

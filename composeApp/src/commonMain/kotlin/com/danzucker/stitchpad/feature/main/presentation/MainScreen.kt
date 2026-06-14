@@ -300,8 +300,8 @@ private fun MainNavGraph(
                         StyleFormRoute(customerId = customerId, folderId = folderId, styleId = styleId)
                     )
                 },
-                onNavigateToStyleGallery = { customerId ->
-                    navController.navigate(StyleGalleryRoute(customerId = customerId))
+                onNavigateToStyleGallery = { customerId, folderId ->
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId))
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )

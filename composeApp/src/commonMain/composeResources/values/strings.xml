@@ -473,6 +473,7 @@
     <string name="style_copied_snackbar">Copied to %1$s</string>
     <string name="style_moved_snackbar">Moved to %1$s</string>
     <string name="style_transfer_view_cta">View</string>
+    <string name="style_transfer_choose_folder">Choose a folder</string>
 
     <!-- Style Collections — folders grid -->
     <string name="style_folders_default_name">My styles</string>
