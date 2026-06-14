@@ -17,6 +17,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -149,15 +150,19 @@ class StyleFoldersViewModel(
         if (name.isBlank()) return
         _state.update { it.copy(showCreateSheet = false) }
         viewModelScope.launch {
-            // Re-check the cap at confirm time: the FAB can be tapped while the grid
-            // is still loading (namedFolderCount == 0), so the live count may have
-            // arrived between opening the sheet and confirming.
             val limits = resolveLimits()
-            if (atFolderCap(limits)) {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            // Re-read the AUTHORITATIVE folder count at confirm time. The FAB is
+            // tappable while the grid is still loading (state.namedFolderCount == 0),
+            // so the cached state can be stale; fetch the live count before creating.
+            val liveCount = when (val r = styleRepository.observeFolders(userId, rootLocation).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> _state.value.namedFolderCount
+            }
+            if (liveCount + 1 >= limits.maxFolders) {
                 _events.send(StyleFoldersEvent.NavigateToUpgrade)
                 return@launch
             }
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = styleRepository.createFolder(userId, rootLocation, name)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
