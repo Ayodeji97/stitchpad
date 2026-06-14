@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
@@ -26,10 +27,13 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -416,15 +420,39 @@ class OrderFormViewModel(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadCustomerData(customerId: String) {
         val uid = userId ?: return
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            styleRepository.observeStyles(uid, StyleLocation.CustomerCloset(customerId)).collect { result ->
-                if (result is Result.Success) {
-                    _state.update { it.copy(availableStyles = result.data) }
+            styleRepository.observeFolders(uid, StyleLocation.CustomerCloset(customerId))
+                .flatMapLatest { foldersResult ->
+                    val folderIds = (foldersResult as? Result.Success)?.data?.map { it.id }
+                        ?: emptyList()
+                    val styleFlows = buildList {
+                        add(
+                            styleRepository.observeStyles(
+                                uid,
+                                StyleLocation.CustomerCloset(customerId, folderId = null),
+                            )
+                        )
+                        folderIds.forEach { fid ->
+                            add(
+                                styleRepository.observeStyles(
+                                    uid,
+                                    StyleLocation.CustomerCloset(customerId, folderId = fid),
+                                )
+                            )
+                        }
+                    }
+                    combine(styleFlows) { results ->
+                        results.filterIsInstance<Result.Success<List<Style>>>()
+                            .flatMap { it.data }
+                    }
                 }
-            }
+                .collect { styles ->
+                    _state.update { it.copy(availableStyles = styles) }
+                }
         }
         measurementJob?.cancel()
         measurementJob = viewModelScope.launch {

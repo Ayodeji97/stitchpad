@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -17,6 +18,9 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
@@ -530,6 +534,50 @@ class OrderFormViewModelTest {
         val item = vm.state.value.items.first()
         assertEquals(1, item.uploadedStyleBytesList.size)
         assertEquals(photoBytes.size, item.uploadedStyleBytesList.single().size)
+    }
+
+    // ─── Style picker — folder flattening ───────────────────────────────────
+
+    @Test
+    fun availableStyles_includesStylesInsideNamedFolders() = runTest {
+        val cid = testCustomer.id
+        val defaultStyle = Style(
+            id = "style-default",
+            customerId = cid,
+            description = "Default style",
+            photoUrl = "https://example.com/default.jpg",
+            photoStoragePath = "users/user-1/styles/style-default",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val folderStyle = Style(
+            id = "style-in-folder",
+            customerId = cid,
+            description = "Folder style",
+            photoUrl = "https://example.com/folder.jpg",
+            photoStoragePath = "users/user-1/styles/style-in-folder",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val folder = StyleFolder(id = "f1", name = "Evening Wear", createdAt = 0L, updatedAt = 0L)
+
+        // Seed folders for the customer's closet (parent location, folderId=null).
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(folder)
+        // Seed per-location styles.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(defaultStyle)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = "f1")] =
+            listOf(folderStyle)
+
+        val vm = createViewModel(orderId = null)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+
+        val ids = vm.state.value.availableStyles.map { it.id }
+        assertTrue(ids.contains("style-default"), "default-folder style must be visible")
+        assertTrue(ids.contains("style-in-folder"), "named-folder style must be visible")
     }
 
     private companion object {

@@ -31,12 +31,19 @@ class FakeStyleRepository : StyleRepository {
     var lastRenamedFolder: Pair<String, String>? = null  // (folderId, newName)
     var lastDeletedFolderId: String? = null
 
+    /**
+     * Per-location style overrides. When a [StyleLocation] key is present here,
+     * [observeStyles] returns those styles instead of [stylesList]. This allows
+     * tests to seed styles at specific locations (e.g. inside a named folder).
+     */
+    val stylesByLocation: MutableMap<StyleLocation, List<Style>> = mutableMapOf()
+
     override fun observeStyles(
         userId: String,
         location: StyleLocation,
     ): Flow<Result<List<Style>, DataError.Network>> =
         observeError?.let { flowOf(Result.Error(it)) }
-            ?: flowOf(Result.Success(stylesList))
+            ?: flowOf(Result.Success(stylesByLocation[location] ?: stylesList))
 
     var lastCreatedStyleId: String = "fake-style-id"
 
@@ -111,12 +118,18 @@ class FakeStyleRepository : StyleRepository {
         return Result.Success(Unit)
     }
 
+    /**
+     * Per-location folder overrides. When a [StyleLocation] key is present here,
+     * [observeFolders] returns those folders instead of [folders].
+     */
+    val foldersByLocation: MutableMap<StyleLocation, List<StyleFolder>> = mutableMapOf()
+
     override fun observeFolders(
         userId: String,
         location: StyleLocation,
     ): Flow<Result<List<StyleFolder>, DataError.Network>> =
         observeError?.let { flowOf(Result.Error(it)) }
-            ?: flowOf(Result.Success(folders))
+            ?: flowOf(Result.Success(foldersByLocation[location] ?: folders))
 
     override suspend fun createFolder(
         userId: String,
