@@ -59,7 +59,7 @@ class StyleFoldersViewModel(
                 // flat default gallery — no folder UI shown.
                 if (!limits.foldersEnabled) {
                     viewModelScope.launch {
-                        _events.send(StyleFoldersEvent.NavigateToFolder(customerId, null))
+                        _events.send(StyleFoldersEvent.RedirectToFlatGallery(customerId))
                     }
                 } else {
                     observeFolders()

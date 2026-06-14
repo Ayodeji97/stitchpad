@@ -96,18 +96,17 @@ class StyleFoldersViewModelTest {
     }
 
     // ---------------------------------------------------------------------------
-    // Free-user bypass: foldersEnabled=false → immediately NavigateToFolder
+    // Free-user bypass: foldersEnabled=false → immediately RedirectToFlatGallery
     // ---------------------------------------------------------------------------
 
     @Test
-    fun freeUser_inspiration_immediatelyNavigatesToDefaultFolder() = runTest {
+    fun freeUser_inspiration_immediatelyRedirectsToFlatGallery() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
 
         val event = vm.events.first()
-        assertIs<StyleFoldersEvent.NavigateToFolder>(event)
+        assertIs<StyleFoldersEvent.RedirectToFlatGallery>(event)
         assertNull(event.customerId)
-        assertNull(event.folderId)
     }
 
     // ---------------------------------------------------------------------------

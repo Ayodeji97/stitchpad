@@ -96,6 +96,7 @@ import stitchpad.composeapp.generated.resources.style_inspiration_title
 fun StyleFoldersRoot(
     onNavigateBack: () -> Unit,
     onNavigateToFolder: (customerId: String?, folderId: String?) -> Unit,
+    onRedirectToFlatGallery: (customerId: String?) -> Unit,
     onNavigateToUpgrade: () -> Unit,
 ) {
     val viewModel: StyleFoldersViewModel = koinViewModel()
@@ -106,6 +107,7 @@ fun StyleFoldersRoot(
         when (event) {
             StyleFoldersEvent.NavigateBack -> onNavigateBack()
             is StyleFoldersEvent.NavigateToFolder -> onNavigateToFolder(event.customerId, event.folderId)
+            is StyleFoldersEvent.RedirectToFlatGallery -> onRedirectToFlatGallery(event.customerId)
             StyleFoldersEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Style Collections folder grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet" />
+<style>
+:root{
+  --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo400:#5871B8; --indigo500:#2C3E7C; --indigo700:#1E2B5C; --indigo900:#121B3B;
+  --sienna500:#B85A30; --saffron:#E8A800;
+  --paper:#FAF6EC; --white:#FFFFFF; --ink:#14110E; --darkSurf:#1E1C1A; --darkSurf2:#2A2825;
+  --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320; --n900:#14110E;
+  --serif:'Fraunces',Georgia,serif; --body:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:#EDEAE0;font-family:var(--body);color:var(--n800);padding:40px 28px 90px;}
+.page-head{max-width:1320px;margin:0 auto 26px;}
+.page-head h1{font-family:var(--serif);font-weight:600;font-size:29px;color:var(--indigo900);letter-spacing:-.3px;}
+.page-head p{color:var(--n600);font-size:15px;margin-top:8px;max-width:860px;line-height:1.6;}
+.page-head p b{color:var(--n800);}
+.grid{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1320px;margin:0 auto;}
+.col{width:392px;}
+.col-tag{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+.col-tag b{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--indigo700);}
+.col-tag .k{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--n400);text-transform:uppercase;}
+.col-desc{font-size:12.5px;color:var(--n600);line-height:1.5;margin-bottom:14px;min-height:54px;}
+
+.phone{width:392px;border-radius:42px;background:#0f0e0d;padding:11px;box-shadow:0 28px 60px -24px rgba(18,17,16,.45),0 4px 14px rgba(18,17,16,.12);}
+.screen{border-radius:32px;overflow:hidden;background:var(--ink);height:830px;display:flex;flex-direction:column;position:relative;}
+.statusbar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13.5px;font-weight:700;color:#EDEAE2;flex:0 0 auto;}
+.ms{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;line-height:1;display:inline-block;}
+.appbar{display:flex;align-items:center;gap:10px;padding:6px 18px 6px;flex:0 0 auto;}
+.appbar .back{width:38px;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#EDEAE2;}
+.appbar .back .ms{font-size:24px;}
+.appbar .title{font-family:var(--serif);font-weight:600;font-size:24px;color:#F4F1EA;letter-spacing:-.3px;flex:1;}
+.appbar .meta{font-size:11.5px;font-weight:700;color:var(--n400);}
+.body{flex:1;overflow:hidden;padding:6px 16px 16px;}
+
+.fab{position:absolute;right:20px;bottom:22px;width:56px;height:56px;border-radius:18px;background:var(--indigo400);color:#0f0e0d;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -8px rgba(88,113,184,.7);}
+.fab .ms{font-size:28px;}
+
+/* photo fills */
+.f1{background:linear-gradient(135deg,#b6794f,#8a5230);} .f2{background:linear-gradient(135deg,#5b6fa3,#34406b);}
+.f3{background:linear-gradient(135deg,#a8556f,#6e2f45);} .f4{background:linear-gradient(135deg,#5f8e74,#2f5a45);}
+.f5{background:linear-gradient(135deg,#9a7bb5,#5b4d8e);} .fd{background:repeating-linear-gradient(45deg,#2A2825,#2A2825 8px,#252320 8px,#252320 16px);}
+
+/* ===== A — cards, name below (Material) ===== */
+.A .gr{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.A .card{background:var(--darkSurf);border:1px solid var(--darkSurf2);border-radius:16px;overflow:hidden;}
+.A .cov{aspect-ratio:1;position:relative;}
+.A .cov .cnt{position:absolute;top:8px;right:8px;background:rgba(15,14,13,.66);color:#fff;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;}
+.A .cov .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--n500);}
+.A .cov .empty .ms{font-size:30px;}
+.A .lab{padding:10px 12px;display:flex;align-items:center;gap:6px;}
+.A .lab .ms{font-size:15px;color:var(--n400);}
+.A .lab .nm{font-size:13.5px;font-weight:700;color:#EDEAE2;flex:1;}
+.A .lab .star{color:var(--saffron);font-size:14px;}
+
+/* ===== B — cards, name overlaid (iOS Photos) ===== */
+.B .gr{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.B .card{aspect-ratio:1;border-radius:16px;overflow:hidden;position:relative;border:1px solid var(--darkSurf2);}
+.B .card .scrim{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,9,8,.78) 0%,rgba(10,9,8,.05) 48%);}
+.B .card .nm{position:absolute;left:11px;right:11px;bottom:9px;}
+.B .card .nm .t{font-size:14.5px;font-weight:800;color:#fff;}
+.B .card .nm .c{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.8);margin-top:1px;}
+.B .card .star{position:absolute;top:9px;left:11px;color:var(--saffron);font-size:16px;}
+.B .card .empty{position:absolute;inset:0;background:var(--darkSurf);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--n500);}
+.B .card .empty .ms{font-size:30px;}
+
+/* ===== C — list rows ===== */
+.C .row{display:flex;align-items:center;gap:13px;padding:11px 4px;}
+.C .row+.row{border-top:1px solid var(--darkSurf2);}
+.C .th{width:54px;height:54px;border-radius:12px;flex:0 0 auto;position:relative;overflow:hidden;}
+.C .th .fi{position:absolute;right:4px;bottom:4px;color:#fff;font-size:14px;opacity:.9;}
+.C .th.empty{background:var(--darkSurf2);display:flex;align-items:center;justify-content:center;color:var(--n500);}
+.C .tt{flex:1;}
+.C .tt .nm{font-size:15px;font-weight:700;color:#EDEAE2;display:flex;align-items:center;gap:6px;}
+.C .tt .nm .star{color:var(--saffron);font-size:14px;}
+.C .tt .c{font-size:12px;color:var(--n400);margin-top:2px;font-family:var(--mono);}
+.C .ch{color:var(--n500);}.C .ch .ms{font-size:22px;}
+
+.note{max-width:1320px;margin:28px auto 0;background:var(--white);border:1px solid var(--n200);border-radius:14px;padding:16px 20px;font-size:13.5px;color:var(--n700);line-height:1.6;}
+.note b{color:var(--indigo700);}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>Style Collections — folder grid</h1>
+  <p>The screen a paid user sees when opening Inspiration (or a customer's closet). Three treatments of the same folders. The <b>"My styles"</b> default folder (saffron star) is pinned first; the "+" FAB creates a new folder. Top-right shows the folder count vs cap. Dark mode shown.</p>
+</div>
+
+<div class="grid">
+
+  <!-- A -->
+  <div class="col">
+    <div class="col-tag"><b>A · Cards, name below</b><span class="k">material</span></div>
+    <div class="col-desc">Square cover + a label strip below (folder icon, name, count badge on the cover). Clean, names always legible, matches the app's existing card style.</div>
+    <div class="phone"><div class="screen A">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="back"><i class="ms">arrow_back</i></div><div class="title">Inspiration</div><div class="meta">3 / 10</div></div>
+      <div class="body"><div class="gr">
+        <div class="card"><div class="cov f1"><span class="cnt">8</span></div><div class="lab"><span class="star ms">star</span><span class="nm">My styles</span></div></div>
+        <div class="card"><div class="cov f3"><span class="cnt">6</span></div><div class="lab"><i class="ms">folder</i><span class="nm">Corset</span></div></div>
+        <div class="card"><div class="cov f4"><span class="cnt">4</span></div><div class="lab"><i class="ms">folder</i><span class="nm">Agbada</span></div></div>
+        <div class="card"><div class="cov fd"><span class="empty"><i class="ms">add_photo_alternate</i></span></div><div class="lab"><i class="ms">folder</i><span class="nm">Blouse</span></div></div>
+      </div></div>
+      <div class="fab"><i class="ms">create_new_folder</i></div>
+    </div></div>
+  </div>
+
+  <!-- B -->
+  <div class="col">
+    <div class="col-tag"><b>B · Cards, name overlaid</b><span class="k">photos-style</span></div>
+    <div class="col-desc">Name + count sit on the cover image with a gradient scrim, like iOS Photos albums. More image, more premium feel; long names need truncation.</div>
+    <div class="phone"><div class="screen B">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="back"><i class="ms">arrow_back</i></div><div class="title">Inspiration</div><div class="meta">3 / 10</div></div>
+      <div class="body"><div class="gr">
+        <div class="card f1"><div class="scrim"></div><span class="star ms">star</span><div class="nm"><div class="t">My styles</div><div class="c">8</div></div></div>
+        <div class="card f3"><div class="scrim"></div><div class="nm"><div class="t">Corset</div><div class="c">6</div></div></div>
+        <div class="card f4"><div class="scrim"></div><div class="nm"><div class="t">Agbada</div><div class="c">4</div></div></div>
+        <div class="card"><div class="empty"><i class="ms">add_photo_alternate</i><span style="font-size:13px;font-weight:700;color:#EDEAE2;">Blouse</span><span style="font-size:11px;font-family:var(--mono);color:var(--n500);">0</span></div></div>
+      </div></div>
+      <div class="fab"><i class="ms">create_new_folder</i></div>
+    </div></div>
+  </div>
+
+  <!-- C -->
+  <div class="col">
+    <div class="col-tag"><b>C · List rows</b><span class="k">compact</span></div>
+    <div class="col-desc">A vertical list: thumbnail + name + count + chevron. Densest, fastest to scan many folders, but the least visual / showcases less.</div>
+    <div class="phone"><div class="screen C">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar"><div class="back"><i class="ms">arrow_back</i></div><div class="title">Inspiration</div><div class="meta">3 / 10</div></div>
+      <div class="body">
+        <div class="row"><div class="th f1"><i class="ms fi">photo_library</i></div><div class="tt"><div class="nm"><span class="star ms">star</span>My styles</div><div class="c">8 styles</div></div><div class="ch"><i class="ms">chevron_right</i></div></div>
+        <div class="row"><div class="th f3"></div><div class="tt"><div class="nm">Corset</div><div class="c">6 styles</div></div><div class="ch"><i class="ms">chevron_right</i></div></div>
+        <div class="row"><div class="th f4"></div><div class="tt"><div class="nm">Agbada</div><div class="c">4 styles</div></div><div class="ch"><i class="ms">chevron_right</i></div></div>
+        <div class="row"><div class="th empty"><i class="ms">folder</i></div><div class="tt"><div class="nm">Blouse</div><div class="c">0 styles</div></div><div class="ch"><i class="ms">chevron_right</i></div></div>
+      </div>
+      <div class="fab"><i class="ms">create_new_folder</i></div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="note">
+  <b>Recommendation: A · Cards, name below.</b> Names stay legible even on busy or empty covers, it reuses the app's existing card styling, and the count badge reads cleanly. <b>B</b> is the most premium/showy but risks unreadable names over busy photos and needs truncation. <b>C</b> is best only if tailors will have many folders to scan. The default "My styles" folder is pinned first with a saffron star in all three; the "+" creates a folder (blocked with an upgrade nudge at the cap). All three open into the existing styles grid scoped to that folder.
+</div>
+
+</body>
+</html>

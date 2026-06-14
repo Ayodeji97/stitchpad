@@ -272,12 +272,17 @@ private fun MainNavGraph(
             StyleFoldersRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToFolder = { customerId, folderId ->
+                    // A folder tap (named folder or the "My styles" default) is a plain
+                    // push — Back returns to the folders grid.
                     navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId)) {
-                        // Free users are immediately forwarded here (no folder UI).
-                        // Pop the folders screen so back doesn't loop back to it.
-                        if (folderId == null) {
-                            popUpTo<StyleFoldersRoute> { inclusive = true }
-                        }
+                        launchSingleTop = true
+                    }
+                },
+                onRedirectToFlatGallery = { customerId ->
+                    // Free users never see the folders grid — replace it in the back stack
+                    // so Back doesn't loop back to it.
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = null)) {
+                        popUpTo<StyleFoldersRoute> { inclusive = true }
                         launchSingleTop = true
                     }
                 },
