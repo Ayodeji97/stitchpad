@@ -294,6 +294,7 @@ class StyleGalleryViewModelTest {
         val event = vm.events.first()
         assertIs<StyleGalleryEvent.StyleTransferred>(event)
         assertEquals(StyleTransferMode.COPY, event.mode)
+        assertEquals("customer-2", event.targetCustomerId)
         assertEquals("Bisi", event.targetName)
         assertNull(vm.state.value.transfer)
     }

@@ -135,7 +135,13 @@ class StyleGalleryViewModel(
             }
             when (result) {
                 is Result.Success ->
-                    _events.send(StyleGalleryEvent.StyleTransferred(transfer.mode, targetName))
+                    _events.send(
+                        StyleGalleryEvent.StyleTransferred(
+                            mode = transfer.mode,
+                            targetCustomerId = targetCustomerId,
+                            targetName = targetName,
+                        )
+                    )
                 is Result.Error ->
                     _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }

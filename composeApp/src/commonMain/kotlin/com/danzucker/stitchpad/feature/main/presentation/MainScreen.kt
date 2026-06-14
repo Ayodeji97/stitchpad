@@ -274,6 +274,9 @@ private fun MainNavGraph(
                 },
                 onNavigateToEditStyle = { customerId, styleId ->
                     navController.navigate(StyleFormRoute(customerId = customerId, styleId = styleId))
+                },
+                onNavigateToCustomerCloset = { customerId ->
+                    navController.navigate(StyleGalleryRoute(customerId = customerId))
                 }
             )
         }

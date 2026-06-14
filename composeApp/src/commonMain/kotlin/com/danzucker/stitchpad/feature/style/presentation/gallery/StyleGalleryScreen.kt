@@ -37,8 +37,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -87,17 +89,20 @@ import stitchpad.composeapp.generated.resources.style_moved_snackbar
 import stitchpad.composeapp.generated.resources.style_transfer_copy_title
 import stitchpad.composeapp.generated.resources.style_transfer_empty
 import stitchpad.composeapp.generated.resources.style_transfer_move_title
+import stitchpad.composeapp.generated.resources.style_transfer_view_cta
 
 @Composable
 fun StyleGalleryRoot(
     onNavigateBack: () -> Unit,
     onNavigateToAddStyle: (String) -> Unit,
-    onNavigateToEditStyle: (String, String) -> Unit
+    onNavigateToEditStyle: (String, String) -> Unit,
+    onNavigateToCustomerCloset: (String) -> Unit
 ) {
     val viewModel: StyleGalleryViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val viewActionLabel = stringResource(Res.string.style_transfer_view_cta)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -109,7 +114,16 @@ fun StyleGalleryRoot(
                     StyleTransferMode.COPY -> Res.string.style_copied_snackbar
                     StyleTransferMode.MOVE -> Res.string.style_moved_snackbar
                 }
-                snackbarHostState.showSnackbar(getString(template, event.targetName))
+                // Longer snackbar + a "View" action that jumps to the target
+                // customer's closet so the user can confirm the transfer landed.
+                val result = snackbarHostState.showSnackbar(
+                    message = getString(template, event.targetName),
+                    actionLabel = viewActionLabel,
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onNavigateToCustomerCloset(event.targetCustomerId)
+                }
             }
         }
     }
