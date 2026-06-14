@@ -305,6 +305,10 @@ export async function paystackWebhookHandler(
       subscriptionStatus: 'active',
       subscriptionEndsAt: admin.firestore.Timestamp.fromDate(subscriptionEndsAt),
       subscriptionRenews: false,
+      // Mark provenance so a later, delayed Apple EXPIRED/REFUND for an OLD Apple
+      // subscription can't clobber this Paystack grant (the Apple downgrade guard
+      // in appleBilling.ts only clears the doc when subscriptionSource is 'apple').
+      subscriptionSource: 'paystack',
       updatedAt: nowTs,
     }, { merge: true });
     tx.set(billingRef, {
