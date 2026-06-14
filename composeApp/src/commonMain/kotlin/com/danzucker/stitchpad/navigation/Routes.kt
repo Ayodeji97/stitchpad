@@ -8,6 +8,15 @@ data object SplashRoute
 @Serializable
 data object OnboardingRoute
 
+/**
+ * Logged-out video landing — the single unauthenticated entry point. Reached after
+ * the onboarding slides on a fresh install, and directly from Splash / on sign-out
+ * for returning users. [LoginRoute] is now only reached from here ("Sign in"), the
+ * Sign Up "Log in" link, Forgot Password, and the debug menu.
+ */
+@Serializable
+data object WelcomeRoute
+
 @Serializable
 data object LoginRoute
 
