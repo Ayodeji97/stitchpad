@@ -1,13 +1,17 @@
 package com.danzucker.stitchpad.feature.style.data
 
 import com.danzucker.stitchpad.core.data.dto.StyleDto
+import com.danzucker.stitchpad.core.data.dto.StyleFolderDto
+import com.danzucker.stitchpad.core.data.mapper.toDto
 import com.danzucker.stitchpad.core.data.mapper.toStyle
 import com.danzucker.stitchpad.core.data.mapper.toStyleDto
+import com.danzucker.stitchpad.core.data.mapper.toStyleFolder
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -24,6 +28,7 @@ import kotlin.time.Clock
 
 private const val TAG = "StyleRepo"
 
+@Suppress("TooManyFunctions")
 class FirebaseStyleRepository(
     private val firestore: FirebaseFirestore,
     private val offlineWrites: OfflineWriteDispatcher,
@@ -32,20 +37,55 @@ class FirebaseStyleRepository(
 ) : StyleRepository {
 
     private fun collectionFor(userId: String, location: StyleLocation) = when (location) {
-        is StyleLocation.CustomerCloset ->
-            firestore.collection("users").document(userId)
+        is StyleLocation.CustomerCloset -> {
+            val base = firestore.collection("users").document(userId)
                 .collection("customers").document(location.customerId)
-                .collection("styles")
-        is StyleLocation.Inspiration ->
-            firestore.collection("users").document(userId).collection("inspiration")
+            val fid = location.folderId
+            if (fid != null) {
+                base.collection("styleFolders").document(fid).collection("styles")
+            } else {
+                base.collection("styles")
+            }
+        }
+        is StyleLocation.Inspiration -> {
+            val fid = location.folderId
+            if (fid != null) {
+                firestore.collection("users").document(userId)
+                    .collection("inspirationFolders").document(fid).collection("styles")
+            } else {
+                firestore.collection("users").document(userId).collection("inspiration")
+            }
+        }
     }
 
     private fun storagePathFor(userId: String, location: StyleLocation, styleId: String): String =
         when (location) {
-            is StyleLocation.CustomerCloset ->
-                "users/$userId/customers/${location.customerId}/styles/$styleId.jpg"
-            is StyleLocation.Inspiration -> "users/$userId/inspiration/$styleId.jpg"
+            is StyleLocation.CustomerCloset -> {
+                val fid = location.folderId
+                if (fid != null) {
+                    "users/$userId/customers/${location.customerId}/styleFolders/$fid/$styleId.jpg"
+                } else {
+                    "users/$userId/customers/${location.customerId}/styles/$styleId.jpg"
+                }
+            }
+            is StyleLocation.Inspiration -> {
+                val fid = location.folderId
+                if (fid != null) {
+                    "users/$userId/inspirationFolders/$fid/$styleId.jpg"
+                } else {
+                    "users/$userId/inspiration/$styleId.jpg"
+                }
+            }
         }
+
+    private fun foldersCollectionFor(userId: String, location: StyleLocation) = when (location) {
+        is StyleLocation.CustomerCloset ->
+            firestore.collection("users").document(userId)
+                .collection("customers").document(location.customerId)
+                .collection("styleFolders")
+        is StyleLocation.Inspiration ->
+            firestore.collection("users").document(userId).collection("inspirationFolders")
+    }
 
     private fun uploadJobId(path: String): String =
         "${OfflineUploadJobType.STYLE_GALLERY_IMAGE}:$path"
@@ -55,6 +95,79 @@ class FirebaseStyleRepository(
             copy(localPhotoPath = uploadOutbox.localPathForStoragePath(photoStoragePath))
         } else {
             this
+        }
+
+    override fun observeFolders(
+        userId: String,
+        location: StyleLocation,
+    ): Flow<Result<List<StyleFolder>, DataError.Network>> =
+        foldersCollectionFor(userId, location)
+            .snapshots()
+            .map<_, Result<List<StyleFolder>, DataError.Network>> { snapshot ->
+                val folders = snapshot.documents
+                    .mapNotNull { doc ->
+                        runCatching { doc.data<StyleFolderDto>().toStyleFolder() }.getOrNull()
+                    }
+                    .sortedByDescending { it.createdAt }
+                Result.Success(folders)
+            }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) { "observeFolders failed" }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
+
+    override suspend fun createFolder(
+        userId: String,
+        location: StyleLocation,
+        name: String,
+    ): Result<String, DataError.Network> {
+        val ref = foldersCollectionFor(userId, location).document
+        return try {
+            val accepted = offlineWrites.enqueue("createFolder folderId=${ref.id}") {
+                ref.set(StyleFolder(id = ref.id, name = name, createdAt = 0L, updatedAt = 0L).toDto())
+            }
+            if (accepted) Result.Success(ref.id) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "createFolder failed folderId=${ref.id}" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+    }
+
+    override suspend fun renameFolder(
+        userId: String,
+        location: StyleLocation,
+        folderId: String,
+        name: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            val now = Clock.System.now().toEpochMilliseconds()
+            val accepted = offlineWrites.enqueue("renameFolder folderId=$folderId") {
+                foldersCollectionFor(userId, location).document(folderId)
+                    .update("name" to name, "updatedAt" to now)
+            }
+            if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "renameFolder failed folderId=$folderId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+
+    @Suppress("ReturnCount")
+    override suspend fun deleteFolder(
+        userId: String,
+        location: StyleLocation,
+        folderId: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            val folderRef = foldersCollectionFor(userId, location).document(folderId)
+            val stylesSnapshot = folderRef.collection("styles").get()
+            val accepted = offlineWrites.enqueue("deleteFolder folderId=$folderId") {
+                stylesSnapshot.documents.forEach { doc -> doc.reference.delete() }
+                folderRef.delete()
+            }
+            if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "deleteFolder failed folderId=$folderId" }
+            Result.Error(DataError.Network.UNKNOWN)
         }
 
     override fun observeStyles(
@@ -115,6 +228,8 @@ class FirebaseStyleRepository(
                     storagePath = path,
                     localPath = localPath,
                     inspirationStyle = location is StyleLocation.Inspiration,
+                    folderId = (location as? StyleLocation.CustomerCloset)?.folderId
+                        ?: (location as? StyleLocation.Inspiration)?.folderId,
                 )
             )
             Result.Success(docRef.id)
@@ -177,6 +292,8 @@ class FirebaseStyleRepository(
                             storagePath = path,
                             localPath = localPath,
                             inspirationStyle = location is StyleLocation.Inspiration,
+                            folderId = (location as? StyleLocation.CustomerCloset)?.folderId
+                                ?: (location as? StyleLocation.Inspiration)?.folderId,
                         )
                     )
                 }

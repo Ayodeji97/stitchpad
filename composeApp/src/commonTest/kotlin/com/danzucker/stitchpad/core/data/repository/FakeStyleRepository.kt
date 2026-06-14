@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +25,11 @@ class FakeStyleRepository : StyleRepository {
     var lastDeletedLocation: StyleLocation? = null
     var lastCopied: Triple<StyleLocation, String, StyleLocation>? = null  // (from, styleId, to)
     var lastMoved: Triple<StyleLocation, String, StyleLocation>? = null
+
+    var folders: List<StyleFolder> = emptyList()
+    var lastCreatedFolderName: String? = null
+    var lastRenamedFolder: Pair<String, String>? = null  // (folderId, newName)
+    var lastDeletedFolderId: String? = null
 
     override fun observeStyles(
         userId: String,
@@ -102,6 +108,44 @@ class FakeStyleRepository : StyleRepository {
     ): EmptyResult<DataError.Network> {
         operationError?.let { return Result.Error(it) }
         lastMoved = Triple(from, style.id, to)
+        return Result.Success(Unit)
+    }
+
+    override fun observeFolders(
+        userId: String,
+        location: StyleLocation,
+    ): Flow<Result<List<StyleFolder>, DataError.Network>> =
+        observeError?.let { flowOf(Result.Error(it)) }
+            ?: flowOf(Result.Success(folders))
+
+    override suspend fun createFolder(
+        userId: String,
+        location: StyleLocation,
+        name: String,
+    ): Result<String, DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        lastCreatedFolderName = name
+        return Result.Success("fake-folder-id")
+    }
+
+    override suspend fun renameFolder(
+        userId: String,
+        location: StyleLocation,
+        folderId: String,
+        name: String,
+    ): EmptyResult<DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        lastRenamedFolder = folderId to name
+        return Result.Success(Unit)
+    }
+
+    override suspend fun deleteFolder(
+        userId: String,
+        location: StyleLocation,
+        folderId: String,
+    ): EmptyResult<DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        lastDeletedFolderId = folderId
         return Result.Success(Unit)
     }
 }
