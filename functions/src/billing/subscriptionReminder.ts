@@ -159,6 +159,12 @@ function productionIO(apiKey: string): SubscriptionReminderIO {
       // lookup is an N+1, so parallelize it rather than awaiting serially.
       const resolved = await Promise.all(snap.docs.map(async (doc): Promise<ReminderRecipient | null> => {
         const data = doc.data();
+        // Apple subscriptions set subscriptionRenews=false to mean "auto-renew
+        // turned off" (Apple still owns expiry), so they match this prepaid query.
+        // They must NOT get the Paystack renewal email / stitchpad://upgrade deep
+        // link — on iOS the user manages the subscription through Apple. Only
+        // Paystack prepaid users are reminded.
+        if (data.subscriptionSource === 'apple') return null;
         const endsAt = toDate(data.subscriptionEndsAt);
         if (!endsAt) {
           functions.logger.warn('subscription reminder: unparseable subscriptionEndsAt', { uid: doc.id });
