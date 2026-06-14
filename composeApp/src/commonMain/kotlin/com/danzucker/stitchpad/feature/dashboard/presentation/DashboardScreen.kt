@@ -112,6 +112,7 @@ import stitchpad.composeapp.generated.resources.cd_open_settings
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_inspiration_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_customer_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_order_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
@@ -144,6 +145,7 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_customer
+import stitchpad.composeapp.generated.resources.dashboard_quick_action_inspiration
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_order
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions_subtitle
@@ -279,6 +281,7 @@ fun DashboardRoot(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
@@ -318,6 +321,7 @@ fun DashboardRoot(
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToAddCustomerFirst = onNavigateToAddCustomerFirst,
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
+            onNavigateToInspiration = onNavigateToInspiration,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
             onNavigateToUpgrade = onNavigateToUpgrade,
             onNavigateToNotifications = onNavigateToNotifications,
@@ -441,6 +445,7 @@ private fun handleDashboardEvent(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
@@ -456,6 +461,7 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToSettings -> onNavigateToSettings()
         DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+        DashboardEvent.NavigateToInspiration -> onNavigateToInspiration()
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
         DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         DashboardEvent.NavigateToNotifications -> onNavigateToNotifications()
@@ -538,6 +544,8 @@ fun DashboardScreen(
     val customerCd = stringResource(Res.string.dashboard_fab_new_customer_cd)
     val orderLabel = stringResource(Res.string.dashboard_quick_action_order)
     val orderCd = stringResource(Res.string.dashboard_fab_new_order_cd)
+    val inspirationLabel = stringResource(Res.string.dashboard_quick_action_inspiration)
+    val inspirationCd = stringResource(Res.string.dashboard_fab_inspiration_cd)
     val speedDialActions = listOf(
         SpeedDialAction(
             label = customerLabel,
@@ -555,6 +563,15 @@ fun DashboardScreen(
             onClick = {
                 collapseFab()
                 onAction(DashboardAction.OnNewOrderClick)
+            },
+        ),
+        SpeedDialAction(
+            label = inspirationLabel,
+            icon = Icons.Default.CheckCircle,
+            contentDescription = inspirationCd,
+            onClick = {
+                collapseFab()
+                onAction(DashboardAction.OnInspirationClick)
             },
         ),
     )

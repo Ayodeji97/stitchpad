@@ -381,6 +381,11 @@ private fun MainNavGraph(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
+                onNavigateToInspiration = {
+                    navController.navigate(StyleGalleryRoute(customerId = null)) {
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToDraftMessage = {
                     navController.navigate(DraftMessageRoute)
                 },
