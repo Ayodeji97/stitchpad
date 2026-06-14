@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
+import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -108,7 +109,7 @@ fun StitchPadNavHost(
                         val hasCompletedWorkshop = onboardingPreferences.hasCompletedWorkshopSetup()
                         val destination = when {
                             !hasSeenOnboarding -> OnboardingRoute
-                            !authRepository.isLoggedIn -> LoginRoute
+                            !authRepository.isLoggedIn -> WelcomeRoute
                             authRepository.needsEmailVerification(onboardingPreferences) ->
                                 EmailVerificationRoute
                             !hasCompletedWorkshop -> WorkshopSetupRoute
@@ -127,17 +128,29 @@ fun StitchPadNavHost(
                 onFinished = {
                     scope.launch {
                         onboardingPreferences.setOnboardingSeen()
-                        navController.navigate(LoginRoute) {
+                        navController.navigate(WelcomeRoute) {
                             popUpTo(OnboardingRoute) { inclusive = true }
                         }
                     }
                 }
             )
         }
+        composable<WelcomeRoute> {
+            WelcomeRoot(
+                onSignIn = {
+                    navController.navigate(LoginRoute) { launchSingleTop = true }
+                },
+                onSignUp = {
+                    navController.navigate(SignUpRoute) { launchSingleTop = true }
+                },
+            )
+        }
         composable<LoginRoute> {
             val scope = rememberCoroutineScope()
             LoginRoot(
-                onNavigateToSignUp = { navController.navigate(SignUpRoute) },
+                onNavigateToSignUp = {
+                    navController.navigate(SignUpRoute) { launchSingleTop = true }
+                },
                 onNavigateToForgotPassword = { navController.navigate(ForgotPasswordRoute) },
                 onNavigateToHome = {
                     scope.launch {
@@ -148,7 +161,8 @@ fun StitchPadNavHost(
                             else -> HomeRoute
                         }
                         navController.navigate(destination) {
-                            popUpTo(LoginRoute) { inclusive = true }
+                            // Welcome is the base of the logged-out stack — clear it on success.
+                            popUpTo(WelcomeRoute) { inclusive = true }
                         }
                     }
                 }
@@ -161,15 +175,22 @@ fun StitchPadNavHost(
         }
         composable<SignUpRoute> {
             SignUpRoot(
-                onNavigateToLogin = { navController.navigateUp() },
+                // "Log in" link: always land on Login above Welcome, whether the user
+                // arrived via Welcome -> SignUp or Welcome -> Login -> SignUp.
+                onNavigateToLogin = {
+                    navController.navigate(LoginRoute) {
+                        launchSingleTop = true
+                        popUpTo(WelcomeRoute) { inclusive = false }
+                    }
+                },
                 onNavigateToHome = {
                     navController.navigate(WorkshopSetupRoute) {
-                        popUpTo(LoginRoute) { inclusive = true }
+                        popUpTo(WelcomeRoute) { inclusive = true }
                     }
                 },
                 onNavigateToEmailVerification = {
                     navController.navigate(EmailVerificationRoute) {
-                        popUpTo(LoginRoute) { inclusive = true }
+                        popUpTo(WelcomeRoute) { inclusive = true }
                     }
                 }
             )
@@ -190,7 +211,8 @@ fun StitchPadNavHost(
                     }
                 },
                 onNavigateToLogin = {
-                    navController.navigate(LoginRoute) {
+                    // Sign-out / abandon path -> back to the logged-out video landing.
+                    navController.navigate(WelcomeRoute) {
                         popUpTo(EmailVerificationRoute) { inclusive = true }
                     }
                 }
@@ -204,7 +226,8 @@ fun StitchPadNavHost(
                     }
                 },
                 onNavigateToLogin = {
-                    navController.navigate(LoginRoute) {
+                    // Sign-out / abandon path -> back to the logged-out video landing.
+                    navController.navigate(WelcomeRoute) {
                         popUpTo<WorkshopSetupRoute> { inclusive = true }
                     }
                 }
@@ -216,7 +239,7 @@ fun StitchPadNavHost(
                 // DeleteAccountViewModel via SignOutUseCase. By the time this callback
                 // fires, the session is already cleared — navigate only.
                 onSignedOut = {
-                    navController.navigate(LoginRoute) {
+                    navController.navigate(WelcomeRoute) {
                         popUpTo(HomeRoute) { inclusive = true }
                     }
                 },
