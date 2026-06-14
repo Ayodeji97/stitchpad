@@ -5,6 +5,8 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 
 sealed interface OrderListAction {
     data class OnStatusFilterChange(val status: OrderStatus?) : OrderListAction
+    data object OnShowArchived : OrderListAction
+    data class OnRestoreOrderClick(val order: Order) : OrderListAction
     data class OnOrderClick(val order: Order) : OrderListAction
     data class OnDeleteOrderClick(val order: Order) : OrderListAction
     data object OnAddOrderClick : OrderListAction

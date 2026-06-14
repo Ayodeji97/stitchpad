@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 @Suppress("TooManyFunctions")
 interface OrderRepository {
     fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>>
+
+    /** Archived orders only (most-recently-archived first). Excluded from [observeOrders]. */
+    fun observeArchivedOrders(userId: String): Flow<Result<List<Order>, DataError.Network>>
     fun observeOrder(userId: String, orderId: String): Flow<Result<Order, DataError.Network>>
     suspend fun getOrder(userId: String, orderId: String): Result<Order, DataError.Network>
     suspend fun createOrder(userId: String, order: Order): EmptyResult<DataError.Network>
@@ -47,6 +50,11 @@ interface OrderRepository {
     ): EmptyResult<DataError.Network>
 
     suspend fun archiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network>
+
+    suspend fun unarchiveOrder(
         userId: String,
         orderId: String,
     ): EmptyResult<DataError.Network>

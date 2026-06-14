@@ -21,8 +21,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -35,6 +37,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -78,6 +82,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -85,6 +90,8 @@ import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
 import stitchpad.composeapp.generated.resources.order_delete_message
 import stitchpad.composeapp.generated.resources.order_delete_title
+import stitchpad.composeapp.generated.resources.order_empty_archived_subtitle
+import stitchpad.composeapp.generated.resources.order_empty_archived_title
 import stitchpad.composeapp.generated.resources.order_empty_delivered_title
 import stitchpad.composeapp.generated.resources.order_empty_filtered_subtitle
 import stitchpad.composeapp.generated.resources.order_empty_in_progress_title
@@ -94,9 +101,12 @@ import stitchpad.composeapp.generated.resources.order_empty_subtitle
 import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
 import stitchpad.composeapp.generated.resources.order_filter_all
+import stitchpad.composeapp.generated.resources.order_filter_archived
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
+import stitchpad.composeapp.generated.resources.order_restore_cta
+import stitchpad.composeapp.generated.resources.order_restored_snackbar
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -113,12 +123,17 @@ fun OrderListRoot(
     val viewModel: OrderListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val restoredMessage = stringResource(Res.string.order_restored_snackbar)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             OrderListEvent.NavigateToOrderForm -> onNavigateToOrderForm()
             OrderListEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
             is OrderListEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
+            OrderListEvent.OrderRestored -> scope.launch {
+                snackbarHostState.showSnackbar(restoredMessage)
+            }
         }
     }
 
@@ -192,10 +207,41 @@ fun OrderListScreen(
         ) {
             OrderStatusFilterChips(
                 selectedStatus = state.statusFilter,
-                onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) }
+                showArchived = state.showArchived,
+                onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) },
+                onArchivedSelected = { onAction(OrderListAction.OnShowArchived) }
             )
 
             when {
+                // The Archived view is independent of the active stream: its own
+                // loading / empty / list branches come first, so an in-flight active
+                // snapshot (isLoading) never hides already-loaded archived rows
+                // behind the global spinner.
+                state.showArchived && state.isArchivedLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                state.showArchived && state.orders.isEmpty() -> {
+                    ArchivedEmptyState(modifier = Modifier.fillMaxSize())
+                }
+                state.showArchived -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(bottom = 80.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(items = state.orders, key = { it.id }) { order ->
+                            ArchivedOrderItem(
+                                order = order,
+                                onRestore = { onAction(OrderListAction.OnRestoreOrderClick(order)) }
+                            )
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.padding(start = orderRowTextInset)
+                            )
+                        }
+                    }
+                }
                 state.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -303,7 +349,9 @@ fun OrderListScreen(
 @Composable
 private fun OrderStatusFilterChips(
     selectedStatus: OrderStatus?,
-    onStatusSelected: (OrderStatus?) -> Unit
+    showArchived: Boolean,
+    onStatusSelected: (OrderStatus?) -> Unit,
+    onArchivedSelected: () -> Unit
 ) {
     val statusOptions: List<Pair<OrderStatus?, String>> = listOf(
         null to stringResource(Res.string.order_filter_all),
@@ -325,30 +373,139 @@ private fun OrderStatusFilterChips(
             )
     ) {
         statusOptions.forEach { (status, label) ->
-            val isSelected = selectedStatus == status
-            FilterChip(
-                selected = isSelected,
-                onClick = { onStatusSelected(status) },
-                label = {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color.Transparent,
-                    selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    containerColor = Color.Transparent,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = if (isSelected) {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                } else {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                }
+            // A status chip is only "selected" in the active view — never while archived.
+            val isSelected = !showArchived && selectedStatus == status
+            OrderFilterChip(
+                label = label,
+                isSelected = isSelected,
+                onClick = { onStatusSelected(status) }
             )
         }
+        // Archived is orthogonal to status: its own segment at the end of the row.
+        OrderFilterChip(
+            label = stringResource(Res.string.order_filter_archived),
+            isSelected = showArchived,
+            onClick = onArchivedSelected
+        )
+    }
+}
+
+@Composable
+private fun OrderFilterChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = Color.Transparent,
+            selectedLabelColor = MaterialTheme.colorScheme.primary,
+            containerColor = Color.Transparent,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        border = if (isSelected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        }
+    )
+}
+
+@Composable
+private fun ArchivedOrderItem(
+    order: Order,
+    onRestore: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
+    ) {
+        OrderRowAvatar(name = order.customerName, customerId = order.customerId)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = order.customerName,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = garmentSummary(order),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        OutlinedButton(
+            onClick = onRestore,
+            shape = RoundedCornerShape(DesignTokens.radiusMd)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Undo,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.size(DesignTokens.space1))
+            Text(
+                text = stringResource(Res.string.order_restore_cta),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArchivedEmptyState(modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.padding(horizontal = DesignTokens.space8)
+    ) {
+        Spacer(Modifier.weight(1f))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(DesignTokens.radiusXl))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Inventory2,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+        Spacer(Modifier.height(DesignTokens.space4))
+        Text(
+            text = stringResource(Res.string.order_empty_archived_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        Text(
+            text = stringResource(Res.string.order_empty_archived_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.weight(3f))
     }
 }
 
@@ -586,6 +743,32 @@ private fun PriorityBadge(priority: OrderPriority) {
 private fun OrderListScreenEmptyPreview() {
     StitchPadTheme {
         OrderListScreen(state = OrderListState(isLoading = false), onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun OrderListScreenArchivedPreview() {
+    StitchPadTheme {
+        OrderListScreen(
+            state = OrderListState(
+                isLoading = false,
+                showArchived = true,
+                orders = listOf(
+                    Order(
+                        id = "a1", userId = "u", customerId = "c1", customerName = "Fola Sunday",
+                        items = listOf(
+                            OrderItem(id = "i1", garmentType = GarmentType.CORSET, description = "", price = 40_000.0)
+                        ),
+                        status = OrderStatus.DELIVERED, priority = OrderPriority.NORMAL,
+                        statusHistory = emptyList(), totalPrice = 40_000.0,
+                        deadline = null, notes = null, archivedAt = 1L, createdAt = 0L, updatedAt = 0L
+                    )
+                )
+            ),
+            onAction = {}
+        )
     }
 }
 

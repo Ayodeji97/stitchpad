@@ -30,6 +30,7 @@ class OrderListViewModel(
 
     private var hasLoadedInitialData = false
     private var allOrders: List<Order> = emptyList()
+    private var allArchivedOrders: List<Order> = emptyList()
 
     private val _state = MutableStateFlow(OrderListState())
 
@@ -41,6 +42,7 @@ class OrderListViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 observeOrders()
+                observeArchivedOrders()
             }
         }
         .stateIn(
@@ -55,10 +57,15 @@ class OrderListViewModel(
                 _state.update {
                     it.copy(
                         statusFilter = action.status,
+                        showArchived = false,
                         orders = filterAndSort(allOrders, action.status)
                     )
                 }
             }
+            OrderListAction.OnShowArchived -> {
+                _state.update { it.copy(showArchived = true, orders = allArchivedOrders) }
+            }
+            is OrderListAction.OnRestoreOrderClick -> restoreOrder(action.order)
             is OrderListAction.OnOrderClick -> {
                 viewModelScope.launch {
                     _events.send(OrderListEvent.NavigateToOrderDetail(action.order.id))
@@ -100,7 +107,12 @@ class OrderListViewModel(
                         allOrders = result.data
                         _state.update { state ->
                             state.copy(
-                                orders = filterAndSort(result.data, state.statusFilter),
+                                // Active updates never override the archived view.
+                                orders = if (state.showArchived) {
+                                    state.orders
+                                } else {
+                                    filterAndSort(result.data, state.statusFilter)
+                                },
                                 isLoading = false
                             )
                         }
@@ -113,6 +125,55 @@ class OrderListViewModel(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private fun observeArchivedOrders() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: run {
+                _state.update { it.copy(isArchivedLoading = false) }
+                return@launch
+            }
+            orderRepository.observeArchivedOrders(userId).collect { result ->
+                when (result) {
+                    is Result.Success -> {
+                        allArchivedOrders = result.data
+                        _state.update { state ->
+                            state.copy(
+                                isArchivedLoading = false,
+                                orders = if (state.showArchived) result.data else state.orders
+                            )
+                        }
+                    }
+                    is Result.Error -> {
+                        // Clear loading so the view stops spinning. Surface the error
+                        // only while the archived view is open — on the active view the
+                        // active stream (same Firestore source) owns the error surface.
+                        _state.update { state ->
+                            state.copy(
+                                isArchivedLoading = false,
+                                errorMessage = if (state.showArchived) {
+                                    result.error.toOrderUiText()
+                                } else {
+                                    state.errorMessage
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun restoreOrder(order: Order) {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val result = orderRepository.unarchiveOrder(userId, order.id)) {
+                is Result.Success -> _events.send(OrderListEvent.OrderRestored)
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = result.error.toOrderUiText())
                 }
             }
         }
