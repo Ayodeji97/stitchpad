@@ -41,8 +41,8 @@ interface StyleRepository {
 
     /**
      * Copy [style] into [toCustomerId]'s closet. The new style shares the source
-     * image (no re-upload) — both ends are flagged sharesImage so deleting either
-     * never orphans the other's photo. The source stays in place.
+     * image (no re-upload); the source stays in place. Style deletes never remove
+     * the storage object (see [deleteStyle]), so neither copy ever loses its photo.
      */
     suspend fun copyStyle(
         userId: String,

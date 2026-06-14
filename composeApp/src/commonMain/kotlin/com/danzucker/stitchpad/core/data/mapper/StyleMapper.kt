@@ -13,8 +13,7 @@ fun StyleDto.toStyle(customerId: String): Style = Style(
     photoStoragePath = photoStoragePath,
     syncState = runCatching { ImageSyncState.valueOf(syncState) }.getOrDefault(ImageSyncState.SYNCED),
     createdAt = createdAt,
-    updatedAt = updatedAt,
-    sharesImage = sharesImage
+    updatedAt = updatedAt
 )
 
 fun Style.toStyleDto(): StyleDto {
@@ -26,7 +25,6 @@ fun Style.toStyleDto(): StyleDto {
         photoStoragePath = photoStoragePath,
         syncState = syncState.name,
         createdAt = if (createdAt == 0L) now else createdAt,
-        updatedAt = now,
-        sharesImage = sharesImage
+        updatedAt = now
     )
 }

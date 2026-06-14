@@ -198,22 +198,14 @@ class FirebaseStyleRepository(
         style: Style
     ): EmptyResult<DataError.Network> =
         try {
-            // Only the sole owner cleans up storage. A shared style (copied/moved
-            // across customers) leaves the object in place so the copy elsewhere
-            // keeps rendering — we only remove this Firestore doc.
-            if (style.photoStoragePath.isNotBlank() && !style.sharesImage) {
-                uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
-                runCatching {
-                    uploadOutbox.enqueue(
-                        OfflineUploadJob(
-                            id = "${OfflineUploadJobType.STORAGE_DELETE}:${style.photoStoragePath}",
-                            type = OfflineUploadJobType.STORAGE_DELETE,
-                            userId = userId,
-                            storagePath = style.photoStoragePath,
-                        )
-                    )
-                }
-            }
+            // Remove only the Firestore doc. We intentionally do NOT delete the
+            // storage object here: copy/move share the same image across customers,
+            // and there's no cheap, race-free way to know at delete time whether
+            // another doc still references it (the share state is written async, so
+            // an in-memory flag can be stale). Deleting storage could orphan a live
+            // copy's image. Image cleanup is deferred to the orphan-sweep backlog;
+            // an unreferenced object is wasted bytes, never a broken image.
+            uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
             val accepted = offlineWrites.enqueue("deleteStyle styleId=${style.id}") {
                 stylesCollection(userId, customerId)
                     .document(style.id)
@@ -237,18 +229,7 @@ class FirebaseStyleRepository(
         toCustomerId: String,
     ): EmptyResult<DataError.Network> =
         try {
-            // Flag the source as sharing too, so deleting it later won't drop the
-            // image the new copy still points at.
-            val markedSource = offlineWrites.enqueue("markShared styleId=${style.id}") {
-                stylesCollection(userId, fromCustomerId)
-                    .document(style.id)
-                    .set(style.copy(sharesImage = true).toStyleDto())
-            }
-            if (!markedSource) {
-                Result.Error(DataError.Network.UNKNOWN)
-            } else {
-                writeSharedCopy(userId, toCustomerId, style)
-            }
+            writeSharedCopy(userId, toCustomerId, style)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "copyStyle failed styleId=${style.id}" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -261,9 +242,9 @@ class FirebaseStyleRepository(
         toCustomerId: String,
     ): EmptyResult<DataError.Network> =
         try {
-            // Create the target (sharing the image), preserving any existing share
-            // state, then remove the source doc only — the image stays put.
-            when (val created = writeSharedCopy(userId, toCustomerId, style, share = style.sharesImage)) {
+            // Create the target (sharing the image) then remove the source doc only —
+            // the image stays put for whichever doc now references it.
+            when (val created = writeSharedCopy(userId, toCustomerId, style)) {
                 is Result.Error -> created
                 is Result.Success -> {
                     val deleted = offlineWrites.enqueue("moveStyle deleteSource styleId=${style.id}") {
@@ -281,21 +262,19 @@ class FirebaseStyleRepository(
 
     /**
      * Write a new style doc under [toCustomerId] that points at [source]'s image
-     * (same photoUrl / storage path — no re-upload). [share] flags whether the
-     * new doc shares its image; copy passes true, move preserves the source's flag.
+     * (same photoUrl / storage path — no re-upload). The shared object is never
+     * eagerly deleted (see [deleteStyle]), so the copy keeps rendering regardless.
      */
     private suspend fun writeSharedCopy(
         userId: String,
         toCustomerId: String,
         source: Style,
-        share: Boolean = true,
     ): EmptyResult<DataError.Network> {
         val docRef = stylesCollection(userId, toCustomerId).document
         val now = Clock.System.now().toEpochMilliseconds()
         val copy = source.copy(
             id = docRef.id,
             customerId = toCustomerId,
-            sharesImage = share,
             createdAt = now,
             updatedAt = now,
         )

@@ -10,6 +10,5 @@ data class StyleDto(
     val photoStoragePath: String = "",
     val syncState: String = "SYNCED",
     val createdAt: Long = 0L,
-    val updatedAt: Long = 0L,
-    val sharesImage: Boolean = false
+    val updatedAt: Long = 0L
 )
