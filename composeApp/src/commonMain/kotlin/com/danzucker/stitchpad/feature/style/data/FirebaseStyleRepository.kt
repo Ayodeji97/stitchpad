@@ -19,6 +19,7 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlin.time.Clock
 
 private const val TAG = "StyleRepo"
 
@@ -197,19 +198,14 @@ class FirebaseStyleRepository(
         style: Style
     ): EmptyResult<DataError.Network> =
         try {
-            if (style.photoStoragePath.isNotBlank()) {
-                uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
-                runCatching {
-                    uploadOutbox.enqueue(
-                        OfflineUploadJob(
-                            id = "${OfflineUploadJobType.STORAGE_DELETE}:${style.photoStoragePath}",
-                            type = OfflineUploadJobType.STORAGE_DELETE,
-                            userId = userId,
-                            storagePath = style.photoStoragePath,
-                        )
-                    )
-                }
-            }
+            // Remove only the Firestore doc. We intentionally do NOT delete the
+            // storage object here: copy/move share the same image across customers,
+            // and there's no cheap, race-free way to know at delete time whether
+            // another doc still references it (the share state is written async, so
+            // an in-memory flag can be stale). Deleting storage could orphan a live
+            // copy's image. Image cleanup is deferred to the orphan-sweep backlog;
+            // an unreferenced object is wasted bytes, never a broken image.
+            uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
             val accepted = offlineWrites.enqueue("deleteStyle styleId=${style.id}") {
                 stylesCollection(userId, customerId)
                     .document(style.id)
@@ -225,4 +221,100 @@ class FirebaseStyleRepository(
             }
             Result.Error(DataError.Network.UNKNOWN)
         }
+
+    override suspend fun copyStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            writeSharedCopy(userId, toCustomerId, style)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "copyStyle failed styleId=${style.id}" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+
+    override suspend fun moveStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            // Create the target (sharing the image) then remove the source doc only —
+            // the image stays put for whichever doc now references it.
+            when (val created = writeSharedCopy(userId, toCustomerId, style)) {
+                is Result.Error -> created
+                is Result.Success -> {
+                    // The copy is committed; removing the source is a fire-and-forget
+                    // background write like every other offline mutation (failures
+                    // surface via logs + snapshot reconciliation). Don't report the
+                    // whole move as failed if this second enqueue's scheduling boolean
+                    // comes back false — the copy already succeeded, so that would
+                    // leave the style on both customers behind a misleading error.
+                    offlineWrites.enqueue("moveStyle deleteSource styleId=${style.id}") {
+                        stylesCollection(userId, fromCustomerId)
+                            .document(style.id)
+                            .delete()
+                    }
+                    Result.Success(Unit)
+                }
+            }
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "moveStyle failed styleId=${style.id}" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+
+    /**
+     * Write a style for [toCustomerId] that shows [source]'s image.
+     *
+     * - If the source image is already in storage (has a [Style.photoUrl]), the
+     *   new doc just points at the same URL/path — no re-upload, marked SYNCED.
+     *   The shared object is never eagerly deleted (see [deleteStyle]).
+     * - If the source is still uploading (no photoUrl yet) we re-upload an
+     *   independent copy from its local bytes. Otherwise the new doc would be
+     *   saved with an empty URL that never fills in — the source's upload only
+     *   patches the source doc, not this copy — leaving a blank image.
+     */
+    private suspend fun writeSharedCopy(
+        userId: String,
+        toCustomerId: String,
+        source: Style,
+    ): EmptyResult<DataError.Network> {
+        if (source.photoUrl.isBlank()) {
+            return reuploadIndependentCopy(userId, toCustomerId, source)
+        }
+        val docRef = stylesCollection(userId, toCustomerId).document
+        val now = Clock.System.now().toEpochMilliseconds()
+        val copy = source.copy(
+            id = docRef.id,
+            customerId = toCustomerId,
+            syncState = ImageSyncState.SYNCED,
+            localPhotoPath = null,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val accepted = offlineWrites.enqueue("writeSharedCopy styleId=${docRef.id} from=${source.id}") {
+            docRef.set(copy.toStyleDto())
+        }
+        return if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+    }
+
+    @Suppress("ReturnCount")
+    private suspend fun reuploadIndependentCopy(
+        userId: String,
+        toCustomerId: String,
+        source: Style,
+    ): EmptyResult<DataError.Network> {
+        val localPath = source.localPhotoPath
+            ?: uploadOutbox.localPathForStoragePath(source.photoStoragePath)
+            ?: return Result.Error(DataError.Network.UNKNOWN)
+        val bytes = runCatching { photoStore.read(localPath) }.getOrNull()
+            ?: return Result.Error(DataError.Network.UNKNOWN)
+        return when (val result = createStyle(userId, toCustomerId, source.description, bytes)) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> Result.Error(result.error)
+        }
+    }
 }

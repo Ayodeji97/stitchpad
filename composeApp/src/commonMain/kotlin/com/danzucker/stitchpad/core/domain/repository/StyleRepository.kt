@@ -38,4 +38,28 @@ interface StyleRepository {
         customerId: String,
         style: Style
     ): EmptyResult<DataError.Network>
+
+    /**
+     * Copy [style] into [toCustomerId]'s closet. The new style shares the source
+     * image (no re-upload); the source stays in place. Style deletes never remove
+     * the storage object (see [deleteStyle]), so neither copy ever loses its photo.
+     */
+    suspend fun copyStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network>
+
+    /**
+     * Move [style] from [fromCustomerId] to [toCustomerId]: create the target
+     * (sharing the image), then remove the source Firestore doc only (the image
+     * stays, now owned by the target).
+     */
+    suspend fun moveStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network>
 }

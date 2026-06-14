@@ -20,6 +20,8 @@ class FakeStyleRepository : StyleRepository {
     var lastUpdatedStyle: Style? = null
     var lastUpdatedPhotoBytes: ByteArray? = null
     var lastDeletedStyleId: String? = null
+    var lastCopied: Triple<String, String, String>? = null
+    var lastMoved: Triple<String, String, String>? = null
 
     override fun observeStyles(
         userId: String,
@@ -76,5 +78,27 @@ class FakeStyleRepository : StyleRepository {
         lastBatchCreatedCount = photoBytesList.size
         val ids = photoBytesList.indices.map { index -> "fake-style-$index" }
         return Result.Success(ids)
+    }
+
+    override suspend fun copyStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        lastCopied = Triple(fromCustomerId, style.id, toCustomerId)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun moveStyle(
+        userId: String,
+        fromCustomerId: String,
+        style: Style,
+        toCustomerId: String,
+    ): EmptyResult<DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        lastMoved = Triple(fromCustomerId, style.id, toCustomerId)
+        return Result.Success(Unit)
     }
 }
