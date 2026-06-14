@@ -407,6 +407,28 @@ class StyleGalleryViewModelTest {
         assertEquals(style, vm.state.value.styleToDelete)
     }
 
+    // --- isInspirationGallery flag ---
+
+    @Test
+    fun closetGallery_isInspirationGalleryFalse() = runTest {
+        authRepository.signUpWithEmail("t@t.com", "p", "T")
+        val vm = createViewModel(customerId = "customer-1")
+        assertFalse(vm.state.value.isInspirationGallery)
+    }
+
+    @Test
+    fun inspirationGallery_isInspirationGalleryTrue() = runTest {
+        authRepository.signUpWithEmail("t@t.com", "p", "T")
+        val vm = StyleGalleryViewModel(
+            savedStateHandle = SavedStateHandle(),
+            styleRepository = styleRepository,
+            customerRepository = customerRepository,
+            authRepository = authRepository,
+        )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+        assertTrue(vm.state.value.isInspirationGallery)
+    }
+
     // --- Error dismiss ---
 
     @Test
