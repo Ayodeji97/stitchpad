@@ -315,27 +315,52 @@ describe('appStoreServerNotificationsHandler', () => {
 });
 
 describe('desiredStateForNotification', () => {
+  const NOW = new Date('2026-06-15T00:00:00Z').getTime();
+
   it('flips renews=false on auto-renew disabled but keeps access', () => {
     const txn = txnFor('uid-1');
     const desired = desiredStateForNotification(
       { notificationType: 'DID_CHANGE_RENEWAL_STATUS', subtype: 'AUTO_RENEW_DISABLED', transaction: txn },
       txn,
+      NOW,
     );
     expect(desired).toMatchObject({ tier: 'pro', status: 'active', subscriptionRenews: false });
   });
 
   it('keeps access during a grace-period billing retry (DID_FAIL_TO_RENEW)', () => {
-    const txn = txnFor('uid-1');
+    // expiresDate already past, but the explicit GRACE_PERIOD subtype extends access.
+    const txn = txnFor('uid-1', { expiresDate: new Date('2026-06-01T00:00:00Z').getTime() });
     const desired = desiredStateForNotification(
       { notificationType: 'DID_FAIL_TO_RENEW', subtype: 'GRACE_PERIOD', transaction: txn },
       txn,
+      NOW,
+    );
+    expect(desired).toMatchObject({ tier: 'pro', status: 'active' });
+  });
+
+  it('lapses access on DID_FAIL_TO_RENEW with no grace once the period has ended', () => {
+    const txn = txnFor('uid-1', { expiresDate: new Date('2026-06-01T00:00:00Z').getTime() }); // past NOW
+    const desired = desiredStateForNotification(
+      { notificationType: 'DID_FAIL_TO_RENEW', transaction: txn },
+      txn,
+      NOW,
+    );
+    expect(desired).toMatchObject({ tier: 'free', status: 'expired' });
+  });
+
+  it('keeps access on billing retry while still within the paid period', () => {
+    const txn = txnFor('uid-1', { expiresDate: new Date('2026-07-01T00:00:00Z').getTime() }); // future
+    const desired = desiredStateForNotification(
+      { notificationType: 'DID_FAIL_TO_RENEW', transaction: txn },
+      txn,
+      NOW,
     );
     expect(desired).toMatchObject({ tier: 'pro', status: 'active' });
   });
 
   it('ignores unrelated notification types', () => {
     const txn = txnFor('uid-1');
-    expect(desiredStateForNotification({ notificationType: 'TEST', transaction: txn }, txn)).toBeNull();
+    expect(desiredStateForNotification({ notificationType: 'TEST', transaction: txn }, txn, NOW)).toBeNull();
   });
 });
 

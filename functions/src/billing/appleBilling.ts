@@ -322,7 +322,7 @@ export async function appStoreServerNotificationsHandler(
     return;
   }
 
-  const desired = desiredStateForNotification(notification, txn);
+  const desired = desiredStateForNotification(notification, txn, deps.now().getTime());
   if (!desired) {
     functions.logger.info('apple notification type ignored', {
       type: notification.notificationType,
@@ -426,6 +426,7 @@ export async function reconcileAppleSubscriptionsHandler(deps: ReconcileDeps): P
 export function desiredStateForNotification(
   notification: AppleNotification,
   txn: AppleTransaction,
+  nowMs: number,
 ): DesiredState | null {
   const plan = planForProduct(txn.productId);
   const base = {
@@ -463,18 +464,34 @@ export function desiredStateForNotification(
         productId: txn.productId,
       };
     }
-    case 'DID_FAIL_TO_RENEW':
-      // Billing retry / grace period — keep access; EXPIRED arrives later if it
-      // ultimately fails. Never downgrade a paying user mid billing-retry.
+    case 'DID_FAIL_TO_RENEW': {
+      // Renewal failed and billing retry started. Keep access ONLY if the user is
+      // actually still entitled: an explicit GRACE_PERIOD subtype (grace extends
+      // access past expiry) or the paid period hasn't ended yet. Without grace and
+      // past expiry, the user is only in billing retry with no entitlement — lapse
+      // access now rather than holding Pro until a later EXPIRED arrives.
       if (!plan) return null;
+      const inGracePeriod = notification.subtype === 'GRACE_PERIOD';
+      const stillWithinPaidPeriod = typeof txn.expiresDate === 'number' && txn.expiresDate > nowMs;
+      if (inGracePeriod || stillWithinPaidPeriod) {
+        return {
+          ...base,
+          tier: plan.tier,
+          status: 'active',
+          subscriptionRenews: true,
+          endsAtMs: txn.expiresDate ?? null,
+          productId: txn.productId,
+        };
+      }
       return {
         ...base,
-        tier: plan.tier,
-        status: 'active',
-        subscriptionRenews: true,
-        endsAtMs: txn.expiresDate ?? null,
-        productId: txn.productId,
+        tier: 'free',
+        status: 'expired',
+        subscriptionRenews: false,
+        endsAtMs: null,
+        productId: null,
       };
+    }
     case 'EXPIRED':
     case 'GRACE_PERIOD_EXPIRED':
     case 'REFUND':
