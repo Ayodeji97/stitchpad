@@ -70,11 +70,17 @@ class StyleFoldersViewModel(
         when (action) {
             is StyleFoldersAction.OnFolderClick ->
                 viewModelScope.launch { _events.send(StyleFoldersEvent.NavigateToFolder(customerId, action.folderId)) }
+            is StyleFoldersAction.OnFolderLongPress ->
+                _state.update { it.copy(actionSheetFolder = action.folder) }
+            StyleFoldersAction.OnDismissFolderActionSheet ->
+                _state.update { it.copy(actionSheetFolder = null) }
             StyleFoldersAction.OnCreateClick -> handleCreateClick()
             is StyleFoldersAction.OnConfirmCreate -> handleConfirmCreate(action.name)
-            is StyleFoldersAction.OnRenameClick -> _state.update { it.copy(renameTarget = action.folder) }
+            is StyleFoldersAction.OnRenameClick ->
+                _state.update { it.copy(renameTarget = action.folder, actionSheetFolder = null) }
             is StyleFoldersAction.OnConfirmRename -> handleConfirmRename(action.name)
-            is StyleFoldersAction.OnDeleteClick -> _state.update { it.copy(deleteTarget = action.folder) }
+            is StyleFoldersAction.OnDeleteClick ->
+                _state.update { it.copy(deleteTarget = action.folder, actionSheetFolder = null) }
             StyleFoldersAction.OnConfirmDelete -> handleConfirmDelete()
             StyleFoldersAction.OnDismissSheet ->
                 _state.update { it.copy(showCreateSheet = false, renameTarget = null, deleteTarget = null) }

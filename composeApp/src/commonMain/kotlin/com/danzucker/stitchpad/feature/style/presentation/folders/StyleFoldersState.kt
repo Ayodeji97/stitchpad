@@ -35,5 +35,7 @@ data class StyleFoldersState(
     val showCreateSheet: Boolean = false,
     val renameTarget: StyleFolder? = null,
     val deleteTarget: StyleFolder? = null,
+    /** The folder whose long-press action sheet is open; null = sheet hidden. */
+    val actionSheetFolder: StyleFolder? = null,
     val errorMessage: UiText? = null,
 )

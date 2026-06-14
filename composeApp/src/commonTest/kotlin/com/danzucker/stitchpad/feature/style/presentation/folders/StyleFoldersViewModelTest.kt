@@ -361,4 +361,51 @@ class StyleFoldersViewModelTest {
         vm.onAction(StyleFoldersAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
     }
+
+    // ---------------------------------------------------------------------------
+    // Long-press action sheet
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun onFolderLongPress_thenRename_setsRenameTarget_clearsActionSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val folder = fakeFolder("f1")
+        val vm = createViewModel()
+
+        // Long-press opens the action sheet for the folder
+        vm.onAction(StyleFoldersAction.OnFolderLongPress(folder))
+        assertEquals("f1", vm.state.value.actionSheetFolder?.id)
+
+        // Tapping Rename clears the action sheet and sets renameTarget
+        vm.onAction(StyleFoldersAction.OnRenameClick(folder))
+        assertEquals("f1", vm.state.value.renameTarget?.id)
+        assertNull(vm.state.value.actionSheetFolder)
+    }
+
+    @Test
+    fun onFolderLongPress_thenDelete_setsDeleteTarget_clearsActionSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val folder = fakeFolder("f1")
+        val vm = createViewModel()
+
+        vm.onAction(StyleFoldersAction.OnFolderLongPress(folder))
+        assertEquals("f1", vm.state.value.actionSheetFolder?.id)
+
+        vm.onAction(StyleFoldersAction.OnDeleteClick(folder))
+        assertEquals("f1", vm.state.value.deleteTarget?.id)
+        assertNull(vm.state.value.actionSheetFolder)
+    }
+
+    @Test
+    fun onDismissFolderActionSheet_clearsActionSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val folder = fakeFolder("f1")
+        val vm = createViewModel()
+
+        vm.onAction(StyleFoldersAction.OnFolderLongPress(folder))
+        assertNotNull(vm.state.value.actionSheetFolder)
+
+        vm.onAction(StyleFoldersAction.OnDismissFolderActionSheet)
+        assertNull(vm.state.value.actionSheetFolder)
+    }
 }

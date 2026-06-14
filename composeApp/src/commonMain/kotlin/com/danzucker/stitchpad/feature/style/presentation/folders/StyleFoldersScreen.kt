@@ -2,8 +2,10 @@
 
 package com.danzucker.stitchpad.feature.style.presentation.folders
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -83,6 +87,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.style_delete_cancel
 import stitchpad.composeapp.generated.resources.style_delete_confirm
+import stitchpad.composeapp.generated.resources.style_folder_action_delete
+import stitchpad.composeapp.generated.resources.style_folder_action_rename
 import stitchpad.composeapp.generated.resources.style_folder_delete_message
 import stitchpad.composeapp.generated.resources.style_folder_delete_title
 import stitchpad.composeapp.generated.resources.style_folder_name_placeholder
@@ -228,6 +234,11 @@ fun StyleFoldersScreen(
                         card = card,
                         defaultName = defaultFolderName,
                         onClick = { onAction(StyleFoldersAction.OnFolderClick(card.folderId)) },
+                        onLongClick = if (card.folderId != null && card.source != null) {
+                            { onAction(StyleFoldersAction.OnFolderLongPress(card.source)) }
+                        } else {
+                            null
+                        },
                     )
                 }
             }
@@ -297,6 +308,62 @@ fun StyleFoldersScreen(
             shape = RoundedCornerShape(DesignTokens.radiusXl),
             containerColor = MaterialTheme.colorScheme.surface,
         )
+    }
+
+    // Long-press folder action sheet
+    state.actionSheetFolder?.let { folder ->
+        FolderActionSheet(
+            onRename = { onAction(StyleFoldersAction.OnRenameClick(folder)) },
+            onDelete = { onAction(StyleFoldersAction.OnDeleteClick(folder)) },
+            onDismiss = { onAction(StyleFoldersAction.OnDismissFolderActionSheet) },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FolderActionSheet(
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(modifier = Modifier.padding(bottom = DesignTokens.space6)) {
+            FolderActionRow(
+                icon = Icons.Default.Edit,
+                label = stringResource(Res.string.style_folder_action_rename),
+                onClick = onRename,
+            )
+            FolderActionRow(
+                icon = Icons.Default.Delete,
+                label = stringResource(Res.string.style_folder_action_delete),
+                tint = MaterialTheme.colorScheme.error,
+                onClick = onDelete,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FolderActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space4),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = DesignTokens.space5, vertical = DesignTokens.space4),
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyLarge, color = tint)
     }
 }
 
@@ -368,11 +435,13 @@ private fun FolderNameSheet(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FolderCard(
     card: FolderCardUi,
     defaultName: String,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val heritageAccent = LocalStitchPadColors.current.heritageAccent
     val isDefault = card.folderId == null
@@ -384,7 +453,13 @@ private fun FolderCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .clickable(onClick = onClick),
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                }
+            ),
     ) {
         Column {
             // Cover image / placeholder

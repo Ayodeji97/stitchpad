@@ -486,6 +486,8 @@
     <string name="style_folder_full_snackbar">This folder is full (%1$d styles). Upgrade for more room.</string>
     <string name="style_folder_full_action">Upgrade</string>
     <string name="style_folder_batch_over_cap">This folder holds %1$d styles. Remove some and try again.</string>
+    <string name="style_folder_action_rename">Rename</string>
+    <string name="style_folder_action_delete">Delete</string>
 
     <!-- Style errors -->
     <string name="error_style_not_found">Style not found</string>

@@ -154,10 +154,12 @@ class StyleGalleryViewModel(
     // The destination is the same tailor's own data, so the cap is resolved from the
     // current tier at the destination's level. Transfers land in the destination's flat
     // default folder, so the cap is flatCap (Free) or maxImagesPerFolder (paid default).
-    private fun destinationCap(target: TransferTarget): Int {
+    // Awaiting hydration prevents a cold-start race where current().tier returns FREE
+    // before the server snapshot has landed (mirrors resolveImageCap).
+    private suspend fun destinationCap(target: TransferTarget): Int {
         val targetLimits = when (target) {
-            is TransferTarget.Inspiration -> StyleCollectionLimits.forInspiration(entitlements.current().tier)
-            is TransferTarget.Customer -> StyleCollectionLimits.forCustomer(entitlements.current().tier)
+            is TransferTarget.Inspiration -> StyleCollectionLimits.forInspiration(entitlements.awaitHydrated().tier)
+            is TransferTarget.Customer -> StyleCollectionLimits.forCustomer(entitlements.awaitHydrated().tier)
         }
         return if (!targetLimits.foldersEnabled) targetLimits.flatCap else targetLimits.maxImagesPerFolder
     }
