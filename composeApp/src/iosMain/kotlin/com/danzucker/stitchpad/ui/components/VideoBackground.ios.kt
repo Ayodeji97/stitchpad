@@ -15,8 +15,11 @@ import platform.AVFoundation.muted
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
 import platform.CoreGraphics.CGRectMake
+import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
 import platform.QuartzCore.CATransaction
+import platform.UIKit.UIApplicationDidEnterBackgroundNotification
+import platform.UIKit.UIApplicationWillEnterForegroundNotification
 import platform.UIKit.UIView
 
 /**
@@ -29,9 +32,25 @@ import platform.UIKit.UIView
 actual fun VideoBackground(uri: String, modifier: Modifier) {
     val playback = remember(uri) { VideoPlayback(uri) }
 
+    // Pause while the app is backgrounded; resume on return; release on dispose.
     DisposableEffect(playback) {
         playback.play()
-        onDispose { playback.release() }
+        val center = NSNotificationCenter.defaultCenter
+        val onBackground = center.addObserverForName(
+            name = UIApplicationDidEnterBackgroundNotification,
+            `object` = null,
+            queue = null,
+        ) { _ -> playback.pause() }
+        val onForeground = center.addObserverForName(
+            name = UIApplicationWillEnterForegroundNotification,
+            `object` = null,
+            queue = null,
+        ) { _ -> playback.play() }
+        onDispose {
+            center.removeObserver(onBackground)
+            center.removeObserver(onForeground)
+            playback.release()
+        }
     }
 
     UIKitView(
@@ -61,6 +80,8 @@ private class VideoPlayback(uri: String) {
     }
 
     fun play() = player.play()
+
+    fun pause() = player.pause()
 
     fun release() {
         looper.disableLooping()
