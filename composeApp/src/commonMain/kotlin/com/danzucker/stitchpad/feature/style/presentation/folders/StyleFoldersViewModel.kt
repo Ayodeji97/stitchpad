@@ -115,22 +115,28 @@ class StyleFoldersViewModel(
         }
     }
 
+    // Resolves limits, awaiting hydration on first use and caching thereafter.
+    private suspend fun resolveLimits(): StyleCollectionLimits {
+        resolvedLimits?.let { return it }
+        val hydrated = entitlements.awaitHydrated()
+        val l = if (customerId == null) {
+            StyleCollectionLimits.forInspiration(hydrated.tier)
+        } else {
+            StyleCollectionLimits.forCustomer(hydrated.tier)
+        }
+        resolvedLimits = l
+        return l
+    }
+
+    // The default "My styles" folder counts as one of maxFolders, so the total
+    // folder count is namedFolderCount + 1.
+    private fun atFolderCap(limits: StyleCollectionLimits): Boolean =
+        _state.value.namedFolderCount + 1 >= limits.maxFolders
+
     private fun handleCreateClick() {
         viewModelScope.launch {
-            // If limits haven't been resolved yet (race), resolve now.
-            val limits = resolvedLimits ?: run {
-                val hydrated = entitlements.awaitHydrated()
-                val l = if (customerId == null) {
-                    StyleCollectionLimits.forInspiration(hydrated.tier)
-                } else {
-                    StyleCollectionLimits.forCustomer(hydrated.tier)
-                }
-                resolvedLimits = l
-                l
-            }
-            // The default "My styles" folder counts as one of maxFolders.
-            // namedFolderCount + 1 (default) = total folders.
-            if (_state.value.namedFolderCount + 1 >= limits.maxFolders) {
+            val limits = resolveLimits()
+            if (atFolderCap(limits)) {
                 _events.send(StyleFoldersEvent.NavigateToUpgrade)
             } else {
                 _state.update { it.copy(showCreateSheet = true) }
@@ -143,6 +149,14 @@ class StyleFoldersViewModel(
         if (name.isBlank()) return
         _state.update { it.copy(showCreateSheet = false) }
         viewModelScope.launch {
+            // Re-check the cap at confirm time: the FAB can be tapped while the grid
+            // is still loading (namedFolderCount == 0), so the live count may have
+            // arrived between opening the sheet and confirming.
+            val limits = resolveLimits()
+            if (atFolderCap(limits)) {
+                _events.send(StyleFoldersEvent.NavigateToUpgrade)
+                return@launch
+            }
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = styleRepository.createFolder(userId, rootLocation, name)
             if (result is Result.Error) {

@@ -241,6 +241,21 @@ class StyleFoldersViewModelTest {
     }
 
     @Test
+    fun onConfirmCreate_atCap_blocksCreate_emitsUpgrade() = runTest {
+        // Guards the loading-race: the sheet can open before the live count lands,
+        // so confirm must re-check the cap before calling createFolder.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.folders = List(9) { fakeFolder("f$it") } // PRO: 9 + default = 10 = cap
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+
+        vm.onAction(StyleFoldersAction.OnConfirmCreate("Corset"))
+
+        val event = vm.events.first()
+        assertIs<StyleFoldersEvent.NavigateToUpgrade>(event)
+        assertNull(styleRepository.lastCreatedFolderName)
+    }
+
+    @Test
     fun onConfirmCreate_blankName_doesNotCallRepo() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
