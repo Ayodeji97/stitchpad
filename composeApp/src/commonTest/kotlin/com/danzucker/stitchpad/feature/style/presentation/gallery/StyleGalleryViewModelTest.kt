@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,7 +50,7 @@ class StyleGalleryViewModelTest {
     }
 
     private fun TestScope.createViewModel(
-        customerId: String = "customer-1",
+        customerId: String? = "customer-1",
     ): StyleGalleryViewModel {
         val vm = StyleGalleryViewModel(
             savedStateHandle = SavedStateHandle(mapOf("customerId" to customerId)),
@@ -90,7 +91,8 @@ class StyleGalleryViewModelTest {
     // --- Observe styles ---
 
     @Test
-    fun missingCustomerId_navigatesBack_withoutLoading() = runTest {
+    fun missingCustomerId_usesInspirationLocation_withoutNavigatingBack() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = StyleGalleryViewModel(
             savedStateHandle = SavedStateHandle(),
             styleRepository = styleRepository,
@@ -99,8 +101,9 @@ class StyleGalleryViewModelTest {
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
-        assertIs<StyleGalleryEvent.NavigateBack>(vm.events.first())
         assertFalse(vm.state.value.isLoading)
+        assertTrue(vm.state.value.isInspirationGallery)
+        assertTrue(vm.state.value.styles.isEmpty())
     }
 
     @Test
@@ -159,6 +162,16 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
+    fun onAddClick_fromInspiration_emitsNavigateToAddStyle_withNullCustomerId() = runTest {
+        val vm = createViewModel(customerId = null)
+        vm.onAction(StyleGalleryAction.OnAddClick)
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.NavigateToAddStyle>(event)
+        assertNull(event.customerId)
+    }
+
+    @Test
     fun onStyleClick_emitsNavigateToEditStyle_withBothIds() = runTest {
         val vm = createViewModel()
         vm.onAction(StyleGalleryAction.OnStyleClick(fakeStyle(id = "style-42")))
@@ -166,6 +179,17 @@ class StyleGalleryViewModelTest {
         val event = vm.events.first()
         assertIs<StyleGalleryEvent.NavigateToEditStyle>(event)
         assertEquals("customer-1", event.customerId)
+        assertEquals("style-42", event.styleId)
+    }
+
+    @Test
+    fun onStyleClick_fromInspiration_emitsNavigateToEditStyle_withNullCustomerId() = runTest {
+        val vm = createViewModel(customerId = null)
+        vm.onAction(StyleGalleryAction.OnStyleClick(fakeStyle(id = "style-42", customerId = "")))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.NavigateToEditStyle>(event)
+        assertNull(event.customerId)
         assertEquals("style-42", event.styleId)
     }
 
@@ -210,8 +234,21 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnConfirmDelete)
 
         assertEquals("style-del", styleRepository.lastDeletedStyleId)
+        assertEquals(StyleLocation.CustomerCloset("customer-1"), styleRepository.lastDeletedLocation)
         assertFalse(vm.state.value.showDeleteDialog)
         assertNull(vm.state.value.styleToDelete)
+    }
+
+    @Test
+    fun onConfirmDelete_fromInspiration_deletesFromInspirationLocation() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel(customerId = null)
+        val style = fakeStyle(id = "style-del", customerId = "")
+        vm.onAction(StyleGalleryAction.OnDeleteClick(style))
+        vm.onAction(StyleGalleryAction.OnConfirmDelete)
+
+        assertEquals("style-del", styleRepository.lastDeletedStyleId)
+        assertEquals(StyleLocation.Inspiration, styleRepository.lastDeletedLocation)
     }
 
     @Test
@@ -273,8 +310,22 @@ class StyleGalleryViewModelTest {
         val transfer = vm.state.value.transfer
         assertNotNull(transfer)
         assertEquals(StyleTransferMode.COPY, transfer.mode)
-        assertEquals(listOf("customer-2"), transfer.targets.map { it.id })
+        assertEquals(listOf("inspiration", "customer-2"), transfer.targets.map { it.id })
         assertNull(vm.state.value.actionSheetStyle)
+    }
+
+    @Test
+    fun onCopyClick_fromClosetWithCustomerFetchError_keepsInspirationTarget() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.shouldReturnError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        val transfer = vm.state.value.transfer
+        assertNotNull(transfer)
+        assertEquals(listOf(TransferTarget.Inspiration), transfer.targets)
     }
 
     @Test
@@ -290,13 +341,37 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
 
-        assertEquals(Triple("customer-1", "s1", "customer-2"), styleRepository.lastCopied)
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2")),
+            styleRepository.lastCopied,
+        )
         val event = vm.events.first()
         assertIs<StyleGalleryEvent.StyleTransferred>(event)
         assertEquals(StyleTransferMode.COPY, event.mode)
-        assertEquals("customer-2", event.targetCustomerId)
-        assertEquals("Bisi", event.targetName)
+        assertEquals(TransferTarget.Customer(customerId = "customer-2", name = "Bisi"), event.target)
         assertNull(vm.state.value.transfer)
+    }
+
+    @Test
+    fun onTargetCustomerSelected_copyToInspiration_callsCopyStyleWithInspirationTarget() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
+
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.Inspiration),
+            styleRepository.lastCopied,
+        )
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.StyleTransferred>(event)
+        assertEquals(TransferTarget.Inspiration, event.target)
     }
 
     @Test
@@ -312,7 +387,10 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
 
-        assertEquals(Triple("customer-1", "s1", "customer-2"), styleRepository.lastMoved)
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2")),
+            styleRepository.lastMoved,
+        )
         assertIs<StyleGalleryEvent.StyleTransferred>(vm.events.first())
     }
 
@@ -327,6 +405,28 @@ class StyleGalleryViewModelTest {
         assertNull(vm.state.value.actionSheetStyle)
         assertTrue(vm.state.value.showDeleteDialog)
         assertEquals(style, vm.state.value.styleToDelete)
+    }
+
+    // --- isInspirationGallery flag ---
+
+    @Test
+    fun closetGallery_isInspirationGalleryFalse() = runTest {
+        authRepository.signUpWithEmail("t@t.com", "p", "T")
+        val vm = createViewModel(customerId = "customer-1")
+        assertFalse(vm.state.value.isInspirationGallery)
+    }
+
+    @Test
+    fun inspirationGallery_isInspirationGalleryTrue() = runTest {
+        authRepository.signUpWithEmail("t@t.com", "p", "T")
+        val vm = StyleGalleryViewModel(
+            savedStateHandle = SavedStateHandle(),
+            styleRepository = styleRepository,
+            customerRepository = customerRepository,
+            authRepository = authRepository,
+        )
+        backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
+        assertTrue(vm.state.value.isInspirationGallery)
     }
 
     // --- Error dismiss ---

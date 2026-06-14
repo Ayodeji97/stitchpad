@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
@@ -30,15 +31,21 @@ class FirebaseStyleRepository(
     private val uploadOutbox: OfflineUploadOutbox,
 ) : StyleRepository {
 
-    private fun stylesCollection(userId: String, customerId: String) =
-        firestore.collection("users")
-            .document(userId)
-            .collection("customers")
-            .document(customerId)
-            .collection("styles")
+    private fun collectionFor(userId: String, location: StyleLocation) = when (location) {
+        is StyleLocation.CustomerCloset ->
+            firestore.collection("users").document(userId)
+                .collection("customers").document(location.customerId)
+                .collection("styles")
+        StyleLocation.Inspiration ->
+            firestore.collection("users").document(userId).collection("inspiration")
+    }
 
-    private fun storagePath(userId: String, customerId: String, styleId: String): String =
-        "users/$userId/customers/$customerId/styles/$styleId.jpg"
+    private fun storagePathFor(userId: String, location: StyleLocation, styleId: String): String =
+        when (location) {
+            is StyleLocation.CustomerCloset ->
+                "users/$userId/customers/${location.customerId}/styles/$styleId.jpg"
+            StyleLocation.Inspiration -> "users/$userId/inspiration/$styleId.jpg"
+        }
 
     private fun uploadJobId(path: String): String =
         "${OfflineUploadJobType.STYLE_GALLERY_IMAGE}:$path"
@@ -52,15 +59,15 @@ class FirebaseStyleRepository(
 
     override fun observeStyles(
         userId: String,
-        customerId: String
+        location: StyleLocation
     ): Flow<Result<List<Style>, DataError.Network>> =
-        stylesCollection(userId, customerId)
+        collectionFor(userId, location)
             .snapshots()
             .map<_, Result<List<Style>, DataError.Network>> { snapshot ->
                 val styles = snapshot.documents
                     .mapNotNull { doc ->
                         runCatching {
-                            doc.data<StyleDto>().toStyle(customerId).withLocalPendingPhoto()
+                            doc.data<StyleDto>().toStyle(location).withLocalPendingPhoto()
                         }.getOrNull()
                     }
                     .sortedByDescending { it.createdAt }
@@ -73,17 +80,17 @@ class FirebaseStyleRepository(
 
     override suspend fun createStyle(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         description: String,
         photoBytes: ByteArray
     ): Result<String, DataError.Network> {
-        val docRef = stylesCollection(userId, customerId).document
-        val path = storagePath(userId, customerId, docRef.id)
+        val docRef = collectionFor(userId, location).document
+        val path = storagePathFor(userId, location, docRef.id)
         return try {
             val localPath = photoStore.save(photoBytes, "style-${docRef.id}.jpg")
             val style = Style(
                 id = docRef.id,
-                customerId = customerId,
+                customerId = (location as? StyleLocation.CustomerCloset)?.customerId.orEmpty(),
                 description = description,
                 photoUrl = "",
                 photoStoragePath = path,
@@ -103,10 +110,11 @@ class FirebaseStyleRepository(
                     id = uploadJobId(path),
                     type = OfflineUploadJobType.STYLE_GALLERY_IMAGE,
                     userId = userId,
-                    customerId = customerId,
+                    customerId = (location as? StyleLocation.CustomerCloset)?.customerId.orEmpty(),
                     styleId = docRef.id,
                     storagePath = path,
                     localPath = localPath,
+                    inspirationStyle = location is StyleLocation.Inspiration,
                 )
             )
             Result.Success(docRef.id)
@@ -121,14 +129,14 @@ class FirebaseStyleRepository(
     @Suppress("ReturnCount")
     override suspend fun createStyles(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         description: String,
         photoBytesList: List<ByteArray>,
     ): Result<List<String>, DataError.Network> {
         if (photoBytesList.isEmpty()) return Result.Success(emptyList())
         val createdIds = mutableListOf<String>()
         photoBytesList.forEach { bytes ->
-            when (val result = createStyle(userId, customerId, description, bytes)) {
+            when (val result = createStyle(userId, location, description, bytes)) {
                 is Result.Success -> createdIds += result.data
                 is Result.Error -> return Result.Error(result.error)
             }
@@ -138,14 +146,14 @@ class FirebaseStyleRepository(
 
     override suspend fun updateStyle(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         style: Style,
         newPhotoBytes: ByteArray?
     ): EmptyResult<DataError.Network> {
         return try {
             val accepted = if (newPhotoBytes != null) {
                 val path = style.photoStoragePath.ifBlank {
-                    storagePath(userId, customerId, style.id)
+                    storagePathFor(userId, location, style.id)
                 }
                 val localPath = photoStore.save(newPhotoBytes, "style-${style.id}.jpg")
                 val pendingStyle = style.copy(
@@ -154,7 +162,7 @@ class FirebaseStyleRepository(
                     localPhotoPath = localPath,
                 )
                 val accepted = offlineWrites.enqueue("updateStylePhoto styleId=${style.id}") {
-                    stylesCollection(userId, customerId)
+                    collectionFor(userId, location)
                         .document(pendingStyle.id)
                         .set(pendingStyle.toStyleDto())
                 }
@@ -164,17 +172,18 @@ class FirebaseStyleRepository(
                             id = uploadJobId(path),
                             type = OfflineUploadJobType.STYLE_GALLERY_IMAGE,
                             userId = userId,
-                            customerId = customerId,
+                            customerId = (location as? StyleLocation.CustomerCloset)?.customerId.orEmpty(),
                             styleId = style.id,
                             storagePath = path,
                             localPath = localPath,
+                            inspirationStyle = location is StyleLocation.Inspiration,
                         )
                     )
                 }
                 accepted
             } else {
                 offlineWrites.enqueue("updateStyle styleId=${style.id}") {
-                    stylesCollection(userId, customerId)
+                    collectionFor(userId, location)
                         .document(style.id)
                         .set(style.toStyleDto())
                 }
@@ -194,7 +203,7 @@ class FirebaseStyleRepository(
 
     override suspend fun deleteStyle(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         style: Style
     ): EmptyResult<DataError.Network> =
         try {
@@ -207,7 +216,7 @@ class FirebaseStyleRepository(
             // an unreferenced object is wasted bytes, never a broken image.
             uploadOutbox.cancel(uploadJobId(style.photoStoragePath))
             val accepted = offlineWrites.enqueue("deleteStyle styleId=${style.id}") {
-                stylesCollection(userId, customerId)
+                collectionFor(userId, location)
                     .document(style.id)
                     .delete()
             }
@@ -224,12 +233,12 @@ class FirebaseStyleRepository(
 
     override suspend fun copyStyle(
         userId: String,
-        fromCustomerId: String,
+        from: StyleLocation,
         style: Style,
-        toCustomerId: String,
+        to: StyleLocation,
     ): EmptyResult<DataError.Network> =
         try {
-            writeSharedCopy(userId, toCustomerId, style)
+            writeSharedCopy(userId, to, style)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "copyStyle failed styleId=${style.id}" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -237,14 +246,14 @@ class FirebaseStyleRepository(
 
     override suspend fun moveStyle(
         userId: String,
-        fromCustomerId: String,
+        from: StyleLocation,
         style: Style,
-        toCustomerId: String,
+        to: StyleLocation,
     ): EmptyResult<DataError.Network> =
         try {
             // Create the target (sharing the image) then remove the source doc only —
             // the image stays put for whichever doc now references it.
-            when (val created = writeSharedCopy(userId, toCustomerId, style)) {
+            when (val created = writeSharedCopy(userId, to, style)) {
                 is Result.Error -> created
                 is Result.Success -> {
                     // The copy is committed; removing the source is a fire-and-forget
@@ -254,7 +263,7 @@ class FirebaseStyleRepository(
                     // comes back false — the copy already succeeded, so that would
                     // leave the style on both customers behind a misleading error.
                     offlineWrites.enqueue("moveStyle deleteSource styleId=${style.id}") {
-                        stylesCollection(userId, fromCustomerId)
+                        collectionFor(userId, from)
                             .document(style.id)
                             .delete()
                     }
@@ -267,7 +276,7 @@ class FirebaseStyleRepository(
         }
 
     /**
-     * Write a style for [toCustomerId] that shows [source]'s image.
+     * Write a style for [to] location that shows [source]'s image.
      *
      * - If the source image is already in storage (has a [Style.photoUrl]), the
      *   new doc just points at the same URL/path — no re-upload, marked SYNCED.
@@ -279,17 +288,17 @@ class FirebaseStyleRepository(
      */
     private suspend fun writeSharedCopy(
         userId: String,
-        toCustomerId: String,
+        to: StyleLocation,
         source: Style,
     ): EmptyResult<DataError.Network> {
         if (source.photoUrl.isBlank()) {
-            return reuploadIndependentCopy(userId, toCustomerId, source)
+            return reuploadIndependentCopy(userId, to, source)
         }
-        val docRef = stylesCollection(userId, toCustomerId).document
+        val docRef = collectionFor(userId, to).document
         val now = Clock.System.now().toEpochMilliseconds()
         val copy = source.copy(
             id = docRef.id,
-            customerId = toCustomerId,
+            customerId = (to as? StyleLocation.CustomerCloset)?.customerId.orEmpty(),
             syncState = ImageSyncState.SYNCED,
             localPhotoPath = null,
             createdAt = now,
@@ -304,7 +313,7 @@ class FirebaseStyleRepository(
     @Suppress("ReturnCount")
     private suspend fun reuploadIndependentCopy(
         userId: String,
-        toCustomerId: String,
+        to: StyleLocation,
         source: Style,
     ): EmptyResult<DataError.Network> {
         val localPath = source.localPhotoPath
@@ -312,7 +321,7 @@ class FirebaseStyleRepository(
             ?: return Result.Error(DataError.Network.UNKNOWN)
         val bytes = runCatching { photoStore.read(localPath) }.getOrNull()
             ?: return Result.Error(DataError.Network.UNKNOWN)
-        return when (val result = createStyle(userId, toCustomerId, source.description, bytes)) {
+        return when (val result = createStyle(userId, to, source.description, bytes)) {
             is Result.Success -> Result.Success(Unit)
             is Result.Error -> Result.Error(result.error)
         }

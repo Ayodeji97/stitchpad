@@ -275,7 +275,7 @@ private fun MainNavGraph(
                 onNavigateToEditStyle = { customerId, styleId ->
                     navController.navigate(StyleFormRoute(customerId = customerId, styleId = styleId))
                 },
-                onNavigateToCustomerCloset = { customerId ->
+                onNavigateToStyleGallery = { customerId ->
                     navController.navigate(StyleGalleryRoute(customerId = customerId))
                 }
             )
@@ -380,6 +380,11 @@ private fun MainNavGraph(
                 },
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
+                },
+                onNavigateToInspiration = {
+                    navController.navigate(StyleGalleryRoute(customerId = null)) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToDraftMessage = {
                     navController.navigate(DraftMessageRoute)

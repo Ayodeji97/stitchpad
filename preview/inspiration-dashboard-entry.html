@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Inspiration entry on the Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet" />
+<style>
+:root{
+  --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo200:#9CB0DD; --indigo400:#5871B8; --indigo500:#2C3E7C; --indigo700:#1E2B5C; --indigo900:#121B3B;
+  --sienna50:#FCEFE5; --sienna500:#B85A30; --sienna700:#8E4524; --saffron:#E8A800;
+  --paper:#FAF6EC; --white:#FFFFFF;
+  --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0; --n400:#A8A49D; --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320; --n900:#14110E;
+  --suc:#2D9E6B; --suc50:#E8F7F1; --warn:#E07B20; --warn50:#FEF3E8;
+  --serif:'Fraunces',Georgia,serif; --body:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:#EDEAE0;font-family:var(--body);color:var(--n800);padding:40px 28px 90px;}
+.page-head{max-width:1320px;margin:0 auto 28px;}
+.page-head h1{font-family:var(--serif);font-weight:600;font-size:29px;color:var(--indigo900);letter-spacing:-.3px;}
+.page-head p{color:var(--n600);font-size:15px;margin-top:8px;max-width:840px;line-height:1.6;}
+.page-head p b{color:var(--n800);}
+.grid{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1320px;margin:0 auto;}
+.col{width:392px;}
+.col-tag{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+.col-tag b{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--indigo700);}
+.col-tag .k{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--n400);text-transform:uppercase;}
+.col-desc{font-size:12.5px;color:var(--n600);line-height:1.5;margin-bottom:14px;min-height:54px;}
+
+.phone{width:392px;border-radius:42px;background:#0f0e0d;padding:11px;box-shadow:0 28px 60px -24px rgba(18,17,16,.45),0 4px 14px rgba(18,17,16,.12);}
+.screen{border-radius:32px;overflow:hidden;background:var(--paper);height:830px;display:flex;flex-direction:column;position:relative;}
+.statusbar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13.5px;font-weight:700;flex:0 0 auto;}
+.ms{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;line-height:1;display:inline-block;}
+
+.appbar{display:flex;align-items:center;gap:10px;padding:6px 20px 8px;flex:0 0 auto;}
+.appbar .av{width:38px;height:38px;border-radius:999px;background:var(--indigo500);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;}
+.appbar .hi{flex:1;}
+.appbar .hi .g{font-size:12px;color:var(--n500);font-weight:600;}
+.appbar .hi .n{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--n900);letter-spacing:-.2px;}
+.appbar .ic{width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--n700);position:relative;}
+.appbar .ic .ms{font-size:23px;}
+.appbar .ic .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:999px;background:var(--warn);}
+
+.body{flex:1;overflow:hidden;padding:6px 18px 18px;}
+.sec{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--n500);margin:14px 4px 9px;}
+
+/* generic action card (context) */
+.card{background:var(--white);border:1px solid var(--n200);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(18,17,16,.04);}
+.focus{position:relative;overflow:hidden;}
+.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sienna500);}
+.focus .pill{display:inline-flex;align-items:center;gap:5px;background:var(--sienna50);color:var(--sienna700);font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:999px;}
+.focus h3{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--n900);margin:9px 0 3px;}
+.focus p{font-size:13px;color:var(--n600);line-height:1.45;}
+.focus .cta{margin-top:11px;display:inline-block;background:var(--indigo500);color:#fff;font-size:13px;font-weight:700;padding:9px 16px;border-radius:11px;}
+.kpis{display:flex;gap:10px;margin-bottom:12px;}
+.kpi{flex:1;background:var(--white);border:1px solid var(--n200);border-radius:14px;padding:11px 12px;}
+.kpi .l{font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--n500);letter-spacing:.03em;}
+.kpi .v{font-family:var(--mono);font-weight:700;font-size:17px;color:var(--n900);margin-top:3px;}
+
+/* ===== Inspiration entry treatments ===== */
+.hl{outline:2px dashed var(--indigo400);outline-offset:3px;border-radius:18px;}
+
+/* A — quiet shortcut row */
+.shortcut{display:flex;align-items:center;gap:13px;background:var(--white);border:1px solid var(--n200);border-radius:16px;padding:13px 14px;box-shadow:0 1px 2px rgba(18,17,16,.04);}
+.shortcut .ic{width:42px;height:42px;border-radius:12px;background:var(--indigo50);color:var(--indigo500);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.shortcut .ic .ms{font-size:23px;}
+.shortcut .t{flex:1;}
+.shortcut .t .n{font-size:15px;font-weight:700;color:var(--n800);}
+.shortcut .t .s{font-size:12px;color:var(--n500);margin-top:1px;}
+.shortcut .ch{color:var(--n400);}
+.shortcut .ch .ms{font-size:22px;}
+
+/* C — card with thumbnail preview */
+.inspcard{background:var(--white);border:1px solid var(--n200);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(18,17,16,.04);}
+.inspcard .top{display:flex;align-items:center;gap:9px;margin-bottom:11px;}
+.inspcard .top .ic{width:34px;height:34px;border-radius:10px;background:var(--indigo50);color:var(--indigo500);display:flex;align-items:center;justify-content:center;}
+.inspcard .top .ic .ms{font-size:19px;}
+.inspcard .top .n{font-size:14.5px;font-weight:800;color:var(--n800);flex:1;}
+.inspcard .top .cnt{font-size:11.5px;font-weight:700;color:var(--n500);}
+.inspcard .thumbs{display:flex;gap:8px;}
+.inspcard .thumbs .th{flex:1;aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#cdb6a4,#a98c72);}
+.inspcard .thumbs .th:nth-child(2){background:linear-gradient(135deg,#9fb0cf,#6f86b8);}
+.inspcard .thumbs .th:nth-child(3){background:linear-gradient(135deg,#d8b48f,#b98a5e);}
+.inspcard .thumbs .more{flex:1;aspect-ratio:1;border-radius:10px;background:var(--indigo50);color:var(--indigo500);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;}
+
+.tabbar{display:flex;border-top:1px solid var(--n200);background:var(--white);padding:8px 0 14px;flex:0 0 auto;}
+.tabbar .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:var(--n400);}
+.tabbar .tb.on{color:var(--indigo500);}
+.tabbar .tb .ms{font-size:23px;}
+
+.note{max-width:1320px;margin:28px auto 0;background:var(--white);border:1px solid var(--n200);border-radius:14px;padding:16px 20px;font-size:13.5px;color:var(--n700);line-height:1.6;}
+.note b{color:var(--indigo700);}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>Inspiration — Dashboard entry</h1>
+  <p>The Dashboard is a <b>revenue-focused action stack</b>, so the Inspiration entry should stay quiet and not compete with the work cards. Three treatments (dashed outline = the entry). Same Adire system, light mode. Pick one.</p>
+</div>
+
+<div class="grid">
+
+  <!-- A — quiet shortcut row -->
+  <div class="col">
+    <div class="col-tag"><b>A · Shortcut row</b><span class="k">recommended</span></div>
+    <div class="col-desc">A calm row below the action cards: icon + "Inspiration" + a one-line hint + chevron. Reads as a quiet entry point, never competes with revenue cards.</div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar">
+        <div class="av">FA</div>
+        <div class="hi"><div class="g">Good morning</div><div class="n">Fola&apos;s Atelier</div></div>
+        <div class="ic"><i class="ms">notifications</i><span class="dot"></span></div>
+      </div>
+      <div class="body">
+        <div class="card focus"><span class="pill"><i class="ms">bolt</i>Next best</span><h3>2 orders due this week</h3><p>Mummy AY (Fri) and Tunde (Sat) are coming up. Send a reminder?</p><span class="cta">Review orders</span></div>
+        <div class="kpis"><div class="kpi"><div class="l">This week</div><div class="v">₦185k</div></div><div class="kpi"><div class="l">To collect</div><div class="v">₦75k</div></div></div>
+        <div class="sec">Quick access</div>
+        <div class="shortcut hl">
+          <div class="ic"><i class="ms">collections_bookmark</i></div>
+          <div class="t"><div class="n">Inspiration</div><div class="s">Looks you&apos;ve saved</div></div>
+          <div class="ch"><i class="ms">chevron_right</i></div>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tb on"><i class="ms">dashboard</i>Dashboard</div><div class="tb"><i class="ms">group</i>Customers</div><div class="tb"><i class="ms">shopping_bag</i>Orders</div><div class="tb"><i class="ms">bar_chart</i>Reports</div></div>
+    </div></div>
+  </div>
+
+  <!-- B — app-bar icon -->
+  <div class="col">
+    <div class="col-tag"><b>B · App-bar icon</b><span class="k">minimal</span></div>
+    <div class="col-desc">An icon button in the top bar (next to the bell). Always one tap away, zero vertical space, but less discoverable / no label.</div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar">
+        <div class="av">FA</div>
+        <div class="hi"><div class="g">Good morning</div><div class="n">Fola&apos;s Atelier</div></div>
+        <div class="ic hl"><i class="ms">collections_bookmark</i></div>
+        <div class="ic"><i class="ms">notifications</i><span class="dot"></span></div>
+      </div>
+      <div class="body">
+        <div class="card focus"><span class="pill"><i class="ms">bolt</i>Next best</span><h3>2 orders due this week</h3><p>Mummy AY (Fri) and Tunde (Sat) are coming up. Send a reminder?</p><span class="cta">Review orders</span></div>
+        <div class="kpis"><div class="kpi"><div class="l">This week</div><div class="v">₦185k</div></div><div class="kpi"><div class="l">To collect</div><div class="v">₦75k</div></div></div>
+        <div class="sec">Work pipeline</div>
+        <div class="card" style="color:var(--n500);font-size:13px;">Pending 5 · Sewing 8 · Ready 3</div>
+      </div>
+      <div class="tabbar"><div class="tb on"><i class="ms">dashboard</i>Dashboard</div><div class="tb"><i class="ms">group</i>Customers</div><div class="tb"><i class="ms">shopping_bag</i>Orders</div><div class="tb"><i class="ms">bar_chart</i>Reports</div></div>
+    </div></div>
+  </div>
+
+  <!-- C — preview card -->
+  <div class="col">
+    <div class="col-tag"><b>C · Preview card</b><span class="k">prominent</span></div>
+    <div class="col-desc">A card showing a few saved thumbnails + count. Most inviting / showcases the content, but it&apos;s a bigger block competing with the revenue cards on a busy dashboard.</div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span><i class="ms">wifi</i> <i class="ms">battery_full</i></span></div>
+      <div class="appbar">
+        <div class="av">FA</div>
+        <div class="hi"><div class="g">Good morning</div><div class="n">Fola&apos;s Atelier</div></div>
+        <div class="ic"><i class="ms">notifications</i><span class="dot"></span></div>
+      </div>
+      <div class="body">
+        <div class="card focus"><span class="pill"><i class="ms">bolt</i>Next best</span><h3>2 orders due this week</h3><p>Mummy AY (Fri) and Tunde (Sat) are coming up.</p><span class="cta">Review orders</span></div>
+        <div class="sec">Inspiration</div>
+        <div class="inspcard hl">
+          <div class="top"><div class="ic"><i class="ms">collections_bookmark</i></div><div class="n">Inspiration</div><div class="cnt">12 saved ›</div></div>
+          <div class="thumbs"><div class="th"></div><div class="th"></div><div class="th"></div><div class="more">+9</div></div>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tb on"><i class="ms">dashboard</i>Dashboard</div><div class="tb"><i class="ms">group</i>Customers</div><div class="tb"><i class="ms">shopping_bag</i>Orders</div><div class="tb"><i class="ms">bar_chart</i>Reports</div></div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="note">
+  <b>Recommendation: A · Shortcut row.</b> It matches the dashboard philosophy (revenue-driving cards stay primary; Inspiration is a quiet, labelled entry point), is cheap to build, and is clearly discoverable. <b>B</b> is the most minimal if you'd rather not add vertical space. <b>C</b> is the most inviting but is a larger block that competes for attention on a busy dashboard — better suited if Inspiration becomes a hero feature later. All three navigate to the same Inspiration gallery.
+</div>
+
+</body>
+</html>

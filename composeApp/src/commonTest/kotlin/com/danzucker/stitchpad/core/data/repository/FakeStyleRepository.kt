@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -20,12 +21,13 @@ class FakeStyleRepository : StyleRepository {
     var lastUpdatedStyle: Style? = null
     var lastUpdatedPhotoBytes: ByteArray? = null
     var lastDeletedStyleId: String? = null
-    var lastCopied: Triple<String, String, String>? = null
-    var lastMoved: Triple<String, String, String>? = null
+    var lastDeletedLocation: StyleLocation? = null
+    var lastCopied: Triple<StyleLocation, String, StyleLocation>? = null  // (from, styleId, to)
+    var lastMoved: Triple<StyleLocation, String, StyleLocation>? = null
 
     override fun observeStyles(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
     ): Flow<Result<List<Style>, DataError.Network>> =
         observeError?.let { flowOf(Result.Error(it)) }
             ?: flowOf(Result.Success(stylesList))
@@ -34,7 +36,7 @@ class FakeStyleRepository : StyleRepository {
 
     override suspend fun createStyle(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         description: String,
         photoBytes: ByteArray,
     ): Result<String, DataError.Network> {
@@ -46,7 +48,7 @@ class FakeStyleRepository : StyleRepository {
 
     override suspend fun updateStyle(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         style: Style,
         newPhotoBytes: ByteArray?,
     ): EmptyResult<DataError.Network> {
@@ -58,17 +60,18 @@ class FakeStyleRepository : StyleRepository {
 
     override suspend fun deleteStyle(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         style: Style,
     ): EmptyResult<DataError.Network> {
         operationError?.let { return Result.Error(it) }
         lastDeletedStyleId = style.id
+        lastDeletedLocation = location
         return Result.Success(Unit)
     }
 
     override suspend fun createStyles(
         userId: String,
-        customerId: String,
+        location: StyleLocation,
         description: String,
         photoBytesList: List<ByteArray>,
     ): Result<List<String>, DataError.Network> {
@@ -82,23 +85,23 @@ class FakeStyleRepository : StyleRepository {
 
     override suspend fun copyStyle(
         userId: String,
-        fromCustomerId: String,
+        from: StyleLocation,
         style: Style,
-        toCustomerId: String,
+        to: StyleLocation,
     ): EmptyResult<DataError.Network> {
         operationError?.let { return Result.Error(it) }
-        lastCopied = Triple(fromCustomerId, style.id, toCustomerId)
+        lastCopied = Triple(from, style.id, to)
         return Result.Success(Unit)
     }
 
     override suspend fun moveStyle(
         userId: String,
-        fromCustomerId: String,
+        from: StyleLocation,
         style: Style,
-        toCustomerId: String,
+        to: StyleLocation,
     ): EmptyResult<DataError.Network> {
         operationError?.let { return Result.Error(it) }
-        lastMoved = Triple(fromCustomerId, style.id, toCustomerId)
+        lastMoved = Triple(from, style.id, to)
         return Result.Success(Unit)
     }
 }
