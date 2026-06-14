@@ -247,12 +247,18 @@ class FirebaseStyleRepository(
             when (val created = writeSharedCopy(userId, toCustomerId, style)) {
                 is Result.Error -> created
                 is Result.Success -> {
-                    val deleted = offlineWrites.enqueue("moveStyle deleteSource styleId=${style.id}") {
+                    // The copy is committed; removing the source is a fire-and-forget
+                    // background write like every other offline mutation (failures
+                    // surface via logs + snapshot reconciliation). Don't report the
+                    // whole move as failed if this second enqueue's scheduling boolean
+                    // comes back false — the copy already succeeded, so that would
+                    // leave the style on both customers behind a misleading error.
+                    offlineWrites.enqueue("moveStyle deleteSource styleId=${style.id}") {
                         stylesCollection(userId, fromCustomerId)
                             .document(style.id)
                             .delete()
                     }
-                    if (deleted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+                    Result.Success(Unit)
                 }
             }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
