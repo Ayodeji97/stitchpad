@@ -338,13 +338,16 @@ export async function appStoreServerNotificationsHandler(
   const indexSnap = await indexRef.get();
   const uid = (indexSnap.data() as { uid?: string } | undefined)?.uid;
   if (!uid) {
-    // Not yet bound (e.g. notification raced the verify callable). Don't 4xx —
-    // Apple retries, and the reconciliation cron is a further safety net.
-    functions.logger.warn('apple notification uid unresolved', {
+    // Not yet bound — most likely a SUBSCRIBED notification that raced the verify
+    // callable that writes the reverse index. Throw so the wrapper returns 5xx and
+    // Apple RETRIES later (by which point the index usually exists). We must NOT
+    // 200 here: the reconciliation cron only scans already-active Apple users, so
+    // a never-bound subscription would otherwise be lost forever.
+    functions.logger.warn('apple notification uid unresolved — asking Apple to retry', {
       originalTransactionId: txn.originalTransactionId,
       type: notification.notificationType,
     });
-    return;
+    throw new Error('apple_notification_uid_unresolved');
   }
 
   const refs: CommitRefs = {

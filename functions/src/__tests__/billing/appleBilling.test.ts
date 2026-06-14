@@ -186,14 +186,17 @@ describe('appStoreServerNotificationsHandler', () => {
     })).rejects.toBeInstanceOf(AppleVerificationError);
   });
 
-  it('returns without throwing when the uid cannot be resolved', async () => {
+  it('throws (→ 5xx, Apple retries) when the uid cannot be resolved yet', async () => {
     const { db, store } = fakeDb(); // no reverse index entry
     const verifier = fakeVerifier({
       verifyNotification: jest.fn(async () => notification('DID_RENEW', txnFor('uid-1'))),
     });
+    // A non-verification throw makes the wrapper return 5xx so Apple retries once
+    // the verify callable has written the reverse index. It must NOT be an
+    // AppleVerificationError (that would 400 and drop the notification).
     await expect(appStoreServerNotificationsHandler('payload', {
       db: db as never, verifier, now: () => new Date(),
-    })).resolves.toBeUndefined();
+    })).rejects.not.toBeInstanceOf(AppleVerificationError);
     expect(store.get('users/uid-1')).toBeUndefined();
   });
 
