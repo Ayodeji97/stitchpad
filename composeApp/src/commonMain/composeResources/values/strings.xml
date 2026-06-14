@@ -483,6 +483,9 @@
     <string name="style_folder_delete_message">All styles inside this folder will also be deleted. This cannot be undone.</string>
     <string name="style_folder_count">%1$d styles</string>
     <string name="style_folders_create_cd">New folder</string>
+    <string name="style_folder_full_snackbar">This folder is full (%1$d styles). Upgrade for more room.</string>
+    <string name="style_folder_full_action">Upgrade</string>
+    <string name="style_folder_batch_over_cap">This folder holds %1$d styles. Remove some and try again.</string>
 
     <!-- Style errors -->
     <string name="error_style_not_found">Style not found</string>

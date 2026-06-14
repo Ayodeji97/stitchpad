@@ -3,12 +3,14 @@ package com.danzucker.stitchpad.feature.style.presentation.gallery
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,13 +27,25 @@ class StyleGalleryViewModel(
     savedStateHandle: SavedStateHandle,
     private val styleRepository: StyleRepository,
     private val customerRepository: CustomerRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
+    private val folderId: String? = savedStateHandle["folderId"]
 
     private val location: StyleLocation =
-        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration()
+        customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
+
+    private val limits: StyleCollectionLimits =
+        if (customerId == null) {
+            StyleCollectionLimits.forInspiration(entitlements.current().tier)
+        } else {
+            StyleCollectionLimits.forCustomer(entitlements.current().tier)
+        }
+
+    private val imageCap: Int =
+        if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
 
     private var hasLoadedInitialData = false
     private val isInspirationGallery = location is StyleLocation.Inspiration
@@ -59,11 +73,17 @@ class StyleGalleryViewModel(
     fun onAction(action: StyleGalleryAction) {
         when (action) {
             StyleGalleryAction.OnAddClick -> {
-                viewModelScope.launch { _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId)) }
+                viewModelScope.launch {
+                    if (_state.value.styles.size >= imageCap) {
+                        _events.send(StyleGalleryEvent.CapReached(imageCap))
+                    } else {
+                        _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId, folderId))
+                    }
+                }
             }
             is StyleGalleryAction.OnStyleClick -> {
                 viewModelScope.launch {
-                    _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, action.style.id))
+                    _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, folderId, action.style.id))
                 }
             }
             is StyleGalleryAction.OnStyleLongPress -> {

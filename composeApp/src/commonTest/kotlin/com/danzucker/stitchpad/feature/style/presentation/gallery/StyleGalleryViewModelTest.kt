@@ -3,14 +3,19 @@ package com.danzucker.stitchpad.feature.style.presentation.gallery
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,14 +54,40 @@ class StyleGalleryViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private class FakeEntitlementsProvider(
+        private val tier: SubscriptionTier = SubscriptionTier.FREE,
+    ) : EntitlementsProvider {
+        private val entitlements = UserEntitlements(
+            tier = tier,
+            customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
+            smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
+            isInWelcomeWindow = false,
+            welcomeEndsAt = null,
+            isWithinWelcomeEndingWarning = false,
+            welcomeDaysLeft = null,
+            canUseCustomMeasurements = tier != SubscriptionTier.FREE,
+        )
+        private val _flow = MutableStateFlow(entitlements)
+        override val flow: StateFlow<UserEntitlements> = _flow
+        override fun current(): UserEntitlements = entitlements
+        override suspend fun awaitHydrated(): UserEntitlements = entitlements
+    }
+
     private fun TestScope.createViewModel(
         customerId: String? = "customer-1",
+        folderId: String? = null,
+        tier: SubscriptionTier = SubscriptionTier.FREE,
     ): StyleGalleryViewModel {
+        val args = buildMap {
+            if (customerId != null) put("customerId", customerId)
+            if (folderId != null) put("folderId", folderId)
+        }
         val vm = StyleGalleryViewModel(
-            savedStateHandle = SavedStateHandle(mapOf("customerId" to customerId)),
+            savedStateHandle = SavedStateHandle(args),
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlements = FakeEntitlementsProvider(tier),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -98,6 +129,7 @@ class StyleGalleryViewModelTest {
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
@@ -147,6 +179,37 @@ class StyleGalleryViewModelTest {
 
         assertTrue(vm.state.value.styles.isEmpty())
         assertFalse(vm.state.value.isLoading)
+    }
+
+    // --- Cap enforcement ---
+
+    @Test
+    fun onAddClick_folderAtCap_emitsCapReached_noNavigate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Free inspiration: flatCap = 10. Seed 10 styles (already full).
+        styleRepository.stylesList = List(10) { fakeStyle(id = "s$it", customerId = "") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+
+        vm.onAction(StyleGalleryAction.OnAddClick)
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.CapReached>(event)
+        assertEquals(10, event.cap)
+    }
+
+    @Test
+    fun onAddClick_underCap_navigatesToAdd() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Free inspiration: flatCap = 10. Seed 3 styles (under cap).
+        styleRepository.stylesList = List(3) { fakeStyle(id = "s$it", customerId = "") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+
+        vm.onAction(StyleGalleryAction.OnAddClick)
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.NavigateToAddStyle>(event)
+        assertNull(event.customerId)
+        assertNull(event.folderId)
     }
 
     // --- Navigation events ---
@@ -424,6 +487,7 @@ class StyleGalleryViewModelTest {
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         assertTrue(vm.state.value.isInspirationGallery)

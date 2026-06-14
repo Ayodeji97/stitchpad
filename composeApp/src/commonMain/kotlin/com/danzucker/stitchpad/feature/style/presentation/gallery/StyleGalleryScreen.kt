@@ -84,6 +84,8 @@ import stitchpad.composeapp.generated.resources.style_delete_message
 import stitchpad.composeapp.generated.resources.style_delete_title
 import stitchpad.composeapp.generated.resources.style_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_empty_title
+import stitchpad.composeapp.generated.resources.style_folder_full_action
+import stitchpad.composeapp.generated.resources.style_folder_full_snackbar
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_title
@@ -97,9 +99,10 @@ import stitchpad.composeapp.generated.resources.style_transfer_view_cta
 @Composable
 fun StyleGalleryRoot(
     onNavigateBack: () -> Unit,
-    onNavigateToAddStyle: (String?) -> Unit,
-    onNavigateToEditStyle: (String?, String) -> Unit,
-    onNavigateToStyleGallery: (String?) -> Unit
+    onNavigateToAddStyle: (String?, String?) -> Unit,
+    onNavigateToEditStyle: (String?, String?, String) -> Unit,
+    onNavigateToStyleGallery: (String?) -> Unit,
+    onNavigateToUpgrade: () -> Unit,
 ) {
     val viewModel: StyleGalleryViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -107,12 +110,17 @@ fun StyleGalleryRoot(
     val scope = rememberCoroutineScope()
     val viewActionLabel = stringResource(Res.string.style_transfer_view_cta)
     val inspirationName = stringResource(Res.string.style_inspiration_title)
+    val upgradeActionLabel = stringResource(Res.string.style_folder_full_action)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             StyleGalleryEvent.NavigateBack -> onNavigateBack()
-            is StyleGalleryEvent.NavigateToAddStyle -> onNavigateToAddStyle(event.customerId)
-            is StyleGalleryEvent.NavigateToEditStyle -> onNavigateToEditStyle(event.customerId, event.styleId)
+            is StyleGalleryEvent.NavigateToAddStyle -> onNavigateToAddStyle(event.customerId, event.folderId)
+            is StyleGalleryEvent.NavigateToEditStyle -> onNavigateToEditStyle(
+                event.customerId,
+                event.folderId,
+                event.styleId
+            )
             is StyleGalleryEvent.StyleTransferred -> scope.launch {
                 val targetName = transferTargetName(event.target, inspirationName)
                 val template = when (event.mode) {
@@ -131,6 +139,17 @@ fun StyleGalleryRoot(
                     onNavigateToStyleGallery(targetCustomerId)
                 }
             }
+            is StyleGalleryEvent.CapReached -> scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = getString(Res.string.style_folder_full_snackbar, event.cap),
+                    actionLabel = upgradeActionLabel,
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onNavigateToUpgrade()
+                }
+            }
+            StyleGalleryEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
 

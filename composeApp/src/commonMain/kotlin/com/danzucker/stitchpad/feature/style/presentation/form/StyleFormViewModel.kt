@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.style.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
@@ -10,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
@@ -30,14 +32,26 @@ class StyleFormViewModel(
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
+    private val folderId: String? = savedStateHandle["folderId"]
 
     private val location: StyleLocation =
-        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration()
+        customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
+
+    private val limits: StyleCollectionLimits =
+        if (customerId == null) {
+            StyleCollectionLimits.forInspiration(entitlements.current().tier)
+        } else {
+            StyleCollectionLimits.forCustomer(entitlements.current().tier)
+        }
+
+    private val imageCap: Int =
+        if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
 
     // Multi-pick only when adding to a closet — not when editing one style and
     // not when attaching exactly one style to an order (the link flow).
@@ -158,6 +172,17 @@ class StyleFormViewModel(
                         it.copy(errorMessage = updateResult.error.toStyleUiText())
                     }
                 }
+                return@launch
+            }
+
+            // Cap check: only applies to create paths (not edit).
+            val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+            if (current + s.selectedPhotos.size > imageCap) {
+                _state.update { it.copy(isSaving = false) }
+                _events.send(StyleFormEvent.CapReached(imageCap))
                 return@launch
             }
 

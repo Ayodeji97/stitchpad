@@ -68,6 +68,8 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -76,6 +78,7 @@ import stitchpad.composeapp.generated.resources.style_change_photo
 import stitchpad.composeapp.generated.resources.style_description_label
 import stitchpad.composeapp.generated.resources.style_description_placeholder
 import stitchpad.composeapp.generated.resources.style_edit_title
+import stitchpad.composeapp.generated.resources.style_folder_batch_over_cap
 import stitchpad.composeapp.generated.resources.style_photos_selected
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
@@ -96,6 +99,11 @@ fun StyleFormRoot(onNavigateBack: () -> Unit) {
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             StyleFormEvent.NavigateBack -> onNavigateBack()
+            is StyleFormEvent.CapReached -> scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = getString(Res.string.style_folder_batch_over_cap, event.cap),
+                )
+            }
         }
     }
 

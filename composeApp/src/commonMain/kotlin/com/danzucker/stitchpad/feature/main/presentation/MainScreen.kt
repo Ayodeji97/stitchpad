@@ -292,15 +292,18 @@ private fun MainNavGraph(
         composable<StyleGalleryRoute> {
             StyleGalleryRoot(
                 onNavigateBack = { navController.navigateUp() },
-                onNavigateToAddStyle = { customerId ->
-                    navController.navigate(StyleFormRoute(customerId = customerId))
+                onNavigateToAddStyle = { customerId, folderId ->
+                    navController.navigate(StyleFormRoute(customerId = customerId, folderId = folderId))
                 },
-                onNavigateToEditStyle = { customerId, styleId ->
-                    navController.navigate(StyleFormRoute(customerId = customerId, styleId = styleId))
+                onNavigateToEditStyle = { customerId, folderId, styleId ->
+                    navController.navigate(
+                        StyleFormRoute(customerId = customerId, folderId = folderId, styleId = styleId)
+                    )
                 },
                 onNavigateToStyleGallery = { customerId ->
                     navController.navigate(StyleGalleryRoute(customerId = customerId))
-                }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<StyleFormRoute> {
