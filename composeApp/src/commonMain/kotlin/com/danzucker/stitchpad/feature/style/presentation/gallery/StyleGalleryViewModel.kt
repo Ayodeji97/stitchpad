@@ -56,11 +56,9 @@ class StyleGalleryViewModel(
     fun onAction(action: StyleGalleryAction) {
         when (action) {
             StyleGalleryAction.OnAddClick -> {
-                val customerId = customerId ?: return
                 viewModelScope.launch { _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId)) }
             }
             is StyleGalleryAction.OnStyleClick -> {
-                val customerId = customerId ?: return
                 viewModelScope.launch {
                     _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, action.style.id))
                 }
@@ -103,9 +101,10 @@ class StyleGalleryViewModel(
             // the source customer isn't a valid target.
             val targets = when (val result = customerRepository.observeCustomers(userId).first()) {
                 is Result.Success ->
-                    result.data
-                        .filter { it.id != customerId && it.slotState == CustomerSlotState.ACTIVE }
-                        .map { TransferTarget(id = it.id, name = it.name) }
+                    listOfNotNull(TransferTarget.Inspiration.takeIf { location is StyleLocation.CustomerCloset }) +
+                        result.data
+                            .filter { it.id != customerId && it.slotState == CustomerSlotState.ACTIVE }
+                            .map { TransferTarget.Customer(customerId = it.id, name = it.name) }
                 is Result.Error -> emptyList()
             }
             _state.update {
@@ -120,7 +119,7 @@ class StyleGalleryViewModel(
     @Suppress("ReturnCount")
     private fun transferTo(targetCustomerId: String) {
         val transfer = _state.value.transfer ?: return
-        val targetName = transfer.targets.firstOrNull { it.id == targetCustomerId }?.name ?: return
+        val target = transfer.targets.firstOrNull { it.id == targetCustomerId } ?: return
         _state.update { it.copy(transfer = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
@@ -130,14 +129,14 @@ class StyleGalleryViewModel(
                         userId,
                         from = location,
                         transfer.style,
-                        to = StyleLocation.CustomerCloset(targetCustomerId),
+                        to = target.location,
                     )
                 StyleTransferMode.MOVE ->
                     styleRepository.moveStyle(
                         userId,
                         from = location,
                         transfer.style,
-                        to = StyleLocation.CustomerCloset(targetCustomerId),
+                        to = target.location,
                     )
             }
             when (result) {
@@ -145,8 +144,7 @@ class StyleGalleryViewModel(
                     _events.send(
                         StyleGalleryEvent.StyleTransferred(
                             mode = transfer.mode,
-                            targetCustomerId = targetCustomerId,
-                            targetName = targetName,
+                            target = target,
                         )
                     )
                 is Result.Error ->
@@ -175,12 +173,11 @@ class StyleGalleryViewModel(
     }
 
     private fun deleteStyle() {
-        val customerId = customerId ?: return
         val style = _state.value.styleToDelete ?: return
         _state.update { it.copy(showDeleteDialog = false, styleToDelete = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.deleteStyle(userId, StyleLocation.CustomerCloset(customerId), style)
+            val result = styleRepository.deleteStyle(userId, location, style)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }

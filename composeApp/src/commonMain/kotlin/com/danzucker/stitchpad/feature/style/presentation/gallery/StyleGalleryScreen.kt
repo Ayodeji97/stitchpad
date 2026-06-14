@@ -85,6 +85,7 @@ import stitchpad.composeapp.generated.resources.style_delete_title
 import stitchpad.composeapp.generated.resources.style_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_empty_title
 import stitchpad.composeapp.generated.resources.style_gallery_title
+import stitchpad.composeapp.generated.resources.style_inspiration_title
 import stitchpad.composeapp.generated.resources.style_moved_snackbar
 import stitchpad.composeapp.generated.resources.style_transfer_copy_title
 import stitchpad.composeapp.generated.resources.style_transfer_empty
@@ -94,15 +95,16 @@ import stitchpad.composeapp.generated.resources.style_transfer_view_cta
 @Composable
 fun StyleGalleryRoot(
     onNavigateBack: () -> Unit,
-    onNavigateToAddStyle: (String) -> Unit,
-    onNavigateToEditStyle: (String, String) -> Unit,
-    onNavigateToCustomerCloset: (String) -> Unit
+    onNavigateToAddStyle: (String?) -> Unit,
+    onNavigateToEditStyle: (String?, String) -> Unit,
+    onNavigateToStyleGallery: (String?) -> Unit
 ) {
     val viewModel: StyleGalleryViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val viewActionLabel = stringResource(Res.string.style_transfer_view_cta)
+    val inspirationName = stringResource(Res.string.style_inspiration_title)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -110,6 +112,7 @@ fun StyleGalleryRoot(
             is StyleGalleryEvent.NavigateToAddStyle -> onNavigateToAddStyle(event.customerId)
             is StyleGalleryEvent.NavigateToEditStyle -> onNavigateToEditStyle(event.customerId, event.styleId)
             is StyleGalleryEvent.StyleTransferred -> scope.launch {
+                val targetName = transferTargetName(event.target, inspirationName)
                 val template = when (event.mode) {
                     StyleTransferMode.COPY -> Res.string.style_copied_snackbar
                     StyleTransferMode.MOVE -> Res.string.style_moved_snackbar
@@ -117,12 +120,13 @@ fun StyleGalleryRoot(
                 // Longer snackbar + a "View" action that jumps to the target
                 // customer's closet so the user can confirm the transfer landed.
                 val result = snackbarHostState.showSnackbar(
-                    message = getString(template, event.targetName),
+                    message = getString(template, targetName),
                     actionLabel = viewActionLabel,
                     duration = SnackbarDuration.Long
                 )
                 if (result == SnackbarResult.ActionPerformed) {
-                    onNavigateToCustomerCloset(event.targetCustomerId)
+                    val targetCustomerId = (event.target as? TransferTarget.Customer)?.customerId
+                    onNavigateToStyleGallery(targetCustomerId)
                 }
             }
         }
@@ -399,7 +403,10 @@ private fun CustomerPickerSheet(
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
-                            text = target.name,
+                            text = transferTargetName(
+                                target,
+                                stringResource(Res.string.style_inspiration_title),
+                            ),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -409,6 +416,15 @@ private fun CustomerPickerSheet(
         }
     }
 }
+
+private fun transferTargetName(
+    target: TransferTarget,
+    inspirationName: String,
+): String =
+    when (target) {
+        is TransferTarget.Customer -> target.name
+        TransferTarget.Inspiration -> inspirationName
+    }
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable

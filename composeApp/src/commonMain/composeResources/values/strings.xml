@@ -429,6 +429,7 @@
 
     <!-- Style gallery -->
     <string name="style_gallery_title">Closet</string>
+    <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
     <string name="style_description_label">Description</string>

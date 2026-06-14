@@ -21,6 +21,7 @@ class FakeStyleRepository : StyleRepository {
     var lastUpdatedStyle: Style? = null
     var lastUpdatedPhotoBytes: ByteArray? = null
     var lastDeletedStyleId: String? = null
+    var lastDeletedLocation: StyleLocation? = null
     var lastCopied: Triple<StyleLocation, String, StyleLocation>? = null  // (from, styleId, to)
     var lastMoved: Triple<StyleLocation, String, StyleLocation>? = null
 
@@ -64,6 +65,7 @@ class FakeStyleRepository : StyleRepository {
     ): EmptyResult<DataError.Network> {
         operationError?.let { return Result.Error(it) }
         lastDeletedStyleId = style.id
+        lastDeletedLocation = location
         return Result.Success(Unit)
     }
 
