@@ -5,21 +5,28 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class StyleFoldersViewModel(
     savedStateHandle: SavedStateHandle,
     private val styleRepository: StyleRepository,
@@ -29,23 +36,17 @@ class StyleFoldersViewModel(
 
     private val customerId: String? = savedStateHandle["customerId"]
 
-    private val location: StyleLocation =
+    // Root location — the default (null-folderId) folder of this context.
+    private val rootLocation: StyleLocation =
         customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration()
 
-    private val limits: StyleCollectionLimits =
-        if (customerId == null) {
-            StyleCollectionLimits.forInspiration(entitlements.current().tier)
-        } else {
-            StyleCollectionLimits.forCustomer(entitlements.current().tier)
-        }
+    // Cache resolved limits after hydration so handleCreateClick can use them synchronously.
+    private var resolvedLimits: StyleCollectionLimits? = null
 
     private var hasLoadedInitialData = false
 
     private val _state = MutableStateFlow(
-        StyleFoldersState(
-            isInspiration = customerId == null,
-            limits = limits,
-        )
+        StyleFoldersState(isInspiration = customerId == null)
     )
 
     private val _events = Channel<StyleFoldersEvent>()
@@ -55,24 +56,13 @@ class StyleFoldersViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
-                // Free users with foldersEnabled=false are immediately forwarded to the
-                // flat default gallery — no folder UI shown.
-                if (!limits.foldersEnabled) {
-                    viewModelScope.launch {
-                        _events.send(StyleFoldersEvent.RedirectToFlatGallery(customerId))
-                    }
-                } else {
-                    observeFolders()
-                }
+                onStart()
             }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = StyleFoldersState(
-                isInspiration = customerId == null,
-                limits = limits,
-            )
+            initialValue = StyleFoldersState(isInspiration = customerId == null),
         )
 
     @Suppress("CyclomaticComplexMethod")
@@ -96,13 +86,49 @@ class StyleFoldersViewModel(
         }
     }
 
+    private fun onStart() {
+        viewModelScope.launch {
+            // Always await hydration first so Free/Pro/Atelier is resolved correctly
+            // before the redirect-or-observe decision.
+            val hydrated = entitlements.awaitHydrated()
+            val limits = if (customerId == null) {
+                StyleCollectionLimits.forInspiration(hydrated.tier)
+            } else {
+                StyleCollectionLimits.forCustomer(hydrated.tier)
+            }
+            resolvedLimits = limits
+            _state.update { it.copy(limits = limits) }
+
+            if (!limits.foldersEnabled) {
+                // Free users with foldersEnabled=false are immediately forwarded to the
+                // flat default gallery — no folder UI shown.
+                _events.send(StyleFoldersEvent.RedirectToFlatGallery(customerId))
+            } else {
+                observeFolders()
+            }
+        }
+    }
+
     private fun handleCreateClick() {
-        // The default "My styles" folder counts as one of maxFolders.
-        // state.folders contains only named folders, so total = folders.size + 1.
-        if (_state.value.folders.size + 1 >= limits.maxFolders) {
-            viewModelScope.launch { _events.send(StyleFoldersEvent.NavigateToUpgrade) }
-        } else {
-            _state.update { it.copy(showCreateSheet = true) }
+        viewModelScope.launch {
+            // If limits haven't been resolved yet (race), resolve now.
+            val limits = resolvedLimits ?: run {
+                val hydrated = entitlements.awaitHydrated()
+                val l = if (customerId == null) {
+                    StyleCollectionLimits.forInspiration(hydrated.tier)
+                } else {
+                    StyleCollectionLimits.forCustomer(hydrated.tier)
+                }
+                resolvedLimits = l
+                l
+            }
+            // The default "My styles" folder counts as one of maxFolders.
+            // namedFolderCount + 1 (default) = total folders.
+            if (_state.value.namedFolderCount + 1 >= limits.maxFolders) {
+                _events.send(StyleFoldersEvent.NavigateToUpgrade)
+            } else {
+                _state.update { it.copy(showCreateSheet = true) }
+            }
         }
     }
 
@@ -112,7 +138,7 @@ class StyleFoldersViewModel(
         _state.update { it.copy(showCreateSheet = false) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.createFolder(userId, location, name)
+            val result = styleRepository.createFolder(userId, rootLocation, name)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
@@ -126,7 +152,7 @@ class StyleFoldersViewModel(
         _state.update { it.copy(renameTarget = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.renameFolder(userId, location, target.id, name)
+            val result = styleRepository.renameFolder(userId, rootLocation, target.id, name)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
@@ -138,7 +164,7 @@ class StyleFoldersViewModel(
         _state.update { it.copy(deleteTarget = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.deleteFolder(userId, location, target.id)
+            val result = styleRepository.deleteFolder(userId, rootLocation, target.id)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
@@ -151,16 +177,72 @@ class StyleFoldersViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            styleRepository.observeFolders(userId, location).collect { result ->
-                when (result) {
-                    is Result.Success -> _state.update {
-                        it.copy(folders = result.data, isLoading = false)
+
+            // Observe the named folders list, then flatMap to combine with a styles
+            // flow for each folder + the default location so cards are always live.
+            styleRepository.observeFolders(userId, rootLocation)
+                .flatMapLatest { foldersResult ->
+                    if (foldersResult is Result.Error) {
+                        _state.update {
+                            it.copy(isLoading = false, errorMessage = foldersResult.error.toStyleUiText())
+                        }
+                        // Return a flow that carries a null sentinel to signal no-op downstream.
+                        return@flatMapLatest flowOf<Pair<List<FolderCardUi>, Int>?>(null)
                     }
-                    is Result.Error -> _state.update {
-                        it.copy(isLoading = false, errorMessage = result.error.toStyleUiText())
+                    val folders = (foldersResult as Result.Success).data
+
+                    // Flow for default-location styles.
+                    val defaultStylesFlow = styleRepository.observeStyles(userId, rootLocation)
+                        .map { r -> (r as? Result.Success)?.data ?: emptyList<Style>() }
+
+                    // One flow per named folder, ordered by folder index.
+                    val namedFlows = folders.map { folder ->
+                        val loc = namedFolderLocation(folder)
+                        styleRepository.observeStyles(userId, loc)
+                            .map { r -> (r as? Result.Success)?.data ?: emptyList<Style>() }
+                    }
+
+                    // Combine default + all named into a single emission.
+                    combine(
+                        listOf(defaultStylesFlow) + namedFlows
+                    ) { allStyles ->
+                        val defaultStyles = allStyles[0]
+                        val defaultCard = FolderCardUi(
+                            folderId = null,
+                            name = null,
+                            count = defaultStyles.size,
+                            coverUrl = cover(defaultStyles),
+                            source = null,
+                        )
+                        val namedCards = folders.mapIndexed { idx, folder ->
+                            val styles = allStyles[idx + 1]
+                            FolderCardUi(
+                                folderId = folder.id,
+                                name = folder.name,
+                                count = styles.size,
+                                coverUrl = cover(styles),
+                                source = folder,
+                            )
+                        }
+                        (listOf(defaultCard) + namedCards) to folders.size
+                    }.map { it as Pair<List<FolderCardUi>, Int>? }
+                }
+                .collect { result ->
+                    if (result != null) {
+                        val (cards, namedCount) = result
+                        _state.update { it.copy(cards = cards, namedFolderCount = namedCount, isLoading = false) }
                     }
                 }
-            }
         }
     }
+
+    private fun namedFolderLocation(folder: StyleFolder): StyleLocation =
+        if (customerId == null) {
+            StyleLocation.Inspiration(folder.id)
+        } else {
+            StyleLocation.CustomerCloset(customerId, folder.id)
+        }
+
+    private fun cover(styles: List<Style>): String? =
+        styles.sortedByDescending { it.createdAt }.firstOrNull { it.photoUrl.isNotBlank() }?.photoUrl
 }

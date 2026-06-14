@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
+import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
@@ -58,8 +60,23 @@ class StyleFoldersViewModelTest {
         updatedAt = 0L,
     )
 
+    private fun fakeStyle(
+        id: String = "style-1",
+        photoUrl: String = "",
+        createdAt: Long = 0L,
+    ) = Style(
+        id = id,
+        customerId = "",
+        description = "desc",
+        photoUrl = photoUrl,
+        photoStoragePath = "",
+        createdAt = createdAt,
+        updatedAt = 0L,
+    )
+
     /**
      * Minimal [EntitlementsProvider] stub. Pass [tier] to simulate a specific subscription.
+     * [awaitHydrated] returns the same snapshot as [current] — no race.
      */
     private class FakeEntitlementsProvider(
         private val tier: SubscriptionTier = SubscriptionTier.FREE,
@@ -110,17 +127,19 @@ class StyleFoldersViewModelTest {
     }
 
     // ---------------------------------------------------------------------------
-    // Observe folders
+    // Observe folders → cards (P2 live derivation)
     // ---------------------------------------------------------------------------
 
     @Test
-    fun observeFolders_success_populatesFolders_andClearsLoading() = runTest {
+    fun observeFolders_success_populatesCards_andClearsLoading() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.folders = listOf(fakeFolder("a"), fakeFolder("b"))
 
         val vm = createViewModel()
 
-        assertEquals(2, vm.state.value.folders.size)
+        // 1 default + 2 named = 3 cards
+        assertEquals(3, vm.state.value.cards.size)
+        assertEquals(2, vm.state.value.namedFolderCount)
         assertFalse(vm.state.value.isLoading)
     }
 
@@ -129,8 +148,54 @@ class StyleFoldersViewModelTest {
         val vm = createViewModel()
 
         assertFalse(vm.state.value.isLoading)
-        assertTrue(vm.state.value.folders.isEmpty())
+        assertTrue(vm.state.value.cards.isEmpty())
         assertNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun cards_includeDefaultFirst_withLiveCounts() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        // 2 styles in the default inspiration location (folderId = null)
+        val defaultLocation = StyleLocation.Inspiration(folderId = null)
+        styleRepository.stylesByLocation[defaultLocation] = listOf(
+            fakeStyle(id = "s1", photoUrl = "https://example.com/s1.jpg", createdAt = 1L),
+            fakeStyle(id = "s2", photoUrl = "", createdAt = 0L),
+        )
+
+        // 1 named folder "f1" with 3 styles
+        val folder = StyleFolder(id = "f1", name = "Corset", createdAt = 0L, updatedAt = 0L)
+        styleRepository.folders = listOf(folder)
+        val namedLocation = StyleLocation.Inspiration(folderId = "f1")
+        styleRepository.stylesByLocation[namedLocation] = listOf(
+            fakeStyle(id = "n1", photoUrl = "https://example.com/n1.jpg", createdAt = 2L),
+            fakeStyle(id = "n2", photoUrl = "https://example.com/n2.jpg", createdAt = 1L),
+            fakeStyle(id = "n3", photoUrl = "", createdAt = 0L),
+        )
+
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+
+        val cards = vm.state.value.cards
+        assertEquals(2, cards.size)
+
+        // Default card must be first
+        val defaultCard = cards[0]
+        assertNull(defaultCard.folderId)
+        assertEquals(2, defaultCard.count)
+        // Cover = most-recent style with non-blank photoUrl (s1 has createdAt=1 and has photoUrl)
+        assertEquals("https://example.com/s1.jpg", defaultCard.coverUrl)
+        assertNull(defaultCard.source)
+
+        // Named card
+        val namedCard = cards[1]
+        assertEquals("f1", namedCard.folderId)
+        assertEquals(3, namedCard.count)
+        // Cover = most-recent style with non-blank photoUrl (n1, createdAt=2)
+        assertEquals("https://example.com/n1.jpg", namedCard.coverUrl)
+        assertEquals(folder, namedCard.source)
+
+        assertEquals(1, vm.state.value.namedFolderCount)
+        assertFalse(vm.state.value.isLoading)
     }
 
     // ---------------------------------------------------------------------------
@@ -141,7 +206,7 @@ class StyleFoldersViewModelTest {
     fun createBlockedAtCap_emitsUpgrade() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // PRO inspiration: maxFolders = 10. Pre-load 9 named folders.
-        // folders.size (9) + 1 (default) = 10 >= maxFolders (10) → blocked.
+        // namedFolderCount (9) + 1 (default) = 10 >= maxFolders (10) → blocked.
         styleRepository.folders = List(9) { fakeFolder("f$it") }
         val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
 

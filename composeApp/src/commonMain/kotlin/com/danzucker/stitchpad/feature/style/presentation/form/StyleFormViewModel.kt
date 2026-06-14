@@ -43,15 +43,8 @@ class StyleFormViewModel(
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
 
-    private val limits: StyleCollectionLimits =
-        if (customerId == null) {
-            StyleCollectionLimits.forInspiration(entitlements.current().tier)
-        } else {
-            StyleCollectionLimits.forCustomer(entitlements.current().tier)
-        }
-
-    private val imageCap: Int =
-        if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+    // Cached resolved cap — null until first awaitHydrated() call completes.
+    private var resolvedImageCap: Int? = null
 
     // Multi-pick only when adding to a closet — not when editing one style and
     // not when attaching exactly one style to an order (the link flow).
@@ -144,6 +137,22 @@ class StyleFormViewModel(
         }
     }
 
+    /**
+     * Resolves the image cap for the current location, awaiting entitlements hydration
+     * on the first call and caching thereafter.
+     */
+    private suspend fun resolveImageCap(): Int {
+        resolvedImageCap?.let { return it }
+        val limits = if (customerId == null) {
+            StyleCollectionLimits.forInspiration(entitlements.awaitHydrated().tier)
+        } else {
+            StyleCollectionLimits.forCustomer(entitlements.awaitHydrated().tier)
+        }
+        val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+        resolvedImageCap = cap
+        return cap
+    }
+
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
         val s = _state.value
@@ -176,6 +185,8 @@ class StyleFormViewModel(
             }
 
             // Cap check: only applies to create paths (not edit).
+            // Await hydration here so a cold-start Pro user isn't wrongly blocked.
+            val imageCap = resolveImageCap()
             val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
                 is Result.Success -> r.data.size
                 is Result.Error -> 0

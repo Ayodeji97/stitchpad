@@ -37,15 +37,8 @@ class StyleGalleryViewModel(
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
 
-    private val limits: StyleCollectionLimits =
-        if (customerId == null) {
-            StyleCollectionLimits.forInspiration(entitlements.current().tier)
-        } else {
-            StyleCollectionLimits.forCustomer(entitlements.current().tier)
-        }
-
-    private val imageCap: Int =
-        if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+    // Cached resolved cap — null until first awaitHydrated() call completes.
+    private var resolvedImageCap: Int? = null
 
     private var hasLoadedInitialData = false
     private val isInspirationGallery = location is StyleLocation.Inspiration
@@ -74,8 +67,9 @@ class StyleGalleryViewModel(
         when (action) {
             StyleGalleryAction.OnAddClick -> {
                 viewModelScope.launch {
-                    if (_state.value.styles.size >= imageCap) {
-                        _events.send(StyleGalleryEvent.CapReached(imageCap))
+                    val cap = resolveImageCap()
+                    if (_state.value.styles.size >= cap) {
+                        _events.send(StyleGalleryEvent.CapReached(cap))
                     } else {
                         _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId, folderId))
                     }
@@ -114,6 +108,22 @@ class StyleGalleryViewModel(
                 _state.update { it.copy(errorMessage = null) }
             }
         }
+    }
+
+    /**
+     * Resolves the image cap for the current location, awaiting entitlements hydration
+     * on the first call and caching thereafter.
+     */
+    private suspend fun resolveImageCap(): Int {
+        resolvedImageCap?.let { return it }
+        val limits = if (customerId == null) {
+            StyleCollectionLimits.forInspiration(entitlements.awaitHydrated().tier)
+        } else {
+            StyleCollectionLimits.forCustomer(entitlements.awaitHydrated().tier)
+        }
+        val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+        resolvedImageCap = cap
+        return cap
     }
 
     private fun openTransfer(mode: StyleTransferMode) {

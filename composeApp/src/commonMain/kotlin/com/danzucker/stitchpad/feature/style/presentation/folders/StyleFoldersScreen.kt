@@ -140,11 +140,11 @@ fun StyleFoldersScreen(
     val screenTitle = if (state.isInspiration) {
         inspirationTitle
     } else {
-        state.customerName?.let { "$it’s Closet" } ?: defaultFolderName
+        state.customerName?.let { "$it's Closet" } ?: defaultFolderName
     }
 
     val folderCountLabel = if (state.limits.foldersEnabled) {
-        "${state.folders.size + 1} / ${state.limits.maxFolders}"
+        "${state.namedFolderCount + 1} / ${state.limits.maxFolders}"
     } else {
         null
     }
@@ -218,21 +218,16 @@ fun StyleFoldersScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
             ) {
-                // Default "My styles" card — always pinned first, folderId = null
-                item(key = "__default__") {
+                // cards[0] is always the default card (folderId == null), produced by the VM.
+                // Named cards follow in folder order.
+                items(
+                    items = state.cards,
+                    key = { card -> card.folderId ?: "__default__" },
+                ) { card ->
                     FolderCard(
-                        folder = null,
+                        card = card,
                         defaultName = defaultFolderName,
-                        isDefault = true,
-                        onClick = { onAction(StyleFoldersAction.OnFolderClick(null)) },
-                    )
-                }
-                items(items = state.folders, key = { it.id }) { folder ->
-                    FolderCard(
-                        folder = folder,
-                        defaultName = defaultFolderName,
-                        isDefault = false,
-                        onClick = { onAction(StyleFoldersAction.OnFolderClick(folder.id)) },
+                        onClick = { onAction(StyleFoldersAction.OnFolderClick(card.folderId)) },
                     )
                 }
             }
@@ -375,13 +370,12 @@ private fun FolderNameSheet(
 
 @Composable
 private fun FolderCard(
-    folder: StyleFolder?,
+    card: FolderCardUi,
     defaultName: String,
-    isDefault: Boolean,
     onClick: () -> Unit,
 ) {
     val heritageAccent = LocalStitchPadColors.current.heritageAccent
-    val coverUrl = folder?.coverStyleId // null = no cover → placeholder
+    val isDefault = card.folderId == null
 
     Card(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -400,9 +394,9 @@ private fun FolderCard(
                     .fillMaxWidth()
                     .aspectRatio(1f),
             ) {
-                if (coverUrl != null) {
+                if (card.coverUrl != null) {
                     SubcomposeAsyncImage(
-                        model = coverUrl,
+                        model = card.coverUrl,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         loading = {
@@ -434,12 +428,11 @@ private fun FolderCard(
                     }
                 }
 
-                // Count badge (top-right)
-                val count = folder?.styleCount ?: 0
-                if (count > 0 || folder != null) {
+                // Count badge (top-right): shown whenever count > 0 or it's a named folder.
+                if (card.count > 0 || !isDefault) {
                     val monoFamily = JetBrainsMonoFamily()
                     Text(
-                        text = count.toString(),
+                        text = card.count.toString(),
                         style = MaterialTheme.typography.labelSmall.copy(fontFamily = monoFamily),
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier
@@ -480,7 +473,7 @@ private fun FolderCard(
                     )
                 }
                 Text(
-                    text = folder?.name ?: defaultName,
+                    text = card.name ?: defaultName,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -517,9 +510,23 @@ private fun StyleFoldersScreenPopulatedPreview() {
             state = StyleFoldersState(
                 isLoading = false,
                 isInspiration = true,
-                folders = listOf(
-                    StyleFolder(id = "f1", name = "Corset", styleCount = 3, createdAt = 0L, updatedAt = 0L),
-                    StyleFolder(id = "f2", name = "Wedding looks", styleCount = 7, createdAt = 0L, updatedAt = 0L),
+                namedFolderCount = 2,
+                cards = listOf(
+                    FolderCardUi(folderId = null, name = null, count = 4, coverUrl = null, source = null),
+                    FolderCardUi(
+                        folderId = "f1",
+                        name = "Corset",
+                        count = 3,
+                        coverUrl = null,
+                        source = StyleFolder(id = "f1", name = "Corset", createdAt = 0L, updatedAt = 0L),
+                    ),
+                    FolderCardUi(
+                        folderId = "f2",
+                        name = "Wedding looks",
+                        count = 7,
+                        coverUrl = null,
+                        source = StyleFolder(id = "f2", name = "Wedding looks", createdAt = 0L, updatedAt = 0L),
+                    ),
                 ),
                 limits = StyleCollectionLimits.forInspiration(SubscriptionTier.PRO),
             ),
