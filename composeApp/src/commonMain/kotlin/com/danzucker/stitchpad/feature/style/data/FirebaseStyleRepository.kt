@@ -36,7 +36,7 @@ class FirebaseStyleRepository(
             firestore.collection("users").document(userId)
                 .collection("customers").document(location.customerId)
                 .collection("styles")
-        StyleLocation.Inspiration ->
+        is StyleLocation.Inspiration ->
             firestore.collection("users").document(userId).collection("inspiration")
     }
 
@@ -44,7 +44,7 @@ class FirebaseStyleRepository(
         when (location) {
             is StyleLocation.CustomerCloset ->
                 "users/$userId/customers/${location.customerId}/styles/$styleId.jpg"
-            StyleLocation.Inspiration -> "users/$userId/inspiration/$styleId.jpg"
+            is StyleLocation.Inspiration -> "users/$userId/inspiration/$styleId.jpg"
         }
 
     private fun uploadJobId(path: String): String =

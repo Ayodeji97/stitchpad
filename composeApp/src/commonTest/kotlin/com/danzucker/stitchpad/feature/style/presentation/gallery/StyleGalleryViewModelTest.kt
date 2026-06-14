@@ -248,7 +248,7 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnConfirmDelete)
 
         assertEquals("style-del", styleRepository.lastDeletedStyleId)
-        assertEquals(StyleLocation.Inspiration, styleRepository.lastDeletedLocation)
+        assertEquals(StyleLocation.Inspiration(), styleRepository.lastDeletedLocation)
     }
 
     @Test
@@ -366,7 +366,7 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
 
         assertEquals(
-            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.Inspiration),
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.Inspiration()),
             styleRepository.lastCopied,
         )
         val event = vm.events.first()

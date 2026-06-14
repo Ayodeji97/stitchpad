@@ -21,7 +21,7 @@ sealed interface TransferTarget {
 
     data object Inspiration : TransferTarget {
         override val id: String = "inspiration"
-        override val location: StyleLocation = StyleLocation.Inspiration
+        override val location: StyleLocation = StyleLocation.Inspiration()
     }
 }
 

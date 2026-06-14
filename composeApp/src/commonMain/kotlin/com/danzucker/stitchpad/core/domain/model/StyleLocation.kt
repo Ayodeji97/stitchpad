@@ -6,6 +6,9 @@ package com.danzucker.stitchpad.core.domain.model
  * Storage paths and the gallery/transfer behaviour. See the Inspiration design spec.
  */
 sealed interface StyleLocation {
-    data class CustomerCloset(val customerId: String) : StyleLocation
-    data object Inspiration : StyleLocation
+    /** [folderId] null = the customer's flat default folder (existing `styles` collection). */
+    data class CustomerCloset(val customerId: String, val folderId: String? = null) : StyleLocation
+
+    /** [folderId] null = the flat default Inspiration folder (existing `inspiration` collection). */
+    data class Inspiration(val folderId: String? = null) : StyleLocation
 }

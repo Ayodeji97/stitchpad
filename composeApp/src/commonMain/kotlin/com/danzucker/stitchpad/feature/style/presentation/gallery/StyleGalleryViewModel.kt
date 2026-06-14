@@ -31,7 +31,7 @@ class StyleGalleryViewModel(
     private val customerId: String? = savedStateHandle["customerId"]
 
     private val location: StyleLocation =
-        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration
+        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration()
 
     private var hasLoadedInitialData = false
     private val isInspirationGallery = location is StyleLocation.Inspiration

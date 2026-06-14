@@ -37,7 +37,7 @@ class StyleFormViewModel(
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
 
     private val location: StyleLocation =
-        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration
+        customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration()
 
     // Multi-pick only when adding to a closet — not when editing one style and
     // not when attaching exactly one style to an order (the link flow).
