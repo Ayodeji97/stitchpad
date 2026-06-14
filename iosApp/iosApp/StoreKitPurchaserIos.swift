@@ -35,7 +35,7 @@ import ComposeApp
             }
             return ResultSuccess(data: mapped)
         } catch {
-            return ResultError(error: StoreKitError.network)
+            return ResultError(error: ComposeApp.StoreKitError.network)
         }
     }
 
@@ -43,7 +43,7 @@ import ComposeApp
         do {
             let products = try await Product.products(for: [productId])
             guard let product = products.first else {
-                return ResultError(error: StoreKitError.productNotFound)
+                return ResultError(error: ComposeApp.StoreKitError.productNotFound)
             }
             let token = appAccountToken(forUid: accountUid)
             let result = try await product.purchase(options: [.appAccountToken(token)])
@@ -55,17 +55,17 @@ import ComposeApp
                     storePending(txnId, transaction)
                     return ResultSuccess(data: storeKitPurchase(transaction, jws: verification.jwsRepresentation))
                 case .unverified:
-                    return ResultError(error: StoreKitError.verificationFailed)
+                    return ResultError(error: ComposeApp.StoreKitError.verificationFailed)
                 }
             case .pending:
-                return ResultError(error: StoreKitError.pending)
+                return ResultError(error: ComposeApp.StoreKitError.pending)
             case .userCancelled:
-                return ResultError(error: StoreKitError.cancelled)
+                return ResultError(error: ComposeApp.StoreKitError.cancelled)
             @unknown default:
-                return ResultError(error: StoreKitError.unknown)
+                return ResultError(error: ComposeApp.StoreKitError.unknown)
             }
         } catch {
-            return ResultError(error: StoreKitError.network)
+            return ResultError(error: ComposeApp.StoreKitError.network)
         }
     }
 
