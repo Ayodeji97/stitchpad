@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -27,6 +28,16 @@ data class OrderFormState(
     val items: List<OrderItemFormState> = listOf(OrderItemFormState()),
     val availableStyles: List<Style> = emptyList(),
     val inspirationStyles: List<Style> = emptyList(),
+    /** Folders with their styles for the current customer's closet. */
+    val closetFolders: List<StylePickerFolder> = emptyList(),
+    /** Folders with their styles for the shared Inspiration library. */
+    val inspirationFolders: List<StylePickerFolder> = emptyList(),
+    /**
+     * Which folder is currently drilled into in the style picker sheet.
+     * Null = show the folder grid (or the default-folder styles directly when
+     * there are no named folders).
+     */
+    val pickerOpenFolder: StylePickerFolder? = null,
     val stylePickerSource: StylePickerSource = StylePickerSource.CLOSET,
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Item id whose Style picker sheet is currently visible. Null = no sheet. */

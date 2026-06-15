@@ -26,9 +26,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
-import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
-import com.danzucker.stitchpad.feature.style.domain.observeAllInspirationStyles
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -229,20 +227,28 @@ class OrderFormViewModel(
                 it.copy(saveStyleToGallery = action.value)
             }
             is OrderFormAction.OnOpenStylePickerSheet -> {
-                // Always open the picker on the closet tab so the default
-                // experience is unchanged regardless of what the user last picked.
+                // Always open the picker on the closet tab and return to the
+                // folder grid so the default experience is consistent.
                 _state.update {
                     it.copy(
                         stylePickerSheetForItemId = action.itemId,
                         stylePickerSource = StylePickerSource.CLOSET,
+                        pickerOpenFolder = null,
                     )
                 }
             }
             OrderFormAction.OnDismissStylePickerSheet -> {
-                _state.update { it.copy(stylePickerSheetForItemId = null) }
+                _state.update { it.copy(stylePickerSheetForItemId = null, pickerOpenFolder = null) }
             }
             is OrderFormAction.OnStylePickerSourceChange -> {
-                _state.update { it.copy(stylePickerSource = action.source) }
+                // Switching the source also clears any open folder (return to grid).
+                _state.update { it.copy(stylePickerSource = action.source, pickerOpenFolder = null) }
+            }
+            is OrderFormAction.OnPickerFolderOpen -> {
+                _state.update { it.copy(pickerOpenFolder = action.folder) }
+            }
+            OrderFormAction.OnPickerFolderBack -> {
+                _state.update { it.copy(pickerOpenFolder = null) }
             }
             is OrderFormAction.OnItemAddFabricPhoto -> {
                 if (rejectOversizedPhoto(action.photoBytes)) return
@@ -401,8 +407,13 @@ class OrderFormViewModel(
         val uid = userId ?: return
         inspirationJob?.cancel()
         inspirationJob = viewModelScope.launch {
-            styleRepository.observeAllInspirationStyles(uid).collect { styles ->
-                _state.update { it.copy(inspirationStyles = styles) }
+            styleRepository.observeFoldersWithStyles(uid, StyleLocation.Inspiration()).collect { folders ->
+                _state.update {
+                    it.copy(
+                        inspirationFolders = folders,
+                        inspirationStyles = folders.flatMap { f -> f.styles },
+                    )
+                }
             }
         }
     }
@@ -443,15 +454,22 @@ class OrderFormViewModel(
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadCustomerData(customerId: String) {
         val uid = userId ?: return
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            // Flatten the customer's styles across the default + named folders so
-            // foldered styles remain pickable. Resilient to transient observe errors.
-            styleRepository.observeAllCustomerStyles(uid, customerId).collect { styles ->
-                _state.update { it.copy(availableStyles = styles) }
+            // Observe folders-with-styles so the picker can show a folder grid.
+            // availableStyles is derived as the flat union for styleId lookups.
+            styleRepository.observeFoldersWithStyles(
+                uid,
+                StyleLocation.CustomerCloset(customerId),
+            ).collect { folders ->
+                _state.update {
+                    it.copy(
+                        closetFolders = folders,
+                        availableStyles = folders.flatMap { f -> f.styles },
+                    )
+                }
             }
         }
         measurementJob?.cancel()

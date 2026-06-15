@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName") // file holds StylePickerFolder + all flattening helpers
+
 package com.danzucker.stitchpad.feature.style.domain
 
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -10,7 +12,70 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.runningFold
+
+/**
+ * A folder together with all its styles, for use in the order style picker.
+ *
+ * [folderId] null = the default "My styles" folder (shown first).
+ * [name] null for the default folder (UI substitutes a localised default name).
+ * [coverUrl] is derived from the most-recently-created style that has an image.
+ */
+data class StylePickerFolder(
+    val folderId: String?,
+    val name: String?,
+    val styles: List<Style>,
+) {
+    val coverUrl: String?
+        get() = styles
+            .sortedByDescending { it.createdAt }
+            .firstNotNullOfOrNull { s ->
+                s.localPhotoPath ?: s.photoUrl.takeIf { it.isNotBlank() }
+            }
+}
+
+/**
+ * Observes all folders (default + named) for [root], each paired with its styles,
+ * as a list of [StylePickerFolder]. The default folder (folderId null) is always first.
+ *
+ * [root] must be a root [StyleLocation.CustomerCloset] (folderId null) or a root
+ * [StyleLocation.Inspiration] (folderId null).
+ *
+ * Resilient to transient errors via [keepingLastStyles] / [keepingLastFolders].
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+fun StyleRepository.observeFoldersWithStyles(
+    userId: String,
+    root: StyleLocation,
+): Flow<List<StylePickerFolder>> =
+    observeFolders(userId, root)
+        .keepingLastFolders()
+        .flatMapLatest { namedFolders ->
+            val defaultFlow = observeStyles(userId, root.withFolder(null))
+                .keepingLastStyles()
+                .map { styles -> StylePickerFolder(folderId = null, name = null, styles = styles) }
+
+            val namedFlows = namedFolders.map { folder ->
+                observeStyles(userId, root.withFolder(folder.id))
+                    .keepingLastStyles()
+                    .map { styles ->
+                        StylePickerFolder(folderId = folder.id, name = folder.name, styles = styles)
+                    }
+            }
+
+            val allFlows = buildList {
+                add(defaultFlow)
+                addAll(namedFlows)
+            }
+            combine(allFlows) { results -> results.toList() }
+        }
+
+/** Narrows a root [StyleLocation] to one that targets the given [folderId]. */
+private fun StyleLocation.withFolder(folderId: String?): StyleLocation = when (this) {
+    is StyleLocation.CustomerCloset -> copy(folderId = folderId)
+    is StyleLocation.Inspiration -> copy(folderId = folderId)
+}
 
 /**
  * Observes EVERY style in a customer's closet — the flat default folder plus all

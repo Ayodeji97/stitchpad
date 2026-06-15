@@ -23,6 +23,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -678,6 +679,191 @@ class OrderFormViewModelTest {
         // Opening the picker must reset to CLOSET.
         vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
         assertEquals(StylePickerSource.CLOSET, vm.state.value.stylePickerSource)
+    }
+
+    // ─── Folder-grid picker — closetFolders / inspirationFolders ────────────
+
+    @Test
+    fun closetFolders_populatedFromCustomerClosetFoldersWithStyles() = runTest {
+        val cid = testCustomer.id
+        val defaultStyle = Style(
+            id = "style-default",
+            customerId = cid,
+            description = "Default",
+            photoUrl = "https://example.com/default.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val namedStyle = Style(
+            id = "style-named",
+            customerId = cid,
+            description = "Named",
+            photoUrl = "https://example.com/named.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val folder = StyleFolder(id = "f1", name = "Evening", createdAt = 0L, updatedAt = 0L)
+
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(folder)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(defaultStyle)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = "f1")] =
+            listOf(namedStyle)
+
+        val vm = createViewModel(orderId = null)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+
+        val folders = vm.state.value.closetFolders
+        assertEquals(2, folders.size, "should have default + named folder")
+        assertNull(folders[0].folderId, "first folder is the default")
+        assertEquals(listOf("style-default"), folders[0].styles.map { it.id })
+        assertEquals("f1", folders[1].folderId)
+        assertEquals(listOf("style-named"), folders[1].styles.map { it.id })
+    }
+
+    @Test
+    fun inspirationFolders_populatedFromInspirationFoldersWithStyles() = runTest {
+        val flatStyle = Style(
+            id = "insp-flat",
+            customerId = "",
+            description = "Flat",
+            photoUrl = "https://example.com/flat.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val namedStyle = Style(
+            id = "insp-named",
+            customerId = "",
+            description = "Named",
+            photoUrl = "https://example.com/named.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val inspFolder = StyleFolder(id = "if1", name = "Runway", createdAt = 0L, updatedAt = 0L)
+
+        styleRepository.foldersByLocation[StyleLocation.Inspiration(folderId = null)] =
+            listOf(inspFolder)
+        styleRepository.stylesByLocation[StyleLocation.Inspiration(folderId = null)] =
+            listOf(flatStyle)
+        styleRepository.stylesByLocation[StyleLocation.Inspiration(folderId = "if1")] =
+            listOf(namedStyle)
+
+        val vm = createViewModel(orderId = null)
+
+        val folders = vm.state.value.inspirationFolders
+        assertEquals(2, folders.size, "should have default + named folder")
+        assertNull(folders[0].folderId)
+        assertEquals(listOf("insp-flat"), folders[0].styles.map { it.id })
+        assertEquals("if1", folders[1].folderId)
+        assertEquals(listOf("insp-named"), folders[1].styles.map { it.id })
+    }
+
+    @Test
+    fun availableStyles_flattenedFromClosetFolders() = runTest {
+        val cid = testCustomer.id
+        val s1 = Style(
+            id = "s1",
+            customerId = cid,
+            description = "s1",
+            photoUrl = "https://example.com/s1.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val s2 = Style(
+            id = "s2",
+            customerId = cid,
+            description = "s2",
+            photoUrl = "https://example.com/s2.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val folder = StyleFolder(id = "f1", name = "Casual", createdAt = 0L, updatedAt = 0L)
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(folder)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(s1)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = "f1")] =
+            listOf(s2)
+
+        val vm = createViewModel(orderId = null)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+
+        val ids = vm.state.value.availableStyles.map { it.id }
+        assertTrue(ids.contains("s1"), "default folder style must be in availableStyles")
+        assertTrue(ids.contains("s2"), "named folder style must be in availableStyles")
+    }
+
+    @Test
+    fun onPickerFolderOpen_setsPikerOpenFolder() = runTest {
+        val vm = createViewModel(orderId = null)
+        val folder = StylePickerFolder(
+            folderId = "f1",
+            name = "Evening",
+            styles = emptyList(),
+        )
+
+        assertNull(vm.state.value.pickerOpenFolder)
+        vm.onAction(OrderFormAction.OnPickerFolderOpen(folder))
+        assertEquals("f1", vm.state.value.pickerOpenFolder?.folderId)
+    }
+
+    @Test
+    fun onPickerFolderBack_clearsPickerOpenFolder() = runTest {
+        val vm = createViewModel(orderId = null)
+        val folder = StylePickerFolder(
+            folderId = "f1",
+            name = "Evening",
+            styles = emptyList(),
+        )
+        vm.onAction(OrderFormAction.OnPickerFolderOpen(folder))
+        assertNotNull(vm.state.value.pickerOpenFolder)
+
+        vm.onAction(OrderFormAction.OnPickerFolderBack)
+        assertNull(vm.state.value.pickerOpenFolder)
+    }
+
+    @Test
+    fun onStylePickerSourceChange_clearsPickerOpenFolder() = runTest {
+        val vm = createViewModel(orderId = null)
+        val folder = StylePickerFolder(
+            folderId = "f1",
+            name = "Evening",
+            styles = emptyList(),
+        )
+        vm.onAction(OrderFormAction.OnPickerFolderOpen(folder))
+
+        // Switching source must clear the open folder.
+        vm.onAction(OrderFormAction.OnStylePickerSourceChange(StylePickerSource.INSPIRATION))
+        assertNull(vm.state.value.pickerOpenFolder)
+    }
+
+    @Test
+    fun openStylePickerSheet_clearsPickerOpenFolder() = runTest {
+        val vm = createViewModel(orderId = null)
+        val itemId = vm.state.value.items.first().id
+        val folder = StylePickerFolder(
+            folderId = "f1",
+            name = "Evening",
+            styles = emptyList(),
+        )
+        vm.onAction(OrderFormAction.OnPickerFolderOpen(folder))
+
+        // Reopening the picker must clear the open folder to return to the grid.
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        assertNull(vm.state.value.pickerOpenFolder)
     }
 
     @Test

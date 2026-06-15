@@ -333,10 +333,13 @@ fun OrderFormScreen(
                     val usedSlots = targetItem.styleImageRefs.size + targetItem.uploadedStyleBytesList.size
                     val remaining = MAX_IMAGES_PER_CATEGORY - usedSlots
                     StylePickerSheet(
-                        closetStyles = state.availableStyles,
-                        inspirationStyles = state.inspirationStyles,
+                        closetFolders = state.closetFolders,
+                        inspirationFolders = state.inspirationFolders,
                         selectedSource = state.stylePickerSource,
                         onSourceChange = { onAction(OrderFormAction.OnStylePickerSourceChange(it)) },
+                        pickerOpenFolder = state.pickerOpenFolder,
+                        onFolderOpen = { onAction(OrderFormAction.OnPickerFolderOpen(it)) },
+                        onFolderBack = { onAction(OrderFormAction.OnPickerFolderBack) },
                         alreadySelectedStyleIds = alreadyPickedIds,
                         remainingCapacity = remaining,
                         onSelect = { style ->
