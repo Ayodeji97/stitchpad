@@ -502,6 +502,8 @@
     <string name="style_cap_upgrade_atelier">Upgrade to Tailor Atelier</string>
     <string name="style_cap_max_title">You&apos;re on our top plan</string>
     <string name="style_cap_max_body">Tailor Atelier is our highest tier — you&apos;ve already unlocked everything StitchPad has to offer.</string>
+    <string name="style_cap_limit_title">You&apos;ve reached the limit</string>
+    <string name="style_cap_limit_body">This is the most folders a customer&apos;s closet can hold on any plan. Remove one to make room, or keep adding styles to your existing folders.</string>
     <string name="style_cap_dismiss">Not now</string>
     <string name="style_cap_got_it">Got it</string>
 

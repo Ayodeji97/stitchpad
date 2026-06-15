@@ -38,6 +38,8 @@ import stitchpad.composeapp.generated.resources.style_cap_folder_body
 import stitchpad.composeapp.generated.resources.style_cap_folder_eyebrow
 import stitchpad.composeapp.generated.resources.style_cap_folder_title
 import stitchpad.composeapp.generated.resources.style_cap_got_it
+import stitchpad.composeapp.generated.resources.style_cap_limit_body
+import stitchpad.composeapp.generated.resources.style_cap_limit_title
 import stitchpad.composeapp.generated.resources.style_cap_max_body
 import stitchpad.composeapp.generated.resources.style_cap_max_title
 import stitchpad.composeapp.generated.resources.style_cap_style_body
@@ -181,9 +183,14 @@ internal fun StyleCapReachedSheetContent(
                 )
             }
         } else {
-            // Already on top plan — no upgrade path available.
+            // No upgrade path. Two distinct reasons need distinct copy:
+            //  - already on the top plan (Atelier) → "you've unlocked everything"
+            //  - this limit doesn't grow on any plan (Pro customer folders) → "limit reached"
+            val onTopPlan = info.currentTier == SubscriptionTier.ATELIER
             Text(
-                text = stringResource(Res.string.style_cap_max_title),
+                text = stringResource(
+                    if (onTopPlan) Res.string.style_cap_max_title else Res.string.style_cap_limit_title,
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -191,7 +198,9 @@ internal fun StyleCapReachedSheetContent(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = stringResource(Res.string.style_cap_max_body),
+                text = stringResource(
+                    if (onTopPlan) Res.string.style_cap_max_body else Res.string.style_cap_limit_body,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -242,6 +251,20 @@ private fun StyleCapStyleFreeContentPreview() {
     StitchPadTheme {
         StyleCapReachedSheetContent(
             info = styleCapInfo(StyleCapKind.STYLES, SubscriptionTier.FREE, isInspiration = true),
+            onUpgradeClick = {},
+            onDismiss = {},
+        )
+    }
+}
+
+// Customer folders on Pro — Atelier doesn't raise the limit, so no upgrade CTA.
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun StyleCapCustomerFoldersProContentPreview() {
+    StitchPadTheme {
+        StyleCapReachedSheetContent(
+            info = styleCapInfo(StyleCapKind.FOLDERS, SubscriptionTier.PRO, isInspiration = false),
             onUpgradeClick = {},
             onDismiss = {},
         )
