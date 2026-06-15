@@ -209,8 +209,15 @@ class StyleFoldersViewModel(
         _state.update { it.copy(renameTarget = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            // Block a rename that would collide with another folder's name.
-            if (isDuplicateName(name, liveFolders(userId), excludeId = target.id)) {
+            // Fail closed: if the live folder list can't be read we can't verify
+            // uniqueness, so surface the error rather than risk a duplicate name.
+            val liveFolders = liveFolders(userId) ?: run {
+                _state.update {
+                    it.copy(errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed))
+                }
+                return@launch
+            }
+            if (isDuplicateName(name, liveFolders, excludeId = target.id)) {
                 showDuplicateNameError()
                 return@launch
             }
