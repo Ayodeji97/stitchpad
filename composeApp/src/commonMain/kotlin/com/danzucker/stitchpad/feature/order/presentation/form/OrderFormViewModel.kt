@@ -14,8 +14,6 @@ import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
-import com.danzucker.stitchpad.core.domain.model.Style
-import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
@@ -28,17 +26,14 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -428,32 +423,11 @@ class OrderFormViewModel(
         val uid = userId ?: return
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            // FIX 6: Use runningFold on every flow so a transient observe error keeps
-            // the last known value instead of blanking styles or dropping folder members.
-            styleRepository.observeFolders(uid, StyleLocation.CustomerCloset(customerId))
-                .styleListOfFoldersKeepingLast()
-                .flatMapLatest { folders ->
-                    val styleFlows = buildList {
-                        add(
-                            styleRepository.observeStyles(
-                                uid,
-                                StyleLocation.CustomerCloset(customerId, folderId = null),
-                            ).styleListKeepingLast()
-                        )
-                        folders.forEach { folder ->
-                            add(
-                                styleRepository.observeStyles(
-                                    uid,
-                                    StyleLocation.CustomerCloset(customerId, folderId = folder.id),
-                                ).styleListKeepingLast()
-                            )
-                        }
-                    }
-                    combine(styleFlows) { results -> results.flatMap { it } }
-                }
-                .collect { styles ->
-                    _state.update { it.copy(availableStyles = styles) }
-                }
+            // Flatten the customer's styles across the default + named folders so
+            // foldered styles remain pickable. Resilient to transient observe errors.
+            styleRepository.observeAllCustomerStyles(uid, customerId).collect { styles ->
+                _state.update { it.copy(availableStyles = styles) }
+            }
         }
         measurementJob?.cancel()
         measurementJob = viewModelScope.launch {
@@ -464,21 +438,6 @@ class OrderFormViewModel(
             }
         }
     }
-
-    /**
-     * Retains the last successfully emitted style list, ignoring transient errors.
-     * A network hiccup keeps the last known list visible rather than blanking styles.
-     */
-    private fun Flow<Result<List<Style>, DataError.Network>>.styleListKeepingLast(): Flow<List<Style>> =
-        runningFold(emptyList()) { last, r -> if (r is Result.Success) r.data else last }
-
-    /**
-     * Retains the last successfully emitted folder list, ignoring transient errors.
-     * Prevents flatMapLatest from re-subscribing to "no folders" on a transient error.
-     */
-    private fun Flow<Result<List<StyleFolder>, DataError.Network>>.styleListOfFoldersKeepingLast():
-        Flow<List<StyleFolder>> =
-        runningFold(emptyList()) { last, r -> if (r is Result.Success) r.data else last }
 
     private fun loadOrder(id: String) {
         val uid = userId ?: return
