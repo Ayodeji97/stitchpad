@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_action_verify_failed
 
 class StyleGalleryViewModel(
     savedStateHandle: SavedStateHandle,
@@ -254,7 +257,14 @@ class StyleGalleryViewModel(
         }
     }
 
-    /** Executes copy or move and emits the result event / error. */
+    /**
+     * Executes copy or move and emits the result event / error.
+     *
+     * FIX 5 + FIX 7(gallery): Re-reads the destination's live style count immediately
+     * before committing the transfer. If the read fails, surface an error and abort.
+     * If the count is at or above cap, emit CapReached and abort.
+     */
+    @Suppress("ReturnCount")
     private suspend fun performTransfer(
         transfer: StyleTransfer,
         target: TransferTarget,
@@ -262,6 +272,31 @@ class StyleGalleryViewModel(
         folderId: String?,
     ) {
         val userId = authRepository.getCurrentUser()?.id ?: return
+        // Resolve the cap for this destination.
+        val tier = entitlements.awaitHydrated().tier
+        val limits = when (target) {
+            is TransferTarget.Inspiration -> StyleCollectionLimits.forInspiration(tier)
+            is TransferTarget.Customer -> StyleCollectionLimits.forCustomer(tier)
+        }
+        val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+        // Live re-read: any count read error → fail safe (abort, surface error).
+        val liveCount = when (
+            val r = styleRepository.observeStyles(userId, destinationLocation).first()
+        ) {
+            is Result.Success -> r.data.size
+            is Result.Error -> {
+                _state.update {
+                    it.copy(
+                        errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                    )
+                }
+                return
+            }
+        }
+        if (liveCount >= cap) {
+            _events.send(StyleGalleryEvent.CapReached(cap))
+            return
+        }
         val result = when (transfer.mode) {
             StyleTransferMode.COPY ->
                 styleRepository.copyStyle(userId, from = location, transfer.style, to = destinationLocation)

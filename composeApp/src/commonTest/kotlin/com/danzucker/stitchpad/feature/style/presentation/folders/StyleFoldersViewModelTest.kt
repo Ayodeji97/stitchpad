@@ -1,9 +1,12 @@
 package com.danzucker.stitchpad.feature.style.presentation.folders
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
+import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
@@ -35,12 +38,14 @@ import kotlin.test.assertTrue
 class StyleFoldersViewModelTest {
 
     private lateinit var styleRepository: FakeStyleRepository
+    private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         styleRepository = FakeStyleRepository()
+        customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
     }
 
@@ -105,6 +110,7 @@ class StyleFoldersViewModelTest {
         val vm = StyleFoldersViewModel(
             savedStateHandle = SavedStateHandle(args),
             styleRepository = styleRepository,
+            customerRepository = customerRepository,
             authRepository = authRepository,
             entitlements = FakeEntitlementsProvider(tier),
         )
@@ -457,5 +463,57 @@ class StyleFoldersViewModelTest {
 
         vm.onAction(StyleFoldersAction.OnDismissFolderActionSheet)
         assertNull(vm.state.value.actionSheetFolder)
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX 1: Fail-safe on folder-observe error during confirm-create
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun onConfirmCreate_withObserveError_surfacesError_noCreate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Simulate a network error on the folders flow.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+
+        vm.onAction(StyleFoldersAction.OnConfirmCreate("New Folder"))
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertNull(styleRepository.lastCreatedFolderName)
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX 2: Customer name loaded for closet title
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun closet_customerNameLoaded_intoState() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            Customer(
+                id = "cust-1",
+                userId = "test-uid",
+                name = "Amaka",
+                phone = "+2348012345678",
+            )
+        )
+        val vm = createViewModel(customerId = "cust-1", tier = SubscriptionTier.PRO)
+
+        assertEquals("Amaka", vm.state.value.customerName)
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX 3: Free user redirect clears isLoading
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun freeUser_redirect_clearsIsLoading() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+
+        // Consume the redirect event so the test doesn't stall.
+        vm.events.first()
+
+        assertFalse(vm.state.value.isLoading)
     }
 }

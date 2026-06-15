@@ -628,4 +628,27 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
     }
+
+    // --- FIX 5 + FIX 7(gallery): performTransfer live count re-read ---
+
+    @Test
+    fun transfer_whenDestinationCountReadErrors_noCopy_errorSurfaced() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // observeError makes the live re-read in performTransfer fail.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        // observeError also blocks the folder load in onTargetSelected (paid path skipped;
+        // for FREE tier the destCount read also errors → verify fail-safe).
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        assertNull(styleRepository.lastCopied)
+        assertNotNull(vm.state.value.errorMessage)
+    }
 }

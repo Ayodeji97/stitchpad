@@ -484,4 +484,23 @@ class StyleFormViewModelTest {
 
         assertNull(vm.state.value.errorMessage)
     }
+
+    // --- FIX 7(form): cap check on observe error → blocked, not treated as 0 ---
+
+    @Test
+    fun save_whenStyleCountReadErrors_blocked_noCreate_isSavingFalse_errorSet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // observeError will make the count read fail.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
+        vm.onAction(StyleFormAction.OnDescriptionChange("Blue kaftan"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+
+        assertNull(styleRepository.lastCreatedDescription)
+        assertNull(styleRepository.lastBatchCreatedDescription)
+        assertFalse(vm.state.value.isSaving)
+        assertNotNull(vm.state.value.errorMessage)
+    }
 }

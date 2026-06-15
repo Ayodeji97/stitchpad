@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -28,12 +29,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_action_verify_failed
 import stitchpad.composeapp.generated.resources.style_folder_duplicate_name
 
+@Suppress("TooManyFunctions")
 @OptIn(ExperimentalCoroutinesApi::class)
 class StyleFoldersViewModel(
     savedStateHandle: SavedStateHandle,
     private val styleRepository: StyleRepository,
+    private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
     private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
@@ -112,8 +116,12 @@ class StyleFoldersViewModel(
             if (!limits.foldersEnabled) {
                 // Free users with foldersEnabled=false are immediately forwarded to the
                 // flat default gallery — no folder UI shown.
+                _state.update { it.copy(isLoading = false) }
                 _events.send(StyleFoldersEvent.RedirectToFlatGallery(customerId))
             } else {
+                if (customerId != null) {
+                    loadCustomerName(customerId)
+                }
                 observeFolders()
             }
         }
@@ -130,6 +138,18 @@ class StyleFoldersViewModel(
         }
         resolvedLimits = l
         return l
+    }
+
+    // FIX 2: Load the customer's name so the closet title ("Name's Closet") is correct.
+    private suspend fun loadCustomerName(cid: String) {
+        val userId = authRepository.getCurrentUser()?.id ?: return
+        when (val r = customerRepository.observeCustomers(userId).first()) {
+            is Result.Success -> {
+                val name = r.data.firstOrNull { it.id == cid }?.name ?: return
+                _state.update { it.copy(customerName = name) }
+            }
+            is Result.Error -> Unit // silent — title stays generic
+        }
     }
 
     // The default "My styles" folder counts as one of maxFolders, so the total
@@ -159,7 +179,15 @@ class StyleFoldersViewModel(
             // tappable while the grid is still loading (state.namedFolderCount == 0),
             // so the cached state can be stale; fetch live folders before creating.
             val liveFolders = liveFolders(userId)
-            if ((liveFolders?.size ?: _state.value.namedFolderCount) + 1 >= limits.maxFolders) {
+            // FIX 1: if the live read failed, fail safe — block the create rather
+            // than falling back to a possibly-stale (or zero) namedFolderCount.
+            if (liveFolders == null) {
+                _state.update {
+                    it.copy(errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed))
+                }
+                return@launch
+            }
+            if (liveFolders.size + 1 >= limits.maxFolders) {
                 _events.send(StyleFoldersEvent.NavigateToUpgrade)
                 return@launch
             }

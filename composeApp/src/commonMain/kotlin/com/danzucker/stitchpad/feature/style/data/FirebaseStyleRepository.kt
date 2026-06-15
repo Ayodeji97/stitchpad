@@ -159,8 +159,10 @@ class FirebaseStyleRepository(
     ): EmptyResult<DataError.Network> =
         try {
             val folderRef = foldersCollectionFor(userId, location).document(folderId)
-            val stylesSnapshot = folderRef.collection("styles").get()
+            // FIX 4: read the styles subcollection INSIDE the enqueued write so we capture
+            // any styles added between scheduling and execution, preventing orphaned docs.
             val accepted = offlineWrites.enqueue("deleteFolder folderId=$folderId") {
+                val stylesSnapshot = folderRef.collection("styles").get()
                 stylesSnapshot.documents.forEach { doc -> doc.reference.delete() }
                 folderRef.delete()
             }

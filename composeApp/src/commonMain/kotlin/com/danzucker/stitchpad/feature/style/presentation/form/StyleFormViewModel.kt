@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
@@ -24,6 +25,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_action_verify_failed
 
 private const val MAX_PHOTO_SIZE_BYTES: Int = 5 * 1024 * 1024
 
@@ -205,9 +208,19 @@ class StyleFormViewModel(
             // Cap check: only applies to create paths (not edit).
             // Await hydration here so a cold-start Pro user isn't wrongly blocked.
             val imageCap = resolveImageCap()
+            // FIX 7(form): fail safe on count-read error — block the create rather
+            // than treating an unreadable count as 0 (which bypasses the cap).
             val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
                 is Result.Success -> r.data.size
-                is Result.Error -> 0
+                is Result.Error -> {
+                    _state.update {
+                        it.copy(
+                            isSaving = false,
+                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                        )
+                    }
+                    return@launch
+                }
             }
             if (current + s.selectedPhotos.size > imageCap) {
                 _state.update { it.copy(isSaving = false) }
