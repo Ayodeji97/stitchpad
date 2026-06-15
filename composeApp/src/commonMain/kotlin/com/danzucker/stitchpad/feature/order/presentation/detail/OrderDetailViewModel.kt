@@ -33,10 +33,12 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
+import com.danzucker.stitchpad.feature.style.domain.observeAllInspirationStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -598,18 +600,21 @@ class OrderDetailViewModel(
         loadedStylesCustomerId = customerId
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            // Observe the customer's full style list (default + named folders) and
-            // build a lookup map. The hero image resolver in OrderDetailScreen resolves
-            // the relevant styles per styleImages[].styleId at render time. Flattening
-            // across folders keeps a folder style's thumbnail from vanishing here.
-            styleRepository.observeAllCustomerStyles(userId, customerId).collect { styles ->
-                _state.update { current ->
-                    current.copy(
-                        availableStyles = styles,
-                        styles = styles.associateBy { it.id },
-                    )
+            // Combine the customer's closet (default + named folders) with the shared
+            // Inspiration library so that LIBRARY refs pointing at Inspiration styles
+            // resolve correctly in the hero / thumbnail renderer.
+            combine(
+                styleRepository.observeAllCustomerStyles(userId, customerId),
+                styleRepository.observeAllInspirationStyles(userId),
+            ) { closet, inspiration -> closet + inspiration }
+                .collect { merged ->
+                    _state.update { current ->
+                        current.copy(
+                            availableStyles = merged,
+                            styles = merged.associateBy { it.id },
+                        )
+                    }
                 }
-            }
         }
     }
 
