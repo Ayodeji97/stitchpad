@@ -57,10 +57,12 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(headerText, 16f).apply { alpha = 190 }
         val labelPaint = makePaint(labelColor, 14f, bold = true)
         val bodyPaint = makePaint(bodyText, 18f)
-        // Muted breakdown line under each item: "{qty} × {unitPrice}".
-        val itemSubtitlePaint = makePaint(labelColor, 14f)
+        // Unit-price breakdown row — legible (light, not muted) so the unit price is
+        // clearly visible; the value is bold to make it stand out (design feedback).
+        val unitLabelPaint = makePaint(bodyText, 16f)
+        val unitValuePaint = makePaint(bodyText, 16f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPaint = makePaint(bodyText, 18f, bold = true)
-        val priceRightPaint = makePaint(bodyText, 18f).apply { textAlign = Paint.Align.RIGHT }
+        val priceRightPaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPaint = makePaint(bodyText, 20f, bold = true)
         val totalPaint = makePaint(saffron, 20f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val depositPaint = makePaint(green, 18f).apply { textAlign = Paint.Align.RIGHT }
@@ -95,9 +97,9 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 60f // customer + date row
         estimatedHeight += 20f // divider gap
         estimatedHeight += 30f // Items label
-        // qty==1 → 1 row (~26px); qty>1 → 3 rows (~22+22+30=74px, conservative estimate).
+        // qty==1 → 1 row (~26px); qty>1 → 3 rows (22+24+30=76px).
         var itemsEstimate = 0f
-        for (item in data.items) itemsEstimate += if (item.quantity == 1) 26f else 74f
+        for (item in data.items) itemsEstimate += if (item.quantity == 1) 26f else 76f
         estimatedHeight += itemsEstimate
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
@@ -213,12 +215,11 @@ actual class OrderReceiptSharer(private val context: Context) {
                 // Row 1: garment name only (no price on the right).
                 canvas.drawText(item.garmentName, padding, y, bodyPaint)
                 y += 22f
-                // Row 2: "Unit price" label (muted) + unit price (right, muted).
+                // Row 2: "Unit price" label + value (light, value bold — clearly visible).
                 val indent = padding + 14f
-                canvas.drawText("Unit price", indent, y, itemSubtitlePaint)
-                val unitW = itemSubtitlePaint.measureText(item.formattedUnitPrice)
-                canvas.drawText(item.formattedUnitPrice, width - padding - unitW, y, itemSubtitlePaint)
-                y += 22f
+                canvas.drawText("Unit price", indent, y, unitLabelPaint)
+                canvas.drawText(item.formattedUnitPrice, width - padding, y, unitValuePaint)
+                y += 24f
                 // Row 3: "Price for N" label (left) + line total (right, bold).
                 canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPaint)
                 canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
@@ -396,10 +397,11 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(labelColor, 12f)
         val labelPaintPdf = makePaint(labelColor, 10f, bold = true)
         val bodyPaintPdf = makePaint(bodyText, 14f)
-        // Muted breakdown line under each item: "{qty} × {unitPrice}".
-        val itemSubtitlePdf = makePaint(labelColor, 10f)
+        // Unit-price breakdown row — legible (not muted), value bold so it stands out.
+        val unitLabelPdf = makePaint(bodyText, 11f)
+        val unitValuePdf = makePaint(bodyText, 11f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPdf = makePaint(bodyText, 14f, bold = true)
-        val priceRightPdf = makePaint(bodyText, 14f).apply { textAlign = Paint.Align.RIGHT }
+        val priceRightPdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPdf = makePaint(bodyText, 16f, bold = true)
         val totalPricePdf = makePaint(saffron, 16f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val depositPricePdf = makePaint(green, 14f).apply { textAlign = Paint.Align.RIGHT }
@@ -514,11 +516,10 @@ actual class OrderReceiptSharer(private val context: Context) {
                 // Row 1: garment name only (no price on the right).
                 canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
                 y += 16f
-                // Row 2: "Unit price" label (muted) + unit price (right, muted).
+                // Row 2: "Unit price" label + value (legible, value bold — clearly visible).
                 val indent = padding + 12f
-                canvas.drawText("Unit price", indent, y, itemSubtitlePdf)
-                val unitW = itemSubtitlePdf.measureText(item.formattedUnitPrice)
-                canvas.drawText(item.formattedUnitPrice, pageWidth - padding - unitW, y, itemSubtitlePdf)
+                canvas.drawText("Unit price", indent, y, unitLabelPdf)
+                canvas.drawText(item.formattedUnitPrice, pageWidth - padding, y, unitValuePdf)
                 y += 16f
                 // Row 3: "Price for N" label (left) + line total (right, bold).
                 canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPdf)
