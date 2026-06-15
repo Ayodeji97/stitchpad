@@ -33,11 +33,12 @@ data class OrderFormState(
     /** Folders with their styles for the shared Inspiration library. */
     val inspirationFolders: List<StylePickerFolder> = emptyList(),
     /**
-     * Which folder is currently drilled into in the style picker sheet.
-     * Null = show the folder grid (or the default-folder styles directly when
-     * there are no named folders).
+     * Key ([StylePickerFolder.key]) of the folder drilled into in the style picker.
+     * Null = show the folder grid (or the default-folder styles directly when there
+     * are no named folders). Stored as a key, not a snapshot, so the drilled-in view
+     * always resolves the LIVE folder from the current folder list.
      */
-    val pickerOpenFolder: StylePickerFolder? = null,
+    val pickerOpenFolderKey: String? = null,
     val stylePickerSource: StylePickerSource = StylePickerSource.CLOSET,
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Item id whose Style picker sheet is currently visible. Null = no sheet. */

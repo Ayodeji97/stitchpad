@@ -70,7 +70,7 @@ fun StylePickerSheet(
     inspirationFolders: List<StylePickerFolder>,
     selectedSource: StylePickerSource,
     onSourceChange: (StylePickerSource) -> Unit,
-    pickerOpenFolder: StylePickerFolder?,
+    pickerOpenFolderKey: String?,
     onFolderOpen: (StylePickerFolder) -> Unit,
     onFolderBack: () -> Unit,
     alreadySelectedStyleIds: Set<String>,
@@ -80,6 +80,10 @@ fun StylePickerSheet(
 ) {
     val folders = if (selectedSource == StylePickerSource.CLOSET) closetFolders else inspirationFolders
     val namedFolders = folders.filter { it.folderId != null }
+    // Resolve the LIVE folder from the current list by key (not a stale snapshot), so a
+    // folder opened before its styles loaded reflects later updates. Falls back to the
+    // grid if the folder no longer exists (deleted, or source switched).
+    val pickerOpenFolder = pickerOpenFolderKey?.let { key -> folders.firstOrNull { it.key == key } }
     val defaultFolderName = stringResource(Res.string.style_folders_default_name)
 
     ModalBottomSheet(

@@ -33,6 +33,17 @@ data class StylePickerFolder(
             .firstNotNullOfOrNull { s ->
                 s.localPhotoPath ?: s.photoUrl.takeIf { it.isNotBlank() }
             }
+
+    /**
+     * Stable identity for "which folder is open" — the default folder has a null
+     * [folderId], so it gets a sentinel. Lets state store the id (not a stale snapshot)
+     * and resolve the LIVE folder from the current list each render.
+     */
+    val key: String get() = folderId ?: DEFAULT_FOLDER_KEY
+
+    companion object {
+        const val DEFAULT_FOLDER_KEY = "__default__"
+    }
 }
 
 /**

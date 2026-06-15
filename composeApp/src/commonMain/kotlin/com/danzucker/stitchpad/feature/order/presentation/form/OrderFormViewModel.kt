@@ -233,22 +233,22 @@ class OrderFormViewModel(
                     it.copy(
                         stylePickerSheetForItemId = action.itemId,
                         stylePickerSource = StylePickerSource.CLOSET,
-                        pickerOpenFolder = null,
+                        pickerOpenFolderKey = null,
                     )
                 }
             }
             OrderFormAction.OnDismissStylePickerSheet -> {
-                _state.update { it.copy(stylePickerSheetForItemId = null, pickerOpenFolder = null) }
+                _state.update { it.copy(stylePickerSheetForItemId = null, pickerOpenFolderKey = null) }
             }
             is OrderFormAction.OnStylePickerSourceChange -> {
                 // Switching the source also clears any open folder (return to grid).
-                _state.update { it.copy(stylePickerSource = action.source, pickerOpenFolder = null) }
+                _state.update { it.copy(stylePickerSource = action.source, pickerOpenFolderKey = null) }
             }
             is OrderFormAction.OnPickerFolderOpen -> {
-                _state.update { it.copy(pickerOpenFolder = action.folder) }
+                _state.update { it.copy(pickerOpenFolderKey = action.folder.key) }
             }
             OrderFormAction.OnPickerFolderBack -> {
-                _state.update { it.copy(pickerOpenFolder = null) }
+                _state.update { it.copy(pickerOpenFolderKey = null) }
             }
             is OrderFormAction.OnItemAddFabricPhoto -> {
                 if (rejectOversizedPhoto(action.photoBytes)) return

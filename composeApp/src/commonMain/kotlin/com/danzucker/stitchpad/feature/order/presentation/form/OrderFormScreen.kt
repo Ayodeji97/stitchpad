@@ -337,7 +337,7 @@ fun OrderFormScreen(
                         inspirationFolders = state.inspirationFolders,
                         selectedSource = state.stylePickerSource,
                         onSourceChange = { onAction(OrderFormAction.OnStylePickerSourceChange(it)) },
-                        pickerOpenFolder = state.pickerOpenFolder,
+                        pickerOpenFolderKey = state.pickerOpenFolderKey,
                         onFolderOpen = { onAction(OrderFormAction.OnPickerFolderOpen(it)) },
                         onFolderBack = { onAction(OrderFormAction.OnPickerFolderBack) },
                         alreadySelectedStyleIds = alreadyPickedIds,

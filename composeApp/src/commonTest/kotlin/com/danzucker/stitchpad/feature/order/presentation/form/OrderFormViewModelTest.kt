@@ -815,9 +815,9 @@ class OrderFormViewModelTest {
             styles = emptyList(),
         )
 
-        assertNull(vm.state.value.pickerOpenFolder)
+        assertNull(vm.state.value.pickerOpenFolderKey)
         vm.onAction(OrderFormAction.OnPickerFolderOpen(folder))
-        assertEquals("f1", vm.state.value.pickerOpenFolder?.folderId)
+        assertEquals("f1", vm.state.value.pickerOpenFolderKey)
     }
 
     @Test
@@ -829,10 +829,10 @@ class OrderFormViewModelTest {
             styles = emptyList(),
         )
         vm.onAction(OrderFormAction.OnPickerFolderOpen(folder))
-        assertNotNull(vm.state.value.pickerOpenFolder)
+        assertNotNull(vm.state.value.pickerOpenFolderKey)
 
         vm.onAction(OrderFormAction.OnPickerFolderBack)
-        assertNull(vm.state.value.pickerOpenFolder)
+        assertNull(vm.state.value.pickerOpenFolderKey)
     }
 
     @Test
@@ -847,7 +847,7 @@ class OrderFormViewModelTest {
 
         // Switching source must clear the open folder.
         vm.onAction(OrderFormAction.OnStylePickerSourceChange(StylePickerSource.INSPIRATION))
-        assertNull(vm.state.value.pickerOpenFolder)
+        assertNull(vm.state.value.pickerOpenFolderKey)
     }
 
     @Test
@@ -863,7 +863,7 @@ class OrderFormViewModelTest {
 
         // Reopening the picker must clear the open folder to return to the grid.
         vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
-        assertNull(vm.state.value.pickerOpenFolder)
+        assertNull(vm.state.value.pickerOpenFolderKey)
     }
 
     @Test
