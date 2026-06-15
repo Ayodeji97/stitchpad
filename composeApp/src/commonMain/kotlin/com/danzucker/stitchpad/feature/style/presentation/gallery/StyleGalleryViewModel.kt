@@ -40,9 +40,6 @@ class StyleGalleryViewModel(
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
 
-    // Cached resolved cap — null until first awaitHydrated() call completes.
-    private var resolvedImageCap: Int? = null
-
     private var hasLoadedInitialData = false
     private val isInspirationGallery = location is StyleLocation.Inspiration
     private val _state = MutableStateFlow(
@@ -115,19 +112,18 @@ class StyleGalleryViewModel(
     }
 
     /**
-     * Resolves the image cap for the current location, awaiting entitlements hydration
-     * on the first call and caching thereafter.
+     * Resolves the image cap for the current location from the CURRENT tier each call
+     * (awaiting hydration). Not cached: an upgrade/downgrade while this VM is alive must
+     * reflect the new tier's cap, not a stale snapshot.
      */
     private suspend fun resolveImageCap(): Int {
-        resolvedImageCap?.let { return it }
+        val tier = entitlements.awaitHydrated().tier
         val limits = if (customerId == null) {
-            StyleCollectionLimits.forInspiration(entitlements.awaitHydrated().tier)
+            StyleCollectionLimits.forInspiration(tier)
         } else {
-            StyleCollectionLimits.forCustomer(entitlements.awaitHydrated().tier)
+            StyleCollectionLimits.forCustomer(tier)
         }
-        val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
-        resolvedImageCap = cap
-        return cap
+        return if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
     }
 
     private fun openTransfer(mode: StyleTransferMode) {

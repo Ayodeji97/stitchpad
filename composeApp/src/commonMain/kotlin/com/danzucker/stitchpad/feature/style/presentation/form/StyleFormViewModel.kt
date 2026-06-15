@@ -46,9 +46,6 @@ class StyleFormViewModel(
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
 
-    // Cached resolved cap — null until first awaitHydrated() call completes.
-    private var resolvedImageCap: Int? = null
-
     // Multi-pick only when adding to a closet — not when editing one style and
     // not when attaching exactly one style to an order (the link flow).
     private val allowMultiPhoto: Boolean = styleId == null && linkToOrderId == null
@@ -141,10 +138,6 @@ class StyleFormViewModel(
     }
 
     /**
-     * Resolves the image cap for the current location, awaiting entitlements hydration
-     * on the first call and caching thereafter.
-     */
-    /**
      * Clamp the multi-pick limit to the folder's remaining capacity so a Pro user
      * with a 5-image folder can't pick 10 only to be blocked at save. Remaining =
      * cap − current count, coerced into [1, ceiling] (the gallery blocks entry at 0).
@@ -162,16 +155,16 @@ class StyleFormViewModel(
         }
     }
 
+    // Resolves the image cap from the CURRENT tier each call (awaiting hydration).
+    // Not cached: a tier change while this VM is alive must reflect the new cap.
     private suspend fun resolveImageCap(): Int {
-        resolvedImageCap?.let { return it }
+        val tier = entitlements.awaitHydrated().tier
         val limits = if (customerId == null) {
-            StyleCollectionLimits.forInspiration(entitlements.awaitHydrated().tier)
+            StyleCollectionLimits.forInspiration(tier)
         } else {
-            StyleCollectionLimits.forCustomer(entitlements.awaitHydrated().tier)
+            StyleCollectionLimits.forCustomer(tier)
         }
-        val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
-        resolvedImageCap = cap
-        return cap
+        return if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")

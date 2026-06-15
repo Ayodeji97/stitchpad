@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
@@ -16,6 +17,7 @@ import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,9 +50,6 @@ class StyleFoldersViewModel(
     // Root location — the default (null-folderId) folder of this context.
     private val rootLocation: StyleLocation =
         customerId?.let(StyleLocation::CustomerCloset) ?: StyleLocation.Inspiration()
-
-    // Cache resolved limits after hydration so handleCreateClick can use them synchronously.
-    private var resolvedLimits: StyleCollectionLimits? = null
 
     private var hasLoadedInitialData = false
 
@@ -104,13 +104,7 @@ class StyleFoldersViewModel(
         viewModelScope.launch {
             // Always await hydration first so Free/Pro/Atelier is resolved correctly
             // before the redirect-or-observe decision.
-            val hydrated = entitlements.awaitHydrated()
-            val limits = if (customerId == null) {
-                StyleCollectionLimits.forInspiration(hydrated.tier)
-            } else {
-                StyleCollectionLimits.forCustomer(hydrated.tier)
-            }
-            resolvedLimits = limits
+            val limits = resolveLimits()
             _state.update { it.copy(limits = limits) }
 
             if (!limits.foldersEnabled) {
@@ -127,17 +121,15 @@ class StyleFoldersViewModel(
         }
     }
 
-    // Resolves limits, awaiting hydration on first use and caching thereafter.
+    // Resolves limits from the CURRENT tier each call (awaiting hydration). Not cached:
+    // a tier change while this VM is alive must reflect the new limits.
     private suspend fun resolveLimits(): StyleCollectionLimits {
-        resolvedLimits?.let { return it }
-        val hydrated = entitlements.awaitHydrated()
-        val l = if (customerId == null) {
-            StyleCollectionLimits.forInspiration(hydrated.tier)
+        val tier = entitlements.awaitHydrated().tier
+        return if (customerId == null) {
+            StyleCollectionLimits.forInspiration(tier)
         } else {
-            StyleCollectionLimits.forCustomer(hydrated.tier)
+            StyleCollectionLimits.forCustomer(tier)
         }
-        resolvedLimits = l
-        return l
     }
 
     // FIX 2: Load the customer's name so the closet title ("Name's Closet") is correct.
@@ -274,15 +266,15 @@ class StyleFoldersViewModel(
                     }
                     val folders = (foldersResult as Result.Success).data
 
-                    // Flow for default-location styles.
+                    // Flow for default-location styles. keepingLastStyles retains the last
+                    // successful list so a transient error doesn't flash a card to 0/blank cover.
                     val defaultStylesFlow = styleRepository.observeStyles(userId, rootLocation)
-                        .map { r -> (r as? Result.Success)?.data ?: emptyList<Style>() }
+                        .keepingLastStyles()
 
                     // One flow per named folder, ordered by folder index.
                     val namedFlows = folders.map { folder ->
                         val loc = namedFolderLocation(folder)
-                        styleRepository.observeStyles(userId, loc)
-                            .map { r -> (r as? Result.Success)?.data ?: emptyList<Style>() }
+                        styleRepository.observeStyles(userId, loc).keepingLastStyles()
                     }
 
                     // Combine default + all named into a single emission.
@@ -333,4 +325,8 @@ class StyleFoldersViewModel(
             .firstNotNullOfOrNull { style ->
                 style.localPhotoPath ?: style.photoUrl.takeIf { it.isNotBlank() }
             }
+
+    /** Retains the last successful style list so a transient error keeps the card live. */
+    private fun Flow<Result<List<Style>, DataError.Network>>.keepingLastStyles(): Flow<List<Style>> =
+        runningFold(emptyList()) { last, r -> if (r is Result.Success) r.data else last }
 }
