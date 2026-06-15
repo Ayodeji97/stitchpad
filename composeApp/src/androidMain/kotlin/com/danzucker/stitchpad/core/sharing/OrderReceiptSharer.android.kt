@@ -57,10 +57,13 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(headerText, 16f).apply { alpha = 190 }
         val labelPaint = makePaint(labelColor, 14f, bold = true)
         val bodyPaint = makePaint(bodyText, 18f)
-        // Muted breakdown line under each item: "{qty} × {unitPrice}".
-        val itemSubtitlePaint = makePaint(labelColor, 14f)
+        // Unit-price breakdown row — same 18f size as the "Price for N" row so the two
+        // breakdown lines align; legible (light, not muted) with a bold value so the
+        // unit price is clearly visible (design feedback).
+        val unitLabelPaint = makePaint(bodyText, 18f)
+        val unitValuePaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPaint = makePaint(bodyText, 18f, bold = true)
-        val priceRightPaint = makePaint(bodyText, 18f).apply { textAlign = Paint.Align.RIGHT }
+        val priceRightPaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPaint = makePaint(bodyText, 20f, bold = true)
         val totalPaint = makePaint(saffron, 20f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val depositPaint = makePaint(green, 18f).apply { textAlign = Paint.Align.RIGHT }
@@ -95,7 +98,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 60f // customer + date row
         estimatedHeight += 20f // divider gap
         estimatedHeight += 30f // Items label
-        estimatedHeight += data.items.size * 44f // items (two-line: name/total + unit-price breakdown)
+        // qty==1 → 1 row (~26px); qty>1 → 3 rows (22+24+30=76px).
+        var itemsEstimate = 0f
+        for (item in data.items) itemsEstimate += if (item.quantity == 1) 26f else 76f
+        estimatedHeight += itemsEstimate
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
@@ -201,13 +207,27 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawText("ITEMS", padding, y, labelPaint)
         y += 24f
         data.items.forEach { item ->
-            // Line 1: garment name (left) + line total (right).
-            canvas.drawText(item.garmentName, padding, y, bodyPaint)
-            canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
-            y += 19f
-            // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
-            canvas.drawText("${item.quantity} × ${item.formattedUnitPrice}", padding, y, itemSubtitlePaint)
-            y += 25f
+            if (item.quantity == 1) {
+                // Single row: garment name (left) + line total (right, bold). No subtitle.
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPaint)
+                canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
+                y += 26f
+            } else {
+                // Row 1: garment name only (no price on the right).
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPaint)
+                y += 22f
+                // Row 2: "Unit price" label + value (light, value bold — clearly visible).
+                // Nested under the garment name so each item's breakdown is grouped with it
+                // (matters most when an order has several items).
+                val indent = padding + 14f
+                canvas.drawText("Unit price", indent, y, unitLabelPaint)
+                canvas.drawText(item.formattedUnitPrice, width - padding, y, unitValuePaint)
+                y += 24f
+                // Row 3: "Price for N" label (left) + line total (right, bold).
+                canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPaint)
+                canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
+                y += 30f
+            }
         }
         y += 8f
 
@@ -327,8 +347,39 @@ actual class OrderReceiptSharer(private val context: Context) {
     private fun renderLightPdf(data: ReceiptData): File {
         // A5 size in PostScript points: 420 x 595
         val pageWidth = 420
-        val pageHeight = 595
         val padding = 30f
+
+        // Compute dynamic page height by summing the same y-advances used in the
+        // draw code below, so the page is always tall enough to show every section.
+        var estimatedHeight = padding // y starts at padding
+        estimatedHeight += if (data.businessPhone != null) 50f else 40f // header block
+        estimatedHeight += 4f // headerBottomY + 4 offset
+        estimatedHeight += 18f // border line gap
+        estimatedHeight += 22f // document type label
+        estimatedHeight += 16f // customer/date label row
+        estimatedHeight += 18f // customer/date value row
+        estimatedHeight += 16f // divider gap
+        estimatedHeight += 18f // items label
+        for (item in data.items) estimatedHeight += if (item.quantity == 1) 20f else 52f // per-item: 16+16+20
+        estimatedHeight += 6f // post-items gap
+        estimatedHeight += 18f // payment divider
+        estimatedHeight += 20f // Total row
+        estimatedHeight += 20f // Deposit row
+        estimatedHeight += 22f // Balance row
+        if (data.bankBlock != null) {
+            // 12 (pre-divider) + 18 (post-divider) + 20 (header) + 20 (Bank) + 20 (Account name) + 24 (trailing)
+            estimatedHeight += 12f + 18f + 20f + 20f + 20f + 24f
+        }
+        estimatedHeight += 16f // status divider
+        estimatedHeight += 16f // status/deadline labels row
+        estimatedHeight += 6f // status/deadline values row
+        if (data.priorityLabel != null) estimatedHeight += 14f // priority badge
+        estimatedHeight += 30f // pre-footer divider advance
+        estimatedHeight += 16f // order-id line
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 14f // attribution line
+        estimatedHeight += padding // bottom breathing room
+
+        val pageHeight = maxOf(595, kotlin.math.ceil(estimatedHeight).toInt())
 
         val doc = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create()
@@ -349,10 +400,12 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(labelColor, 12f)
         val labelPaintPdf = makePaint(labelColor, 10f, bold = true)
         val bodyPaintPdf = makePaint(bodyText, 14f)
-        // Muted breakdown line under each item: "{qty} × {unitPrice}".
-        val itemSubtitlePdf = makePaint(labelColor, 10f)
+        // Unit-price breakdown row — same 14f size as the "Price for N" row so the two
+        // breakdown lines align; legible (not muted) with a bold value so it stands out.
+        val unitLabelPdf = makePaint(bodyText, 14f)
+        val unitValuePdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPdf = makePaint(bodyText, 14f, bold = true)
-        val priceRightPdf = makePaint(bodyText, 14f).apply { textAlign = Paint.Align.RIGHT }
+        val priceRightPdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPdf = makePaint(bodyText, 16f, bold = true)
         val totalPricePdf = makePaint(saffron, 16f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val depositPricePdf = makePaint(green, 14f).apply { textAlign = Paint.Align.RIGHT }
@@ -458,13 +511,26 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawText("ITEMS", padding, y, labelPaintPdf)
         y += 18f
         data.items.forEach { item ->
-            // Line 1: garment name (left) + line total (right).
-            canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
-            canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
-            y += 14f
-            // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
-            canvas.drawText("${item.quantity} × ${item.formattedUnitPrice}", padding, y, itemSubtitlePdf)
-            y += 18f
+            if (item.quantity == 1) {
+                // Single row: garment name (left) + line total (right, bold). No subtitle.
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPdf)
+                canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
+                y += 20f
+            } else {
+                // Row 1: garment name only (no price on the right).
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPdf)
+                y += 16f
+                // Row 2: "Unit price" label + value (legible, value bold — clearly visible).
+                // Nested under the garment name so each item's breakdown is grouped with it.
+                val indent = padding + 12f
+                canvas.drawText("Unit price", indent, y, unitLabelPdf)
+                canvas.drawText(item.formattedUnitPrice, pageWidth - padding, y, unitValuePdf)
+                y += 16f
+                // Row 3: "Price for N" label (left) + line total (right, bold).
+                canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPdf)
+                canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
+                y += 20f
+            }
         }
         y += 6f
 
