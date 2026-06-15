@@ -495,9 +495,9 @@
     <string name="style_cap_folder_eyebrow">FOLDER LIMIT REACHED</string>
     <string name="style_cap_style_eyebrow">STYLE LIMIT REACHED</string>
     <string name="style_cap_folder_title">You&apos;ve filled your folders</string>
-    <string name="style_cap_style_title">You&apos;ve filled this folder</string>
+    <string name="style_cap_style_title">You&apos;ve reached your style limit</string>
     <string name="style_cap_folder_body">You&apos;ve reached your plan&apos;s folder limit. Upgrade to create more folders and keep your collections organised.</string>
-    <string name="style_cap_style_body">You&apos;ve reached your plan&apos;s style limit for this folder. Upgrade to save more styles and grow your inspiration board.</string>
+    <string name="style_cap_style_body">You&apos;ve reached your plan&apos;s style limit. Upgrade for more room — organise your styles into folders and save many more.</string>
     <string name="style_cap_upgrade_pro">Upgrade to Tailor Pro</string>
     <string name="style_cap_upgrade_atelier">Upgrade to Tailor Atelier</string>
     <string name="style_cap_max_title">You&apos;re on our top plan</string>
