@@ -33,7 +33,10 @@ import ComposeApp
                     displayPrice: product.displayPrice
                 )
             }
-            return ResultSuccess(data: mapped)
+            // `mapped` is a Swift Array (value type); Kotlin's generic
+            // ResultSuccess<D> requires D to be a class type. NSArray bridges
+            // back to the Kotlin List<StoreKitProduct> the repository reads.
+            return ResultSuccess(data: mapped as NSArray)
         } catch {
             return ResultError(error: ComposeApp.StoreKitError.network)
         }
@@ -82,7 +85,9 @@ import ComposeApp
                 purchases.append(storeKitPurchase(transaction, jws: result.jwsRepresentation))
             }
         }
-        return ResultSuccess(data: purchases)
+        // See fetchProducts: NSArray (class type) satisfies ResultSuccess<D>
+        // and bridges back to Kotlin List<StoreKitPurchase>.
+        return ResultSuccess(data: purchases as NSArray)
     }
 
     public func finishTransaction(transactionId: String) async throws {
