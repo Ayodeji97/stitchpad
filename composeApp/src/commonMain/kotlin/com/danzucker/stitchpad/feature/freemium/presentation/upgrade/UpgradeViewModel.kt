@@ -84,7 +84,17 @@ class UpgradeViewModel(
                 if (!_state.value.isStartingCheckout) _state.update { it.copy(selectedTier = action.tier) }
             is UpgradeAction.SelectCadence ->
                 if (!_state.value.isStartingCheckout) _state.update { it.copy(billingCadence = action.cadence) }
-            UpgradeAction.PayWithPaystack -> startCheckout()
+            UpgradeAction.PayWithPaystack -> {
+                if (_state.value.isStartingCheckout) return
+                if (_state.value.selectedTier == SubscriptionTier.FREE) return
+                _state.update { it.copy(showCheckoutConfirmSheet = true) }
+            }
+            UpgradeAction.ConfirmCheckout -> {
+                _state.update { it.copy(showCheckoutConfirmSheet = false) }
+                startCheckout()
+            }
+            UpgradeAction.DismissCheckoutSheet ->
+                _state.update { it.copy(showCheckoutConfirmSheet = false) }
         }
     }
 

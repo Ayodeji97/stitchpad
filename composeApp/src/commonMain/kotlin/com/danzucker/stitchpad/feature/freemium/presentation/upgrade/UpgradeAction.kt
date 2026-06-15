@@ -7,4 +7,6 @@ sealed interface UpgradeAction {
     data class SelectTier(val tier: SubscriptionTier) : UpgradeAction
     data class SelectCadence(val cadence: BillingCadence) : UpgradeAction
     data object PayWithPaystack : UpgradeAction
+    data object ConfirmCheckout : UpgradeAction
+    data object DismissCheckoutSheet : UpgradeAction
 }

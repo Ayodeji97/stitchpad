@@ -1322,6 +1322,11 @@
     <string name="upgrade_starting_checkout">Starting secure checkout...</string>
     <string name="upgrade_terms">Prepaid access via Paystack. No automatic renewal; renew when your period ends.</string>
     <string name="upgrade_back_content_description">Back</string>
+    <string name="upgrade_confirm_eyebrow">BEFORE YOU PAY</string>
+    <string name="upgrade_confirm_title">You&apos;ll finish on Paystack</string>
+    <string name="upgrade_confirm_body">You&apos;re about to open the Paystack checkout in your browser to pay securely. Your plan unlocks automatically once payment is confirmed.</string>
+    <string name="upgrade_confirm_continue">Continue to Paystack</string>
+    <string name="upgrade_confirm_cancel">Not now</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
     <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
     <string name="payment_error_invalid_plan">That plan is not available. Choose another plan and try again.</string>

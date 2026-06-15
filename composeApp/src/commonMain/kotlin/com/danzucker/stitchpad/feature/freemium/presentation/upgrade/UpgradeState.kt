@@ -8,4 +8,5 @@ data class UpgradeState(
     val selectedTier: SubscriptionTier = SubscriptionTier.PRO,
     val billingCadence: BillingCadence = BillingCadence.MONTHLY,
     val isStartingCheckout: Boolean = false,
+    val showCheckoutConfirmSheet: Boolean = false,
 )

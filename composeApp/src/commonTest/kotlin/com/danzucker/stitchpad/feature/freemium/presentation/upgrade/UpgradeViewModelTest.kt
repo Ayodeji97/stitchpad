@@ -52,28 +52,62 @@ class UpgradeViewModelTest {
     }
 
     @Test
-    fun payWithPaystack_opens_returned_checkout_url_on_success() = runTest {
+    fun payWithPaystack_opensConfirmSheet_doesNotStartCheckout() = runTest {
+        val vm = newVm() // FREE → defaults to PRO / MONTHLY
+
+        vm.onAction(UpgradeAction.PayWithPaystack)
+        runCurrent()
+
+        assertTrue(vm.state.value.showCheckoutConfirmSheet)
+        assertFalse(vm.state.value.isStartingCheckout)
+        assertEquals(null, payments.lastTier) // repo not called
+    }
+
+    @Test
+    fun confirmCheckout_startsCheckout_emitsOpenBrowser() = runTest {
         val vm = newVm()
         val eventDeferred = async { vm.events.first() }
 
         vm.onAction(UpgradeAction.PayWithPaystack)
         runCurrent()
+        assertTrue(vm.state.value.showCheckoutConfirmSheet)
+
+        vm.onAction(UpgradeAction.ConfirmCheckout)
+        runCurrent()
 
         val event = eventDeferred.await()
         assertIs<UpgradeEvent.OpenExternalBrowser>(event)
         assertEquals("https://checkout.paystack.com/stitchpad", event.url)
-        assertEquals(SubscriptionTier.PRO, payments.lastTier)
-        assertEquals(BillingCadence.MONTHLY, payments.lastCadence)
+        assertFalse(vm.state.value.showCheckoutConfirmSheet)
         assertFalse(vm.state.value.isStartingCheckout)
+        assertEquals(SubscriptionTier.PRO, payments.lastTier)
     }
 
     @Test
-    fun payWithPaystack_sets_loading_while_checkout_starts() = runTest {
+    fun dismissCheckoutSheet_hidesSheet_noCheckout() = runTest {
+        val vm = newVm()
+
+        vm.onAction(UpgradeAction.PayWithPaystack)
+        runCurrent()
+        assertTrue(vm.state.value.showCheckoutConfirmSheet)
+
+        vm.onAction(UpgradeAction.DismissCheckoutSheet)
+        runCurrent()
+
+        assertFalse(vm.state.value.showCheckoutConfirmSheet)
+        assertFalse(vm.state.value.isStartingCheckout)
+        assertEquals(null, payments.lastTier) // repo not called
+    }
+
+    @Test
+    fun confirmCheckout_sets_loading_while_checkout_starts() = runTest {
         val checkout = CompletableDeferred<Result<CheckoutSession, PaymentError>>()
         payments.deferred = checkout
         val vm = newVm()
 
         vm.onAction(UpgradeAction.PayWithPaystack)
+        runCurrent()
+        vm.onAction(UpgradeAction.ConfirmCheckout)
         runCurrent()
 
         assertTrue(vm.state.value.isStartingCheckout)
@@ -98,6 +132,8 @@ class UpgradeViewModelTest {
 
         vm.onAction(UpgradeAction.PayWithPaystack)
         runCurrent()
+        vm.onAction(UpgradeAction.ConfirmCheckout)
+        runCurrent()
         assertTrue(vm.state.value.isStartingCheckout)
 
         // Switching plans while the spinner shows must be ignored, so the UI can't
@@ -119,12 +155,14 @@ class UpgradeViewModelTest {
     }
 
     @Test
-    fun payWithPaystack_on_error_emits_snackbar() = runTest {
+    fun confirmCheckout_on_error_emits_snackbar() = runTest {
         payments.result = Result.Error(PaymentError.PROVIDER_UNAVAILABLE)
         val vm = newVm()
         val eventDeferred = async { vm.events.first() }
 
         vm.onAction(UpgradeAction.PayWithPaystack)
+        runCurrent()
+        vm.onAction(UpgradeAction.ConfirmCheckout)
         runCurrent()
 
         val event = eventDeferred.await()
