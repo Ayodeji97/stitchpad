@@ -26,6 +26,8 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -416,14 +418,15 @@ class OrderFormViewModel(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadCustomerData(customerId: String) {
         val uid = userId ?: return
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            styleRepository.observeStyles(uid, StyleLocation.CustomerCloset(customerId)).collect { result ->
-                if (result is Result.Success) {
-                    _state.update { it.copy(availableStyles = result.data) }
-                }
+            // Flatten the customer's styles across the default + named folders so
+            // foldered styles remain pickable. Resilient to transient observe errors.
+            styleRepository.observeAllCustomerStyles(uid, customerId).collect { styles ->
+                _state.update { it.copy(availableStyles = styles) }
             }
         }
         measurementJob?.cancel()

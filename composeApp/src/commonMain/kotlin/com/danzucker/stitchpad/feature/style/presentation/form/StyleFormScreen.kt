@@ -43,6 +43,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -68,6 +69,8 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -76,14 +79,14 @@ import stitchpad.composeapp.generated.resources.style_change_photo
 import stitchpad.composeapp.generated.resources.style_description_label
 import stitchpad.composeapp.generated.resources.style_description_placeholder
 import stitchpad.composeapp.generated.resources.style_edit_title
+import stitchpad.composeapp.generated.resources.style_folder_batch_over_cap
 import stitchpad.composeapp.generated.resources.style_photos_selected
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
 import stitchpad.composeapp.generated.resources.style_save_button
 
-// Bounds how many photos a single multi-pick can add — each is held in memory as
-// bytes, so cap the batch. MultiPhotoPreview lays thumbnails out 3 per row.
-private const val STYLE_MULTI_PICK_MAX = 10
+// MultiPhotoPreview lays thumbnails out 3 per row. The multi-pick batch size is
+// driven by the folder's remaining capacity via state.maxPhotoSelection.
 private const val MULTI_PREVIEW_COLUMNS = 3
 
 @Composable
@@ -96,6 +99,11 @@ fun StyleFormRoot(onNavigateBack: () -> Unit) {
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             StyleFormEvent.NavigateBack -> onNavigateBack()
+            is StyleFormEvent.CapReached -> scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = getString(Res.string.style_folder_batch_over_cap, event.cap),
+                )
+            }
         }
     }
 
@@ -131,17 +139,22 @@ fun StyleFormScreen(
 
     val focusManager = LocalFocusManager.current
 
-    val imagePicker = rememberImagePickerLauncher(
-        selectionMode = if (state.allowMultiPhoto) {
-            SelectionMode.Multiple(maxSelection = STYLE_MULTI_PICK_MAX)
-        } else {
-            SelectionMode.Single
-        },
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            if (byteArrays.isNotEmpty()) onAction(StyleFormAction.OnPhotosPicked(byteArrays))
-        }
-    )
+    // Key on maxPhotoSelection so the launcher is rebuilt once the VM resolves the
+    // folder's remaining capacity (the remembered launcher won't otherwise pick up
+    // a changed maxSelection).
+    val imagePicker = key(state.allowMultiPhoto, state.maxPhotoSelection) {
+        rememberImagePickerLauncher(
+            selectionMode = if (state.allowMultiPhoto) {
+                SelectionMode.Multiple(maxSelection = state.maxPhotoSelection)
+            } else {
+                SelectionMode.Single
+            },
+            scope = pickerScope,
+            onResult = { byteArrays ->
+                if (byteArrays.isNotEmpty()) onAction(StyleFormAction.OnPhotosPicked(byteArrays))
+            }
+        )
+    }
 
     val canSave = state.description.trim().isNotBlank() &&
         (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&

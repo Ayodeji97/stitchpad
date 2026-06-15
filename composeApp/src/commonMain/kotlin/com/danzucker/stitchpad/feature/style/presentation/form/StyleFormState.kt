@@ -3,6 +3,9 @@ package com.danzucker.stitchpad.feature.style.presentation.form
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.presentation.UiText
 
+/** Hard ceiling on how many photos can be multi-picked in one batch (UX guard). */
+internal const val STYLE_MULTI_PICK_CEILING = 10
+
 data class StyleFormState(
     val description: String = "",
     /**
@@ -19,6 +22,12 @@ data class StyleFormState(
      * replaced one photo at a time, and the order-link flow attaches exactly one.
      */
     val allowMultiPhoto: Boolean = false,
+    /**
+     * How many photos the picker may select in one batch — the folder's remaining
+     * capacity (cap − current count), clamped to [1, STYLE_MULTI_PICK_CEILING]. A
+     * Pro user in a 5-image folder that already holds 2 can pick at most 3.
+     */
+    val maxPhotoSelection: Int = STYLE_MULTI_PICK_CEILING,
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: UiText? = null
@@ -32,6 +41,7 @@ data class StyleFormState(
         if (existingStyle != other.existingStyle) return false
         if (isEditMode != other.isEditMode) return false
         if (allowMultiPhoto != other.allowMultiPhoto) return false
+        if (maxPhotoSelection != other.maxPhotoSelection) return false
         if (isLoading != other.isLoading) return false
         if (isSaving != other.isSaving) return false
         if (errorMessage != other.errorMessage) return false
@@ -44,6 +54,7 @@ data class StyleFormState(
         result = 31 * result + (existingStyle?.hashCode() ?: 0)
         result = 31 * result + isEditMode.hashCode()
         result = 31 * result + allowMultiPhoto.hashCode()
+        result = 31 * result + maxPhotoSelection.hashCode()
         result = 31 * result + isLoading.hashCode()
         result = 31 * result + isSaving.hashCode()
         result = 31 * result + (errorMessage?.hashCode() ?: 0)

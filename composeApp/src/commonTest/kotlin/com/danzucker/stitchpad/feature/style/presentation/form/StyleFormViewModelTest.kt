@@ -3,11 +3,16 @@ package com.danzucker.stitchpad.feature.style.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -46,21 +51,44 @@ class StyleFormViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private class FakeEntitlementsProvider(
+        private val tier: SubscriptionTier = SubscriptionTier.FREE,
+    ) : EntitlementsProvider {
+        private val entitlements = UserEntitlements(
+            tier = tier,
+            customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
+            smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
+            isInWelcomeWindow = false,
+            welcomeEndsAt = null,
+            isWithinWelcomeEndingWarning = false,
+            welcomeDaysLeft = null,
+            canUseCustomMeasurements = tier != SubscriptionTier.FREE,
+        )
+        private val _flow = MutableStateFlow(entitlements)
+        override val flow: StateFlow<UserEntitlements> = _flow
+        override fun current(): UserEntitlements = entitlements
+        override suspend fun awaitHydrated(): UserEntitlements = entitlements
+    }
+
     private fun TestScope.createViewModel(
         customerId: String = "customer-1",
         styleId: String? = null,
         linkToOrderId: String? = null,
+        folderId: String? = null,
+        tier: SubscriptionTier = SubscriptionTier.FREE,
     ): StyleFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
             if (styleId != null) put("styleId", styleId)
             if (linkToOrderId != null) put("linkToOrderId", linkToOrderId)
+            if (folderId != null) put("folderId", folderId)
         }
         val vm = StyleFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             styleRepository = styleRepository,
             authRepository = authRepository,
             orderRepository = orderRepository,
+            entitlements = FakeEntitlementsProvider(tier),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -89,6 +117,7 @@ class StyleFormViewModelTest {
             styleRepository = styleRepository,
             authRepository = authRepository,
             orderRepository = orderRepository,
+            entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
@@ -315,6 +344,80 @@ class StyleFormViewModelTest {
         assertNull(styleRepository.lastUpdatedStyle)
     }
 
+    // --- Save: cap enforcement ---
+
+    @Test
+    fun save_batchOverCap_blocked_noCreate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // PRO customer: maxImagesPerFolder = 3. Existing 2 styles + picking 4 = 6 > 3 → blocked.
+        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+        val event = vm.events.first()
+
+        assertIs<StyleFormEvent.CapReached>(event)
+        assertEquals(3, event.cap)
+        // No create call recorded.
+        assertNull(styleRepository.lastCreatedDescription)
+        assertNull(styleRepository.lastBatchCreatedDescription)
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun save_batchWithinCap_creates() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // PRO customer: maxImagesPerFolder = 3. Existing 1 + picking 2 = 3 == cap → allowed.
+        styleRepository.stylesList = List(1) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(List(2) { ByteArray(10) }))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+        val event = vm.events.first()
+
+        assertIs<StyleFormEvent.NavigateBack>(event)
+        // Batch create was called (2 photos).
+        assertEquals(2, styleRepository.lastBatchCreatedCount)
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    // --- Multi-pick limit = folder's remaining capacity ---
+
+    @Test
+    fun maxPhotoSelection_proFolderWithExisting_clampsToRemaining() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // PRO customer: maxImagesPerFolder = 3. 2 already in the folder → can pick 1 more.
+        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+
+        assertEquals(1, vm.state.value.maxPhotoSelection)
+    }
+
+    @Test
+    fun maxPhotoSelection_emptyFreeCustomer_isFlatCap() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // FREE customer: flatCap = 5, empty → can pick all 5.
+        styleRepository.stylesList = emptyList()
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        assertEquals(5, vm.state.value.maxPhotoSelection)
+    }
+
     // --- Save: edit flow ---
 
     @Test
@@ -380,5 +483,24 @@ class StyleFormViewModelTest {
         vm.onAction(StyleFormAction.OnErrorDismiss)
 
         assertNull(vm.state.value.errorMessage)
+    }
+
+    // --- FIX 7(form): cap check on observe error → blocked, not treated as 0 ---
+
+    @Test
+    fun save_whenStyleCountReadErrors_blocked_noCreate_isSavingFalse_errorSet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // observeError will make the count read fail.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
+        vm.onAction(StyleFormAction.OnDescriptionChange("Blue kaftan"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+
+        assertNull(styleRepository.lastCreatedDescription)
+        assertNull(styleRepository.lastBatchCreatedDescription)
+        assertFalse(vm.state.value.isSaving)
+        assertNotNull(vm.state.value.errorMessage)
     }
 }

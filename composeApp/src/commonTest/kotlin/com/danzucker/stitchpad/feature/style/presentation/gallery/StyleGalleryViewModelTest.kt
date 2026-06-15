@@ -3,14 +3,20 @@ package com.danzucker.stitchpad.feature.style.presentation.gallery
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,14 +55,40 @@ class StyleGalleryViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private class FakeEntitlementsProvider(
+        private val tier: SubscriptionTier = SubscriptionTier.FREE,
+    ) : EntitlementsProvider {
+        private val entitlements = UserEntitlements(
+            tier = tier,
+            customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
+            smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
+            isInWelcomeWindow = false,
+            welcomeEndsAt = null,
+            isWithinWelcomeEndingWarning = false,
+            welcomeDaysLeft = null,
+            canUseCustomMeasurements = tier != SubscriptionTier.FREE,
+        )
+        private val _flow = MutableStateFlow(entitlements)
+        override val flow: StateFlow<UserEntitlements> = _flow
+        override fun current(): UserEntitlements = entitlements
+        override suspend fun awaitHydrated(): UserEntitlements = entitlements
+    }
+
     private fun TestScope.createViewModel(
         customerId: String? = "customer-1",
+        folderId: String? = null,
+        tier: SubscriptionTier = SubscriptionTier.FREE,
     ): StyleGalleryViewModel {
+        val args = buildMap {
+            if (customerId != null) put("customerId", customerId)
+            if (folderId != null) put("folderId", folderId)
+        }
         val vm = StyleGalleryViewModel(
-            savedStateHandle = SavedStateHandle(mapOf("customerId" to customerId)),
+            savedStateHandle = SavedStateHandle(args),
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlements = FakeEntitlementsProvider(tier),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -98,6 +130,7 @@ class StyleGalleryViewModelTest {
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
@@ -147,6 +180,37 @@ class StyleGalleryViewModelTest {
 
         assertTrue(vm.state.value.styles.isEmpty())
         assertFalse(vm.state.value.isLoading)
+    }
+
+    // --- Cap enforcement ---
+
+    @Test
+    fun onAddClick_folderAtCap_emitsCapReached_noNavigate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Free inspiration: flatCap = 10. Seed 10 styles (already full).
+        styleRepository.stylesList = List(10) { fakeStyle(id = "s$it", customerId = "") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+
+        vm.onAction(StyleGalleryAction.OnAddClick)
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.CapReached>(event)
+        assertEquals(10, event.cap)
+    }
+
+    @Test
+    fun onAddClick_underCap_navigatesToAdd() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Free inspiration: flatCap = 10. Seed 3 styles (under cap).
+        styleRepository.stylesList = List(3) { fakeStyle(id = "s$it", customerId = "") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+
+        vm.onAction(StyleGalleryAction.OnAddClick)
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.NavigateToAddStyle>(event)
+        assertNull(event.customerId)
+        assertNull(event.folderId)
     }
 
     // --- Navigation events ---
@@ -248,7 +312,7 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnConfirmDelete)
 
         assertEquals("style-del", styleRepository.lastDeletedStyleId)
-        assertEquals(StyleLocation.Inspiration, styleRepository.lastDeletedLocation)
+        assertEquals(StyleLocation.Inspiration(), styleRepository.lastDeletedLocation)
     }
 
     @Test
@@ -366,7 +430,7 @@ class StyleGalleryViewModelTest {
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
 
         assertEquals(
-            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.Inspiration),
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.Inspiration()),
             styleRepository.lastCopied,
         )
         val event = vm.events.first()
@@ -392,6 +456,28 @@ class StyleGalleryViewModelTest {
             styleRepository.lastMoved,
         )
         assertIs<StyleGalleryEvent.StyleTransferred>(vm.events.first())
+    }
+
+    @Test
+    fun onTargetCustomerSelected_destinationFolderFull_emitsCapReached_noCopy() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // FREE customer flat cap is 5 — fill the destination to the cap.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
+            List(5) { fakeStyle(id = "dest-$it") }
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.CapReached>(event)
+        assertEquals(5, event.cap)
+        assertNull(styleRepository.lastCopied)
     }
 
     @Test
@@ -424,9 +510,110 @@ class StyleGalleryViewModelTest {
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         assertTrue(vm.state.value.isInspirationGallery)
+    }
+
+    // --- Destination-folder picker (paid path) ---
+
+    @Test
+    fun transferToPaidTarget_showsDestinationFolders() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // Seed one named folder in the destination customer's closet.
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        // Seed 1 style in the default location and 0 in the named folder.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
+            listOf(fakeStyle(id = "dest-default"))
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+
+        // PRO tier — forCustomer(PRO): foldersEnabled=true, maxImagesPerFolder=3
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        val transfer = vm.state.value.transfer
+        assertNotNull(transfer)
+        val folders = transfer.destinationFolders
+        assertNotNull(folders)
+        assertEquals(2, folders.size)
+        // First option = default (folderId null)
+        assertNull(folders[0].folderId)
+        assertEquals(1, folders[0].count)
+        assertEquals(3, folders[0].cap)
+        // Second option = named "Wedding"
+        assertEquals("f1", folders[1].folderId)
+        assertEquals("Wedding", folders[1].name)
+        assertEquals(0, folders[1].count)
+        // Transfer is NOT performed yet — no copy happened.
+        assertNull(styleRepository.lastCopied)
+    }
+
+    @Test
+    fun onDestinationFolderSelected_named_copiesToThatFolder() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
+
+        assertEquals(
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2", "f1")),
+            styleRepository.lastCopied,
+        )
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.StyleTransferred>(event)
+        assertEquals("f1", event.destinationFolderId)
+        assertNull(vm.state.value.transfer)
+    }
+
+    @Test
+    fun onDestinationFolderSelected_fullFolder_emitsCapReached_noCopy() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
+        // PRO forCustomer: maxImagesPerFolder = 3 — fill the named folder to cap.
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] =
+            List(3) { fakeStyle(id = "dst-$it") }
+
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.CapReached>(event)
+        assertEquals(3, event.cap)
+        assertNull(styleRepository.lastCopied)
     }
 
     // --- Error dismiss ---
@@ -440,5 +627,28 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
+    }
+
+    // --- FIX 5 + FIX 7(gallery): performTransfer live count re-read ---
+
+    @Test
+    fun transfer_whenDestinationCountReadErrors_noCopy_errorSurfaced() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // observeError makes the live re-read in performTransfer fail.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        // observeError also blocks the folder load in onTargetSelected (paid path skipped;
+        // for FREE tier the destCount read also errors → verify fail-safe).
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        assertNull(styleRepository.lastCopied)
+        assertNotNull(vm.state.value.errorMessage)
     }
 }

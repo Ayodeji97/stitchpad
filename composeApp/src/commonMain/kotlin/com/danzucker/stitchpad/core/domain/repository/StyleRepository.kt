@@ -4,14 +4,40 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface StyleRepository {
     fun observeStyles(
         userId: String,
         location: StyleLocation
     ): Flow<Result<List<Style>, DataError.Network>>
+
+    fun observeFolders(
+        userId: String,
+        location: StyleLocation,
+    ): Flow<Result<List<StyleFolder>, DataError.Network>>
+
+    suspend fun createFolder(
+        userId: String,
+        location: StyleLocation,
+        name: String,
+    ): Result<String, DataError.Network>
+
+    suspend fun renameFolder(
+        userId: String,
+        location: StyleLocation,
+        folderId: String,
+        name: String,
+    ): EmptyResult<DataError.Network>
+
+    suspend fun deleteFolder(
+        userId: String,
+        location: StyleLocation,
+        folderId: String,
+    ): EmptyResult<DataError.Network>
 
     suspend fun createStyle(
         userId: String,

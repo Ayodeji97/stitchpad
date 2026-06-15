@@ -51,6 +51,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditPro
 import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
+import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
@@ -74,6 +75,7 @@ import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
+import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
@@ -230,7 +232,7 @@ private fun MainNavGraph(
                     navController.navigate(MeasurementFormRoute(customerId = customerId, measurementId = measurementId))
                 },
                 onNavigateToStyleGallery = { customerId ->
-                    navController.navigate(StyleGalleryRoute(customerId = customerId))
+                    navController.navigate(StyleFoldersRoute(customerId = customerId))
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
@@ -266,18 +268,42 @@ private fun MainNavGraph(
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
+        composable<StyleFoldersRoute> {
+            StyleFoldersRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToFolder = { customerId, folderId ->
+                    // A folder tap (named folder or the "My styles" default) is a plain
+                    // push — Back returns to the folders grid.
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId)) {
+                        launchSingleTop = true
+                    }
+                },
+                onRedirectToFlatGallery = { customerId ->
+                    // Free users never see the folders grid — replace it in the back stack
+                    // so Back doesn't loop back to it.
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = null)) {
+                        popUpTo<StyleFoldersRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+            )
+        }
         composable<StyleGalleryRoute> {
             StyleGalleryRoot(
                 onNavigateBack = { navController.navigateUp() },
-                onNavigateToAddStyle = { customerId ->
-                    navController.navigate(StyleFormRoute(customerId = customerId))
+                onNavigateToAddStyle = { customerId, folderId ->
+                    navController.navigate(StyleFormRoute(customerId = customerId, folderId = folderId))
                 },
-                onNavigateToEditStyle = { customerId, styleId ->
-                    navController.navigate(StyleFormRoute(customerId = customerId, styleId = styleId))
+                onNavigateToEditStyle = { customerId, folderId, styleId ->
+                    navController.navigate(
+                        StyleFormRoute(customerId = customerId, folderId = folderId, styleId = styleId)
+                    )
                 },
-                onNavigateToStyleGallery = { customerId ->
-                    navController.navigate(StyleGalleryRoute(customerId = customerId))
-                }
+                onNavigateToStyleGallery = { customerId, folderId ->
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId))
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<StyleFormRoute> {
@@ -382,7 +408,7 @@ private fun MainNavGraph(
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
                 onNavigateToInspiration = {
-                    navController.navigate(StyleGalleryRoute(customerId = null)) {
+                    navController.navigate(StyleFoldersRoute(customerId = null)) {
                         launchSingleTop = true
                     }
                 },
