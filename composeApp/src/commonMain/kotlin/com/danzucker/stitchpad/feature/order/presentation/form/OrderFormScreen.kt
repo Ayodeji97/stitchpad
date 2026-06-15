@@ -1276,7 +1276,9 @@ private fun StyleImageSection(
     val total = savedCount + newCount
     val capacityRemaining = MAX_IMAGES_PER_CATEGORY - total
     val hasUploaded = newCount > 0
-    val hasGalleryStyles = availableStyles.isNotEmpty()
+    // The "pick from saved" entry must appear if EITHER source has styles — a new
+    // customer can have an empty closet while Inspiration still has styles to pick.
+    val hasGalleryStyles = availableStyles.isNotEmpty() || inspirationStyles.isNotEmpty()
 
     // The add tile is the single entry point. The sheet fans out into saved style,
     // camera, or device gallery depending on the customer's available data.
