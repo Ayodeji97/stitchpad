@@ -95,7 +95,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 60f // customer + date row
         estimatedHeight += 20f // divider gap
         estimatedHeight += 30f // Items label
-        estimatedHeight += data.items.size * 44f // items (two-line: name/total + unit-price breakdown)
+        // qty==1 → 1 row (~26px); qty>1 → 3 rows (~22+22+30=74px, conservative estimate).
+        var itemsEstimate = 0f
+        for (item in data.items) itemsEstimate += if (item.quantity == 1) 26f else 74f
+        estimatedHeight += itemsEstimate
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
@@ -201,13 +204,26 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawText("ITEMS", padding, y, labelPaint)
         y += 24f
         data.items.forEach { item ->
-            // Line 1: garment name (left) + line total (right).
-            canvas.drawText(item.garmentName, padding, y, bodyPaint)
-            canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
-            y += 19f
-            // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
-            canvas.drawText("${item.quantity} × ${item.formattedUnitPrice}", padding, y, itemSubtitlePaint)
-            y += 25f
+            if (item.quantity == 1) {
+                // Single row: garment name (left) + line total (right, bold). No subtitle.
+                canvas.drawText(item.garmentName, padding, y, bodyPaint)
+                canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
+                y += 26f
+            } else {
+                // Row 1: garment name only (no price on the right).
+                canvas.drawText(item.garmentName, padding, y, bodyPaint)
+                y += 22f
+                // Row 2: "Unit price" label (muted) + unit price (right, muted).
+                val indent = padding + 14f
+                canvas.drawText("Unit price", indent, y, itemSubtitlePaint)
+                val unitW = itemSubtitlePaint.measureText(item.formattedUnitPrice)
+                canvas.drawText(item.formattedUnitPrice, width - padding - unitW, y, itemSubtitlePaint)
+                y += 22f
+                // Row 3: "Price for N" label (left) + line total (right, bold).
+                canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPaint)
+                canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
+                y += 30f
+            }
         }
         y += 8f
 
@@ -458,13 +474,26 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawText("ITEMS", padding, y, labelPaintPdf)
         y += 18f
         data.items.forEach { item ->
-            // Line 1: garment name (left) + line total (right).
-            canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
-            canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
-            y += 14f
-            // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
-            canvas.drawText("${item.quantity} × ${item.formattedUnitPrice}", padding, y, itemSubtitlePdf)
-            y += 18f
+            if (item.quantity == 1) {
+                // Single row: garment name (left) + line total (right, bold). No subtitle.
+                canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
+                canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
+                y += 20f
+            } else {
+                // Row 1: garment name only (no price on the right).
+                canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
+                y += 16f
+                // Row 2: "Unit price" label (muted) + unit price (right, muted).
+                val indent = padding + 12f
+                canvas.drawText("Unit price", indent, y, itemSubtitlePdf)
+                val unitW = itemSubtitlePdf.measureText(item.formattedUnitPrice)
+                canvas.drawText(item.formattedUnitPrice, pageWidth - padding - unitW, y, itemSubtitlePdf)
+                y += 16f
+                // Row 3: "Price for N" label (left) + line total (right, bold).
+                canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPdf)
+                canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
+                y += 20f
+            }
         }
         y += 6f
 

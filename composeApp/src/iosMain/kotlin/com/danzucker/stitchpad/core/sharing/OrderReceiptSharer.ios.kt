@@ -74,8 +74,9 @@ actual class OrderReceiptSharer {
         var estimatedHeight = headerHeight + padding * 2
         estimatedHeight += 40.0 // document type label
         estimatedHeight += 60.0 + 20.0 // customer row
-        // Two-line items: name/total + unit-price breakdown (lineSpacing + 16 each).
-        estimatedHeight += 30.0 + data.items.size * (lineSpacing + 16.0) + 20.0 // items
+        // qty==1 → 1 row (~30px); qty>1 → 3 rows (~22+22+30=74px conservative).
+        val itemsHeight = data.items.sumOf { item -> if (item.quantity == 1) 30.0 else 74.0 }
+        estimatedHeight += 30.0 + itemsHeight + 20.0 // items
         estimatedHeight += lineSpacing * 3 + 30.0 // payment
         if (data.bankBlock != null) {
             // Mirrors the y-advances in the draw block exactly: pre-divider gap
@@ -173,31 +174,25 @@ actual class OrderReceiptSharer {
             drawText("ITEMS", padding, y, labelFont(), darkColor("#7D7970"))
             y += 20.0
             data.items.forEach { item ->
-                // Line 1: garment name (left) + line total (right).
-                drawText(
-                    item.garmentName,
-                    padding,
-                    y,
-                    regularFont(14.0),
-                    darkColor("#E5E3DF")
-                )
-                drawTextRight(
-                    item.formattedPrice,
-                    width - padding,
-                    y,
-                    regularFont(14.0),
-                    darkColor("#E5E3DF")
-                )
-                y += 18.0
-                // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
-                drawText(
-                    "${item.quantity} × ${item.formattedUnitPrice}",
-                    padding,
-                    y,
-                    regularFont(11.0),
-                    darkColor("#7D7970")
-                )
-                y += lineSpacing - 2.0
+                if (item.quantity == 1) {
+                    // Single row: garment name (left) + line total (right, bold). No subtitle.
+                    drawText(item.garmentName, padding, y, regularFont(14.0), darkColor("#E5E3DF"))
+                    drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
+                    y += 30.0
+                } else {
+                    // Row 1: garment name only (no price on the right).
+                    drawText(item.garmentName, padding, y, regularFont(14.0), darkColor("#E5E3DF"))
+                    y += 22.0
+                    // Row 2: "Unit price" label (muted) + unit price (right, muted).
+                    val indent = padding + 14.0
+                    drawText("Unit price", indent, y, regularFont(11.0), darkColor("#7D7970"))
+                    drawTextRight(item.formattedUnitPrice, width - padding, y, regularFont(11.0), darkColor("#7D7970"))
+                    y += 22.0
+                    // Row 3: "Price for N" label (left) + line total (right, bold).
+                    drawText("Price for ${item.quantity}", indent, y, boldFont(14.0), darkColor("#E5E3DF"))
+                    drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
+                    y += 30.0
+                }
             }
             y += 8.0
 
@@ -395,31 +390,31 @@ actual class OrderReceiptSharer {
             drawText("ITEMS", padding, y, labelFont(8.0), darkColor("#7D7970"))
             y += 16.0
             data.items.forEach { item ->
-                // Line 1: garment name (left) + line total (right).
-                drawText(
-                    item.garmentName,
-                    padding,
-                    y,
-                    regularFont(11.0),
-                    darkColor("#1E1C1A")
-                )
-                drawTextRight(
-                    item.formattedPrice,
-                    pageWidth - padding,
-                    y,
-                    regularFont(11.0),
-                    darkColor("#1E1C1A")
-                )
-                y += 13.0
-                // Line 2: muted unit-price breakdown "{qty} × {unitPrice}".
-                drawText(
-                    "${item.quantity} × ${item.formattedUnitPrice}",
-                    padding,
-                    y,
-                    regularFont(8.0),
-                    darkColor("#7D7970")
-                )
-                y += 16.0
+                if (item.quantity == 1) {
+                    // Single row: garment name (left) + line total (right, bold). No subtitle.
+                    drawText(item.garmentName, padding, y, regularFont(11.0), darkColor("#1E1C1A"))
+                    drawTextRight(item.formattedPrice, pageWidth - padding, y, boldFont(11.0), darkColor("#1E1C1A"))
+                    y += 22.0
+                } else {
+                    // Row 1: garment name only (no price on the right).
+                    drawText(item.garmentName, padding, y, regularFont(11.0), darkColor("#1E1C1A"))
+                    y += 16.0
+                    // Row 2: "Unit price" label (muted) + unit price (right, muted).
+                    val indent = padding + 12.0
+                    drawText("Unit price", indent, y, regularFont(8.0), darkColor("#7D7970"))
+                    drawTextRight(
+                        item.formattedUnitPrice,
+                        pageWidth - padding,
+                        y,
+                        regularFont(8.0),
+                        darkColor("#7D7970")
+                    )
+                    y += 14.0
+                    // Row 3: "Price for N" label (left) + line total (right, bold).
+                    drawText("Price for ${item.quantity}", indent, y, boldFont(11.0), darkColor("#1E1C1A"))
+                    drawTextRight(item.formattedPrice, pageWidth - padding, y, boldFont(11.0), darkColor("#1E1C1A"))
+                    y += 18.0
+                }
             }
             y += 6.0
 
