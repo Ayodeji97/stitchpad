@@ -183,10 +183,11 @@ actual class OrderReceiptSharer {
                     // Row 1: garment name only (no price on the right).
                     drawText(item.garmentName, padding, y, regularFont(14.0), darkColor("#E5E3DF"))
                     y += 22.0
-                    // Row 2: "Unit price" label + value (legible light, value bold — visible).
+                    // Row 2: "Unit price" + value — same 14.0 size as the "Price for N"
+                    // row below so the two breakdown lines align; legible light, value bold.
                     val indent = padding + 14.0
-                    drawText("Unit price", indent, y, regularFont(13.0), darkColor("#E5E3DF"))
-                    drawTextRight(item.formattedUnitPrice, width - padding, y, boldFont(13.0), darkColor("#E5E3DF"))
+                    drawText("Unit price", indent, y, regularFont(14.0), darkColor("#E5E3DF"))
+                    drawTextRight(item.formattedUnitPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
                     y += 22.0
                     // Row 3: "Price for N" label (left) + line total (right, bold).
                     drawText("Price for ${item.quantity}", indent, y, boldFont(14.0), darkColor("#E5E3DF"))
@@ -431,14 +432,15 @@ actual class OrderReceiptSharer {
                     // Row 1: garment name only (no price on the right).
                     drawText(item.garmentName, padding, y, regularFont(11.0), darkColor("#1E1C1A"))
                     y += 16.0
-                    // Row 2: "Unit price" label + value (legible, value bold — clearly visible).
+                    // Row 2: "Unit price" + value — same 11.0 size as the "Price for N"
+                    // row below so the two breakdown lines align; legible, value bold.
                     val indent = padding + 12.0
-                    drawText("Unit price", indent, y, regularFont(9.0), darkColor("#1E1C1A"))
+                    drawText("Unit price", indent, y, regularFont(11.0), darkColor("#1E1C1A"))
                     drawTextRight(
                         item.formattedUnitPrice,
                         pageWidth - padding,
                         y,
-                        boldFont(9.0),
+                        boldFont(11.0),
                         darkColor("#1E1C1A")
                     )
                     y += 14.0

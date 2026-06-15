@@ -57,10 +57,11 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(headerText, 16f).apply { alpha = 190 }
         val labelPaint = makePaint(labelColor, 14f, bold = true)
         val bodyPaint = makePaint(bodyText, 18f)
-        // Unit-price breakdown row — legible (light, not muted) so the unit price is
-        // clearly visible; the value is bold to make it stand out (design feedback).
-        val unitLabelPaint = makePaint(bodyText, 16f)
-        val unitValuePaint = makePaint(bodyText, 16f, bold = true).apply { textAlign = Paint.Align.RIGHT }
+        // Unit-price breakdown row — same 18f size as the "Price for N" row so the two
+        // breakdown lines align; legible (light, not muted) with a bold value so the
+        // unit price is clearly visible (design feedback).
+        val unitLabelPaint = makePaint(bodyText, 18f)
+        val unitValuePaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPaint = makePaint(bodyText, 18f, bold = true)
         val priceRightPaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPaint = makePaint(bodyText, 20f, bold = true)
@@ -397,9 +398,10 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(labelColor, 12f)
         val labelPaintPdf = makePaint(labelColor, 10f, bold = true)
         val bodyPaintPdf = makePaint(bodyText, 14f)
-        // Unit-price breakdown row — legible (not muted), value bold so it stands out.
-        val unitLabelPdf = makePaint(bodyText, 11f)
-        val unitValuePdf = makePaint(bodyText, 11f, bold = true).apply { textAlign = Paint.Align.RIGHT }
+        // Unit-price breakdown row — same 14f size as the "Price for N" row so the two
+        // breakdown lines align; legible (not muted) with a bold value so it stands out.
+        val unitLabelPdf = makePaint(bodyText, 14f)
+        val unitValuePdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPdf = makePaint(bodyText, 14f, bold = true)
         val priceRightPdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPdf = makePaint(bodyText, 16f, bold = true)
