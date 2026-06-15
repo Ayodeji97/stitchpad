@@ -14,8 +14,8 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
-import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
@@ -229,7 +229,12 @@ class StyleFormViewModel(
                 }
             }
             if (current + s.selectedPhotos.size > imageCap) {
-                _state.update { it.copy(isSaving = false, capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        capSheet = styleCapInfo(StyleCapKind.STYLES, tier, isInspiration = customerId == null)
+                    )
+                }
                 return@launch
             }
 

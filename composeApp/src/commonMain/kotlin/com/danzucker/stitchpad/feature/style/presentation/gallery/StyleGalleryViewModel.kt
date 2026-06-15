@@ -7,13 +7,14 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
-import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,7 +78,7 @@ class StyleGalleryViewModel(
                     }
                     val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
                     if (_state.value.styles.size >= cap) {
-                        _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
+                        _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
                     } else {
                         _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId, folderId))
                     }
@@ -123,6 +124,9 @@ class StyleGalleryViewModel(
             }
         }
     }
+
+    private fun stylesCapInfo(tier: SubscriptionTier) =
+        styleCapInfo(StyleCapKind.STYLES, tier, isInspiration = customerId == null)
 
     private fun openTransfer(mode: StyleTransferMode) {
         val style = _state.value.actionSheetStyle ?: return
@@ -174,7 +178,7 @@ class StyleGalleryViewModel(
                 }
                 _state.update { it.copy(transfer = null) }
                 if (destCount >= limits.flatCap) {
-                    _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
+                    _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
                     return@launch
                 }
                 performTransfer(transfer, target, destinationLocation = target.location, folderId = null)
@@ -238,7 +242,7 @@ class StyleGalleryViewModel(
             _state.update { it.copy(transfer = null) }
             viewModelScope.launch {
                 val tier = entitlements.awaitHydrated().tier
-                _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
+                _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
             }
             return
         }
@@ -291,7 +295,7 @@ class StyleGalleryViewModel(
             }
         }
         if (liveCount >= cap) {
-            _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
+            _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
             return
         }
         val result = when (transfer.mode) {

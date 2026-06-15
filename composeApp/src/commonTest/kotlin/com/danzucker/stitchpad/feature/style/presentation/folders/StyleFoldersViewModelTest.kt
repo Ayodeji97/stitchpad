@@ -223,6 +223,24 @@ class StyleFoldersViewModelTest {
         assertNotNull(capSheet)
         assertEquals(StyleCapKind.FOLDERS, capSheet.kind)
         assertEquals(SubscriptionTier.PRO, capSheet.currentTier)
+        // Inspiration folders DO grow on Atelier (10 → 20), so offer the upgrade.
+        assertEquals(SubscriptionTier.ATELIER, capSheet.upgradeTier)
+    }
+
+    @Test
+    fun createBlockedAtCap_customerFoldersPro_offersNoUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // PRO customer: maxFolders = 5 on BOTH Pro and Atelier. 4 named + default = 5 → blocked,
+        // but Atelier wouldn't add folders, so the sheet must NOT promise an upgrade.
+        styleRepository.folders = List(4) { fakeFolder("f$it") }
+        val vm = createViewModel(customerId = "cust-1", tier = SubscriptionTier.PRO)
+
+        vm.onAction(StyleFoldersAction.OnCreateClick)
+
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.FOLDERS, capSheet.kind)
+        assertNull(capSheet.upgradeTier)
     }
 
     @Test

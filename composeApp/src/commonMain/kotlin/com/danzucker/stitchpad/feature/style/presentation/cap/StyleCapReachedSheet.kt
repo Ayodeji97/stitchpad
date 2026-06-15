@@ -88,7 +88,10 @@ internal fun StyleCapReachedSheetContent(
     onUpgradeClick: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val upgradeTarget = nextTier(info.currentTier)
+    // The tier the VM resolved as one that ACTUALLY raises the hit limit (null = no
+    // upgrade path, e.g. customer folders or already on the top plan) → show the
+    // "maximum reached" branch instead of a dead-end upsell.
+    val upgradeTarget = info.upgradeTier
 
     val eyebrow = when (info.kind) {
         StyleCapKind.FOLDERS -> stringResource(Res.string.style_cap_folder_eyebrow)
@@ -225,7 +228,7 @@ internal fun StyleCapReachedSheetContent(
 private fun StyleCapFolderProContentPreview() {
     StitchPadTheme {
         StyleCapReachedSheetContent(
-            info = StyleCapInfo(kind = StyleCapKind.FOLDERS, currentTier = SubscriptionTier.PRO),
+            info = styleCapInfo(StyleCapKind.FOLDERS, SubscriptionTier.PRO, isInspiration = true),
             onUpgradeClick = {},
             onDismiss = {},
         )
@@ -238,7 +241,7 @@ private fun StyleCapFolderProContentPreview() {
 private fun StyleCapStyleFreeContentPreview() {
     StitchPadTheme {
         StyleCapReachedSheetContent(
-            info = StyleCapInfo(kind = StyleCapKind.STYLES, currentTier = SubscriptionTier.FREE),
+            info = styleCapInfo(StyleCapKind.STYLES, SubscriptionTier.FREE, isInspiration = true),
             onUpgradeClick = {},
             onDismiss = {},
         )

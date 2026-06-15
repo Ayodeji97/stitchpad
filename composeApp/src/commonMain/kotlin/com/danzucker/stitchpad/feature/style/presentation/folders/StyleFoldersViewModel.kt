@@ -14,8 +14,8 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
-import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -165,7 +165,11 @@ class StyleFoldersViewModel(
                 StyleCollectionLimits.forCustomer(tier)
             }
             if (atFolderCap(limits)) {
-                _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.FOLDERS, tier)) }
+                _state.update {
+                    it.copy(
+                        capSheet = styleCapInfo(StyleCapKind.FOLDERS, tier, isInspiration = customerId == null)
+                    )
+                }
             } else {
                 _state.update { it.copy(showCreateSheet = true) }
             }
@@ -197,7 +201,11 @@ class StyleFoldersViewModel(
                 return@launch
             }
             if (liveFolders.size + 1 >= limits.maxFolders) {
-                _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.FOLDERS, tier)) }
+                _state.update {
+                    it.copy(
+                        capSheet = styleCapInfo(StyleCapKind.FOLDERS, tier, isInspiration = customerId == null)
+                    )
+                }
                 return@launch
             }
             if (isDuplicateName(name, liveFolders, excludeId = null)) {
