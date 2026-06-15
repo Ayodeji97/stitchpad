@@ -16,7 +16,6 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
-import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -33,6 +32,7 @@ import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
+import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -598,18 +598,16 @@ class OrderDetailViewModel(
         loadedStylesCustomerId = customerId
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            // Observe the customer's full style list and build a lookup map. The
-            // hero image resolver in OrderDetailScreen resolves the relevant styles
-            // per styleImages[].styleId at render time. Cheaper than per-style
-            // subscriptions; the gallery list is small for any tailor.
-            styleRepository.observeStyles(userId, StyleLocation.CustomerCloset(customerId)).collect { res ->
-                if (res is Result.Success) {
-                    _state.update { current ->
-                        current.copy(
-                            availableStyles = res.data,
-                            styles = res.data.associateBy { it.id },
-                        )
-                    }
+            // Observe the customer's full style list (default + named folders) and
+            // build a lookup map. The hero image resolver in OrderDetailScreen resolves
+            // the relevant styles per styleImages[].styleId at render time. Flattening
+            // across folders keeps a folder style's thumbnail from vanishing here.
+            styleRepository.observeAllCustomerStyles(userId, customerId).collect { styles ->
+                _state.update { current ->
+                    current.copy(
+                        availableStyles = styles,
+                        styles = styles.associateBy { it.id },
+                    )
                 }
             }
         }

@@ -473,8 +473,26 @@
     <string name="style_copied_snackbar">Copied to %1$s</string>
     <string name="style_moved_snackbar">Moved to %1$s</string>
     <string name="style_transfer_view_cta">View</string>
+    <string name="style_transfer_choose_folder">Choose a folder</string>
+
+    <!-- Style Collections — folders grid -->
+    <string name="style_folders_default_name">My styles</string>
+    <string name="style_folders_create_title">New folder</string>
+    <string name="style_folder_name_placeholder">e.g. Corset</string>
+    <string name="style_folder_duplicate_name">A folder with that name already exists.</string>
+    <string name="style_folders_rename_title">Rename folder</string>
+    <string name="style_folder_delete_title">Delete folder?</string>
+    <string name="style_folder_delete_message">All styles inside this folder will also be deleted. This cannot be undone.</string>
+    <string name="style_folder_count">%1$d styles</string>
+    <string name="style_folders_create_cd">New folder</string>
+    <string name="style_folder_full_snackbar">This folder is full (%1$d styles). Upgrade for more room.</string>
+    <string name="style_folder_full_action">Upgrade</string>
+    <string name="style_folder_batch_over_cap">This folder holds %1$d styles. Remove some and try again.</string>
+    <string name="style_folder_action_rename">Rename</string>
+    <string name="style_folder_action_delete">Delete</string>
 
     <!-- Style errors -->
+    <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>
     <string name="error_style_not_found">Style not found</string>
     <string name="error_style_unknown">Could not save style. Please try again.</string>
     <string name="error_photo_too_large">Photo is too large. Please pick one under 5 MB.</string>

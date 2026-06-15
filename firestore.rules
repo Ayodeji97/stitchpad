@@ -142,6 +142,16 @@ service cloud.firestore {
         match /styles/{styleId} {
           allow read, write: if isOwner(uid);
         }
+
+        // Named style collections (folders) within a customer's closet, each
+        // with its own styles subcollection.
+        match /styleFolders/{folderId} {
+          allow read, write: if isOwner(uid);
+
+          match /styles/{styleId} {
+            allow read, write: if isOwner(uid);
+          }
+        }
       }
 
       // ── Orders subcollection ─────────────────────────────────────────────
@@ -153,6 +163,16 @@ service cloud.firestore {
       // Top-level styles that are not tied to a customer closet.
       match /inspiration/{styleId} {
         allow read, write: if isOwner(uid);
+      }
+
+      // Named style collections (folders) at the Inspiration level, each with
+      // its own styles subcollection.
+      match /inspirationFolders/{folderId} {
+        allow read, write: if isOwner(uid);
+
+        match /styles/{styleId} {
+          allow read, write: if isOwner(uid);
+        }
       }
 
       // ── Notifications inbox subcollection ───────────────────────────────
