@@ -64,6 +64,7 @@ import stitchpad.composeapp.generated.resources.upgrade_confirm_body
 import stitchpad.composeapp.generated.resources.upgrade_confirm_cancel
 import stitchpad.composeapp.generated.resources.upgrade_confirm_continue
 import stitchpad.composeapp.generated.resources.upgrade_confirm_eyebrow
+import stitchpad.composeapp.generated.resources.upgrade_confirm_plan_summary
 import stitchpad.composeapp.generated.resources.upgrade_confirm_title
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
 import stitchpad.composeapp.generated.resources.upgrade_pro_annual
@@ -349,7 +350,7 @@ private fun CheckoutConfirmSheetContent(
 
         // Plan summary — tier name + price + cadence.
         Text(
-            text = "$tierName · $tierPrice · $cadenceLabel",
+            text = stringResource(Res.string.upgrade_confirm_plan_summary, tierName, tierPrice, cadenceLabel),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

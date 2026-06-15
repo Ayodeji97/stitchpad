@@ -1343,6 +1343,7 @@
     <string name="upgrade_confirm_eyebrow">BEFORE YOU PAY</string>
     <string name="upgrade_confirm_title">You&apos;ll finish on Paystack</string>
     <string name="upgrade_confirm_body">You&apos;re about to open the Paystack checkout in your browser to pay securely. Your plan unlocks automatically once payment is confirmed.</string>
+    <string name="upgrade_confirm_plan_summary">%1$s · %2$s · %3$s</string>
     <string name="upgrade_confirm_continue">Continue to Paystack</string>
     <string name="upgrade_confirm_cancel">Not now</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>

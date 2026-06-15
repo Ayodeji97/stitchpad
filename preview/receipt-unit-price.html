@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Receipt — unit price treatment (PTSP-35 follow-up)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --indigo:#2C3E7C; --sienna:#B85A30; --saffron:#E8A800;
+    --paper:#FAF6EC; --ink:#14110E; --line:#E7DEC9;
+    --muted:#8A8170; --rule:#EFE7D5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0E0C0A;color:var(--ink);font-family:'Manrope',sans-serif;padding:32px 18px 64px}
+  h1{font-family:'Fraunces',serif;color:var(--paper);font-weight:600;font-size:22px;margin:0 0 4px;text-align:center}
+  .sub{color:#9C937F;text-align:center;font-size:13px;margin:0 0 28px}
+  .row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .col{flex:0 1 360px}
+  .tag{display:block;text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin:0 0 10px}
+  .tag.before{color:#B6492F}
+  .tag.after{color:var(--saffron)}
+
+  /* receipt sheet */
+  .receipt{background:var(--paper);border-radius:14px;padding:24px 22px 26px;box-shadow:0 18px 40px rgba(0,0,0,.45);border:1px solid #ECE3CE}
+  .brand{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:2px}
+  .brand b{font-family:'Fraunces',serif;font-weight:700;font-size:17px;color:var(--indigo);letter-spacing:.01em}
+  .tick{width:8px;height:8px;border-radius:2px;background:var(--saffron);transform:rotate(45deg)}
+  .shop{text-align:center;color:var(--muted);font-size:12px;margin:0 0 16px}
+  .meta{display:flex;justify-content:space-between;font-size:12.5px;color:#5C5444;margin:2px 0}
+  .meta span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+  .hr{height:1px;background:var(--rule);margin:14px 0}
+  .sec{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 10px}
+
+  /* item — shared */
+  .item{margin-bottom:14px}
+  .item .name{font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:var(--ink)}
+  .num{font-family:'JetBrains Mono',monospace}
+
+  /* BEFORE: title + right total, muted subtitle */
+  .b-top{display:flex;justify-content:space-between;align-items:baseline}
+  .b-top .total{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--ink)}
+  .b-sub{color:#A89E89;font-size:12px;margin-top:3px;font-family:'JetBrains Mono',monospace}
+
+  /* AFTER: title, then labeled breakdown rows */
+  .a-name{font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:var(--ink);margin-bottom:6px}
+  .a-line{display:flex;justify-content:space-between;align-items:baseline;padding:1px 0}
+  .a-line .lbl{font-size:12.5px;color:#6B6353;font-weight:500}
+  .a-line .val{font-family:'JetBrains Mono',monospace;font-size:13px;color:#6B6353}
+  .a-line.total .lbl{color:var(--ink);font-weight:700;font-size:13px}
+  .a-line.total .val{color:var(--ink);font-weight:700;font-size:15px}
+  .a-single{display:flex;justify-content:space-between;align-items:baseline}
+  .a-single .val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--ink)}
+  .indent{padding-left:2px}
+
+  .totals .meta{font-size:13.5px;margin:5px 0}
+  .totals .grand span:last-child{font-weight:700;font-size:16px;color:var(--indigo)}
+  .totals .grand span:first-child{font-weight:700}
+  .note{color:#9C937F;text-align:center;font-size:12px;margin-top:34px;max-width:760px;margin-left:auto;margin-right:auto;line-height:1.5}
+  .note code{background:#1c1916;color:#d8cdb6;padding:1px 6px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:11px}
+</style>
+</head>
+<body>
+  <h1>Receipt — unit price treatment</h1>
+  <p class="sub">PTSP-35 follow-up · Before (shipped) vs After (PM suggestion, refined)</p>
+
+  <div class="row">
+    <!-- BEFORE -->
+    <div class="col">
+      <span class="tag before">Before — current</span>
+      <div class="receipt">
+        <div class="brand"><b>StitchPad</b><span class="tick"></span></div>
+        <p class="shop">Fola&apos;s Atelier · Lagos</p>
+        <div class="meta"><span>Customer</span><span>Bisi A.</span></div>
+        <div class="meta"><span>Order</span><span>#STP-1042</span></div>
+        <div class="meta"><span>Date</span><span>15 Jun 2026</span></div>
+        <div class="hr"></div>
+        <p class="sec">Items</p>
+
+        <div class="item">
+          <div class="b-top"><span class="name">2-piece set</span><span class="total">₦45,000</span></div>
+          <div class="b-sub">3 × ₦15,000</div>
+        </div>
+        <div class="item">
+          <div class="b-top"><span class="name">Agbada</span><span class="total">₦20,000</span></div>
+          <div class="b-sub">1 × ₦20,000</div>
+        </div>
+        <div class="item">
+          <div class="b-top"><span class="name">Kaftan</span><span class="total">₦36,000</span></div>
+          <div class="b-sub">2 × ₦18,000</div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="totals">
+          <div class="meta"><span>Subtotal</span><span>₦101,000</span></div>
+          <div class="meta"><span>Deposit</span><span>₦50,000</span></div>
+          <div class="meta grand"><span>Balance due</span><span>₦51,000</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="col">
+      <span class="tag after">After — proposed</span>
+      <div class="receipt">
+        <div class="brand"><b>StitchPad</b><span class="tick"></span></div>
+        <p class="shop">Fola&apos;s Atelier · Lagos</p>
+        <div class="meta"><span>Customer</span><span>Bisi A.</span></div>
+        <div class="meta"><span>Order</span><span>#STP-1042</span></div>
+        <div class="meta"><span>Date</span><span>15 Jun 2026</span></div>
+        <div class="hr"></div>
+        <p class="sec">Items</p>
+
+        <!-- qty > 1 : labelled breakdown -->
+        <div class="item">
+          <div class="a-name">2-piece set</div>
+          <div class="indent">
+            <div class="a-line"><span class="lbl">Unit price</span><span class="val">₦15,000</span></div>
+            <div class="a-line total"><span class="lbl">Price for 3</span><span class="val">₦45,000</span></div>
+          </div>
+        </div>
+
+        <!-- qty 1 : single line, no redundant breakout -->
+        <div class="item">
+          <div class="a-single"><span class="a-name" style="margin:0">Agbada</span><span class="val">₦20,000</span></div>
+        </div>
+
+        <!-- qty > 1 -->
+        <div class="item">
+          <div class="a-name">Kaftan</div>
+          <div class="indent">
+            <div class="a-line"><span class="lbl">Unit price</span><span class="val">₦18,000</span></div>
+            <div class="a-line total"><span class="lbl">Price for 2</span><span class="val">₦36,000</span></div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="totals">
+          <div class="meta"><span>Subtotal</span><span>₦101,000</span></div>
+          <div class="meta"><span>Deposit</span><span>₦50,000</span></div>
+          <div class="meta grand"><span>Balance due</span><span>₦51,000</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">
+    Rules in the “After”: unit price &amp; line total become two labelled rows only when <b>quantity &gt; 1</b>;
+    a qty-1 item (Agbada) stays a single line to avoid redundant “Price for 1”. Line total is the bold/right figure
+    (what&apos;s owed); unit price is the supporting detail. Numbers keep <code>₦</code> + thousands separators.
+    Mirrors in all 4 native render paths — Android <code>bitmap</code>+<code>PDF</code>, iOS <code>dark</code>+<code>light</code>.
+  </p>
+</body>
+</html>
