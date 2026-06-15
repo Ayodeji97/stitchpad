@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapReachedSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -88,8 +89,6 @@ import stitchpad.composeapp.generated.resources.style_delete_message
 import stitchpad.composeapp.generated.resources.style_delete_title
 import stitchpad.composeapp.generated.resources.style_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_empty_title
-import stitchpad.composeapp.generated.resources.style_folder_full_action
-import stitchpad.composeapp.generated.resources.style_folder_full_snackbar
 import stitchpad.composeapp.generated.resources.style_folders_default_name
 import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_subtitle
@@ -116,7 +115,6 @@ fun StyleGalleryRoot(
     val scope = rememberCoroutineScope()
     val viewActionLabel = stringResource(Res.string.style_transfer_view_cta)
     val inspirationName = stringResource(Res.string.style_inspiration_title)
-    val upgradeActionLabel = stringResource(Res.string.style_folder_full_action)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -143,16 +141,6 @@ fun StyleGalleryRoot(
                 if (result == SnackbarResult.ActionPerformed) {
                     val targetCustomerId = (event.target as? TransferTarget.Customer)?.customerId
                     onNavigateToStyleGallery(targetCustomerId, event.destinationFolderId)
-                }
-            }
-            is StyleGalleryEvent.CapReached -> scope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = getString(Res.string.style_folder_full_snackbar, event.cap),
-                    actionLabel = upgradeActionLabel,
-                    duration = SnackbarDuration.Long,
-                )
-                if (result == SnackbarResult.ActionPerformed) {
-                    onNavigateToUpgrade()
                 }
             }
             StyleGalleryEvent.NavigateToUpgrade -> onNavigateToUpgrade()
@@ -327,6 +315,15 @@ fun StyleGalleryScreen(
             onSelectTarget = { onAction(StyleGalleryAction.OnTargetCustomerSelected(it)) },
             onSelectFolder = { onAction(StyleGalleryAction.OnDestinationFolderSelected(it)) },
             onDismiss = { onAction(StyleGalleryAction.OnDismissTransfer) }
+        )
+    }
+
+    // Cap-reached upgrade sheet
+    state.capSheet?.let { capInfo ->
+        StyleCapReachedSheet(
+            info = capInfo,
+            onUpgradeClick = { onAction(StyleGalleryAction.OnUpgradeFromCap) },
+            onDismiss = { onAction(StyleGalleryAction.OnDismissCapSheet) },
         )
     }
 }

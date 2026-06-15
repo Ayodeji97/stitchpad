@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
 
 /**
  * UI model for a single folder card (default or named). Computed live from observed
@@ -38,4 +39,6 @@ data class StyleFoldersState(
     /** The folder whose long-press action sheet is open; null = sheet hidden. */
     val actionSheetFolder: StyleFolder? = null,
     val errorMessage: UiText? = null,
+    /** Non-null while the cap-reached upgrade sheet should be shown. */
+    val capSheet: StyleCapInfo? = null,
 )

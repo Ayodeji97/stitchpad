@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -347,7 +348,7 @@ class StyleFormViewModelTest {
     // --- Save: cap enforcement ---
 
     @Test
-    fun save_batchOverCap_blocked_noCreate() = runTest {
+    fun save_batchOverCap_setsCapSheet_stylesPro() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // PRO customer: maxImagesPerFolder = 3. Existing 2 styles + picking 4 = 6 > 3 → blocked.
         styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
@@ -360,10 +361,11 @@ class StyleFormViewModelTest {
         vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
 
         vm.onAction(StyleFormAction.OnSaveClick)
-        val event = vm.events.first()
 
-        assertIs<StyleFormEvent.CapReached>(event)
-        assertEquals(3, event.cap)
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.STYLES, capSheet.kind)
+        assertEquals(SubscriptionTier.PRO, capSheet.currentTier)
         // No create call recorded.
         assertNull(styleRepository.lastCreatedDescription)
         assertNull(styleRepository.lastBatchCreatedDescription)
@@ -390,6 +392,47 @@ class StyleFormViewModelTest {
         // Batch create was called (2 photos).
         assertEquals(2, styleRepository.lastBatchCreatedCount)
         assertFalse(vm.state.value.isSaving)
+    }
+
+    // --- Cap sheet: dismiss + upgrade ---
+
+    @Test
+    fun onDismissCapSheet_clearsCapSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnSaveClick)
+        assertNotNull(vm.state.value.capSheet)
+
+        vm.onAction(StyleFormAction.OnDismissCapSheet)
+
+        assertNull(vm.state.value.capSheet)
+    }
+
+    @Test
+    fun onUpgradeFromCap_clearsCapSheet_andEmitsNavigateToUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnSaveClick)
+        assertNotNull(vm.state.value.capSheet)
+
+        vm.onAction(StyleFormAction.OnUpgradeFromCap)
+
+        assertNull(vm.state.value.capSheet)
+        assertIs<StyleFormEvent.NavigateToUpgrade>(vm.events.first())
     }
 
     // --- Multi-pick limit = folder's remaining capacity ---

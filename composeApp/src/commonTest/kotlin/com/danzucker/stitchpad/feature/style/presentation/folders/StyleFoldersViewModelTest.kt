@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -209,7 +210,7 @@ class StyleFoldersViewModelTest {
     // ---------------------------------------------------------------------------
 
     @Test
-    fun createBlockedAtCap_emitsUpgrade() = runTest {
+    fun createBlockedAtCap_setsCapSheet_foldersPro() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // PRO inspiration: maxFolders = 10. Pre-load 9 named folders.
         // namedFolderCount (9) + 1 (default) = 10 >= maxFolders (10) → blocked.
@@ -218,8 +219,28 @@ class StyleFoldersViewModelTest {
 
         vm.onAction(StyleFoldersAction.OnCreateClick)
 
-        val event = vm.events.first()
-        assertIs<StyleFoldersEvent.NavigateToUpgrade>(event)
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.FOLDERS, capSheet.kind)
+        assertEquals(SubscriptionTier.PRO, capSheet.currentTier)
+        // Inspiration folders DO grow on Atelier (10 → 20), so offer the upgrade.
+        assertEquals(SubscriptionTier.ATELIER, capSheet.upgradeTier)
+    }
+
+    @Test
+    fun createBlockedAtCap_customerFoldersPro_offersNoUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // PRO customer: maxFolders = 5 on BOTH Pro and Atelier. 4 named + default = 5 → blocked,
+        // but Atelier wouldn't add folders, so the sheet must NOT promise an upgrade.
+        styleRepository.folders = List(4) { fakeFolder("f$it") }
+        val vm = createViewModel(customerId = "cust-1", tier = SubscriptionTier.PRO)
+
+        vm.onAction(StyleFoldersAction.OnCreateClick)
+
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.FOLDERS, capSheet.kind)
+        assertNull(capSheet.upgradeTier)
     }
 
     @Test
@@ -247,7 +268,7 @@ class StyleFoldersViewModelTest {
     }
 
     @Test
-    fun onConfirmCreate_atCap_blocksCreate_emitsUpgrade() = runTest {
+    fun onConfirmCreate_atCap_blocksCreate_setsCapSheet() = runTest {
         // Guards the loading-race: the sheet can open before the live count lands,
         // so confirm must re-check the cap before calling createFolder.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
@@ -256,8 +277,10 @@ class StyleFoldersViewModelTest {
 
         vm.onAction(StyleFoldersAction.OnConfirmCreate("Corset"))
 
-        val event = vm.events.first()
-        assertIs<StyleFoldersEvent.NavigateToUpgrade>(event)
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.FOLDERS, capSheet.kind)
+        assertEquals(SubscriptionTier.PRO, capSheet.currentTier)
         assertNull(styleRepository.lastCreatedFolderName)
     }
 
@@ -463,6 +486,37 @@ class StyleFoldersViewModelTest {
 
         vm.onAction(StyleFoldersAction.OnDismissFolderActionSheet)
         assertNull(vm.state.value.actionSheetFolder)
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cap sheet: dismiss + upgrade actions
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun onDismissCapSheet_clearsCapSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.folders = List(9) { fakeFolder("f$it") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+        vm.onAction(StyleFoldersAction.OnCreateClick)
+        assertNotNull(vm.state.value.capSheet)
+
+        vm.onAction(StyleFoldersAction.OnDismissCapSheet)
+
+        assertNull(vm.state.value.capSheet)
+    }
+
+    @Test
+    fun onUpgradeFromCap_clearsCapSheet_andEmitsNavigateToUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.folders = List(9) { fakeFolder("f$it") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
+        vm.onAction(StyleFoldersAction.OnCreateClick)
+        assertNotNull(vm.state.value.capSheet)
+
+        vm.onAction(StyleFoldersAction.OnUpgradeFromCap)
+
+        assertNull(vm.state.value.capSheet)
+        assertIs<StyleFoldersEvent.NavigateToUpgrade>(vm.events.first())
     }
 
     // ---------------------------------------------------------------------------

@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
@@ -83,6 +85,11 @@ class StyleFormViewModel(
             }
             StyleFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+            StyleFormAction.OnDismissCapSheet -> _state.update { it.copy(capSheet = null) }
+            StyleFormAction.OnUpgradeFromCap -> {
+                _state.update { it.copy(capSheet = null) }
+                viewModelScope.launch { _events.send(StyleFormEvent.NavigateToUpgrade) }
             }
         }
     }
@@ -200,7 +207,13 @@ class StyleFormViewModel(
 
             // Cap check: only applies to create paths (not edit).
             // Await hydration here so a cold-start Pro user isn't wrongly blocked.
-            val imageCap = resolveImageCap()
+            val tier = entitlements.awaitHydrated().tier
+            val limits = if (customerId == null) {
+                StyleCollectionLimits.forInspiration(tier)
+            } else {
+                StyleCollectionLimits.forCustomer(tier)
+            }
+            val imageCap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
             // FIX 7(form): fail safe on count-read error — block the create rather
             // than treating an unreadable count as 0 (which bypasses the cap).
             val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
@@ -216,8 +229,12 @@ class StyleFormViewModel(
                 }
             }
             if (current + s.selectedPhotos.size > imageCap) {
-                _state.update { it.copy(isSaving = false) }
-                _events.send(StyleFormEvent.CapReached(imageCap))
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        capSheet = styleCapInfo(StyleCapKind.STYLES, tier, isInspiration = customerId == null)
+                    )
+                }
                 return@launch
             }
 

@@ -2,5 +2,5 @@ package com.danzucker.stitchpad.feature.style.presentation.form
 
 sealed interface StyleFormEvent {
     data object NavigateBack : StyleFormEvent
-    data class CapReached(val cap: Int) : StyleFormEvent
+    data object NavigateToUpgrade : StyleFormEvent
 }

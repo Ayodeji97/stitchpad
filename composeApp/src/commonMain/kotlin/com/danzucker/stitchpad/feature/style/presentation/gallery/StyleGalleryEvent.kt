@@ -13,6 +13,5 @@ sealed interface StyleGalleryEvent {
         val target: TransferTarget,
         val destinationFolderId: String? = null,
     ) : StyleGalleryEvent
-    data class CapReached(val cap: Int) : StyleGalleryEvent
     data object NavigateToUpgrade : StyleGalleryEvent
 }
