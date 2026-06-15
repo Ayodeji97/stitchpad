@@ -209,16 +209,17 @@ actual class OrderReceiptSharer(private val context: Context) {
         data.items.forEach { item ->
             if (item.quantity == 1) {
                 // Single row: garment name (left) + line total (right, bold). No subtitle.
-                canvas.drawText(item.garmentName, padding, y, bodyPaint)
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPaint)
                 canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
                 y += 26f
             } else {
                 // Row 1: garment name only (no price on the right).
-                canvas.drawText(item.garmentName, padding, y, bodyPaint)
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPaint)
                 y += 22f
                 // Row 2: "Unit price" label + value (light, value bold — clearly visible).
-                // Flush-left at padding so every row shares one left edge with the totals.
-                val indent = padding
+                // Nested under the garment name so each item's breakdown is grouped with it
+                // (matters most when an order has several items).
+                val indent = padding + 14f
                 canvas.drawText("Unit price", indent, y, unitLabelPaint)
                 canvas.drawText(item.formattedUnitPrice, width - padding, y, unitValuePaint)
                 y += 24f
@@ -512,16 +513,16 @@ actual class OrderReceiptSharer(private val context: Context) {
         data.items.forEach { item ->
             if (item.quantity == 1) {
                 // Single row: garment name (left) + line total (right, bold). No subtitle.
-                canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPdf)
                 canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
                 y += 20f
             } else {
                 // Row 1: garment name only (no price on the right).
-                canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
+                canvas.drawText(item.garmentName, padding, y, bodyBoldPdf)
                 y += 16f
                 // Row 2: "Unit price" label + value (legible, value bold — clearly visible).
-                // Flush-left at padding so every row shares one left edge with the totals.
-                val indent = padding
+                // Nested under the garment name so each item's breakdown is grouped with it.
+                val indent = padding + 12f
                 canvas.drawText("Unit price", indent, y, unitLabelPdf)
                 canvas.drawText(item.formattedUnitPrice, pageWidth - padding, y, unitValuePdf)
                 y += 16f

@@ -176,17 +176,17 @@ actual class OrderReceiptSharer {
             data.items.forEach { item ->
                 if (item.quantity == 1) {
                     // Single row: garment name (left) + line total (right, bold). No subtitle.
-                    drawText(item.garmentName, padding, y, regularFont(14.0), darkColor("#E5E3DF"))
+                    drawText(item.garmentName, padding, y, boldFont(14.0), darkColor("#E5E3DF"))
                     drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
                     y += 30.0
                 } else {
                     // Row 1: garment name only (no price on the right).
-                    drawText(item.garmentName, padding, y, regularFont(14.0), darkColor("#E5E3DF"))
+                    drawText(item.garmentName, padding, y, boldFont(14.0), darkColor("#E5E3DF"))
                     y += 22.0
                     // Row 2: "Unit price" + value — same 14.0 size as the "Price for N"
                     // row below so the two breakdown lines align; legible light, value bold.
-                    // Flush-left at padding so every row shares one left edge with the totals.
-                    val indent = padding
+                    // Nested under the garment name so each item's breakdown is grouped with it.
+                    val indent = padding + 14.0
                     drawText("Unit price", indent, y, regularFont(14.0), darkColor("#E5E3DF"))
                     drawTextRight(item.formattedUnitPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
                     y += 22.0
@@ -426,17 +426,17 @@ actual class OrderReceiptSharer {
             data.items.forEach { item ->
                 if (item.quantity == 1) {
                     // Single row: garment name (left) + line total (right, bold). No subtitle.
-                    drawText(item.garmentName, padding, y, regularFont(11.0), darkColor("#1E1C1A"))
+                    drawText(item.garmentName, padding, y, boldFont(11.0), darkColor("#1E1C1A"))
                     drawTextRight(item.formattedPrice, pageWidth - padding, y, boldFont(11.0), darkColor("#1E1C1A"))
                     y += 22.0
                 } else {
                     // Row 1: garment name only (no price on the right).
-                    drawText(item.garmentName, padding, y, regularFont(11.0), darkColor("#1E1C1A"))
+                    drawText(item.garmentName, padding, y, boldFont(11.0), darkColor("#1E1C1A"))
                     y += 16.0
                     // Row 2: "Unit price" + value — same 11.0 size as the "Price for N"
                     // row below so the two breakdown lines align; legible, value bold.
-                    // Flush-left at padding so every row shares one left edge with the totals.
-                    val indent = padding
+                    // Nested under the garment name so each item's breakdown is grouped with it.
+                    val indent = padding + 12.0
                     drawText("Unit price", indent, y, regularFont(11.0), darkColor("#1E1C1A"))
                     drawTextRight(
                         item.formattedUnitPrice,
