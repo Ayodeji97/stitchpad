@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,23 +30,32 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_form_style_picker_empty
 import stitchpad.composeapp.generated.resources.order_form_style_picker_title
+import stitchpad.composeapp.generated.resources.order_style_inspiration_empty
+import stitchpad.composeapp.generated.resources.order_style_source_closet
+import stitchpad.composeapp.generated.resources.order_style_source_inspiration
 import stitchpad.composeapp.generated.resources.style_picker_already_added
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StylePickerSheet(
-    styles: List<Style>,
+    closetStyles: List<Style>,
+    inspirationStyles: List<Style>,
+    selectedSource: StylePickerSource,
+    onSourceChange: (StylePickerSource) -> Unit,
     alreadySelectedStyleIds: Set<String>,
     remainingCapacity: Int,
     onSelect: (Style) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val activeStyles = if (selectedSource == StylePickerSource.CLOSET) closetStyles else inspirationStyles
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -59,9 +71,39 @@ fun StylePickerSheet(
                     vertical = DesignTokens.space3,
                 ),
             )
-            if (styles.isEmpty()) {
+
+            // Closet | Inspiration toggle
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = DesignTokens.space4)
+                    .padding(bottom = DesignTokens.space2),
+            ) {
+                SegmentedButton(
+                    selected = selectedSource == StylePickerSource.CLOSET,
+                    onClick = { onSourceChange(StylePickerSource.CLOSET) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    label = { Text(stringResource(Res.string.order_style_source_closet)) },
+                )
+                SegmentedButton(
+                    selected = selectedSource == StylePickerSource.INSPIRATION,
+                    onClick = { onSourceChange(StylePickerSource.INSPIRATION) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    label = { Text(stringResource(Res.string.order_style_source_inspiration)) },
+                )
+            }
+
+            val emptyText = when {
+                activeStyles.isEmpty() && selectedSource == StylePickerSource.INSPIRATION ->
+                    stringResource(Res.string.order_style_inspiration_empty)
+                activeStyles.isEmpty() ->
+                    stringResource(Res.string.order_form_style_picker_empty)
+                else -> null
+            }
+
+            if (emptyText != null) {
                 Text(
-                    text = stringResource(Res.string.order_form_style_picker_empty),
+                    text = emptyText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(
@@ -71,7 +113,7 @@ fun StylePickerSheet(
                 )
             } else {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(items = styles, key = { it.id }) { style ->
+                    items(items = activeStyles, key = { it.id }) { style ->
                         val alreadyPicked = style.id in alreadySelectedStyleIds
                         val outOfCapacity = remainingCapacity <= 0
                         val disabled = alreadyPicked || outOfCapacity

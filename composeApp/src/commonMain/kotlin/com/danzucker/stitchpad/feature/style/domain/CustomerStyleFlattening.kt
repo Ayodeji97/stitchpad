@@ -49,6 +49,35 @@ fun StyleRepository.observeAllCustomerStyles(
             combine(styleFlows) { results -> results.flatMap { it } }
         }
 
+/**
+ * Observes EVERY style in the shared Inspiration library — the flat default folder
+ * plus all named Inspiration folders — flattened into a single list. Uses the same
+ * resilient keep-last strategy as [observeAllCustomerStyles].
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+fun StyleRepository.observeAllInspirationStyles(userId: String): Flow<List<Style>> =
+    observeFolders(userId, StyleLocation.Inspiration(folderId = null))
+        .keepingLastFolders()
+        .flatMapLatest { folders ->
+            val styleFlows = buildList {
+                add(
+                    observeStyles(
+                        userId,
+                        StyleLocation.Inspiration(folderId = null),
+                    ).keepingLastStyles()
+                )
+                folders.forEach { folder ->
+                    add(
+                        observeStyles(
+                            userId,
+                            StyleLocation.Inspiration(folderId = folder.id),
+                        ).keepingLastStyles()
+                    )
+                }
+            }
+            combine(styleFlows) { results -> results.flatMap { it } }
+        }
+
 /** Retains the last successfully emitted style list, ignoring transient errors. */
 private fun Flow<Result<List<Style>, DataError.Network>>.keepingLastStyles(): Flow<List<Style>> =
     runningFold(emptyList()) { last, r -> if (r is Result.Success) r.data else last }

@@ -13,6 +13,9 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+/** Which source is currently active in the style-picker's Closet/Inspiration toggle. */
+enum class StylePickerSource { CLOSET, INSPIRATION }
+
 data class OrderFormState(
     val currentStep: Int = 1,
     val isEditMode: Boolean = false,
@@ -23,6 +26,8 @@ data class OrderFormState(
     // Step 2 - Items
     val items: List<OrderItemFormState> = listOf(OrderItemFormState()),
     val availableStyles: List<Style> = emptyList(),
+    val inspirationStyles: List<Style> = emptyList(),
+    val stylePickerSource: StylePickerSource = StylePickerSource.CLOSET,
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Item id whose Style picker sheet is currently visible. Null = no sheet. */
     val stylePickerSheetForItemId: String? = null,

@@ -617,6 +617,106 @@ class OrderFormViewModelTest {
         assertTrue(vm.state.value.availableStyles.isEmpty() || vm.state.value.availableStyles.isNotEmpty())
     }
 
+    // ─── Inspiration styles ──────────────────────────────────────────────────
+
+    @Test
+    fun inspirationStyles_populatedFromFlatDefaultAndNamedFolders() = runTest {
+        val flatStyle = Style(
+            id = "insp-flat",
+            customerId = "",
+            description = "Flat inspiration",
+            photoUrl = "https://example.com/flat.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val folderStyle = Style(
+            id = "insp-folder",
+            customerId = "",
+            description = "Folder inspiration",
+            photoUrl = "https://example.com/folder.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val inspFolder = StyleFolder(id = "if1", name = "Runway", createdAt = 0L, updatedAt = 0L)
+
+        styleRepository.foldersByLocation[StyleLocation.Inspiration(folderId = null)] =
+            listOf(inspFolder)
+        styleRepository.stylesByLocation[StyleLocation.Inspiration(folderId = null)] =
+            listOf(flatStyle)
+        styleRepository.stylesByLocation[StyleLocation.Inspiration(folderId = "if1")] =
+            listOf(folderStyle)
+
+        val vm = createViewModel(orderId = null)
+
+        val ids = vm.state.value.inspirationStyles.map { it.id }
+        assertTrue(ids.contains("insp-flat"), "flat Inspiration style must be visible")
+        assertTrue(ids.contains("insp-folder"), "named Inspiration folder style must be visible")
+    }
+
+    @Test
+    fun onStylePickerSourceChange_updatesState() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        assertEquals(StylePickerSource.CLOSET, vm.state.value.stylePickerSource)
+        vm.onAction(OrderFormAction.OnStylePickerSourceChange(StylePickerSource.INSPIRATION))
+        assertEquals(StylePickerSource.INSPIRATION, vm.state.value.stylePickerSource)
+    }
+
+    @Test
+    fun openStylePickerSheet_resetsSourceToCloset() = runTest {
+        val vm = createViewModel(orderId = null)
+        val itemId = vm.state.value.items.first().id
+
+        // Set source to INSPIRATION first.
+        vm.onAction(OrderFormAction.OnStylePickerSourceChange(StylePickerSource.INSPIRATION))
+        assertEquals(StylePickerSource.INSPIRATION, vm.state.value.stylePickerSource)
+
+        // Opening the picker must reset to CLOSET.
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        assertEquals(StylePickerSource.CLOSET, vm.state.value.stylePickerSource)
+    }
+
+    @Test
+    fun closetStyles_unaffectedByInspirationSeed() = runTest {
+        val cid = testCustomer.id
+        val closetStyle = Style(
+            id = "closet-1",
+            customerId = cid,
+            description = "Closet style",
+            photoUrl = "https://example.com/closet.jpg",
+            photoStoragePath = "users/user-1/styles/closet-1",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        val inspStyle = Style(
+            id = "insp-1",
+            customerId = "",
+            description = "Inspiration style",
+            photoUrl = "https://example.com/insp.jpg",
+            photoStoragePath = "",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = ImageSyncState.SYNCED,
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(closetStyle)
+        styleRepository.stylesByLocation[StyleLocation.Inspiration(folderId = null)] =
+            listOf(inspStyle)
+
+        val vm = createViewModel(orderId = null)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+
+        // Closet must only have the closet style.
+        assertEquals(listOf("closet-1"), vm.state.value.availableStyles.map { it.id })
+        // Inspiration must only have the inspiration style.
+        assertEquals(listOf("insp-1"), vm.state.value.inspirationStyles.map { it.id })
+    }
+
     private companion object {
         const val MAX_TEST_PHOTO_BYTES = 5 * 1024 * 1024
     }

@@ -69,6 +69,7 @@ sealed interface OrderFormAction {
     data class OnItemSaveStyleToGalleryToggle(val itemId: String, val value: Boolean) : OrderFormAction
     data class OnOpenStylePickerSheet(val itemId: String) : OrderFormAction
     data object OnDismissStylePickerSheet : OrderFormAction
+    data class OnStylePickerSourceChange(val source: StylePickerSource) : OrderFormAction
 
     // PTSP-11 multi-image actions — FABRIC
 

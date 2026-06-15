@@ -27,6 +27,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
+import com.danzucker.stitchpad.feature.style.domain.observeAllInspirationStyles
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -81,6 +82,9 @@ class OrderFormViewModel(
     // into state and race with the new customer's data.
     private var styleJob: Job? = null
     private var measurementJob: Job? = null
+
+    // Single user-level Inspiration collector, started once userId is known.
+    private var inspirationJob: Job? = null
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
@@ -225,10 +229,20 @@ class OrderFormViewModel(
                 it.copy(saveStyleToGallery = action.value)
             }
             is OrderFormAction.OnOpenStylePickerSheet -> {
-                _state.update { it.copy(stylePickerSheetForItemId = action.itemId) }
+                // Always open the picker on the closet tab so the default
+                // experience is unchanged regardless of what the user last picked.
+                _state.update {
+                    it.copy(
+                        stylePickerSheetForItemId = action.itemId,
+                        stylePickerSource = StylePickerSource.CLOSET,
+                    )
+                }
             }
             OrderFormAction.OnDismissStylePickerSheet -> {
                 _state.update { it.copy(stylePickerSheetForItemId = null) }
+            }
+            is OrderFormAction.OnStylePickerSourceChange -> {
+                _state.update { it.copy(stylePickerSource = action.source) }
             }
             is OrderFormAction.OnItemAddFabricPhoto -> {
                 if (rejectOversizedPhoto(action.photoBytes)) return
@@ -374,10 +388,21 @@ class OrderFormViewModel(
             userId = authRepository.getCurrentUser()?.id ?: return@launch
             observeCustomers()
             observeCustomGarmentTypes()
+            observeInspirationStyles()
             if (orderId != null) {
                 loadOrder(orderId)
             } else if (seedFromOrderId != null) {
                 loadOrderForSeed(seedFromOrderId)
+            }
+        }
+    }
+
+    private fun observeInspirationStyles() {
+        val uid = userId ?: return
+        inspirationJob?.cancel()
+        inspirationJob = viewModelScope.launch {
+            styleRepository.observeAllInspirationStyles(uid).collect { styles ->
+                _state.update { it.copy(inspirationStyles = styles) }
             }
         }
     }

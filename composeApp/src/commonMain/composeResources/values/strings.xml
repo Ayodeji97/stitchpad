@@ -658,6 +658,9 @@
     <string name="style_picker_already_added">Already added</string>
     <string name="order_form_style_picker_title">Pick a style</string>
     <string name="order_form_style_picker_empty">No saved styles yet</string>
+    <string name="order_style_source_closet">Your closet</string>
+    <string name="order_style_source_inspiration">Inspiration</string>
+    <string name="order_style_inspiration_empty">No styles in Inspiration yet</string>
 
     <!-- Order form validation -->
     <string name="order_form_error_no_customer">Please select a customer</string>

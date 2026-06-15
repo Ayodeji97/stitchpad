@@ -333,7 +333,10 @@ fun OrderFormScreen(
                     val usedSlots = targetItem.styleImageRefs.size + targetItem.uploadedStyleBytesList.size
                     val remaining = MAX_IMAGES_PER_CATEGORY - usedSlots
                     StylePickerSheet(
-                        styles = state.availableStyles,
+                        closetStyles = state.availableStyles,
+                        inspirationStyles = state.inspirationStyles,
+                        selectedSource = state.stylePickerSource,
+                        onSourceChange = { onAction(OrderFormAction.OnStylePickerSourceChange(it)) },
                         alreadySelectedStyleIds = alreadyPickedIds,
                         remainingCapacity = remaining,
                         onSelect = { style ->
@@ -625,6 +628,7 @@ private fun ItemsStep(
                     index = index,
                     showRemove = state.items.size > 1,
                     availableStyles = state.availableStyles,
+                    inspirationStyles = state.inspirationStyles,
                     availableMeasurements = state.availableMeasurements,
                     onAction = onAction
                 )
@@ -653,6 +657,7 @@ private fun OrderItemCard(
     index: Int,
     showRemove: Boolean,
     availableStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
+    inspirationStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
     availableMeasurements: List<com.danzucker.stitchpad.core.domain.model.Measurement>,
     onAction: (OrderFormAction) -> Unit
 ) {
@@ -848,6 +853,7 @@ private fun OrderItemCard(
             StyleImageSection(
                 item = item,
                 availableStyles = availableStyles,
+                inspirationStyles = inspirationStyles,
                 onAction = onAction,
                 onPreview = { images, startIndex ->
                     previewSet = ImagePreviewSet(images = images, startIndex = startIndex)
@@ -1258,6 +1264,7 @@ private const val MAX_QUANTITY_DIGITS = 3
 private fun StyleImageSection(
     item: OrderItemFormState,
     availableStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
+    inspirationStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
     onAction: (OrderFormAction) -> Unit,
     onPreview: (List<Any>, Int) -> Unit,
 ) {
@@ -1328,7 +1335,7 @@ private fun StyleImageSection(
         // Image strip — saved refs first, then session uploads, then +tile if room.
         StyleImageStrip(
             item = item,
-            availableStyles = availableStyles,
+            availableStyles = availableStyles + inspirationStyles,
             onRemove = { index -> onAction(OrderFormAction.OnItemRemoveStyleImage(item.id, index)) },
             onPreview = onPreview,
             onAddClick = if (capacityRemaining > 0) {
