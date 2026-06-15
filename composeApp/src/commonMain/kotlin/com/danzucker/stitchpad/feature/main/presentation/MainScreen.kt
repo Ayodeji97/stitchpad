@@ -308,7 +308,8 @@ private fun MainNavGraph(
         }
         composable<StyleFormRoute> {
             StyleFormRoot(
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<OrderListRoute> {

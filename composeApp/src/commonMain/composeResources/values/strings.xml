@@ -491,6 +491,20 @@
     <string name="style_folder_action_rename">Rename</string>
     <string name="style_folder_action_delete">Delete</string>
 
+    <!-- Style cap-reached upgrade sheet -->
+    <string name="style_cap_folder_eyebrow">FOLDER LIMIT REACHED</string>
+    <string name="style_cap_style_eyebrow">STYLE LIMIT REACHED</string>
+    <string name="style_cap_folder_title">You&apos;ve filled your folders</string>
+    <string name="style_cap_style_title">You&apos;ve filled this folder</string>
+    <string name="style_cap_folder_body">You&apos;ve reached your plan&apos;s folder limit. Upgrade to create more folders and keep your collections organised.</string>
+    <string name="style_cap_style_body">You&apos;ve reached your plan&apos;s style limit for this folder. Upgrade to save more styles and grow your inspiration board.</string>
+    <string name="style_cap_upgrade_pro">Upgrade to Tailor Pro</string>
+    <string name="style_cap_upgrade_atelier">Upgrade to Tailor Atelier</string>
+    <string name="style_cap_max_title">You&apos;re on our top plan</string>
+    <string name="style_cap_max_body">Tailor Atelier is our highest tier — you&apos;ve already unlocked everything StitchPad has to offer.</string>
+    <string name="style_cap_dismiss">Not now</string>
+    <string name="style_cap_got_it">Got it</string>
+
     <!-- Style errors -->
     <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>
     <string name="error_style_not_found">Style not found</string>

@@ -62,6 +62,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapReachedSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -70,7 +71,6 @@ import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -79,7 +79,6 @@ import stitchpad.composeapp.generated.resources.style_change_photo
 import stitchpad.composeapp.generated.resources.style_description_label
 import stitchpad.composeapp.generated.resources.style_description_placeholder
 import stitchpad.composeapp.generated.resources.style_edit_title
-import stitchpad.composeapp.generated.resources.style_folder_batch_over_cap
 import stitchpad.composeapp.generated.resources.style_photos_selected
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
@@ -90,7 +89,10 @@ import stitchpad.composeapp.generated.resources.style_save_button
 private const val MULTI_PREVIEW_COLUMNS = 3
 
 @Composable
-fun StyleFormRoot(onNavigateBack: () -> Unit) {
+fun StyleFormRoot(
+    onNavigateBack: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
+) {
     val viewModel: StyleFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -99,11 +101,7 @@ fun StyleFormRoot(onNavigateBack: () -> Unit) {
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             StyleFormEvent.NavigateBack -> onNavigateBack()
-            is StyleFormEvent.CapReached -> scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = getString(Res.string.style_folder_batch_over_cap, event.cap),
-                )
-            }
+            StyleFormEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
 
@@ -256,6 +254,15 @@ fun StyleFormScreen(
                 }
             }
         }
+    }
+
+    // Cap-reached upgrade sheet
+    state.capSheet?.let { capInfo ->
+        StyleCapReachedSheet(
+            info = capInfo,
+            onUpgradeClick = { onAction(StyleFormAction.OnUpgradeFromCap) },
+            onDismiss = { onAction(StyleFormAction.OnDismissCapSheet) },
+        )
     }
 }
 

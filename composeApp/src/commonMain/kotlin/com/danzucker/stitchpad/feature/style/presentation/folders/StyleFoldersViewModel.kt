@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -97,6 +99,11 @@ class StyleFoldersViewModel(
             StyleFoldersAction.OnNavigateBack ->
                 viewModelScope.launch { _events.send(StyleFoldersEvent.NavigateBack) }
             StyleFoldersAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
+            StyleFoldersAction.OnDismissCapSheet -> _state.update { it.copy(capSheet = null) }
+            StyleFoldersAction.OnUpgradeFromCap -> {
+                _state.update { it.copy(capSheet = null) }
+                viewModelScope.launch { _events.send(StyleFoldersEvent.NavigateToUpgrade) }
+            }
         }
     }
 
@@ -151,9 +158,14 @@ class StyleFoldersViewModel(
 
     private fun handleCreateClick() {
         viewModelScope.launch {
-            val limits = resolveLimits()
+            val tier = entitlements.awaitHydrated().tier
+            val limits = if (customerId == null) {
+                StyleCollectionLimits.forInspiration(tier)
+            } else {
+                StyleCollectionLimits.forCustomer(tier)
+            }
             if (atFolderCap(limits)) {
-                _events.send(StyleFoldersEvent.NavigateToUpgrade)
+                _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.FOLDERS, tier)) }
             } else {
                 _state.update { it.copy(showCreateSheet = true) }
             }
@@ -165,7 +177,12 @@ class StyleFoldersViewModel(
         if (name.isBlank()) return
         _state.update { it.copy(showCreateSheet = false) }
         viewModelScope.launch {
-            val limits = resolveLimits()
+            val tier = entitlements.awaitHydrated().tier
+            val limits = if (customerId == null) {
+                StyleCollectionLimits.forInspiration(tier)
+            } else {
+                StyleCollectionLimits.forCustomer(tier)
+            }
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             // Re-read the AUTHORITATIVE folder list at confirm time. The FAB is
             // tappable while the grid is still loading (state.namedFolderCount == 0),
@@ -180,7 +197,7 @@ class StyleFoldersViewModel(
                 return@launch
             }
             if (liveFolders.size + 1 >= limits.maxFolders) {
-                _events.send(StyleFoldersEvent.NavigateToUpgrade)
+                _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.FOLDERS, tier)) }
                 return@launch
             }
             if (isDuplicateName(name, liveFolders, excludeId = null)) {

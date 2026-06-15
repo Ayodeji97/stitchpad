@@ -21,4 +21,10 @@ sealed interface StyleFoldersAction {
     data object OnUpgradeClick : StyleFoldersAction
     data object OnNavigateBack : StyleFoldersAction
     data object OnErrorDismiss : StyleFoldersAction
+
+    /** Dismiss the cap-reached sheet without upgrading. */
+    data object OnDismissCapSheet : StyleFoldersAction
+
+    /** CTA tapped on the cap-reached sheet — clears the sheet then routes to Upgrade. */
+    data object OnUpgradeFromCap : StyleFoldersAction
 }

@@ -12,6 +12,8 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,9 +69,15 @@ class StyleGalleryViewModel(
         when (action) {
             StyleGalleryAction.OnAddClick -> {
                 viewModelScope.launch {
-                    val cap = resolveImageCap()
+                    val tier = entitlements.awaitHydrated().tier
+                    val limits = if (customerId == null) {
+                        StyleCollectionLimits.forInspiration(tier)
+                    } else {
+                        StyleCollectionLimits.forCustomer(tier)
+                    }
+                    val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
                     if (_state.value.styles.size >= cap) {
-                        _events.send(StyleGalleryEvent.CapReached(cap))
+                        _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
                     } else {
                         _events.send(StyleGalleryEvent.NavigateToAddStyle(customerId, folderId))
                     }
@@ -108,22 +116,12 @@ class StyleGalleryViewModel(
             StyleGalleryAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+            StyleGalleryAction.OnDismissCapSheet -> _state.update { it.copy(capSheet = null) }
+            StyleGalleryAction.OnUpgradeFromCap -> {
+                _state.update { it.copy(capSheet = null) }
+                viewModelScope.launch { _events.send(StyleGalleryEvent.NavigateToUpgrade) }
+            }
         }
-    }
-
-    /**
-     * Resolves the image cap for the current location from the CURRENT tier each call
-     * (awaiting hydration). Not cached: an upgrade/downgrade while this VM is alive must
-     * reflect the new tier's cap, not a stale snapshot.
-     */
-    private suspend fun resolveImageCap(): Int {
-        val tier = entitlements.awaitHydrated().tier
-        val limits = if (customerId == null) {
-            StyleCollectionLimits.forInspiration(tier)
-        } else {
-            StyleCollectionLimits.forCustomer(tier)
-        }
-        return if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
     }
 
     private fun openTransfer(mode: StyleTransferMode) {
@@ -176,7 +174,7 @@ class StyleGalleryViewModel(
                 }
                 _state.update { it.copy(transfer = null) }
                 if (destCount >= limits.flatCap) {
-                    _events.send(StyleGalleryEvent.CapReached(limits.flatCap))
+                    _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
                     return@launch
                 }
                 performTransfer(transfer, target, destinationLocation = target.location, folderId = null)
@@ -238,7 +236,10 @@ class StyleGalleryViewModel(
         val option = transfer.destinationFolders?.firstOrNull { it.folderId == folderId } ?: return
         if (option.isFull) {
             _state.update { it.copy(transfer = null) }
-            viewModelScope.launch { _events.send(StyleGalleryEvent.CapReached(option.cap)) }
+            viewModelScope.launch {
+                val tier = entitlements.awaitHydrated().tier
+                _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
+            }
             return
         }
         val destinationLocation = when (target) {
@@ -290,7 +291,7 @@ class StyleGalleryViewModel(
             }
         }
         if (liveCount >= cap) {
-            _events.send(StyleGalleryEvent.CapReached(cap))
+            _state.update { it.copy(capSheet = StyleCapInfo(StyleCapKind.STYLES, tier)) }
             return
         }
         val result = when (transfer.mode) {

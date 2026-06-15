@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.style.presentation.gallery
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
 
 enum class StyleTransferMode { COPY, MOVE }
 
@@ -59,5 +60,7 @@ data class StyleGalleryState(
     val actionSheetStyle: Style? = null,
     /** Active copy/move flow with its customer picker, or null when closed. */
     val transfer: StyleTransfer? = null,
-    val errorMessage: UiText? = null
+    val errorMessage: UiText? = null,
+    /** Non-null while the cap-reached upgrade sheet should be shown. */
+    val capSheet: StyleCapInfo? = null,
 )

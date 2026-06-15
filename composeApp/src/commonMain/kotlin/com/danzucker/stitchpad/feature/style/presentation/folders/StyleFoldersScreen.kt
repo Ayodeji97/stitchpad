@@ -75,6 +75,7 @@ import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapReachedSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -134,6 +135,7 @@ fun StyleFoldersRoot(
     )
 }
 
+@Suppress("CyclomaticComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StyleFoldersScreen(
@@ -319,6 +321,15 @@ fun StyleFoldersScreen(
             onRename = { onAction(StyleFoldersAction.OnRenameClick(folder)) },
             onDelete = { onAction(StyleFoldersAction.OnDeleteClick(folder)) },
             onDismiss = { onAction(StyleFoldersAction.OnDismissFolderActionSheet) },
+        )
+    }
+
+    // Cap-reached upgrade sheet
+    state.capSheet?.let { capInfo ->
+        StyleCapReachedSheet(
+            info = capInfo,
+            onUpgradeClick = { onAction(StyleFoldersAction.OnUpgradeFromCap) },
+            onDismiss = { onAction(StyleFoldersAction.OnDismissCapSheet) },
         )
     }
 }

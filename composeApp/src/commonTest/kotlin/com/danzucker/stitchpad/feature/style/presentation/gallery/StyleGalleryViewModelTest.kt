@@ -13,6 +13,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -185,7 +186,7 @@ class StyleGalleryViewModelTest {
     // --- Cap enforcement ---
 
     @Test
-    fun onAddClick_folderAtCap_emitsCapReached_noNavigate() = runTest {
+    fun onAddClick_folderAtCap_setsCapSheet_stylesFree() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // Free inspiration: flatCap = 10. Seed 10 styles (already full).
         styleRepository.stylesList = List(10) { fakeStyle(id = "s$it", customerId = "") }
@@ -193,9 +194,10 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnAddClick)
 
-        val event = vm.events.first()
-        assertIs<StyleGalleryEvent.CapReached>(event)
-        assertEquals(10, event.cap)
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.STYLES, capSheet.kind)
+        assertEquals(SubscriptionTier.FREE, capSheet.currentTier)
     }
 
     @Test
@@ -459,7 +461,7 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
-    fun onTargetCustomerSelected_destinationFolderFull_emitsCapReached_noCopy() = runTest {
+    fun onTargetCustomerSelected_destinationFolderFull_setsCapSheet_noCopy() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(
             fakeCustomer(id = "customer-1"),
@@ -474,9 +476,9 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
 
-        val event = vm.events.first()
-        assertIs<StyleGalleryEvent.CapReached>(event)
-        assertEquals(5, event.cap)
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.STYLES, capSheet.kind)
         assertNull(styleRepository.lastCopied)
     }
 
@@ -589,7 +591,7 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
-    fun onDestinationFolderSelected_fullFolder_emitsCapReached_noCopy() = runTest {
+    fun onDestinationFolderSelected_fullFolder_setsCapSheet_noCopy() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(
             fakeCustomer(id = "customer-1"),
@@ -610,10 +612,39 @@ class StyleGalleryViewModelTest {
 
         vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
 
-        val event = vm.events.first()
-        assertIs<StyleGalleryEvent.CapReached>(event)
-        assertEquals(3, event.cap)
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.STYLES, capSheet.kind)
         assertNull(styleRepository.lastCopied)
+    }
+
+    // --- Cap sheet: dismiss + upgrade actions ---
+
+    @Test
+    fun onDismissCapSheet_clearsCapSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = List(10) { fakeStyle(id = "s$it", customerId = "") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+        vm.onAction(StyleGalleryAction.OnAddClick)
+        assertNotNull(vm.state.value.capSheet)
+
+        vm.onAction(StyleGalleryAction.OnDismissCapSheet)
+
+        assertNull(vm.state.value.capSheet)
+    }
+
+    @Test
+    fun onUpgradeFromCap_clearsCapSheet_andEmitsNavigateToUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = List(10) { fakeStyle(id = "s$it", customerId = "") }
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.FREE)
+        vm.onAction(StyleGalleryAction.OnAddClick)
+        assertNotNull(vm.state.value.capSheet)
+
+        vm.onAction(StyleGalleryAction.OnUpgradeFromCap)
+
+        assertNull(vm.state.value.capSheet)
+        assertIs<StyleGalleryEvent.NavigateToUpgrade>(vm.events.first())
     }
 
     // --- Error dismiss ---
