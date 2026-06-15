@@ -343,8 +343,39 @@ actual class OrderReceiptSharer(private val context: Context) {
     private fun renderLightPdf(data: ReceiptData): File {
         // A5 size in PostScript points: 420 x 595
         val pageWidth = 420
-        val pageHeight = 595
         val padding = 30f
+
+        // Compute dynamic page height by summing the same y-advances used in the
+        // draw code below, so the page is always tall enough to show every section.
+        var estimatedHeight = padding // y starts at padding
+        estimatedHeight += if (data.businessPhone != null) 50f else 40f // header block
+        estimatedHeight += 4f // headerBottomY + 4 offset
+        estimatedHeight += 18f // border line gap
+        estimatedHeight += 22f // document type label
+        estimatedHeight += 16f // customer/date label row
+        estimatedHeight += 18f // customer/date value row
+        estimatedHeight += 16f // divider gap
+        estimatedHeight += 18f // items label
+        for (item in data.items) estimatedHeight += if (item.quantity == 1) 20f else 52f // per-item: 16+16+20
+        estimatedHeight += 6f // post-items gap
+        estimatedHeight += 18f // payment divider
+        estimatedHeight += 20f // Total row
+        estimatedHeight += 20f // Deposit row
+        estimatedHeight += 22f // Balance row
+        if (data.bankBlock != null) {
+            // 12 (pre-divider) + 18 (post-divider) + 20 (header) + 20 (Bank) + 20 (Account name) + 24 (trailing)
+            estimatedHeight += 12f + 18f + 20f + 20f + 20f + 24f
+        }
+        estimatedHeight += 16f // status divider
+        estimatedHeight += 16f // status/deadline labels row
+        estimatedHeight += 6f // status/deadline values row
+        if (data.priorityLabel != null) estimatedHeight += 14f // priority badge
+        estimatedHeight += 30f // pre-footer divider advance
+        estimatedHeight += 16f // order-id line
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 14f // attribution line
+        estimatedHeight += padding // bottom breathing room
+
+        val pageHeight = maxOf(595, kotlin.math.ceil(estimatedHeight).toInt())
 
         val doc = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create()

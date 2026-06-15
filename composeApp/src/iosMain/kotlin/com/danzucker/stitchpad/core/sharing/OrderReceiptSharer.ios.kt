@@ -302,8 +302,40 @@ actual class OrderReceiptSharer {
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun renderLightPdf(data: ReceiptData): NSURL {
         val pageWidth = 420.0
-        val pageHeight = 595.0
         val padding = 30.0
+
+        // Compute dynamic page height by summing the same y-advances used in the
+        // draw code below, so the page is always tall enough to show every section.
+        var estimatedHeight = padding // y starts at padding
+        estimatedHeight += if (data.businessPhone != null) 50.0 else 40.0 // header block
+        estimatedHeight += 4.0 // headerBottomY + 4 offset
+        estimatedHeight += 16.0 // border fill gap
+        estimatedHeight += 20.0 // document type label
+        estimatedHeight += 14.0 // customer/date label row
+        estimatedHeight += 16.0 // customer/date value row
+        estimatedHeight += 14.0 // divider gap
+        estimatedHeight += 16.0 // items label
+        data.items.forEach { item -> estimatedHeight += if (item.quantity == 1) 22.0 else 48.0 } // per-item: 16+14+18
+        estimatedHeight += 6.0 // post-items gap
+        estimatedHeight += 14.0 // payment divider
+        estimatedHeight += 18.0 // Total row
+        estimatedHeight += 18.0 // Deposit row
+        estimatedHeight += 20.0 // Balance row
+        if (data.bankBlock != null) {
+            // 12 (pre-divider) + 18 (post-divider) + 20 (header) + 20 (Bank) + 20 (Account name) + 24 (trailing)
+            estimatedHeight += 12.0 + 18.0 + 20.0 + 20.0 + 20.0 + 24.0
+        }
+        estimatedHeight += 14.0 // status divider
+        estimatedHeight += 14.0 // status/deadline labels row
+        estimatedHeight += 6.0 // status/deadline values row
+        if (data.priorityLabel != null) estimatedHeight += 12.0 // priority badge
+        estimatedHeight += 24.0 // pre-footer divider advance
+        estimatedHeight += 14.0 // order-id line
+        if (data.attribution !is ReceiptAttribution.None) estimatedHeight += 14.0 // attribution line
+        estimatedHeight += padding // bottom breathing room
+
+        val pageHeight = maxOf(595.0, kotlin.math.ceil(estimatedHeight))
+
         val fileUrl = tempFileUrl("pdf")
 
         val format = UIGraphicsPDFRendererFormat()
