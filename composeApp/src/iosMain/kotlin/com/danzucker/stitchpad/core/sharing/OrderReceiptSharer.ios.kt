@@ -185,7 +185,8 @@ actual class OrderReceiptSharer {
                     y += 22.0
                     // Row 2: "Unit price" + value — same 14.0 size as the "Price for N"
                     // row below so the two breakdown lines align; legible light, value bold.
-                    val indent = padding + 14.0
+                    // Flush-left at padding so every row shares one left edge with the totals.
+                    val indent = padding
                     drawText("Unit price", indent, y, regularFont(14.0), darkColor("#E5E3DF"))
                     drawTextRight(item.formattedUnitPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
                     y += 22.0
@@ -434,7 +435,8 @@ actual class OrderReceiptSharer {
                     y += 16.0
                     // Row 2: "Unit price" + value — same 11.0 size as the "Price for N"
                     // row below so the two breakdown lines align; legible, value bold.
-                    val indent = padding + 12.0
+                    // Flush-left at padding so every row shares one left edge with the totals.
+                    val indent = padding
                     drawText("Unit price", indent, y, regularFont(11.0), darkColor("#1E1C1A"))
                     drawTextRight(
                         item.formattedUnitPrice,

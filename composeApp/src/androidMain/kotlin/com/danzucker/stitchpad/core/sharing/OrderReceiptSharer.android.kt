@@ -217,7 +217,8 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.drawText(item.garmentName, padding, y, bodyPaint)
                 y += 22f
                 // Row 2: "Unit price" label + value (light, value bold — clearly visible).
-                val indent = padding + 14f
+                // Flush-left at padding so every row shares one left edge with the totals.
+                val indent = padding
                 canvas.drawText("Unit price", indent, y, unitLabelPaint)
                 canvas.drawText(item.formattedUnitPrice, width - padding, y, unitValuePaint)
                 y += 24f
@@ -519,7 +520,8 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.drawText(item.garmentName, padding, y, bodyPaintPdf)
                 y += 16f
                 // Row 2: "Unit price" label + value (legible, value bold — clearly visible).
-                val indent = padding + 12f
+                // Flush-left at padding so every row shares one left edge with the totals.
+                val indent = padding
                 canvas.drawText("Unit price", indent, y, unitLabelPdf)
                 canvas.drawText(item.formattedUnitPrice, pageWidth - padding, y, unitValuePdf)
                 y += 16f
