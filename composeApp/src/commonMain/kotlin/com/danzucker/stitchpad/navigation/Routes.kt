@@ -67,6 +67,7 @@ data class StyleFormRoute(
     val styleId: String? = null,
     val linkToOrderId: String? = null,
     val folderId: String? = null,
+    val readOnly: Boolean = false,
 )
 
 @Serializable

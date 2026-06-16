@@ -105,7 +105,7 @@ import stitchpad.composeapp.generated.resources.style_transfer_view_cta
 fun StyleGalleryRoot(
     onNavigateBack: () -> Unit,
     onNavigateToAddStyle: (String?, String?) -> Unit,
-    onNavigateToEditStyle: (String?, String?, String) -> Unit,
+    onNavigateToEditStyle: (customerId: String?, folderId: String?, styleId: String, readOnly: Boolean) -> Unit,
     onNavigateToStyleGallery: (customerId: String?, folderId: String?) -> Unit,
     onNavigateToUpgrade: () -> Unit,
 ) {
@@ -123,7 +123,8 @@ fun StyleGalleryRoot(
             is StyleGalleryEvent.NavigateToEditStyle -> onNavigateToEditStyle(
                 event.customerId,
                 event.folderId,
-                event.styleId
+                event.styleId,
+                event.readOnly,
             )
             is StyleGalleryEvent.StyleTransferred -> scope.launch {
                 val targetName = transferTargetName(event.target, inspirationName)

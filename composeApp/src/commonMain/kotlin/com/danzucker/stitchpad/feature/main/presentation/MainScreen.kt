@@ -295,9 +295,14 @@ private fun MainNavGraph(
                 onNavigateToAddStyle = { customerId, folderId ->
                     navController.navigate(StyleFormRoute(customerId = customerId, folderId = folderId))
                 },
-                onNavigateToEditStyle = { customerId, folderId, styleId ->
+                onNavigateToEditStyle = { customerId, folderId, styleId, readOnly ->
                     navController.navigate(
-                        StyleFormRoute(customerId = customerId, folderId = folderId, styleId = styleId)
+                        StyleFormRoute(
+                            customerId = customerId,
+                            folderId = folderId,
+                            styleId = styleId,
+                            readOnly = readOnly,
+                        )
                     )
                 },
                 onNavigateToStyleGallery = { customerId, folderId ->
