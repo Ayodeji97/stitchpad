@@ -3,6 +3,7 @@
 # Exit 0 = clean, 1 = blocking finding, 2 = usage error.
 # Bash 3.2 compatible (no associative arrays, no mapfile).
 set -u
+set -o pipefail
 
 MODE="diff"
 BASE="origin/main"
@@ -20,8 +21,8 @@ if [ $# -gt 0 ]; then
   esac
 fi
 
-# Rules: id|severity|pathglob|ERE-pattern|excl-pattern|message
-# severity: block|warn ; pathglob: substring matched against the file path.
+# Rules: id|severity|pathsubstr|ERE-pattern|excl-pattern|message
+# severity: block|warn ; pathsubstr: literal substring matched against the file path with awk index().
 # excl-pattern: if non-empty and the line also matches this ERE, skip the finding.
 RULES="
 serializer-any|block|commonMain|\.data<[^>]*Any\?||Firestore .data<...Any?> crashes iOS on first emit; use a typed @Serializable DTO (crash-classes.md#serializer-any)
@@ -43,9 +44,18 @@ candidates() {
         | xargs -0 awk '{print FILENAME "\t" FNR "\t" $0}'
       ;;
     diff|staged)
-      local range
-      if [ "$MODE" = "staged" ]; then range="--cached"; else range="$BASE...HEAD"; fi
-      git diff --unified=0 $range -- "$SCAN_ROOT" | awk '
+      local range_args
+      if [ "$MODE" = "staged" ]; then
+        range_args=("--cached")
+      else
+        range_args=("$BASE...HEAD")
+      fi
+      local diff_out
+      diff_out="$(git diff --unified=0 "${range_args[@]}" -- "$SCAN_ROOT")" || {
+        echo "crash-check: git diff failed (bad ref, shallow clone, or detached HEAD)" >&2
+        return 1
+      }
+      printf '%s\n' "$diff_out" | awk '
         /^\+\+\+ b\// { file=substr($0,7); next }
         /^@@/ { match($0, /\+[0-9]+/); ln=substr($0, RSTART+1, RLENGTH-1)+0; next }
         /^\+/ && !/^\+\+\+/ { print file "\t" ln "\t" substr($0,2); ln++ }
@@ -55,7 +65,7 @@ candidates() {
 }
 
 TMP="$(mktemp)"; trap 'rm -f "$TMP" "$TMP.rules"' EXIT
-candidates > "$TMP"
+candidates > "$TMP" || exit 2
 
 # Write rules to a temp file (pipe-delimiter) — awk reads it with getline,
 # so patterns reach awk as literal file bytes with no shell backslash interpolation.
@@ -82,7 +92,9 @@ awk_out="$(awk -v rulesfile="$TMP.rules" '
     FS = "\t"
   }
   {
-    path = $1; ln = $2; content = $3
+    path = $1; ln = $2
+    content = ""
+    for (i = 3; i <= NF; i++) content = content (i > 3 ? "\t" : "") $i
     for (i = 1; i <= n; i++) {
       if (index(path, globs[i]) == 0) continue
       if (index(content, "crash-check:ignore " ids[i]) > 0) continue
