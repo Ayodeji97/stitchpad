@@ -203,6 +203,33 @@ describe('giftLinkToken field hardening', () => {
   });
 });
 
+describe('subscription fallback (queued gift segment) hardening', () => {
+  it('rejects planting fallback fields at user-doc creation', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, subscriptionFallbackTier: 'pro' }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), {
+        ...SEED_DEFAULTS,
+        subscriptionFallbackEndsAt: Timestamp.fromDate(new Date('2050-01-01T00:00:00Z')),
+      }),
+    );
+  });
+
+  it('rejects adding or changing fallback fields via update', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), {
+        ...SEED_DEFAULTS,
+        subscriptionTier: 'atelier',
+        subscriptionFallbackTier: 'pro',
+        subscriptionFallbackEndsAt: Timestamp.fromDate(new Date('2027-01-01T00:00:00Z')),
+      });
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionFallbackTier: 'atelier' }));
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { subscriptionFallbackEndsAt: deleteField() }));
+  });
+});
+
 describe('server-owned field hardening', () => {
   describe('on an active paid user', () => {
     beforeEach(async () => {

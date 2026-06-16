@@ -28,6 +28,7 @@ import {
   priceFor,
 } from './paystackBilling';
 import { computeSubscriptionGrant, addYears, toDate } from './subscriptionPeriod';
+import type { CurrentSubscription, SubscriptionGrant } from './subscriptionPeriod';
 import { buildGiftReceivedEmail, buildGiftClaimEmail } from './giftEmailTemplate';
 import { sendResendEmail } from '../email/resendClient';
 
@@ -396,9 +397,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       const targetUid = gift.targetUid;
       const userRef = deps.db.doc(`users/${targetUid}`);
       const userSnap = await tx.get(userRef);
-      const userData = userSnap.data() as
-        | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
-        | undefined;
+      const userData = userSnap.data() as CurrentSubscription | undefined;
       const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt, mode: 'gift', quantity });
 
       tx.set(userRef, {
@@ -406,6 +405,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
         subscriptionStatus: 'active',
         subscriptionEndsAt: admin.firestore.Timestamp.fromDate(grant.subscriptionEndsAt),
         subscriptionRenews: false,
+        ...fallbackFields(grant),
         updatedAt: nowTs,
       }, { merge: true });
 
@@ -418,7 +418,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       // gift notification being silently dropped from the inbox on some platforms.
       tx.set(notifRef, {
         type: 'GIFT_RECEIVED',
-        tier: grant.subscriptionTier,
+        tier, // the tier that was GIFTED (may differ from the now-active tier when queued)
         gifterName: gift.gifterName ?? null,
         isRead: false,
         createdAt: deps.now().getTime(),
@@ -439,7 +439,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       afterCommit = async () => {
         const email = await resolveUserEmail(deps, targetUid);
         if (email && deps.sendEmail) {
-          const msg = buildGiftReceivedEmail({ gifterName, tier: grant.subscriptionTier, cadence, quantity });
+          const msg = buildGiftReceivedEmail({ gifterName, tier, cadence, quantity });
           await deps.sendEmail({ to: email, ...msg });
         }
       };
@@ -542,9 +542,7 @@ export async function redeemGiftHandler(
     const quantity = gift.quantity ?? 1; // default 1 for pre-quantity gift docs
     const userRef = deps.db.doc(`users/${uid}`);
     const userSnap = await tx.get(userRef);
-    const userData = userSnap.data() as
-      | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
-      | undefined;
+    const userData = userSnap.data() as CurrentSubscription | undefined;
     const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt: now, mode: 'gift', quantity });
 
     tx.set(userRef, {
@@ -552,6 +550,7 @@ export async function redeemGiftHandler(
       subscriptionStatus: 'active',
       subscriptionEndsAt: admin.firestore.Timestamp.fromDate(grant.subscriptionEndsAt),
       subscriptionRenews: false,
+      ...fallbackFields(grant),
       updatedAt: nowTs,
     }, { merge: true });
     tx.set(giftRef, {
@@ -677,6 +676,23 @@ function asNonEmptyString(value: unknown): string | null {
 
 function asEmail(value: unknown): string | null {
   return typeof value === 'string' && value.includes('@') ? value.trim() : null;
+}
+
+/**
+ * The queued-fallback fields to write for a grant. Explicit null clears any prior
+ * fallback (e.g. a same-tier gift that no longer needs one) — gifts own these
+ * fields end to end, so they must set OR clear, never leave stale.
+ */
+function fallbackFields(grant: SubscriptionGrant): {
+  subscriptionFallbackTier: BillingTier | null;
+  subscriptionFallbackEndsAt: admin.firestore.Timestamp | null;
+} {
+  return {
+    subscriptionFallbackTier: grant.fallbackTier,
+    subscriptionFallbackEndsAt: grant.fallbackEndsAt
+      ? admin.firestore.Timestamp.fromDate(grant.fallbackEndsAt)
+      : null,
+  };
 }
 
 /**

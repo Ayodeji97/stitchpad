@@ -229,6 +229,29 @@ describe('applyGiftWebhook', () => {
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'tailor@example.com' }));
   });
 
+  it('queues a fallback when gifting a lower tier to an active higher tier (case D)', async () => {
+    const { store, db } = makeDb({
+      'gifts/gift_d': {
+        status: 'pending', flow: 'gift_me', tier: 'pro', cadence: 'monthly',
+        amountKobo: 200_000, targetUid: 'tailor-1', gifterName: 'Bola',
+      },
+      'users/tailor-1': {
+        subscriptionTier: 'atelier', subscriptionStatus: 'active',
+        subscriptionEndsAt: admin.firestore.Timestamp.fromDate(new Date('2026-12-01T00:00:00Z')),
+      },
+    });
+    await applyGiftWebhook(giftChargeData('gift_d'), {
+      db, now: () => NOW, sendEmail: jest.fn(async () => {}), lookupUserEmail: async () => 't@e.com',
+    });
+    const user = store.get('users/tailor-1');
+    expect(user.subscriptionTier).toBe('atelier'); // higher tier keeps running
+    expect((user.subscriptionEndsAt.toDate() as Date).toISOString()).toBe('2026-12-01T00:00:00.000Z');
+    expect(user.subscriptionFallbackTier).toBe('pro'); // gifted Pro queued behind
+    expect((user.subscriptionFallbackEndsAt.toDate() as Date).toISOString()).toBe('2027-01-01T00:00:00.000Z');
+    // Notification names the GIFTED tier, not the active one.
+    expect(store.get('users/tailor-1/notifications/gift_d__GIFT_RECEIVED').tier).toBe('pro');
+  });
+
   it('applies N periods for a multi-quantity gift_me gift', async () => {
     const { store, db } = makeDb({
       'gifts/gift_q': {

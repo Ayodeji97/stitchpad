@@ -1,7 +1,7 @@
 import * as crypto from 'crypto';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { computeSubscriptionGrant } from './subscriptionPeriod';
+import { computeSubscriptionGrant, toDate } from './subscriptionPeriod';
 import { applyGiftWebhook, giftEmailSender } from './giftBilling';
 
 // Re-exported so existing importers (tests, templates) keep their import paths.
@@ -336,16 +336,44 @@ export async function expirePrepaidSubscriptionsHandler(deps: ExpireDeps): Promi
     .where('subscriptionEndsAt', '<=', admin.firestore.Timestamp.fromDate(now))
     .get();
 
+  const nowMs = now.getTime();
   const BATCH_LIMIT = 500;
   for (let i = 0; i < expired.docs.length; i += BATCH_LIMIT) {
     const batch = deps.db.batch();
     for (const doc of expired.docs.slice(i, i + BATCH_LIMIT)) {
-      batch.set(doc.ref, {
-        subscriptionTier: 'free',
-        subscriptionStatus: 'expired',
-        subscriptionRenews: false,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      const data = (doc.data?.() ?? {}) as {
+        subscriptionFallbackTier?: string;
+        subscriptionFallbackEndsAt?: unknown;
+      };
+      const fbTier = data.subscriptionFallbackTier;
+      const fbEnd = toDate(data.subscriptionFallbackEndsAt);
+      const hasLiveFallback =
+        (fbTier === 'pro' || fbTier === 'atelier') && fbEnd !== null && fbEnd.getTime() > nowMs;
+
+      if (hasLiveFallback) {
+        // Two-step unwind: the active (higher) segment ended — promote the queued
+        // lower tier to active and clear the fallback slot. It returns to Free on a
+        // later run when this promoted segment also expires.
+        batch.set(doc.ref, {
+          subscriptionTier: fbTier,
+          subscriptionStatus: 'active',
+          subscriptionEndsAt: admin.firestore.Timestamp.fromDate(fbEnd),
+          subscriptionRenews: false,
+          subscriptionFallbackTier: null,
+          subscriptionFallbackEndsAt: null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } else {
+        // No live queued segment → back to Free (also clears any stale/expired fallback).
+        batch.set(doc.ref, {
+          subscriptionTier: 'free',
+          subscriptionStatus: 'expired',
+          subscriptionRenews: false,
+          subscriptionFallbackTier: null,
+          subscriptionFallbackEndsAt: null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     }
     await batch.commit();
   }

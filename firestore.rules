@@ -105,6 +105,10 @@ service cloud.firestore {
         // via the Admin SDK). A client must never plant it at creation, or it
         // could ride a far-future date by buying a single prepaid period.
         && (!('subscriptionEndsAt' in request.resource.data))
+        // subscriptionFallbackTier/EndsAt are the queued lower-tier segment from a
+        // mismatched-tier gift — server-owned, never planted at creation.
+        && (!('subscriptionFallbackTier' in request.resource.data))
+        && (!('subscriptionFallbackEndsAt' in request.resource.data))
         // giftLinkToken is the public token behind a tailor's "Gift me" link,
         // minted only by createGiftLink (Admin SDK). A client-planted token could
         // collide with the giftLinkTokens reverse index and hijack another tailor's
@@ -119,6 +123,8 @@ service cloud.firestore {
         && serverOnlyField('subscriptionStatus')
         && serverOnlyField('subscriptionEndsAt')
         && serverOnlyField('subscriptionRenews')
+        && serverOnlyField('subscriptionFallbackTier')
+        && serverOnlyField('subscriptionFallbackEndsAt')
         && serverOnlyField('giftLinkToken')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')

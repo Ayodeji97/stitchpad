@@ -76,33 +76,53 @@ describe('computeSubscriptionGrant — gift mode', () => {
     expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-20T00:00:00.000Z');
   });
 
-  it('never downgrades: a Pro gift to an active Atelier user extends Atelier', () => {
+  it('case D — Pro gift to an active Atelier user: Atelier keeps running, Pro queued after', () => {
     const grant = computeSubscriptionGrant({
       userData: { subscriptionTier: 'atelier', subscriptionStatus: 'active', subscriptionEndsAt: ts('2026-12-01T00:00:00Z') },
       tier: 'pro', cadence: 'monthly', paidAt, mode: 'gift',
     });
-    // Stays Atelier; one gifted month added to the existing Atelier end date.
     expect(grant.subscriptionTier).toBe('atelier');
-    expect(grant.subscriptionEndsAt.toISOString()).toBe('2027-01-01T00:00:00.000Z');
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-12-01T00:00:00.000Z'); // unchanged
+    expect(grant.fallbackTier).toBe('pro');
+    expect(grant.fallbackEndsAt?.toISOString()).toBe('2027-01-01T00:00:00.000Z'); // Atelier end + 1 month
   });
 
-  it('never downgrades but extends from paidAt when the higher tier already lapsed in time', () => {
-    // Active flag set but end date already in the past — extend from paidAt, keep tier.
+  it('treats a lapsed higher tier as gone — the gift becomes the gifted tier', () => {
     const grant = computeSubscriptionGrant({
       userData: { subscriptionTier: 'atelier', subscriptionStatus: 'active', subscriptionEndsAt: ts('2026-01-01T00:00:00Z') },
       tier: 'pro', cadence: 'monthly', paidAt, mode: 'gift',
     });
-    expect(grant.subscriptionTier).toBe('atelier');
+    expect(grant.subscriptionTier).toBe('pro');
     expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
+    expect(grant.fallbackTier).toBeNull();
   });
 
-  it('upgrades: an Atelier gift to an active Pro user starts a fresh Atelier period', () => {
+  it('case C — Atelier gift to an active Pro user: upgrade now, Pro paused + queued after', () => {
+    const proEnd = ts('2026-10-01T10:00:00Z'); // 4 months remaining
     const grant = computeSubscriptionGrant({
-      userData: { subscriptionTier: 'pro', subscriptionStatus: 'active', subscriptionEndsAt: ts('2026-12-01T00:00:00Z') },
+      userData: { subscriptionTier: 'pro', subscriptionStatus: 'active', subscriptionEndsAt: proEnd },
       tier: 'atelier', cadence: 'monthly', paidAt, mode: 'gift',
     });
     expect(grant.subscriptionTier).toBe('atelier');
-    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z'); // Atelier 1 month now
+    expect(grant.fallbackTier).toBe('pro');
+    // Pro's remaining duration is preserved (paused), re-anchored after the Atelier window.
+    const proDurationAfter = grant.fallbackEndsAt!.getTime() - grant.subscriptionEndsAt.getTime();
+    expect(proDurationAfter).toBe(proEnd.toDate().getTime() - paidAt.getTime());
+  });
+
+  it('case E — extends the matching segment when a fallback is already queued', () => {
+    const grant = computeSubscriptionGrant({
+      userData: {
+        subscriptionTier: 'atelier', subscriptionStatus: 'active', subscriptionEndsAt: ts('2026-08-01T10:00:00Z'),
+        subscriptionFallbackTier: 'pro', subscriptionFallbackEndsAt: ts('2026-10-01T10:00:00Z'),
+      },
+      tier: 'pro', cadence: 'monthly', paidAt, mode: 'gift',
+    });
+    expect(grant.subscriptionTier).toBe('atelier');
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-08-01T10:00:00.000Z'); // Atelier unchanged
+    expect(grant.fallbackTier).toBe('pro');
+    expect(grant.fallbackEndsAt?.toISOString()).toBe('2026-11-01T10:00:00.000Z'); // Pro segment + 1 month
   });
 });
 

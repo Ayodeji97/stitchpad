@@ -9,17 +9,26 @@
 
 import type { BillingTier, BillingCadence } from './paystackBilling';
 
-const TIER_RANK: Record<BillingTier, number> = { pro: 1, atelier: 2 };
-
 export interface CurrentSubscription {
   subscriptionTier?: string;
   subscriptionStatus?: string;
   subscriptionEndsAt?: unknown;
+  /** Queued lower-tier segment (set by a mismatched-tier gift); runs after the active one ends. */
+  subscriptionFallbackTier?: string;
+  subscriptionFallbackEndsAt?: unknown;
 }
 
 export interface SubscriptionGrant {
   subscriptionTier: BillingTier;
   subscriptionEndsAt: Date;
+  /**
+   * Queued lower-tier segment. Gifts can produce one (higher tier runs first, the
+   * lower tier is paused behind it — see docs/design/gift-stacking-spec.md). null
+   * means "no queued segment"; the gift caller clears the fields, the purchase
+   * caller leaves any existing fallback untouched.
+   */
+  fallbackTier: BillingTier | null;
+  fallbackEndsAt: Date | null;
 }
 
 /** A purchase keeps today's exact behaviour; a gift additionally never downgrades. */
@@ -98,6 +107,12 @@ export function computeSubscriptionGrant(params: {
   const { userData, tier, cadence, paidAt, mode } = params;
   const quantity = params.quantity ?? 1;
 
+  if (mode === 'gift') {
+    return computeGiftGrant(userData, tier, cadence, paidAt, quantity);
+  }
+
+  // ── Purchase: unchanged single-segment behaviour (no fallback). A buyer's
+  // tier switch deliberately starts fresh; only gifts queue a fallback. ──
   const onActivePaidPlan =
     (userData?.subscriptionTier === 'pro' || userData?.subscriptionTier === 'atelier') &&
     userData?.subscriptionStatus === 'active';
@@ -106,17 +121,78 @@ export function computeSubscriptionGrant(params: {
     : null;
   const currentEndsAt = toDate(userData?.subscriptionEndsAt);
 
-  const extendFrom = (start: Date): Date =>
-    addPeriods(currentEndsAt && currentEndsAt.getTime() > start.getTime() ? currentEndsAt : start, cadence, quantity);
+  // Same-tier active early renewal stacks; otherwise fresh from paidAt.
+  const subscriptionEndsAt =
+    currentTier === tier && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
+      ? addPeriods(currentEndsAt, cadence, quantity)
+      : addPeriods(paidAt, cadence, quantity);
+  return { subscriptionTier: tier, subscriptionEndsAt, fallbackTier: null, fallbackEndsAt: null };
+}
 
-  // Branch 3 — gift never downgrades an active higher tier.
-  if (mode === 'gift' && currentTier && TIER_RANK[tier] < TIER_RANK[currentTier]) {
-    return { subscriptionTier: currentTier, subscriptionEndsAt: extendFrom(paidAt) };
+/**
+ * Resolves the recipient's current paid time into at most two future segments
+ * (Atelier and/or Pro), reading both the active row and any queued fallback.
+ * Past/expired segments are dropped. `proEnd` is the ABSOLUTE end of the Pro
+ * segment (which, when an Atelier segment also exists, sits AFTER it).
+ */
+function resolveSchedule(
+  userData: CurrentSubscription | undefined,
+  now: Date,
+): { atelierEnd: Date | null; proEnd: Date | null } {
+  let atelierEnd: Date | null = null;
+  let proEnd: Date | null = null;
+  const consider = (tierRaw: unknown, endRaw: unknown): void => {
+    const t = tierRaw === 'pro' || tierRaw === 'atelier' ? tierRaw : null;
+    const e = toDate(endRaw);
+    if (!t || !e || e.getTime() <= now.getTime()) return;
+    if (t === 'atelier') {
+      if (!atelierEnd || e.getTime() > atelierEnd.getTime()) atelierEnd = e;
+    } else if (!proEnd || e.getTime() > proEnd.getTime()) {
+      proEnd = e;
+    }
+  };
+  if (userData?.subscriptionStatus === 'active') {
+    consider(userData?.subscriptionTier, userData?.subscriptionEndsAt);
+  }
+  consider(userData?.subscriptionFallbackTier, userData?.subscriptionFallbackEndsAt);
+  return { atelierEnd, proEnd };
+}
+
+/**
+ * Gift grant: higher tier runs first, the lower tier is queued (paused) behind it,
+ * total time = existing remaining + gifted span. Bounded to two segments because
+ * there are only two paid tiers. See docs/design/gift-stacking-spec.md.
+ */
+function computeGiftGrant(
+  userData: CurrentSubscription | undefined,
+  giftTier: BillingTier,
+  cadence: BillingCadence,
+  paidAt: Date,
+  quantity: number,
+): SubscriptionGrant {
+  const { atelierEnd, proEnd } = resolveSchedule(userData, paidAt);
+
+  if (giftTier === 'atelier') {
+    // Grow the Atelier segment; the Pro segment (queued after it) preserves its own
+    // duration and is re-anchored after the new Atelier end.
+    const newAtelierEnd = addPeriods(atelierEnd ?? paidAt, cadence, quantity);
+    const proAnchor = atelierEnd ?? paidAt;
+    const proDurationMs = proEnd ? proEnd.getTime() - proAnchor.getTime() : 0;
+    const newProEnd = proDurationMs > 0 ? new Date(newAtelierEnd.getTime() + proDurationMs) : null;
+    return {
+      subscriptionTier: 'atelier',
+      subscriptionEndsAt: newAtelierEnd,
+      fallbackTier: newProEnd ? 'pro' : null,
+      fallbackEndsAt: newProEnd,
+    };
   }
 
-  // Branch 1 — same-tier active early renewal stacks; otherwise (branch 2) fresh.
-  if (currentTier === tier && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()) {
-    return { subscriptionTier: tier, subscriptionEndsAt: addPeriods(currentEndsAt, cadence, quantity) };
+  // Pro gift. If an Atelier segment exists, Pro stays queued behind it; otherwise
+  // Pro is the only/active tier and just stacks.
+  if (atelierEnd) {
+    const newProEnd = addPeriods(proEnd ?? atelierEnd, cadence, quantity);
+    return { subscriptionTier: 'atelier', subscriptionEndsAt: atelierEnd, fallbackTier: 'pro', fallbackEndsAt: newProEnd };
   }
-  return { subscriptionTier: tier, subscriptionEndsAt: addPeriods(paidAt, cadence, quantity) };
+  const newProEnd = addPeriods(proEnd ?? paidAt, cadence, quantity);
+  return { subscriptionTier: 'pro', subscriptionEndsAt: newProEnd, fallbackTier: null, fallbackEndsAt: null };
 }
