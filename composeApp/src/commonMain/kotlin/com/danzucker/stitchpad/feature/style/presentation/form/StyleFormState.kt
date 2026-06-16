@@ -34,6 +34,12 @@ data class StyleFormState(
     val errorMessage: UiText? = null,
     /** Non-null while the cap-reached upgrade sheet should be shown. */
     val capSheet: StyleCapInfo? = null,
+    /**
+     * True when the user is on a Free tier viewing a style that belongs to a
+     * paid-tier feature. The form is read-only: save is intercepted and redirects
+     * to the upgrade flow instead of persisting.
+     */
+    val readOnly: Boolean = false,
 ) {
     @Suppress("CyclomaticComplexMethod")
     override fun equals(other: Any?): Boolean {
@@ -49,6 +55,7 @@ data class StyleFormState(
         if (isSaving != other.isSaving) return false
         if (errorMessage != other.errorMessage) return false
         if (capSheet != other.capSheet) return false
+        if (readOnly != other.readOnly) return false
         return true
     }
 
@@ -63,6 +70,7 @@ data class StyleFormState(
         result = 31 * result + isSaving.hashCode()
         result = 31 * result + (errorMessage?.hashCode() ?: 0)
         result = 31 * result + (capSheet?.hashCode() ?: 0)
+        result = 31 * result + readOnly.hashCode()
         return result
     }
 

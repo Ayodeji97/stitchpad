@@ -77,12 +77,14 @@ class StyleFormViewModelTest {
         linkToOrderId: String? = null,
         folderId: String? = null,
         tier: SubscriptionTier = SubscriptionTier.FREE,
+        readOnly: Boolean = false,
     ): StyleFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
             if (styleId != null) put("styleId", styleId)
             if (linkToOrderId != null) put("linkToOrderId", linkToOrderId)
             if (folderId != null) put("folderId", folderId)
+            if (readOnly) put("readOnly", readOnly)
         }
         val vm = StyleFormViewModel(
             savedStateHandle = SavedStateHandle(args),
@@ -545,5 +547,68 @@ class StyleFormViewModelTest {
         assertNull(styleRepository.lastBatchCreatedDescription)
         assertFalse(vm.state.value.isSaving)
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // --- Read-only mode ---
+
+    @Test
+    fun readOnly_stateExposesReadOnly() = runTest {
+        val vm = createViewModel(readOnly = true)
+
+        assertTrue(vm.state.value.readOnly)
+    }
+
+    @Test
+    fun readOnly_save_emitsUpgrade_doesNotPersist() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val existing = fakeStyle(id = "s1", customerId = "c1")
+        styleRepository.stylesList = listOf(existing)
+        val vm = createViewModel(customerId = "c1", styleId = "s1", readOnly = true)
+        // populate description so the normal validation guard doesn't short-circuit
+        vm.onAction(StyleFormAction.OnDescriptionChange("Read-only attempt"))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+        val event = vm.events.first()
+
+        assertIs<StyleFormEvent.NavigateToUpgrade>(event)
+        assertNull(styleRepository.lastUpdatedStyle, "readOnly: no write should happen")
+        assertNull(styleRepository.lastCreatedDescription, "readOnly: no create should happen")
+    }
+
+    // --- Free-tier flattened cap count ---
+
+    @Test
+    fun free_computeMaxPhotoSelection_countsFlattenedCloset() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // FREE customer flatCap = 5.
+        // Seed: 2 styles in the root folder (folderId=null) and 2 in a named folder.
+        // Flattened total = 4 → remaining = 5 - 4 = 1 (coerced in [1, ceiling]).
+        val rootLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-flat",
+            folderId = null,
+        )
+        val namedLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-flat",
+            folderId = "folder-a",
+        )
+        styleRepository.stylesByLocation[rootLocation] = List(2) { fakeStyle(id = "root-$it", customerId = "customer-flat") }
+        styleRepository.stylesByLocation[namedLocation] = List(2) { fakeStyle(id = "named-$it", customerId = "customer-flat") }
+        // Expose "folder-a" as an existing folder so observeAllCustomerStyles picks it up.
+        styleRepository.foldersByLocation[
+            com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset("customer-flat")
+        ] = listOf(
+            com.danzucker.stitchpad.core.domain.model.StyleFolder(
+                id = "folder-a",
+                name = "Folder A",
+                createdAt = 0L,
+                updatedAt = 0L,
+            )
+        )
+
+        // No folderId in the args → Free path (no folderId param = root add mode)
+        val vm = createViewModel(customerId = "customer-flat", tier = SubscriptionTier.FREE)
+
+        // remaining = flatCap(5) - total(4) = 1
+        assertEquals(1, vm.state.value.maxPhotoSelection)
     }
 }

@@ -44,6 +44,7 @@ class StyleFormViewModel(
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
     private val folderId: String? = savedStateHandle["folderId"]
+    private val readOnly: Boolean = savedStateHandle["readOnly"] ?: false
 
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
@@ -54,7 +55,11 @@ class StyleFormViewModel(
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(
-        StyleFormState(isEditMode = styleId != null, allowMultiPhoto = allowMultiPhoto)
+        StyleFormState(
+            isEditMode = styleId != null,
+            allowMultiPhoto = allowMultiPhoto,
+            readOnly = readOnly,
+        )
     )
 
     private val _events = Channel<StyleFormEvent>()
@@ -70,7 +75,11 @@ class StyleFormViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = StyleFormState(isEditMode = styleId != null, allowMultiPhoto = allowMultiPhoto)
+            initialValue = StyleFormState(
+                isEditMode = styleId != null,
+                allowMultiPhoto = allowMultiPhoto,
+                readOnly = readOnly,
+            )
         )
 
     fun onAction(action: StyleFormAction) {
@@ -148,18 +157,93 @@ class StyleFormViewModel(
      * Clamp the multi-pick limit to the folder's remaining capacity so a Pro user
      * with a 5-image folder can't pick 10 only to be blocked at save. Remaining =
      * cap − current count, coerced into [1, ceiling] (the gallery blocks entry at 0).
+     *
+     * On Free tier (folders disabled) the count spans the entire closet/library so
+     * that photos added across different folders all count toward the flat cap.
      */
     private fun computeMaxPhotoSelection() {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val cap = resolveImageCap()
-            val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> 0
-            }
+            val current = currentClosetCount(userId)
             val remaining = (cap - current).coerceIn(1, STYLE_MULTI_PICK_CEILING)
             _state.update { it.copy(maxPhotoSelection = remaining) }
         }
+    }
+
+    /**
+     * Returns the total style count to compare against the image cap.
+     *
+     * When folders are disabled (Free tier), counts the ENTIRE closet/library
+     * across all folders so the flat cap is enforced globally. When folders are
+     * enabled (Pro/Atelier), counts only the current location (a single folder).
+     */
+    private suspend fun currentClosetCount(userId: String): Int {
+        val tier = entitlements.awaitHydrated().tier
+        val foldersEnabled = if (customerId == null) {
+            StyleCollectionLimits.forInspiration(tier).foldersEnabled
+        } else {
+            StyleCollectionLimits.forCustomer(tier).foldersEnabled
+        }
+        if (foldersEnabled) {
+            return when (val r = styleRepository.observeStyles(userId, location).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+        }
+        return when (val loc = location) {
+            is StyleLocation.CustomerCloset -> countFlattenedCustomerStyles(userId, loc.customerId)
+            is StyleLocation.Inspiration -> countFlattenedInspirationStyles(userId)
+        }
+    }
+
+    /**
+     * Counts all customer styles across the default folder and all named folders
+     * by summing individual [observeStyles] point-in-time reads. This avoids the
+     * initial-sentinel issue of the continuous [observeAllCustomerStyles] Flow.
+     */
+    private suspend fun countFlattenedCustomerStyles(userId: String, cid: String): Int {
+        val rootCount = when (
+            val r = styleRepository.observeStyles(userId, StyleLocation.CustomerCloset(cid)).first()
+        ) {
+            is Result.Success -> r.data.size
+            is Result.Error -> 0
+        }
+        val folders = styleRepository.observeFolders(userId, StyleLocation.CustomerCloset(cid))
+            .first()
+            .let { if (it is Result.Success) it.data else emptyList() }
+        val namedCount = folders.sumOf { folder ->
+            val loc = StyleLocation.CustomerCloset(cid, folder.id)
+            when (val r = styleRepository.observeStyles(userId, loc).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+        }
+        return rootCount + namedCount
+    }
+
+    /**
+     * Counts all Inspiration styles across the default folder and all named folders.
+     * Point-in-time read (no runningFold sentinel issue).
+     */
+    private suspend fun countFlattenedInspirationStyles(userId: String): Int {
+        val rootCount = when (
+            val r = styleRepository.observeStyles(userId, StyleLocation.Inspiration()).first()
+        ) {
+            is Result.Success -> r.data.size
+            is Result.Error -> 0
+        }
+        val folders = styleRepository.observeFolders(userId, StyleLocation.Inspiration())
+            .first()
+            .let { if (it is Result.Success) it.data else emptyList() }
+        val namedCount = folders.sumOf { folder ->
+            val loc = StyleLocation.Inspiration(folder.id)
+            when (val r = styleRepository.observeStyles(userId, loc).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+        }
+        return rootCount + namedCount
     }
 
     // Resolves the image cap from the CURRENT tier each call (awaiting hydration).
@@ -176,6 +260,10 @@ class StyleFormViewModel(
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
+        if (readOnly) {
+            viewModelScope.launch { _events.send(StyleFormEvent.NavigateToUpgrade) }
+            return
+        }
         val s = _state.value
         val trimmedDescription = s.description.trim()
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
