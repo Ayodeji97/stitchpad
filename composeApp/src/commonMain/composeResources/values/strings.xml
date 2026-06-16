@@ -624,6 +624,9 @@
     <string name="order_form_deposit_placeholder">0</string>
     <string name="order_form_notes_label">Notes (optional)</string>
     <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
+    <string name="order_form_discount_label">Discount (₦)</string>
+    <string name="order_form_discount_reason_label">Discount reason (optional)</string>
+    <string name="order_form_discount_reason_placeholder">e.g. New customer</string>
     <string name="order_form_create_button">Create Order</string>
     <string name="order_form_save_button">Save Changes</string>
     <string name="order_form_next">Next</string>

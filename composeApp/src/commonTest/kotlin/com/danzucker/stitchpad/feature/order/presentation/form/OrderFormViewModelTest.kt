@@ -361,6 +361,57 @@ class OrderFormViewModelTest {
     }
 
     @Test
+    fun save_inCreateMode_persistsDiscountAndReason() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnDiscountChange("2500"))
+        vm.onAction(OrderFormAction.OnDiscountReasonChange("New customer"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertEquals(2_500.0, created.discount)
+        assertEquals("New customer", created.discountReason)
+    }
+
+    @Test
+    fun save_inCreateMode_blankDiscount_savesZeroAndNullReason() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertEquals(0.0, created.discount)
+        assertEquals(null, created.discountReason)
+    }
+
+    @Test
+    fun save_inCreateMode_discountExceedingTotal_clampsToTotal() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnDiscountChange("9000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertEquals(5_000.0, created.discount)
+        assertEquals(0.0, created.payableTotal)
+    }
+
+    @Test
     fun loadOrder_populatesItemQuantityFromOrder() = runTest {
         val order = seedOrder().copy(
             items = listOf(

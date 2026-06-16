@@ -134,6 +134,9 @@ import stitchpad.composeapp.generated.resources.order_form_deposit_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_placeholder
 import stitchpad.composeapp.generated.resources.order_form_description_label
 import stitchpad.composeapp.generated.resources.order_form_description_placeholder
+import stitchpad.composeapp.generated.resources.order_form_discount_label
+import stitchpad.composeapp.generated.resources.order_form_discount_reason_label
+import stitchpad.composeapp.generated.resources.order_form_discount_reason_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_name_label
 import stitchpad.composeapp.generated.resources.order_form_fabric_name_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_section_title
@@ -1093,6 +1096,30 @@ private fun DetailsStep(
             singleLine = true,
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(DesignTokens.space3))
+
+        // Discount
+        OutlinedTextField(
+            value = state.discount,
+            onValueChange = { raw -> onAction(OrderFormAction.OnDiscountChange(raw.filter { it.isDigit() })) },
+            label = { Text(stringResource(Res.string.order_form_discount_label)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            visualTransformation = ThousandsSeparatorTransformation,
+            singleLine = true,
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(DesignTokens.space3))
+        OutlinedTextField(
+            value = state.discountReason,
+            onValueChange = { onAction(OrderFormAction.OnDiscountReasonChange(it)) },
+            label = { Text(stringResource(Res.string.order_form_discount_reason_label)) },
+            placeholder = { Text(stringResource(Res.string.order_form_discount_reason_placeholder)) },
+            singleLine = true,
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(DesignTokens.space4))

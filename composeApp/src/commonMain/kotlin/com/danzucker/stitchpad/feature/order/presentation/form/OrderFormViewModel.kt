@@ -292,6 +292,13 @@ class OrderFormViewModel(
             is OrderFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
+            is OrderFormAction.OnDiscountChange -> {
+                val digits = action.discount.filter { it.isDigit() }
+                _state.update { it.copy(discount = digits) }
+            }
+            is OrderFormAction.OnDiscountReasonChange -> {
+                _state.update { it.copy(discountReason = action.reason) }
+            }
             OrderFormAction.OnSave -> {
                 // Guard against double-tap on the Save button — the UI's
                 // enabled-when-not-saving flag updates a frame later than
@@ -506,6 +513,8 @@ class OrderFormViewModel(
                                 ?.toString()
                                 ?: "",
                             notes = order.notes ?: "",
+                            discount = if (order.discount > 0.0) order.discount.toLong().toString() else "",
+                            discountReason = order.discountReason ?: "",
                             isLoading = false
                         )
                     }
@@ -746,6 +755,7 @@ class OrderFormViewModel(
             }
 
             val totalPrice = orderItems.sumOf { it.price * it.quantity }
+            val discount = (s.discount.toDoubleOrNull() ?: 0.0).coerceIn(0.0, totalPrice)
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
@@ -788,6 +798,8 @@ class OrderFormViewModel(
                 payments = payments,
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
+                discount = discount,
+                discountReason = s.discountReason.trim().ifBlank { null },
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
                 updatedAt = 0L,
             )
