@@ -8,12 +8,14 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
+import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
@@ -21,7 +23,10 @@ import com.danzucker.stitchpad.feature.style.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -44,6 +49,7 @@ class StyleFormViewModel(
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
     private val folderId: String? = savedStateHandle["folderId"]
+    private val readOnly: Boolean = savedStateHandle["readOnly"] ?: false
 
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
@@ -54,7 +60,11 @@ class StyleFormViewModel(
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(
-        StyleFormState(isEditMode = styleId != null, allowMultiPhoto = allowMultiPhoto)
+        StyleFormState(
+            isEditMode = styleId != null,
+            allowMultiPhoto = allowMultiPhoto,
+            readOnly = readOnly,
+        )
     )
 
     private val _events = Channel<StyleFormEvent>()
@@ -65,12 +75,17 @@ class StyleFormViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 if (styleId != null) loadStyle(styleId) else if (allowMultiPhoto) computeMaxPhotoSelection()
+                observeUnlockOnUpgrade()
             }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = StyleFormState(isEditMode = styleId != null, allowMultiPhoto = allowMultiPhoto)
+            initialValue = StyleFormState(
+                isEditMode = styleId != null,
+                allowMultiPhoto = allowMultiPhoto,
+                readOnly = readOnly,
+            )
         )
 
     fun onAction(action: StyleFormAction) {
@@ -110,6 +125,26 @@ class StyleFormViewModel(
         _state.update { it.copy(selectedPhotos = photos, errorMessage = null) }
     }
 
+    private fun observeUnlockOnUpgrade() {
+        if (!readOnly) return
+        viewModelScope.launch {
+            entitlements.awaitHydrated()
+            entitlements.flow
+                .map { tierEnablesFolders(it.tier) }
+                .distinctUntilChanged()
+                .collect { foldersEnabled ->
+                    if (foldersEnabled) _state.update { it.copy(readOnly = false) }
+                }
+        }
+    }
+
+    private fun tierEnablesFolders(tier: SubscriptionTier): Boolean =
+        if (customerId == null) {
+            StyleCollectionLimits.forInspiration(tier).foldersEnabled
+        } else {
+            StyleCollectionLimits.forCustomer(tier).foldersEnabled
+        }
+
     private fun loadStyle(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
@@ -148,18 +183,54 @@ class StyleFormViewModel(
      * Clamp the multi-pick limit to the folder's remaining capacity so a Pro user
      * with a 5-image folder can't pick 10 only to be blocked at save. Remaining =
      * cap − current count, coerced into [1, ceiling] (the gallery blocks entry at 0).
+     *
+     * On Free tier (folders disabled) the count spans the entire closet/library so
+     * that photos added across different folders all count toward the flat cap.
+     *
+     * This is a non-critical / best-effort path: if the count can't be read (null),
+     * we fall back to 0 so the picker still functions. The authoritative guard is in
+     * the save path below.
      */
     private fun computeMaxPhotoSelection() {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val cap = resolveImageCap()
-            val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> 0
-            }
+            val current = currentClosetCount(userId) ?: 0
             val remaining = (cap - current).coerceIn(1, STYLE_MULTI_PICK_CEILING)
             _state.update { it.copy(maxPhotoSelection = remaining) }
         }
+    }
+
+    /**
+     * Returns the total style count to compare against the image cap, or `null` if a
+     * read error prevents the count from being determined.
+     *
+     * When folders are disabled (Free tier), counts the ENTIRE closet/library across
+     * all folders so the flat cap is enforced globally (returns null on any sub-read
+     * error). When folders are enabled (Pro/Atelier), counts only the current location
+     * (a single folder); returns 0 on read error because the paid path has its own
+     * explicit error handling in the save guard.
+     */
+    private suspend fun currentClosetCount(userId: String): Int? {
+        val tier = entitlements.awaitHydrated().tier
+        val foldersEnabled = if (customerId == null) {
+            StyleCollectionLimits.forInspiration(tier).foldersEnabled
+        } else {
+            StyleCollectionLimits.forCustomer(tier).foldersEnabled
+        }
+        if (foldersEnabled) {
+            return when (val r = styleRepository.observeStyles(userId, location).first()) {
+                is Result.Success -> r.data.size
+                is Result.Error -> 0
+            }
+        }
+        // Free tier: count the entire flattened closet/library across all folders.
+        // Returns null if any sub-read fails (callers must fail closed for hard guards).
+        val root = when (val loc = location) {
+            is StyleLocation.CustomerCloset -> StyleLocation.CustomerCloset(loc.customerId)
+            is StyleLocation.Inspiration -> StyleLocation.Inspiration()
+        }
+        return styleRepository.countStylesAcrossFolders(userId, root)
     }
 
     // Resolves the image cap from the CURRENT tier each call (awaiting hydration).
@@ -176,6 +247,10 @@ class StyleFormViewModel(
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
+        if (_state.value.readOnly) {
+            viewModelScope.launch { _events.send(StyleFormEvent.NavigateToUpgrade) }
+            return
+        }
         val s = _state.value
         val trimmedDescription = s.description.trim()
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
@@ -214,11 +289,15 @@ class StyleFormViewModel(
                 StyleCollectionLimits.forCustomer(tier)
             }
             val imageCap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
-            // FIX 7(form): fail safe on count-read error — block the create rather
-            // than treating an unreadable count as 0 (which bypasses the cap).
-            val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> {
+            // FIX 7(form) + flattened-Free fix: on Free tier count the whole closet/library
+            // across all folders (flat cap applies globally). On paid tiers count the single
+            // current folder. Fail CLOSED on count-read error — block the create rather than
+            // treating an unreadable count as 0 (which bypasses the cap).
+            val current: Int
+            if (!limits.foldersEnabled) {
+                // Free: flattened count; null = sub-read failed → abort (fail closed).
+                val flatCount = currentClosetCount(userId)
+                if (flatCount == null) {
                     _state.update {
                         it.copy(
                             isSaving = false,
@@ -226,6 +305,21 @@ class StyleFormViewModel(
                         )
                     }
                     return@launch
+                }
+                current = flatCount
+            } else {
+                // Paid: single-location count; hard-fail on read error.
+                when (val r = styleRepository.observeStyles(userId, location).first()) {
+                    is Result.Success -> current = r.data.size
+                    is Result.Error -> {
+                        _state.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                            )
+                        }
+                        return@launch
+                    }
                 }
             }
             if (current + s.selectedPhotos.size > imageCap) {

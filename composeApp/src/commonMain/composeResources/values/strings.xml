@@ -507,6 +507,11 @@
     <string name="style_cap_dismiss">Not now</string>
     <string name="style_cap_got_it">Got it</string>
 
+    <!-- Style read-only (locked style — Free tier over cap) -->
+    <string name="style_readonly_upgrade_cta">Upgrade to edit</string>
+    <string name="style_readonly_hint">This style is locked. Upgrade to Pro to edit it.</string>
+    <string name="style_locked_a11y">Locked. Upgrade to edit.</string>
+
     <!-- Style errors -->
     <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>
     <string name="error_style_not_found">Style not found</string>
