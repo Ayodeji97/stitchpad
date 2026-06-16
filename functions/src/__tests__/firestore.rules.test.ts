@@ -163,6 +163,46 @@ describe('users/{uid}/billingTransactions', () => {
   });
 });
 
+describe('gifts collection', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'gifts/CODE123'), { status: 'paid', code: 'CODE123', tier: 'pro' });
+      await setDoc(doc(admin, 'giftLinkTokens/TOK'), { uid: 'alice' });
+    });
+  });
+
+  it('rejects any client read of a gift (bearer code must not leak)', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'gifts/CODE123')));
+    await assertFails(getDoc(doc(db('bob'), 'gifts/CODE123')));
+  });
+
+  it('rejects any client write of a gift (self-grant / claim tampering)', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'gifts/NEW'), { status: 'paid', tier: 'atelier' }));
+    await assertFails(updateDoc(doc(db('alice'), 'gifts/CODE123'), { status: 'claimed' }));
+  });
+
+  it('rejects any client read or write of the giftLinkTokens reverse index', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'giftLinkTokens/TOK')));
+    await assertFails(setDoc(doc(db('alice'), 'giftLinkTokens/MINE'), { uid: 'alice' }));
+  });
+});
+
+describe('giftLinkToken field hardening', () => {
+  it('rejects planting a giftLinkToken at user-doc creation', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, giftLinkToken: 'HACK' }),
+    );
+  });
+
+  it('rejects adding or changing giftLinkToken via update', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, giftLinkToken: 'SERVERTOK' });
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { giftLinkToken: 'HACK' }));
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { giftLinkToken: deleteField() }));
+  });
+});
+
 describe('server-owned field hardening', () => {
   describe('on an active paid user', () => {
     beforeEach(async () => {

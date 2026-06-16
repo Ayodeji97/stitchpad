@@ -1,0 +1,50 @@
+import { buildGiftReceivedEmail, buildGiftClaimEmail } from '../../billing/giftEmailTemplate';
+
+describe('buildGiftReceivedEmail (gift_me auto-applied)', () => {
+  it('names the gifter, tier and duration', () => {
+    const { subject, html, text } = buildGiftReceivedEmail({ gifterName: 'Bola', tier: 'pro', cadence: 'monthly' });
+    expect(subject).toBe('You have been gifted StitchPad Tailor Pro');
+    expect(html).toContain('Bola');
+    expect(html).toContain('Tailor Pro');
+    expect(html).toContain('1 month');
+    expect(text).toContain('Bola gifted you StitchPad Tailor Pro for 1 month');
+  });
+
+  it('falls back to "Someone" for an anonymous gifter and labels annual as 1 year', () => {
+    const { html } = buildGiftReceivedEmail({ tier: 'atelier', cadence: 'annual' });
+    expect(html).toContain('Someone');
+    expect(html).toContain('Tailor Atelier');
+    expect(html).toContain('1 year');
+  });
+});
+
+describe('buildGiftClaimEmail (public claim)', () => {
+  it('embeds the code, an https claim link and the optional note', () => {
+    const { subject, html, text } = buildGiftClaimEmail({
+      gifterName: 'Bola', note: 'For your new shop!', code: 'ABC234', tier: 'pro', cadence: 'annual',
+      claimUrl: 'https://link.getstitchpad.com/claim?code=ABC234',
+    });
+    expect(subject).toBe('Bola sent you a StitchPad gift');
+    expect(html).toContain('ABC234');
+    expect(html).toContain('https://link.getstitchpad.com/claim?code=ABC234');
+    expect(html).toContain('For your new shop!');
+    expect(html).toContain('1 year');
+    expect(text).toContain('ABC234');
+  });
+
+  it('escapes HTML in the note to prevent injection', () => {
+    const { html } = buildGiftClaimEmail({
+      note: '<script>alert(1)</script>', code: 'X', tier: 'pro', cadence: 'monthly',
+      claimUrl: 'https://link.getstitchpad.com/claim?code=X',
+    });
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('omits the note block when no note is given', () => {
+    const { html } = buildGiftClaimEmail({
+      code: 'X', tier: 'pro', cadence: 'monthly', claimUrl: 'https://link.getstitchpad.com/claim?code=X',
+    });
+    expect(html).toContain('You have a gift');
+  });
+});

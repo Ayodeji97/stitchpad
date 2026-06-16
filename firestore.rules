@@ -104,7 +104,12 @@ service cloud.firestore {
         // subscriptionEndsAt is server-owned (set only by the Paystack webhook
         // via the Admin SDK). A client must never plant it at creation, or it
         // could ride a far-future date by buying a single prepaid period.
-        && (!('subscriptionEndsAt' in request.resource.data));
+        && (!('subscriptionEndsAt' in request.resource.data))
+        // giftLinkToken is the public token behind a tailor's "Gift me" link,
+        // minted only by createGiftLink (Admin SDK). A client-planted token could
+        // collide with the giftLinkTokens reverse index and hijack another tailor's
+        // incoming gifts, so it must never be set at creation.
+        && (!('giftLinkToken' in request.resource.data));
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these
@@ -114,6 +119,7 @@ service cloud.firestore {
         && serverOnlyField('subscriptionStatus')
         && serverOnlyField('subscriptionEndsAt')
         && serverOnlyField('subscriptionRenews')
+        && serverOnlyField('giftLinkToken')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount');
@@ -228,6 +234,22 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow write: if false;
       }
+    }
+
+    // ── /gifts/{giftId} — Admin-SDK only ───────────────────────────────────
+    // Gift docs hold payment state and the bearer claim code (which IS the doc id
+    // for public gifts). A client must never read a code (bearer credential) nor
+    // write payment/claim state. Redemption goes through the redeemGift Cloud
+    // Function; public gift profiles through getPublicGiftProfile. Hard deny.
+    match /gifts/{giftId} {
+      allow read, write: if false;
+    }
+
+    // ── /giftLinkTokens/{token} — Admin-SDK only ───────────────────────────
+    // Reverse index token -> uid, read only by getPublicGiftProfile (Admin SDK) so
+    // the users collection stays owner-read-only. Minted by createGiftLink. Hard deny.
+    match /giftLinkTokens/{token} {
+      allow read, write: if false;
     }
 
     // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────
