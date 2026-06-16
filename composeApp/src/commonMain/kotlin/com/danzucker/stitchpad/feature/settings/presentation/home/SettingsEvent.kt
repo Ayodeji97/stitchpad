@@ -25,4 +25,5 @@ sealed interface SettingsEvent {
     data class ShowSnackbar(val message: UiText) : SettingsEvent
     data object NavigateToUpgrade : SettingsEvent
     data object NavigateToFoundersNote : SettingsEvent
+    data object NavigateToShareGiftLink : SettingsEvent
 }

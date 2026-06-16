@@ -38,6 +38,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.AddCustomerFirstSc
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
 import com.danzucker.stitchpad.feature.gift.presentation.redeem.RedeemGiftRoot
+import com.danzucker.stitchpad.feature.gift.presentation.sharelink.ShareGiftLinkRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxRoot
@@ -77,6 +78,7 @@ import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.RedeemGiftRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
+import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
@@ -466,6 +468,11 @@ private fun MainNavGraph(
                 onBack = { navController.navigateUp() },
             )
         }
+        composable<ShareGiftLinkRoute> {
+            ShareGiftLinkRoot(
+                onBack = { navController.navigateUp() },
+            )
+        }
         composable<ReportsRoute> {
             ReportsRoot(
                 onNavigateToCustomerDetail = { customerId ->
@@ -489,6 +496,7 @@ private fun MainNavGraph(
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
+                onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
             )
         }
         composable<FoundersNoteRoute> {

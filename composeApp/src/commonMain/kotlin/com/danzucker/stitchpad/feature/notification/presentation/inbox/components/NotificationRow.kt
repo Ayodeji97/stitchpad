@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Schedule
@@ -52,6 +53,10 @@ import kotlinx.datetime.Month
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.gift_notification_from
+import stitchpad.composeapp.generated.resources.gift_notification_title_atelier
+import stitchpad.composeapp.generated.resources.gift_notification_title_generic
+import stitchpad.composeapp.generated.resources.gift_notification_title_pro
 import stitchpad.composeapp.generated.resources.month_abbrev_apr
 import stitchpad.composeapp.generated.resources.month_abbrev_aug
 import stitchpad.composeapp.generated.resources.month_abbrev_dec
@@ -158,12 +163,28 @@ private fun resolveTypeTokens(type: NotificationType, isDark: Boolean): Notifica
             iconBg = MaterialTheme.colorScheme.tertiaryContainer,
             icon = Icons.Outlined.Payments,
         )
+        NotificationType.GIFT_RECEIVED -> NotificationTypeTokens(
+            accent = MaterialTheme.colorScheme.primary,
+            iconBg = MaterialTheme.colorScheme.primaryContainer,
+            icon = Icons.Outlined.CardGiftcard,
+        )
         NotificationType.UNKNOWN -> NotificationTypeTokens(
             accent = MaterialTheme.colorScheme.onSurfaceVariant,
             iconBg = MaterialTheme.colorScheme.surfaceVariant,
             icon = Icons.Outlined.Notifications,
         )
     }
+
+/** Row title: the gift message for a gift, otherwise the customer's name. */
+@Composable
+private fun rowTitle(notification: Notification): String = when (notification.type) {
+    NotificationType.GIFT_RECEIVED -> when (notification.tier?.lowercase()) {
+        "pro" -> stringResource(Res.string.gift_notification_title_pro)
+        "atelier" -> stringResource(Res.string.gift_notification_title_atelier)
+        else -> stringResource(Res.string.gift_notification_title_generic)
+    }
+    else -> notification.customerName
+}
 
 /** Builds the accessibility sentence mirroring the old row. */
 @Composable
@@ -184,6 +205,14 @@ private fun buildA11ySentence(notification: Notification, relativeTime: String):
             stringResource(Res.string.notification_to_collect, notification.customerName, amountStr)
         } else {
             nameWithGarment(notification)
+        }
+        NotificationType.GIFT_RECEIVED -> {
+            val title = rowTitle(notification)
+            if (!notification.gifterName.isNullOrBlank()) {
+                "$title · ${stringResource(Res.string.gift_notification_from, notification.gifterName)}"
+            } else {
+                title
+            }
         }
         NotificationType.UNKNOWN -> nameWithGarment(notification)
     }
@@ -216,7 +245,7 @@ private fun AnnotatedString.Builder.appendOwesTag(
 private fun showTagForType(type: NotificationType, amount: Double?): Boolean = when (type) {
     NotificationType.OVERDUE, NotificationType.DUE_SOON -> true
     NotificationType.TO_COLLECT -> amount != null
-    NotificationType.UNKNOWN -> false
+    NotificationType.GIFT_RECEIVED, NotificationType.UNKNOWN -> false
 }
 
 private fun AnnotatedString.Builder.appendTag(
@@ -232,7 +261,7 @@ private fun AnnotatedString.Builder.appendTag(
         NotificationType.OVERDUE -> withStyle(SpanStyle(color = accent)) { append(tagOverdue) }
         NotificationType.DUE_SOON -> withStyle(SpanStyle(color = accent)) { append(tagDueSoon) }
         NotificationType.TO_COLLECT -> appendOwesTag(owesFull, amountStr, accent, monoFamily)
-        NotificationType.UNKNOWN -> Unit
+        NotificationType.GIFT_RECEIVED, NotificationType.UNKNOWN -> Unit
     }
 }
 
@@ -257,11 +286,24 @@ private fun buildMetaString(
         ""
     }
     val showTag = showTagForType(notification.type, notification.amount)
+    val giftFrom = if (
+        notification.type == NotificationType.GIFT_RECEIVED && !notification.gifterName.isNullOrBlank()
+    ) {
+        stringResource(Res.string.gift_notification_from, notification.gifterName)
+    } else {
+        ""
+    }
 
     return buildAnnotatedString {
         var hasPrev = false
 
+        if (giftFrom.isNotEmpty()) {
+            withStyle(SpanStyle(color = muted)) { append(giftFrom) }
+            hasPrev = true
+        }
+
         if (notification.garmentSummary.isNotEmpty()) {
+            if (hasPrev) append(" · ")
             withStyle(SpanStyle(color = muted)) { append(notification.garmentSummary) }
             hasPrev = true
         }
@@ -331,7 +373,7 @@ fun NotificationRow(
             verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
         ) {
             Text(
-                text = notification.customerName,
+                text = rowTitle(notification),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = if (!notification.isRead) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (!notification.isRead) onSurface else onSurfaceVariant,
@@ -422,6 +464,21 @@ private fun NotificationRowLightPreview() {
                         createdAt = 0L,
                     ),
                     relativeTime = "Mon",
+                    onClick = {},
+                )
+                NotificationRow(
+                    notification = Notification(
+                        id = "gift1__GIFT_RECEIVED",
+                        orderId = "",
+                        type = NotificationType.GIFT_RECEIVED,
+                        customerName = "",
+                        garmentSummary = "",
+                        tier = "pro",
+                        gifterName = "Bola",
+                        isRead = false,
+                        createdAt = 0L,
+                    ),
+                    relativeTime = "1h",
                     onClick = {},
                 )
                 NotificationRow(
