@@ -149,4 +149,39 @@ class KpiCalculatorTest {
         assertEquals(0.0, summary.collected.current)
         assertEquals(5_000.0, summary.outstanding.current)
     }
+
+    @Test
+    fun `discount reduces revenue and never inflates collected`() {
+        // totalPrice=10_000, discount=2_000 → payableTotal=8_000
+        // deposit paid=2_000 → balanceRemaining=6_000
+        // Expected: revenue=8_000 (net), collected=2_000 (cash only), outstanding=6_000
+        val discountedOrder = Order(
+            id = "disc",
+            userId = "u",
+            customerId = "c1",
+            customerName = "Test",
+            items = listOf(
+                OrderItem(id = "i", garmentType = GarmentType.AGBADA, description = "", price = 10_000.0)
+            ),
+            status = OrderStatus.PENDING,
+            priority = OrderPriority.NORMAL,
+            statusHistory = emptyList(),
+            totalPrice = 10_000.0,
+            discount = 2_000.0,
+            payments = listOf(depositPayment(amount = 2_000.0)),
+            deadline = null,
+            notes = null,
+            createdAt = millisAt(today),
+            updatedAt = millisAt(today),
+        )
+        val summary = KpiCalculator.computeSummary(
+            orders = listOf(discountedOrder),
+            period = ReportsPeriod.WEEK,
+            today = today,
+            timeZone = tz
+        )
+        assertEquals(8_000.0, summary.revenue.current)
+        assertEquals(2_000.0, summary.collected.current)
+        assertEquals(6_000.0, summary.outstanding.current)
+    }
 }
