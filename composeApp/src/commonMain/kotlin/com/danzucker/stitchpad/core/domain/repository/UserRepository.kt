@@ -36,6 +36,16 @@ interface UserRepository {
     fun observeUser(userId: String): Flow<User?>
 
     /**
+     * One-shot check of whether the remote `users/{userId}` document already holds
+     * workshop-setup data (a non-blank `businessName`). Used by the launch router to
+     * skip the workshop-setup screen for an existing user who reinstalled the app —
+     * the local "completed" flag is wiped on reinstall, but the profile in Firestore
+     * survives. Returns false on any read failure (offline / not found), so the worst
+     * case is the pre-existing behavior of showing setup again.
+     */
+    suspend fun hasWorkshopProfile(userId: String): Boolean
+
+    /**
      * Stages `bytes` for the deterministic Firebase Storage path
      * (`users/{userId}/branding/logo.jpg`). Caller passes the returned
      * (localPath, storagePath) to [updateBrandLogo], which stores the pending

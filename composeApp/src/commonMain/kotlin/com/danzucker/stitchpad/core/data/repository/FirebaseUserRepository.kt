@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.core.data.repository
 
 import com.danzucker.stitchpad.core.data.dto.UserDto
@@ -175,6 +177,22 @@ class FirebaseUserRepository(
                 AppLogger.e(tag = TAG, throwable = error) { "observeUser failed userId=$userId" }
                 emit(null)
             }
+    }
+
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM", "TooGenericExceptionCaught")
+    override suspend fun hasWorkshopProfile(userId: String): Boolean {
+        return try {
+            val snapshot = firestore.collection(USERS).document(userId).get()
+            if (!snapshot.exists) return false
+            val dto = snapshot.data(UserDto.serializer())
+            !dto.businessName.isNullOrBlank()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Offline / not-yet-cached / malformed doc: fall back to showing setup.
+            AppLogger.w(tag = TAG, throwable = e) { "hasWorkshopProfile read failed userId=$userId" }
+            false
+        }
     }
 
     override suspend fun uploadUserLogo(
