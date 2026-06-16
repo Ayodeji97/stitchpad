@@ -22,7 +22,7 @@ class ResolveNeedsWorkshopSetupTest {
     }
 
     @Test
-    fun localFlagWiped_butRemoteHasWorkshop_returnsFalse_andHealsLocalFlag() = runTest {
+    fun localFlagWiped_butRemoteHasWorkshop_returnsFalse_andHealsPerUserFlag() = runTest {
         // The reinstall scenario: local flag gone, but Firestore still has the profile.
         val prefs = FakeOnboardingPreferences().apply { workshopSetupCompleted = false }
         val users = FakeUserRepository().apply { hasWorkshopProfileResult = true }
@@ -30,7 +30,25 @@ class ResolveNeedsWorkshopSetupTest {
         val needsSetup = ResolveNeedsWorkshopSetup(prefs, users)("u1")
 
         assertFalse(needsSetup)
-        assertTrue(prefs.hasCompletedWorkshopSetup(), "local flag should be healed for fast future launches")
+        assertTrue(
+            prefs.hasConfirmedRemoteWorkshopProfile("u1"),
+            "per-user flag should be healed for fast future launches",
+        )
+        // The device-wide flag must NOT be set by a remote heal — that would let a
+        // different account on the same device skip its own setup.
+        assertFalse(prefs.hasCompletedWorkshopSetup())
+    }
+
+    @Test
+    fun healingOneUser_doesNotSkipSetupForADifferentUser_onSameDevice() = runTest {
+        val prefs = FakeOnboardingPreferences()
+        val resolve = ResolveNeedsWorkshopSetup(prefs, FakeUserRepository().apply { hasWorkshopProfileResult = true })
+        // User A (existing) signs in on a fresh install and is confirmed.
+        assertFalse(resolve("userA"))
+
+        // User B (brand new, no remote profile) then signs in on the same install.
+        val resolveForB = ResolveNeedsWorkshopSetup(prefs, FakeUserRepository().apply { hasWorkshopProfileResult = false })
+        assertTrue(resolveForB("userB"), "a different account must still be gated through setup")
     }
 
     @Test
