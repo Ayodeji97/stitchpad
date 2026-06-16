@@ -27,7 +27,7 @@ import {
   parseCadence,
   priceFor,
 } from './paystackBilling';
-import { computeSubscriptionGrant, addYears } from './subscriptionPeriod';
+import { computeSubscriptionGrant, addYears, toDate } from './subscriptionPeriod';
 import { buildGiftReceivedEmail, buildGiftClaimEmail } from './giftEmailTemplate';
 import { sendResendEmail } from '../email/resendClient';
 
@@ -404,10 +404,13 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       // Deterministic id so a re-delivery never double-notifies (also covered by the
       // status guard). Written with merge so an existing read-state is preserved.
       const notifRef = userRef.collection('notifications').doc(`${giftId}__GIFT_RECEIVED`);
+      // Fields mirror the client NotificationDto exactly (type/tier/gifterName/
+      // isRead/createdAt) — do NOT add keys the DTO lacks (e.g. cadence): the
+      // GitLive decode is best-effort (runCatching) and an unknown key risks the
+      // gift notification being silently dropped from the inbox on some platforms.
       tx.set(notifRef, {
         type: 'GIFT_RECEIVED',
         tier: grant.subscriptionTier,
-        cadence,
         gifterName: gift.gifterName ?? null,
         isRead: false,
         createdAt: deps.now().getTime(),
@@ -670,19 +673,6 @@ function parsePaidAt(data: PaystackGiftChargeData, fallback: Date): Date {
   if (!raw) return fallback;
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
-}
-
-function toDate(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if (
-    typeof value === 'object' &&
-    'toDate' in value &&
-    typeof (value as { toDate: () => Date }).toDate === 'function'
-  ) {
-    return (value as { toDate: () => Date }).toDate();
-  }
-  return null;
 }
 
 function createGiftPaystackClient(secretKey: string): GiftPaystackClient {
