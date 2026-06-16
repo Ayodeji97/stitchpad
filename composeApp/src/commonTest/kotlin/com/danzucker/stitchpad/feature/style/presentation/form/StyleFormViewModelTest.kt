@@ -254,15 +254,18 @@ class StyleFormViewModelTest {
     // --- Save: create flow ---
 
     @Test
-    fun onSaveClick_createMode_blankDescription_doesNotCallRepository() = runTest {
+    fun onSaveClick_createMode_blankDescription_withPhoto_createsWithEmptyDescription() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
-        // description is blank
+        // description is blank — now optional, so a photo alone is enough to save
 
         vm.onAction(StyleFormAction.OnSaveClick)
+        val event = vm.events.first()
 
-        assertNull(styleRepository.lastCreatedDescription)
+        assertEquals("", styleRepository.lastCreatedDescription)
+        assertNotNull(styleRepository.lastCreatedPhotoBytes)
+        assertIs<StyleFormEvent.NavigateBack>(event)
     }
 
     @Test
@@ -506,16 +509,17 @@ class StyleFormViewModelTest {
     }
 
     @Test
-    fun onSaveClick_editMode_blankDescription_doesNotCallRepository() = runTest {
+    fun onSaveClick_editMode_blankDescription_updatesWithEmptyDescription() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val existing = fakeStyle(id = "style-7", description = "Old")
         styleRepository.stylesList = listOf(existing)
         val vm = createViewModel(styleId = "style-7")
+        // Clearing the description is now allowed — it is optional.
         vm.onAction(StyleFormAction.OnDescriptionChange("   "))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
-        assertNull(styleRepository.lastUpdatedStyle)
+        assertEquals("", styleRepository.lastUpdatedStyle?.description)
     }
 
     // --- Navigation & error dismiss ---

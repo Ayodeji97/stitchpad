@@ -157,8 +157,9 @@ fun StyleFormScreen(
         )
     }
 
-    val canSave = state.description.trim().isNotBlank() &&
-        (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
+    // Description is optional; a create still needs at least one photo, and an
+    // edit still needs a loaded style — so we never persist a fully empty entry.
+    val canSave = (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
         !state.isSaving
 
     Scaffold(

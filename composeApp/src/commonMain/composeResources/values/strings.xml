@@ -437,7 +437,7 @@
     <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
-    <string name="style_description_label">Description</string>
+    <string name="style_description_label">Description (optional)</string>
     <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
     <string name="style_pick_photos">Tap to add photos</string>
