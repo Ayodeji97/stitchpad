@@ -799,7 +799,9 @@ class OrderFormViewModel(
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
                 discount = discount,
-                discountReason = s.discountReason.trim().ifBlank { null },
+                // Only keep a reason when there is an actual discount — avoids an
+                // orphaned reason string when the typed discount clamps to 0.
+                discountReason = if (discount > 0.0) s.discountReason.trim().ifBlank { null } else null,
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
                 updatedAt = 0L,
             )
