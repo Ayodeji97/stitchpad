@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.runningFold
@@ -81,6 +82,33 @@ fun StyleRepository.observeFoldersWithStyles(
             }
             combine(allFlows) { results -> results.toList() }
         }
+
+/**
+ * Point-in-time count of ALL styles under [root] (the default folder + every named
+ * folder), summed from one-shot reads. Unlike [observeAllCustomerStyles], this does NOT
+ * use the runningFold keep-last flow, so it is safe to call with a single suspend read
+ * (no empty-sentinel-first problem). Use for Free-tier per-closet cap checks where the
+ * cap applies to the whole flattened closet/library.
+ *
+ * [root] must be a ROOT location (folderId == null).
+ */
+suspend fun StyleRepository.countStylesAcrossFolders(userId: String, root: StyleLocation): Int {
+    val rootCount = when (val r = observeStyles(userId, root.withFolder(null)).first()) {
+        is Result.Success -> r.data.size
+        is Result.Error -> 0
+    }
+    val folders = when (val r = observeFolders(userId, root.withFolder(null)).first()) {
+        is Result.Success -> r.data
+        is Result.Error -> emptyList()
+    }
+    val namedCount = folders.sumOf { folder ->
+        when (val r = observeStyles(userId, root.withFolder(folder.id)).first()) {
+            is Result.Success -> r.data.size
+            is Result.Error -> 0
+        }
+    }
+    return rootCount + namedCount
+}
 
 /** Narrows a root [StyleLocation] to one that targets the given [folderId]. */
 private fun StyleLocation.withFolder(folderId: String?): StyleLocation = when (this) {

@@ -575,6 +575,91 @@ class StyleFormViewModelTest {
         assertNull(styleRepository.lastCreatedDescription, "readOnly: no create should happen")
     }
 
+    // --- Free-tier flattened cap: create path blocked when flat total >= flatCap ---
+
+    @Test
+    fun free_save_flattenedTotalAtCap_setsCapSheet_doesNotCreate() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // 3 styles in root + 2 styles in a named folder = 5 total (at cap).
+        // Root alone = 3 — old single-location check would ALLOW the create. New
+        // flattened check must BLOCK it.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val rootLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-flat",
+            folderId = null,
+        )
+        val namedLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-flat",
+            folderId = "folder-x",
+        )
+        styleRepository.stylesByLocation[rootLocation] =
+            List(3) { fakeStyle(id = "root-$it", customerId = "customer-flat") }
+        styleRepository.stylesByLocation[namedLocation] =
+            List(2) { fakeStyle(id = "named-$it", customerId = "customer-flat") }
+        styleRepository.foldersByLocation[
+            com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset("customer-flat")
+        ] = listOf(
+            com.danzucker.stitchpad.core.domain.model.StyleFolder(
+                id = "folder-x",
+                name = "Old Folder",
+                createdAt = 0L,
+                updatedAt = 0L,
+            )
+        )
+
+        val vm = createViewModel(customerId = "customer-flat", tier = SubscriptionTier.FREE)
+        vm.onAction(StyleFormAction.OnDescriptionChange("New style"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet, "Cap sheet must be shown when flattened total is at cap")
+        assertEquals(StyleCapKind.STYLES, capSheet.kind)
+        assertNull(styleRepository.lastCreatedDescription, "No style must be created when at flat cap")
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun free_save_flattenedTotalUnderCap_creates() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // 2 styles in root + 2 styles in a named folder = 4 total (under cap) → create allowed.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val rootLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-flat",
+            folderId = null,
+        )
+        val namedLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-flat",
+            folderId = "folder-x",
+        )
+        styleRepository.stylesByLocation[rootLocation] =
+            List(2) { fakeStyle(id = "root-$it", customerId = "customer-flat") }
+        styleRepository.stylesByLocation[namedLocation] =
+            List(2) { fakeStyle(id = "named-$it", customerId = "customer-flat") }
+        styleRepository.foldersByLocation[
+            com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset("customer-flat")
+        ] = listOf(
+            com.danzucker.stitchpad.core.domain.model.StyleFolder(
+                id = "folder-x",
+                name = "Old Folder",
+                createdAt = 0L,
+                updatedAt = 0L,
+            )
+        )
+
+        val vm = createViewModel(customerId = "customer-flat", tier = SubscriptionTier.FREE)
+        vm.onAction(StyleFormAction.OnDescriptionChange("New style"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+        val event = vm.events.first()
+
+        assertIs<StyleFormEvent.NavigateBack>(event)
+        assertNotNull(styleRepository.lastCreatedDescription, "Style must be created when under flat cap")
+        assertNull(vm.state.value.capSheet)
+    }
+
     // --- Free-tier flattened cap count ---
 
     @Test

@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
+import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
@@ -191,59 +192,12 @@ class StyleFormViewModel(
                 is Result.Error -> 0
             }
         }
-        return when (val loc = location) {
-            is StyleLocation.CustomerCloset -> countFlattenedCustomerStyles(userId, loc.customerId)
-            is StyleLocation.Inspiration -> countFlattenedInspirationStyles(userId)
+        // Free tier: count the entire flattened closet/library across all folders.
+        val root = when (val loc = location) {
+            is StyleLocation.CustomerCloset -> StyleLocation.CustomerCloset(loc.customerId)
+            is StyleLocation.Inspiration -> StyleLocation.Inspiration()
         }
-    }
-
-    /**
-     * Counts all customer styles across the default folder and all named folders
-     * by summing individual [observeStyles] point-in-time reads. This avoids the
-     * initial-sentinel issue of the continuous [observeAllCustomerStyles] Flow.
-     */
-    private suspend fun countFlattenedCustomerStyles(userId: String, cid: String): Int {
-        val rootCount = when (
-            val r = styleRepository.observeStyles(userId, StyleLocation.CustomerCloset(cid)).first()
-        ) {
-            is Result.Success -> r.data.size
-            is Result.Error -> 0
-        }
-        val folders = styleRepository.observeFolders(userId, StyleLocation.CustomerCloset(cid))
-            .first()
-            .let { if (it is Result.Success) it.data else emptyList() }
-        val namedCount = folders.sumOf { folder ->
-            val loc = StyleLocation.CustomerCloset(cid, folder.id)
-            when (val r = styleRepository.observeStyles(userId, loc).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> 0
-            }
-        }
-        return rootCount + namedCount
-    }
-
-    /**
-     * Counts all Inspiration styles across the default folder and all named folders.
-     * Point-in-time read (no runningFold sentinel issue).
-     */
-    private suspend fun countFlattenedInspirationStyles(userId: String): Int {
-        val rootCount = when (
-            val r = styleRepository.observeStyles(userId, StyleLocation.Inspiration()).first()
-        ) {
-            is Result.Success -> r.data.size
-            is Result.Error -> 0
-        }
-        val folders = styleRepository.observeFolders(userId, StyleLocation.Inspiration())
-            .first()
-            .let { if (it is Result.Success) it.data else emptyList() }
-        val namedCount = folders.sumOf { folder ->
-            val loc = StyleLocation.Inspiration(folder.id)
-            when (val r = styleRepository.observeStyles(userId, loc).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> 0
-            }
-        }
-        return rootCount + namedCount
+        return styleRepository.countStylesAcrossFolders(userId, root)
     }
 
     // Resolves the image cap from the CURRENT tier each call (awaiting hydration).
@@ -302,18 +256,27 @@ class StyleFormViewModel(
                 StyleCollectionLimits.forCustomer(tier)
             }
             val imageCap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
-            // FIX 7(form): fail safe on count-read error — block the create rather
-            // than treating an unreadable count as 0 (which bypasses the cap).
-            val current = when (val r = styleRepository.observeStyles(userId, location).first()) {
-                is Result.Success -> r.data.size
-                is Result.Error -> {
-                    _state.update {
-                        it.copy(
-                            isSaving = false,
-                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
-                        )
+            // FIX 7(form) + flattened-Free fix: on Free tier count the whole closet/library
+            // across all folders (flat cap applies globally). On paid tiers count the single
+            // current folder. Fail safe on count-read error — block the create rather than
+            // treating an unreadable count as 0 (which bypasses the cap).
+            val current: Int
+            if (!limits.foldersEnabled) {
+                // Free: flattened count (handles its own error-as-0 per folder).
+                current = currentClosetCount(userId)
+            } else {
+                // Paid: single-location count; hard-fail on read error.
+                when (val r = styleRepository.observeStyles(userId, location).first()) {
+                    is Result.Success -> current = r.data.size
+                    is Result.Error -> {
+                        _state.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
                 }
             }
             if (current + s.selectedPhotos.size > imageCap) {

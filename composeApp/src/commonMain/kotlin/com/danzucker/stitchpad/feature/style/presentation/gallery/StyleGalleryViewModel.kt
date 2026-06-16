@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleLockPolicy
+import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
@@ -196,12 +197,10 @@ class StyleGalleryViewModel(
                 is TransferTarget.Customer -> StyleCollectionLimits.forCustomer(tier)
             }
             if (!limits.foldersEnabled) {
-                // Free path: check the flat-folder cap, then transfer directly.
+                // Free path: check the flat-folder cap (across ALL folders), then transfer directly.
                 val userId = authRepository.getCurrentUser()?.id ?: return@launch
-                val destCount = when (val r = styleRepository.observeStyles(userId, target.location).first()) {
-                    is Result.Success -> r.data.size
-                    is Result.Error -> 0
-                }
+                // target.location is already a root location for Free targets.
+                val destCount = styleRepository.countStylesAcrossFolders(userId, target.location)
                 _state.update { it.copy(transfer = null) }
                 if (destCount >= limits.flatCap) {
                     _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
@@ -291,7 +290,7 @@ class StyleGalleryViewModel(
      * before committing the transfer. If the read fails, surface an error and abort.
      * If the count is at or above cap, emit CapReached and abort.
      */
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod")
     private suspend fun performTransfer(
         transfer: StyleTransfer,
         target: TransferTarget,
@@ -307,17 +306,28 @@ class StyleGalleryViewModel(
         }
         val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
         // Live re-read: any count read error → fail safe (abort, surface error).
-        val liveCount = when (
-            val r = styleRepository.observeStyles(userId, destinationLocation).first()
-        ) {
-            is Result.Success -> r.data.size
-            is Result.Error -> {
-                _state.update {
-                    it.copy(
-                        errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
-                    )
+        // On Free tier count the full flattened destination closet/library (flat cap
+        // applies globally, not just to the root folder). On paid tiers count the
+        // specific destination folder.
+        val liveCount: Int
+        if (!limits.foldersEnabled) {
+            // Derive the destination root (folderId null) from the target.
+            val destRoot = when (target) {
+                is TransferTarget.Customer -> StyleLocation.CustomerCloset(target.customerId)
+                TransferTarget.Inspiration -> StyleLocation.Inspiration()
+            }
+            liveCount = styleRepository.countStylesAcrossFolders(userId, destRoot)
+        } else {
+            when (val r = styleRepository.observeStyles(userId, destinationLocation).first()) {
+                is Result.Success -> liveCount = r.data.size
+                is Result.Error -> {
+                    _state.update {
+                        it.copy(
+                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                        )
+                    }
+                    return
                 }
-                return
             }
         }
         if (liveCount >= cap) {

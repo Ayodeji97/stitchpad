@@ -756,24 +756,93 @@ class StyleGalleryViewModelTest {
     // --- FIX 5 + FIX 7(gallery): performTransfer live count re-read ---
 
     @Test
-    fun transfer_whenDestinationCountReadErrors_noCopy_errorSurfaced() = runTest {
+    fun transfer_paidTier_whenDestinationCountReadErrors_noCopy_errorSurfaced() = runTest {
+        // On paid tiers, the live re-read in performTransfer uses observeStyles directly
+        // and hard-fails on error (fail-safe: blocks the transfer and surfaces an error).
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(
             fakeCustomer(id = "customer-1"),
             fakeCustomer(id = "customer-2", name = "Bisi"),
         )
-        // observeError makes the live re-read in performTransfer fail.
-        styleRepository.observeError = DataError.Network.UNKNOWN
-        val vm = createViewModel()
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
         vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
         vm.onAction(StyleGalleryAction.OnCopyClick)
-
-        // observeError also blocks the folder load in onTargetSelected (paid path skipped;
-        // for FREE tier the destCount read also errors → verify fail-safe).
+        // Choose the destination target + folder (paid path: show folder picker first).
         vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+        // Now inject the read error BEFORE the folder is selected (so performTransfer's
+        // live re-read fails).
+        styleRepository.observeError = DataError.Network.UNKNOWN
+
+        vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
 
         assertNull(styleRepository.lastCopied)
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // --- Flattened Free cap: transfer + create ---
+
+    @Test
+    fun free_transfer_destinationFlattenedCountAtCap_setsCapSheet_noCopy() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // Destination "customer-2" has 3 styles in root + 2 styles in a named folder = 5 total.
+        // Root alone is only 3 — old single-location check would ALLOW the transfer. New
+        // flattened check must BLOCK it.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Archive", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
+            List(3) { fakeStyle(id = "dest-root-$it") }
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] =
+            List(2) { fakeStyle(id = "dest-named-$it") }
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        val capSheet = vm.state.value.capSheet
+        assertNotNull(capSheet)
+        assertEquals(StyleCapKind.STYLES, capSheet.kind)
+        assertNull(styleRepository.lastCopied, "Transfer must be blocked when destination is at flat cap")
+    }
+
+    @Test
+    fun free_transfer_destinationFlattenedCountUnderCap_proceeds() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // Destination has 2 root + 2 named = 4 total (under cap of 5) → transfer allowed.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+            StyleFolder(id = "f1", name = "Archive", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
+            List(2) { fakeStyle(id = "dest-root-$it") }
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] =
+            List(2) { fakeStyle(id = "dest-named-$it") }
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.StyleTransferred>(event)
+        assertNotNull(styleRepository.lastCopied, "Transfer must proceed when destination is under flat cap")
     }
 
     // --- Task 4: per-style location for ops + lock gating ---
