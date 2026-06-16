@@ -67,7 +67,6 @@ import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
-import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -142,11 +141,10 @@ fun StyleFormScreen(
     // a changed maxSelection).
     val imagePicker = key(state.allowMultiPhoto, state.maxPhotoSelection) {
         rememberImagePickerLauncher(
-            selectionMode = if (state.allowMultiPhoto) {
-                SelectionMode.Multiple(maxSelection = state.maxPhotoSelection)
-            } else {
-                SelectionMode.Single
-            },
+            selectionMode = styleFormSelectionMode(
+                allowMultiPhoto = state.allowMultiPhoto,
+                maxPhotoSelection = state.maxPhotoSelection,
+            ),
             scope = pickerScope,
             onResult = { byteArrays ->
                 if (byteArrays.isNotEmpty()) onAction(StyleFormAction.OnPhotosPicked(byteArrays))
