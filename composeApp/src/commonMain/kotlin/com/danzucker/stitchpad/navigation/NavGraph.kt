@@ -66,9 +66,10 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
         if (pendingDeepLinkTarget == null) return@LaunchedEffect
         if (!authRepository.isLoggedIn) {
             // A push INBOX tap shouldn't auto-route a freshly-signed-in (possibly
-            // different) user, so drop it. But an UPGRADE email-link tap is the account
-            // owner asking to renew — and they must sign in to upgrade anyway — so
-            // preserve it across login. Once Home is reached, MainRoot consumes it.
+            // different) user, so drop it. But an UPGRADE renewal link or a CLAIM_GIFT
+            // link is preserved across login: the user must sign in (or sign up) to
+            // upgrade / claim, which is exactly the gift flow for a brand-new tailor.
+            // Once Home is reached, MainRoot consumes it.
             if (pendingDeepLinkTarget == DeepLinkTarget.INBOX) {
                 pendingDeepLink.clear()
             }

@@ -1550,4 +1550,22 @@
     <string name="push_prompt_body">Get a quick morning reminder of orders due and money owed.</string>
     <string name="push_prompt_confirm">Turn on reminders</string>
     <string name="push_prompt_dismiss">Not now</string>
+
+    <!-- Gift subscription — redeem -->
+    <string name="gift_redeem_title">Redeem a gift</string>
+    <string name="gift_redeem_heading">You&apos;ve got a gift</string>
+    <string name="gift_redeem_subtitle">Enter the gift code from your email or message to unlock your StitchPad plan.</string>
+    <string name="gift_redeem_code_label">Gift code</string>
+    <string name="gift_redeem_cta">Redeem gift</string>
+    <string name="gift_redeem_success">Gift claimed! Your StitchPad plan is now active.</string>
+    <string name="gift_accept_sheet_title">Claim your gift?</string>
+    <string name="gift_accept_sheet_body_with_email">This will apply your gift to %1$s.</string>
+    <string name="gift_accept_sheet_body_no_email">This will apply your gift to your StitchPad account.</string>
+    <string name="gift_accept_sheet_confirm">Accept gift</string>
+    <string name="gift_accept_sheet_cancel">Not now</string>
+    <string name="gift_error_not_found">We couldn&apos;t find that gift code. Check it and try again.</string>
+    <string name="gift_error_already_claimed">This gift has already been claimed.</string>
+    <string name="gift_error_expired">This gift has expired.</string>
+    <string name="gift_error_not_payable">This gift isn&apos;t ready to claim yet. Please try again shortly.</string>
+    <string name="gift_error_unauthenticated">Please sign in to claim your gift.</string>
 </resources>

@@ -37,6 +37,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRo
 import com.danzucker.stitchpad.feature.dashboard.presentation.AddCustomerFirstScreen
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
+import com.danzucker.stitchpad.feature.gift.presentation.redeem.RedeemGiftRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxRoot
@@ -73,6 +74,7 @@ import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+import com.danzucker.stitchpad.navigation.RedeemGiftRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
@@ -107,6 +109,16 @@ fun MainRoot(
                 // already-open Upgrade screen's VM and skip the pre-select (leaving it stale).
                 innerNavController.navigate(UpgradeRoute) {
                     popUpTo(UpgradeRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            // Gift-claim email link (https .../claim?code= or stitchpad://claim?code=).
+            DeepLinkTarget.CLAIM_GIFT -> {
+                pendingDeepLink.clear()
+                // popUpTo<RedeemGiftRoute> forces a FRESH RedeemGiftViewModel so it consumes
+                // the claim code on init and jumps straight to the Accept sheet.
+                innerNavController.navigate(RedeemGiftRoute) {
+                    popUpTo(RedeemGiftRoute) { inclusive = true }
                     launchSingleTop = true
                 }
             }
@@ -446,6 +458,11 @@ private fun MainNavGraph(
         }
         composable<UpgradeRoute> {
             UpgradeRoot(
+                onBack = { navController.navigateUp() },
+            )
+        }
+        composable<RedeemGiftRoute> {
+            RedeemGiftRoot(
                 onBack = { navController.navigateUp() },
             )
         }

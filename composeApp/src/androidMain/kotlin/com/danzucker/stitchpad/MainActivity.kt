@@ -64,6 +64,20 @@ class MainActivity : ComponentActivity() {
             // Consume so a recreate (e.g. rotation) doesn't re-fire the deep link.
             intent.data = null
             setIntent(intent)
+            return
+        }
+        // Gift-claim email link (https://link.getstitchpad.com/claim?code=, also the
+        // stitchpad://claim?code= custom scheme), via the shared parser.
+        val claimCode = if (intent.action == Intent.ACTION_VIEW) {
+            DeepLinkParser.parseClaimGift(intent.dataString)
+        } else {
+            null
+        }
+        if (claimCode != null) {
+            pendingDeepLink.setClaimGift(claimCode)
+            // Consume so a recreate (e.g. rotation) doesn't re-fire the deep link.
+            intent.data = null
+            setIntent(intent)
         }
     }
 }
