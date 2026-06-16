@@ -73,7 +73,7 @@ class StyleGalleryViewModel(
             initialValue = StyleGalleryState(isInspirationGallery = isInspirationGallery)
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: StyleGalleryAction) {
         when (action) {
             StyleGalleryAction.OnAddClick -> {
@@ -94,11 +94,29 @@ class StyleGalleryViewModel(
             }
             is StyleGalleryAction.OnStyleClick -> {
                 viewModelScope.launch {
-                    _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, folderId, action.style.id))
+                    val locked = action.style.id in _state.value.lockedStyleIds
+                    val loc = locationOf(action.style.id)
+                    val targetFolderId = (loc as? StyleLocation.CustomerCloset)?.folderId
+                        ?: (loc as? StyleLocation.Inspiration)?.folderId
+                    _events.send(
+                        StyleGalleryEvent.NavigateToEditStyle(
+                            customerId = customerId,
+                            folderId = targetFolderId,
+                            styleId = action.style.id,
+                            readOnly = locked,
+                        )
+                    )
                 }
             }
             is StyleGalleryAction.OnStyleLongPress -> {
-                _state.update { it.copy(actionSheetStyle = action.style) }
+                if (action.style.id in _state.value.lockedStyleIds) {
+                    viewModelScope.launch {
+                        val tier = entitlements.awaitHydrated().tier
+                        _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
+                    }
+                } else {
+                    _state.update { it.copy(actionSheetStyle = action.style) }
+                }
             }
             StyleGalleryAction.OnDismissActionSheet -> {
                 _state.update { it.copy(actionSheetStyle = null) }
@@ -306,11 +324,12 @@ class StyleGalleryViewModel(
             _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
             return
         }
+        val sourceLocation = locationOf(transfer.style.id)
         val result = when (transfer.mode) {
             StyleTransferMode.COPY ->
-                styleRepository.copyStyle(userId, from = location, transfer.style, to = destinationLocation)
+                styleRepository.copyStyle(userId, from = sourceLocation, transfer.style, to = destinationLocation)
             StyleTransferMode.MOVE ->
-                styleRepository.moveStyle(userId, from = location, transfer.style, to = destinationLocation)
+                styleRepository.moveStyle(userId, from = sourceLocation, transfer.style, to = destinationLocation)
         }
         when (result) {
             is Result.Success ->
@@ -398,8 +417,6 @@ class StyleGalleryViewModel(
     }
 
     // The true location of a loaded style (its folder), falling back to the gallery location.
-    // used in Task 4
-    @Suppress("unused")
     private fun locationOf(styleId: String): StyleLocation = entryLocations[styleId] ?: location
 
     private fun deleteStyle() {
@@ -407,7 +424,7 @@ class StyleGalleryViewModel(
         _state.update { it.copy(showDeleteDialog = false, styleToDelete = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.deleteStyle(userId, location, style)
+            val result = styleRepository.deleteStyle(userId, locationOf(style.id), style)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }

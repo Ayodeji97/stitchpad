@@ -775,4 +775,129 @@ class StyleGalleryViewModelTest {
         assertNull(styleRepository.lastCopied)
         assertNotNull(vm.state.value.errorMessage)
     }
+
+    // --- Task 4: per-style location for ops + lock gating ---
+
+    @Test
+    fun free_tapLockedStyle_navigatesReadOnly_withItsFolder() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // 5 root styles (newest, createdAt 900..500) + 1 style "o1" in folder "f1" (oldest, createdAt 100).
+        // After flatten+sort: root styles are positions 0-4 (active), "o1" is position 5 (locked).
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "r1", createdAt = 900L),
+            fakeStyle(id = "r2", createdAt = 800L),
+            fakeStyle(id = "r3", createdAt = 700L),
+            fakeStyle(id = "r4", createdAt = 600L),
+            fakeStyle(id = "r5", createdAt = 500L),
+        )
+        val folderStyle = fakeStyle(id = "o1", createdAt = 100L)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-1")] = listOf(
+            StyleFolder(id = "f1", name = "Archive", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1", "f1")] = listOf(folderStyle)
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        // "o1" must be in lockedStyleIds
+        assertTrue("o1" in vm.state.value.lockedStyleIds)
+
+        // Get the live style instance from state
+        val o1Style = vm.state.value.styles.first { it.id == "o1" }
+        vm.onAction(StyleGalleryAction.OnStyleClick(o1Style))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.NavigateToEditStyle>(event)
+        assertEquals("o1", event.styleId)
+        assertEquals(true, event.readOnly)
+        assertEquals("f1", event.folderId)
+    }
+
+    @Test
+    fun free_tapActiveStyle_navigatesEditable() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // 5 root styles → all active, none locked.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "r1", createdAt = 500L),
+            fakeStyle(id = "r2", createdAt = 400L),
+            fakeStyle(id = "r3", createdAt = 300L),
+            fakeStyle(id = "r4", createdAt = 200L),
+            fakeStyle(id = "r5", createdAt = 100L),
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-1")] = emptyList()
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        // No styles should be locked (exactly at cap = 5 active)
+        assertTrue(vm.state.value.lockedStyleIds.isEmpty())
+
+        val r1Style = vm.state.value.styles.first { it.id == "r1" }
+        vm.onAction(StyleGalleryAction.OnStyleClick(r1Style))
+
+        val event = vm.events.first()
+        assertIs<StyleGalleryEvent.NavigateToEditStyle>(event)
+        assertEquals("r1", event.styleId)
+        assertEquals(false, event.readOnly)
+    }
+
+    @Test
+    fun free_longPressLockedStyle_showsUpgrade_notActionSheet() = runTest {
+        // FREE forCustomer: flatCap = 5.
+        // 5 root styles + 1 locked style in folder "f1".
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "r1", createdAt = 900L),
+            fakeStyle(id = "r2", createdAt = 800L),
+            fakeStyle(id = "r3", createdAt = 700L),
+            fakeStyle(id = "r4", createdAt = 600L),
+            fakeStyle(id = "r5", createdAt = 500L),
+        )
+        val lockedStyle = fakeStyle(id = "o1", createdAt = 100L)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-1")] = listOf(
+            StyleFolder(id = "f1", name = "Archive", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1", "f1")] = listOf(lockedStyle)
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        assertTrue("o1" in vm.state.value.lockedStyleIds)
+
+        val o1Style = vm.state.value.styles.first { it.id == "o1" }
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(o1Style))
+
+        // actionSheetStyle must remain null; capSheet must be set
+        assertNull(vm.state.value.actionSheetStyle)
+        assertNotNull(vm.state.value.capSheet)
+    }
+
+    @Test
+    fun free_longPressActiveStyle_opensActionSheet() = runTest {
+        // FREE forCustomer: flatCap = 5, 3 styles → all active.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "r1", createdAt = 300L),
+            fakeStyle(id = "r2", createdAt = 200L),
+            fakeStyle(id = "r3", createdAt = 100L),
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-1")] = emptyList()
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        assertTrue(vm.state.value.lockedStyleIds.isEmpty())
+
+        val r1Style = vm.state.value.styles.first { it.id == "r1" }
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(r1Style))
+
+        assertEquals(r1Style, vm.state.value.actionSheetStyle)
+        assertNull(vm.state.value.capSheet)
+    }
 }
