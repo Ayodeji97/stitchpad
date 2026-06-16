@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 
 private const val WATERMARK_TEXT_ALPHA = 18 // ~7% on a 0–255 scale
 
+@Suppress("LargeClass")
 actual class OrderReceiptSharer(private val context: Context) {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {

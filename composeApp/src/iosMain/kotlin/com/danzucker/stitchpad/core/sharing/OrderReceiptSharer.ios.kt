@@ -41,7 +41,7 @@ import platform.UIKit.popoverPresentationController
 import platform.UIKit.sizeWithAttributes
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 actual class OrderReceiptSharer {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
@@ -326,7 +326,8 @@ actual class OrderReceiptSharer {
         estimatedHeight += 16.0 // customer/date value row
         estimatedHeight += 14.0 // divider gap
         estimatedHeight += 16.0 // items label
-        data.items.forEach { item -> estimatedHeight += if (item.quantity == 1) 22.0 else 30.0 } // per-item: qty==1→22; qty>1→16+14=30
+        // per-item height: qty==1 → 22; qty>1 → 16+14 = 30.
+        data.items.forEach { item -> estimatedHeight += if (item.quantity == 1) 22.0 else 30.0 }
         estimatedHeight += 6.0 // post-items gap
         estimatedHeight += 14.0 // payment divider
         if (data.discountFormatted != null) {
