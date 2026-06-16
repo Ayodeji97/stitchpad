@@ -89,6 +89,17 @@ class FakeUserRepository : UserRepository {
 
     override fun observeUser(userId: String): Flow<User?> = userFlow
 
+    /** Value returned by [hasWorkshopProfile]. */
+    var hasWorkshopProfileResult = false
+
+    /** Number of times [hasWorkshopProfile] was invoked (asserts short-circuit). */
+    var hasWorkshopProfileCallCount = 0
+
+    override suspend fun hasWorkshopProfile(userId: String): Boolean {
+        hasWorkshopProfileCallCount++
+        return hasWorkshopProfileResult
+    }
+
     override suspend fun uploadUserLogo(
         userId: String,
         bytes: ByteArray,

@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.onboarding.data
 
 interface OnboardingPreferencesStore {
@@ -5,6 +7,15 @@ interface OnboardingPreferencesStore {
     suspend fun setOnboardingSeen()
     suspend fun hasCompletedWorkshopSetup(): Boolean
     suspend fun setWorkshopSetupCompleted()
+
+    /**
+     * Per-user cache of "this account's remote profile already has workshop data", set by
+     * the launch router after a one-shot Firestore check on a fresh install (the reinstall
+     * case). Scoped to [userId] — unlike [hasCompletedWorkshopSetup], which is device-wide —
+     * so confirming one account never lets a different account on the same device skip setup.
+     */
+    suspend fun hasConfirmedRemoteWorkshopProfile(userId: String): Boolean
+    suspend fun setConfirmedRemoteWorkshopProfile(userId: String)
 
     /**
      * Whether email verification has been bypassed on this device. Set only by
