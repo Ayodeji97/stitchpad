@@ -111,13 +111,14 @@ class StyleGalleryViewModelTest {
         id: String = "style-1",
         customerId: String = "customer-1",
         description: String = "Red agbada",
+        createdAt: Long = 0L,
     ) = Style(
         id = id,
         customerId = customerId,
         description = description,
         photoUrl = "https://example.com/p.jpg",
         photoStoragePath = "users/u/customers/$customerId/styles/$id.jpg",
-        createdAt = 0L,
+        createdAt = createdAt,
         updatedAt = 0L,
     )
 
@@ -162,13 +163,104 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
-    fun observeStyles_error_setsErrorMessage_andClearsLoading() = runTest {
+    fun observeStyles_error_paidTier_setsErrorMessage_andClearsLoading() = runTest {
+        // On paid tiers the VM uses observePerFolder which propagates errors directly.
+        // On FREE it uses observeFlattened with keep-last resilience (silently degrades).
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.observeError = DataError.Network.UNKNOWN
 
-        val vm = createViewModel()
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
 
         assertNotNull(vm.state.value.errorMessage)
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    // --- Task 3: tier-aware locking ---
+
+    @Test
+    fun freeTier_closet_flattensAllFolders_locksOldestOverFlatCap() = runTest {
+        // FREE forCustomer: flatCap = 5, foldersEnabled = false.
+        // 4 root styles (createdAt 700..400, newest) + 3 named-folder styles (createdAt 300..100, oldest)
+        // = 7 total. Newest 5 by createdAt: root700, root600, root500, root400, folder300 → active.
+        // Locked = folder200 + folder100 (the 2 oldest).
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "root-1", createdAt = 700L),
+            fakeStyle(id = "root-2", createdAt = 600L),
+            fakeStyle(id = "root-3", createdAt = 500L),
+            fakeStyle(id = "root-4", createdAt = 400L),
+        )
+        val folderStyles = listOf(
+            fakeStyle(id = "folder-1", createdAt = 300L),
+            fakeStyle(id = "folder-2", createdAt = 200L),
+            fakeStyle(id = "folder-3", createdAt = 100L),
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-1")] = listOf(
+            StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1", "f1")] = folderStyles
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+
+        // All 7 styles flattened — nothing hidden
+        assertEquals(7, vm.state.value.styles.size)
+        // Newest first
+        assertEquals("root-1", vm.state.value.styles.first().id)
+        // flatCap=5 → oldest 2 are locked: folder-2 (200) and folder-3 (100)
+        assertEquals(setOf("folder-2", "folder-3"), vm.state.value.lockedStyleIds)
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    @Test
+    fun proTier_closet_perFolder_locksOldestOverFolderCap() = runTest {
+        // PRO forCustomer: maxImagesPerFolder = 3, foldersEnabled = true.
+        // Seed 5 styles in the root folder → newest 3 active, oldest 2 locked.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "s1", createdAt = 500L),
+            fakeStyle(id = "s2", createdAt = 400L),
+            fakeStyle(id = "s3", createdAt = 300L),
+            fakeStyle(id = "s4", createdAt = 200L),
+            fakeStyle(id = "s5", createdAt = 100L),
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
+
+        assertEquals(5, vm.state.value.styles.size)
+        // maxImagesPerFolder=3 → oldest 2 (s4, s5) are locked
+        assertEquals(setOf("s4", "s5"), vm.state.value.lockedStyleIds)
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    @Test
+    fun proTier_closet_perFolder_scrambledDates_sortsNewestFirst_andLocksOldest() = runTest {
+        // PRO forCustomer: maxImagesPerFolder = 3, foldersEnabled = true.
+        // Seed 5 styles in NON-descending createdAt order (scrambled).
+        // VM must sort newest-first in state AND compute locked IDs on the sorted list.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val scrambledStyles = listOf(
+            fakeStyle(id = "s2", createdAt = 400L),
+            fakeStyle(id = "s5", createdAt = 100L),
+            fakeStyle(id = "s1", createdAt = 500L),
+            fakeStyle(id = "s3", createdAt = 300L),
+            fakeStyle(id = "s4", createdAt = 200L),
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = scrambledStyles
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
+
+        // All 5 styles present
+        assertEquals(5, vm.state.value.styles.size)
+        // Styles in state must be newest-first (descending by createdAt)
+        val stateIds = vm.state.value.styles.map { it.id }
+        assertEquals(listOf("s1", "s2", "s3", "s4", "s5"), stateIds)
+        // maxImagesPerFolder=3 → newest 3 active (s1, s2, s3), oldest 2 locked (s4, s5)
+        assertEquals(setOf("s4", "s5"), vm.state.value.lockedStyleIds)
         assertFalse(vm.state.value.isLoading)
     }
 
@@ -651,9 +743,10 @@ class StyleGalleryViewModelTest {
 
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
+        // Use PRO tier so the per-folder path propagates errors (FREE silently degrades).
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.observeError = DataError.Network.UNKNOWN
-        val vm = createViewModel()
+        val vm = createViewModel(tier = SubscriptionTier.PRO)
         assertNotNull(vm.state.value.errorMessage)
 
         vm.onAction(StyleGalleryAction.OnErrorDismiss)
