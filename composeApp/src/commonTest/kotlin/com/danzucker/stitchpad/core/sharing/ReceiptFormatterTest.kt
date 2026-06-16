@@ -542,4 +542,29 @@ class ReceiptFormatterTest {
         )
         assertEquals(WatermarkSpec.None, withoutLogo.watermark)
     }
+
+    // --- Discount lines ---
+
+    @Test
+    fun `discount populates subtotal and signed discount lines`() {
+        val order = testOrder.copy(
+            totalPrice = 32_500.0,
+            discount = 2_500.0,
+            discountReason = "New customer",
+            payments = emptyList(),
+        )
+        val data = ReceiptFormatter.format(order, testUser, garmentNames = emptyMap())
+        assertEquals("₦32,500", data.subtotalFormatted)
+        assertEquals("−₦2,500", data.discountFormatted)
+        assertEquals("New customer", data.discountReason)
+        assertEquals("₦30,000", data.totalFormatted)   // net total, not subtotal
+    }
+
+    @Test
+    fun `no discount yields null discount line and total equals subtotal`() {
+        val order = testOrder.copy(totalPrice = 32_500.0, discount = 0.0, payments = emptyList())
+        val data = ReceiptFormatter.format(order, testUser, garmentNames = emptyMap())
+        assertEquals(null, data.discountFormatted)
+        assertEquals("₦32,500", data.totalFormatted)
+    }
 }
