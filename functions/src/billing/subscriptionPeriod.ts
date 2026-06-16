@@ -30,14 +30,23 @@ export type SubscriptionGrantMode = 'purchase' | 'gift';
 // 30/365-day windows short-changed monthly subscribers (~5 days/year) and were a
 // day off for annual leap-year purchases. JS normalizes month-end overflow (Jan 31
 // + 1 month -> Mar 3), which is the standard subscription convention.
-export function addPeriod(start: Date, cadence: BillingCadence): Date {
+//
+// `count` is how many periods to add (1 for a normal purchase; a gift can be N
+// months or N years). count <= 0 is treated as a single period defensively.
+export function addPeriods(start: Date, cadence: BillingCadence, count: number): Date {
+  const n = Number.isFinite(count) && count >= 1 ? Math.floor(count) : 1;
   const d = new Date(start.getTime());
   if (cadence === 'annual') {
-    d.setUTCFullYear(d.getUTCFullYear() + 1);
+    d.setUTCFullYear(d.getUTCFullYear() + n);
   } else {
-    d.setUTCMonth(d.getUTCMonth() + 1);
+    d.setUTCMonth(d.getUTCMonth() + n);
   }
   return d;
+}
+
+/** One calendar period — the common case (a single-period purchase). */
+export function addPeriod(start: Date, cadence: BillingCadence): Date {
+  return addPeriods(start, cadence, 1);
 }
 
 /** Calendar years (leap-year safe) — used for the 12-month unclaimed-gift expiry. */
@@ -83,8 +92,11 @@ export function computeSubscriptionGrant(params: {
   cadence: BillingCadence;
   paidAt: Date;
   mode: SubscriptionGrantMode;
+  /** Number of periods granted (months if monthly, years if annual). Default 1; a gift may be N. */
+  quantity?: number;
 }): SubscriptionGrant {
   const { userData, tier, cadence, paidAt, mode } = params;
+  const quantity = params.quantity ?? 1;
 
   const onActivePaidPlan =
     (userData?.subscriptionTier === 'pro' || userData?.subscriptionTier === 'atelier') &&
@@ -95,7 +107,7 @@ export function computeSubscriptionGrant(params: {
   const currentEndsAt = toDate(userData?.subscriptionEndsAt);
 
   const extendFrom = (start: Date): Date =>
-    addPeriod(currentEndsAt && currentEndsAt.getTime() > start.getTime() ? currentEndsAt : start, cadence);
+    addPeriods(currentEndsAt && currentEndsAt.getTime() > start.getTime() ? currentEndsAt : start, cadence, quantity);
 
   // Branch 3 — gift never downgrades an active higher tier.
   if (mode === 'gift' && currentTier && TIER_RANK[tier] < TIER_RANK[currentTier]) {
@@ -104,7 +116,7 @@ export function computeSubscriptionGrant(params: {
 
   // Branch 1 — same-tier active early renewal stacks; otherwise (branch 2) fresh.
   if (currentTier === tier && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()) {
-    return { subscriptionTier: tier, subscriptionEndsAt: addPeriod(currentEndsAt, cadence) };
+    return { subscriptionTier: tier, subscriptionEndsAt: addPeriods(currentEndsAt, cadence, quantity) };
   }
-  return { subscriptionTier: tier, subscriptionEndsAt: addPeriod(paidAt, cadence) };
+  return { subscriptionTier: tier, subscriptionEndsAt: addPeriods(paidAt, cadence, quantity) };
 }

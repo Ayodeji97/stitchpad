@@ -131,6 +131,36 @@ describe('initializeGiftCheckoutHandler', () => {
     });
   });
 
+  it('multiplies the amount by quantity and stores it', async () => {
+    const { store, db } = makeDb();
+    const result = await initializeGiftCheckoutHandler(
+      { recipientEmail: 'a@b.com', tier: 'pro', cadence: 'monthly', quantity: 3, gifterEmail: 'g@h.com' },
+      { db, paystack: okPaystack, now: () => NOW, randomCode: () => 'C3', randomId: () => 'r' },
+    );
+    expect(result.code).toBe('C3');
+    expect(store.get('gifts/C3')).toMatchObject({ quantity: 3, amountKobo: 600_000 });
+    expect(okPaystack.initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({ amount: 600_000 }));
+  });
+
+  it('defaults quantity to 1 when omitted', async () => {
+    const { store, db } = makeDb();
+    await initializeGiftCheckoutHandler(
+      { recipientEmail: 'a@b.com', tier: 'pro', cadence: 'monthly', gifterEmail: 'g@h.com' },
+      { db, paystack: okPaystack, now: () => NOW, randomCode: () => 'C1', randomId: () => 'r' },
+    );
+    expect(store.get('gifts/C1')).toMatchObject({ quantity: 1, amountKobo: 200_000 });
+  });
+
+  it('rejects an out-of-range or non-integer quantity', async () => {
+    const { db } = makeDb();
+    for (const q of [0, 13, 2.5, 'x']) {
+      await expect(initializeGiftCheckoutHandler(
+        { recipientEmail: 'a@b.com', tier: 'pro', cadence: 'monthly', quantity: q, gifterEmail: 'g@h.com' },
+        { db, paystack: okPaystack, now: () => NOW, randomCode: () => 'Q', randomId: () => 'r' },
+      )).rejects.toMatchObject({ code: 'invalid-argument', message: 'invalid_quantity' });
+    }
+  });
+
   it('rejects an unknown gift_me token', async () => {
     const { db } = makeDb();
     await expect(initializeGiftCheckoutHandler(
@@ -197,6 +227,22 @@ describe('applyGiftWebhook', () => {
       type: 'GIFT_RECEIVED', tier: 'pro', isRead: false,
     });
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'tailor@example.com' }));
+  });
+
+  it('applies N periods for a multi-quantity gift_me gift', async () => {
+    const { store, db } = makeDb({
+      'gifts/gift_q': {
+        status: 'pending', flow: 'gift_me', tier: 'pro', cadence: 'monthly',
+        quantity: 3, amountKobo: 600_000, targetUid: 'tailor-1',
+      },
+      'users/tailor-1': { subscriptionTier: 'free', subscriptionStatus: 'active' },
+    });
+    await applyGiftWebhook(
+      { ...giftChargeData('gift_q', 600_000) },
+      { db, now: () => NOW, sendEmail: jest.fn(async () => {}), lookupUserEmail: async () => 't@e.com' },
+    );
+    const endsAt = store.get('users/tailor-1').subscriptionEndsAt.toDate() as Date;
+    expect(endsAt.toISOString()).toBe('2026-09-01T10:00:00.000Z'); // paidAt + 3 months
   });
 
   it('is idempotent — a second delivery does not re-apply', async () => {

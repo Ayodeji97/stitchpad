@@ -16,6 +16,11 @@ describe('buildGiftReceivedEmail (gift_me auto-applied)', () => {
     expect(html).toContain('Tailor Atelier');
     expect(html).toContain('1 year');
   });
+
+  it('pluralizes the duration for a multi-period gift', () => {
+    expect(buildGiftReceivedEmail({ tier: 'pro', cadence: 'monthly', quantity: 3 }).html).toContain('3 months');
+    expect(buildGiftReceivedEmail({ tier: 'atelier', cadence: 'annual', quantity: 2 }).html).toContain('2 years');
+  });
 });
 
 describe('buildGiftClaimEmail (public claim)', () => {

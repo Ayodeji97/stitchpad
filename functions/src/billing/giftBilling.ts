@@ -46,6 +46,9 @@ const CLAIM_LINK_BASE = 'https://link.getstitchpad.com/claim';
 /** Crockford-ish alphabet minus 0/O/1/I/L so codes are unambiguous to read/type. */
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
+/** Max periods a single gift can buy, per cadence (12 months or 5 years). Caps abuse / typo'd amounts. */
+const MAX_QUANTITY: Record<BillingCadence, number> = { monthly: 12, annual: 5 };
+
 export type GiftFlow = 'gift_me' | 'public';
 export type GiftStatus = 'pending' | 'paid' | 'claimed' | 'expired' | 'failed';
 
@@ -54,6 +57,7 @@ export interface InitializeGiftRequest {
   recipientEmail?: unknown; // public
   tier?: unknown;
   cadence?: unknown;
+  quantity?: unknown;       // how many periods (months if monthly, years if annual); default 1
   gifterName?: unknown;
   gifterEmail?: unknown;
   note?: unknown;
@@ -224,7 +228,8 @@ export async function initializeGiftCheckoutHandler(
 ): Promise<InitializeGiftResponse> {
   const tier = parseTier(data.tier);
   const cadence = parseCadence(data.cadence);
-  const amountKobo = priceFor(tier, cadence);
+  const quantity = parseQuantity(data.quantity, cadence);
+  const amountKobo = priceFor(tier, cadence) * quantity;
 
   const token = asNonEmptyString(data.token);
   const recipientEmail = asEmail(data.recipientEmail);
@@ -270,6 +275,7 @@ export async function initializeGiftCheckoutHandler(
       flow,
       tier,
       cadence,
+      quantity,
       amountKobo,
       currency: CURRENCY,
       code,
@@ -359,6 +365,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       flow?: GiftFlow;
       tier?: BillingTier;
       cadence?: BillingCadence;
+      quantity?: number;
       amountKobo?: number;
       code?: string | null;
       targetUid?: string | null;
@@ -382,6 +389,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
 
     const tier = gift.tier as BillingTier;
     const cadence = gift.cadence as BillingCadence;
+    const quantity = gift.quantity ?? 1; // default 1 for pre-quantity gift docs
     const expiresAt = admin.firestore.Timestamp.fromDate(addYears(paidAt, 1));
 
     if (gift.flow === 'gift_me' && gift.targetUid) {
@@ -391,7 +399,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       const userData = userSnap.data() as
         | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
         | undefined;
-      const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt, mode: 'gift' });
+      const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt, mode: 'gift', quantity });
 
       tx.set(userRef, {
         subscriptionTier: grant.subscriptionTier,
@@ -431,7 +439,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
       afterCommit = async () => {
         const email = await resolveUserEmail(deps, targetUid);
         if (email && deps.sendEmail) {
-          const msg = buildGiftReceivedEmail({ gifterName, tier: grant.subscriptionTier, cadence });
+          const msg = buildGiftReceivedEmail({ gifterName, tier: grant.subscriptionTier, cadence, quantity });
           await deps.sendEmail({ to: email, ...msg });
         }
       };
@@ -458,6 +466,7 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
             claimUrl: `${CLAIM_LINK_BASE}?code=${encodeURIComponent(code)}`,
             tier,
             cadence,
+            quantity,
           });
           await deps.sendEmail({ to: recipientEmail, ...msg });
         }
@@ -504,6 +513,7 @@ export async function redeemGiftHandler(
       status?: GiftStatus;
       tier?: BillingTier;
       cadence?: BillingCadence;
+      quantity?: number;
       claimedByUid?: string | null;
       expiresAt?: unknown;
     };
@@ -529,12 +539,13 @@ export async function redeemGiftHandler(
 
     const tier = gift.tier as BillingTier;
     const cadence = gift.cadence as BillingCadence;
+    const quantity = gift.quantity ?? 1; // default 1 for pre-quantity gift docs
     const userRef = deps.db.doc(`users/${uid}`);
     const userSnap = await tx.get(userRef);
     const userData = userSnap.data() as
       | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
       | undefined;
-    const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt: now, mode: 'gift' });
+    const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt: now, mode: 'gift', quantity });
 
     tx.set(userRef, {
       subscriptionTier: grant.subscriptionTier,
@@ -666,6 +677,21 @@ function asNonEmptyString(value: unknown): string | null {
 
 function asEmail(value: unknown): string | null {
   return typeof value === 'string' && value.includes('@') ? value.trim() : null;
+}
+
+/**
+ * Number of periods to gift. Defaults to 1 when absent (backwards-compatible with
+ * callers that don't send it). Must be a whole number within the per-cadence cap
+ * (12 months or 5 years) — anything else is rejected so a tampered/huge amount
+ * can't be charged.
+ */
+function parseQuantity(value: unknown, cadence: BillingCadence): number {
+  if (value === undefined || value === null) return 1;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_QUANTITY[cadence]) {
+    throw new functions.https.HttpsError('invalid-argument', 'invalid_quantity');
+  }
+  return n;
 }
 
 function parsePaidAt(data: PaystackGiftChargeData, fallback: Date): Date {

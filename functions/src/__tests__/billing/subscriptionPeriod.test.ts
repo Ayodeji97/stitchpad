@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import {
   addPeriod,
+  addPeriods,
   addYears,
   computeSubscriptionGrant,
 } from '../../billing/subscriptionPeriod';
@@ -118,5 +119,40 @@ describe('addYears', () => {
 describe('addPeriod (re-exported)', () => {
   it('adds one calendar month', () => {
     expect(addPeriod(new Date('2027-03-15T10:00:00Z'), 'monthly').toISOString()).toBe('2027-04-15T10:00:00.000Z');
+  });
+});
+
+describe('addPeriods (multi-period)', () => {
+  it('adds N calendar months', () => {
+    expect(addPeriods(new Date('2026-06-01T10:00:00Z'), 'monthly', 3).toISOString()).toBe('2026-09-01T10:00:00.000Z');
+  });
+  it('adds N calendar years', () => {
+    expect(addPeriods(new Date('2026-06-01T10:00:00Z'), 'annual', 2).toISOString()).toBe('2028-06-01T10:00:00.000Z');
+  });
+  it('clamps a non-positive count to a single period', () => {
+    expect(addPeriods(new Date('2026-06-01T10:00:00Z'), 'monthly', 0).toISOString()).toBe('2026-07-01T10:00:00.000Z');
+  });
+});
+
+describe('computeSubscriptionGrant — quantity', () => {
+  it('grants N months for a free recipient (gift of 3 monthly)', () => {
+    const grant = computeSubscriptionGrant({
+      userData: { subscriptionTier: 'free', subscriptionStatus: 'active' },
+      tier: 'pro', cadence: 'monthly', paidAt, mode: 'gift', quantity: 3,
+    });
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-09-01T10:00:00.000Z');
+  });
+  it('stacks N years onto an active same-tier end date', () => {
+    const grant = computeSubscriptionGrant({
+      userData: { subscriptionTier: 'atelier', subscriptionStatus: 'active', subscriptionEndsAt: ts('2026-12-01T00:00:00Z') },
+      tier: 'atelier', cadence: 'annual', paidAt, mode: 'gift', quantity: 2,
+    });
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2028-12-01T00:00:00.000Z');
+  });
+  it('defaults to 1 period when quantity is omitted (purchase path unchanged)', () => {
+    const grant = computeSubscriptionGrant({
+      userData: undefined, tier: 'pro', cadence: 'monthly', paidAt, mode: 'purchase',
+    });
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
   });
 });

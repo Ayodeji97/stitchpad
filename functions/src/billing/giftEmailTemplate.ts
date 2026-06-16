@@ -32,7 +32,13 @@ const LOGO_URL =
   'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.firebasestorage.app/o/stitchpad-email-logo.png?alt=media&token=d05c88f4-d9c4-4085-a0a8-a136e0c9d8b3'; // gitleaks:allow
 
 const TIER_LABEL: Record<BillingTier, string> = { pro: 'Tailor Pro', atelier: 'Tailor Atelier' };
-const DURATION_LABEL: Record<BillingCadence, string> = { monthly: '1 month', annual: '1 year' };
+
+/** "1 month" / "3 months" / "1 year" / "2 years" for the gifted span. */
+function durationLabel(cadence: BillingCadence, quantity: number): string {
+  const n = Number.isInteger(quantity) && quantity >= 1 ? quantity : 1;
+  const unit = cadence === 'annual' ? 'year' : 'month';
+  return `${n} ${unit}${n === 1 ? '' : 's'}`;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -95,9 +101,10 @@ export function buildGiftReceivedEmail(params: {
   gifterName?: string;
   tier: BillingTier;
   cadence: BillingCadence;
+  quantity?: number;
 }): { subject: string; html: string; text: string } {
   const tierLabel = TIER_LABEL[params.tier];
-  const duration = DURATION_LABEL[params.cadence];
+  const duration = durationLabel(params.cadence, params.quantity ?? 1);
   const gifter = gifterPhrase(params.gifterName);
   const subject = `You have been gifted StitchPad ${tierLabel}`;
 
@@ -125,9 +132,10 @@ export function buildGiftClaimEmail(params: {
   claimUrl: string;
   tier: BillingTier;
   cadence: BillingCadence;
+  quantity?: number;
 }): { subject: string; html: string; text: string } {
   const tierLabel = TIER_LABEL[params.tier];
-  const duration = DURATION_LABEL[params.cadence];
+  const duration = durationLabel(params.cadence, params.quantity ?? 1);
   const gifter = gifterPhrase(params.gifterName);
   const code = escapeHtml(params.code);
   const claimUrl = escapeHtml(params.claimUrl);
