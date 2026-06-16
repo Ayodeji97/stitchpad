@@ -1585,5 +1585,5 @@
     <string name="gift_share_copied">Link copied</string>
     <string name="gift_share_error">Couldn&apos;t create your gift link. Please try again.</string>
     <string name="gift_share_retry">Try again</string>
-    <string name="gift_share_whatsapp_message">Enjoying my work? You can support my StitchPad plan here: %1$s</string>
+    <string name="gift_share_whatsapp_message">I run my tailoring business on StitchPad. You can support me by covering my subscription plan here: %1$s</string>
 </resources>
