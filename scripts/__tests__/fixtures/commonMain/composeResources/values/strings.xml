@@ -1,0 +1,4 @@
+<resources>
+    <string name="bad">It\'s broken</string>
+    <string name="good">It&apos;s fine</string>
+</resources>
