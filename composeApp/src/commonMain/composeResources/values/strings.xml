@@ -1102,6 +1102,8 @@
     <string name="order_detail_payment_total">Total</string>
     <string name="order_detail_payment_paid">Paid</string>
     <string name="order_detail_payment_balance">Balance</string>
+    <string name="order_detail_payment_subtotal">Subtotal %1$s</string>
+    <string name="order_detail_payment_discount">Discount %1$s</string>
 
     <!-- Production stages -->
     <string name="order_stage_pending">Pending</string>
