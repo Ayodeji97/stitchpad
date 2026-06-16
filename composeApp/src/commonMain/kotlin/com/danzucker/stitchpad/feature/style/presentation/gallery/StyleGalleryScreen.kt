@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -58,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -94,6 +96,7 @@ import stitchpad.composeapp.generated.resources.style_gallery_title
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_subtitle
 import stitchpad.composeapp.generated.resources.style_inspiration_empty_title
 import stitchpad.composeapp.generated.resources.style_inspiration_title
+import stitchpad.composeapp.generated.resources.style_locked_a11y
 import stitchpad.composeapp.generated.resources.style_moved_snackbar
 import stitchpad.composeapp.generated.resources.style_transfer_choose_folder
 import stitchpad.composeapp.generated.resources.style_transfer_copy_title
@@ -248,6 +251,7 @@ fun StyleGalleryScreen(
                     items(items = state.styles, key = { it.id }) { style ->
                         StyleCard(
                             style = style,
+                            isLocked = style.id in state.lockedStyleIds,
                             onClick = { onAction(StyleGalleryAction.OnStyleClick(style)) },
                             onLongClick = { onAction(StyleGalleryAction.OnStyleLongPress(style)) }
                         )
@@ -519,6 +523,7 @@ private fun transferTargetName(
 @Composable
 private fun StyleCard(
     style: Style,
+    isLocked: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -535,23 +540,55 @@ private fun StyleCard(
             )
     ) {
         Column {
-            SubcomposeAsyncImage(
-                model = style.localPhotoPath ?: style.photoUrl,
-                contentDescription = style.description.ifBlank { null },
-                contentScale = ContentScale.Crop,
-                loading = {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        LoadingDots()
-                    }
-                },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
+            ) {
+                SubcomposeAsyncImage(
+                    model = style.localPhotoPath ?: style.photoUrl,
+                    contentDescription = style.description.ifBlank { null },
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            LoadingDots()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                )
+                if (isLocked) {
+                    // Scrim — translucent black works in both light and dark mode
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.32f))
+                    )
+                    // Lock badge — top-end corner
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(DesignTokens.space2)
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                                shape = RoundedCornerShape(50)
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = stringResource(Res.string.style_locked_a11y),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
             if (style.description.isNotBlank()) {
                 Text(
                     text = style.description,
@@ -674,6 +711,41 @@ private fun StyleGalleryScreenFilledPreview() {
                         updatedAt = 0L
                     )
                 )
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun StyleGalleryScreenLockedPreview() {
+    StitchPadTheme {
+        StyleGalleryScreen(
+            state = StyleGalleryState(
+                isLoading = false,
+                styles = listOf(
+                    Style(
+                        id = "1",
+                        customerId = "c1",
+                        description = "Red agbada with gold trim",
+                        photoUrl = "",
+                        photoStoragePath = "",
+                        createdAt = 0L,
+                        updatedAt = 0L
+                    ),
+                    Style(
+                        id = "2",
+                        customerId = "c1",
+                        description = "Blue senator kaftan",
+                        photoUrl = "",
+                        photoStoragePath = "",
+                        createdAt = 0L,
+                        updatedAt = 0L
+                    )
+                ),
+                lockedStyleIds = setOf("2")
             ),
             onAction = {}
         )
