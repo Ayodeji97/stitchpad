@@ -95,6 +95,15 @@ awk_out="$(awk -v rulesfile="$TMP.rules" '
     path = $1; ln = $2
     content = ""
     for (i = 3; i <= NF; i++) content = content (i > 3 ? "\t" : "") $i
+    # Skip comment-only lines: documenting an anti-pattern (e.g. in KDoc) must
+    # not trip the gate. Matches leading // line comments, KDoc/block-comment
+    # continuation (*), block-comment openers (/*), and XML comments (<!--).
+    # Limitation: a pattern inside a block-comment body whose line does NOT
+    # start with one of these markers is still scanned — diff mode only sees
+    # added lines, so cross-line block-comment state cannot be tracked reliably.
+    stripped = content
+    sub(/^[ \t]+/, "", stripped)
+    if (stripped ~ /^(\/\/|\*|\/\*|<!--)/) next
     for (i = 1; i <= n; i++) {
       if (index(path, globs[i]) == 0) continue
       if (index(content, "crash-check:ignore " ids[i]) > 0) continue

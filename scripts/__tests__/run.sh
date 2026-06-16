@@ -31,6 +31,7 @@ assert_contains "$out" "peekaboo-maxselection"   "warns SelectionMode.Multiple"
 assert_not_contains "$out" "Good.kt"             "Good.kt produces no findings"
 assert_not_contains "$out" "androidMain"         "androidMain String.format not flagged (scope)"
 assert_not_contains "$out" "Suppressed.kt"       "suppression comment honored"
+assert_not_contains "$out" "CommentMention.kt"   "anti-patterns mentioned in comments not flagged"
 
 # --- tab-indented line detection ---
 assert_contains "$out" "TabIndented.kt"          "tab-indented serializer-any line detected"
