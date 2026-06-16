@@ -53,22 +53,29 @@ class StyleFormViewModelTest {
     }
 
     private class FakeEntitlementsProvider(
-        private val tier: SubscriptionTier = SubscriptionTier.FREE,
+        initialTier: SubscriptionTier = SubscriptionTier.FREE,
     ) : EntitlementsProvider {
-        private val entitlements = UserEntitlements(
-            tier = tier,
-            customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
-            smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
-            isInWelcomeWindow = false,
-            welcomeEndsAt = null,
-            isWithinWelcomeEndingWarning = false,
-            welcomeDaysLeft = null,
-            canUseCustomMeasurements = tier != SubscriptionTier.FREE,
-        )
-        private val _flow = MutableStateFlow(entitlements)
+        private val _flow = MutableStateFlow(entitlementsFor(initialTier))
         override val flow: StateFlow<UserEntitlements> = _flow
-        override fun current(): UserEntitlements = entitlements
-        override suspend fun awaitHydrated(): UserEntitlements = entitlements
+        override fun current(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
+
+        fun emitTier(tier: SubscriptionTier) {
+            _flow.value = entitlementsFor(tier)
+        }
+
+        companion object {
+            fun entitlementsFor(tier: SubscriptionTier) = UserEntitlements(
+                tier = tier,
+                customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
+                smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
+                isInWelcomeWindow = false,
+                welcomeEndsAt = null,
+                isWithinWelcomeEndingWarning = false,
+                welcomeDaysLeft = null,
+                canUseCustomMeasurements = tier != SubscriptionTier.FREE,
+            )
+        }
     }
 
     private fun TestScope.createViewModel(
@@ -78,6 +85,7 @@ class StyleFormViewModelTest {
         folderId: String? = null,
         tier: SubscriptionTier = SubscriptionTier.FREE,
         readOnly: Boolean = false,
+        fakeEntitlements: FakeEntitlementsProvider = FakeEntitlementsProvider(tier),
     ): StyleFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
@@ -91,7 +99,7 @@ class StyleFormViewModelTest {
             styleRepository = styleRepository,
             authRepository = authRepository,
             orderRepository = orderRepository,
-            entitlements = FakeEntitlementsProvider(tier),
+            entitlements = fakeEntitlements,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -679,6 +687,53 @@ class StyleFormViewModelTest {
     }
 
     // --- Free-tier flattened cap count ---
+
+    // --- Reactive unlock: read-only clears on tier upgrade ---
+
+    @Test
+    fun readOnly_clearsWhenTierUpgradesToPaid() = runTest {
+        // Open with route readOnly=true (FREE tier, customer closet).
+        val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
+        val vm = createViewModel(
+            customerId = "customer-1",
+            readOnly = true,
+            fakeEntitlements = fake,
+        )
+        assertTrue(vm.state.value.readOnly)
+
+        // Emit PRO → foldersEnabled=true → readOnly should clear.
+        fake.emitTier(SubscriptionTier.PRO)
+
+        assertFalse(vm.state.value.readOnly)
+    }
+
+    @Test
+    fun readOnly_afterUpgrade_saveDoesNotEmitNavigateToUpgrade() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val existing = fakeStyle(id = "s1", customerId = "customer-1")
+        styleRepository.stylesList = listOf(existing)
+        val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
+        val vm = createViewModel(
+            customerId = "customer-1",
+            styleId = "s1",
+            readOnly = true,
+            fakeEntitlements = fake,
+        )
+        assertTrue(vm.state.value.readOnly)
+
+        // Upgrade — readOnly should clear.
+        fake.emitTier(SubscriptionTier.PRO)
+        assertFalse(vm.state.value.readOnly)
+
+        // Now save — should update (edit mode) rather than redirect to upgrade.
+        vm.onAction(StyleFormAction.OnDescriptionChange("Updated description"))
+        vm.onAction(StyleFormAction.OnSaveClick)
+
+        val event = vm.events.first()
+        assertIs<StyleFormEvent.NavigateBack>(event)
+        assertNotNull(styleRepository.lastUpdatedStyle, "update must be called after unlock")
+        assertEquals("s1", styleRepository.lastUpdatedStyle?.id)
+    }
 
     @Test
     fun free_computeMaxPhotoSelection_countsFlattenedCloset() = runTest {

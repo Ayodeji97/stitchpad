@@ -23,6 +23,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -380,14 +382,19 @@ class StyleGalleryViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            val tier = entitlements.awaitHydrated().tier
-            val limits = if (customerId == null) {
-                StyleCollectionLimits.forInspiration(tier)
-            } else {
-                StyleCollectionLimits.forCustomer(tier)
-            }
-            val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
-            if (!limits.foldersEnabled) observeFlattened(userId, cap) else observePerFolder(userId, cap)
+            entitlements.awaitHydrated()
+            entitlements.flow
+                .map { it.tier }
+                .distinctUntilChanged()
+                .collectLatest { tier ->
+                    val limits = if (customerId == null) {
+                        StyleCollectionLimits.forInspiration(tier)
+                    } else {
+                        StyleCollectionLimits.forCustomer(tier)
+                    }
+                    val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+                    if (!limits.foldersEnabled) observeFlattened(userId, cap) else observePerFolder(userId, cap)
+                }
         }
     }
 

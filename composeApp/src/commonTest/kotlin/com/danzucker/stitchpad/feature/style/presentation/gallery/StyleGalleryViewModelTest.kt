@@ -57,28 +57,36 @@ class StyleGalleryViewModelTest {
     }
 
     private class FakeEntitlementsProvider(
-        private val tier: SubscriptionTier = SubscriptionTier.FREE,
+        initialTier: SubscriptionTier = SubscriptionTier.FREE,
     ) : EntitlementsProvider {
-        private val entitlements = UserEntitlements(
-            tier = tier,
-            customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
-            smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
-            isInWelcomeWindow = false,
-            welcomeEndsAt = null,
-            isWithinWelcomeEndingWarning = false,
-            welcomeDaysLeft = null,
-            canUseCustomMeasurements = tier != SubscriptionTier.FREE,
-        )
-        private val _flow = MutableStateFlow(entitlements)
+        private val _flow = MutableStateFlow(entitlementsFor(initialTier))
         override val flow: StateFlow<UserEntitlements> = _flow
-        override fun current(): UserEntitlements = entitlements
-        override suspend fun awaitHydrated(): UserEntitlements = entitlements
+        override fun current(): UserEntitlements = _flow.value
+        override suspend fun awaitHydrated(): UserEntitlements = _flow.value
+
+        fun emitTier(tier: SubscriptionTier) {
+            _flow.value = entitlementsFor(tier)
+        }
+
+        companion object {
+            fun entitlementsFor(tier: SubscriptionTier) = UserEntitlements(
+                tier = tier,
+                customerCap = if (tier == SubscriptionTier.FREE) 15 else Int.MAX_VALUE,
+                smartCoinAllowance = if (tier == SubscriptionTier.FREE) 5 else 50,
+                isInWelcomeWindow = false,
+                welcomeEndsAt = null,
+                isWithinWelcomeEndingWarning = false,
+                welcomeDaysLeft = null,
+                canUseCustomMeasurements = tier != SubscriptionTier.FREE,
+            )
+        }
     }
 
     private fun TestScope.createViewModel(
         customerId: String? = "customer-1",
         folderId: String? = null,
         tier: SubscriptionTier = SubscriptionTier.FREE,
+        fakeEntitlements: FakeEntitlementsProvider = FakeEntitlementsProvider(tier),
     ): StyleGalleryViewModel {
         val args = buildMap {
             if (customerId != null) put("customerId", customerId)
@@ -89,7 +97,7 @@ class StyleGalleryViewModelTest {
             styleRepository = styleRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
-            entitlements = FakeEntitlementsProvider(tier),
+            entitlements = fakeEntitlements,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -972,6 +980,54 @@ class StyleGalleryViewModelTest {
         // actionSheetStyle must remain null; capSheet must be set
         assertNull(vm.state.value.actionSheetStyle)
         assertNotNull(vm.state.value.capSheet)
+    }
+
+    // --- Reactive unlock: gallery re-resolves on tier upgrade ---
+
+    @Test
+    fun free_upgradingToPaid_switchesOffFlattenedLock() = runTest {
+        // FREE customer flatCap=5. Seed 5 root styles + 1 locked style in folder "f1".
+        // After upgrade to PRO (maxImagesPerFolder=3, foldersEnabled=true), the VM must
+        // switch from observeFlattened to observePerFolder. The per-folder view shows only
+        // root styles (5) and locks the 2 oldest (s4, s5). The FREE locked set was {"f1-style"};
+        // after upgrade the locked set changes (f1 locked style is no longer in the per-folder
+        // root view) — assert lockedStyleIds changes from the Free flattened set.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+
+        val rootStyles = listOf(
+            fakeStyle(id = "r1", createdAt = 500L),
+            fakeStyle(id = "r2", createdAt = 400L),
+            fakeStyle(id = "r3", createdAt = 300L),
+            fakeStyle(id = "r4", createdAt = 200L),
+            fakeStyle(id = "r5", createdAt = 100L),
+        )
+        val folderStyle = fakeStyle(id = "f1-style", createdAt = 50L)
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-1")] = listOf(
+            StyleFolder(id = "f1", name = "Archive", createdAt = 0L, updatedAt = 0L)
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1", "f1")] = listOf(folderStyle)
+
+        val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
+        val vm = createViewModel(customerId = "customer-1", fakeEntitlements = fake)
+
+        // FREE: flat view with 6 styles, "f1-style" locked (oldest, beyond flatCap=5).
+        assertEquals(6, vm.state.value.styles.size)
+        assertTrue("f1-style" in vm.state.value.lockedStyleIds)
+        val freeLockedIds = vm.state.value.lockedStyleIds.toSet()
+
+        // Upgrade to PRO — collectLatest cancels the flattened observer and starts per-folder.
+        fake.emitTier(SubscriptionTier.PRO)
+
+        // PRO per-folder root view: 5 styles, maxImagesPerFolder=3 → r4 + r5 locked.
+        // The FREE locked set {"f1-style"} must be gone.
+        assertFalse(
+            vm.state.value.lockedStyleIds == freeLockedIds,
+            "lockedStyleIds must change from FREE flattened set after PRO upgrade"
+        )
+        assertFalse("f1-style" in vm.state.value.lockedStyleIds)
+        // Per-folder root: oldest 2 of 5 root styles are now locked.
+        assertEquals(setOf("r4", "r5"), vm.state.value.lockedStyleIds)
     }
 
     @Test

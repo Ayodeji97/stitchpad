@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
@@ -22,7 +23,10 @@ import com.danzucker.stitchpad.feature.style.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -71,6 +75,7 @@ class StyleFormViewModel(
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
                 if (styleId != null) loadStyle(styleId) else if (allowMultiPhoto) computeMaxPhotoSelection()
+                observeUnlockOnUpgrade()
             }
         }
         .stateIn(
@@ -119,6 +124,26 @@ class StyleFormViewModel(
         }
         _state.update { it.copy(selectedPhotos = photos, errorMessage = null) }
     }
+
+    private fun observeUnlockOnUpgrade() {
+        if (!readOnly) return
+        viewModelScope.launch {
+            entitlements.awaitHydrated()
+            entitlements.flow
+                .map { tierEnablesFolders(it.tier) }
+                .distinctUntilChanged()
+                .collect { foldersEnabled ->
+                    if (foldersEnabled) _state.update { it.copy(readOnly = false) }
+                }
+        }
+    }
+
+    private fun tierEnablesFolders(tier: SubscriptionTier): Boolean =
+        if (customerId == null) {
+            StyleCollectionLimits.forInspiration(tier).foldersEnabled
+        } else {
+            StyleCollectionLimits.forCustomer(tier).foldersEnabled
+        }
 
     private fun loadStyle(id: String) {
         viewModelScope.launch {
@@ -222,7 +247,7 @@ class StyleFormViewModel(
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     private fun save() {
-        if (readOnly) {
+        if (_state.value.readOnly) {
             viewModelScope.launch { _events.send(StyleFormEvent.NavigateToUpgrade) }
             return
         }
