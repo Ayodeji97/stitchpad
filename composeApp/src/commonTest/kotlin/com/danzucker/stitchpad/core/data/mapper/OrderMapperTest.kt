@@ -487,4 +487,25 @@ class OrderMapperTest {
         assertEquals("p-new", order.payments.last().id)
         assertEquals(15_000.0, order.depositPaid)
     }
+
+    @Test
+    fun `mapper round-trips discount and reason`() {
+        val dto = OrderDto(
+            id = "o1", customerId = "c1", customerName = "Mummy AY",
+            totalPrice = 32_500.0, discount = 2_500.0, discountReason = "New customer",
+        )
+        val order = dto.toOrder(userId = "u1")
+        assertEquals(2_500.0, order.discount)
+        assertEquals("New customer", order.discountReason)
+        val back = order.toOrderDto()
+        assertEquals(2_500.0, back.discount)
+        assertEquals("New customer", back.discountReason)
+    }
+
+    @Test
+    fun `legacy dto without discount maps to zero and null`() {
+        val order = OrderDto(id = "o1", totalPrice = 10_000.0).toOrder(userId = "u1")
+        assertEquals(0.0, order.discount)
+        assertEquals(null, order.discountReason)
+    }
 }

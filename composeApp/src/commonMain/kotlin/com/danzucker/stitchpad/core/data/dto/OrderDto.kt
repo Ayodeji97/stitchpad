@@ -11,6 +11,8 @@ data class OrderDto(
     val subStatus: String? = null,
     val priority: String = "NORMAL",
     val totalPrice: Double = 0.0,
+    val discount: Double = 0.0,
+    val discountReason: String? = null,
     /** Legacy field kept for backward-compat when reading old Firestore docs. */
     val depositPaid: Double = 0.0,
     /** Legacy field kept for backward-compat when reading old Firestore docs. */
