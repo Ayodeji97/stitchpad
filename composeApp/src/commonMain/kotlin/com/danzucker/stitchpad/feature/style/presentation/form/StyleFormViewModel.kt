@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
 import com.danzucker.stitchpad.feature.style.domain.StyleError
+import com.danzucker.stitchpad.feature.style.domain.StyleLockPolicy
 import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
@@ -130,20 +131,36 @@ class StyleFormViewModel(
         viewModelScope.launch {
             entitlements.awaitHydrated()
             entitlements.flow
-                .map { tierEnablesFolders(it.tier) }
+                .map { it.tier }
                 .distinctUntilChanged()
-                .collect { foldersEnabled ->
-                    if (foldersEnabled) _state.update { it.copy(readOnly = false) }
+                .collect { tier ->
+                    if (!isStyleLockedForTier(tier)) {
+                        _state.update { it.copy(readOnly = false) }
+                    }
                 }
         }
     }
 
-    private fun tierEnablesFolders(tier: SubscriptionTier): Boolean =
-        if (customerId == null) {
-            StyleCollectionLimits.forInspiration(tier).foldersEnabled
+    @Suppress("ReturnCount")
+    private suspend fun isStyleLockedForTier(tier: SubscriptionTier): Boolean {
+        val limits = if (customerId == null) {
+            StyleCollectionLimits.forInspiration(tier)
         } else {
-            StyleCollectionLimits.forCustomer(tier).foldersEnabled
+            StyleCollectionLimits.forCustomer(tier)
         }
+        // Free (no folders): the form was opened read-only from a locked context and no
+        // upgrade has changed that — keep it locked. (Only paid tiers can unlock.)
+        if (!limits.foldersEnabled) return true
+        val userId = authRepository.getCurrentUser()?.id ?: return true // can't tell -> fail safe: stay locked
+        val targetStyleId = styleId ?: return false
+        // `location` already targets this style's true folder (nav passes the real folderId).
+        val folderStyles = when (val r = styleRepository.observeStyles(userId, location).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> return true // can't determine -> stay locked (fail safe)
+        }
+        return StyleLockPolicy.lockedStyleIds(folderStyles, limits.maxImagesPerFolder)
+            .contains(targetStyleId)
+    }
 
     private fun loadStyle(id: String) {
         viewModelScope.launch {

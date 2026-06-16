@@ -692,7 +692,9 @@ class StyleFormViewModelTest {
 
     @Test
     fun readOnly_clearsWhenTierUpgradesToPaid() = runTest {
-        // Open with route readOnly=true (FREE tier, customer closet).
+        // Open with route readOnly=true (FREE tier, customer closet, no specific styleId
+        // — simulates the "add" button being locked at the flat cap).
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
         val vm = createViewModel(
             customerId = "customer-1",
@@ -701,7 +703,7 @@ class StyleFormViewModelTest {
         )
         assertTrue(vm.state.value.readOnly)
 
-        // Emit PRO → foldersEnabled=true → readOnly should clear.
+        // Emit PRO → foldersEnabled=true, styleId=null → not locked → readOnly clears.
         fake.emitTier(SubscriptionTier.PRO)
 
         assertFalse(vm.state.value.readOnly)
@@ -733,6 +735,72 @@ class StyleFormViewModelTest {
         assertIs<StyleFormEvent.NavigateBack>(event)
         assertNotNull(styleRepository.lastUpdatedStyle, "update must be called after unlock")
         assertEquals("s1", styleRepository.lastUpdatedStyle?.id)
+    }
+
+    // --- Per-folder cap check on tier upgrade ---
+
+    @Test
+    fun readOnly_freeToPro_styleWithinFolderCap_unlocks() = runTest {
+        // Style "style-within" lives in "folder-a" alongside 1 other style.
+        // PRO customer: maxImagesPerFolder = 3. 2 styles ≤ 3 → not over cap → unlocks.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val folderLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-1",
+            folderId = "folder-a",
+        )
+        styleRepository.stylesByLocation[folderLocation] = listOf(
+            fakeStyle(id = "style-other", customerId = "customer-1").copy(createdAt = 2000L),
+            fakeStyle(id = "style-within", customerId = "customer-1").copy(createdAt = 1000L),
+        )
+
+        val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
+        val vm = createViewModel(
+            customerId = "customer-1",
+            styleId = "style-within",
+            folderId = "folder-a",
+            readOnly = true,
+            fakeEntitlements = fake,
+        )
+        assertTrue(vm.state.value.readOnly)
+
+        // Upgrade to PRO: 2 styles in folder ≤ 3 cap → style-within not in locked set → unlocks.
+        fake.emitTier(SubscriptionTier.PRO)
+
+        assertFalse(vm.state.value.readOnly)
+    }
+
+    @Test
+    fun readOnly_freeToPro_styleStillOverFolderCap_staysLocked() = runTest {
+        // Style "style-old" lives in "folder-b" alongside 3 newer styles.
+        // PRO customer: maxImagesPerFolder = 3. 4 styles > 3 → oldest is locked → stays locked.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val folderLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
+            customerId = "customer-1",
+            folderId = "folder-b",
+        )
+        // "style-old" has the smallest createdAt → it lands in the over-cap tail after
+        // sortedByDescending(createdAt).drop(3) when there are 4 styles total.
+        styleRepository.stylesByLocation[folderLocation] = listOf(
+            fakeStyle(id = "style-new1", customerId = "customer-1").copy(createdAt = 4000L),
+            fakeStyle(id = "style-new2", customerId = "customer-1").copy(createdAt = 3000L),
+            fakeStyle(id = "style-new3", customerId = "customer-1").copy(createdAt = 2000L),
+            fakeStyle(id = "style-old",  customerId = "customer-1").copy(createdAt = 1000L),
+        )
+
+        val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
+        val vm = createViewModel(
+            customerId = "customer-1",
+            styleId = "style-old",
+            folderId = "folder-b",
+            readOnly = true,
+            fakeEntitlements = fake,
+        )
+        assertTrue(vm.state.value.readOnly)
+
+        // Upgrade to PRO: 4 styles in folder > 3 cap → style-old IS in locked set → stays locked.
+        fake.emitTier(SubscriptionTier.PRO)
+
+        assertTrue(vm.state.value.readOnly, "style-old must remain read-only: still over per-folder cap after PRO upgrade")
     }
 
     @Test
