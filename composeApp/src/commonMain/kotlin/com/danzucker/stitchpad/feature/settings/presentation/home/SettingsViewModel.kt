@@ -119,6 +119,7 @@ class SettingsViewModel(
             SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
+            SettingsAction.OnGetGiftedClick -> emit(SettingsEvent.NavigateToShareGiftLink)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
             is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
         }

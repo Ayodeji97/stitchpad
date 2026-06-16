@@ -126,6 +126,12 @@ data object DraftMessageRoute
 data object UpgradeRoute
 
 @Serializable
+data object RedeemGiftRoute
+
+@Serializable
+data object ShareGiftLinkRoute
+
+@Serializable
 data object FoundersNoteRoute
 
 @Serializable

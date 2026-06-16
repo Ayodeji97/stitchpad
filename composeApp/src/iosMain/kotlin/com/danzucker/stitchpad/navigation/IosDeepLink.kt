@@ -14,7 +14,15 @@ import org.koin.mp.KoinPlatform
  * not pass it on to Google Sign-In).
  */
 fun handleIosDeepLink(url: String): Boolean {
-    val preselect = DeepLinkParser.parseUpgrade(url) ?: return false
-    KoinPlatform.getKoin().get<PendingDeepLinkHolder>().setUpgrade(preselect.tier, preselect.cadence)
-    return true
+    val holder = KoinPlatform.getKoin().get<PendingDeepLinkHolder>()
+    val upgrade = DeepLinkParser.parseUpgrade(url)
+    if (upgrade != null) {
+        holder.setUpgrade(upgrade.tier, upgrade.cadence)
+        return true
+    }
+    val claimCode = DeepLinkParser.parseClaimGift(url)
+    if (claimCode != null) {
+        holder.setClaimGift(claimCode)
+    }
+    return claimCode != null
 }

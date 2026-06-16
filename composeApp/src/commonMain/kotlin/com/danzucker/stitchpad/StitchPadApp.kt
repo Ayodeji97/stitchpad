@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.di.customerPresentationModule
 import com.danzucker.stitchpad.di.dashboardPresentationModule
 import com.danzucker.stitchpad.di.debugModule
 import com.danzucker.stitchpad.di.freemiumModule
+import com.danzucker.stitchpad.di.giftModule
 import com.danzucker.stitchpad.di.goalsDataModule
 import com.danzucker.stitchpad.di.goalsPresentationModule
 import com.danzucker.stitchpad.di.measurementDataModule
@@ -56,6 +57,7 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             smartDataModule,
             smartPresentationModule,
             freemiumModule,
+            giftModule,
             platformModule
         )
         if (isDebugBuild) {
