@@ -756,6 +756,34 @@ class StyleGalleryViewModelTest {
     // --- FIX 5 + FIX 7(gallery): performTransfer live count re-read ---
 
     @Test
+    fun free_transfer_destinationFlattenedCountReadError_failsClosed_noCopy_errorSurfaced() = runTest {
+        // FREE tier: if countStylesAcrossFolders returns null (sub-read error) during
+        // onTargetSelected, the transfer must be aborted and an error surfaced (fail closed).
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "customer-1"),
+            fakeCustomer(id = "customer-2", name = "Bisi"),
+        )
+        // Inject a read error so countStylesAcrossFolders returns null.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
+        // CopyClick itself only reads customers (which fails gracefully → keeps inspiration target).
+        // Reset observeError after copy-click customer fetch so only the count read fails.
+        styleRepository.observeError = null
+        vm.onAction(StyleGalleryAction.OnCopyClick)
+        // Now re-inject the error to fail the Free-path flattened count in onTargetSelected.
+        styleRepository.observeError = DataError.Network.UNKNOWN
+
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+
+        assertNull(styleRepository.lastCopied, "No copy must occur when count read fails")
+        assertNotNull(vm.state.value.errorMessage, "Error must be surfaced when flattened count can't be read")
+        assertNull(vm.state.value.transfer, "Transfer sheet must be dismissed on fail-closed abort")
+    }
+
+    @Test
     fun transfer_paidTier_whenDestinationCountReadErrors_noCopy_errorSurfaced() = runTest {
         // On paid tiers, the live re-read in performTransfer uses observeStyles directly
         // and hard-fails on error (fail-safe: blocks the transfer and surfaces an error).

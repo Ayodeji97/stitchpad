@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class CountStylesAcrossFoldersTest {
 
@@ -81,13 +82,13 @@ class CountStylesAcrossFoldersTest {
     }
 
     @Test
-    fun observeError_treatedAsZero_doesNotThrow() = runTest {
-        // Errors are handled gracefully: each folder's count is 0 on error.
+    fun observeError_returnsNull() = runTest {
+        // A read error on any sub-read makes the count indeterminate → null (fail-closed signal).
         val root = StyleLocation.CustomerCloset(customerId)
         repo.observeError = DataError.Network.UNKNOWN
 
         val count = repo.countStylesAcrossFolders(userId, root)
 
-        assertEquals(0, count)
+        assertNull(count)
     }
 }

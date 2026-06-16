@@ -202,6 +202,15 @@ class StyleGalleryViewModel(
                 // target.location is already a root location for Free targets.
                 val destCount = styleRepository.countStylesAcrossFolders(userId, target.location)
                 _state.update { it.copy(transfer = null) }
+                if (destCount == null) {
+                    // Count read failed — fail closed: abort and surface error.
+                    _state.update {
+                        it.copy(
+                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                        )
+                    }
+                    return@launch
+                }
                 if (destCount >= limits.flatCap) {
                     _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
                     return@launch
@@ -290,7 +299,7 @@ class StyleGalleryViewModel(
      * before committing the transfer. If the read fails, surface an error and abort.
      * If the count is at or above cap, emit CapReached and abort.
      */
-    @Suppress("ReturnCount", "CyclomaticComplexMethod")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
     private suspend fun performTransfer(
         transfer: StyleTransfer,
         target: TransferTarget,
@@ -316,7 +325,17 @@ class StyleGalleryViewModel(
                 is TransferTarget.Customer -> StyleLocation.CustomerCloset(target.customerId)
                 TransferTarget.Inspiration -> StyleLocation.Inspiration()
             }
-            liveCount = styleRepository.countStylesAcrossFolders(userId, destRoot)
+            val flatCount = styleRepository.countStylesAcrossFolders(userId, destRoot)
+            if (flatCount == null) {
+                // Count read failed — fail closed: abort and surface error.
+                _state.update {
+                    it.copy(
+                        errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                    )
+                }
+                return
+            }
+            liveCount = flatCount
         } else {
             when (val r = styleRepository.observeStyles(userId, destinationLocation).first()) {
                 is Result.Success -> liveCount = r.data.size

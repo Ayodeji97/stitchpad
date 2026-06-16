@@ -549,6 +549,24 @@ class StyleFormViewModelTest {
         assertNotNull(vm.state.value.errorMessage)
     }
 
+    @Test
+    fun free_save_flattenedCountReadError_failsClosed_noCreate_errorSet() = runTest {
+        // FREE tier: countStylesAcrossFolders returns null on sub-read failure.
+        // The save guard must abort and surface an error rather than treating null as 0.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.observeError = DataError.Network.UNKNOWN
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
+        vm.onAction(StyleFormAction.OnDescriptionChange("Indigo dress"))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
+
+        vm.onAction(StyleFormAction.OnSaveClick)
+
+        assertNull(styleRepository.lastCreatedDescription, "No style must be created when count read fails")
+        assertNull(styleRepository.lastBatchCreatedDescription)
+        assertFalse(vm.state.value.isSaving)
+        assertNotNull(vm.state.value.errorMessage, "Error must be surfaced when flattened count can't be read")
+    }
+
     // --- Read-only mode ---
 
     @Test

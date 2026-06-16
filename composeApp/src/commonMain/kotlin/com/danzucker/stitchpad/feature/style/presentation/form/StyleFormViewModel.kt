@@ -161,25 +161,32 @@ class StyleFormViewModel(
      *
      * On Free tier (folders disabled) the count spans the entire closet/library so
      * that photos added across different folders all count toward the flat cap.
+     *
+     * This is a non-critical / best-effort path: if the count can't be read (null),
+     * we fall back to 0 so the picker still functions. The authoritative guard is in
+     * the save path below.
      */
     private fun computeMaxPhotoSelection() {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val cap = resolveImageCap()
-            val current = currentClosetCount(userId)
+            val current = currentClosetCount(userId) ?: 0
             val remaining = (cap - current).coerceIn(1, STYLE_MULTI_PICK_CEILING)
             _state.update { it.copy(maxPhotoSelection = remaining) }
         }
     }
 
     /**
-     * Returns the total style count to compare against the image cap.
+     * Returns the total style count to compare against the image cap, or `null` if a
+     * read error prevents the count from being determined.
      *
-     * When folders are disabled (Free tier), counts the ENTIRE closet/library
-     * across all folders so the flat cap is enforced globally. When folders are
-     * enabled (Pro/Atelier), counts only the current location (a single folder).
+     * When folders are disabled (Free tier), counts the ENTIRE closet/library across
+     * all folders so the flat cap is enforced globally (returns null on any sub-read
+     * error). When folders are enabled (Pro/Atelier), counts only the current location
+     * (a single folder); returns 0 on read error because the paid path has its own
+     * explicit error handling in the save guard.
      */
-    private suspend fun currentClosetCount(userId: String): Int {
+    private suspend fun currentClosetCount(userId: String): Int? {
         val tier = entitlements.awaitHydrated().tier
         val foldersEnabled = if (customerId == null) {
             StyleCollectionLimits.forInspiration(tier).foldersEnabled
@@ -193,6 +200,7 @@ class StyleFormViewModel(
             }
         }
         // Free tier: count the entire flattened closet/library across all folders.
+        // Returns null if any sub-read fails (callers must fail closed for hard guards).
         val root = when (val loc = location) {
             is StyleLocation.CustomerCloset -> StyleLocation.CustomerCloset(loc.customerId)
             is StyleLocation.Inspiration -> StyleLocation.Inspiration()
@@ -258,12 +266,22 @@ class StyleFormViewModel(
             val imageCap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
             // FIX 7(form) + flattened-Free fix: on Free tier count the whole closet/library
             // across all folders (flat cap applies globally). On paid tiers count the single
-            // current folder. Fail safe on count-read error — block the create rather than
+            // current folder. Fail CLOSED on count-read error — block the create rather than
             // treating an unreadable count as 0 (which bypasses the cap).
             val current: Int
             if (!limits.foldersEnabled) {
-                // Free: flattened count (handles its own error-as-0 per folder).
-                current = currentClosetCount(userId)
+                // Free: flattened count; null = sub-read failed → abort (fail closed).
+                val flatCount = currentClosetCount(userId)
+                if (flatCount == null) {
+                    _state.update {
+                        it.copy(
+                            isSaving = false,
+                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                        )
+                    }
+                    return@launch
+                }
+                current = flatCount
             } else {
                 // Paid: single-location count; hard-fail on read error.
                 when (val r = styleRepository.observeStyles(userId, location).first()) {

@@ -90,21 +90,29 @@ fun StyleRepository.observeFoldersWithStyles(
  * (no empty-sentinel-first problem). Use for Free-tier per-closet cap checks where the
  * cap applies to the whole flattened closet/library.
  *
+ * Returns `null` if any sub-read (root styles, folder list, or a per-folder styles read)
+ * returns [Result.Error] — the count cannot be determined. Callers must fail CLOSED for
+ * hard cap guards when this returns null (i.e. abort the write / transfer, surface an
+ * error). Non-critical uses (e.g. the photo-picker limit) may treat null as a safe
+ * fallback of 0.
+ *
  * [root] must be a ROOT location (folderId == null).
  */
-suspend fun StyleRepository.countStylesAcrossFolders(userId: String, root: StyleLocation): Int {
+@Suppress("ReturnCount")
+suspend fun StyleRepository.countStylesAcrossFolders(userId: String, root: StyleLocation): Int? {
     val rootCount = when (val r = observeStyles(userId, root.withFolder(null)).first()) {
         is Result.Success -> r.data.size
-        is Result.Error -> 0
+        is Result.Error -> return null
     }
     val folders = when (val r = observeFolders(userId, root.withFolder(null)).first()) {
         is Result.Success -> r.data
-        is Result.Error -> emptyList()
+        is Result.Error -> return null
     }
-    val namedCount = folders.sumOf { folder ->
+    var namedCount = 0
+    for (folder in folders) {
         when (val r = observeStyles(userId, root.withFolder(folder.id)).first()) {
-            is Result.Success -> r.data.size
-            is Result.Error -> 0
+            is Result.Success -> namedCount += r.data.size
+            is Result.Error -> return null
         }
     }
     return rootCount + namedCount
