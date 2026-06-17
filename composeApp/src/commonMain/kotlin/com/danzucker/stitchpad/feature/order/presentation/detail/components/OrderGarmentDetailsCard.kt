@@ -144,6 +144,7 @@ fun OrderGarmentDetailsCard(
                             },
                             canAdd = styleImageCount < MAX_IMAGES_PER_CATEGORY,
                             onCtaClick = onAddStyleClick,
+                            onAddClick = onAddStyleClick,
                             onRemove = { displayIndex ->
                                 styleImages.getOrNull(displayIndex)?.sourceIndex?.let(onRemoveStyleImage)
                             },
@@ -272,6 +273,7 @@ private fun FabricColumn(
         needsName -> Res.string.order_detail_add_fabric_name
         else -> null
     }
+    val onAddClick: () -> Unit = { onAddFabricPhotoClick(item.id) }
     val onCtaClick: () -> Unit = if (needsPhoto) {
         { onAddFabricPhotoClick(item.id) }
     } else {
@@ -285,7 +287,12 @@ private fun FabricColumn(
         ctaLabel = ctaLabel,
         canAdd = urls.size < MAX_IMAGES_PER_CATEGORY,
         onCtaClick = onCtaClick,
-        onRemove = { index -> onRemoveFabricImage(item.id, index) },
+        onAddClick = onAddClick,
+        onRemove = if (item.fabricImages.isNotEmpty()) {
+            { index -> onRemoveFabricImage(item.id, index) }
+        } else {
+            null
+        },
         onImageClick = onImageClick,
         modifier = modifier,
     )
@@ -306,7 +313,8 @@ private fun ReferenceColumn(
     ctaLabel: StringResource?,
     canAdd: Boolean,
     onCtaClick: () -> Unit,
-    onRemove: (Int) -> Unit,
+    onAddClick: () -> Unit,
+    onRemove: ((Int) -> Unit)?,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -332,13 +340,13 @@ private fun ReferenceColumn(
         when {
             urls.isEmpty() -> ReferencePlaceholder(
                 icon = icon,
-                onClick = if (canAdd) onCtaClick else null,
+                onClick = if (canAdd) onAddClick else null,
             )
             else -> MultiReferenceStrip(
                 urls = urls,
                 canAdd = canAdd,
                 contentDescription = label,
-                onAddClick = onCtaClick,
+                onAddClick = onAddClick,
                 onRemove = onRemove,
                 onImageClick = onImageClick,
             )
@@ -381,7 +389,7 @@ private fun MultiReferenceStrip(
     canAdd: Boolean,
     contentDescription: String?,
     onAddClick: () -> Unit,
-    onRemove: (Int) -> Unit,
+    onRemove: ((Int) -> Unit)?,
     onImageClick: (List<String>, Int) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -403,20 +411,22 @@ private fun MultiReferenceStrip(
                         .clickable { onImageClick(urls, index) },
                 ) {
                     ReferenceTileImage(url = url, contentDescription = contentDescription)
-                    IconButton(
-                        onClick = { onRemove(index) },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp)
-                            .size(22.dp)
-                            .background(Color.Black.copy(alpha = 0.65f), CircleShape),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(13.dp),
-                        )
+                    if (onRemove != null) {
+                        IconButton(
+                            onClick = { onRemove(index) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(22.dp)
+                                .background(Color.Black.copy(alpha = 0.65f), CircleShape),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp),
+                            )
+                        }
                     }
                 }
             }
