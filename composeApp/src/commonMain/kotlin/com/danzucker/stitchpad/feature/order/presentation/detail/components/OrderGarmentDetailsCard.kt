@@ -78,6 +78,7 @@ fun OrderGarmentDetailsCard(
     onAddStyleClick: () -> Unit,
     onAddFabricPhotoClick: () -> Unit,
     onAddFabricNameClick: () -> Unit,
+    isUploadingFabric: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
@@ -135,6 +136,7 @@ fun OrderGarmentDetailsCard(
                         FabricColumn(
                             item = item,
                             showCta = firstNeedsFabricIndex == index,
+                            isUploadingFabric = isUploadingFabric,
                             onAddFabricPhotoClick = onAddFabricPhotoClick,
                             onAddFabricNameClick = onAddFabricNameClick,
                             onImageClick = openViewer,
@@ -232,6 +234,7 @@ private fun GarmentTextBlock(
 private fun FabricColumn(
     item: OrderItem,
     showCta: Boolean,
+    isUploadingFabric: Boolean = false,
     onAddFabricPhotoClick: () -> Unit,
     onAddFabricNameClick: () -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
@@ -261,6 +264,7 @@ private fun FabricColumn(
         onCtaClick = onCtaClick,
         onImageClick = onImageClick,
         modifier = modifier,
+        isLoading = isUploadingFabric,
     )
 }
 
@@ -280,6 +284,7 @@ private fun ReferenceColumn(
     onCtaClick: () -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
 ) {
     Column(modifier = modifier) {
         Row(
@@ -301,6 +306,14 @@ private fun ReferenceColumn(
         Spacer(Modifier.height(DesignTokens.space2))
 
         when {
+            isLoading && urls.isEmpty() -> Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(REFERENCE_TILE_HEIGHT)
+                    .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) { LoadingDots(dotSize = 6.dp) }
             urls.isEmpty() -> ReferencePlaceholder(
                 icon = icon,
                 onClick = if (ctaLabel != null) onCtaClick else null,
@@ -317,7 +330,7 @@ private fun ReferenceColumn(
             )
         }
 
-        if (ctaLabel != null) {
+        if (ctaLabel != null && !isLoading) {
             Spacer(Modifier.height(DesignTokens.space1))
             TextButton(onClick = onCtaClick, contentPadding = PaddingValues(0.dp)) {
                 Text(
