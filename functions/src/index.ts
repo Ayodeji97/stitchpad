@@ -63,4 +63,5 @@ export {
   getPublicGiftProfile,
   createGiftLink,
   expireUnclaimedGifts,
+  resendUnclaimedGiftEmails,
 } from './billing/giftBilling';
