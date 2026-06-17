@@ -69,7 +69,7 @@ sealed interface OrderDetailAction {
     data class OnAddFabricClick(val itemId: String) : OrderDetailAction
     data class OnFabricPhotoPicked(val itemId: String, val photoBytes: ByteArray) : OrderDetailAction
     data object OnDismissFabricSourceSheet : OrderDetailAction
-    data object OnAddFabricNameClick : OrderDetailAction
+    data class OnAddFabricNameClick(val itemId: String) : OrderDetailAction
     data class OnFabricNameDraftChange(val text: String) : OrderDetailAction
     data object OnSaveFabricName : OrderDetailAction
     data object OnDismissFabricNameDialog : OrderDetailAction

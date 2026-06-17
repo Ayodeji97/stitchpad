@@ -1089,7 +1089,7 @@ private fun OrderDetailContent(
                 isUploadingFabric = state.isUploadingFabric,
                 onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
                 onAddFabricPhotoClick = { itemId -> onAction(OrderDetailAction.OnAddFabricClick(itemId)) },
-                onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
+                onAddFabricNameClick = { itemId -> onAction(OrderDetailAction.OnAddFabricNameClick(itemId)) },
             )
         }
         item {

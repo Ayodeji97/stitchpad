@@ -77,7 +77,7 @@ fun OrderGarmentDetailsCard(
     styleImageUrls: List<String>,
     onAddStyleClick: () -> Unit,
     onAddFabricPhotoClick: (String) -> Unit,
-    onAddFabricNameClick: () -> Unit,
+    onAddFabricNameClick: (String) -> Unit,
     isUploadingFabric: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -236,7 +236,7 @@ private fun FabricColumn(
     showCta: Boolean,
     isUploadingFabric: Boolean = false,
     onAddFabricPhotoClick: (String) -> Unit,
-    onAddFabricNameClick: () -> Unit,
+    onAddFabricNameClick: (String) -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -257,7 +257,7 @@ private fun FabricColumn(
     val onCtaClick: () -> Unit = if (needsPhoto) {
         { onAddFabricPhotoClick(item.id) }
     } else {
-        onAddFabricNameClick
+        { onAddFabricNameClick(item.id) }
     }
 
     ReferenceColumn(
@@ -535,7 +535,7 @@ private fun OrderGarmentDetailsCardOneEachPreview() {
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
             onAddFabricPhotoClick = { _ -> },
-            onAddFabricNameClick = {},
+            onAddFabricNameClick = { _ -> },
         )
     }
 }
@@ -564,7 +564,7 @@ private fun OrderGarmentDetailsCardMultiStylePreview() {
             ),
             onAddStyleClick = {},
             onAddFabricPhotoClick = { _ -> },
-            onAddFabricNameClick = {},
+            onAddFabricNameClick = { _ -> },
         )
     }
 }
@@ -589,7 +589,7 @@ private fun OrderGarmentDetailsCardAsymmetricPreview() {
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
             onAddFabricPhotoClick = { _ -> },
-            onAddFabricNameClick = {},
+            onAddFabricNameClick = { _ -> },
         )
     }
 }
@@ -613,7 +613,7 @@ private fun OrderGarmentDetailsCardEmptyPreview() {
             styleImageUrls = emptyList(),
             onAddStyleClick = {},
             onAddFabricPhotoClick = { _ -> },
-            onAddFabricNameClick = {},
+            onAddFabricNameClick = { _ -> },
         )
     }
 }
@@ -638,7 +638,7 @@ private fun OrderGarmentDetailsCardDarkPreview() {
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
             onAddFabricPhotoClick = { _ -> },
-            onAddFabricNameClick = {},
+            onAddFabricNameClick = { _ -> },
         )
     }
 }
@@ -670,7 +670,7 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
             onAddFabricPhotoClick = { _ -> },
-            onAddFabricNameClick = {},
+            onAddFabricNameClick = { _ -> },
         )
     }
 }

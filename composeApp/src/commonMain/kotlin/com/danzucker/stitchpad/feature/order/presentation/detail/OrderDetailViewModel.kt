@@ -299,17 +299,23 @@ class OrderDetailViewModel(
             OrderDetailAction.OnDismissFabricSourceSheet ->
                 _state.update { it.copy(showFabricSourceSheet = false, fabricSourceItemId = null) }
             is OrderDetailAction.OnFabricPhotoPicked -> addFabricPhoto(action.itemId, action.photoBytes)
-            OrderDetailAction.OnAddFabricNameClick -> {
-                val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
+            is OrderDetailAction.OnAddFabricNameClick -> {
+                val item = _state.value.order?.items?.firstOrNull { it.id == action.itemId } ?: return
                 _state.update {
-                    it.copy(showFabricNameDialog = true, fabricNameDraft = currentName)
+                    it.copy(
+                        showFabricNameDialog = true,
+                        fabricNameDraft = item.fabricName.orEmpty(),
+                        fabricNameItemId = item.id,
+                    )
                 }
             }
             is OrderDetailAction.OnFabricNameDraftChange ->
                 _state.update { it.copy(fabricNameDraft = action.text) }
             OrderDetailAction.OnSaveFabricName -> saveFabricName()
             OrderDetailAction.OnDismissFabricNameDialog ->
-                _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
+                _state.update {
+                    it.copy(showFabricNameDialog = false, fabricNameDraft = "", fabricNameItemId = null)
+                }
             OrderDetailAction.OnAddPhoneClick -> {
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
@@ -385,11 +391,14 @@ class OrderDetailViewModel(
     private fun saveFabricName() {
         val snapshot = _state.value
         val order = snapshot.order
-        val firstItem = order?.items?.firstOrNull()
+        val itemId = snapshot.fabricNameItemId
+        val item = order?.items?.firstOrNull { it.id == itemId }
         val newName = snapshot.fabricNameDraft.trim().ifBlank { null }
-        _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
-        if (order == null || firstItem == null || firstItem.fabricName == newName) return
-        val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
+        _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "", fabricNameItemId = null) }
+        if (order == null || item == null || item.fabricName == newName) return
+        val updatedItems = order.items.map { current ->
+            if (current.id == item.id) current.copy(fabricName = newName) else current
+        }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {

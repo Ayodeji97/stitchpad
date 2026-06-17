@@ -32,6 +32,7 @@ data class OrderDetailState(
     val showFabricSourceSheet: Boolean = false,
     val fabricSourceItemId: String? = null,
     val isUploadingFabric: Boolean = false,
+    val fabricNameItemId: String? = null,
 
     // Dialogs / sheets
     val showDeleteDialog: Boolean = false,
