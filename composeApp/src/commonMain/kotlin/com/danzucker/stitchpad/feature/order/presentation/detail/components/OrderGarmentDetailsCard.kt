@@ -76,7 +76,7 @@ fun OrderGarmentDetailsCard(
     priority: OrderPriority,
     styleImageUrls: List<String>,
     onAddStyleClick: () -> Unit,
-    onAddFabricPhotoClick: () -> Unit,
+    onAddFabricPhotoClick: (String) -> Unit,
     onAddFabricNameClick: () -> Unit,
     isUploadingFabric: Boolean = false,
     modifier: Modifier = Modifier,
@@ -235,7 +235,7 @@ private fun FabricColumn(
     item: OrderItem,
     showCta: Boolean,
     isUploadingFabric: Boolean = false,
-    onAddFabricPhotoClick: () -> Unit,
+    onAddFabricPhotoClick: (String) -> Unit,
     onAddFabricNameClick: () -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -254,7 +254,11 @@ private fun FabricColumn(
         needsName -> Res.string.order_detail_add_fabric_name
         else -> null
     }
-    val onCtaClick: () -> Unit = if (needsPhoto) onAddFabricPhotoClick else onAddFabricNameClick
+    val onCtaClick: () -> Unit = if (needsPhoto) {
+        { onAddFabricPhotoClick(item.id) }
+    } else {
+        onAddFabricNameClick
+    }
 
     ReferenceColumn(
         label = stringResource(Res.string.order_detail_fabric_caption),
@@ -530,7 +534,7 @@ private fun OrderGarmentDetailsCardOneEachPreview() {
             priority = OrderPriority.URGENT,
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddFabricPhotoClick = { _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -559,7 +563,7 @@ private fun OrderGarmentDetailsCardMultiStylePreview() {
                 "https://example.com/style3.jpg",
             ),
             onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddFabricPhotoClick = { _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -584,7 +588,7 @@ private fun OrderGarmentDetailsCardAsymmetricPreview() {
             priority = OrderPriority.NORMAL,
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddFabricPhotoClick = { _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -608,7 +612,7 @@ private fun OrderGarmentDetailsCardEmptyPreview() {
             priority = OrderPriority.NORMAL,
             styleImageUrls = emptyList(),
             onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddFabricPhotoClick = { _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -633,7 +637,7 @@ private fun OrderGarmentDetailsCardDarkPreview() {
             priority = OrderPriority.NORMAL,
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddFabricPhotoClick = { _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -665,7 +669,7 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
             priority = OrderPriority.NORMAL,
             styleImageUrls = listOf("https://example.com/style1.jpg"),
             onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddFabricPhotoClick = { _ -> },
             onAddFabricNameClick = {},
         )
     }

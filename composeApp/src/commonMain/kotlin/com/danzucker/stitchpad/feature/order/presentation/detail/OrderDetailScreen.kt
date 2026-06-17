@@ -280,16 +280,21 @@ fun OrderDetailScreen(
 ) {
     val fabricPickerScope = rememberCoroutineScope()
     var pendingFabricSource by remember { mutableStateOf<PhotoSource?>(null) }
+    var pendingFabricItemId by remember { mutableStateOf<String?>(null) }
 
     val fabricGalleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = fabricPickerScope,
         onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnFabricPhotoPicked(it)) }
+            val itemId = pendingFabricItemId ?: return@rememberImagePickerLauncher
+            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnFabricPhotoPicked(itemId, it)) }
+            pendingFabricItemId = null
         },
     )
     val fabricCameraLauncher = rememberImageCaptureLauncher { bytes ->
-        if (bytes != null) onAction(OrderDetailAction.OnFabricPhotoPicked(bytes))
+        val itemId = pendingFabricItemId ?: return@rememberImageCaptureLauncher
+        if (bytes != null) onAction(OrderDetailAction.OnFabricPhotoPicked(itemId, bytes))
+        pendingFabricItemId = null
     }
 
     // Launch the chosen source only AFTER the sheet has dismissed — the order form uses this
@@ -523,6 +528,7 @@ fun OrderDetailScreen(
     if (state.showFabricSourceSheet) {
         PhotoSourceSheet(
             onPick = { source ->
+                pendingFabricItemId = state.fabricSourceItemId
                 pendingFabricSource = source
                 onAction(OrderDetailAction.OnDismissFabricSourceSheet)
             },
@@ -1082,7 +1088,7 @@ private fun OrderDetailContent(
                 styleImageUrls = styleImageUrls,
                 isUploadingFabric = state.isUploadingFabric,
                 onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
-                onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
+                onAddFabricPhotoClick = { itemId -> onAction(OrderDetailAction.OnAddFabricClick(itemId)) },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }

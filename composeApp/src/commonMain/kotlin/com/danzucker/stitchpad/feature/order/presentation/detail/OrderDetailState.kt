@@ -30,6 +30,7 @@ data class OrderDetailState(
     val showStylePickerSheet: Boolean = false,
     val availableStyles: List<Style> = emptyList(),
     val showFabricSourceSheet: Boolean = false,
+    val fabricSourceItemId: String? = null,
     val isUploadingFabric: Boolean = false,
 
     // Dialogs / sheets

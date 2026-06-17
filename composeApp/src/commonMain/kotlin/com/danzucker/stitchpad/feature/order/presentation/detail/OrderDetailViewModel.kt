@@ -288,17 +288,17 @@ class OrderDetailViewModel(
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
             OrderDetailAction.OnAddStyleClick ->
                 _state.update { it.copy(showStylePickerSheet = true) }
-            OrderDetailAction.OnAddFabricClick -> {
+            is OrderDetailAction.OnAddFabricClick -> {
                 // Open the inline Camera/Gallery sheet instead of navigating to the form.
                 // Defensive cap guard (the CTA only shows when the slot is empty).
-                val firstItem = _state.value.order?.items?.firstOrNull()
-                if (firstItem != null && firstItem.fabricImages.size < MAX_FABRIC_IMAGES) {
-                    _state.update { it.copy(showFabricSourceSheet = true) }
+                val item = _state.value.order?.items?.firstOrNull { it.id == action.itemId }
+                if (item != null && item.fabricImages.size < MAX_FABRIC_IMAGES) {
+                    _state.update { it.copy(showFabricSourceSheet = true, fabricSourceItemId = item.id) }
                 }
             }
             OrderDetailAction.OnDismissFabricSourceSheet ->
-                _state.update { it.copy(showFabricSourceSheet = false) }
-            is OrderDetailAction.OnFabricPhotoPicked -> addFabricPhoto(action.photoBytes)
+                _state.update { it.copy(showFabricSourceSheet = false, fabricSourceItemId = null) }
+            is OrderDetailAction.OnFabricPhotoPicked -> addFabricPhoto(action.itemId, action.photoBytes)
             OrderDetailAction.OnAddFabricNameClick -> {
                 val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
                 _state.update {
@@ -630,8 +630,8 @@ class OrderDetailViewModel(
     }
 
     @Suppress("ReturnCount")
-    private fun addFabricPhoto(photoBytes: ByteArray) {
-        _state.update { it.copy(showFabricSourceSheet = false) }
+    private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
+        _state.update { it.copy(showFabricSourceSheet = false, fabricSourceItemId = null) }
         if (photoBytes.size > MAX_ORDER_PHOTO_BYTES) {
             _state.update {
                 it.copy(errorMessage = UiText.StringResourceText(Res.string.error_order_photo_too_large))
@@ -639,8 +639,8 @@ class OrderDetailViewModel(
             return
         }
         val order = _state.value.order ?: return
-        val firstItem = order.items.firstOrNull() ?: return
-        if (firstItem.fabricImages.size >= MAX_FABRIC_IMAGES) return
+        val item = order.items.firstOrNull { it.id == itemId } ?: return
+        if (item.fabricImages.size >= MAX_FABRIC_IMAGES) return
 
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
@@ -652,7 +652,7 @@ class OrderDetailViewModel(
                 val upload = orderRepository.uploadFabricPhotos(
                     userId = userId,
                     orderId = order.id,
-                    itemId = firstItem.id,
+                    itemId = item.id,
                     photoBytesList = listOf(photoBytes),
                 )
             ) {
@@ -665,8 +665,13 @@ class OrderDetailViewModel(
                             localPhotoPath = localPath,
                         )
                     }
-                    val updatedItem = firstItem.copy(fabricImages = firstItem.fabricImages + newRefs)
-                    val updatedItems = listOf(updatedItem) + order.items.drop(1)
+                    val updatedItems = order.items.map { current ->
+                        if (current.id == item.id) {
+                            current.copy(fabricImages = current.fabricImages + newRefs)
+                        } else {
+                            current
+                        }
+                    }
                     when (
                         val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))
                     ) {
