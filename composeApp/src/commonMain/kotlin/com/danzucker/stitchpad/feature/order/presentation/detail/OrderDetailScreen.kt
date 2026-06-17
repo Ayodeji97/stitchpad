@@ -70,6 +70,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.media.orderPhotoResizeOptions
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
@@ -284,6 +285,7 @@ fun OrderDetailScreen(
     val fabricGalleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = fabricPickerScope,
+        resizeOptions = orderPhotoResizeOptions,
         onResult = { byteArrays ->
             byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnFabricPhotoPicked(it)) }
         },

@@ -92,6 +92,7 @@ import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.media.orderPhotoResizeOptions
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
@@ -1290,6 +1291,7 @@ private fun StyleImageSection(
     val styleGalleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = pickerScope,
+        resizeOptions = orderPhotoResizeOptions,
         onResult = { byteArrays ->
             byteArrays.firstOrNull()?.let {
                 onAction(OrderFormAction.OnItemAddStylePhoto(item.id, it))
@@ -1544,6 +1546,7 @@ private fun FabricImageSection(
     val fabricGalleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = pickerScope,
+        resizeOptions = orderPhotoResizeOptions,
         onResult = { byteArrays ->
             byteArrays.firstOrNull()?.let {
                 onAction(OrderFormAction.OnItemAddFabricPhoto(item.id, it))
