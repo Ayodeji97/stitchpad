@@ -614,7 +614,7 @@
     <string name="order_form_summary_title">Order summary</string>
     <string name="order_form_summary_subtotal">Subtotal</string>
     <string name="order_form_summary_total">Total</string>
-    <string name="order_form_summary_discount">Discount (%1$d%%)</string>
+    <string name="order_form_summary_discount">Discount (%1$s)</string>
     <string name="order_form_summary_discount_plain">Discount</string>
     <string name="order_form_summary_item_qty">%1$d × ₦%2$s</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
