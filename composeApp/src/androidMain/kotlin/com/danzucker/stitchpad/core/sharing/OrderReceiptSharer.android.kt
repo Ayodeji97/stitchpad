@@ -242,14 +242,15 @@ actual class OrderReceiptSharer(private val context: Context) {
             }
         }
 
+        // Deposit — drawn before Total so the customer reads what they've paid
+        // first, then the Total it offsets, then the Balance still due.
+        canvas.drawText("Deposit Paid", padding, y, bodyPaint)
+        canvas.drawText(data.depositFormatted, width - padding, y, depositPaint)
+        y += 26f
+
         // Total
         canvas.drawText("Total", padding, y, totalLabelPaint)
         canvas.drawText(data.totalFormatted, width - padding, y, totalPaint)
-        y += 26f
-
-        // Deposit
-        canvas.drawText("Deposit Paid", padding, y, bodyPaint)
-        canvas.drawText(data.depositFormatted, width - padding, y, depositPaint)
         y += 26f
 
         // Balance
@@ -553,14 +554,15 @@ actual class OrderReceiptSharer(private val context: Context) {
             }
         }
 
+        // Deposit — drawn before Total so the customer reads what they've paid
+        // first, then the Total it offsets, then the Balance still due.
+        canvas.drawText("Deposit Paid", padding, y, bodyPaintPdf)
+        canvas.drawText(data.depositFormatted, pageWidth - padding, y, depositPricePdf)
+        y += 20f
+
         // Total
         canvas.drawText("Total", padding, y, totalLabelPdf)
         canvas.drawText(data.totalFormatted, pageWidth - padding, y, totalPricePdf)
-        y += 20f
-
-        // Deposit
-        canvas.drawText("Deposit Paid", padding, y, bodyPaintPdf)
-        canvas.drawText(data.depositFormatted, pageWidth - padding, y, depositPricePdf)
         y += 20f
 
         // Balance

@@ -211,11 +211,13 @@ actual class OrderReceiptSharer {
                     y += 18.0
                 }
             }
-            drawText("Total", padding, y, boldFont(16.0), darkColor("#E5E3DF"))
-            drawTextRight(data.totalFormatted, width - padding, y, boldFont(16.0), darkColor("#E8A800"))
-            y += 24.0
+            // Deposit drawn before Total so the customer reads what they've paid
+            // first, then the Total it offsets, then the Balance still due.
             drawText("Deposit Paid", padding, y, regularFont(13.0), darkColor("#7D7970"))
             drawTextRight(data.depositFormatted, width - padding, y, regularFont(13.0), darkColor("#2D9E6B"))
+            y += 24.0
+            drawText("Total", padding, y, boldFont(16.0), darkColor("#E5E3DF"))
+            drawTextRight(data.totalFormatted, width - padding, y, boldFont(16.0), darkColor("#E8A800"))
             y += 24.0
             drawText("Balance", padding, y, regularFont(13.0), darkColor("#7D7970"))
             if (data.isFullyPaid) {
@@ -471,11 +473,13 @@ actual class OrderReceiptSharer {
                     y += 14.0
                 }
             }
-            drawText("Total", padding, y, boldFont(13.0), darkColor("#1E1C1A"))
-            drawTextRight(data.totalFormatted, pageWidth - padding, y, boldFont(13.0), darkColor("#C48E00"))
-            y += 18.0
+            // Deposit drawn before Total so the customer reads what they've paid
+            // first, then the Total it offsets, then the Balance still due.
             drawText("Deposit Paid", padding, y, regularFont(11.0), darkColor("#7D7970"))
             drawTextRight(data.depositFormatted, pageWidth - padding, y, regularFont(11.0), darkColor("#2D9E6B"))
+            y += 18.0
+            drawText("Total", padding, y, boldFont(13.0), darkColor("#1E1C1A"))
+            drawTextRight(data.totalFormatted, pageWidth - padding, y, boldFont(13.0), darkColor("#C48E00"))
             y += 18.0
             drawText("Balance", padding, y, regularFont(11.0), darkColor("#7D7970"))
             if (data.isFullyPaid) {
