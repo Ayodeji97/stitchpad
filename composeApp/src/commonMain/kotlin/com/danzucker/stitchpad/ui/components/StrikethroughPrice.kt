@@ -8,12 +8,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+
+/** Strikethrough line weight — drawn manually because TextDecoration.LineThrough can't be thickened. */
+private val STRIKE_THICKNESS = 2.dp
 
 /** True when a struck-through gross price should be shown next to the net total. */
 fun shouldShowStruckGross(discount: Double): Boolean = discount > 0.0
@@ -42,14 +47,25 @@ fun StrikethroughPrice(
         Row(modifier = modifier) { net() }
         return
     }
+    val strikeColor = MaterialTheme.colorScheme.onSurfaceVariant
     val struck: @Composable () -> Unit = {
-        // Match the net total's size (just lighter weight) so the strikethrough is
-        // clearly legible on dark surfaces — labelSmall was too faint to read.
+        // Match the net total's size (just lighter weight) for legibility, and draw the
+        // strikethrough ourselves at STRIKE_THICKNESS — TextDecoration.LineThrough renders
+        // a hairline tied to font metrics that's too faint to read on dark surfaces.
         Text(
             text = "₦${formatPrice(grossPrice)}",
             style = netStyle.copy(fontWeight = FontWeight.Normal),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textDecoration = TextDecoration.LineThrough,
+            color = strikeColor,
+            modifier = Modifier.drawWithContent {
+                drawContent()
+                val midY = size.height / 2f
+                drawLine(
+                    color = strikeColor,
+                    start = Offset(0f, midY),
+                    end = Offset(size.width, midY),
+                    strokeWidth = STRIKE_THICKNESS.toPx(),
+                )
+            },
         )
     }
     if (stacked) {
