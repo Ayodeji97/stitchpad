@@ -400,7 +400,11 @@ class OrderDetailViewModel(
         _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "", fabricNameItemIndex = null) }
         if (order == null || item == null || item.fabricName == newName) return
         val updatedItems = order.items.mapIndexed { index, current ->
-            if (index == itemIndex) current.copy(fabricName = newName) else current
+            if (index == itemIndex) {
+                current.copy(id = current.id.ifBlank { "item-$itemIndex" }, fabricName = newName)
+            } else {
+                current
+            }
         }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
@@ -681,7 +685,10 @@ class OrderDetailViewModel(
                     }
                     val updatedItems = order.items.mapIndexed { index, current ->
                         if (index == itemIndex) {
-                            current.copy(fabricImages = current.fabricImages + newRefs)
+                            current.copy(
+                                id = current.id.ifBlank { uploadItemKey },
+                                fabricImages = current.fabricImages + newRefs,
+                            )
                         } else {
                             current
                         }
