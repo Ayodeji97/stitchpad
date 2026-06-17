@@ -285,6 +285,35 @@ describe('appStoreServerNotificationsHandler', () => {
     });
   });
 
+  it('does not reduce a higher active Paystack tier on an Apple renewal', async () => {
+    // User holds an active Paystack ATELIER sub plus an older Apple PRO sub. A
+    // DID_RENEW for the Apple Pro must NOT downgrade the shared entitlement to Pro
+    // — an active grant wins over Apple/nothing, but never reduces a higher
+    // cross-source entitlement.
+    const { db, store } = fakeDb({
+      'appleSubscriptions/orig-1': { uid: 'uid-1' },
+      'users/uid-1': {
+        subscriptionTier: 'atelier',
+        subscriptionStatus: 'active',
+        subscriptionSource: 'paystack',
+      },
+    });
+    const verifier = fakeVerifier({
+      verifyNotification: jest.fn(async () => notification('DID_RENEW', txnFor('uid-1', {
+        signedDate: new Date('2026-07-01T00:00:00Z').getTime(),
+      }))),
+    });
+    await appStoreServerNotificationsHandler('payload', {
+      db: db as never, verifier, now: () => new Date('2026-07-01T00:01:00Z'),
+    });
+    // Higher Paystack Atelier entitlement preserved (Apple did not write the doc).
+    expect(store.get('users/uid-1')).toMatchObject({
+      subscriptionTier: 'atelier',
+      subscriptionStatus: 'active',
+      subscriptionSource: 'paystack',
+    });
+  });
+
   it('ignores a stale, out-of-order notification (older signedDate)', async () => {
     const { db, store } = fakeDb({
       'appleSubscriptions/orig-1': { uid: 'uid-1' },

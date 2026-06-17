@@ -34,6 +34,14 @@ export function planForProduct(productId: string): { tier: BillingTier; cadence:
   return PRODUCT_MAP[productId] ?? null;
 }
 
+// Tier precedence for guarding the SHARED entitlement doc: an active Apple grant
+// must never reduce a higher-tier entitlement owned by a different (e.g. Paystack)
+// subscription. free < pro < atelier.
+const TIER_RANK: Record<string, number> = { free: 0, pro: 1, atelier: 2 };
+function tierRank(tier?: string | null): number {
+  return (tier != null && TIER_RANK[tier]) || 0;
+}
+
 // Deterministic Firebase-uid -> UUID derivation, used as StoreKit's
 // `appAccountToken`. The iOS client sends the same value at purchase time
 // (Swift computes SHA-256(uid), takes the first 16 bytes, formats as a UUID), so
@@ -539,20 +547,39 @@ async function commitAppleState(
 
   const nowTs = admin.firestore.Timestamp.fromDate(now);
 
-  // A downgrade (expire/refund/revoke) must only clear the SHARED entitlement doc
-  // if it still belongs to THIS Apple subscription. If the user has since moved to
-  // Paystack (subscriptionSource != 'apple') or a different Apple subscription, a
-  // stale Apple notification must not revoke their current paid access. Grants
-  // (active) always win — an active Apple purchase is a real, current entitlement.
-  let writeUserDoc = true;
+  // Read the current shared entitlement once. It decides whether this Apple write
+  // would WRONGLY reduce access that belongs to a different subscription.
+  const userSnap = await tx.get(refs.userRef);
+  const userData = (userSnap.exists ? userSnap.data() : {}) as {
+    subscriptionTier?: BillingTier | 'free';
+    subscriptionStatus?: 'active' | 'expired';
+    subscriptionSource?: string;
+    subscriptionEndsAt?: admin.firestore.Timestamp;
+    appleOriginalTransactionId?: string;
+  };
+  const ownsCurrentEntitlement = userData.subscriptionSource === 'apple'
+    && userData.appleOriginalTransactionId === desired.originalTransactionId;
+
+  let writeUserDoc: boolean;
   if (desired.tier === 'free') {
-    const userSnap = await tx.get(refs.userRef);
-    const userData = (userSnap.exists ? userSnap.data() : {}) as {
-      subscriptionSource?: string;
-      appleOriginalTransactionId?: string;
-    };
-    writeUserDoc = userData.subscriptionSource === 'apple'
-      && userData.appleOriginalTransactionId === desired.originalTransactionId;
+    // A downgrade (expire/refund/revoke) must only clear the SHARED entitlement
+    // doc if it still belongs to THIS Apple subscription. If the user has since
+    // moved to Paystack (subscriptionSource != 'apple') or a different Apple
+    // subscription, a stale Apple notification must not revoke current access.
+    writeUserDoc = ownsCurrentEntitlement;
+  } else {
+    // An active grant normally wins — a verified Apple purchase is a real, current
+    // entitlement. But it must never REDUCE a higher-tier entitlement owned by a
+    // different, still-active subscription (e.g. Paystack Atelier while an older
+    // Apple Pro renews). Block only that strict-downgrade case; self-owned
+    // renewals and equal/upgrade grants still write.
+    const currentActive = userData.subscriptionStatus === 'active'
+      && (userData.subscriptionEndsAt == null
+        || userData.subscriptionEndsAt.toMillis() > now.getTime());
+    const wouldReduceForeignHigherTier = !ownsCurrentEntitlement
+      && currentActive
+      && tierRank(userData.subscriptionTier) > tierRank(desired.tier);
+    writeUserDoc = !wouldReduceForeignHigherTier;
   }
 
   if (writeUserDoc) {
