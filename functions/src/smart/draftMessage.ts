@@ -132,6 +132,7 @@ interface RawOrderDoc {
   customerName?: string;
   items?: RawOrderItemDoc[];
   totalPrice?: number;
+  discount?: number; // whole-order discount; payable = max(0, totalPrice - discount)
   payments?: RawPaymentDoc[];
   // Legacy field on orders created before the payments[] migration. The
   // Kotlin OrderRepository absorbs this into payments[] on the next write,
@@ -233,6 +234,9 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         const raw = snap.data() as RawOrderDoc | undefined;
         if (!raw) return undefined;
         const total = raw.totalPrice ?? 0;
+        // Payable = subtotal minus the whole-order discount, floored at 0. Using the raw
+        // total here would draft a balance reminder for the pre-discount amount.
+        const payable = Math.max(0, total - (raw.discount ?? 0));
         const paymentsSum = (raw.payments ?? []).reduce(
           (sum, p) => sum + (p.amount ?? 0),
           0,
@@ -241,7 +245,7 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         // yet — otherwise existing orders draft with the full total as the
         // outstanding balance.
         const deposit = paymentsSum > 0 ? paymentsSum : (raw.depositPaid ?? 0);
-        const balance = Math.max(0, total - deposit);
+        const balance = Math.max(0, payable - deposit);
         const firstItem = raw.items?.[0];
         const garmentLabel =
           (firstItem?.description?.trim() ||

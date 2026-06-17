@@ -60,4 +60,44 @@ class DeepLinkParserTest {
     fun nullUrl_isNotAnUpgradeLink() {
         assertNull(DeepLinkParser.parseUpgrade(null))
     }
+
+    // ── Gift-claim links ─────────────────────────────────────────────────────
+
+    @Test
+    fun claim_universalLink_withCode_parsesCode() {
+        assertEquals(
+            "ABC234",
+            DeepLinkParser.parseClaimGift("https://link.getstitchpad.com/claim?code=ABC234"),
+        )
+    }
+
+    @Test
+    fun claim_customScheme_withCode_parsesCode() {
+        assertEquals("XYZ789", DeepLinkParser.parseClaimGift("stitchpad://claim?code=XYZ789"))
+    }
+
+    @Test
+    fun claim_withoutCode_isNull() {
+        assertNull(DeepLinkParser.parseClaimGift("https://link.getstitchpad.com/claim"))
+    }
+
+    @Test
+    fun claim_lookalikePath_doesNotMatchByPrefix() {
+        assertNull(DeepLinkParser.parseClaimGift("https://link.getstitchpad.com/claimzzz?code=X"))
+    }
+
+    @Test
+    fun upgradeLink_isNotAClaimLink() {
+        assertNull(DeepLinkParser.parseClaimGift("https://link.getstitchpad.com/upgrade?tier=pro"))
+    }
+
+    @Test
+    fun claimLink_isNotAnUpgradeLink() {
+        assertNull(DeepLinkParser.parseUpgrade("https://link.getstitchpad.com/claim?code=ABC234"))
+    }
+
+    @Test
+    fun claim_nullUrl_isNull() {
+        assertNull(DeepLinkParser.parseClaimGift(null))
+    }
 }

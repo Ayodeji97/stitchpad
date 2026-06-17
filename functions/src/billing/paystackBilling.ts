@@ -1,6 +1,11 @@
 import * as crypto from 'crypto';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { computeSubscriptionGrant, toDate } from './subscriptionPeriod';
+import { applyGiftWebhook, giftEmailSender } from './giftBilling';
+
+// Re-exported so existing importers (tests, templates) keep their import paths.
+export { addPeriod } from './subscriptionPeriod';
 
 export type BillingTier = 'pro' | 'atelier';
 export type BillingCadence = 'monthly' | 'annual';
@@ -71,6 +76,7 @@ interface PaystackChargeSuccessData {
   paidAt?: string;
   metadata?: {
     uid?: string;
+    giftId?: string;
     tier?: string;
     cadence?: string;
     purpose?: string;
@@ -86,6 +92,10 @@ export interface WebhookDeps {
   db: admin.firestore.Firestore;
   secretKey: string;
   now: () => Date;
+  // Gift charges (purpose === 'stitchpad_gift') ride this same webhook. Optional so
+  // existing subscription tests need no wiring; production supplies both.
+  sendGiftEmail?: (params: { to: string; subject: string; html: string; text: string }) => Promise<void>;
+  lookupUserEmail?: (uid: string) => Promise<string | null>;
 }
 
 export interface ExpireDeps {
@@ -112,7 +122,9 @@ export const initializeSubscriptionCheckout = functions
 
 export const paystackWebhook = functions
   .region(REGION)
-  .runWith({ secrets: ['PAYSTACK_SECRET_KEY'] })
+  // RESEND_API_KEY is needed because gift charges ride this webhook and send the
+  // recipient a claim / "you've been gifted" email.
+  .runWith({ secrets: ['PAYSTACK_SECRET_KEY', 'RESEND_API_KEY'] })
   .https.onRequest(async (req, res) => {
     try {
       await paystackWebhookHandler(
@@ -123,6 +135,7 @@ export const paystackWebhook = functions
           db: admin.firestore(),
           secretKey: getPaystackSecretKey(),
           now: () => new Date(),
+          sendGiftEmail: giftEmailSender(),
         },
       );
       res.status(200).send('ok');
@@ -227,6 +240,19 @@ export async function paystackWebhookHandler(
 
   const data = event.data;
   const metadata = data?.metadata;
+
+  // Gifts ride the same webhook URL — route by purpose before the subscription-only
+  // metadata checks (gifts key on giftId, not uid).
+  if (metadata?.purpose === 'stitchpad_gift') {
+    await applyGiftWebhook(data ?? {}, {
+      db: deps.db,
+      now: deps.now,
+      sendEmail: deps.sendGiftEmail,
+      lookupUserEmail: deps.lookupUserEmail,
+    });
+    return;
+  }
+
   if (
     !data?.reference ||
     !metadata?.uid ||
@@ -279,31 +305,16 @@ export async function paystackWebhookHandler(
     const userData = userSnap.data() as
       | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
       | undefined;
-    // Only stack the new period on top of an existing end date for a true
-    // SAME-TIER early renewal: the user is on an active paid plan AND is buying the
-    // same tier they already hold. This guards two things:
-    //   1. Security — the create rules don't gate `subscriptionEndsAt`, so a user
-    //      could plant a far-future value at creation; requiring an active paid
-    //      plan (both fields server-owned) ignores any planted date on a free doc.
-    //   2. Proration — a tier switch (e.g. Pro → Atelier) must NOT stack, or the
-    //      buyer would get the higher tier through leftover lower-tier days they
-    //      only paid lower-tier rates for. A switch starts a fresh period instead.
-    // Anyone else (free/expired user, or a tier switch) starts fresh from paidAt.
-    const onActivePaidPlan =
-      (userData?.subscriptionTier === 'pro' || userData?.subscriptionTier === 'atelier') &&
-      userData?.subscriptionStatus === 'active';
-    const sameTierRenewal = onActivePaidPlan && userData?.subscriptionTier === tier;
-    const currentEndsAt = toDate(userData?.subscriptionEndsAt);
-    const periodStart = sameTierRenewal && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
-      ? currentEndsAt
-      : paidAt;
-    const subscriptionEndsAt = addPeriod(periodStart, cadence);
+    // Stacking/fresh-period logic lives in computeSubscriptionGrant (shared with
+    // gifts). A purchase uses mode 'purchase' so a deliberate tier switch starts a
+    // fresh period exactly as before — see that function for the full rationale.
+    const grant = computeSubscriptionGrant({ userData, tier, cadence, paidAt, mode: 'purchase' });
     const nowTs = admin.firestore.Timestamp.fromDate(deps.now());
 
     tx.set(userRef, {
-      subscriptionTier: tier,
+      subscriptionTier: grant.subscriptionTier,
       subscriptionStatus: 'active',
-      subscriptionEndsAt: admin.firestore.Timestamp.fromDate(subscriptionEndsAt),
+      subscriptionEndsAt: admin.firestore.Timestamp.fromDate(grant.subscriptionEndsAt),
       subscriptionRenews: false,
       // Mark provenance so a later, delayed Apple EXPIRED/REFUND for an OLD Apple
       // subscription can't clobber this Paystack grant (the Apple downgrade guard
@@ -329,16 +340,44 @@ export async function expirePrepaidSubscriptionsHandler(deps: ExpireDeps): Promi
     .where('subscriptionEndsAt', '<=', admin.firestore.Timestamp.fromDate(now))
     .get();
 
+  const nowMs = now.getTime();
   const BATCH_LIMIT = 500;
   for (let i = 0; i < expired.docs.length; i += BATCH_LIMIT) {
     const batch = deps.db.batch();
     for (const doc of expired.docs.slice(i, i + BATCH_LIMIT)) {
-      batch.set(doc.ref, {
-        subscriptionTier: 'free',
-        subscriptionStatus: 'expired',
-        subscriptionRenews: false,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      const data = (doc.data?.() ?? {}) as {
+        subscriptionFallbackTier?: string;
+        subscriptionFallbackEndsAt?: unknown;
+      };
+      const fbTier = data.subscriptionFallbackTier;
+      const fbEnd = toDate(data.subscriptionFallbackEndsAt);
+      const hasLiveFallback =
+        (fbTier === 'pro' || fbTier === 'atelier') && fbEnd !== null && fbEnd.getTime() > nowMs;
+
+      if (hasLiveFallback) {
+        // Two-step unwind: the active (higher) segment ended — promote the queued
+        // lower tier to active and clear the fallback slot. It returns to Free on a
+        // later run when this promoted segment also expires.
+        batch.set(doc.ref, {
+          subscriptionTier: fbTier,
+          subscriptionStatus: 'active',
+          subscriptionEndsAt: admin.firestore.Timestamp.fromDate(fbEnd),
+          subscriptionRenews: false,
+          subscriptionFallbackTier: null,
+          subscriptionFallbackEndsAt: null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } else {
+        // No live queued segment → back to Free (also clears any stale/expired fallback).
+        batch.set(doc.ref, {
+          subscriptionTier: 'free',
+          subscriptionStatus: 'expired',
+          subscriptionRenews: false,
+          subscriptionFallbackTier: null,
+          subscriptionFallbackEndsAt: null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     }
     await batch.commit();
   }
@@ -431,32 +470,4 @@ function parsePaystackPaidAt(data: PaystackChargeSuccessData, fallback: Date): D
   if (!raw) return fallback;
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
-}
-
-// Calendar arithmetic so a paid period lands on the anniversary date rather than
-// N fixed days later: monthly Jan 15 -> Feb 15, annual respects leap years. Fixed
-// 30/365-day windows short-changed monthly subscribers (~5 days/year) and were a
-// day off for annual leap-year purchases. JS normalizes month-end overflow (Jan 31
-// + 1 month -> Mar 3), which is the standard subscription convention.
-export function addPeriod(start: Date, cadence: BillingCadence): Date {
-  const d = new Date(start.getTime());
-  if (cadence === 'annual') {
-    d.setUTCFullYear(d.getUTCFullYear() + 1);
-  } else {
-    d.setUTCMonth(d.getUTCMonth() + 1);
-  }
-  return d;
-}
-
-function toDate(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if (
-    typeof value === 'object' &&
-    'toDate' in value &&
-    typeof (value as { toDate: () => Date }).toDate === 'function'
-  ) {
-    return (value as { toDate: () => Date }).toDate();
-  }
-  return null;
 }

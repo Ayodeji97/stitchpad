@@ -15,8 +15,8 @@ private const val SPARKLINE_MONTH_BUCKETS = 6
  * Computes the four-tile KPI grid for Reports V2 in one pass per window.
  *
  * Definitions:
- *  - Revenue:     Σ totalPrice         (work earned, including unpaid)
- *  - Collected:   Σ (totalPrice - balanceRemaining).coerceAtLeast(0.0)  (cash paid)
+ *  - Revenue:     Σ payableTotal (net of discount)  (work earned, including unpaid)
+ *  - Collected:   Σ depositPaid (cash paid)
  *  - Outstanding: Σ balanceRemaining.coerceAtLeast(0.0)                  (debt)
  *  - Orders:      count
  *
@@ -50,8 +50,8 @@ object KpiCalculator {
             val (start, end) = reportsWindow(period, today, timeZone, periodsBack, customRange)
             for (order in orders) {
                 if (order.updatedAt !in start until end) continue
-                revenueSpark[i] += order.totalPrice
-                collectedSpark[i] += (order.totalPrice - order.balanceRemaining).coerceAtLeast(0.0)
+                revenueSpark[i] += order.payableTotal
+                collectedSpark[i] += order.depositPaid
                 outstandingSpark[i] += order.balanceRemaining.coerceAtLeast(0.0)
                 ordersSpark[i] += 1.0
             }
@@ -70,16 +70,16 @@ object KpiCalculator {
         var previousOrders = 0.0
 
         for (order in orders) {
-            val collected = (order.totalPrice - order.balanceRemaining).coerceAtLeast(0.0)
+            val collected = order.depositPaid
             val outstanding = order.balanceRemaining.coerceAtLeast(0.0)
             if (order.updatedAt in currentStart until currentEnd) {
-                currentRevenue += order.totalPrice
+                currentRevenue += order.payableTotal
                 currentCollected += collected
                 currentOutstanding += outstanding
                 currentOrders += 1.0
             }
             if (order.updatedAt in previousStart until previousEnd) {
-                previousRevenue += order.totalPrice
+                previousRevenue += order.payableTotal
                 previousCollected += collected
                 previousOutstanding += outstanding
                 previousOrders += 1.0

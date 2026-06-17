@@ -12,6 +12,8 @@ data class NotificationDto(
     val garmentSummary: String = "",
     val amount: Double? = null,
     val deadline: Long? = null,
+    val tier: String? = null,
+    val gifterName: String? = null,
     val isRead: Boolean = false,
     val createdAt: Long = 0L,
 )

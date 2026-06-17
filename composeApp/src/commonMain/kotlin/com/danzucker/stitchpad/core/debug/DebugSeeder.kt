@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -160,12 +161,17 @@ class DefaultDebugSeeder(
         }
         if (measurementsResult is SeedResult.Failure) return measurementsResult
 
-        val styles = when (val r = styleRepository.observeStyles(userId, customer.id).first()) {
+        val styles = when (
+            val r = styleRepository.observeStyles(
+                userId,
+                StyleLocation.CustomerCloset(customer.id),
+            ).first()
+        ) {
             is Result.Success -> r.data
             is Result.Error -> return SeedResult.Failure("Failed to read styles: ${r.error}")
         }
         val stylesResult = styles.createEachOrFail("deleteStyle") {
-            styleRepository.deleteStyle(userId, customer.id, it)
+            styleRepository.deleteStyle(userId, StyleLocation.CustomerCloset(customer.id), it)
         }
         if (stylesResult is SeedResult.Failure) return stylesResult
 

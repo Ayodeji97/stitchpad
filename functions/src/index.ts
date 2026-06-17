@@ -62,3 +62,11 @@ export {
   appStoreServerNotifications,
   reconcileAppleSubscriptions,
 } from './billing/appleBilling';
+export {
+  initializeGiftCheckout,
+  redeemGift,
+  getPublicGiftProfile,
+  createGiftLink,
+  expireUnclaimedGifts,
+  resendUnclaimedGiftEmails,
+} from './billing/giftBilling';

@@ -23,7 +23,7 @@ private const val DAYS_IN_WEEK = 7
  * on the same week-day. This avoids the "I just set a goal but only have 1
  * day left because it's Saturday" surprise.
  *
- * Collected amount = `Σ (totalPrice − balanceRemaining)`, clamped at 0, over
+ * Collected amount = `Σ depositPaid`, over
  * orders whose `updatedAt` falls inside the active cycle window.
  * `daysLeft` counts days remaining *after* today (cycle start = 6, cycle
  * end = 0).
@@ -59,7 +59,7 @@ object WeeklyGoalCalculator {
 
         val collected = orders
             .filter { it.updatedAt in cycleStartMillis until nextCycleStartMillis }
-            .sumOf { (it.totalPrice - it.balanceRemaining).coerceAtLeast(0.0) }
+            .sumOf { it.depositPaid }
 
         val cycleStartEpoch = cycleStart.toEpochDays().toLong()
         val daysIntoCycle = (todayEpoch - cycleStartEpoch).coerceIn(0L, daysInWeek - 1L)

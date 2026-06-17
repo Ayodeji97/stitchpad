@@ -94,6 +94,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.domain.discountBreakdown
 import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
@@ -134,6 +135,9 @@ import stitchpad.composeapp.generated.resources.order_form_deposit_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_placeholder
 import stitchpad.composeapp.generated.resources.order_form_description_label
 import stitchpad.composeapp.generated.resources.order_form_description_placeholder
+import stitchpad.composeapp.generated.resources.order_form_discount_label
+import stitchpad.composeapp.generated.resources.order_form_discount_reason_label
+import stitchpad.composeapp.generated.resources.order_form_discount_reason_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_name_label
 import stitchpad.composeapp.generated.resources.order_form_fabric_name_placeholder
 import stitchpad.composeapp.generated.resources.order_form_fabric_section_title
@@ -176,7 +180,10 @@ import stitchpad.composeapp.generated.resources.order_form_style_pick_from_saved
 import stitchpad.composeapp.generated.resources.order_form_style_save_to_gallery
 import stitchpad.composeapp.generated.resources.order_form_style_section_title
 import stitchpad.composeapp.generated.resources.order_form_style_sheet_title
+import stitchpad.composeapp.generated.resources.order_form_summary_discount
+import stitchpad.composeapp.generated.resources.order_form_summary_discount_plain
 import stitchpad.composeapp.generated.resources.order_form_summary_item_qty
+import stitchpad.composeapp.generated.resources.order_form_summary_subtotal
 import stitchpad.composeapp.generated.resources.order_form_summary_title
 import stitchpad.composeapp.generated.resources.order_form_summary_total
 import stitchpad.composeapp.generated.resources.order_form_title_add
@@ -333,7 +340,13 @@ fun OrderFormScreen(
                     val usedSlots = targetItem.styleImageRefs.size + targetItem.uploadedStyleBytesList.size
                     val remaining = MAX_IMAGES_PER_CATEGORY - usedSlots
                     StylePickerSheet(
-                        styles = state.availableStyles,
+                        closetFolders = state.closetFolders,
+                        inspirationFolders = state.inspirationFolders,
+                        selectedSource = state.stylePickerSource,
+                        onSourceChange = { onAction(OrderFormAction.OnStylePickerSourceChange(it)) },
+                        pickerOpenFolderKey = state.pickerOpenFolderKey,
+                        onFolderOpen = { onAction(OrderFormAction.OnPickerFolderOpen(it)) },
+                        onFolderBack = { onAction(OrderFormAction.OnPickerFolderBack) },
                         alreadySelectedStyleIds = alreadyPickedIds,
                         remainingCapacity = remaining,
                         onSelect = { style ->
@@ -625,6 +638,7 @@ private fun ItemsStep(
                     index = index,
                     showRemove = state.items.size > 1,
                     availableStyles = state.availableStyles,
+                    inspirationStyles = state.inspirationStyles,
                     availableMeasurements = state.availableMeasurements,
                     onAction = onAction
                 )
@@ -653,6 +667,7 @@ private fun OrderItemCard(
     index: Int,
     showRemove: Boolean,
     availableStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
+    inspirationStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
     availableMeasurements: List<com.danzucker.stitchpad.core.domain.model.Measurement>,
     onAction: (OrderFormAction) -> Unit
 ) {
@@ -848,6 +863,7 @@ private fun OrderItemCard(
             StyleImageSection(
                 item = item,
                 availableStyles = availableStyles,
+                inspirationStyles = inspirationStyles,
                 onAction = onAction,
                 onPreview = { images, startIndex ->
                     previewSet = ImagePreviewSet(images = images, startIndex = startIndex)
@@ -1086,6 +1102,30 @@ private fun DetailsStep(
             modifier = Modifier.fillMaxWidth()
         )
 
+        Spacer(Modifier.height(DesignTokens.space3))
+
+        // Discount
+        OutlinedTextField(
+            value = state.discount,
+            onValueChange = { raw -> onAction(OrderFormAction.OnDiscountChange(raw.filter { it.isDigit() })) },
+            label = { Text(stringResource(Res.string.order_form_discount_label)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            visualTransformation = ThousandsSeparatorTransformation,
+            singleLine = true,
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(DesignTokens.space3))
+        OutlinedTextField(
+            value = state.discountReason,
+            onValueChange = { onAction(OrderFormAction.OnDiscountReasonChange(it)) },
+            label = { Text(stringResource(Res.string.order_form_discount_reason_label)) },
+            placeholder = { Text(stringResource(Res.string.order_form_discount_reason_placeholder)) },
+            singleLine = true,
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
         Spacer(Modifier.height(DesignTokens.space4))
 
         // Notes
@@ -1102,7 +1142,7 @@ private fun DetailsStep(
         // PTSP-26: a per-item + grand total summary so the full order cost
         // (after unit price × quantity) is shown before the order is created.
         Spacer(Modifier.height(DesignTokens.space4))
-        OrderTotalSummary(items = state.items)
+        OrderTotalSummary(items = state.items, discount = state.discount)
 
         Spacer(Modifier.height(DesignTokens.space4))
     }
@@ -1141,7 +1181,7 @@ private fun DetailsStep(
  */
 @Suppress("CyclomaticComplexMethod")
 @Composable
-private fun OrderTotalSummary(items: List<OrderItemFormState>) {
+private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String) {
     data class PricedLine(val name: String, val qty: Int, val unit: Double)
 
     val lines = items.mapNotNull { item ->
@@ -1165,7 +1205,8 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>) {
 
     if (lines.isEmpty()) return
 
-    val grandTotal = lines.sumOf { it.unit * it.qty }
+    val subtotal = lines.sumOf { it.unit * it.qty }
+    val breakdown = discountBreakdown(subtotal, discount)
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -1216,6 +1257,54 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>) {
             Spacer(Modifier.height(DesignTokens.space2))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(DesignTokens.space2))
+            if (breakdown.amount > 0.0) {
+                // Show the percent only for a valid discount (≤ subtotal). An over-subtotal
+                // entry can round to 100% (e.g. ₦1 over), so gate on the raw amount too,
+                // otherwise an invalid discount the save path rejects would read "100%".
+                val discountLabel = if (breakdown.amount <= subtotal && breakdown.percent in 1..100) {
+                    // Pass the "%" as part of the arg (not a literal "%%" in the resource string):
+                    // Compose's resource formatter doesn't collapse "%%" → "%", so it rendered "8%%".
+                    stringResource(Res.string.order_form_summary_discount, "${breakdown.percent}%")
+                } else {
+                    stringResource(Res.string.order_form_summary_discount_plain)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.order_form_summary_subtotal),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "₦${formatPrice(subtotal)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = discountLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "−₦${formatPrice(breakdown.amount)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.Monospace,
+                        color = DesignTokens.success500,
+                    )
+                }
+                Spacer(Modifier.height(DesignTokens.space2))
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1227,7 +1316,7 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>) {
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "₦${formatPrice(grandTotal)}",
+                    text = "₦${formatPrice(breakdown.payable)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -1258,6 +1347,7 @@ private const val MAX_QUANTITY_DIGITS = 3
 private fun StyleImageSection(
     item: OrderItemFormState,
     availableStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
+    inspirationStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
     onAction: (OrderFormAction) -> Unit,
     onPreview: (List<Any>, Int) -> Unit,
 ) {
@@ -1266,7 +1356,9 @@ private fun StyleImageSection(
     val total = savedCount + newCount
     val capacityRemaining = MAX_IMAGES_PER_CATEGORY - total
     val hasUploaded = newCount > 0
-    val hasGalleryStyles = availableStyles.isNotEmpty()
+    // The "pick from saved" entry must appear if EITHER source has styles — a new
+    // customer can have an empty closet while Inspiration still has styles to pick.
+    val hasGalleryStyles = availableStyles.isNotEmpty() || inspirationStyles.isNotEmpty()
 
     // The add tile is the single entry point. The sheet fans out into saved style,
     // camera, or device gallery depending on the customer's available data.
@@ -1328,7 +1420,7 @@ private fun StyleImageSection(
         // Image strip — saved refs first, then session uploads, then +tile if room.
         StyleImageStrip(
             item = item,
-            availableStyles = availableStyles,
+            availableStyles = availableStyles + inspirationStyles,
             onRemove = { index -> onAction(OrderFormAction.OnItemRemoveStyleImage(item.id, index)) },
             onPreview = onPreview,
             onAddClick = if (capacityRemaining > 0) {
@@ -1833,6 +1925,24 @@ private fun OrderFormScreenStep2Preview() {
                 )
             ),
             onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderTotalSummaryWithDiscountPreview() {
+    StitchPadTheme {
+        OrderTotalSummary(
+            items = listOf(
+                OrderItemFormState(
+                    garmentType = GarmentType.AGBADA,
+                    price = "18000",
+                    quantity = "6",
+                ),
+            ),
+            discount = "20000",
         )
     }
 }

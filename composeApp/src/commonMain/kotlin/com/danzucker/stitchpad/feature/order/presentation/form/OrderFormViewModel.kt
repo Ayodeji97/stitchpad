@@ -16,15 +16,18 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,9 +36,12 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
+import stitchpad.composeapp.generated.resources.error_order_deposit_exceeds_total
+import stitchpad.composeapp.generated.resources.error_order_discount_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
@@ -53,6 +59,7 @@ class OrderFormViewModel(
     private val measurementRepository: MeasurementRepository,
     private val authRepository: AuthRepository,
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
+    private val imageCompressor: ImageCompressor,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -78,6 +85,9 @@ class OrderFormViewModel(
     // into state and race with the new customer's data.
     private var styleJob: Job? = null
     private var measurementJob: Job? = null
+
+    // Single user-level Inspiration collector, started once userId is known.
+    private var inspirationJob: Job? = null
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
@@ -177,14 +187,8 @@ class OrderFormViewModel(
                     ),
                 )
             }
-            is OrderFormAction.OnItemAddStylePhoto -> {
-                if (rejectOversizedPhoto(action.photoBytes)) return
-                updateItem(action.itemId) {
-                    val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
-                    if (total >= 3) return@updateItem it
-                    it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + action.photoBytes)
-                }
-            }
+            is OrderFormAction.OnItemAddStylePhoto ->
+                addStylePhoto(action.itemId, action.photoBytes)
             is OrderFormAction.OnItemRemoveStyleImage -> updateItem(action.itemId) {
                 // The combined list is: styleImageRefs FIRST, then uploadedStyleBytesList.
                 // index addresses that combined position.
@@ -222,19 +226,31 @@ class OrderFormViewModel(
                 it.copy(saveStyleToGallery = action.value)
             }
             is OrderFormAction.OnOpenStylePickerSheet -> {
-                _state.update { it.copy(stylePickerSheetForItemId = action.itemId) }
-            }
-            OrderFormAction.OnDismissStylePickerSheet -> {
-                _state.update { it.copy(stylePickerSheetForItemId = null) }
-            }
-            is OrderFormAction.OnItemAddFabricPhoto -> {
-                if (rejectOversizedPhoto(action.photoBytes)) return
-                updateItem(action.itemId) {
-                    val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
-                    if (total >= 3) return@updateItem it
-                    it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + action.photoBytes)
+                // Always open the picker on the closet tab and return to the
+                // folder grid so the default experience is consistent.
+                _state.update {
+                    it.copy(
+                        stylePickerSheetForItemId = action.itemId,
+                        stylePickerSource = StylePickerSource.CLOSET,
+                        pickerOpenFolderKey = null,
+                    )
                 }
             }
+            OrderFormAction.OnDismissStylePickerSheet -> {
+                _state.update { it.copy(stylePickerSheetForItemId = null, pickerOpenFolderKey = null) }
+            }
+            is OrderFormAction.OnStylePickerSourceChange -> {
+                // Switching the source also clears any open folder (return to grid).
+                _state.update { it.copy(stylePickerSource = action.source, pickerOpenFolderKey = null) }
+            }
+            is OrderFormAction.OnPickerFolderOpen -> {
+                _state.update { it.copy(pickerOpenFolderKey = action.folder.key) }
+            }
+            OrderFormAction.OnPickerFolderBack -> {
+                _state.update { it.copy(pickerOpenFolderKey = null) }
+            }
+            is OrderFormAction.OnItemAddFabricPhoto ->
+                addFabricPhoto(action.itemId, action.photoBytes)
             is OrderFormAction.OnItemRemoveFabricImage -> updateItem(action.itemId) {
                 val savedCount = it.fabricImageRefs.size
                 when {
@@ -268,6 +284,13 @@ class OrderFormViewModel(
             }
             is OrderFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
+            }
+            is OrderFormAction.OnDiscountChange -> {
+                val digits = action.discount.filter { it.isDigit() }
+                _state.update { it.copy(discount = digits) }
+            }
+            is OrderFormAction.OnDiscountReasonChange -> {
+                _state.update { it.copy(discountReason = action.reason) }
             }
             OrderFormAction.OnSave -> {
                 // Guard against double-tap on the Save button — the UI's
@@ -371,10 +394,26 @@ class OrderFormViewModel(
             userId = authRepository.getCurrentUser()?.id ?: return@launch
             observeCustomers()
             observeCustomGarmentTypes()
+            observeInspirationStyles()
             if (orderId != null) {
                 loadOrder(orderId)
             } else if (seedFromOrderId != null) {
                 loadOrderForSeed(seedFromOrderId)
+            }
+        }
+    }
+
+    private fun observeInspirationStyles() {
+        val uid = userId ?: return
+        inspirationJob?.cancel()
+        inspirationJob = viewModelScope.launch {
+            styleRepository.observeFoldersWithStyles(uid, StyleLocation.Inspiration()).collect { folders ->
+                _state.update {
+                    it.copy(
+                        inspirationFolders = folders,
+                        inspirationStyles = folders.flatMap { f -> f.styles },
+                    )
+                }
             }
         }
     }
@@ -419,9 +458,17 @@ class OrderFormViewModel(
         val uid = userId ?: return
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            styleRepository.observeStyles(uid, customerId).collect { result ->
-                if (result is Result.Success) {
-                    _state.update { it.copy(availableStyles = result.data) }
+            // Observe folders-with-styles so the picker can show a folder grid.
+            // availableStyles is derived as the flat union for styleId lookups.
+            styleRepository.observeFoldersWithStyles(
+                uid,
+                StyleLocation.CustomerCloset(customerId),
+            ).collect { folders ->
+                _state.update {
+                    it.copy(
+                        closetFolders = folders,
+                        availableStyles = folders.flatMap { f -> f.styles },
+                    )
                 }
             }
         }
@@ -459,6 +506,8 @@ class OrderFormViewModel(
                                 ?.toString()
                                 ?: "",
                             notes = order.notes ?: "",
+                            discount = if (order.discount > 0.0) order.discount.toLong().toString() else "",
+                            discountReason = order.discountReason ?: "",
                             isLoading = false
                         )
                     }
@@ -563,6 +612,8 @@ class OrderFormViewModel(
         // rapid double-tap can re-enter. With PTSP-9's gallery-save path, a
         // duplicate entry creates duplicate Style entities — guard early.
         if (_state.value.isSaving) return
+        // A photo picked just before Save may still be compressing; wait then re-enter.
+        if (awaitPendingPhotosThenResave()) return
 
         val s = _state.value
         if (userId == null) return
@@ -602,6 +653,13 @@ class OrderFormViewModel(
             return
         }
 
+        // Reject a discount above the subtotal rather than silently clamping it
+        // (which would persist a smaller discount than the user typed). The
+        // coerceIn in executeSave() stays as defence-in-depth for direct entry.
+        // Reject an over-subtotal discount or an over-payable deposit (the former would
+        // persist a smaller discount than typed; the latter would save paid > total).
+        if (rejectInvalidDiscountOrDeposit(formItems, s.discount, s.depositPaid)) return
+
         // Gate: in edit mode, if the user changed the deposit AND any payments
         // already exist on the order, intercept the save with a confirmation
         // prompt so the destructive replace is explicit.
@@ -624,6 +682,55 @@ class OrderFormViewModel(
         }
 
         executeSave()
+    }
+
+    /**
+     * True when the typed discount exceeds the order subtotal (price × quantity
+     * summed over valid items). Mirrors the subtotal math in [executeSave] so
+     * the validation and the persisted figures agree.
+     */
+    /**
+     * Pre-save guard: sets an error and returns true when the typed discount exceeds the
+     * subtotal, or the typed deposit exceeds the discounted (payable) total. Both block save.
+     */
+    private fun rejectInvalidDiscountOrDeposit(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+        typedDeposit: String,
+    ): Boolean = when {
+        discountExceedsSubtotal(formItems, typedDiscount) -> {
+            setError(Res.string.error_order_discount_exceeds_total)
+            true
+        }
+        depositExceedsPayable(formItems, typedDiscount, typedDeposit) -> {
+            setError(Res.string.error_order_deposit_exceeds_total)
+            true
+        }
+        else -> false
+    }
+
+    private fun discountExceedsSubtotal(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+    ): Boolean = (typedDiscount.toDoubleOrNull() ?: 0.0) > formSubtotal(formItems)
+
+    /**
+     * True when the typed deposit exceeds the payable total (subtotal minus the whole-order
+     * discount, floored at 0). Keeps a deposit from being saved against a smaller payable than
+     * the customer owes — which would render paid > total and overcount collected revenue.
+     */
+    private fun depositExceedsPayable(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+        typedDeposit: String,
+    ): Boolean {
+        val payable = (formSubtotal(formItems) - (typedDiscount.toDoubleOrNull() ?: 0.0)).coerceAtLeast(0.0)
+        return (typedDeposit.toDoubleOrNull() ?: 0.0) > payable
+    }
+
+    /** Sum of price × quantity over valid items — mirrors [executeSave]'s subtotal math. */
+    private fun formSubtotal(formItems: List<OrderItemFormState>): Double = formItems.sumOf {
+        (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1)
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -699,6 +806,7 @@ class OrderFormViewModel(
             }
 
             val totalPrice = orderItems.sumOf { it.price * it.quantity }
+            val discount = (s.discount.toDoubleOrNull() ?: 0.0).coerceIn(0.0, totalPrice)
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
@@ -741,6 +849,10 @@ class OrderFormViewModel(
                 payments = payments,
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
+                discount = discount,
+                // Only keep a reason when there is an actual discount — avoids an
+                // orphaned reason string when the typed discount clamps to 0.
+                discountReason = if (discount > 0.0) s.discountReason.trim().ifBlank { null } else null,
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
                 updatedAt = 0L,
             )
@@ -776,6 +888,63 @@ class OrderFormViewModel(
     private fun rejectOversizedPhoto(photoBytes: ByteArray): Boolean {
         if (photoBytes.size <= MAX_ORDER_PHOTO_BYTES) return false
         setError(Res.string.error_order_photo_too_large)
+        return true
+    }
+
+    /**
+     * Downscales a picked style photo before the size guard so a full-resolution
+     * gallery pick is accepted rather than rejected. A decode failure (null) falls
+     * back to the original bytes and lets [rejectOversizedPhoto] decide.
+     */
+    private fun addStylePhoto(itemId: String, photoBytes: ByteArray) {
+        trackPhotoJob(
+            viewModelScope.launch {
+                val processed = imageCompressor.compress(photoBytes) ?: photoBytes
+                if (rejectOversizedPhoto(processed)) return@launch
+                updateItem(itemId) {
+                    val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
+                    if (total >= 3) return@updateItem it
+                    it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + processed)
+                }
+            }
+        )
+    }
+
+    /** Fabric counterpart of [addStylePhoto]. */
+    private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
+        trackPhotoJob(
+            viewModelScope.launch {
+                val processed = imageCompressor.compress(photoBytes) ?: photoBytes
+                if (rejectOversizedPhoto(processed)) return@launch
+                updateItem(itemId) {
+                    val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
+                    if (total >= 3) return@updateItem it
+                    it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + processed)
+                }
+            }
+        )
+    }
+
+    // In-flight photo-compression jobs. save() awaits these so a photo picked just
+    // before Save isn't dropped from the persisted order.
+    private val photoJobs = mutableListOf<Job>()
+
+    private fun trackPhotoJob(job: Job) {
+        photoJobs.removeAll { it.isCompleted }
+        photoJobs += job
+    }
+
+    /**
+     * If any picked photo is still compressing, await those jobs and re-enter [save].
+     * Returns true when it deferred the save (caller should return), false otherwise.
+     */
+    private fun awaitPendingPhotosThenResave(): Boolean {
+        val pending = photoJobs.filter { it.isActive }
+        if (pending.isEmpty()) return false
+        viewModelScope.launch {
+            pending.joinAll()
+            save()
+        }
         return true
     }
 
@@ -829,7 +998,7 @@ class OrderFormViewModel(
         } else if (item.saveStyleToGallery) {
             val createResult = styleRepository.createStyles(
                 userId = userId,
-                customerId = customerId,
+                location = StyleLocation.CustomerCloset(customerId),
                 description = item.styleDescription.trim(),
                 photoBytesList = item.uploadedStyleBytesList,
             )

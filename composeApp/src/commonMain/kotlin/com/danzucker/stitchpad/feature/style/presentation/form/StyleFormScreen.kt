@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.style.presentation.form
 
 import androidx.compose.foundation.BorderStroke
@@ -43,6 +45,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -61,13 +64,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.Style
+import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapReachedSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
-import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -79,15 +84,19 @@ import stitchpad.composeapp.generated.resources.style_edit_title
 import stitchpad.composeapp.generated.resources.style_photos_selected
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
+import stitchpad.composeapp.generated.resources.style_readonly_hint
+import stitchpad.composeapp.generated.resources.style_readonly_upgrade_cta
 import stitchpad.composeapp.generated.resources.style_save_button
 
-// Bounds how many photos a single multi-pick can add — each is held in memory as
-// bytes, so cap the batch. MultiPhotoPreview lays thumbnails out 3 per row.
-private const val STYLE_MULTI_PICK_MAX = 10
+// MultiPhotoPreview lays thumbnails out 3 per row. The multi-pick batch size is
+// driven by the folder's remaining capacity via state.maxPhotoSelection.
 private const val MULTI_PREVIEW_COLUMNS = 3
 
 @Composable
-fun StyleFormRoot(onNavigateBack: () -> Unit) {
+fun StyleFormRoot(
+    onNavigateBack: () -> Unit,
+    onNavigateToUpgrade: () -> Unit,
+) {
     val viewModel: StyleFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -96,6 +105,7 @@ fun StyleFormRoot(onNavigateBack: () -> Unit) {
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             StyleFormEvent.NavigateBack -> onNavigateBack()
+            StyleFormEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         }
     }
 
@@ -131,20 +141,25 @@ fun StyleFormScreen(
 
     val focusManager = LocalFocusManager.current
 
-    val imagePicker = rememberImagePickerLauncher(
-        selectionMode = if (state.allowMultiPhoto) {
-            SelectionMode.Multiple(maxSelection = STYLE_MULTI_PICK_MAX)
-        } else {
-            SelectionMode.Single
-        },
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            if (byteArrays.isNotEmpty()) onAction(StyleFormAction.OnPhotosPicked(byteArrays))
-        }
-    )
+    // Key on maxPhotoSelection so the launcher is rebuilt once the VM resolves the
+    // folder's remaining capacity (the remembered launcher won't otherwise pick up
+    // a changed maxSelection).
+    val imagePicker = key(state.allowMultiPhoto, state.maxPhotoSelection) {
+        rememberImagePickerLauncher(
+            selectionMode = styleFormSelectionMode(
+                allowMultiPhoto = state.allowMultiPhoto,
+                maxPhotoSelection = state.maxPhotoSelection,
+            ),
+            scope = pickerScope,
+            onResult = { byteArrays ->
+                if (byteArrays.isNotEmpty()) onAction(StyleFormAction.OnPhotosPicked(byteArrays))
+            }
+        )
+    }
 
-    val canSave = state.description.trim().isNotBlank() &&
-        (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
+    // Description is optional; a create still needs at least one photo, and an
+    // edit still needs a loaded style — so we never persist a fully empty entry.
+    val canSave = (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
         !state.isSaving
 
     Scaffold(
@@ -196,60 +211,98 @@ fun StyleFormScreen(
                     .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4),
                 verticalArrangement = Arrangement.spacedBy(DesignTokens.space4)
             ) {
-                PhotoSection(
-                    state = state,
-                    onPickClick = {
+                val onPickClick: (() -> Unit)? = if (state.readOnly) {
+                    null
+                } else {
+                    {
                         focusManager.clearFocus()
                         imagePicker.launch()
                     }
+                }
+                PhotoSection(
+                    state = state,
+                    onPickClick = onPickClick
                 )
                 StyleDescriptionField(
                     value = state.description,
+                    readOnly = state.readOnly,
                     onValueChange = { onAction(StyleFormAction.OnDescriptionChange(it)) },
                     onDone = { focusManager.clearFocus() }
                 )
+                if (state.readOnly) {
+                    Text(
+                        text = stringResource(Res.string.style_readonly_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(Modifier.height(DesignTokens.space2))
-                Button(
-                    onClick = { onAction(StyleFormAction.OnSaveClick) },
-                    enabled = canSave,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    if (state.isSaving) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
+                if (state.readOnly) {
+                    Button(
+                        onClick = { onAction(StyleFormAction.OnSaveClick) },
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.style_readonly_upgrade_cta),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
                         )
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                    }
+                } else {
+                    Button(
+                        onClick = { onAction(StyleFormAction.OnSaveClick) },
+                        enabled = canSave,
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
                             )
-                            Text(
-                                text = stringResource(Res.string.style_save_button),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = stringResource(Res.string.style_save_button),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    // Cap-reached upgrade sheet
+    state.capSheet?.let { capInfo ->
+        StyleCapReachedSheet(
+            info = capInfo,
+            onUpgradeClick = { onAction(StyleFormAction.OnUpgradeFromCap) },
+            onDismiss = { onAction(StyleFormAction.OnDismissCapSheet) },
+        )
+    }
 }
 
 @Composable
 private fun PhotoSection(
     state: StyleFormState,
-    onPickClick: () -> Unit
+    onPickClick: (() -> Unit)?
 ) {
     if (state.selectedPhotos.size > 1) {
         MultiPhotoPreview(photos = state.selectedPhotos, onPickClick = onPickClick)
@@ -261,7 +314,7 @@ private fun PhotoSection(
 @Composable
 private fun SinglePhotoPreview(
     state: StyleFormState,
-    onPickClick: () -> Unit
+    onPickClick: (() -> Unit)?
 ) {
     val model: Any? = when {
         state.selectedPhotos.isNotEmpty() -> state.selectedPhotos.first()
@@ -269,18 +322,24 @@ private fun SinglePhotoPreview(
         else -> null
     }
 
+    val baseModifier = Modifier
+        .fillMaxWidth()
+        .aspectRatio(1f)
+        .clip(RoundedCornerShape(DesignTokens.radiusMd))
+        .background(MaterialTheme.colorScheme.surfaceVariant)
+        .border(
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            RoundedCornerShape(DesignTokens.radiusMd)
+        )
+    val boxModifier = if (onPickClick != null) {
+        baseModifier.clickable(onClick = onPickClick)
+    } else {
+        baseModifier
+    }
+
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                RoundedCornerShape(DesignTokens.radiusMd)
-            )
-            .clickable(onClick = onPickClick)
+        modifier = boxModifier
     ) {
         if (model != null) {
             SubcomposeAsyncImage(
@@ -297,33 +356,36 @@ private fun SinglePhotoPreview(
                 },
                 modifier = Modifier.fillMaxSize()
             )
-            Box(
-                contentAlignment = Alignment.BottomEnd,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(DesignTokens.space3)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            // Only show the "change photo" badge when the picker is active.
+            if (onPickClick != null) {
+                Box(
+                    contentAlignment = Alignment.BottomEnd,
                     modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                            shape = RoundedCornerShape(DesignTokens.radiusFull)
-                        )
-                        .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space1)
+                        .fillMaxSize()
+                        .padding(DesignTokens.space3)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AddAPhoto,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = stringResource(Res.string.style_change_photo),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                                shape = RoundedCornerShape(DesignTokens.radiusFull)
+                            )
+                            .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space1)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddAPhoto,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = stringResource(Res.string.style_change_photo),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         } else {
@@ -355,20 +417,25 @@ private fun SinglePhotoPreview(
 @Composable
 private fun MultiPhotoPreview(
     photos: List<ByteArray>,
-    onPickClick: () -> Unit
+    onPickClick: (() -> Unit)?
 ) {
+    val baseModifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(DesignTokens.radiusMd))
+        .background(MaterialTheme.colorScheme.surfaceVariant)
+        .border(
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            RoundedCornerShape(DesignTokens.radiusMd)
+        )
+    val columnModifier = if (onPickClick != null) {
+        baseModifier.clickable(onClick = onPickClick).padding(DesignTokens.space3)
+    } else {
+        baseModifier.padding(DesignTokens.space3)
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                RoundedCornerShape(DesignTokens.radiusMd)
-            )
-            .clickable(onClick = onPickClick)
-            .padding(DesignTokens.space3)
+        modifier = columnModifier
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -422,16 +489,21 @@ private fun MultiPhotoPreview(
 @Composable
 private fun StyleDescriptionField(
     value: String,
+    readOnly: Boolean = false,
     onValueChange: (String) -> Unit,
     onDone: () -> Unit
 ) {
+    val enabled = !readOnly
     val colors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MaterialTheme.colorScheme.primary,
         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
         focusedContainerColor = MaterialTheme.colorScheme.surface,
         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
         focusedTextColor = MaterialTheme.colorScheme.onSurface,
-        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledBorderColor = MaterialTheme.colorScheme.outline,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
     val interactionSource = remember { MutableInteractionSource() }
     val placeholder = stringResource(Res.string.style_description_placeholder)
@@ -450,8 +522,14 @@ private fun StyleDescriptionField(
             singleLine = false,
             minLines = 3,
             maxLines = 6,
+            readOnly = readOnly,
+            enabled = enabled,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(
@@ -466,7 +544,7 @@ private fun StyleDescriptionField(
                 OutlinedTextFieldDefaults.DecorationBox(
                     value = value,
                     innerTextField = innerTextField,
-                    enabled = true,
+                    enabled = enabled,
                     singleLine = false,
                     visualTransformation = VisualTransformation.None,
                     interactionSource = interactionSource,
@@ -480,7 +558,7 @@ private fun StyleDescriptionField(
                     colors = colors,
                     container = {
                         OutlinedTextFieldDefaults.Container(
-                            enabled = true,
+                            enabled = enabled,
                             isError = false,
                             interactionSource = interactionSource,
                             colors = colors,
@@ -529,6 +607,31 @@ private fun StyleFormScreenMultiPhotoPreview() {
                 description = "Owambe inspiration",
                 allowMultiPhoto = true,
                 selectedPhotos = listOf(ByteArray(0), ByteArray(0), ByteArray(0), ByteArray(0))
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun StyleFormScreenReadOnlyPreview() {
+    StitchPadTheme {
+        StyleFormScreen(
+            state = StyleFormState(
+                isEditMode = true,
+                readOnly = true,
+                description = "Ankara gown",
+                existingStyle = Style(
+                    id = "preview-id",
+                    customerId = "preview-customer",
+                    description = "Ankara gown",
+                    photoUrl = "https://example.com/style.jpg",
+                    photoStoragePath = "styles/preview-id/photo.jpg",
+                    createdAt = 0L,
+                    updatedAt = 0L
+                )
             ),
             onAction = {}
         )

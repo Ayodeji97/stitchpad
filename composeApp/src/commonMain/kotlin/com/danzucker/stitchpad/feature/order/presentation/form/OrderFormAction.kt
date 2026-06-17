@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 
 sealed interface OrderFormAction {
     // Navigation
@@ -69,6 +70,13 @@ sealed interface OrderFormAction {
     data class OnItemSaveStyleToGalleryToggle(val itemId: String, val value: Boolean) : OrderFormAction
     data class OnOpenStylePickerSheet(val itemId: String) : OrderFormAction
     data object OnDismissStylePickerSheet : OrderFormAction
+    data class OnStylePickerSourceChange(val source: StylePickerSource) : OrderFormAction
+
+    /** Drill into a folder in the style picker. */
+    data class OnPickerFolderOpen(val folder: StylePickerFolder) : OrderFormAction
+
+    /** Navigate back to the folder grid in the style picker. */
+    data object OnPickerFolderBack : OrderFormAction
 
     // PTSP-11 multi-image actions — FABRIC
 
@@ -83,6 +91,8 @@ sealed interface OrderFormAction {
     data class OnPriorityChange(val priority: OrderPriority) : OrderFormAction
     data class OnDepositChange(val deposit: String) : OrderFormAction
     data class OnNotesChange(val notes: String) : OrderFormAction
+    data class OnDiscountChange(val discount: String) : OrderFormAction
+    data class OnDiscountReasonChange(val reason: String) : OrderFormAction
 
     // Save
     data object OnSave : OrderFormAction

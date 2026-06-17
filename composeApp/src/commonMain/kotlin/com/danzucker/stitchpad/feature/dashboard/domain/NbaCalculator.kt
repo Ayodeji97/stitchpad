@@ -99,13 +99,13 @@ object NbaCalculator {
                     )
                 order.status == OrderStatus.PENDING &&
                     order.depositPaid == 0.0 &&
-                    order.totalPrice > 0.0 ->
+                    order.payableTotal > 0.0 ->
                     buildAction(
                         type = NextBestActionType.CollectDeposit,
                         order = order,
                         customer = customer,
                         garment = garment,
-                        balance = order.totalPrice,
+                        balance = order.payableTotal,
                         days = daysSinceCreation(order, today, timeZone)
                     )
                 order.status == OrderStatus.PENDING &&

@@ -8,6 +8,15 @@ data object SplashRoute
 @Serializable
 data object OnboardingRoute
 
+/**
+ * Logged-out video landing — the single unauthenticated entry point. Reached after
+ * the onboarding slides on a fresh install, and directly from Splash / on sign-out
+ * for returning users. [LoginRoute] is now only reached from here ("Sign in"), the
+ * Sign Up "Log in" link, Forgot Password, and the debug menu.
+ */
+@Serializable
+data object WelcomeRoute
+
 @Serializable
 data object LoginRoute
 
@@ -44,13 +53,21 @@ data class MeasurementFormRoute(
 )
 
 @Serializable
-data class StyleGalleryRoute(val customerId: String)
+data class StyleFoldersRoute(val customerId: String? = null)
+
+@Serializable
+data class StyleGalleryRoute(
+    val customerId: String? = null,
+    val folderId: String? = null,
+)
 
 @Serializable
 data class StyleFormRoute(
-    val customerId: String,
+    val customerId: String? = null,
     val styleId: String? = null,
     val linkToOrderId: String? = null,
+    val folderId: String? = null,
+    val readOnly: Boolean = false,
 )
 
 @Serializable
@@ -107,6 +124,12 @@ data object DraftMessageRoute
 
 @Serializable
 data object UpgradeRoute
+
+@Serializable
+data object RedeemGiftRoute
+
+@Serializable
+data object ShareGiftLinkRoute
 
 @Serializable
 data object FoundersNoteRoute

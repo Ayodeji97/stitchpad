@@ -46,11 +46,13 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.balance_warning_record_payment
 import stitchpad.composeapp.generated.resources.order_detail_payment_balance
+import stitchpad.composeapp.generated.resources.order_detail_payment_discount
 import stitchpad.composeapp.generated.resources.order_detail_payment_history_count
 import stitchpad.composeapp.generated.resources.order_detail_payment_history_count_plural
 import stitchpad.composeapp.generated.resources.order_detail_payment_history_label
 import stitchpad.composeapp.generated.resources.order_detail_payment_paid
 import stitchpad.composeapp.generated.resources.order_detail_payment_section
+import stitchpad.composeapp.generated.resources.order_detail_payment_subtotal
 import stitchpad.composeapp.generated.resources.order_detail_payment_total
 import stitchpad.composeapp.generated.resources.payment_method_cash
 import stitchpad.composeapp.generated.resources.payment_method_other
@@ -70,9 +72,13 @@ fun OrderPaymentCard(
     onToggleExpanded: () -> Unit,
     onRecordPaymentClick: () -> Unit,
     modifier: Modifier = Modifier,
+    discount: Double = 0.0,
 ) {
+    // payable = subtotal minus the whole-order discount; the Total column and the
+    // balance both come off this, never the raw subtotal.
+    val payable = (totalPrice - discount).coerceAtLeast(0.0)
     val paid = payments.sumOf { it.amount }
-    val balance = (totalPrice - paid).coerceAtLeast(0.0)
+    val balance = (payable - paid).coerceAtLeast(0.0)
     val hasPayments = payments.isNotEmpty()
     val showDivider = hasPayments || balance > 0.0
 
@@ -101,6 +107,35 @@ fun OrderPaymentCard(
 
             Spacer(Modifier.height(DesignTokens.space3))
 
+            // ── Discount breakdown (only when a discount is applied) ─────────
+            if (discount > 0.0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = INDENT_START),
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                ) {
+                    Text(
+                        text = stringResource(
+                            Res.string.order_detail_payment_subtotal,
+                            "₦${formatPrice(totalPrice)}",
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.order_detail_payment_discount,
+                            "−₦${formatPrice(discount)}",
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DesignTokens.success500,
+                    )
+                }
+                Spacer(Modifier.height(DesignTokens.space2))
+            }
+
             // ── Financial row ────────────────────────────────────────────────
             Row(
                 modifier = Modifier
@@ -116,7 +151,7 @@ fun OrderPaymentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "₦${formatPrice(totalPrice)}",
+                        text = "₦${formatPrice(payable)}",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
@@ -404,6 +439,22 @@ private fun OrderPaymentCardMultiPaymentExpandedDarkPreview() {
             totalPrice = 100_000.0,
             payments = listOf(PREVIEW_PAYMENT_1, PREVIEW_PAYMENT_2),
             isExpanded = true,
+            onToggleExpanded = {},
+            onRecordPaymentClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderPaymentCardWithDiscountLightPreview() {
+    StitchPadTheme {
+        OrderPaymentCard(
+            totalPrice = 60_000.0,
+            discount = 5_000.0,
+            payments = listOf(PREVIEW_PAYMENT_1),
+            isExpanded = false,
             onToggleExpanded = {},
             onRecordPaymentClick = {},
         )

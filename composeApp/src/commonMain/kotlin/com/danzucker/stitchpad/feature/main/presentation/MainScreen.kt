@@ -37,6 +37,8 @@ import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRo
 import com.danzucker.stitchpad.feature.dashboard.presentation.AddCustomerFirstScreen
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
+import com.danzucker.stitchpad.feature.gift.presentation.redeem.RedeemGiftRoot
+import com.danzucker.stitchpad.feature.gift.presentation.sharelink.ShareGiftLinkRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxRoot
@@ -51,6 +53,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditPro
 import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
+import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
@@ -72,8 +75,11 @@ import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+import com.danzucker.stitchpad.navigation.RedeemGiftRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
+import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
+import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
@@ -105,6 +111,16 @@ fun MainRoot(
                 // already-open Upgrade screen's VM and skip the pre-select (leaving it stale).
                 innerNavController.navigate(UpgradeRoute) {
                     popUpTo(UpgradeRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            // Gift-claim email link (https .../claim?code= or stitchpad://claim?code=).
+            DeepLinkTarget.CLAIM_GIFT -> {
+                pendingDeepLink.clear()
+                // popUpTo<RedeemGiftRoute> forces a FRESH RedeemGiftViewModel so it consumes
+                // the claim code on init and jumps straight to the Accept sheet.
+                innerNavController.navigate(RedeemGiftRoute) {
+                    popUpTo(RedeemGiftRoute) { inclusive = true }
                     launchSingleTop = true
                 }
             }
@@ -230,7 +246,7 @@ private fun MainNavGraph(
                     navController.navigate(MeasurementFormRoute(customerId = customerId, measurementId = measurementId))
                 },
                 onNavigateToStyleGallery = { customerId ->
-                    navController.navigate(StyleGalleryRoute(customerId = customerId))
+                    navController.navigate(StyleFoldersRoute(customerId = customerId))
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
@@ -266,23 +282,53 @@ private fun MainNavGraph(
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
+        composable<StyleFoldersRoute> {
+            StyleFoldersRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToFolder = { customerId, folderId ->
+                    // A folder tap (named folder or the "My styles" default) is a plain
+                    // push — Back returns to the folders grid.
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId)) {
+                        launchSingleTop = true
+                    }
+                },
+                onRedirectToFlatGallery = { customerId ->
+                    // Free users never see the folders grid — replace it in the back stack
+                    // so Back doesn't loop back to it.
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = null)) {
+                        popUpTo<StyleFoldersRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+            )
+        }
         composable<StyleGalleryRoute> {
             StyleGalleryRoot(
                 onNavigateBack = { navController.navigateUp() },
-                onNavigateToAddStyle = { customerId ->
-                    navController.navigate(StyleFormRoute(customerId = customerId))
+                onNavigateToAddStyle = { customerId, folderId ->
+                    navController.navigate(StyleFormRoute(customerId = customerId, folderId = folderId))
                 },
-                onNavigateToEditStyle = { customerId, styleId ->
-                    navController.navigate(StyleFormRoute(customerId = customerId, styleId = styleId))
+                onNavigateToEditStyle = { customerId, folderId, styleId, readOnly ->
+                    navController.navigate(
+                        StyleFormRoute(
+                            customerId = customerId,
+                            folderId = folderId,
+                            styleId = styleId,
+                            readOnly = readOnly,
+                        )
+                    )
                 },
-                onNavigateToCustomerCloset = { customerId ->
-                    navController.navigate(StyleGalleryRoute(customerId = customerId))
-                }
+                onNavigateToStyleGallery = { customerId, folderId ->
+                    navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId))
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<StyleFormRoute> {
             StyleFormRoot(
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
         composable<OrderListRoute> {
@@ -381,6 +427,11 @@ private fun MainNavGraph(
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
+                onNavigateToInspiration = {
+                    navController.navigate(StyleFoldersRoute(customerId = null)) {
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToDraftMessage = {
                     navController.navigate(DraftMessageRoute)
                 },
@@ -417,6 +468,16 @@ private fun MainNavGraph(
                 onBack = { navController.navigateUp() },
             )
         }
+        composable<RedeemGiftRoute> {
+            RedeemGiftRoot(
+                onBack = { navController.navigateUp() },
+            )
+        }
+        composable<ShareGiftLinkRoute> {
+            ShareGiftLinkRoot(
+                onBack = { navController.navigateUp() },
+            )
+        }
         composable<ReportsRoute> {
             ReportsRoot(
                 onNavigateToCustomerDetail = { customerId ->
@@ -440,6 +501,7 @@ private fun MainNavGraph(
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
+                onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
             )
         }
         composable<FoundersNoteRoute> {
