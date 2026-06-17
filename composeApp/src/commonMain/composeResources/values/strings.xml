@@ -437,7 +437,7 @@
     <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
-    <string name="style_description_label">Description</string>
+    <string name="style_description_label">Description (optional)</string>
     <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
     <string name="style_pick_photos">Tap to add photos</string>
@@ -506,6 +506,11 @@
     <string name="style_cap_limit_body">This is the most folders a customer&apos;s closet can hold on any plan. Remove one to make room, or keep adding styles to your existing folders.</string>
     <string name="style_cap_dismiss">Not now</string>
     <string name="style_cap_got_it">Got it</string>
+
+    <!-- Style read-only (locked style — Free tier over cap) -->
+    <string name="style_readonly_upgrade_cta">Upgrade to edit</string>
+    <string name="style_readonly_hint">This style is locked. Upgrade to Pro to edit it.</string>
+    <string name="style_locked_a11y">Locked. Upgrade to edit.</string>
 
     <!-- Style errors -->
     <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>
@@ -607,7 +612,10 @@
     <string name="order_form_price_label">Unit price (₦)</string>
     <string name="order_form_line_total">%1$d × ₦%2$s = ₦%3$s</string>
     <string name="order_form_summary_title">Order summary</string>
+    <string name="order_form_summary_subtotal">Subtotal</string>
     <string name="order_form_summary_total">Total</string>
+    <string name="order_form_summary_discount">Discount (%1$d%%)</string>
+    <string name="order_form_summary_discount_plain">Discount</string>
     <string name="order_form_summary_item_qty">%1$d × ₦%2$s</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
@@ -619,6 +627,9 @@
     <string name="order_form_deposit_placeholder">0</string>
     <string name="order_form_notes_label">Notes (optional)</string>
     <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
+    <string name="order_form_discount_label">Discount (₦)</string>
+    <string name="order_form_discount_reason_label">Discount reason (optional)</string>
+    <string name="order_form_discount_reason_placeholder">e.g. New customer</string>
     <string name="order_form_create_button">Create Order</string>
     <string name="order_form_save_button">Save Changes</string>
     <string name="order_form_next">Next</string>
@@ -724,6 +735,8 @@
     <string name="error_order_unknown">Could not save order. Please try again.</string>
     <string name="error_order_item_quantity_required">Enter a quantity for every item before saving.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
+    <string name="error_order_discount_exceeds_total">Discount can&apos;t be more than the order total.</string>
+    <string name="error_order_deposit_exceeds_total">Deposit can&apos;t be more than the order total.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
     <string name="error_order_items_required">Pick what you&apos;re making to save this order.</string>
     <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>
@@ -1094,6 +1107,8 @@
     <string name="order_detail_payment_total">Total</string>
     <string name="order_detail_payment_paid">Paid</string>
     <string name="order_detail_payment_balance">Balance</string>
+    <string name="order_detail_payment_subtotal">Subtotal %1$s</string>
+    <string name="order_detail_payment_discount">Discount %1$s</string>
 
     <!-- Production stages -->
     <string name="order_stage_pending">Pending</string>
@@ -1550,4 +1565,40 @@
     <string name="push_prompt_body">Get a quick morning reminder of orders due and money owed.</string>
     <string name="push_prompt_confirm">Turn on reminders</string>
     <string name="push_prompt_dismiss">Not now</string>
+
+    <!-- Gift subscription — redeem -->
+    <string name="gift_redeem_title">Redeem a gift</string>
+    <string name="gift_redeem_heading">You&apos;ve got a gift</string>
+    <string name="gift_redeem_subtitle">Enter the gift code from your email or message to unlock your StitchPad plan.</string>
+    <string name="gift_redeem_code_label">Gift code</string>
+    <string name="gift_redeem_cta">Redeem gift</string>
+    <string name="gift_redeem_success">Gift claimed! Your StitchPad plan is now active.</string>
+    <string name="gift_accept_sheet_title">Claim your gift?</string>
+    <string name="gift_accept_sheet_body_with_email">This will apply your gift to %1$s.</string>
+    <string name="gift_accept_sheet_body_no_email">This will apply your gift to your StitchPad account.</string>
+    <string name="gift_accept_sheet_confirm">Accept gift</string>
+    <string name="gift_accept_sheet_cancel">Not now</string>
+    <string name="gift_error_not_found">We couldn&apos;t find that gift code. Check it and try again.</string>
+    <string name="gift_error_already_claimed">This gift has already been claimed.</string>
+    <string name="gift_error_expired">This gift has expired.</string>
+    <string name="gift_error_not_payable">This gift isn&apos;t ready to claim yet. Please try again shortly.</string>
+    <string name="gift_error_unauthenticated">Please sign in to claim your gift.</string>
+
+    <!-- Gift subscription — received notification -->
+    <string name="gift_notification_title_pro">You&apos;ve been gifted Tailor Pro</string>
+    <string name="gift_notification_title_atelier">You&apos;ve been gifted Tailor Atelier</string>
+    <string name="gift_notification_title_generic">You&apos;ve received a gift</string>
+    <string name="gift_notification_from">from %1$s</string>
+
+    <!-- Gift subscription — share your "Gift me" link -->
+    <string name="gift_share_settings_row">Your gift link</string>
+    <string name="gift_share_settings_subtitle">Let friends, family or clients support your business</string>
+    <string name="gift_share_sheet_title">Your gift link</string>
+    <string name="gift_share_sheet_body">Share this link with friends, family or clients. When they open it, they can support your StitchPad plan as a gift.</string>
+    <string name="gift_share_copy">Copy link</string>
+    <string name="gift_share_share">Share link</string>
+    <string name="gift_share_copied">Link copied</string>
+    <string name="gift_share_error">Couldn&apos;t create your gift link. Please try again.</string>
+    <string name="gift_share_retry">Try again</string>
+    <string name="gift_share_whatsapp_message">I run my tailoring business on StitchPad. You can support me by covering my subscription plan here: %1$s</string>
 </resources>

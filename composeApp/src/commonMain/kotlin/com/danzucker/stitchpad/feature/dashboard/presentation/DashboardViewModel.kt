@@ -461,7 +461,7 @@ class DashboardViewModel(
                 hasDueDate = hasDueDate,
                 hasDeposit = hasDeposit,
                 garmentLabel = firstOrder?.items?.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty(),
-                totalAmount = firstOrder?.totalPrice ?: 0.0,
+                totalAmount = firstOrder?.payableTotal ?: 0.0,
             )
         } else {
             null

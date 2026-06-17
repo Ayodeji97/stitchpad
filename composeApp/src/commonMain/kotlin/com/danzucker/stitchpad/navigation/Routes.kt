@@ -67,6 +67,7 @@ data class StyleFormRoute(
     val styleId: String? = null,
     val linkToOrderId: String? = null,
     val folderId: String? = null,
+    val readOnly: Boolean = false,
 )
 
 @Serializable
@@ -123,6 +124,12 @@ data object DraftMessageRoute
 
 @Serializable
 data object UpgradeRoute
+
+@Serializable
+data object RedeemGiftRoute
+
+@Serializable
+data object ShareGiftLinkRoute
 
 @Serializable
 data object FoundersNoteRoute

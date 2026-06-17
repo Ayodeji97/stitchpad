@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun SettingsRoot(
     onNavigateToEditProfile: () -> Unit,
@@ -24,6 +25,7 @@ fun SettingsRoot(
     onNavigateToDebugMenu: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToFoundersNote: () -> Unit,
+    onNavigateToShareGiftLink: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -41,6 +43,7 @@ fun SettingsRoot(
             SettingsEvent.NavigateToDebugMenu -> onNavigateToDebugMenu()
             SettingsEvent.NavigateToUpgrade -> onNavigateToUpgrade()
             SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
+            SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {

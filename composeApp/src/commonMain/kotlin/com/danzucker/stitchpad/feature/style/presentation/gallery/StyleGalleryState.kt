@@ -63,4 +63,6 @@ data class StyleGalleryState(
     val errorMessage: UiText? = null,
     /** Non-null while the cap-reached upgrade sheet should be shown. */
     val capSheet: StyleCapInfo? = null,
+    /** Ids of styles shown read-only (over the current tier cap). Empty on paid within cap. */
+    val lockedStyleIds: Set<String> = emptySet(),
 )

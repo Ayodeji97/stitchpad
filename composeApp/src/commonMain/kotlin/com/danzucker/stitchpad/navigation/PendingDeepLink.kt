@@ -2,7 +2,7 @@ package com.danzucker.stitchpad.navigation
 
 import kotlinx.coroutines.flow.MutableStateFlow
 
-enum class DeepLinkTarget { INBOX, UPGRADE }
+enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT }
 
 /** Plan to pre-select on the Upgrade screen when arriving via a renewal deep link. */
 data class UpgradePreselect(val tier: String?, val cadence: String?)
@@ -11,19 +11,29 @@ data class UpgradePreselect(val tier: String?, val cadence: String?)
 class PendingDeepLinkHolder {
     val target = MutableStateFlow<DeepLinkTarget?>(null)
     private var upgradePreselect: UpgradePreselect? = null
+    private var claimGiftCode: String? = null
 
     fun set(t: DeepLinkTarget) {
         upgradePreselect = null
+        claimGiftCode = null
         target.value = t
     }
 
     /** UPGRADE target that also carries the plan to pre-select (from the email deep link). */
     fun setUpgrade(tier: String?, cadence: String?) {
         upgradePreselect = UpgradePreselect(tier, cadence)
+        claimGiftCode = null
         target.value = DeepLinkTarget.UPGRADE
     }
 
-    /** Clears the navigation target only; a pending pre-select survives until consumed. */
+    /** CLAIM_GIFT target carrying the bearer code from the gift email's claim link. */
+    fun setClaimGift(code: String) {
+        upgradePreselect = null
+        claimGiftCode = code
+        target.value = DeepLinkTarget.CLAIM_GIFT
+    }
+
+    /** Clears the navigation target only; a pending pre-select/code survives until consumed. */
     fun clear() {
         target.value = null
     }
@@ -33,5 +43,12 @@ class PendingDeepLinkHolder {
         val p = upgradePreselect
         upgradePreselect = null
         return p
+    }
+
+    /** One-shot read of the claim code, consumed by RedeemGiftViewModel on init. */
+    fun consumeClaimGiftCode(): String? {
+        val c = claimGiftCode
+        claimGiftCode = null
+        return c
     }
 }

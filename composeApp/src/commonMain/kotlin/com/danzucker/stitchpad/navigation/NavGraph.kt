@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -11,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.danzucker.stitchpad.core.debug.isDebugBuild
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
@@ -20,6 +22,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerifi
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuRoot
 import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
+import com.danzucker.stitchpad.feature.onboarding.domain.ResolveNeedsWorkshopSetup
 import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRoot
@@ -46,6 +49,22 @@ private suspend fun AuthRepository.needsEmailVerification(
 }
 
 /**
+ * Whether to route the signed-in user to workshop setup. Resolves the current user id
+ * and delegates to [ResolveNeedsWorkshopSetup], which checks the local "completed" flag
+ * first and falls back to the remote profile (the reinstall case). If the user id can't
+ * be resolved we fall back to the local flag alone — never blocking entry incorrectly.
+ */
+private suspend fun needsWorkshopSetupForCurrentUser(
+    authRepository: AuthRepository,
+    onboardingPreferences: OnboardingPreferences,
+    resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup,
+): Boolean {
+    val userId = authRepository.getCurrentUser()?.id
+        ?: return !onboardingPreferences.hasCompletedWorkshopSetup()
+    return resolveNeedsWorkshopSetup(userId)
+}
+
+/**
  * Outer-nav handler for a pending push-tap deep link. The inbox route lives in MainRoot's
  * INNER nav, so if a tap arrives while the user is on a non-Home OUTER route (e.g. the
  * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
@@ -66,9 +85,10 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
         if (pendingDeepLinkTarget == null) return@LaunchedEffect
         if (!authRepository.isLoggedIn) {
             // A push INBOX tap shouldn't auto-route a freshly-signed-in (possibly
-            // different) user, so drop it. But an UPGRADE email-link tap is the account
-            // owner asking to renew — and they must sign in to upgrade anyway — so
-            // preserve it across login. Once Home is reached, MainRoot consumes it.
+            // different) user, so drop it. But an UPGRADE renewal link or a CLAIM_GIFT
+            // link is preserved across login: the user must sign in (or sign up) to
+            // upgrade / claim, which is exactly the gift flow for a brand-new tailor.
+            // Once Home is reached, MainRoot consumes it.
             if (pendingDeepLinkTarget == DeepLinkTarget.INBOX) {
                 pendingDeepLink.clear()
             }
@@ -93,6 +113,10 @@ fun StitchPadNavHost(
     onboardingPreferences: OnboardingPreferences
 ) {
     val authRepository: AuthRepository = koinInject()
+    val userRepository: UserRepository = koinInject()
+    val resolveNeedsWorkshopSetup = remember(onboardingPreferences, userRepository) {
+        ResolveNeedsWorkshopSetup(onboardingPreferences, userRepository)
+    }
 
     PushDeepLinkRedirectEffect(navController)
 
@@ -106,13 +130,16 @@ fun StitchPadNavHost(
                 onSplashFinished = {
                     scope.launch {
                         val hasSeenOnboarding = onboardingPreferences.hasSeenOnboarding()
-                        val hasCompletedWorkshop = onboardingPreferences.hasCompletedWorkshopSetup()
                         val destination = when {
                             !hasSeenOnboarding -> OnboardingRoute
                             !authRepository.isLoggedIn -> WelcomeRoute
                             authRepository.needsEmailVerification(onboardingPreferences) ->
                                 EmailVerificationRoute
-                            !hasCompletedWorkshop -> WorkshopSetupRoute
+                            needsWorkshopSetupForCurrentUser(
+                                authRepository,
+                                onboardingPreferences,
+                                resolveNeedsWorkshopSetup,
+                            ) -> WorkshopSetupRoute
                             else -> HomeRoute
                         }
                         navController.navigate(destination) {
@@ -157,7 +184,11 @@ fun StitchPadNavHost(
                         val destination = when {
                             authRepository.needsEmailVerification(onboardingPreferences) ->
                                 EmailVerificationRoute
-                            !onboardingPreferences.hasCompletedWorkshopSetup() -> WorkshopSetupRoute
+                            needsWorkshopSetupForCurrentUser(
+                                authRepository,
+                                onboardingPreferences,
+                                resolveNeedsWorkshopSetup,
+                            ) -> WorkshopSetupRoute
                             else -> HomeRoute
                         }
                         navController.navigate(destination) {
@@ -200,7 +231,13 @@ fun StitchPadNavHost(
             EmailVerificationRoot(
                 onVerified = {
                     scope.launch {
-                        val destination = if (!onboardingPreferences.hasCompletedWorkshopSetup()) {
+                        val destination = if (
+                            needsWorkshopSetupForCurrentUser(
+                                authRepository,
+                                onboardingPreferences,
+                                resolveNeedsWorkshopSetup,
+                            )
+                        ) {
                             WorkshopSetupRoute
                         } else {
                             HomeRoute

@@ -52,6 +52,21 @@ describe('digestDetector', () => {
     expect(m.outstanding[0].amount).toBe(6000); // biggest owed first
   });
 
+  it('subtracts the whole-order discount from the outstanding balance', () => {
+    const m = digestDetector([
+      order({ status: 'DELIVERED', totalPrice: 10000, discount: 2000, payments: [{ amount: 3000 }] }),
+    ], NOW);
+    expect(m.outstanding.length).toBe(1);
+    expect(m.outstanding[0].amount).toBe(5000); // (10000 - 2000 discount) - 3000 paid
+  });
+
+  it('a fully-discounted unpaid order has no outstanding balance', () => {
+    const m = digestDetector([
+      order({ status: 'DELIVERED', totalPrice: 10000, discount: 10000, payments: [] }),
+    ], NOW);
+    expect(m.outstanding.length).toBe(0);
+  });
+
   it('excludes in-progress balances and sub-naira residue from outstanding', () => {
     const m = digestDetector([
       order({ status: 'IN_PROGRESS', totalPrice: 9000, payments: [{ amount: 1000 }] }),

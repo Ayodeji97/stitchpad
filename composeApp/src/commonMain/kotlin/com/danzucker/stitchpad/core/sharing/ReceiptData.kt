@@ -104,6 +104,12 @@ data class ReceiptData(
     val customerName: String,
     val dateFormatted: String,
     val items: List<ReceiptItem>,
+    /** Sum of item line totals before discount, pre-formatted (e.g. "₦32,500"). */
+    val subtotalFormatted: String,
+    /** Signed discount line (e.g. "−₦2,500"), or null when there is no discount. */
+    val discountFormatted: String?,
+    /** Optional free-text reason shown under the discount line. Null when unset. */
+    val discountReason: String?,
     val totalFormatted: String,
     val depositFormatted: String,
     val balanceFormatted: String,

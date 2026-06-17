@@ -12,6 +12,8 @@ fun NotificationDto.toNotification(docId: String): Notification = Notification(
     garmentSummary = garmentSummary,
     amount = amount,
     deadline = deadline,
+    tier = tier,
+    gifterName = gifterName,
     isRead = isRead,
     createdAt = createdAt,
 )

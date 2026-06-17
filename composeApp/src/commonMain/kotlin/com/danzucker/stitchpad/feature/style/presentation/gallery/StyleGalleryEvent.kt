@@ -6,7 +6,8 @@ sealed interface StyleGalleryEvent {
     data class NavigateToEditStyle(
         val customerId: String?,
         val folderId: String?,
-        val styleId: String
+        val styleId: String,
+        val readOnly: Boolean = false,
     ) : StyleGalleryEvent
     data class StyleTransferred(
         val mode: StyleTransferMode,

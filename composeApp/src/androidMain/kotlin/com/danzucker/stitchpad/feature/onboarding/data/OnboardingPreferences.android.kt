@@ -25,6 +25,14 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         prefs.edit().putBoolean(KEY_HAS_COMPLETED_WORKSHOP, true).apply()
     }
 
+    override suspend fun hasConfirmedRemoteWorkshopProfile(userId: String): Boolean {
+        return prefs.getBoolean(confirmedWorkshopKey(userId), false)
+    }
+
+    override suspend fun setConfirmedRemoteWorkshopProfile(userId: String) {
+        prefs.edit().putBoolean(confirmedWorkshopKey(userId), true).apply()
+    }
+
     override suspend fun hasBypassedEmailVerification(): Boolean {
         return prefs.getBoolean(KEY_BYPASSED_EMAIL_VERIFICATION, false)
     }
@@ -42,17 +50,25 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
     }
 
     override suspend fun resetForDebug() {
-        prefs.edit()
+        val editor = prefs.edit()
             .putBoolean(KEY_HAS_SEEN_ONBOARDING, false)
             .putBoolean(KEY_HAS_COMPLETED_WORKSHOP, false)
             .putBoolean(KEY_BYPASSED_EMAIL_VERIFICATION, false)
             .putBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, false)
-            .commit()
+        // Per-user confirmation keys aren't enumerable up front — clear by prefix.
+        prefs.all.keys
+            .filter { it.startsWith(KEY_CONFIRMED_WORKSHOP_PREFIX) }
+            .forEach { editor.remove(it) }
+        editor.commit()
     }
+
+    private fun confirmedWorkshopKey(userId: String): String =
+        "$KEY_CONFIRMED_WORKSHOP_PREFIX$userId"
 
     companion object {
         private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
         private const val KEY_HAS_COMPLETED_WORKSHOP = "has_completed_workshop_setup"
+        private const val KEY_CONFIRMED_WORKSHOP_PREFIX = "confirmed_workshop_profile_"
         private const val KEY_BYPASSED_EMAIL_VERIFICATION = "bypassed_email_verification"
         private const val KEY_HAS_ASKED_PUSH_PERMISSION = "has_asked_push_permission"
     }

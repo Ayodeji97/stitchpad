@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
@@ -58,6 +59,8 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.gift_share_settings_row
+import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_contact
@@ -158,6 +161,13 @@ fun SettingsScreen(
                     label = stringResource(Res.string.settings_row_invite),
                     subtitle = stringResource(Res.string.settings_row_invite_subtitle),
                     onClick = { onAction(SettingsAction.OnInviteClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRow(
+                    icon = Icons.Outlined.CardGiftcard,
+                    label = stringResource(Res.string.gift_share_settings_row),
+                    subtitle = stringResource(Res.string.gift_share_settings_subtitle),
+                    onClick = { onAction(SettingsAction.OnGetGiftedClick) },
                     trailing = { SettingsRowChevron() },
                 )
             }

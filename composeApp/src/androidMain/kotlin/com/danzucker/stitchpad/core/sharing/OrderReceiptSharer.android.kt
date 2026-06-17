@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 
 private const val WATERMARK_TEXT_ALPHA = 18 // ~7% on a 0–255 scale
 
+@Suppress("LargeClass")
 actual class OrderReceiptSharer(private val context: Context) {
 
     actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
@@ -57,11 +58,6 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(headerText, 16f).apply { alpha = 190 }
         val labelPaint = makePaint(labelColor, 14f, bold = true)
         val bodyPaint = makePaint(bodyText, 18f)
-        // Unit-price breakdown row — same 18f size as the "Price for N" row so the two
-        // breakdown lines align; legible (light, not muted) with a bold value so the
-        // unit price is clearly visible (design feedback).
-        val unitLabelPaint = makePaint(bodyText, 18f)
-        val unitValuePaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPaint = makePaint(bodyText, 18f, bold = true)
         val priceRightPaint = makePaint(bodyText, 18f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPaint = makePaint(bodyText, 20f, bold = true)
@@ -98,13 +94,17 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 60f // customer + date row
         estimatedHeight += 20f // divider gap
         estimatedHeight += 30f // Items label
-        // qty==1 → 1 row (~26px); qty>1 → 3 rows (22+24+30=76px).
+        // qty==1 → 1 row (~26px); qty>1 → 2 rows (24+28=52px).
         var itemsEstimate = 0f
-        for (item in data.items) itemsEstimate += if (item.quantity == 1) 26f else 76f
+        for (item in data.items) itemsEstimate += if (item.quantity == 1) 26f else 52f
         estimatedHeight += itemsEstimate
         estimatedHeight += 20f // gap
         estimatedHeight += 30f // divider gap
         estimatedHeight += 30f * 3 // total/deposit/balance
+        if (data.discountFormatted != null) {
+            estimatedHeight += 26f + 24f // subtotal row + discount row
+            if (data.discountReason != null) estimatedHeight += 22f // discount reason caption
+        }
         if (data.bankBlock != null) {
             // Mirrors the y-advances in the draw block exactly: pre-divider (16)
             // + post-divider (24) + 3 inter-row advances of 26 + trailing (32).
@@ -213,20 +213,13 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
                 y += 26f
             } else {
-                // Row 1: garment name only (no price on the right).
-                canvas.drawText(item.garmentName, padding, y, bodyBoldPaint)
-                y += 22f
-                // Row 2: "Unit price" label + value (light, value bold — clearly visible).
-                // Nested under the garment name so each item's breakdown is grouped with it
-                // (matters most when an order has several items).
-                val indent = padding + 14f
-                canvas.drawText("Unit price", indent, y, unitLabelPaint)
-                canvas.drawText(item.formattedUnitPrice, width - padding, y, unitValuePaint)
-                y += 24f
-                // Row 3: "Price for N" label (left) + line total (right, bold).
-                canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPaint)
+                // Row 1: "<name> ×N" bold left + line total right (bold).
+                canvas.drawText("${item.garmentName} ×${item.quantity}", padding, y, bodyBoldPaint)
                 canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
-                y += 30f
+                y += 24f
+                // Row 2 (caption): "<unit price> each", muted.
+                canvas.drawText("${item.formattedUnitPrice} each", padding, y, labelPaint)
+                y += 28f
             }
         }
         y += 8f
@@ -235,14 +228,29 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, width - padding, y, linePaint)
         y += 22f
 
+        // Subtotal + Discount rows (only when a discount is applied)
+        data.discountFormatted?.let { discount ->
+            canvas.drawText("Subtotal", padding, y, bodyPaint)
+            canvas.drawText(data.subtotalFormatted, width - padding, y, priceRightPaint)
+            y += 26f
+            canvas.drawText("Discount", padding, y, bodyPaint)
+            canvas.drawText(discount, width - padding, y, depositPaint)
+            y += 24f
+            data.discountReason?.let { reason ->
+                canvas.drawText(reason, padding, y, labelPaint)
+                y += 22f
+            }
+        }
+
+        // Deposit — drawn before Total so the customer reads what they've paid
+        // first, then the Total it offsets, then the Balance still due.
+        canvas.drawText("Deposit Paid", padding, y, bodyPaint)
+        canvas.drawText(data.depositFormatted, width - padding, y, depositPaint)
+        y += 26f
+
         // Total
         canvas.drawText("Total", padding, y, totalLabelPaint)
         canvas.drawText(data.totalFormatted, width - padding, y, totalPaint)
-        y += 26f
-
-        // Deposit
-        canvas.drawText("Deposit Paid", padding, y, bodyPaint)
-        canvas.drawText(data.depositFormatted, width - padding, y, depositPaint)
         y += 26f
 
         // Balance
@@ -360,9 +368,13 @@ actual class OrderReceiptSharer(private val context: Context) {
         estimatedHeight += 18f // customer/date value row
         estimatedHeight += 16f // divider gap
         estimatedHeight += 18f // items label
-        for (item in data.items) estimatedHeight += if (item.quantity == 1) 20f else 52f // per-item: 16+16+20
+        for (item in data.items) estimatedHeight += if (item.quantity == 1) 20f else 36f // qty==1: 20; qty>1: 16+20=36
         estimatedHeight += 6f // post-items gap
         estimatedHeight += 18f // payment divider
+        if (data.discountFormatted != null) {
+            estimatedHeight += 20f + 20f // subtotal row + discount row
+            if (data.discountReason != null) estimatedHeight += 16f // discount reason caption
+        }
         estimatedHeight += 20f // Total row
         estimatedHeight += 20f // Deposit row
         estimatedHeight += 22f // Balance row
@@ -400,10 +412,6 @@ actual class OrderReceiptSharer(private val context: Context) {
         val headerPhonePaint = makePaint(labelColor, 12f)
         val labelPaintPdf = makePaint(labelColor, 10f, bold = true)
         val bodyPaintPdf = makePaint(bodyText, 14f)
-        // Unit-price breakdown row — same 14f size as the "Price for N" row so the two
-        // breakdown lines align; legible (not muted) with a bold value so it stands out.
-        val unitLabelPdf = makePaint(bodyText, 14f)
-        val unitValuePdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val bodyBoldPdf = makePaint(bodyText, 14f, bold = true)
         val priceRightPdf = makePaint(bodyText, 14f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val totalLabelPdf = makePaint(bodyText, 16f, bold = true)
@@ -517,18 +525,12 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
                 y += 20f
             } else {
-                // Row 1: garment name only (no price on the right).
-                canvas.drawText(item.garmentName, padding, y, bodyBoldPdf)
-                y += 16f
-                // Row 2: "Unit price" label + value (legible, value bold — clearly visible).
-                // Nested under the garment name so each item's breakdown is grouped with it.
-                val indent = padding + 12f
-                canvas.drawText("Unit price", indent, y, unitLabelPdf)
-                canvas.drawText(item.formattedUnitPrice, pageWidth - padding, y, unitValuePdf)
-                y += 16f
-                // Row 3: "Price for N" label (left) + line total (right, bold).
-                canvas.drawText("Price for ${item.quantity}", indent, y, bodyBoldPdf)
+                // Row 1: "<name> ×N" bold left + line total right (bold).
+                canvas.drawText("${item.garmentName} ×${item.quantity}", padding, y, bodyBoldPdf)
                 canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
+                y += 16f
+                // Row 2 (caption): "<unit price> each", muted.
+                canvas.drawText("${item.formattedUnitPrice} each", padding, y, labelPaintPdf)
                 y += 20f
             }
         }
@@ -538,14 +540,29 @@ actual class OrderReceiptSharer(private val context: Context) {
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
         y += 18f
 
+        // Subtotal + Discount rows (only when a discount is applied)
+        data.discountFormatted?.let { discount ->
+            canvas.drawText("Subtotal", padding, y, bodyPaintPdf)
+            canvas.drawText(data.subtotalFormatted, pageWidth - padding, y, priceRightPdf)
+            y += 20f
+            canvas.drawText("Discount", padding, y, bodyPaintPdf)
+            canvas.drawText(discount, pageWidth - padding, y, depositPricePdf)
+            y += 20f
+            data.discountReason?.let { reason ->
+                canvas.drawText(reason, padding, y, labelPaintPdf)
+                y += 16f
+            }
+        }
+
+        // Deposit — drawn before Total so the customer reads what they've paid
+        // first, then the Total it offsets, then the Balance still due.
+        canvas.drawText("Deposit Paid", padding, y, bodyPaintPdf)
+        canvas.drawText(data.depositFormatted, pageWidth - padding, y, depositPricePdf)
+        y += 20f
+
         // Total
         canvas.drawText("Total", padding, y, totalLabelPdf)
         canvas.drawText(data.totalFormatted, pageWidth - padding, y, totalPricePdf)
-        y += 20f
-
-        // Deposit
-        canvas.drawText("Deposit Paid", padding, y, bodyPaintPdf)
-        canvas.drawText(data.depositFormatted, pageWidth - padding, y, depositPricePdf)
         y += 20f
 
         // Balance

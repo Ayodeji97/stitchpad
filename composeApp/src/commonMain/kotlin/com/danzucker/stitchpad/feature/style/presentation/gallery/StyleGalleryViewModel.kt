@@ -13,6 +13,9 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
+import com.danzucker.stitchpad.feature.style.domain.StyleLockPolicy
+import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
+import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
@@ -20,7 +23,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -42,6 +48,11 @@ class StyleGalleryViewModel(
 
     private val location: StyleLocation =
         customerId?.let { StyleLocation.CustomerCloset(it, folderId) } ?: StyleLocation.Inspiration(folderId)
+
+    // styleId -> the style's TRUE location (its folder). On Free the flat gallery shows
+    // styles from many folders; edits/deletes must target each style's real folder, not
+    // the gallery's root location. Rebuilt on every emission.
+    private var entryLocations: Map<String, StyleLocation> = emptyMap()
 
     private var hasLoadedInitialData = false
     private val isInspirationGallery = location is StyleLocation.Inspiration
@@ -65,7 +76,7 @@ class StyleGalleryViewModel(
             initialValue = StyleGalleryState(isInspirationGallery = isInspirationGallery)
         )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: StyleGalleryAction) {
         when (action) {
             StyleGalleryAction.OnAddClick -> {
@@ -86,11 +97,29 @@ class StyleGalleryViewModel(
             }
             is StyleGalleryAction.OnStyleClick -> {
                 viewModelScope.launch {
-                    _events.send(StyleGalleryEvent.NavigateToEditStyle(customerId, folderId, action.style.id))
+                    val locked = action.style.id in _state.value.lockedStyleIds
+                    val loc = locationOf(action.style.id)
+                    val targetFolderId = (loc as? StyleLocation.CustomerCloset)?.folderId
+                        ?: (loc as? StyleLocation.Inspiration)?.folderId
+                    _events.send(
+                        StyleGalleryEvent.NavigateToEditStyle(
+                            customerId = customerId,
+                            folderId = targetFolderId,
+                            styleId = action.style.id,
+                            readOnly = locked,
+                        )
+                    )
                 }
             }
             is StyleGalleryAction.OnStyleLongPress -> {
-                _state.update { it.copy(actionSheetStyle = action.style) }
+                if (action.style.id in _state.value.lockedStyleIds) {
+                    viewModelScope.launch {
+                        val tier = entitlements.awaitHydrated().tier
+                        _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
+                    }
+                } else {
+                    _state.update { it.copy(actionSheetStyle = action.style) }
+                }
             }
             StyleGalleryAction.OnDismissActionSheet -> {
                 _state.update { it.copy(actionSheetStyle = null) }
@@ -170,13 +199,20 @@ class StyleGalleryViewModel(
                 is TransferTarget.Customer -> StyleCollectionLimits.forCustomer(tier)
             }
             if (!limits.foldersEnabled) {
-                // Free path: check the flat-folder cap, then transfer directly.
+                // Free path: check the flat-folder cap (across ALL folders), then transfer directly.
                 val userId = authRepository.getCurrentUser()?.id ?: return@launch
-                val destCount = when (val r = styleRepository.observeStyles(userId, target.location).first()) {
-                    is Result.Success -> r.data.size
-                    is Result.Error -> 0
-                }
+                // target.location is already a root location for Free targets.
+                val destCount = styleRepository.countStylesAcrossFolders(userId, target.location)
                 _state.update { it.copy(transfer = null) }
+                if (destCount == null) {
+                    // Count read failed — fail closed: abort and surface error.
+                    _state.update {
+                        it.copy(
+                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                        )
+                    }
+                    return@launch
+                }
                 if (destCount >= limits.flatCap) {
                     _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
                     return@launch
@@ -265,7 +301,7 @@ class StyleGalleryViewModel(
      * before committing the transfer. If the read fails, surface an error and abort.
      * If the count is at or above cap, emit CapReached and abort.
      */
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
     private suspend fun performTransfer(
         transfer: StyleTransfer,
         target: TransferTarget,
@@ -281,11 +317,19 @@ class StyleGalleryViewModel(
         }
         val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
         // Live re-read: any count read error → fail safe (abort, surface error).
-        val liveCount = when (
-            val r = styleRepository.observeStyles(userId, destinationLocation).first()
-        ) {
-            is Result.Success -> r.data.size
-            is Result.Error -> {
+        // On Free tier count the full flattened destination closet/library (flat cap
+        // applies globally, not just to the root folder). On paid tiers count the
+        // specific destination folder.
+        val liveCount: Int
+        if (!limits.foldersEnabled) {
+            // Derive the destination root (folderId null) from the target.
+            val destRoot = when (target) {
+                is TransferTarget.Customer -> StyleLocation.CustomerCloset(target.customerId)
+                TransferTarget.Inspiration -> StyleLocation.Inspiration()
+            }
+            val flatCount = styleRepository.countStylesAcrossFolders(userId, destRoot)
+            if (flatCount == null) {
+                // Count read failed — fail closed: abort and surface error.
                 _state.update {
                     it.copy(
                         errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
@@ -293,16 +337,30 @@ class StyleGalleryViewModel(
                 }
                 return
             }
+            liveCount = flatCount
+        } else {
+            when (val r = styleRepository.observeStyles(userId, destinationLocation).first()) {
+                is Result.Success -> liveCount = r.data.size
+                is Result.Error -> {
+                    _state.update {
+                        it.copy(
+                            errorMessage = UiText.StringResourceText(Res.string.style_action_verify_failed)
+                        )
+                    }
+                    return
+                }
+            }
         }
         if (liveCount >= cap) {
             _state.update { it.copy(capSheet = stylesCapInfo(tier)) }
             return
         }
+        val sourceLocation = locationOf(transfer.style.id)
         val result = when (transfer.mode) {
             StyleTransferMode.COPY ->
-                styleRepository.copyStyle(userId, from = location, transfer.style, to = destinationLocation)
+                styleRepository.copyStyle(userId, from = sourceLocation, transfer.style, to = destinationLocation)
             StyleTransferMode.MOVE ->
-                styleRepository.moveStyle(userId, from = location, transfer.style, to = destinationLocation)
+                styleRepository.moveStyle(userId, from = sourceLocation, transfer.style, to = destinationLocation)
         }
         when (result) {
             is Result.Success ->
@@ -324,25 +382,85 @@ class StyleGalleryViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            styleRepository.observeStyles(userId, location).collect { result ->
-                when (result) {
-                    is Result.Success -> _state.update {
-                        it.copy(styles = result.data, isLoading = false)
+            entitlements.awaitHydrated()
+            entitlements.flow
+                .map { it.tier }
+                .distinctUntilChanged()
+                .collectLatest { tier ->
+                    val limits = if (customerId == null) {
+                        StyleCollectionLimits.forInspiration(tier)
+                    } else {
+                        StyleCollectionLimits.forCustomer(tier)
                     }
-                    is Result.Error -> _state.update {
-                        it.copy(isLoading = false, errorMessage = result.error.toStyleUiText())
+                    val cap = if (!limits.foldersEnabled) limits.flatCap else limits.maxImagesPerFolder
+                    if (!limits.foldersEnabled) observeFlattened(userId, cap) else observePerFolder(userId, cap)
+                }
+        }
+    }
+
+    private suspend fun observeFlattened(userId: String, cap: Int) {
+        foldersWithStylesFlow(userId)
+            .map { folders ->
+                folders
+                    .flatMap { folder -> folder.styles.map { it to folder.folderId } }
+                    .sortedByDescending { it.first.createdAt }
+            }
+            .collect { pairs ->
+                entryLocations = pairs.associate { (style, folderId) -> style.id to locationFor(folderId) }
+                val ordered = pairs.map { it.first }
+                _state.update {
+                    it.copy(
+                        styles = ordered,
+                        lockedStyleIds = StyleLockPolicy.lockedStyleIds(ordered, cap),
+                        isLoading = false,
+                    )
+                }
+            }
+    }
+
+    private suspend fun observePerFolder(userId: String, cap: Int) {
+        styleRepository.observeStyles(userId, location).collect { result ->
+            when (result) {
+                is Result.Success -> {
+                    val ordered = result.data.sortedByDescending { it.createdAt }
+                    entryLocations = ordered.associate { it.id to location }
+                    _state.update {
+                        it.copy(
+                            styles = ordered,
+                            lockedStyleIds = StyleLockPolicy.lockedStyleIds(ordered, cap),
+                            isLoading = false,
+                        )
                     }
+                }
+                is Result.Error -> _state.update {
+                    it.copy(isLoading = false, errorMessage = result.error.toStyleUiText())
                 }
             }
         }
     }
+
+    private fun foldersWithStylesFlow(userId: String) =
+        when (val loc = location) {
+            is StyleLocation.CustomerCloset ->
+                styleRepository.observeFoldersWithStyles(userId, StyleLocation.CustomerCloset(loc.customerId))
+            is StyleLocation.Inspiration ->
+                styleRepository.observeFoldersWithStyles(userId, StyleLocation.Inspiration())
+        }
+
+    private fun locationFor(folderId: String?): StyleLocation = when (val loc = location) {
+        is StyleLocation.CustomerCloset -> StyleLocation.CustomerCloset(loc.customerId, folderId)
+        is StyleLocation.Inspiration -> StyleLocation.Inspiration(folderId)
+    }
+
+    // The true location of a loaded style (its folder), falling back to the gallery location.
+    private fun locationOf(styleId: String): StyleLocation = entryLocations[styleId] ?: location
 
     private fun deleteStyle() {
         val style = _state.value.styleToDelete ?: return
         _state.update { it.copy(showDeleteDialog = false, styleToDelete = null) }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            val result = styleRepository.deleteStyle(userId, location, style)
+            val result = styleRepository.deleteStyle(userId, locationOf(style.id), style)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
             }
