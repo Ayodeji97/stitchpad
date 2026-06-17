@@ -9,6 +9,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -47,6 +49,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_order_photo_too_large
 import stitchpad.composeapp.generated.resources.receipt_share_error
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -59,6 +62,9 @@ import kotlin.uuid.Uuid
 // the share sheet is already closed by the time we wait, so there's no visible
 // progress affordance to support a longer wait.
 private const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
+
+private const val MAX_FABRIC_IMAGES = 3
+private const val MAX_ORDER_PHOTO_BYTES = 5 * 1024 * 1024
 
 // Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
@@ -283,11 +289,16 @@ class OrderDetailViewModel(
             OrderDetailAction.OnAddStyleClick ->
                 _state.update { it.copy(showStylePickerSheet = true) }
             OrderDetailAction.OnAddFabricClick -> {
-                val orderId = orderId ?: return
-                viewModelScope.launch {
-                    _events.send(OrderDetailEvent.NavigateToOrderForm(orderId))
+                // Open the inline Camera/Gallery sheet instead of navigating to the form.
+                // Defensive cap guard (the CTA only shows when the slot is empty).
+                val firstItem = _state.value.order?.items?.firstOrNull()
+                if (firstItem != null && firstItem.fabricImages.size < MAX_FABRIC_IMAGES) {
+                    _state.update { it.copy(showFabricSourceSheet = true) }
                 }
             }
+            OrderDetailAction.OnDismissFabricSourceSheet ->
+                _state.update { it.copy(showFabricSourceSheet = false) }
+            is OrderDetailAction.OnFabricPhotoPicked -> addFabricPhoto(action.photoBytes)
             OrderDetailAction.OnAddFabricNameClick -> {
                 val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
                 _state.update {
@@ -615,6 +626,61 @@ class OrderDetailViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun addFabricPhoto(photoBytes: ByteArray) {
+        _state.update { it.copy(showFabricSourceSheet = false) }
+        if (photoBytes.size > MAX_ORDER_PHOTO_BYTES) {
+            _state.update {
+                it.copy(errorMessage = UiText.StringResourceText(Res.string.error_order_photo_too_large))
+            }
+            return
+        }
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (firstItem.fabricImages.size >= MAX_FABRIC_IMAGES) return
+
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            _state.update { it.copy(isUploadingFabric = true) }
+            // Offline-first: uploadFabricPhotos saves a local copy + enqueues the upload and
+            // returns (localPath, storagePath); the local image renders immediately and syncs
+            // later. (The single uploadFabricPhoto blocks online and is NOT offline-first.)
+            when (
+                val upload = orderRepository.uploadFabricPhotos(
+                    userId = userId,
+                    orderId = order.id,
+                    itemId = firstItem.id,
+                    photoBytesList = listOf(photoBytes),
+                )
+            ) {
+                is Result.Success -> {
+                    val newRefs = upload.data.map { (localPath, path) ->
+                        FabricImageRef(
+                            photoUrl = "",
+                            photoStoragePath = path,
+                            syncState = ImageSyncState.PENDING,
+                            localPhotoPath = localPath,
+                        )
+                    }
+                    val updatedItem = firstItem.copy(fabricImages = firstItem.fabricImages + newRefs)
+                    val updatedItems = listOf(updatedItem) + order.items.drop(1)
+                    when (
+                        val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))
+                    ) {
+                        is Result.Success -> Unit
+                        is Result.Error -> _state.update {
+                            it.copy(errorMessage = res.error.toOrderUiText())
+                        }
+                    }
+                }
+                is Result.Error -> _state.update {
+                    it.copy(errorMessage = upload.error.toOrderUiText())
+                }
+            }
+            _state.update { it.copy(isUploadingFabric = false) }
         }
     }
 
