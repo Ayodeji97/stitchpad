@@ -246,6 +246,25 @@ class ReceiptFormatterTest {
     }
 
     @Test
+    fun fullyDiscountedOrderWithNoPaymentsUsesReceiptLabel() {
+        // A priced order fully covered by a discount owes nothing — it is settled,
+        // so the document must read RECEIPT, not INVOICE (which would imply money due).
+        val waived = testOrder.copy(payments = emptyList(), discount = testOrder.totalPrice)
+        val result = ReceiptFormatter.format(waived, testUser, garmentNames)
+        assertEquals("RECEIPT", result.documentTypeLabel)
+        assertEquals(ReceiptDocumentType.RECEIPT, result.documentType)
+    }
+
+    @Test
+    fun unpricedOrderWithNoPaymentsStaysInvoice() {
+        // totalPrice 0 with no discount is an unpriced order, not a settled one —
+        // it must remain an INVOICE so the fully-discounted carve-out can't over-reach.
+        val unpriced = testOrder.copy(payments = emptyList(), totalPrice = 0.0, discount = 0.0)
+        val result = ReceiptFormatter.format(unpriced, testUser, garmentNames)
+        assertEquals(ReceiptDocumentType.INVOICE, result.documentType)
+    }
+
+    @Test
     fun defaultTierFreeShowsFullAttribution() {
         // Default formatter call (no explicit tier) uses FREE → full footer.
         val result = formatResult()
