@@ -76,8 +76,8 @@ fun OrderGarmentDetailsCard(
     priority: OrderPriority,
     styleImageUrls: List<String>,
     onAddStyleClick: () -> Unit,
-    onAddFabricPhotoClick: (String) -> Unit,
-    onAddFabricNameClick: (String) -> Unit,
+    onAddFabricPhotoClick: (Int) -> Unit,
+    onAddFabricNameClick: (Int) -> Unit,
     isUploadingFabric: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -135,6 +135,7 @@ fun OrderGarmentDetailsCard(
                         )
                         FabricColumn(
                             item = item,
+                            itemIndex = index,
                             showCta = firstNeedsFabricIndex == index,
                             isUploadingFabric = isUploadingFabric,
                             onAddFabricPhotoClick = onAddFabricPhotoClick,
@@ -147,6 +148,7 @@ fun OrderGarmentDetailsCard(
                     // Additional garment items: fabric only, full width (no style column).
                     FabricColumn(
                         item = item,
+                        itemIndex = index,
                         showCta = firstNeedsFabricIndex == index,
                         isUploadingFabric = isUploadingFabric,
                         onAddFabricPhotoClick = onAddFabricPhotoClick,
@@ -234,10 +236,11 @@ private fun GarmentTextBlock(
 @Composable
 private fun FabricColumn(
     item: OrderItem,
+    itemIndex: Int,
     showCta: Boolean,
     isUploadingFabric: Boolean = false,
-    onAddFabricPhotoClick: (String) -> Unit,
-    onAddFabricNameClick: (String) -> Unit,
+    onAddFabricPhotoClick: (Int) -> Unit,
+    onAddFabricNameClick: (Int) -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -256,9 +259,9 @@ private fun FabricColumn(
         else -> null
     }
     val onCtaClick: () -> Unit = if (needsPhoto) {
-        { onAddFabricPhotoClick(item.id) }
+        { onAddFabricPhotoClick(itemIndex) }
     } else {
-        { onAddFabricNameClick(item.id) }
+        { onAddFabricNameClick(itemIndex) }
     }
 
     ReferenceColumn(

@@ -280,21 +280,21 @@ fun OrderDetailScreen(
 ) {
     val fabricPickerScope = rememberCoroutineScope()
     var pendingFabricSource by remember { mutableStateOf<PhotoSource?>(null) }
-    var pendingFabricItemId by remember { mutableStateOf<String?>(null) }
+    var pendingFabricItemIndex by remember { mutableStateOf<Int?>(null) }
 
     val fabricGalleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = fabricPickerScope,
         onResult = { byteArrays ->
-            val itemId = pendingFabricItemId ?: return@rememberImagePickerLauncher
-            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnFabricPhotoPicked(itemId, it)) }
-            pendingFabricItemId = null
+            val itemIndex = pendingFabricItemIndex ?: return@rememberImagePickerLauncher
+            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnFabricPhotoPicked(itemIndex, it)) }
+            pendingFabricItemIndex = null
         },
     )
     val fabricCameraLauncher = rememberImageCaptureLauncher { bytes ->
-        val itemId = pendingFabricItemId ?: return@rememberImageCaptureLauncher
-        if (bytes != null) onAction(OrderDetailAction.OnFabricPhotoPicked(itemId, bytes))
-        pendingFabricItemId = null
+        val itemIndex = pendingFabricItemIndex ?: return@rememberImageCaptureLauncher
+        if (bytes != null) onAction(OrderDetailAction.OnFabricPhotoPicked(itemIndex, bytes))
+        pendingFabricItemIndex = null
     }
 
     // Launch the chosen source only AFTER the sheet has dismissed — the order form uses this
@@ -528,7 +528,7 @@ fun OrderDetailScreen(
     if (state.showFabricSourceSheet) {
         PhotoSourceSheet(
             onPick = { source ->
-                pendingFabricItemId = state.fabricSourceItemId
+                pendingFabricItemIndex = state.fabricSourceItemIndex
                 pendingFabricSource = source
                 onAction(OrderDetailAction.OnDismissFabricSourceSheet)
             },
@@ -1088,8 +1088,8 @@ private fun OrderDetailContent(
                 styleImageUrls = styleImageUrls,
                 isUploadingFabric = state.isUploadingFabric,
                 onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
-                onAddFabricPhotoClick = { itemId -> onAction(OrderDetailAction.OnAddFabricClick(itemId)) },
-                onAddFabricNameClick = { itemId -> onAction(OrderDetailAction.OnAddFabricNameClick(itemId)) },
+                onAddFabricPhotoClick = { itemIndex -> onAction(OrderDetailAction.OnAddFabricClick(itemIndex)) },
+                onAddFabricNameClick = { itemIndex -> onAction(OrderDetailAction.OnAddFabricNameClick(itemIndex)) },
             )
         }
         item {
