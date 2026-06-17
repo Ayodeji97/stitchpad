@@ -267,7 +267,7 @@ private fun FabricColumn(
     }
     val needsPhoto = urls.isEmpty()
     val canAddPhoto = urls.size < MAX_IMAGES_PER_CATEGORY
-    val needsName = !needsPhoto && !canAddPhoto && item.fabricName.isNullOrBlank()
+    val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
     val ctaLabel: StringResource? = when {
         !showCta -> null
         needsPhoto -> Res.string.order_detail_add_fabric
