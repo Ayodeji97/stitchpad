@@ -434,7 +434,10 @@ class OrderDetailViewModel(
                 val updatedOrder = latestOrder.copy(items = updatedItems)
                 when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
-                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                    is Result.Error -> {
+                        newRef.photoStoragePath?.let { orderRepository.deleteStoragePaths(listOf(it)) }
+                        _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                    }
                 }
             }
         }
@@ -513,7 +516,10 @@ class OrderDetailViewModel(
                 val updatedOrder = latestOrder.copy(items = updatedItems)
                 when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
-                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                    is Result.Error -> {
+                        orderRepository.deleteStoragePaths(listOf(newRef.photoStoragePath))
+                        _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                    }
                 }
             }
         }
