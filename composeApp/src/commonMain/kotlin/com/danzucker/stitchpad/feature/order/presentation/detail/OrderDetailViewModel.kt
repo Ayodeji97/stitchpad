@@ -291,8 +291,9 @@ class OrderDetailViewModel(
             is OrderDetailAction.OnAddFabricClick -> {
                 // Open the inline Camera/Gallery sheet instead of navigating to the form.
                 // Defensive cap guard (the CTA only shows when the slot is empty).
-                val item = _state.value.order?.items?.firstOrNull { it.id == action.itemId }
-                if (item != null && item.fabricImages.size < MAX_FABRIC_IMAGES) {
+                val current = _state.value
+                val item = current.order?.items?.firstOrNull { it.id == action.itemId }
+                if (!current.isUploadingFabric && item != null && item.fabricImages.size < MAX_FABRIC_IMAGES) {
                     _state.update { it.copy(showFabricSourceSheet = true, fabricSourceItemId = item.id) }
                 }
             }
@@ -640,6 +641,7 @@ class OrderDetailViewModel(
 
     @Suppress("ReturnCount")
     private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
+        if (_state.value.isUploadingFabric) return
         _state.update { it.copy(showFabricSourceSheet = false, fabricSourceItemId = null) }
         if (photoBytes.size > MAX_ORDER_PHOTO_BYTES) {
             _state.update {

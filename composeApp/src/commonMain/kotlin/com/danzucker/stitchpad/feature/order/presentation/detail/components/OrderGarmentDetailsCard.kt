@@ -148,6 +148,7 @@ fun OrderGarmentDetailsCard(
                     FabricColumn(
                         item = item,
                         showCta = firstNeedsFabricIndex == index,
+                        isUploadingFabric = isUploadingFabric,
                         onAddFabricPhotoClick = onAddFabricPhotoClick,
                         onAddFabricNameClick = onAddFabricNameClick,
                         onImageClick = openViewer,
