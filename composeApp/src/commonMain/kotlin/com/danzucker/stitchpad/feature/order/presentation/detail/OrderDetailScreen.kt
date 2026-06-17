@@ -19,7 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -30,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -46,8 +50,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,6 +74,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
@@ -94,6 +101,8 @@ import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.preat.peekaboo.image.picker.SelectionMode
+import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -140,6 +149,14 @@ import stitchpad.composeapp.generated.resources.order_detail_share
 import stitchpad.composeapp.generated.resources.order_detail_title
 import stitchpad.composeapp.generated.resources.order_detail_was_due_label
 import stitchpad.composeapp.generated.resources.order_detail_whatsapp_launch_failed
+import stitchpad.composeapp.generated.resources.order_form_fabric_sheet_title
+import stitchpad.composeapp.generated.resources.order_form_photo_pick
+import stitchpad.composeapp.generated.resources.order_form_photo_pick_support
+import stitchpad.composeapp.generated.resources.order_form_photo_take
+import stitchpad.composeapp.generated.resources.order_form_photo_take_support
+import stitchpad.composeapp.generated.resources.order_form_style_pick_from_saved
+import stitchpad.composeapp.generated.resources.order_form_style_pick_from_saved_support
+import stitchpad.composeapp.generated.resources.order_form_style_sheet_title
 import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_share_action
 import stitchpad.composeapp.generated.resources.order_record_payment_snackbar_success
 import stitchpad.composeapp.generated.resources.order_status_delivered
@@ -166,6 +183,8 @@ import stitchpad.composeapp.generated.resources.share_summary_total
 import kotlin.time.Clock
 
 private const val MILLIS_PER_DAY: Long = 86_400_000L
+
+private enum class DetailPhotoSource { Camera, Gallery }
 
 @Suppress("CyclomaticComplexMethod")
 @Composable
@@ -972,6 +991,7 @@ private fun OrderDetailNotFound(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 private fun OrderDetailContent(
@@ -1005,6 +1025,58 @@ private fun OrderDetailContent(
             StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
         }
     }
+    val pickerScope = rememberCoroutineScope()
+    var showStylePhotoSheet by remember { mutableStateOf(false) }
+    var showFabricPhotoSheetForItemId by remember { mutableStateOf<String?>(null) }
+    var pendingFabricPhotoItemId by remember { mutableStateOf<String?>(null) }
+    var pendingStylePhotoSource by remember { mutableStateOf<DetailPhotoSource?>(null) }
+    var pendingFabricPhotoSource by remember { mutableStateOf<DetailPhotoSource?>(null) }
+    val styleGalleryPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnAddStylePhoto(it)) }
+        },
+    )
+    val styleCameraLauncher = rememberImageCaptureLauncher { bytes ->
+        if (bytes != null) onAction(OrderDetailAction.OnAddStylePhoto(bytes))
+    }
+    val fabricGalleryPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = pickerScope,
+        onResult = { byteArrays ->
+            val itemId = pendingFabricPhotoItemId ?: return@rememberImagePickerLauncher
+            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnAddFabricPhoto(itemId, it)) }
+            pendingFabricPhotoItemId = null
+        },
+    )
+    val fabricCameraLauncher = rememberImageCaptureLauncher { bytes ->
+        val itemId = pendingFabricPhotoItemId ?: return@rememberImageCaptureLauncher
+        if (bytes != null) onAction(OrderDetailAction.OnAddFabricPhoto(itemId, bytes))
+        pendingFabricPhotoItemId = null
+    }
+
+    LaunchedEffect(showStylePhotoSheet, pendingStylePhotoSource) {
+        if (!showStylePhotoSheet && pendingStylePhotoSource != null) {
+            when (pendingStylePhotoSource) {
+                DetailPhotoSource.Camera -> styleCameraLauncher.launch()
+                DetailPhotoSource.Gallery -> styleGalleryPicker.launch()
+                null -> Unit
+            }
+            pendingStylePhotoSource = null
+        }
+    }
+
+    LaunchedEffect(showFabricPhotoSheetForItemId, pendingFabricPhotoSource) {
+        if (showFabricPhotoSheetForItemId == null && pendingFabricPhotoSource != null) {
+            when (pendingFabricPhotoSource) {
+                DetailPhotoSource.Camera -> fabricCameraLauncher.launch()
+                DetailPhotoSource.Gallery -> fabricGalleryPicker.launch()
+                null -> Unit
+            }
+            pendingFabricPhotoSource = null
+        }
+    }
 
     LazyColumn(
         state = listState,
@@ -1035,8 +1107,12 @@ private fun OrderDetailContent(
                 items = order.items,
                 priority = order.priority,
                 styleImageUrls = styleImageUrls,
-                onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
-                onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
+                onAddStyleClick = { showStylePhotoSheet = true },
+                onRemoveStyleImage = { onAction(OrderDetailAction.OnRemoveStyleImage(it)) },
+                onAddFabricPhotoClick = { itemId -> showFabricPhotoSheetForItemId = itemId },
+                onRemoveFabricImage = { itemId, index ->
+                    onAction(OrderDetailAction.OnRemoveFabricImage(itemId, index))
+                },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }
@@ -1113,6 +1189,92 @@ private fun OrderDetailContent(
             )
         }
     }
+
+    if (showStylePhotoSheet) {
+        ModalBottomSheet(onDismissRequest = { showStylePhotoSheet = false }) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
+                Text(
+                    text = stringResource(Res.string.order_form_style_sheet_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(
+                        horizontal = DesignTokens.space4,
+                        vertical = DesignTokens.space3,
+                    ),
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.order_form_style_pick_from_saved)) },
+                    supportingContent = {
+                        Text(stringResource(Res.string.order_form_style_pick_from_saved_support))
+                    },
+                    leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        showStylePhotoSheet = false
+                        onAction(OrderDetailAction.OnAddStyleClick)
+                    },
+                )
+                PhotoSourceItems(
+                    onCameraClick = {
+                        pendingStylePhotoSource = DetailPhotoSource.Camera
+                        showStylePhotoSheet = false
+                    },
+                    onGalleryClick = {
+                        pendingStylePhotoSource = DetailPhotoSource.Gallery
+                        showStylePhotoSheet = false
+                    },
+                )
+            }
+        }
+    }
+
+    if (showFabricPhotoSheetForItemId != null) {
+        ModalBottomSheet(onDismissRequest = { showFabricPhotoSheetForItemId = null }) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
+                Text(
+                    text = stringResource(Res.string.order_form_fabric_sheet_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(
+                        horizontal = DesignTokens.space4,
+                        vertical = DesignTokens.space3,
+                    ),
+                )
+                PhotoSourceItems(
+                    onCameraClick = {
+                        pendingFabricPhotoItemId = showFabricPhotoSheetForItemId
+                        pendingFabricPhotoSource = DetailPhotoSource.Camera
+                        showFabricPhotoSheetForItemId = null
+                    },
+                    onGalleryClick = {
+                        pendingFabricPhotoItemId = showFabricPhotoSheetForItemId
+                        pendingFabricPhotoSource = DetailPhotoSource.Gallery
+                        showFabricPhotoSheetForItemId = null
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourceItems(
+    onCameraClick: () -> Unit,
+    onGalleryClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(stringResource(Res.string.order_form_photo_take)) },
+        supportingContent = { Text(stringResource(Res.string.order_form_photo_take_support)) },
+        leadingContent = { Icon(Icons.Default.PhotoCamera, contentDescription = null) },
+        modifier = Modifier.clickable(onClick = onCameraClick),
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(Res.string.order_form_photo_pick)) },
+        supportingContent = { Text(stringResource(Res.string.order_form_photo_pick_support)) },
+        leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
+        modifier = Modifier.clickable(onClick = onGalleryClick),
+    )
 }
 
 private fun handlePrimaryCta(cta: PrimaryCta, onAction: (OrderDetailAction) -> Unit) {

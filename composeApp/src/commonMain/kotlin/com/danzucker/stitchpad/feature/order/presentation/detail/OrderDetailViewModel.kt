@@ -9,6 +9,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
+import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -47,6 +49,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_order_photo_too_large
 import stitchpad.composeapp.generated.resources.receipt_share_error
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -59,6 +62,8 @@ import kotlin.uuid.Uuid
 // the share sheet is already closed by the time we wait, so there's no visible
 // progress affordance to support a longer wait.
 private const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
+private const val MAX_ORDER_DETAIL_PHOTO_BYTES = 5 * 1024 * 1024
+private const val MAX_IMAGES_PER_CATEGORY = 3
 
 // Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
@@ -282,12 +287,16 @@ class OrderDetailViewModel(
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
             OrderDetailAction.OnAddStyleClick ->
                 _state.update { it.copy(showStylePickerSheet = true) }
+            is OrderDetailAction.OnAddStylePhoto -> addStylePhoto(action.photoBytes)
+            is OrderDetailAction.OnRemoveStyleImage -> removeStyleImage(action.index)
             OrderDetailAction.OnAddFabricClick -> {
                 val orderId = orderId ?: return
                 viewModelScope.launch {
                     _events.send(OrderDetailEvent.NavigateToOrderForm(orderId))
                 }
             }
+            is OrderDetailAction.OnAddFabricPhoto -> addFabricPhoto(action.itemId, action.photoBytes)
+            is OrderDetailAction.OnRemoveFabricImage -> removeFabricImage(action.itemId, action.index)
             OrderDetailAction.OnAddFabricNameClick -> {
                 val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
                 _state.update {
@@ -368,6 +377,146 @@ class OrderDetailViewModel(
             // Misc
             OrderDetailAction.OnErrorDismiss ->
                 _state.update { it.copy(errorMessage = null) }
+        }
+    }
+
+    private fun rejectOversizedPhoto(photoBytes: ByteArray): Boolean {
+        if (photoBytes.size <= MAX_ORDER_DETAIL_PHOTO_BYTES) return false
+        _state.update {
+            it.copy(errorMessage = UiText.StringResourceText(Res.string.error_order_photo_too_large))
+        }
+        return true
+    }
+
+    @Suppress("ReturnCount")
+    private fun addStylePhoto(photoBytes: ByteArray) {
+        if (rejectOversizedPhoto(photoBytes)) return
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (firstItem.styleImages.size >= MAX_IMAGES_PER_CATEGORY) return
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val upload = orderRepository.uploadStylePhotos(
+                userId = userId,
+                orderId = order.id,
+                itemId = firstItem.id,
+                photoBytesList = listOf(photoBytes),
+            )
+            val newRef = when (upload) {
+                is Result.Success -> {
+                    val (localPath, storagePath) = upload.data.firstOrNull() ?: return@launch
+                    StyleImageRef(
+                        source = StyleImageSource.UPLOADED,
+                        photoUrl = "",
+                        photoStoragePath = storagePath,
+                        syncState = ImageSyncState.PENDING,
+                        localPhotoPath = localPath,
+                    )
+                }
+                is Result.Error -> {
+                    _state.update { it.copy(errorMessage = upload.error.toOrderUiText()) }
+                    return@launch
+                }
+            }
+            val latestOrder = _state.value.order ?: order
+            val latestFirst = latestOrder.items.firstOrNull() ?: return@launch
+            if (latestFirst.styleImages.size >= MAX_IMAGES_PER_CATEGORY) return@launch
+            val updatedItems = listOf(
+                latestFirst.copy(styleImages = latestFirst.styleImages + newRef),
+            ) + latestOrder.items.drop(1)
+            when (val res = orderRepository.updateOrder(userId, latestOrder.copy(items = updatedItems))) {
+                is Result.Success -> Unit
+                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun removeStyleImage(index: Int) {
+        val order = _state.value.order ?: return
+        val firstItem = order.items.firstOrNull() ?: return
+        if (index !in firstItem.styleImages.indices) return
+        val removed = firstItem.styleImages[index]
+        val updatedFirst = firstItem.copy(
+            styleImages = firstItem.styleImages.toMutableList().also { it.removeAt(index) },
+        )
+        val updatedOrder = order.copy(items = listOf(updatedFirst) + order.items.drop(1))
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                is Result.Success -> {
+                    removed.photoStoragePath
+                        ?.takeIf { removed.source == StyleImageSource.UPLOADED && it.isNotBlank() }
+                        ?.let { orderRepository.deleteStoragePaths(listOf(it)) }
+                }
+                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
+        if (rejectOversizedPhoto(photoBytes)) return
+        val order = _state.value.order ?: return
+        val item = order.items.firstOrNull { it.id == itemId } ?: return
+        if (item.fabricImages.size >= MAX_IMAGES_PER_CATEGORY) return
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val upload = orderRepository.uploadFabricPhotos(
+                userId = userId,
+                orderId = order.id,
+                itemId = item.id,
+                photoBytesList = listOf(photoBytes),
+            )
+            val newRef = when (upload) {
+                is Result.Success -> {
+                    val (localPath, storagePath) = upload.data.firstOrNull() ?: return@launch
+                    FabricImageRef(
+                        photoUrl = "",
+                        photoStoragePath = storagePath,
+                        syncState = ImageSyncState.PENDING,
+                        localPhotoPath = localPath,
+                    )
+                }
+                is Result.Error -> {
+                    _state.update { it.copy(errorMessage = upload.error.toOrderUiText()) }
+                    return@launch
+                }
+            }
+            val latestOrder = _state.value.order ?: order
+            val updatedItems = latestOrder.items.map { current ->
+                if (current.id == itemId && current.fabricImages.size < MAX_IMAGES_PER_CATEGORY) {
+                    current.copy(fabricImages = current.fabricImages + newRef)
+                } else {
+                    current
+                }
+            }
+            when (val res = orderRepository.updateOrder(userId, latestOrder.copy(items = updatedItems))) {
+                is Result.Success -> Unit
+                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun removeFabricImage(itemId: String, index: Int) {
+        val order = _state.value.order ?: return
+        val item = order.items.firstOrNull { it.id == itemId } ?: return
+        if (index !in item.fabricImages.indices) return
+        val removed = item.fabricImages[index]
+        val updatedItems = order.items.map { current ->
+            if (current.id == itemId) {
+                current.copy(fabricImages = current.fabricImages.toMutableList().also { it.removeAt(index) })
+            } else {
+                current
+            }
+        }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                is Result.Success -> orderRepository.deleteStoragePaths(listOf(removed.photoStoragePath))
+                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
         }
     }
 
