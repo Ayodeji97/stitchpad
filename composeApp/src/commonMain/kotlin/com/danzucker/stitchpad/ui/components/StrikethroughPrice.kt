@@ -18,7 +18,7 @@ import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 
 /** Strikethrough line weight — drawn manually because TextDecoration.LineThrough can't be thickened. */
-private val STRIKE_THICKNESS = 1.5.dp
+private val STRIKE_THICKNESS = 1.2.dp
 
 /** True when a struck-through gross price should be shown next to the net total. */
 fun shouldShowStruckGross(discount: Double): Boolean = discount > 0.0
