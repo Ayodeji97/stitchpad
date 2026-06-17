@@ -5,9 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +52,7 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.CtaPair
 import com.danzucker.stitchpad.feature.order.presentation.detail.PrimaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.SecondaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.resolvePrimaryCta
+import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -92,6 +95,7 @@ fun OrderHeroCard(
     dueLabel: UiText?,
     totalPrice: Double,
     balanceRemaining: Double,
+    discount: Double,
     cta: CtaPair,
     onPrimaryCta: () -> Unit,
     onSecondaryCta: () -> Unit,
@@ -125,6 +129,7 @@ fun OrderHeroCard(
                 dueLabel = dueLabel,
                 totalPrice = totalPrice,
                 balanceRemaining = balanceRemaining,
+                discount = discount,
                 onSetDeadlineClick = onSetDeadlineClick,
             )
 
@@ -157,6 +162,7 @@ private fun HeroDetails(
     dueLabel: UiText?,
     totalPrice: Double,
     balanceRemaining: Double,
+    discount: Double,
     onSetDeadlineClick: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -213,12 +219,16 @@ private fun HeroDetails(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = " ₦${formatPrice(totalPrice)}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Spacer(Modifier.width(DesignTokens.space1))
+            StrikethroughPrice(
+                grossPrice = totalPrice,
+                netPrice = totalPrice - discount,
+                discount = discount,
+                netStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
+                ),
+                netColor = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -625,11 +635,43 @@ private fun OrderHeroCardInProgressLightPreview() {
             dueLabel = UiText.DynamicString("Due 30 Apr"),
             totalPrice = 75000.0,
             balanceRemaining = 60000.0,
+            discount = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.IN_PROGRESS,
                 subStatus = OrderSubStatus.SEWING,
                 isOverdue = false,
                 balanceRemaining = 60000.0,
+            ),
+            onPrimaryCta = {},
+            onSecondaryCta = {},
+            onSetDeadlineClick = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderHeroCardDiscountedLightPreview() {
+    StitchPadTheme {
+        OrderHeroCard(
+            garmentTypeIcon = Icons.Default.Build,
+            garmentName = "Vintage Buba",
+            customerName = "Adewale Paul",
+            status = OrderStatus.IN_PROGRESS,
+            subStatus = OrderSubStatus.SEWING,
+            priority = OrderPriority.URGENT,
+            isOverdue = false,
+            overdueDaysAgo = 0,
+            dueLabel = UiText.DynamicString("Due 30 Apr"),
+            totalPrice = 380_000.0,
+            balanceRemaining = 310_000.0,
+            discount = 30_000.0,
+            cta = resolvePrimaryCta(
+                status = OrderStatus.IN_PROGRESS,
+                subStatus = OrderSubStatus.SEWING,
+                isOverdue = false,
+                balanceRemaining = 310_000.0,
             ),
             onPrimaryCta = {},
             onSecondaryCta = {},
@@ -655,6 +697,7 @@ private fun OrderHeroCardReadyLightPreview() {
             dueLabel = UiText.DynamicString("Due 30 Apr"),
             totalPrice = 30000.0,
             balanceRemaining = 25000.0,
+            discount = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.READY,
                 subStatus = null,
@@ -685,6 +728,7 @@ private fun OrderHeroCardFittingLightPreview() {
             dueLabel = UiText.DynamicString("Fitting today"),
             totalPrice = 40000.0,
             balanceRemaining = 40000.0,
+            discount = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.IN_PROGRESS,
                 subStatus = OrderSubStatus.FITTING,
@@ -715,6 +759,7 @@ private fun OrderHeroCardOverdueLightPreview() {
             dueLabel = UiText.DynamicString("Was due 27 Apr"),
             totalPrice = 35000.0,
             balanceRemaining = 18000.0,
+            discount = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.IN_PROGRESS,
                 subStatus = OrderSubStatus.SEWING,
@@ -745,6 +790,7 @@ private fun OrderHeroCardDeliveredDarkPreview() {
             dueLabel = UiText.DynamicString("Delivered 28 Apr"),
             totalPrice = 80000.0,
             balanceRemaining = 0.0,
+            discount = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.DELIVERED,
                 subStatus = null,
@@ -775,6 +821,7 @@ private fun OrderHeroCardNullSecondaryPreview() {
             dueLabel = UiText.DynamicString("Due 29 May"),
             totalPrice = 40000.0,
             balanceRemaining = 0.0,
+            discount = 0.0,
             cta = resolvePrimaryCta(
                 status = OrderStatus.PENDING,
                 subStatus = null,

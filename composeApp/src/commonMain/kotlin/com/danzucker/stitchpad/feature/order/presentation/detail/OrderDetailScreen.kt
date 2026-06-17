@@ -1116,6 +1116,7 @@ private fun OrderDetailContent(
                 dueLabel = dueLabel,
                 totalPrice = order.totalPrice,
                 balanceRemaining = order.balanceRemaining,
+                discount = order.discount,
                 cta = cta,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
