@@ -373,9 +373,13 @@ private fun MainNavGraph(
                 onNavigateToDuplicateOrder = { sourceOrderId ->
                     navController.navigate(OrderFormRoute(seedFromOrderId = sourceOrderId))
                 },
-                onNavigateToStyleForm = { customerId, linkToOrderId ->
+                onNavigateToStyleForm = { customerId, linkToOrderId, linkToItemId ->
                     navController.navigate(
-                        StyleFormRoute(customerId = customerId, linkToOrderId = linkToOrderId),
+                        StyleFormRoute(
+                            customerId = customerId,
+                            linkToOrderId = linkToOrderId,
+                            linkToItemId = linkToItemId,
+                        ),
                     )
                 },
                 onNavigateBack = { navController.navigateUp() },

@@ -325,9 +325,9 @@ class OrderDetailViewModel(
                 val orderId = orderId ?: return
                 _state.update { it.copy(showStylePickerSheet = false, stylePickerItemId = null) }
                 val customerId = _state.value.order?.customerId ?: return
-                // TODO(per-item-style): route create-new style to action.itemId
+                val itemId = action.itemId
                 viewModelScope.launch {
-                    _events.send(OrderDetailEvent.NavigateToStyleForm(customerId, orderId))
+                    _events.send(OrderDetailEvent.NavigateToStyleForm(customerId, orderId, itemId))
                 }
             }
 

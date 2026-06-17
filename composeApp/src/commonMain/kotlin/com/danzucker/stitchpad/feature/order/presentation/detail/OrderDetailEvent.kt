@@ -7,7 +7,11 @@ sealed interface OrderDetailEvent {
     data class NavigateToCreateOrder(val seedFromOrderId: String) : OrderDetailEvent
     data class NavigateToMeasurementForm(val customerId: String, val linkToOrderId: String) : OrderDetailEvent
     data class NavigateToViewMeasurement(val customerId: String, val measurementId: String) : OrderDetailEvent
-    data class NavigateToStyleForm(val customerId: String, val linkToOrderId: String) : OrderDetailEvent
+    data class NavigateToStyleForm(
+        val customerId: String,
+        val linkToOrderId: String,
+        val linkToItemId: String,
+    ) : OrderDetailEvent
     data class LaunchWhatsApp(val phone: String, val message: String) : OrderDetailEvent
     data class LaunchDialer(val phone: String) : OrderDetailEvent
     data object NavigateBack : OrderDetailEvent

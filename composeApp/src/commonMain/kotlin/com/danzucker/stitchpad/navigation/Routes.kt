@@ -66,6 +66,7 @@ data class StyleFormRoute(
     val customerId: String? = null,
     val styleId: String? = null,
     val linkToOrderId: String? = null,
+    val linkToItemId: String? = null,
     val folderId: String? = null,
     val readOnly: Boolean = false,
 )
