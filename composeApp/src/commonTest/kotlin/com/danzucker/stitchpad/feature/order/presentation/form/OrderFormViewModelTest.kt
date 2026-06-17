@@ -22,8 +22,11 @@ import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.media.FakeImageCompressor
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -86,7 +89,10 @@ class OrderFormViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun TestScope.createViewModel(orderId: String? = null): OrderFormViewModel {
+    private fun TestScope.createViewModel(
+        orderId: String? = null,
+        imageCompressor: ImageCompressor = FakeImageCompressor(),
+    ): OrderFormViewModel {
         val savedStateHandle = SavedStateHandle().apply {
             if (orderId != null) set("orderId", orderId)
         }
@@ -98,6 +104,7 @@ class OrderFormViewModelTest {
             measurementRepository = measurementRepository,
             authRepository = authRepository,
             customGarmentTypeRepository = customGarmentTypeRepository,
+            imageCompressor = imageCompressor,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -591,6 +598,61 @@ class OrderFormViewModelTest {
         val item = vm.state.value.items.first()
         assertEquals(0, item.uploadedFabricBytesList.size)
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun addStylePhoto_oversizedGalleryPhoto_isCompressedAndStored() = runTest {
+        val vm = createViewModel(orderId = null, imageCompressor = FakeImageCompressor(outputSize = 1024))
+        val itemId = vm.state.value.items.first().id
+
+        vm.onAction(OrderFormAction.OnItemAddStylePhoto(itemId, ByteArray(MAX_TEST_PHOTO_BYTES + 1)))
+        runCurrent()
+
+        val item = vm.state.value.items.first()
+        assertEquals(1, item.uploadedStyleBytesList.size)
+        assertEquals(1024, item.uploadedStyleBytesList.first().size)
+        assertNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun addFabricPhoto_oversizedGalleryPhoto_isCompressedAndStored() = runTest {
+        val vm = createViewModel(orderId = null, imageCompressor = FakeImageCompressor(outputSize = 1024))
+        val itemId = vm.state.value.items.first().id
+
+        vm.onAction(OrderFormAction.OnItemAddFabricPhoto(itemId, ByteArray(MAX_TEST_PHOTO_BYTES + 1)))
+        runCurrent()
+
+        val item = vm.state.value.items.first()
+        assertEquals(1, item.uploadedFabricBytesList.size)
+        assertEquals(1024, item.uploadedFabricBytesList.first().size)
+        assertNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun save_awaitsInFlightPhotoCompression_doesNotDropPickedPhoto() = runTest {
+        // Race guard: tapping Save while a just-picked photo is still compressing must
+        // not persist the order without it.
+        val gate = CompletableDeferred<Unit>()
+        val vm = createViewModel(
+            orderId = null,
+            imageCompressor = FakeImageCompressor(outputSize = 1024, gate = gate),
+        )
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val itemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(itemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(itemId, "5000"))
+        vm.onAction(OrderFormAction.OnItemAddStylePhoto(itemId, ByteArray(100)))
+
+        vm.onAction(OrderFormAction.OnSave)
+        // Compression still gated → save must wait, not persist a photo-less order.
+        assertNull(orderRepository.lastCreatedOrder)
+
+        gate.complete(Unit)
+        runCurrent()
+
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertEquals(1, created.items.single().styleImages.size)
     }
 
     @Test

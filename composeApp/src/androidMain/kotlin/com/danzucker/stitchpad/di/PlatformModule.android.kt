@@ -5,6 +5,8 @@ import com.danzucker.stitchpad.BuildConfig
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
+import com.danzucker.stitchpad.core.media.AndroidImageCompressor
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadScheduler
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
@@ -34,6 +36,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class
     single { OfflinePhotoStore(androidContext()) }
+    single<ImageCompressor> { AndroidImageCompressor() }
     single { OfflineUploadScheduler(androidContext()) }
     single { OrderReceiptSharer(androidContext()) }
     single { WhatsAppLauncher(androidContext()) }

@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
@@ -21,6 +22,7 @@ import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,6 +46,7 @@ class StyleFormViewModel(
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
     private val entitlements: EntitlementsProvider,
+    private val imageCompressor: ImageCompressor,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -110,20 +113,31 @@ class StyleFormViewModel(
         }
     }
 
+    // Tracks the in-flight gallery-pick compression so save() can await it and a
+    // newer pick can supersede an older one (latest-wins).
+    private var photoProcessingJob: Job? = null
+
     private fun onPhotosPicked(photos: List<ByteArray>) {
         if (photos.isEmpty()) return
-        // A fresh pick replaces the current selection. Reject the whole batch if
-        // any image exceeds the cap so the user sees the failure before saving.
-        if (photos.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
-            _state.update {
-                it.copy(
-                    errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
-                    selectedPhotos = emptyList()
-                )
+        photoProcessingJob?.cancel()
+        photoProcessingJob = viewModelScope.launch {
+            // Gallery picks arrive at full resolution; downscale each before the size
+            // guard so a normal phone photo is accepted instead of rejected. A decode
+            // failure (null) falls back to the original bytes and lets the guard decide.
+            val processed = photos.map { imageCompressor.compress(it) ?: it }
+            // A fresh pick replaces the current selection. Reject the whole batch if
+            // any image still exceeds the cap so the user sees the failure before saving.
+            if (processed.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
+                _state.update {
+                    it.copy(
+                        errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
+                        selectedPhotos = emptyList()
+                    )
+                }
+                return@launch
             }
-            return
+            _state.update { it.copy(selectedPhotos = processed, errorMessage = null) }
         }
-        _state.update { it.copy(selectedPhotos = photos, errorMessage = null) }
     }
 
     private fun observeUnlockOnUpgrade() {
@@ -266,6 +280,16 @@ class StyleFormViewModel(
     private fun save() {
         if (_state.value.readOnly) {
             viewModelScope.launch { _events.send(StyleFormEvent.NavigateToUpgrade) }
+            return
+        }
+        // If a just-picked photo is still compressing, wait for it before snapshotting
+        // state, then re-enter — otherwise the new photo would be dropped.
+        val pendingPhotos = photoProcessingJob
+        if (pendingPhotos?.isActive == true) {
+            viewModelScope.launch {
+                pendingPhotos.join()
+                save()
+            }
             return
         }
         val s = _state.value

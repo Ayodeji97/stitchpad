@@ -8,8 +8,11 @@ import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.media.FakeImageCompressor
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -86,6 +90,7 @@ class StyleFormViewModelTest {
         tier: SubscriptionTier = SubscriptionTier.FREE,
         readOnly: Boolean = false,
         fakeEntitlements: FakeEntitlementsProvider = FakeEntitlementsProvider(tier),
+        imageCompressor: ImageCompressor = FakeImageCompressor(),
     ): StyleFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
@@ -100,6 +105,7 @@ class StyleFormViewModelTest {
             authRepository = authRepository,
             orderRepository = orderRepository,
             entitlements = fakeEntitlements,
+            imageCompressor = imageCompressor,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -119,6 +125,71 @@ class StyleFormViewModelTest {
         updatedAt = 0L,
     )
 
+    // --- Photo compression ---
+
+    @Test
+    fun onPhotosPicked_oversizedGalleryPhoto_isCompressedAndAccepted() = runTest {
+        // A 6 MB gallery pick is over the 5 MB cap raw; the compressor shrinks it so
+        // it is accepted rather than rejected.
+        val vm = createViewModel(imageCompressor = FakeImageCompressor(outputSize = 1024))
+        val oversized = ByteArray(6 * 1024 * 1024)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(oversized)))
+
+        assertNull(vm.state.value.errorMessage)
+        assertEquals(1, vm.state.value.selectedPhotos.size)
+        assertEquals(1024, vm.state.value.selectedPhotos.first().size)
+    }
+
+    @Test
+    fun onPhotosPicked_compressorFails_fallsBackToOriginal_andOversizedRejected() = runTest {
+        // Decode failure (null) must fall back to the original bytes; an oversized
+        // original then still trips the size guard rather than being silently dropped.
+        val vm = createViewModel(imageCompressor = FakeImageCompressor(returnNull = true))
+        val oversized = ByteArray(6 * 1024 * 1024)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(oversized)))
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertTrue(vm.state.value.selectedPhotos.isEmpty())
+    }
+
+    @Test
+    fun editMode_saveAwaitsInFlightCompression_usesNewlyPickedPhoto() = runTest {
+        // Race guard: tapping Save while a just-picked replacement photo is still
+        // compressing must not persist the old style without the new photo.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "style-7", description = "Old"))
+        val gate = CompletableDeferred<Unit>()
+        val vm = createViewModel(
+            styleId = "style-7",
+            imageCompressor = FakeImageCompressor(outputSize = 2048, gate = gate),
+        )
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(100))))
+        vm.onAction(StyleFormAction.OnSaveClick)
+        // Compression is still gated, so the save must not have run yet.
+        assertNull(styleRepository.lastUpdatedPhotoBytes)
+
+        gate.complete(Unit)
+        runCurrent()
+
+        // Save proceeded only after compression finished, with the new photo.
+        assertEquals(2048, styleRepository.lastUpdatedPhotoBytes?.size)
+    }
+
+    @Test
+    fun onPhotosPicked_normalPhoto_compressedBytesStored() = runTest {
+        // Even an already-small pick is normalized through the compressor.
+        val vm = createViewModel(imageCompressor = FakeImageCompressor(outputSize = 512))
+        val small = ByteArray(100 * 1024)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(small)))
+
+        assertEquals(1, vm.state.value.selectedPhotos.size)
+        assertEquals(512, vm.state.value.selectedPhotos.first().size)
+    }
+
     // --- Initial state ---
 
     @Test
@@ -129,6 +200,7 @@ class StyleFormViewModelTest {
             authRepository = authRepository,
             orderRepository = orderRepository,
             entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
+            imageCompressor = FakeImageCompressor(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
