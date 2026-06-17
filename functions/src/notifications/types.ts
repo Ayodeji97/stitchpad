@@ -8,7 +8,8 @@ export interface OrderScanDoc {
   status: 'PENDING' | 'IN_PROGRESS' | 'READY' | 'DELIVERED' | string;
   deadline: number | null;     // epoch millis; null = no deadline set
   archivedAt: number | null;   // epoch millis; non-null = archived (excluded)
-  totalPrice: number;
+  totalPrice: number;          // subtotal before the whole-order discount
+  discount?: number;           // whole-order discount; payable = max(0, totalPrice - discount)
   payments: { amount: number }[];
   depositPaid?: number; // legacy deposit field; only meaningful when payments is empty
   items: { garmentType?: string; customGarmentName?: string; description?: string }[];
