@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_photo_too_large
@@ -94,6 +96,7 @@ class OrderDetailViewModel(
     private var loadedMeasurementsCustomerId: String? = null
     private var styleJob: Job? = null
     private var loadedStylesCustomerId: String? = null
+    private val photoMutationMutex = Mutex()
     private val _state = MutableStateFlow(OrderDetailState())
 
     private val _events = Channel<OrderDetailEvent>(Channel.BUFFERED)
@@ -388,7 +391,7 @@ class OrderDetailViewModel(
         return true
     }
 
-    @Suppress("ReturnCount")
+    @Suppress("CyclomaticComplexMethod", "ReturnCount")
     private fun addStylePhoto(photoBytes: ByteArray) {
         if (rejectOversizedPhoto(photoBytes)) return
         val order = _state.value.order ?: return
@@ -418,43 +421,52 @@ class OrderDetailViewModel(
                     return@launch
                 }
             }
-            val latestOrder = _state.value.order ?: order
-            val latestFirst = latestOrder.items.firstOrNull() ?: return@launch
-            if (latestFirst.styleImages.size >= MAX_IMAGES_PER_CATEGORY) return@launch
-            val updatedItems = listOf(
-                latestFirst.copy(styleImages = latestFirst.styleImages + newRef),
-            ) + latestOrder.items.drop(1)
-            when (val res = orderRepository.updateOrder(userId, latestOrder.copy(items = updatedItems))) {
-                is Result.Success -> Unit
-                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            photoMutationMutex.withLock {
+                val latestOrder = _state.value.order ?: order
+                val latestFirst = latestOrder.items.firstOrNull() ?: return@withLock
+                if (latestFirst.styleImages.size >= MAX_IMAGES_PER_CATEGORY) {
+                    newRef.photoStoragePath?.let { orderRepository.deleteStoragePaths(listOf(it)) }
+                    return@withLock
+                }
+                val updatedItems = listOf(
+                    latestFirst.copy(styleImages = latestFirst.styleImages + newRef),
+                ) + latestOrder.items.drop(1)
+                val updatedOrder = latestOrder.copy(items = updatedItems)
+                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                    is Result.Success -> _state.update { it.copy(order = updatedOrder) }
+                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                }
             }
         }
     }
 
     @Suppress("ReturnCount")
     private fun removeStyleImage(index: Int) {
-        val order = _state.value.order ?: return
-        val firstItem = order.items.firstOrNull() ?: return
-        if (index !in firstItem.styleImages.indices) return
-        val removed = firstItem.styleImages[index]
-        val updatedFirst = firstItem.copy(
-            styleImages = firstItem.styleImages.toMutableList().also { it.removeAt(index) },
-        )
-        val updatedOrder = order.copy(items = listOf(updatedFirst) + order.items.drop(1))
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
-                is Result.Success -> {
-                    removed.photoStoragePath
-                        ?.takeIf { removed.source == StyleImageSource.UPLOADED && it.isNotBlank() }
-                        ?.let { orderRepository.deleteStoragePaths(listOf(it)) }
+            photoMutationMutex.withLock {
+                val order = _state.value.order ?: return@withLock
+                val firstItem = order.items.firstOrNull() ?: return@withLock
+                if (index !in firstItem.styleImages.indices) return@withLock
+                val removed = firstItem.styleImages[index]
+                val updatedFirst = firstItem.copy(
+                    styleImages = firstItem.styleImages.toMutableList().also { it.removeAt(index) },
+                )
+                val updatedOrder = order.copy(items = listOf(updatedFirst) + order.items.drop(1))
+                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                    is Result.Success -> {
+                        _state.update { it.copy(order = updatedOrder) }
+                        removed.photoStoragePath
+                            ?.takeIf { removed.source == StyleImageSource.UPLOADED && it.isNotBlank() }
+                            ?.let { orderRepository.deleteStoragePaths(listOf(it)) }
+                    }
+                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
                 }
-                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
             }
         }
     }
 
-    @Suppress("ReturnCount")
+    @Suppress("CyclomaticComplexMethod", "ReturnCount")
     private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
         if (rejectOversizedPhoto(photoBytes)) return
         val order = _state.value.order ?: return
@@ -483,39 +495,54 @@ class OrderDetailViewModel(
                     return@launch
                 }
             }
-            val latestOrder = _state.value.order ?: order
-            val updatedItems = latestOrder.items.map { current ->
-                if (current.id == itemId && current.fabricImages.size < MAX_IMAGES_PER_CATEGORY) {
-                    current.copy(fabricImages = current.fabricImages + newRef)
-                } else {
-                    current
+            photoMutationMutex.withLock {
+                val latestOrder = _state.value.order ?: order
+                var didAppend = false
+                val updatedItems = latestOrder.items.map { current ->
+                    if (current.id == itemId && current.fabricImages.size < MAX_IMAGES_PER_CATEGORY) {
+                        didAppend = true
+                        current.copy(fabricImages = current.fabricImages + newRef)
+                    } else {
+                        current
+                    }
                 }
-            }
-            when (val res = orderRepository.updateOrder(userId, latestOrder.copy(items = updatedItems))) {
-                is Result.Success -> Unit
-                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                if (!didAppend) {
+                    orderRepository.deleteStoragePaths(listOf(newRef.photoStoragePath))
+                    return@withLock
+                }
+                val updatedOrder = latestOrder.copy(items = updatedItems)
+                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                    is Result.Success -> _state.update { it.copy(order = updatedOrder) }
+                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                }
             }
         }
     }
 
     @Suppress("ReturnCount")
     private fun removeFabricImage(itemId: String, index: Int) {
-        val order = _state.value.order ?: return
-        val item = order.items.firstOrNull { it.id == itemId } ?: return
-        if (index !in item.fabricImages.indices) return
-        val removed = item.fabricImages[index]
-        val updatedItems = order.items.map { current ->
-            if (current.id == itemId) {
-                current.copy(fabricImages = current.fabricImages.toMutableList().also { it.removeAt(index) })
-            } else {
-                current
-            }
-        }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
-            when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
-                is Result.Success -> orderRepository.deleteStoragePaths(listOf(removed.photoStoragePath))
-                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            photoMutationMutex.withLock {
+                val order = _state.value.order ?: return@withLock
+                val item = order.items.firstOrNull { it.id == itemId } ?: return@withLock
+                if (index !in item.fabricImages.indices) return@withLock
+                val removed = item.fabricImages[index]
+                val updatedItems = order.items.map { current ->
+                    if (current.id == itemId) {
+                        current.copy(fabricImages = current.fabricImages.toMutableList().also { it.removeAt(index) })
+                    } else {
+                        current
+                    }
+                }
+                val updatedOrder = order.copy(items = updatedItems)
+                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                    is Result.Success -> {
+                        _state.update { it.copy(order = updatedOrder) }
+                        orderRepository.deleteStoragePaths(listOf(removed.photoStoragePath))
+                    }
+                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+                }
             }
         }
     }
