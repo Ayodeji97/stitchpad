@@ -1152,6 +1152,7 @@ private fun OrderDetailContent(
         item {
             OrderPaymentCard(
                 totalPrice = order.totalPrice,
+                discount = order.discount,
                 payments = order.payments,
                 isExpanded = state.isPaymentHistoryExpanded,
                 onToggleExpanded = { onAction(OrderDetailAction.OnPaymentHistoryToggle) },
