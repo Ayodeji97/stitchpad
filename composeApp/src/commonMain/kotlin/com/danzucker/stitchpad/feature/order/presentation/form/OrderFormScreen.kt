@@ -1262,7 +1262,9 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String)
                 // entry can round to 100% (e.g. ₦1 over), so gate on the raw amount too,
                 // otherwise an invalid discount the save path rejects would read "100%".
                 val discountLabel = if (breakdown.amount <= subtotal && breakdown.percent in 1..100) {
-                    stringResource(Res.string.order_form_summary_discount, breakdown.percent)
+                    // Pass the "%" as part of the arg (not a literal "%%" in the resource string):
+                    // Compose's resource formatter doesn't collapse "%%" → "%", so it rendered "8%%".
+                    stringResource(Res.string.order_form_summary_discount, "${breakdown.percent}%")
                 } else {
                     stringResource(Res.string.order_form_summary_discount_plain)
                 }
