@@ -198,7 +198,7 @@ fun OrderDetailRoot(
     onNavigateToMeasurementForm: (customerId: String, linkToOrderId: String) -> Unit,
     onNavigateToViewMeasurement: (customerId: String, measurementId: String) -> Unit,
     onNavigateToDuplicateOrder: (sourceOrderId: String) -> Unit,
-    onNavigateToStyleForm: (customerId: String, linkToOrderId: String) -> Unit,
+    onNavigateToStyleForm: (customerId: String, linkToOrderId: String, linkToItemId: String) -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val viewModel: OrderDetailViewModel = koinViewModel()
@@ -264,7 +264,7 @@ fun OrderDetailRoot(
             is OrderDetailEvent.NavigateToViewMeasurement ->
                 onNavigateToViewMeasurement(event.customerId, event.measurementId)
             is OrderDetailEvent.NavigateToStyleForm ->
-                onNavigateToStyleForm(event.customerId, event.linkToOrderId)
+                onNavigateToStyleForm(event.customerId, event.linkToOrderId, event.linkToItemId)
         }
     }
 

@@ -5,8 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.model.StyleImageRef
-import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -52,6 +50,7 @@ class StyleFormViewModel(
     private val customerId: String? = savedStateHandle["customerId"]
     private val styleId: String? = savedStateHandle["styleId"]
     private val linkToOrderId: String? = savedStateHandle["linkToOrderId"]
+    private val linkToItemId: String? = savedStateHandle["linkToItemId"]
     private val folderId: String? = savedStateHandle["folderId"]
     private val readOnly: Boolean = savedStateHandle["readOnly"] ?: false
 
@@ -408,33 +407,22 @@ class StyleFormViewModel(
             }
             val newStyleId = (createResult as Result.Success).data
 
-            // If opened from an order's "link" path, attach this style to items[0].
-            // Mirror the measurement-link flow: failure here is silent — style is
-            // already persisted; user can retry from the order detail picker.
+            // If opened from an order's "link" path, attach this style to the garment it was
+            // created from ([linkToItemId]; null falls back to items[0]). Mirror the
+            // measurement-link flow: failure here is silent — style is already persisted; user
+            // can retry from the order detail picker. linkStyleToOrderItems guards dup + cap.
             val linkOrderId = linkToOrderId
             if (linkOrderId != null) {
                 when (val orderResult = orderRepository.getOrder(userId, linkOrderId)) {
                     is Result.Success -> {
                         val order = orderResult.data
-                        val firstItem = order.items.firstOrNull()
-                        if (firstItem != null) {
-                            // PTSP-11 — APPEND a LIBRARY ref to the first item's styleImages
-                            // list. Guard against duplicates and the 3-image cap.
-                            val alreadyHas = firstItem.styleImages.any {
-                                it.source == StyleImageSource.LIBRARY && it.styleId == newStyleId
-                            }
-                            val atCap = firstItem.styleImages.size >= 3
-                            if (!alreadyHas && !atCap) {
-                                val newRef = StyleImageRef(
-                                    source = StyleImageSource.LIBRARY,
-                                    styleId = newStyleId,
-                                )
-                                val updatedItem = firstItem.copy(
-                                    styleImages = firstItem.styleImages + newRef,
-                                )
-                                val updatedItems = listOf(updatedItem) + order.items.drop(1)
-                                orderRepository.updateOrder(userId, order.copy(items = updatedItems))
-                            }
+                        val updatedItems = linkStyleToOrderItems(
+                            items = order.items,
+                            targetItemId = linkToItemId,
+                            newStyleId = newStyleId,
+                        )
+                        if (updatedItems != null) {
+                            orderRepository.updateOrder(userId, order.copy(items = updatedItems))
                         }
                     }
                     is Result.Error -> Unit

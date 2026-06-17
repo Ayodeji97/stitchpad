@@ -26,13 +26,16 @@ internal fun linkStyleToOrderItems(
         items.firstOrNull()
     } ?: return null
 
-    val alreadyLinked = target.styleImages.any {
+    val notYetLinked = target.styleImages.none {
         it.source == StyleImageSource.LIBRARY && it.styleId == newStyleId
     }
-    if (alreadyLinked || target.styleImages.size >= maxImagesPerItem) return null
-
-    val newRef = StyleImageRef(source = StyleImageSource.LIBRARY, styleId = newStyleId)
-    return items.map { item ->
-        if (item.id == target.id) item.copy(styleImages = item.styleImages + newRef) else item
+    val hasRoom = target.styleImages.size < maxImagesPerItem
+    return if (notYetLinked && hasRoom) {
+        val newRef = StyleImageRef(source = StyleImageSource.LIBRARY, styleId = newStyleId)
+        items.map { item ->
+            if (item.id == target.id) item.copy(styleImages = item.styleImages + newRef) else item
+        }
+    } else {
+        null
     }
 }
