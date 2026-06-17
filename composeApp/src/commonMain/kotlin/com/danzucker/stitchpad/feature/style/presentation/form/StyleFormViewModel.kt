@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -112,9 +113,14 @@ class StyleFormViewModel(
         }
     }
 
+    // Tracks the in-flight gallery-pick compression so save() can await it and a
+    // newer pick can supersede an older one (latest-wins).
+    private var photoProcessingJob: Job? = null
+
     private fun onPhotosPicked(photos: List<ByteArray>) {
         if (photos.isEmpty()) return
-        viewModelScope.launch {
+        photoProcessingJob?.cancel()
+        photoProcessingJob = viewModelScope.launch {
             // Gallery picks arrive at full resolution; downscale each before the size
             // guard so a normal phone photo is accepted instead of rejected. A decode
             // failure (null) falls back to the original bytes and lets the guard decide.
@@ -274,6 +280,16 @@ class StyleFormViewModel(
     private fun save() {
         if (_state.value.readOnly) {
             viewModelScope.launch { _events.send(StyleFormEvent.NavigateToUpgrade) }
+            return
+        }
+        // If a just-picked photo is still compressing, wait for it before snapshotting
+        // state, then re-enter — otherwise the new photo would be dropped.
+        val pendingPhotos = photoProcessingJob
+        if (pendingPhotos?.isActive == true) {
+            viewModelScope.launch {
+                pendingPhotos.join()
+                save()
+            }
             return
         }
         val s = _state.value

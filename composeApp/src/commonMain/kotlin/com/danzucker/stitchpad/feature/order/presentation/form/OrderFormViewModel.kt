@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
@@ -600,6 +601,8 @@ class OrderFormViewModel(
         // rapid double-tap can re-enter. With PTSP-9's gallery-save path, a
         // duplicate entry creates duplicate Style entities — guard early.
         if (_state.value.isSaving) return
+        // A photo picked just before Save may still be compressing; wait then re-enter.
+        if (awaitPendingPhotosThenResave()) return
 
         val s = _state.value
         if (userId == null) return
@@ -822,28 +825,55 @@ class OrderFormViewModel(
      * back to the original bytes and lets [rejectOversizedPhoto] decide.
      */
     private fun addStylePhoto(itemId: String, photoBytes: ByteArray) {
-        viewModelScope.launch {
-            val processed = imageCompressor.compress(photoBytes) ?: photoBytes
-            if (rejectOversizedPhoto(processed)) return@launch
-            updateItem(itemId) {
-                val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
-                if (total >= 3) return@updateItem it
-                it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + processed)
+        trackPhotoJob(
+            viewModelScope.launch {
+                val processed = imageCompressor.compress(photoBytes) ?: photoBytes
+                if (rejectOversizedPhoto(processed)) return@launch
+                updateItem(itemId) {
+                    val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
+                    if (total >= 3) return@updateItem it
+                    it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + processed)
+                }
             }
-        }
+        )
     }
 
     /** Fabric counterpart of [addStylePhoto]. */
     private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
-        viewModelScope.launch {
-            val processed = imageCompressor.compress(photoBytes) ?: photoBytes
-            if (rejectOversizedPhoto(processed)) return@launch
-            updateItem(itemId) {
-                val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
-                if (total >= 3) return@updateItem it
-                it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + processed)
+        trackPhotoJob(
+            viewModelScope.launch {
+                val processed = imageCompressor.compress(photoBytes) ?: photoBytes
+                if (rejectOversizedPhoto(processed)) return@launch
+                updateItem(itemId) {
+                    val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
+                    if (total >= 3) return@updateItem it
+                    it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + processed)
+                }
             }
+        )
+    }
+
+    // In-flight photo-compression jobs. save() awaits these so a photo picked just
+    // before Save isn't dropped from the persisted order.
+    private val photoJobs = mutableListOf<Job>()
+
+    private fun trackPhotoJob(job: Job) {
+        photoJobs.removeAll { it.isCompleted }
+        photoJobs += job
+    }
+
+    /**
+     * If any picked photo is still compressing, await those jobs and re-enter [save].
+     * Returns true when it deferred the save (caller should return), false otherwise.
+     */
+    private fun awaitPendingPhotosThenResave(): Boolean {
+        val pending = photoJobs.filter { it.isActive }
+        if (pending.isEmpty()) return false
+        viewModelScope.launch {
+            pending.joinAll()
+            save()
         }
+        return true
     }
 
     /**
