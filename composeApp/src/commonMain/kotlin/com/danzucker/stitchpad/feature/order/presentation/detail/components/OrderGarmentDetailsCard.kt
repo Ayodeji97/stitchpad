@@ -266,7 +266,8 @@ private fun FabricColumn(
         else -> emptyList()
     }
     val needsPhoto = urls.isEmpty()
-    val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
+    val canAddPhoto = urls.size < MAX_IMAGES_PER_CATEGORY
+    val needsName = !needsPhoto && !canAddPhoto && item.fabricName.isNullOrBlank()
     val ctaLabel: StringResource? = when {
         !showCta -> null
         needsPhoto -> Res.string.order_detail_add_fabric
@@ -285,7 +286,7 @@ private fun FabricColumn(
         icon = Icons.Default.Texture,
         urls = urls,
         ctaLabel = ctaLabel,
-        canAdd = urls.size < MAX_IMAGES_PER_CATEGORY,
+        canAdd = canAddPhoto,
         onCtaClick = onCtaClick,
         onAddClick = onAddClick,
         onRemove = if (item.fabricImages.isNotEmpty()) {
