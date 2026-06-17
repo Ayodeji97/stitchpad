@@ -76,8 +76,8 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
-import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
+import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -686,11 +686,13 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
         }
 
         Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "\u20A6${formatPrice(order.payableTotal)}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+            StrikethroughPrice(
+                grossPrice = order.totalPrice,
+                netPrice = order.payableTotal,
+                discount = order.discount,
+                netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                netColor = MaterialTheme.colorScheme.onSurface,
+                stacked = true,
             )
             Spacer(Modifier.height(2.dp))
             PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
@@ -791,6 +793,17 @@ private fun OrderListScreenFilledPreview() {
                         status = OrderStatus.PENDING, priority = OrderPriority.RUSH,
                         statusHistory = emptyList(),
                         totalPrice = 40_000.0,
+                        deadline = now - 3 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
+                    ),
+                    Order(
+                        id = "1d", userId = "u", customerId = "c1", customerName = "Fola Sunday",
+                        items = listOf(
+                            OrderItem(id = "i1", garmentType = GarmentType.CORSET, description = "", price = 40_000.0)
+                        ),
+                        status = OrderStatus.PENDING, priority = OrderPriority.RUSH,
+                        statusHistory = emptyList(),
+                        totalPrice = 380_000.0,
+                        discount = 30_000.0,
                         deadline = now - 3 * oneDay, notes = null, createdAt = 0L, updatedAt = 0L
                     ),
                     Order(

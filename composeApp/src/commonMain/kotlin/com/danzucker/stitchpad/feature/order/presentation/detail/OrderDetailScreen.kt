@@ -562,7 +562,7 @@ fun OrderDetailScreen(
             naturalDocType = naturalDocType,
             chosenDocType = state.documentTypeChoice,
             customerName = state.order?.customerName,
-            totalFormatted = state.order?.let { "₦${formatPrice(it.totalPrice)}" },
+            totalFormatted = state.order?.let { "₦${formatPrice(it.payableTotal)}" },
             balanceFormatted = state.order?.let { "₦${formatPrice(it.balanceRemaining)}" },
             balanceDue = (state.order?.balanceRemaining ?: 0.0) > 0.0,
             onDocTypeChoice = { onAction(OrderDetailAction.OnDocumentTypeChoice(it)) },
@@ -1126,6 +1126,7 @@ private fun OrderDetailContent(
                 dueLabel = dueLabel,
                 totalPrice = order.totalPrice,
                 balanceRemaining = order.balanceRemaining,
+                discount = order.discount,
                 cta = cta,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
@@ -1162,6 +1163,7 @@ private fun OrderDetailContent(
         item {
             OrderPaymentCard(
                 totalPrice = order.totalPrice,
+                discount = order.discount,
                 payments = order.payments,
                 isExpanded = state.isPaymentHistoryExpanded,
                 onToggleExpanded = { onAction(OrderDetailAction.OnPaymentHistoryToggle) },
