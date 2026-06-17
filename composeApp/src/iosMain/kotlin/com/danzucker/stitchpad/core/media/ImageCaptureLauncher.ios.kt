@@ -97,8 +97,8 @@ private class CameraPickerDelegate(
     }
 }
 
-private const val MAX_DIM = 1920.0
-private const val JPEG_QUALITY = 0.85
+private const val MAX_DIM = 1600.0
+private const val JPEG_QUALITY = 0.80
 
 @Suppress("ReturnCount")
 @OptIn(ExperimentalForeignApi::class)

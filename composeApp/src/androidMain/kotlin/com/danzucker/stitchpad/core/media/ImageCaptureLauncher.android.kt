@@ -108,8 +108,8 @@ private fun launchCapture(
     launcher.launch(uri)
 }
 
-private const val MAX_DIM = 1920
-private const val JPEG_QUALITY = 85
+private const val MAX_DIM = 1600
+private const val JPEG_QUALITY = 80
 
 // Single ownership point for recycling: the `finally` below recycles every
 // bitmap this function allocated, each exactly once (recycleIfDistinct guards
