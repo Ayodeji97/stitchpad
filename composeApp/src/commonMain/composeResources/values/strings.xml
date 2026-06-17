@@ -736,6 +736,7 @@
     <string name="error_order_item_quantity_required">Enter a quantity for every item before saving.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
     <string name="error_order_discount_exceeds_total">Discount can&apos;t be more than the order total.</string>
+    <string name="error_order_deposit_exceeds_total">Deposit can&apos;t be more than the order total.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
     <string name="error_order_items_required">Pick what you&apos;re making to save this order.</string>
     <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>

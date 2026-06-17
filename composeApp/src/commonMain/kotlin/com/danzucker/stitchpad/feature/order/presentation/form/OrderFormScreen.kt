@@ -1258,7 +1258,10 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(DesignTokens.space2))
             if (breakdown.amount > 0.0) {
-                val discountLabel = if (breakdown.percent in 1..100) {
+                // Show the percent only for a valid discount (≤ subtotal). An over-subtotal
+                // entry can round to 100% (e.g. ₦1 over), so gate on the raw amount too,
+                // otherwise an invalid discount the save path rejects would read "100%".
+                val discountLabel = if (breakdown.amount <= subtotal && breakdown.percent in 1..100) {
                     stringResource(Res.string.order_form_summary_discount, breakdown.percent)
                 } else {
                     stringResource(Res.string.order_form_summary_discount_plain)

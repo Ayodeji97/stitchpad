@@ -40,6 +40,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
+import stitchpad.composeapp.generated.resources.error_order_deposit_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_discount_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
@@ -655,10 +656,9 @@ class OrderFormViewModel(
         // Reject a discount above the subtotal rather than silently clamping it
         // (which would persist a smaller discount than the user typed). The
         // coerceIn in executeSave() stays as defence-in-depth for direct entry.
-        if (discountExceedsSubtotal(formItems, s.discount)) {
-            setError(Res.string.error_order_discount_exceeds_total)
-            return
-        }
+        // Reject an over-subtotal discount or an over-payable deposit (the former would
+        // persist a smaller discount than typed; the latter would save paid > total).
+        if (rejectInvalidDiscountOrDeposit(formItems, s.discount, s.depositPaid)) return
 
         // Gate: in edit mode, if the user changed the deposit AND any payments
         // already exist on the order, intercept the save with a confirmation
@@ -689,14 +689,48 @@ class OrderFormViewModel(
      * summed over valid items). Mirrors the subtotal math in [executeSave] so
      * the validation and the persisted figures agree.
      */
+    /**
+     * Pre-save guard: sets an error and returns true when the typed discount exceeds the
+     * subtotal, or the typed deposit exceeds the discounted (payable) total. Both block save.
+     */
+    private fun rejectInvalidDiscountOrDeposit(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+        typedDeposit: String,
+    ): Boolean = when {
+        discountExceedsSubtotal(formItems, typedDiscount) -> {
+            setError(Res.string.error_order_discount_exceeds_total)
+            true
+        }
+        depositExceedsPayable(formItems, typedDiscount, typedDeposit) -> {
+            setError(Res.string.error_order_deposit_exceeds_total)
+            true
+        }
+        else -> false
+    }
+
     private fun discountExceedsSubtotal(
         formItems: List<OrderItemFormState>,
         typedDiscount: String,
+    ): Boolean = (typedDiscount.toDoubleOrNull() ?: 0.0) > formSubtotal(formItems)
+
+    /**
+     * True when the typed deposit exceeds the payable total (subtotal minus the whole-order
+     * discount, floored at 0). Keeps a deposit from being saved against a smaller payable than
+     * the customer owes — which would render paid > total and overcount collected revenue.
+     */
+    private fun depositExceedsPayable(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+        typedDeposit: String,
     ): Boolean {
-        val subtotal = formItems.sumOf {
-            (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1)
-        }
-        return (typedDiscount.toDoubleOrNull() ?: 0.0) > subtotal
+        val payable = (formSubtotal(formItems) - (typedDiscount.toDoubleOrNull() ?: 0.0)).coerceAtLeast(0.0)
+        return (typedDeposit.toDoubleOrNull() ?: 0.0) > payable
+    }
+
+    /** Sum of price × quantity over valid items — mirrors [executeSave]'s subtotal math. */
+    private fun formSubtotal(formItems: List<OrderItemFormState>): Double = formItems.sumOf {
+        (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1)
     }
 
     @OptIn(ExperimentalUuidApi::class)

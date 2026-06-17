@@ -419,6 +419,39 @@ class OrderFormViewModelTest {
     }
 
     @Test
+    fun save_inCreateMode_depositExceedingDiscountedTotal_isRejected() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "10000")) // subtotal 10,000
+        vm.onAction(OrderFormAction.OnDiscountChange("2000"))                // payable 8,000
+        vm.onAction(OrderFormAction.OnDepositChange("9000"))                 // deposit > payable
+        vm.onAction(OrderFormAction.OnSave)
+
+        // Deposit above the payable (discounted) total is rejected so we never
+        // persist paid > total.
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun save_inCreateMode_depositEqualToDiscountedTotal_persists() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "10000"))
+        vm.onAction(OrderFormAction.OnDiscountChange("2000")) // payable 8,000
+        vm.onAction(OrderFormAction.OnDepositChange("8000"))  // deposit == payable → allowed
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNotNull(orderRepository.lastCreatedOrder)
+    }
+
+    @Test
     fun save_inCreateMode_discountEqualToTotal_savesFullDiscount() = runTest {
         val vm = createViewModel(orderId = null)
 
