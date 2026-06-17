@@ -83,7 +83,10 @@ object ReceiptFormatter {
             customerName = order.customerName,
             dateFormatted = dateFormatted,
             items = groupedItems,
-            totalFormatted = "₦${formatPrice(order.totalPrice)}",
+            subtotalFormatted = "₦${formatPrice(order.totalPrice)}",
+            discountFormatted = if (order.discount > 0.0) "−₦${formatPrice(order.discount)}" else null,
+            discountReason = order.discountReason,
+            totalFormatted = "₦${formatPrice(order.payableTotal)}",
             depositFormatted = "₦${formatPrice(order.depositPaid)}",
             balanceFormatted = "₦${formatPrice(order.balanceRemaining)}",
             isFullyPaid = fullyPaid,
@@ -131,6 +134,12 @@ object ReceiptFormatter {
      * both call sites stay in lockstep.
      */
     fun resolveDocumentType(order: Order): ReceiptDocumentType = when {
+        // A priced order fully covered by a discount owes nothing even with no
+        // payments — it is settled, so label it RECEIPT, not INVOICE. Gated on
+        // totalPrice > 0 so a genuinely unpriced/draft order (totalPrice == 0)
+        // still reads INVOICE.
+        order.payments.isEmpty() && order.totalPrice > 0.0 && order.payableTotal <= 0.0 ->
+            ReceiptDocumentType.RECEIPT
         order.payments.isEmpty() -> ReceiptDocumentType.INVOICE
         order.balanceRemaining <= 0.0 -> ReceiptDocumentType.RECEIPT
         else -> ReceiptDocumentType.DEPOSIT_RECEIPT

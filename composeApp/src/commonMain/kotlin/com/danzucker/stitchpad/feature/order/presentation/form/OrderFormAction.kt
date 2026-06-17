@@ -91,6 +91,8 @@ sealed interface OrderFormAction {
     data class OnPriorityChange(val priority: OrderPriority) : OrderFormAction
     data class OnDepositChange(val deposit: String) : OrderFormAction
     data class OnNotesChange(val notes: String) : OrderFormAction
+    data class OnDiscountChange(val discount: String) : OrderFormAction
+    data class OnDiscountReasonChange(val reason: String) : OrderFormAction
 
     // Save
     data object OnSave : OrderFormAction

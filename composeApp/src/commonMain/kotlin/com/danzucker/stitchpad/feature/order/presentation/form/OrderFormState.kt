@@ -52,6 +52,8 @@ data class OrderFormState(
     val priority: OrderPriority = OrderPriority.NORMAL,
     val depositPaid: String = "",
     val notes: String = "",
+    val discount: String = "",
+    val discountReason: String = "",
     val depositReconciliationPrompt: DepositPrompt? = null,
     // General
     val isLoading: Boolean = false,

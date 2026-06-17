@@ -687,13 +687,13 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "\u20A6${formatPrice(order.totalPrice)}",
+                text = "\u20A6${formatPrice(order.payableTotal)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(2.dp))
-            PaymentStatusText(depositPaid = order.depositPaid, totalPrice = order.totalPrice)
+            PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
         }
     }
 }

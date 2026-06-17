@@ -269,10 +269,12 @@ class StyleFormViewModel(
             return
         }
         val s = _state.value
+        // Description is optional — only a photo (create) or a loaded style (edit)
+        // is required, so we never persist a fully empty entry.
         val trimmedDescription = s.description.trim()
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
         val missingStyleForEdit = s.isEditMode && s.existingStyle == null
-        if (trimmedDescription.isBlank() || missingPhotoForCreate || missingStyleForEdit) return
+        if (missingPhotoForCreate || missingStyleForEdit) return
 
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }

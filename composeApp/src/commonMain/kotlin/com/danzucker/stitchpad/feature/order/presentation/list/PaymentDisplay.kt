@@ -15,9 +15,9 @@ sealed interface PaymentDisplay {
     data object Unpaid : PaymentDisplay
 }
 
-fun formatPaymentStatus(depositPaid: Double, totalPrice: Double): PaymentDisplay = when {
-    totalPrice <= 0.0 -> PaymentDisplay.Paid
-    depositPaid >= totalPrice -> PaymentDisplay.Paid
+fun formatPaymentStatus(depositPaid: Double, amountOwed: Double): PaymentDisplay = when {
+    amountOwed <= 0.0 -> PaymentDisplay.Paid
+    depositPaid >= amountOwed -> PaymentDisplay.Paid
     depositPaid > 0.0 -> PaymentDisplay.Partial(amountPaid = depositPaid)
     else -> PaymentDisplay.Unpaid
 }

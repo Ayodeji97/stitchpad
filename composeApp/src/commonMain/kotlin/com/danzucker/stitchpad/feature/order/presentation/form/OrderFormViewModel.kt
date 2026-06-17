@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
+import stitchpad.composeapp.generated.resources.error_order_discount_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
@@ -292,6 +293,13 @@ class OrderFormViewModel(
             is OrderFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
+            is OrderFormAction.OnDiscountChange -> {
+                val digits = action.discount.filter { it.isDigit() }
+                _state.update { it.copy(discount = digits) }
+            }
+            is OrderFormAction.OnDiscountReasonChange -> {
+                _state.update { it.copy(discountReason = action.reason) }
+            }
             OrderFormAction.OnSave -> {
                 // Guard against double-tap on the Save button — the UI's
                 // enabled-when-not-saving flag updates a frame later than
@@ -506,6 +514,8 @@ class OrderFormViewModel(
                                 ?.toString()
                                 ?: "",
                             notes = order.notes ?: "",
+                            discount = if (order.discount > 0.0) order.discount.toLong().toString() else "",
+                            discountReason = order.discountReason ?: "",
                             isLoading = false
                         )
                     }
@@ -649,6 +659,14 @@ class OrderFormViewModel(
             return
         }
 
+        // Reject a discount above the subtotal rather than silently clamping it
+        // (which would persist a smaller discount than the user typed). The
+        // coerceIn in executeSave() stays as defence-in-depth for direct entry.
+        if (discountExceedsSubtotal(formItems, s.discount)) {
+            setError(Res.string.error_order_discount_exceeds_total)
+            return
+        }
+
         // Gate: in edit mode, if the user changed the deposit AND any payments
         // already exist on the order, intercept the save with a confirmation
         // prompt so the destructive replace is explicit.
@@ -671,6 +689,21 @@ class OrderFormViewModel(
         }
 
         executeSave()
+    }
+
+    /**
+     * True when the typed discount exceeds the order subtotal (price × quantity
+     * summed over valid items). Mirrors the subtotal math in [executeSave] so
+     * the validation and the persisted figures agree.
+     */
+    private fun discountExceedsSubtotal(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+    ): Boolean {
+        val subtotal = formItems.sumOf {
+            (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1)
+        }
+        return (typedDiscount.toDoubleOrNull() ?: 0.0) > subtotal
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -746,6 +779,7 @@ class OrderFormViewModel(
             }
 
             val totalPrice = orderItems.sumOf { it.price * it.quantity }
+            val discount = (s.discount.toDoubleOrNull() ?: 0.0).coerceIn(0.0, totalPrice)
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
@@ -788,6 +822,10 @@ class OrderFormViewModel(
                 payments = payments,
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
+                discount = discount,
+                // Only keep a reason when there is an actual discount — avoids an
+                // orphaned reason string when the typed discount clamps to 0.
+                discountReason = if (discount > 0.0) s.discountReason.trim().ifBlank { null } else null,
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
                 updatedAt = 0L,
             )

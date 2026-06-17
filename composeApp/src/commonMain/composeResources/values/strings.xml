@@ -437,7 +437,7 @@
     <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
-    <string name="style_description_label">Description</string>
+    <string name="style_description_label">Description (optional)</string>
     <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
     <string name="style_pick_photos">Tap to add photos</string>
@@ -624,6 +624,9 @@
     <string name="order_form_deposit_placeholder">0</string>
     <string name="order_form_notes_label">Notes (optional)</string>
     <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
+    <string name="order_form_discount_label">Discount (₦)</string>
+    <string name="order_form_discount_reason_label">Discount reason (optional)</string>
+    <string name="order_form_discount_reason_placeholder">e.g. New customer</string>
     <string name="order_form_create_button">Create Order</string>
     <string name="order_form_save_button">Save Changes</string>
     <string name="order_form_next">Next</string>
@@ -729,6 +732,7 @@
     <string name="error_order_unknown">Could not save order. Please try again.</string>
     <string name="error_order_item_quantity_required">Enter a quantity for every item before saving.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
+    <string name="error_order_discount_exceeds_total">Discount can&apos;t be more than the order total.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
     <string name="error_order_items_required">Pick what you&apos;re making to save this order.</string>
     <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>
@@ -1099,6 +1103,8 @@
     <string name="order_detail_payment_total">Total</string>
     <string name="order_detail_payment_paid">Paid</string>
     <string name="order_detail_payment_balance">Balance</string>
+    <string name="order_detail_payment_subtotal">Subtotal %1$s</string>
+    <string name="order_detail_payment_discount">Discount %1$s</string>
 
     <!-- Production stages -->
     <string name="order_stage_pending">Pending</string>
