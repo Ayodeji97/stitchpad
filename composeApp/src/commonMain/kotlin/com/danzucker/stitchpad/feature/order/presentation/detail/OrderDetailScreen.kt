@@ -46,8 +46,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,6 +70,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
@@ -91,9 +94,13 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Stat
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
+import com.danzucker.stitchpad.ui.components.PhotoSource
+import com.danzucker.stitchpad.ui.components.PhotoSourceSheet
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.preat.peekaboo.image.picker.SelectionMode
+import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -271,6 +278,33 @@ fun OrderDetailScreen(
     listState: LazyListState = rememberLazyListState(),
     onAction: (OrderDetailAction) -> Unit
 ) {
+    val fabricPickerScope = rememberCoroutineScope()
+    var pendingFabricSource by remember { mutableStateOf<PhotoSource?>(null) }
+
+    val fabricGalleryPicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = fabricPickerScope,
+        onResult = { byteArrays ->
+            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnFabricPhotoPicked(it)) }
+        },
+    )
+    val fabricCameraLauncher = rememberImageCaptureLauncher { bytes ->
+        if (bytes != null) onAction(OrderDetailAction.OnFabricPhotoPicked(bytes))
+    }
+
+    // Launch the chosen source only AFTER the sheet has dismissed — the order form uses this
+    // exact ordering to dodge the iOS "present right after Compose sheet dismiss" no-op.
+    LaunchedEffect(state.showFabricSourceSheet, pendingFabricSource) {
+        if (!state.showFabricSourceSheet && pendingFabricSource != null) {
+            when (pendingFabricSource) {
+                PhotoSource.Camera -> fabricCameraLauncher.launch()
+                PhotoSource.Gallery -> fabricGalleryPicker.launch()
+                null -> Unit
+            }
+            pendingFabricSource = null
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -482,6 +516,17 @@ fun OrderDetailScreen(
             onSelectStyle = { onAction(OrderDetailAction.OnSelectStyle(it)) },
             onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewStyleClick) },
             onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },
+        )
+    }
+
+    // Fabric photo source picker — camera or gallery
+    if (state.showFabricSourceSheet) {
+        PhotoSourceSheet(
+            onPick = { source ->
+                pendingFabricSource = source
+                onAction(OrderDetailAction.OnDismissFabricSourceSheet)
+            },
+            onDismiss = { onAction(OrderDetailAction.OnDismissFabricSourceSheet) },
         )
     }
 
@@ -1035,6 +1080,7 @@ private fun OrderDetailContent(
                 items = order.items,
                 priority = order.priority,
                 styleImageUrls = styleImageUrls,
+                isUploadingFabric = state.isUploadingFabric,
                 onAddStyleClick = { onAction(OrderDetailAction.OnAddStyleClick) },
                 onAddFabricPhotoClick = { onAction(OrderDetailAction.OnAddFabricClick) },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
