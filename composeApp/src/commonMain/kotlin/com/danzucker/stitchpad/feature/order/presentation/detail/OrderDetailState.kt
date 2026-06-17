@@ -29,6 +29,8 @@ data class OrderDetailState(
 
     val showStylePickerSheet: Boolean = false,
     val availableStyles: List<Style> = emptyList(),
+    val showFabricSourceSheet: Boolean = false,
+    val isUploadingFabric: Boolean = false,
 
     // Dialogs / sheets
     val showDeleteDialog: Boolean = false,

@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.foundation.clickable
