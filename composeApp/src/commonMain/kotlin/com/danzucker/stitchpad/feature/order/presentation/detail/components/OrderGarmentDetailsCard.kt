@@ -75,11 +75,17 @@ private val REFERENCE_TILE_HEIGHT = 128.dp
 private val REFERENCE_MULTI_TILE_WIDTH = 100.dp
 private const val MAX_IMAGES_PER_CATEGORY = 3
 
+data class ReferenceImage(
+    val url: String,
+    val sourceIndex: Int,
+)
+
 @Composable
 fun OrderGarmentDetailsCard(
     items: List<OrderItem>,
     priority: OrderPriority,
-    styleImageUrls: List<String>,
+    styleImages: List<ReferenceImage>,
+    styleImageCount: Int,
     onAddStyleClick: () -> Unit,
     onRemoveStyleImage: (Int) -> Unit,
     onAddFabricPhotoClick: (String) -> Unit,
@@ -126,6 +132,7 @@ fun OrderGarmentDetailsCard(
                 if (index == 0) {
                     // Style is order-level — pair it with the first item's fabric.
                     Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+                        val styleImageUrls = styleImages.map { it.url }
                         ReferenceColumn(
                             label = stringResource(Res.string.order_detail_style_caption),
                             icon = Icons.Default.Checkroom,
@@ -135,9 +142,11 @@ fun OrderGarmentDetailsCard(
                             } else {
                                 null
                             },
-                            canAdd = styleImageUrls.size < MAX_IMAGES_PER_CATEGORY,
+                            canAdd = styleImageCount < MAX_IMAGES_PER_CATEGORY,
                             onCtaClick = onAddStyleClick,
-                            onRemove = onRemoveStyleImage,
+                            onRemove = { displayIndex ->
+                                styleImages.getOrNull(displayIndex)?.sourceIndex?.let(onRemoveStyleImage)
+                            },
                             onImageClick = openViewer,
                             modifier = Modifier.weight(1f),
                         )
@@ -569,7 +578,8 @@ private fun OrderGarmentDetailsCardOneEachPreview() {
                 ),
             ),
             priority = OrderPriority.URGENT,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            styleImages = listOf(ReferenceImage("https://example.com/style1.jpg", 0)),
+            styleImageCount = 1,
             onAddStyleClick = {},
             onRemoveStyleImage = {},
             onAddFabricPhotoClick = { _ -> },
@@ -596,11 +606,12 @@ private fun OrderGarmentDetailsCardMultiStylePreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf(
-                "https://example.com/style1.jpg",
-                "https://example.com/style2.jpg",
-                "https://example.com/style3.jpg",
+            styleImages = listOf(
+                ReferenceImage("https://example.com/style1.jpg", 0),
+                ReferenceImage("https://example.com/style2.jpg", 1),
+                ReferenceImage("https://example.com/style3.jpg", 2),
             ),
+            styleImageCount = 3,
             onAddStyleClick = {},
             onRemoveStyleImage = {},
             onAddFabricPhotoClick = { _ -> },
@@ -627,7 +638,8 @@ private fun OrderGarmentDetailsCardAsymmetricPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            styleImages = listOf(ReferenceImage("https://example.com/style1.jpg", 0)),
+            styleImageCount = 1,
             onAddStyleClick = {},
             onRemoveStyleImage = {},
             onAddFabricPhotoClick = { _ -> },
@@ -653,7 +665,8 @@ private fun OrderGarmentDetailsCardEmptyPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = emptyList(),
+            styleImages = emptyList(),
+            styleImageCount = 0,
             onAddStyleClick = {},
             onRemoveStyleImage = {},
             onAddFabricPhotoClick = { _ -> },
@@ -680,7 +693,8 @@ private fun OrderGarmentDetailsCardDarkPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            styleImages = listOf(ReferenceImage("https://example.com/style1.jpg", 0)),
+            styleImageCount = 1,
             onAddStyleClick = {},
             onRemoveStyleImage = {},
             onAddFabricPhotoClick = { _ -> },
@@ -714,7 +728,8 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
+            styleImages = listOf(ReferenceImage("https://example.com/style1.jpg", 0)),
+            styleImageCount = 1,
             onAddStyleClick = {},
             onRemoveStyleImage = {},
             onAddFabricPhotoClick = { _ -> },

@@ -94,6 +94,7 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Orde
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderPaymentCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderProductionTimeline
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.RecordPaymentDialogV2
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.ReferenceImage
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
@@ -1019,11 +1020,13 @@ private fun OrderDetailContent(
     val firstItem = order.items.firstOrNull()
     val garmentName = firstItem?.let { garmentDisplayName(it) }.orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
-    val styleImageUrls: List<String> = firstItem?.styleImages.orEmpty().mapNotNull { ref ->
-        when (ref.source) {
+    val styleImages = firstItem?.styleImages.orEmpty()
+    val styleReferenceImages: List<ReferenceImage> = styleImages.mapIndexedNotNull { index, ref ->
+        val url = when (ref.source) {
             StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.let { it.localPhotoPath ?: it.photoUrl }
             StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
         }
+        url?.let { ReferenceImage(url = it, sourceIndex = index) }
     }
     val pickerScope = rememberCoroutineScope()
     var showStylePhotoSheet by remember { mutableStateOf(false) }
@@ -1106,7 +1109,8 @@ private fun OrderDetailContent(
             OrderGarmentDetailsCard(
                 items = order.items,
                 priority = order.priority,
-                styleImageUrls = styleImageUrls,
+                styleImages = styleReferenceImages,
+                styleImageCount = styleImages.size,
                 onAddStyleClick = { showStylePhotoSheet = true },
                 onRemoveStyleImage = { onAction(OrderDetailAction.OnRemoveStyleImage(it)) },
                 onAddFabricPhotoClick = { itemId -> showFabricPhotoSheetForItemId = itemId },
