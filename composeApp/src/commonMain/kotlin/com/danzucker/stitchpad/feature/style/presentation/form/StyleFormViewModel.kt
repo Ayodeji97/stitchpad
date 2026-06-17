@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.style.domain.StyleCollectionLimits
@@ -44,6 +45,7 @@ class StyleFormViewModel(
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
     private val entitlements: EntitlementsProvider,
+    private val imageCompressor: ImageCompressor,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -112,18 +114,24 @@ class StyleFormViewModel(
 
     private fun onPhotosPicked(photos: List<ByteArray>) {
         if (photos.isEmpty()) return
-        // A fresh pick replaces the current selection. Reject the whole batch if
-        // any image exceeds the cap so the user sees the failure before saving.
-        if (photos.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
-            _state.update {
-                it.copy(
-                    errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
-                    selectedPhotos = emptyList()
-                )
+        viewModelScope.launch {
+            // Gallery picks arrive at full resolution; downscale each before the size
+            // guard so a normal phone photo is accepted instead of rejected. A decode
+            // failure (null) falls back to the original bytes and lets the guard decide.
+            val processed = photos.map { imageCompressor.compress(it) ?: it }
+            // A fresh pick replaces the current selection. Reject the whole batch if
+            // any image still exceeds the cap so the user sees the failure before saving.
+            if (processed.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
+                _state.update {
+                    it.copy(
+                        errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
+                        selectedPhotos = emptyList()
+                    )
+                }
+                return@launch
             }
-            return
+            _state.update { it.copy(selectedPhotos = processed, errorMessage = null) }
         }
-        _state.update { it.copy(selectedPhotos = photos, errorMessage = null) }
     }
 
     private fun observeUnlockOnUpgrade() {

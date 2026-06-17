@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
@@ -55,6 +56,7 @@ class OrderFormViewModel(
     private val measurementRepository: MeasurementRepository,
     private val authRepository: AuthRepository,
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
+    private val imageCompressor: ImageCompressor,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -182,14 +184,8 @@ class OrderFormViewModel(
                     ),
                 )
             }
-            is OrderFormAction.OnItemAddStylePhoto -> {
-                if (rejectOversizedPhoto(action.photoBytes)) return
-                updateItem(action.itemId) {
-                    val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
-                    if (total >= 3) return@updateItem it
-                    it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + action.photoBytes)
-                }
-            }
+            is OrderFormAction.OnItemAddStylePhoto ->
+                addStylePhoto(action.itemId, action.photoBytes)
             is OrderFormAction.OnItemRemoveStyleImage -> updateItem(action.itemId) {
                 // The combined list is: styleImageRefs FIRST, then uploadedStyleBytesList.
                 // index addresses that combined position.
@@ -250,14 +246,8 @@ class OrderFormViewModel(
             OrderFormAction.OnPickerFolderBack -> {
                 _state.update { it.copy(pickerOpenFolderKey = null) }
             }
-            is OrderFormAction.OnItemAddFabricPhoto -> {
-                if (rejectOversizedPhoto(action.photoBytes)) return
-                updateItem(action.itemId) {
-                    val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
-                    if (total >= 3) return@updateItem it
-                    it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + action.photoBytes)
-                }
-            }
+            is OrderFormAction.OnItemAddFabricPhoto ->
+                addFabricPhoto(action.itemId, action.photoBytes)
             is OrderFormAction.OnItemRemoveFabricImage -> updateItem(action.itemId) {
                 val savedCount = it.fabricImageRefs.size
                 when {
@@ -824,6 +814,36 @@ class OrderFormViewModel(
         if (photoBytes.size <= MAX_ORDER_PHOTO_BYTES) return false
         setError(Res.string.error_order_photo_too_large)
         return true
+    }
+
+    /**
+     * Downscales a picked style photo before the size guard so a full-resolution
+     * gallery pick is accepted rather than rejected. A decode failure (null) falls
+     * back to the original bytes and lets [rejectOversizedPhoto] decide.
+     */
+    private fun addStylePhoto(itemId: String, photoBytes: ByteArray) {
+        viewModelScope.launch {
+            val processed = imageCompressor.compress(photoBytes) ?: photoBytes
+            if (rejectOversizedPhoto(processed)) return@launch
+            updateItem(itemId) {
+                val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
+                if (total >= 3) return@updateItem it
+                it.copy(uploadedStyleBytesList = it.uploadedStyleBytesList + processed)
+            }
+        }
+    }
+
+    /** Fabric counterpart of [addStylePhoto]. */
+    private fun addFabricPhoto(itemId: String, photoBytes: ByteArray) {
+        viewModelScope.launch {
+            val processed = imageCompressor.compress(photoBytes) ?: photoBytes
+            if (rejectOversizedPhoto(processed)) return@launch
+            updateItem(itemId) {
+                val total = it.fabricImageRefs.size + it.uploadedFabricBytesList.size
+                if (total >= 3) return@updateItem it
+                it.copy(uploadedFabricBytesList = it.uploadedFabricBytesList + processed)
+            }
+        }
     }
 
     /**
