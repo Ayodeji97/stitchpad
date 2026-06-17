@@ -489,18 +489,29 @@ fun OrderDetailScreen(
 
     // Style picker sheet — lets user link an existing style or create a new one
     if (state.showStylePickerSheet && state.order != null) {
-        val firstItemStyleImages = state.order.items.firstOrNull()?.styleImages.orEmpty()
-        val alreadySelectedStyleIds = firstItemStyleImages
+        val pickerItemId = state.stylePickerItemId
+        val pickerItemStyleImages = if (pickerItemId != null) {
+            state.order.items.firstOrNull { it.id == pickerItemId }?.styleImages.orEmpty()
+        } else {
+            state.order.items.firstOrNull()?.styleImages.orEmpty()
+        }
+        val alreadySelectedStyleIds = pickerItemStyleImages
             .filter { it.source == StyleImageSource.LIBRARY }
             .mapNotNull { it.styleId }
             .toSet()
-        val remainingCapacity = 3 - firstItemStyleImages.size // MAX_IMAGES_PER_CATEGORY = 3
+        val remainingCapacity = 3 - pickerItemStyleImages.size // MAX_IMAGES_PER_CATEGORY = 3
         StylePickerSheet(
             styles = state.availableStyles,
             alreadySelectedStyleIds = alreadySelectedStyleIds,
             remainingCapacity = remainingCapacity,
-            onSelectStyle = { onAction(OrderDetailAction.OnSelectStyle(it)) },
-            onCreateNewClick = { onAction(OrderDetailAction.OnCreateNewStyleClick) },
+            onSelectStyle = { styleId ->
+                val targetItemId = pickerItemId ?: state.order.items.firstOrNull()?.id ?: return@StylePickerSheet
+                onAction(OrderDetailAction.OnSelectStyle(styleId, targetItemId))
+            },
+            onCreateNewClick = {
+                val targetItemId = pickerItemId ?: state.order.items.firstOrNull()?.id ?: return@StylePickerSheet
+                onAction(OrderDetailAction.OnCreateNewStyleClick(targetItemId))
+            },
             onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },
         )
     }
@@ -1020,16 +1031,18 @@ private fun OrderDetailContent(
     val firstItem = order.items.firstOrNull()
     val garmentName = firstItem?.let { garmentDisplayName(it) }.orEmpty()
     val dueLabel = formatDueLabel(order, isOverdue)
-    val styleImages = firstItem?.styleImages.orEmpty()
-    val styleReferenceImages: List<ReferenceImage> = styleImages.mapIndexedNotNull { index, ref ->
-        val url = when (ref.source) {
-            StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.let { it.localPhotoPath ?: it.photoUrl }
-            StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
+    val styleImagesByItemId: Map<String, List<ReferenceImage>> = order.items.associate { item ->
+        item.id to item.styleImages.mapIndexedNotNull { index, ref ->
+            val url = when (ref.source) {
+                StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.let { it.localPhotoPath ?: it.photoUrl }
+                StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
+            }
+            url?.let { ReferenceImage(url = it, sourceIndex = index) }
         }
-        url?.let { ReferenceImage(url = it, sourceIndex = index) }
     }
     val pickerScope = rememberCoroutineScope()
-    var showStylePhotoSheet by remember { mutableStateOf(false) }
+    var showStylePhotoSheetForItemId by remember { mutableStateOf<String?>(null) }
+    var pendingStylePhotoItemId by remember { mutableStateOf<String?>(null) }
     var showFabricPhotoSheetForItemId by remember { mutableStateOf<String?>(null) }
     var pendingFabricPhotoItemId by remember { mutableStateOf<String?>(null) }
     var pendingStylePhotoSource by remember { mutableStateOf<DetailPhotoSource?>(null) }
@@ -1038,11 +1051,15 @@ private fun OrderDetailContent(
         selectionMode = SelectionMode.Single,
         scope = pickerScope,
         onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnAddStylePhoto(it)) }
+            val itemId = pendingStylePhotoItemId ?: return@rememberImagePickerLauncher
+            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnAddStylePhoto(itemId, it)) }
+            pendingStylePhotoItemId = null
         },
     )
     val styleCameraLauncher = rememberImageCaptureLauncher { bytes ->
-        if (bytes != null) onAction(OrderDetailAction.OnAddStylePhoto(bytes))
+        val itemId = pendingStylePhotoItemId ?: return@rememberImageCaptureLauncher
+        if (bytes != null) onAction(OrderDetailAction.OnAddStylePhoto(itemId, bytes))
+        pendingStylePhotoItemId = null
     }
     val fabricGalleryPicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
@@ -1059,8 +1076,8 @@ private fun OrderDetailContent(
         pendingFabricPhotoItemId = null
     }
 
-    LaunchedEffect(showStylePhotoSheet, pendingStylePhotoSource) {
-        if (!showStylePhotoSheet && pendingStylePhotoSource != null) {
+    LaunchedEffect(showStylePhotoSheetForItemId, pendingStylePhotoSource) {
+        if (showStylePhotoSheetForItemId == null && pendingStylePhotoSource != null) {
             when (pendingStylePhotoSource) {
                 DetailPhotoSource.Camera -> styleCameraLauncher.launch()
                 DetailPhotoSource.Gallery -> styleGalleryPicker.launch()
@@ -1109,10 +1126,11 @@ private fun OrderDetailContent(
             OrderGarmentDetailsCard(
                 items = order.items,
                 priority = order.priority,
-                styleImages = styleReferenceImages,
-                styleImageCount = styleImages.size,
-                onAddStyleClick = { showStylePhotoSheet = true },
-                onRemoveStyleImage = { onAction(OrderDetailAction.OnRemoveStyleImage(it)) },
+                styleImagesByItemId = styleImagesByItemId,
+                onAddStyleClick = { itemId -> showStylePhotoSheetForItemId = itemId },
+                onRemoveStyleImage = { itemId, index ->
+                    onAction(OrderDetailAction.OnRemoveStyleImage(itemId, index))
+                },
                 onAddFabricPhotoClick = { itemId -> showFabricPhotoSheetForItemId = itemId },
                 onRemoveFabricImage = { itemId, index ->
                     onAction(OrderDetailAction.OnRemoveFabricImage(itemId, index))
@@ -1194,8 +1212,9 @@ private fun OrderDetailContent(
         }
     }
 
-    if (showStylePhotoSheet) {
-        ModalBottomSheet(onDismissRequest = { showStylePhotoSheet = false }) {
+    if (showStylePhotoSheetForItemId != null) {
+        val styleSheetItemId = showStylePhotoSheetForItemId!!
+        ModalBottomSheet(onDismissRequest = { showStylePhotoSheetForItemId = null }) {
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
                 Text(
                     text = stringResource(Res.string.order_form_style_sheet_title),
@@ -1214,18 +1233,20 @@ private fun OrderDetailContent(
                     },
                     leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
                     modifier = Modifier.clickable {
-                        showStylePhotoSheet = false
-                        onAction(OrderDetailAction.OnAddStyleClick)
+                        showStylePhotoSheetForItemId = null
+                        onAction(OrderDetailAction.OnAddStyleClick(styleSheetItemId))
                     },
                 )
                 PhotoSourceItems(
                     onCameraClick = {
+                        pendingStylePhotoItemId = styleSheetItemId
                         pendingStylePhotoSource = DetailPhotoSource.Camera
-                        showStylePhotoSheet = false
+                        showStylePhotoSheetForItemId = null
                     },
                     onGalleryClick = {
+                        pendingStylePhotoItemId = styleSheetItemId
                         pendingStylePhotoSource = DetailPhotoSource.Gallery
-                        showStylePhotoSheet = false
+                        showStylePhotoSheetForItemId = null
                     },
                 )
             }

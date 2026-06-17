@@ -28,6 +28,7 @@ data class OrderDetailState(
     val customFieldLabels: Map<String, String> = emptyMap(),
 
     val showStylePickerSheet: Boolean = false,
+    val stylePickerItemId: String? = null,
     val availableStyles: List<Style> = emptyList(),
     val showFabricSourceSheet: Boolean = false,
     val fabricSourceItemIndex: Int? = null,

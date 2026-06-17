@@ -65,9 +65,9 @@ sealed interface OrderDetailAction {
     data object OnWhatsAppClick : OrderDetailAction
     data object OnCallClick : OrderDetailAction
     data object OnSendReminderClick : OrderDetailAction
-    data object OnAddStyleClick : OrderDetailAction
-    data class OnAddStylePhoto(val photoBytes: ByteArray) : OrderDetailAction
-    data class OnRemoveStyleImage(val index: Int) : OrderDetailAction
+    data class OnAddStyleClick(val itemId: String) : OrderDetailAction
+    data class OnAddStylePhoto(val itemId: String, val photoBytes: ByteArray) : OrderDetailAction
+    data class OnRemoveStyleImage(val itemId: String, val index: Int) : OrderDetailAction
     data object OnAddFabricClick : OrderDetailAction
     data class OnAddFabricPhoto(val itemId: String, val photoBytes: ByteArray) : OrderDetailAction
     data class OnRemoveFabricImage(val itemId: String, val index: Int) : OrderDetailAction
@@ -78,8 +78,8 @@ sealed interface OrderDetailAction {
     data object OnAddPhoneClick : OrderDetailAction
 
     // Styles
-    data class OnSelectStyle(val styleId: String) : OrderDetailAction
-    data object OnCreateNewStyleClick : OrderDetailAction
+    data class OnSelectStyle(val styleId: String, val itemId: String) : OrderDetailAction
+    data class OnCreateNewStyleClick(val itemId: String) : OrderDetailAction
     data object OnDismissStylePickerSheet : OrderDetailAction
 
     // Measurements

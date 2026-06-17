@@ -288,10 +288,10 @@ class OrderDetailViewModel(
             OrderDetailAction.OnWhatsAppClick -> launchWhatsApp()
             OrderDetailAction.OnCallClick -> launchDialer()
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
-            OrderDetailAction.OnAddStyleClick ->
-                _state.update { it.copy(showStylePickerSheet = true) }
-            is OrderDetailAction.OnAddStylePhoto -> addStylePhoto(action.photoBytes)
-            is OrderDetailAction.OnRemoveStyleImage -> removeStyleImage(action.index)
+            is OrderDetailAction.OnAddStyleClick ->
+                _state.update { it.copy(showStylePickerSheet = true, stylePickerItemId = action.itemId) }
+            is OrderDetailAction.OnAddStylePhoto -> addStylePhoto(action.itemId, action.photoBytes)
+            is OrderDetailAction.OnRemoveStyleImage -> removeStyleImage(action.itemId, action.index)
             OrderDetailAction.OnAddFabricClick -> {
                 val orderId = orderId ?: return
                 viewModelScope.launch {
@@ -319,19 +319,20 @@ class OrderDetailViewModel(
             }
 
             // Styles
-            is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId)
+            is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId, action.itemId)
 
-            OrderDetailAction.OnCreateNewStyleClick -> {
+            is OrderDetailAction.OnCreateNewStyleClick -> {
                 val orderId = orderId ?: return
-                _state.update { it.copy(showStylePickerSheet = false) }
+                _state.update { it.copy(showStylePickerSheet = false, stylePickerItemId = null) }
                 val customerId = _state.value.order?.customerId ?: return
+                // TODO(per-item-style): route create-new style to action.itemId
                 viewModelScope.launch {
                     _events.send(OrderDetailEvent.NavigateToStyleForm(customerId, orderId))
                 }
             }
 
             OrderDetailAction.OnDismissStylePickerSheet ->
-                _state.update { it.copy(showStylePickerSheet = false) }
+                _state.update { it.copy(showStylePickerSheet = false, stylePickerItemId = null) }
 
             // Measurements
             OrderDetailAction.OnLinkMeasurementsClick ->
@@ -392,17 +393,17 @@ class OrderDetailViewModel(
     }
 
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
-    private fun addStylePhoto(photoBytes: ByteArray) {
+    private fun addStylePhoto(itemId: String, photoBytes: ByteArray) {
         if (rejectOversizedPhoto(photoBytes)) return
         val order = _state.value.order ?: return
-        val firstItem = order.items.firstOrNull() ?: return
-        if (firstItem.styleImages.size >= MAX_IMAGES_PER_CATEGORY) return
+        val item = order.items.firstOrNull { it.id == itemId } ?: return
+        if (item.styleImages.size >= MAX_IMAGES_PER_CATEGORY) return
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val upload = orderRepository.uploadStylePhotos(
                 userId = userId,
                 orderId = order.id,
-                itemId = firstItem.id,
+                itemId = item.id,
                 photoBytesList = listOf(photoBytes),
             )
             val newRef = when (upload) {
@@ -423,14 +424,19 @@ class OrderDetailViewModel(
             }
             photoMutationMutex.withLock {
                 val latestOrder = _state.value.order ?: order
-                val latestFirst = latestOrder.items.firstOrNull() ?: return@withLock
-                if (latestFirst.styleImages.size >= MAX_IMAGES_PER_CATEGORY) {
+                var didAppend = false
+                val updatedItems = latestOrder.items.map { current ->
+                    if (current.id == itemId && current.styleImages.size < MAX_IMAGES_PER_CATEGORY) {
+                        didAppend = true
+                        current.copy(styleImages = current.styleImages + newRef)
+                    } else {
+                        current
+                    }
+                }
+                if (!didAppend) {
                     newRef.photoStoragePath?.let { orderRepository.deleteStoragePaths(listOf(it)) }
                     return@withLock
                 }
-                val updatedItems = listOf(
-                    latestFirst.copy(styleImages = latestFirst.styleImages + newRef),
-                ) + latestOrder.items.drop(1)
                 val updatedOrder = latestOrder.copy(items = updatedItems)
                 when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
@@ -444,18 +450,22 @@ class OrderDetailViewModel(
     }
 
     @Suppress("ReturnCount")
-    private fun removeStyleImage(index: Int) {
+    private fun removeStyleImage(itemId: String, index: Int) {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             photoMutationMutex.withLock {
                 val order = _state.value.order ?: return@withLock
-                val firstItem = order.items.firstOrNull() ?: return@withLock
-                if (index !in firstItem.styleImages.indices) return@withLock
-                val removed = firstItem.styleImages[index]
-                val updatedFirst = firstItem.copy(
-                    styleImages = firstItem.styleImages.toMutableList().also { it.removeAt(index) },
-                )
-                val updatedOrder = order.copy(items = listOf(updatedFirst) + order.items.drop(1))
+                val item = order.items.firstOrNull { it.id == itemId } ?: return@withLock
+                if (index !in item.styleImages.indices) return@withLock
+                val removed = item.styleImages[index]
+                val updatedItems = order.items.map { current ->
+                    if (current.id == itemId) {
+                        current.copy(styleImages = current.styleImages.toMutableList().also { it.removeAt(index) })
+                    } else {
+                        current
+                    }
+                }
+                val updatedOrder = order.copy(items = updatedItems)
                 when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
                     is Result.Success -> {
                         _state.update { it.copy(order = updatedOrder) }
@@ -800,23 +810,24 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun linkExistingStyle(styleId: String) {
-        _state.update { it.copy(showStylePickerSheet = false) }
+    private fun linkExistingStyle(styleId: String, itemId: String) {
+        _state.update { it.copy(showStylePickerSheet = false, stylePickerItemId = null) }
         val order = _state.value.order ?: return
-        val firstItem = order.items.firstOrNull() ?: return
-        // PTSP-11 — APPEND a LIBRARY ref to the first item's styleImages list.
+        val item = order.items.firstOrNull { it.id == itemId } ?: return
+        // PTSP-11 — APPEND a LIBRARY ref to the target item's styleImages list.
         // Guard against duplicates and the 3-image cap.
-        val alreadyHas = firstItem.styleImages.any {
+        val alreadyHas = item.styleImages.any {
             it.source == StyleImageSource.LIBRARY && it.styleId == styleId
         }
-        val atCap = firstItem.styleImages.size >= 3
+        val atCap = item.styleImages.size >= MAX_IMAGES_PER_CATEGORY
         if (!alreadyHas && !atCap) {
             val newRef = StyleImageRef(
                 source = StyleImageSource.LIBRARY,
                 styleId = styleId,
             )
-            val updatedItem = firstItem.copy(styleImages = firstItem.styleImages + newRef)
-            val updatedItems = listOf(updatedItem) + order.items.drop(1)
+            val updatedItems = order.items.map { current ->
+                if (current.id == itemId) current.copy(styleImages = current.styleImages + newRef) else current
+            }
             viewModelScope.launch {
                 val userId = authRepository.getCurrentUser()?.id ?: return@launch
                 when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
