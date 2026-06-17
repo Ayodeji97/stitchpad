@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import androidx.compose.foundation.clickable
@@ -1003,6 +1005,11 @@ private fun OrderDetailNotFound(
     }
 }
 
+/** First non-null, non-blank candidate, or null. Used to skip empty image sources that would
+ *  otherwise render as a stuck blank reference tile. */
+private fun firstNonBlank(vararg candidates: String?): String? =
+    candidates.firstOrNull { !it.isNullOrBlank() }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
@@ -1033,9 +1040,12 @@ private fun OrderDetailContent(
     val dueLabel = formatDueLabel(order, isOverdue)
     val styleImagesByItemId: Map<String, List<ReferenceImage>> = order.items.associate { item ->
         item.id to item.styleImages.mapIndexedNotNull { index, ref ->
+            // Drop blanks, not just nulls: a PENDING ref can arrive with photoUrl="" and no
+            // localPhotoPath, which would otherwise render a stuck blank tile (see fabricReferenceImages).
+            val style = state.styles[ref.styleId]
             val url = when (ref.source) {
-                StyleImageSource.LIBRARY -> state.styles[ref.styleId]?.let { it.localPhotoPath ?: it.photoUrl }
-                StyleImageSource.UPLOADED -> ref.localPhotoPath ?: ref.photoUrl
+                StyleImageSource.LIBRARY -> firstNonBlank(style?.localPhotoPath, style?.photoUrl)
+                StyleImageSource.UPLOADED -> firstNonBlank(ref.localPhotoPath, ref.photoUrl)
             }
             url?.let { ReferenceImage(url = it, sourceIndex = index) }
         }

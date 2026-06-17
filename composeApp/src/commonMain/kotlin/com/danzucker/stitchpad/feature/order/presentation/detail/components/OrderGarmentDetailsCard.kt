@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -265,14 +266,10 @@ private fun FabricColumn(
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val legacyUrl = item.fabricPhotoUrl
-    val urls = when {
-        item.fabricImages.isNotEmpty() -> item.fabricImages.map { it.localPhotoPath ?: it.photoUrl }
-        !legacyUrl.isNullOrBlank() -> listOf(legacyUrl)
-        else -> emptyList()
-    }
+    val refs = fabricReferenceImages(item.fabricImages, item.fabricPhotoUrl)
+    val urls = refs.map { it.url }
     val needsPhoto = urls.isEmpty()
-    val canAddPhoto = urls.size < MAX_IMAGES_PER_CATEGORY
+    val canAddPhoto = item.fabricImages.size < MAX_IMAGES_PER_CATEGORY
     val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
     val ctaLabel: StringResource? = when {
         !showCta -> null
@@ -295,14 +292,38 @@ private fun FabricColumn(
         canAdd = canAddPhoto,
         onCtaClick = onCtaClick,
         onAddClick = onAddClick,
-        onRemove = if (item.fabricImages.isNotEmpty()) {
-            { index -> onRemoveFabricImage(item.id, index) }
+        onRemove = if (refs.isNotEmpty()) {
+            { displayIndex ->
+                refs.getOrNull(displayIndex)?.sourceIndex?.let { onRemoveFabricImage(item.id, it) }
+            }
         } else {
             null
         },
         onImageClick = onImageClick,
         modifier = modifier,
     )
+}
+
+/**
+ * Resolves an item's fabric photos to renderable [ReferenceImage]s, dropping any ref with no
+ * usable source. A PENDING upload persists to Firestore as `photoUrl=""` with `localPhotoPath`
+ * re-hydrated from the offline outbox; once that outbox entry is gone the ref arrives with
+ * `localPhotoPath=null` + a BLANK `photoUrl`. Mapping that to `[""]` made the column believe a
+ * photo existed — a permanent LoadingDots tile with no "Add" CTA. We drop blanks so the empty
+ * state (and the Add CTA) returns, and we keep each surviving ref's ORIGINAL index so delete
+ * targets the correct `fabricImages` entry. Pure so it's unit-tested.
+ */
+internal fun fabricReferenceImages(
+    fabricImages: List<FabricImageRef>,
+    legacyUrl: String?,
+): List<ReferenceImage> = when {
+    fabricImages.isNotEmpty() -> fabricImages.mapIndexedNotNull { index, img ->
+        val url = img.localPhotoPath?.takeIf { it.isNotBlank() }
+            ?: img.photoUrl.takeIf { it.isNotBlank() }
+        url?.let { ReferenceImage(url = it, sourceIndex = index) }
+    }
+    !legacyUrl.isNullOrBlank() -> listOf(ReferenceImage(url = legacyUrl, sourceIndex = 0))
+    else -> emptyList()
 }
 
 /**
