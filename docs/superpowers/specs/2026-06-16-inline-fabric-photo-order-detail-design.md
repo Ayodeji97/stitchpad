@@ -49,9 +49,13 @@ Out of scope (unchanged):
 
 - **Entry:** Camera/Gallery bottom sheet (see above), reusing the order form's
   launch-after-dismiss pattern.
-- **Photo count:** Multiple, up to **3** per garment — matches the style cap
-  (`MAX_IMAGES_PER_CATEGORY = 3`). Added one at a time (`SelectionMode.Single`), repeatable —
-  which also avoids the peekaboo `Multiple(maxSelection<=1)` Android crash.
+- **Photo count (refined 2026-06-17):** the inline add handles the **first** fabric photo —
+  the empty-slot case. The detail card's fabric slot only surfaces an "Add fabric photo" CTA
+  when there are no photos yet (it switches to "Add fabric name" once a photo exists), so
+  adding a 2nd/3rd photo still goes through the edit form. The VM still **appends** and guards
+  the 3-image cap defensively (so it can never exceed it), but no multi-photo "add more" tile
+  is added to the detail card. Photos are picked one at a time (`SelectionMode.Single`), which
+  also avoids the peekaboo `Multiple(maxSelection<=1)` Android crash.
 - **First item only:** operates on `order.items.first()`, matching how the detail screen's
   style/fabric slots already behave.
 - **Upload feedback:** show the standard `LoadingDots` on the fabric tile while uploading
@@ -71,9 +75,10 @@ Out of scope (unchanged):
    `LaunchedEffect(showSheet, pendingSource)` "launch-after-dismiss" pattern copied from
    `OrderFormScreen` — which also sidesteps the iOS "present right after Compose sheet dismiss"
    timing bug.
-3. Pick one photo → tile shows `LoadingDots` → photo uploads inline → tile shows the image
+3. Pick one photo → tile shows `LoadingDots` → photo attaches inline → tile shows the image
    (offline-first: the local image appears immediately, syncs later).
-4. Repeatable until 3 images exist, after which the affordance is hidden.
+4. The slot now shows the photo; its CTA becomes "Add fabric name" (existing behavior).
+   Adding further fabric photos is done via the edit form.
 
 ## Changes by layer
 
@@ -120,15 +125,18 @@ Out of scope (unchanged):
 - Pass an `isUploadingFabric` flag into the garment card so the fabric tile shows `LoadingDots`.
 - Hide the add affordance when the first item's `fabricImages.size >= 3`.
 
-### 6. Tests (`OrderDetailViewModelTest`)
-Mirror the existing style-link tests:
-- `OnAddFabricClick` sets `showFabricSourceSheet = true` and does **not** emit
-  `NavigateToOrderForm`.
-- Success: `OnFabricPhotoPicked` → `uploadFabricPhoto` called → a `FabricImageRef` appended →
-  `updateOrder` called with the new `fabricImages`; `isUploadingFabric` ends false.
-- At cap: with 3 fabric images, `OnFabricPhotoPicked` is a no-op (no upload, no update).
-- Upload error: `errorMessage` set, no `updateOrder`, `isUploadingFabric` ends false.
-- Oversize: rejected, no upload.
+### 6. Verification
+There is **no `OrderDetailViewModelTest`** harness: `OrderDetailViewModel` takes ~12
+dependencies including platform types (`ImageLoader`, `PlatformContext`, `OrderReceiptSharer`)
+that aren't constructable in `commonTest`, which is why `linkExistingStyle` — the exact pattern
+this mirrors — also ships without a VM unit test. So this change is verified by:
+- **Build gates:** `./gradlew detekt`, `:composeApp:assembleDebug`, and
+  `:composeApp:compileKotlinIosSimulatorArm64` all green.
+- **The manual smoke test below** (Daniel is QA), which covers the end-to-end behaviour,
+  offline-first, error path, and the iOS sheet→picker timing.
+
+The VM handler is a faithful mirror of `linkExistingStyle` + the order form's fabric-upload
+block (both proven in production), keeping the orchestration identical to code already shipped.
 
 ## Data flow
 
@@ -167,8 +175,9 @@ double-write needed.
    to the form).
 2. Choose **Choose from gallery** → pick a photo → tile shows LoadingDots → fabric photo
    appears; still on Order Details.
-3. Tap again → **Take photo** → capture → second fabric photo appears.
-4. Add a 3rd → after the 3rd, the **Add fabric photo** affordance disappears.
+3. Repeat on another empty-slot order → **Take photo** → capture → fabric photo appears.
+4. After a photo exists, the slot's CTA reads **Add fabric name** (the add-photo CTA is gone);
+   adding more fabric photos goes through the edit form.
 5. Airplane mode → add a fabric photo → appears immediately from local cache; syncs on
    reconnect.
 6. Trigger an upload failure → snackbar error, tile unchanged, no spinner left stuck.
