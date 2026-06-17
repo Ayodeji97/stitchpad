@@ -50,23 +50,28 @@ class IosImageCompressor : ImageCompressor {
 }
 
 /**
- * Scales the longest edge down to [maxEdgePx] and encodes JPEG at [jpegQuality].
- * The UIImage's orientation is baked in by drawInRect. Returns null if encoding fails.
+ * Normalises orientation and scales the longest edge down to [maxEdgePx], then encodes
+ * JPEG at [jpegQuality]. Returns null if encoding fails.
  */
 @OptIn(ExperimentalForeignApi::class)
 internal fun UIImage.downscaledJpegBytes(maxEdgePx: Int, jpegQuality: Int): ByteArray? {
-    val resized = scaleToMaxEdge(maxEdgePx)
+    val resized = normalizedToMaxEdge(maxEdgePx)
     val jpegData = UIImageJPEGRepresentation(resized, jpegQuality / QUALITY_DIVISOR) ?: return null
     return jpegData.toByteArray()
 }
 
+/**
+ * Always redraws the image so its EXIF/UIImage orientation is baked into the pixels
+ * (UIImageJPEGRepresentation otherwise only writes an orientation tag that downstream
+ * consumers may ignore, uploading portrait shots sideways). Scales the longest edge to
+ * [maxEdgePx] when it exceeds it; otherwise keeps the original dimensions.
+ */
 @OptIn(ExperimentalForeignApi::class)
-private fun UIImage.scaleToMaxEdge(maxEdgePx: Int): UIImage {
+private fun UIImage.normalizedToMaxEdge(maxEdgePx: Int): UIImage {
     val (width, height) = size.useContents { width to height }
+    if (width <= 0.0 || height <= 0.0) return this
     val longest = maxOf(width, height)
-    // Nothing to do for an empty image or one already within the ceiling.
-    if (width <= 0.0 || height <= 0.0 || longest <= maxEdgePx.toDouble()) return this
-    val ratio = maxEdgePx.toDouble() / longest
+    val ratio = if (longest > maxEdgePx.toDouble()) maxEdgePx.toDouble() / longest else 1.0
     val targetWidth = width * ratio
     val targetHeight = height * ratio
     val targetSize = cValue<CGSize> {
