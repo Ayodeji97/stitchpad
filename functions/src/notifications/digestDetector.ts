@@ -7,7 +7,11 @@ function balanceRemaining(o: OrderScanDoc): number {
   const paid = o.payments.length > 0
     ? o.payments.reduce((sum, p) => sum + (p.amount || 0), 0)
     : (o.depositPaid ?? 0);
-  return Math.max(0, o.totalPrice - paid);
+  // Mirror the client: payable = subtotal minus the whole-order discount, floored at 0,
+  // then balance = payable minus what's been paid. Ignoring the discount here would
+  // tell the customer they still owe the pre-discount amount.
+  const payable = Math.max(0, o.totalPrice - (o.discount ?? 0));
+  return Math.max(0, payable - paid);
 }
 
 function summariseGarments(items: OrderScanDoc['items']): string {
