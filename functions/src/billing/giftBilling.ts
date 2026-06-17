@@ -30,7 +30,7 @@ import {
 import { computeSubscriptionGrant, addYears, toDate } from './subscriptionPeriod';
 import type { CurrentSubscription, SubscriptionGrant } from './subscriptionPeriod';
 import { buildGiftReceivedEmail, buildGiftClaimEmail } from './giftEmailTemplate';
-import { sendResendEmail } from '../email/resendClient';
+import { sendResendEmail, ResendError } from '../email/resendClient';
 
 const REGION = 'europe-west1';
 const CURRENCY = 'NGN';
@@ -49,6 +49,9 @@ const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
 /** Max periods a single gift can buy, per cadence (12 months or 5 years). Caps abuse / typo'd amounts. */
 const MAX_QUANTITY: Record<BillingCadence, number> = { monthly: 12, annual: 5 };
+
+/** Give up resending a public gift's claim email after this many failed attempts. */
+const MAX_CLAIM_EMAIL_ATTEMPTS = 5;
 
 export type GiftFlow = 'gift_me' | 'public';
 export type GiftStatus = 'pending' | 'paid' | 'claimed' | 'expired' | 'failed';
@@ -217,6 +220,16 @@ export const expireUnclaimedGifts = functions
   .timeZone('Africa/Lagos')
   .onRun(async () => {
     await expireUnclaimedGiftsHandler({ db: admin.firestore(), now: () => new Date() });
+  });
+
+export const resendUnclaimedGiftEmails = functions
+  .region(REGION)
+  // RESEND_API_KEY to re-send claim emails that didn't go out at webhook time.
+  .runWith({ secrets: ['RESEND_API_KEY'] })
+  .pubsub.schedule('0 * * * *') // hourly
+  .timeZone('Africa/Lagos')
+  .onRun(async () => {
+    await resendUnclaimedGiftEmailsHandler({ db: admin.firestore(), sendEmail: giftEmailSender() });
   });
 
 // ---------------------------------------------------------------------------
@@ -450,26 +463,28 @@ export async function applyGiftWebhook(data: PaystackGiftChargeData, deps: GiftW
         paidAt: admin.firestore.Timestamp.fromDate(paidAt),
         expiresAt,
         failureReason: null,
+        // Claim-email delivery marker: the sweep cron (resendUnclaimedGiftEmails)
+        // retries any gift left with needsClaimEmail=true if this first send fails.
+        needsClaimEmail: true,
+        claimEmailAttempts: 0,
+        claimEmailSentAt: null,
         updatedAt: nowTs,
       }, { merge: true });
 
-      const recipientEmail = gift.recipientEmail ?? null;
-      const code = gift.code ?? giftId;
-      const gifterName = gift.gifterName ?? undefined;
-      const note = gift.note ?? undefined;
+      // First send attempt happens now (best UX); deliverClaimEmail clears the
+      // marker on success or leaves it for the cron to retry on failure.
+      const giftForEmail = {
+        recipientEmail: gift.recipientEmail ?? null,
+        code: gift.code ?? giftId,
+        gifterName: gift.gifterName ?? null,
+        note: gift.note ?? null,
+        tier,
+        cadence,
+        quantity,
+        claimEmailAttempts: 0,
+      };
       afterCommit = async () => {
-        if (recipientEmail && deps.sendEmail) {
-          const msg = buildGiftClaimEmail({
-            gifterName,
-            note,
-            code,
-            claimUrl: `${CLAIM_LINK_BASE}?code=${encodeURIComponent(code)}`,
-            tier,
-            cadence,
-            quantity,
-          });
-          await deps.sendEmail({ to: recipientEmail, ...msg });
-        }
+        await deliverClaimEmail(deps.db, giftId, giftForEmail, deps.sendEmail);
       };
     }
   });
@@ -640,6 +655,91 @@ export async function expireUnclaimedGiftsHandler(deps: ExpireGiftsDeps): Promis
       }, { merge: true });
     }
     await batch.commit();
+  }
+}
+
+export interface ResendClaimEmailsDeps {
+  db: admin.firestore.Firestore;
+  sendEmail?: (params: { to: string; subject: string; html: string; text: string }) => Promise<void>;
+}
+
+/**
+ * Backstop sweep for public-gift claim emails that didn't go out at webhook time
+ * (e.g. Resend was briefly down). Re-sends any gift left with needsClaimEmail=true.
+ * The flag only exists on the small set of not-yet-delivered gifts, so the query
+ * is cheap and needs no composite index.
+ */
+export async function resendUnclaimedGiftEmailsHandler(deps: ResendClaimEmailsDeps): Promise<void> {
+  const pending = await deps.db.collection('gifts').where('needsClaimEmail', '==', true).get();
+  for (const doc of pending.docs) {
+    const gift = doc.data() as ClaimEmailGift;
+    if ((gift.claimEmailAttempts ?? 0) >= MAX_CLAIM_EMAIL_ATTEMPTS) continue; // safety; deliver also guards
+    await deliverClaimEmail(deps.db, doc.id, gift, deps.sendEmail);
+  }
+}
+
+interface ClaimEmailGift {
+  recipientEmail?: string | null;
+  code?: string | null;
+  gifterName?: string | null;
+  note?: string | null;
+  tier?: BillingTier;
+  cadence?: BillingCadence;
+  quantity?: number;
+  claimEmailAttempts?: number;
+}
+
+/**
+ * Sends a public gift's claim email and updates its delivery marker. Used by both
+ * the webhook's first attempt and the hourly sweep. Never throws — it records the
+ * outcome on the gift doc:
+ *  - success            → needsClaimEmail=false, claimEmailSentAt set
+ *  - permanent (4xx)    → needsClaimEmail=false (don't retry a bad address)
+ *  - transient (5xx/net)→ needsClaimEmail stays true until MAX_CLAIM_EMAIL_ATTEMPTS
+ */
+export async function deliverClaimEmail(
+  db: admin.firestore.Firestore,
+  giftId: string,
+  gift: ClaimEmailGift,
+  sendEmail?: (params: { to: string; subject: string; html: string; text: string }) => Promise<void>,
+): Promise<void> {
+  const giftRef = db.doc(`gifts/${giftId}`);
+  const recipientEmail = gift.recipientEmail ?? null;
+  if (!recipientEmail) {
+    await giftRef.set({ needsClaimEmail: false, claimEmailLastError: 'no_recipient_email' }, { merge: true });
+    return;
+  }
+  if (!sendEmail) return; // sender not configured this run — leave the flag for the next sweep
+
+  const code = gift.code ?? giftId;
+  try {
+    const msg = buildGiftClaimEmail({
+      gifterName: gift.gifterName ?? undefined,
+      note: gift.note ?? undefined,
+      code,
+      claimUrl: `${CLAIM_LINK_BASE}?code=${encodeURIComponent(code)}`,
+      tier: gift.tier as BillingTier,
+      cadence: gift.cadence as BillingCadence,
+      quantity: gift.quantity,
+    });
+    await sendEmail({ to: recipientEmail, ...msg });
+    await giftRef.set({
+      needsClaimEmail: false,
+      claimEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (err) {
+    const status = err instanceof ResendError ? err.status : undefined;
+    const permanent = typeof status === 'number' && status >= 400 && status < 500;
+    const attempts = (gift.claimEmailAttempts ?? 0) + 1;
+    const giveUp = permanent || attempts >= MAX_CLAIM_EMAIL_ATTEMPTS;
+    await giftRef.set({
+      needsClaimEmail: !giveUp,
+      claimEmailAttempts: attempts,
+      claimEmailLastError: err instanceof Error ? err.message : String(err),
+    }, { merge: true });
+    functions.logger.warn('gift claim email send failed', {
+      giftId, attempts, permanent, giveUp, error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

@@ -7,7 +7,10 @@ import {
   getPublicGiftProfileHandler,
   createGiftLinkHandler,
   expireUnclaimedGiftsHandler,
+  deliverClaimEmail,
+  resendUnclaimedGiftEmailsHandler,
 } from '../../billing/giftBilling';
+import { ResendError } from '../../email/resendClient';
 
 function ms(v: any): number {
   if (v == null) return NaN;
@@ -294,6 +297,20 @@ describe('applyGiftWebhook', () => {
     await applyGiftWebhook(giftChargeData('CODE123'), { db, now: () => NOW, sendEmail });
     expect(store.get('gifts/CODE123')).toMatchObject({ status: 'paid' });
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'ada@example.com' }));
+    // Successful send clears the delivery marker so the sweep won't re-send.
+    expect(store.get('gifts/CODE123').needsClaimEmail).toBe(false);
+  });
+
+  it('leaves needsClaimEmail set when the first send fails (sweep will retry)', async () => {
+    const sendEmail = jest.fn(async () => { throw new ResendError('Resend down', 503); });
+    const { store, db } = makeDb({
+      'gifts/CODE503': {
+        status: 'pending', flow: 'public', tier: 'pro', cadence: 'monthly',
+        amountKobo: 200_000, code: 'CODE503', recipientEmail: 'ada@example.com',
+      },
+    });
+    await applyGiftWebhook(giftChargeData('CODE503'), { db, now: () => NOW, sendEmail });
+    expect(store.get('gifts/CODE503')).toMatchObject({ status: 'paid', needsClaimEmail: true, claimEmailAttempts: 1 });
   });
 
   it('fails the gift on amount mismatch without touching the user', async () => {
@@ -428,5 +445,62 @@ describe('expireUnclaimedGiftsHandler', () => {
     expect(store.get('gifts/old').status).toBe('expired');
     expect(store.get('gifts/fresh').status).toBe('paid');
     expect(store.get('gifts/claimed').status).toBe('claimed');
+  });
+});
+
+describe('claim email retry (deliverClaimEmail + resendUnclaimedGiftEmailsHandler)', () => {
+  const baseGift = {
+    status: 'paid', flow: 'public', tier: 'pro', cadence: 'monthly',
+    code: 'ABC234', recipientEmail: 'ada@example.com', needsClaimEmail: true, claimEmailAttempts: 0,
+  };
+
+  it('clears the marker on a successful send', async () => {
+    const { store, db } = makeDb({ 'gifts/ABC234': { ...baseGift } });
+    const sendEmail = jest.fn(async () => {});
+    await deliverClaimEmail(db, 'ABC234', store.get('gifts/ABC234'), sendEmail);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'ada@example.com' }));
+    expect(store.get('gifts/ABC234').needsClaimEmail).toBe(false);
+  });
+
+  it('keeps retrying on a transient (5xx) failure', async () => {
+    const { store, db } = makeDb({ 'gifts/ABC234': { ...baseGift, claimEmailAttempts: 2 } });
+    const sendEmail = jest.fn(async () => { throw new ResendError('busy', 503); });
+    await deliverClaimEmail(db, 'ABC234', store.get('gifts/ABC234'), sendEmail);
+    expect(store.get('gifts/ABC234')).toMatchObject({ needsClaimEmail: true, claimEmailAttempts: 3 });
+  });
+
+  it('gives up on a permanent (4xx) failure — bad address, do not retry', async () => {
+    const { store, db } = makeDb({ 'gifts/ABC234': { ...baseGift } });
+    const sendEmail = jest.fn(async () => { throw new ResendError('invalid to address', 422); });
+    await deliverClaimEmail(db, 'ABC234', store.get('gifts/ABC234'), sendEmail);
+    expect(store.get('gifts/ABC234')).toMatchObject({ needsClaimEmail: false, claimEmailAttempts: 1 });
+  });
+
+  it('gives up after MAX attempts on transient failures', async () => {
+    const { store, db } = makeDb({ 'gifts/ABC234': { ...baseGift, claimEmailAttempts: 4 } });
+    const sendEmail = jest.fn(async () => { throw new ResendError('busy', 500); });
+    await deliverClaimEmail(db, 'ABC234', store.get('gifts/ABC234'), sendEmail);
+    expect(store.get('gifts/ABC234')).toMatchObject({ needsClaimEmail: false, claimEmailAttempts: 5 });
+  });
+
+  it('stops trying when there is no recipient email', async () => {
+    const { store, db } = makeDb({ 'gifts/ABC234': { ...baseGift, recipientEmail: null } });
+    const sendEmail = jest.fn(async () => {});
+    await deliverClaimEmail(db, 'ABC234', store.get('gifts/ABC234'), sendEmail);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(store.get('gifts/ABC234').needsClaimEmail).toBe(false);
+  });
+
+  it('sweep re-sends every gift flagged needsClaimEmail', async () => {
+    const { store, db } = makeDb({
+      'gifts/G1': { ...baseGift, code: 'G1', recipientEmail: 'a@x.com' },
+      'gifts/G2': { ...baseGift, code: 'G2', recipientEmail: 'b@x.com' },
+      'gifts/done': { ...baseGift, code: 'done', needsClaimEmail: false },
+    });
+    const sendEmail = jest.fn(async () => {});
+    await resendUnclaimedGiftEmailsHandler({ db, sendEmail });
+    expect(sendEmail).toHaveBeenCalledTimes(2); // G1 + G2, not the already-done one
+    expect(store.get('gifts/G1').needsClaimEmail).toBe(false);
+    expect(store.get('gifts/G2').needsClaimEmail).toBe(false);
   });
 });
