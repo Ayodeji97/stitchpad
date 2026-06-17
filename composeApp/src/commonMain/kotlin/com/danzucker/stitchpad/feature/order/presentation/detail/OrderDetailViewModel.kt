@@ -288,28 +288,37 @@ class OrderDetailViewModel(
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
             OrderDetailAction.OnAddStyleClick ->
                 _state.update { it.copy(showStylePickerSheet = true) }
-            OrderDetailAction.OnAddFabricClick -> {
+            is OrderDetailAction.OnAddFabricClick -> {
                 // Open the inline Camera/Gallery sheet instead of navigating to the form.
                 // Defensive cap guard (the CTA only shows when the slot is empty).
-                val firstItem = _state.value.order?.items?.firstOrNull()
-                if (firstItem != null && firstItem.fabricImages.size < MAX_FABRIC_IMAGES) {
-                    _state.update { it.copy(showFabricSourceSheet = true) }
+                val current = _state.value
+                val item = current.order?.items?.getOrNull(action.itemIndex)
+                if (!current.isUploadingFabric && item != null && item.fabricImages.size < MAX_FABRIC_IMAGES) {
+                    _state.update {
+                        it.copy(showFabricSourceSheet = true, fabricSourceItemIndex = action.itemIndex)
+                    }
                 }
             }
             OrderDetailAction.OnDismissFabricSourceSheet ->
-                _state.update { it.copy(showFabricSourceSheet = false) }
-            is OrderDetailAction.OnFabricPhotoPicked -> addFabricPhoto(action.photoBytes)
-            OrderDetailAction.OnAddFabricNameClick -> {
-                val currentName = _state.value.order?.items?.firstOrNull()?.fabricName.orEmpty()
+                _state.update { it.copy(showFabricSourceSheet = false, fabricSourceItemIndex = null) }
+            is OrderDetailAction.OnFabricPhotoPicked -> addFabricPhoto(action.itemIndex, action.photoBytes)
+            is OrderDetailAction.OnAddFabricNameClick -> {
+                val item = _state.value.order?.items?.getOrNull(action.itemIndex) ?: return
                 _state.update {
-                    it.copy(showFabricNameDialog = true, fabricNameDraft = currentName)
+                    it.copy(
+                        showFabricNameDialog = true,
+                        fabricNameDraft = item.fabricName.orEmpty(),
+                        fabricNameItemIndex = action.itemIndex,
+                    )
                 }
             }
             is OrderDetailAction.OnFabricNameDraftChange ->
                 _state.update { it.copy(fabricNameDraft = action.text) }
             OrderDetailAction.OnSaveFabricName -> saveFabricName()
             OrderDetailAction.OnDismissFabricNameDialog ->
-                _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
+                _state.update {
+                    it.copy(showFabricNameDialog = false, fabricNameDraft = "", fabricNameItemIndex = null)
+                }
             OrderDetailAction.OnAddPhoneClick -> {
                 val customerId = _state.value.order?.customerId ?: return
                 viewModelScope.launch {
@@ -385,11 +394,18 @@ class OrderDetailViewModel(
     private fun saveFabricName() {
         val snapshot = _state.value
         val order = snapshot.order
-        val firstItem = order?.items?.firstOrNull()
+        val itemIndex = snapshot.fabricNameItemIndex
+        val item = itemIndex?.let { order?.items?.getOrNull(it) }
         val newName = snapshot.fabricNameDraft.trim().ifBlank { null }
-        _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "") }
-        if (order == null || firstItem == null || firstItem.fabricName == newName) return
-        val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
+        _state.update { it.copy(showFabricNameDialog = false, fabricNameDraft = "", fabricNameItemIndex = null) }
+        if (order == null || item == null || item.fabricName == newName) return
+        val updatedItems = order.items.mapIndexed { index, current ->
+            if (index == itemIndex) {
+                current.copy(id = current.id.ifBlank { "item-$itemIndex" }, fabricName = newName)
+            } else {
+                current
+            }
+        }
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
@@ -630,8 +646,9 @@ class OrderDetailViewModel(
     }
 
     @Suppress("ReturnCount")
-    private fun addFabricPhoto(photoBytes: ByteArray) {
-        _state.update { it.copy(showFabricSourceSheet = false) }
+    private fun addFabricPhoto(itemIndex: Int, photoBytes: ByteArray) {
+        if (_state.value.isUploadingFabric) return
+        _state.update { it.copy(showFabricSourceSheet = false, fabricSourceItemIndex = null) }
         if (photoBytes.size > MAX_ORDER_PHOTO_BYTES) {
             _state.update {
                 it.copy(errorMessage = UiText.StringResourceText(Res.string.error_order_photo_too_large))
@@ -639,11 +656,12 @@ class OrderDetailViewModel(
             return
         }
         val order = _state.value.order ?: return
-        val firstItem = order.items.firstOrNull() ?: return
-        if (firstItem.fabricImages.size >= MAX_FABRIC_IMAGES) return
+        val item = order.items.getOrNull(itemIndex) ?: return
+        if (item.fabricImages.size >= MAX_FABRIC_IMAGES) return
 
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val uploadItemKey = item.id.ifBlank { "item-$itemIndex" }
             _state.update { it.copy(isUploadingFabric = true) }
             // Offline-first: uploadFabricPhotos saves a local copy + enqueues the upload and
             // returns (localPath, storagePath); the local image renders immediately and syncs
@@ -652,7 +670,7 @@ class OrderDetailViewModel(
                 val upload = orderRepository.uploadFabricPhotos(
                     userId = userId,
                     orderId = order.id,
-                    itemId = firstItem.id,
+                    itemId = uploadItemKey,
                     photoBytesList = listOf(photoBytes),
                 )
             ) {
@@ -665,8 +683,16 @@ class OrderDetailViewModel(
                             localPhotoPath = localPath,
                         )
                     }
-                    val updatedItem = firstItem.copy(fabricImages = firstItem.fabricImages + newRefs)
-                    val updatedItems = listOf(updatedItem) + order.items.drop(1)
+                    val updatedItems = order.items.mapIndexed { index, current ->
+                        if (index == itemIndex) {
+                            current.copy(
+                                id = current.id.ifBlank { uploadItemKey },
+                                fabricImages = current.fabricImages + newRefs,
+                            )
+                        } else {
+                            current
+                        }
+                    }
                     when (
                         val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))
                     ) {
