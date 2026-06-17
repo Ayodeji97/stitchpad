@@ -416,6 +416,10 @@ class FirebaseOrderRepository(
     }
 
     private suspend fun deleteOrderImagePath(storagePath: String) {
+        cancelPendingOrderImageUploadAndDeleteStorage(storagePath)
+    }
+
+    private suspend fun cancelPendingOrderImageUploadAndDeleteStorage(storagePath: String) {
         uploadOutbox.cancel(uploadJobId(OfflineUploadJobType.ORDER_FABRIC_IMAGE, storagePath))
         uploadOutbox.cancel(uploadJobId(OfflineUploadJobType.ORDER_STYLE_IMAGE, storagePath))
         uploadOutbox.enqueue(
@@ -560,7 +564,11 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         paths.filter { it.isNotBlank() }.forEach { path ->
             runCatching {
-                deleteOrderImagePath(path)
+                cancelPendingOrderImageUploadAndDeleteStorage(path)
+            }.onFailure { throwable ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "deleteStoragePaths cleanup enqueue failed path=$path"
+                }
             }
         }
         return Result.Success(Unit)

@@ -66,10 +66,12 @@ sealed interface OrderDetailAction {
     data object OnCallClick : OrderDetailAction
     data object OnSendReminderClick : OrderDetailAction
     data object OnAddStyleClick : OrderDetailAction
-    data class OnAddFabricClick(val itemIndex: Int) : OrderDetailAction
-    data class OnFabricPhotoPicked(val itemIndex: Int, val photoBytes: ByteArray) : OrderDetailAction
-    data object OnDismissFabricSourceSheet : OrderDetailAction
-    data class OnAddFabricNameClick(val itemIndex: Int) : OrderDetailAction
+    data class OnAddStylePhoto(val photoBytes: ByteArray) : OrderDetailAction
+    data class OnRemoveStyleImage(val index: Int) : OrderDetailAction
+    data object OnAddFabricClick : OrderDetailAction
+    data class OnAddFabricPhoto(val itemId: String, val photoBytes: ByteArray) : OrderDetailAction
+    data class OnRemoveFabricImage(val itemId: String, val index: Int) : OrderDetailAction
+    data object OnAddFabricNameClick : OrderDetailAction
     data class OnFabricNameDraftChange(val text: String) : OrderDetailAction
     data object OnSaveFabricName : OrderDetailAction
     data object OnDismissFabricNameDialog : OrderDetailAction
