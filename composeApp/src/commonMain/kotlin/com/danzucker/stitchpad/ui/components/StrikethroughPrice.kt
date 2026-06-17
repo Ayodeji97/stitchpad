@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -42,9 +43,11 @@ fun StrikethroughPrice(
         return
     }
     val struck: @Composable () -> Unit = {
+        // Match the net total's size (just lighter weight) so the strikethrough is
+        // clearly legible on dark surfaces — labelSmall was too faint to read.
         Text(
             text = "₦${formatPrice(grossPrice)}",
-            style = MaterialTheme.typography.labelSmall,
+            style = netStyle.copy(fontWeight = FontWeight.Normal),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textDecoration = TextDecoration.LineThrough,
         )
