@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
+import stitchpad.composeapp.generated.resources.error_order_discount_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
@@ -658,6 +659,14 @@ class OrderFormViewModel(
             return
         }
 
+        // Reject a discount above the subtotal rather than silently clamping it
+        // (which would persist a smaller discount than the user typed). The
+        // coerceIn in executeSave() stays as defence-in-depth for direct entry.
+        if (discountExceedsSubtotal(formItems, s.discount)) {
+            setError(Res.string.error_order_discount_exceeds_total)
+            return
+        }
+
         // Gate: in edit mode, if the user changed the deposit AND any payments
         // already exist on the order, intercept the save with a confirmation
         // prompt so the destructive replace is explicit.
@@ -680,6 +689,21 @@ class OrderFormViewModel(
         }
 
         executeSave()
+    }
+
+    /**
+     * True when the typed discount exceeds the order subtotal (price × quantity
+     * summed over valid items). Mirrors the subtotal math in [executeSave] so
+     * the validation and the persisted figures agree.
+     */
+    private fun discountExceedsSubtotal(
+        formItems: List<OrderItemFormState>,
+        typedDiscount: String,
+    ): Boolean {
+        val subtotal = formItems.sumOf {
+            (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1)
+        }
+        return (typedDiscount.toDoubleOrNull() ?: 0.0) > subtotal
     }
 
     @OptIn(ExperimentalUuidApi::class)

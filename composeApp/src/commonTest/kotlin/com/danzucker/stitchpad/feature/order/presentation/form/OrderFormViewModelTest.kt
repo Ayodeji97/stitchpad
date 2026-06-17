@@ -395,7 +395,7 @@ class OrderFormViewModelTest {
     }
 
     @Test
-    fun save_inCreateMode_discountExceedingTotal_clampsToTotal() = runTest {
+    fun save_inCreateMode_discountExceedingTotal_isRejected() = runTest {
         val vm = createViewModel(orderId = null)
 
         vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
@@ -405,6 +405,24 @@ class OrderFormViewModelTest {
         vm.onAction(OrderFormAction.OnDiscountChange("9000"))
         vm.onAction(OrderFormAction.OnSave)
 
+        // A discount above the subtotal is rejected, not clamped: nothing is
+        // saved and the user sees an error so they can fix the figure.
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun save_inCreateMode_discountEqualToTotal_savesFullDiscount() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnDiscountChange("5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        // A discount exactly equal to the subtotal is allowed (free order).
         val created = orderRepository.lastCreatedOrder
         assertNotNull(created)
         assertEquals(5_000.0, created.discount)
