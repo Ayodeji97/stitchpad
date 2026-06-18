@@ -56,10 +56,12 @@
 # ---------------------------------------------------------------------------
 # Firebase Crashlytics — keep stack traces de-obfuscatable + readable.
 # The firebase-crashlytics-gradle plugin auto-uploads the R8 mapping file on
-# release, but we still want source/line attributes preserved.
+# release, so obfuscated class names are de-obfuscated in the console; we only
+# need the source/line attributes preserved here. (Deliberately NOT keeping
+# `* extends java.lang.Exception` — that blanket rule blocks shrinking of every
+# exception subclass and is redundant once the mapping file is uploaded.)
 # ---------------------------------------------------------------------------
 -keepattributes SourceFile,LineNumberTable
--keep public class * extends java.lang.Exception
 
 # ---------------------------------------------------------------------------
 # Coroutines — R8-safe, but silence the optional debug-probes reflection warning.
