@@ -188,6 +188,8 @@ describe('paystackWebhookHandler', () => {
       subscriptionTier: 'pro',
       subscriptionStatus: 'active',
       subscriptionRenews: false,
+      // Provenance marked so a stale Apple downgrade can't clobber this grant.
+      subscriptionSource: 'paystack',
     });
     expect(store.get(`users/uid-1/billingTransactions/${reference}`)).toMatchObject({
       status: 'paid',
