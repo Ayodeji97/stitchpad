@@ -164,7 +164,16 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            // R8 code shrinking + resource shrinking. The bulk of the APK was
+            // unshrunk dex (materialIconsExtended alone ships thousands of unused
+            // icons). Keep rules live in proguard-rules.pro — the kotlinx.serialization
+            // rules there are load-bearing for GitLive Firestore DTOs.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("release")
         }
     }
