@@ -568,18 +568,20 @@ async function commitAppleState(
     // subscription, a stale Apple notification must not revoke current access.
     writeUserDoc = ownsCurrentEntitlement;
   } else {
-    // An active grant normally wins — a verified Apple purchase is a real, current
-    // entitlement. But it must never REDUCE a higher-tier entitlement owned by a
-    // different, still-active subscription (e.g. Paystack Atelier while an older
-    // Apple Pro renews). Block only that strict-downgrade case; self-owned
-    // renewals and equal/upgrade grants still write.
-    const currentActive = userData.subscriptionStatus === 'active'
+    // An active grant wins over Apple/nothing/an expired sub, but must NOT take
+    // over the SHARED doc while a different subscription's entitlement is still
+    // active — even at an equal or lower tier. Taking ownership would overwrite
+    // subscriptionSource/appleOriginalTransactionId, so a later Apple EXPIRED/
+    // REFUND would then satisfy ownsCurrentEntitlement and revoke access that
+    // still belongs to the foreign (e.g. Paystack) sub. The Apple sub stays
+    // recorded in its billing/index docs; the daily reconcile re-applies it once
+    // the foreign entitlement lapses.
+    const foreignActive = !ownsCurrentEntitlement
+      && userData.subscriptionStatus === 'active'
+      && tierRank(userData.subscriptionTier) > 0
       && (userData.subscriptionEndsAt == null
         || userData.subscriptionEndsAt.toMillis() > now.getTime());
-    const wouldReduceForeignHigherTier = !ownsCurrentEntitlement
-      && currentActive
-      && tierRank(userData.subscriptionTier) > tierRank(desired.tier);
-    writeUserDoc = !wouldReduceForeignHigherTier;
+    writeUserDoc = !foreignActive;
   }
 
   if (writeUserDoc) {

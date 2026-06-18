@@ -314,6 +314,34 @@ describe('appStoreServerNotificationsHandler', () => {
     });
   });
 
+  it('does not take over an equal-tier active Paystack entitlement (no later wrongful revoke)', async () => {
+    // User has an active Paystack PRO sub and an Apple PRO sub at the SAME tier.
+    // The Apple renewal must NOT overwrite subscriptionSource to 'apple' — doing so
+    // would let a later Apple EXPIRED revoke the still-active Paystack entitlement.
+    const { db, store } = fakeDb({
+      'appleSubscriptions/orig-1': { uid: 'uid-1' },
+      'users/uid-1': {
+        subscriptionTier: 'pro',
+        subscriptionStatus: 'active',
+        subscriptionSource: 'paystack',
+      },
+    });
+    const verifier = fakeVerifier({
+      verifyNotification: jest.fn(async () => notification('DID_RENEW', txnFor('uid-1', {
+        signedDate: new Date('2026-07-01T00:00:00Z').getTime(),
+      }))),
+    });
+    await appStoreServerNotificationsHandler('payload', {
+      db: db as never, verifier, now: () => new Date('2026-07-01T00:01:00Z'),
+    });
+    // Ownership stays with Paystack — Apple did not clobber the shared doc.
+    expect(store.get('users/uid-1')).toMatchObject({
+      subscriptionTier: 'pro',
+      subscriptionStatus: 'active',
+      subscriptionSource: 'paystack',
+    });
+  });
+
   it('ignores a stale, out-of-order notification (older signedDate)', async () => {
     const { db, store } = fakeDb({
       'appleSubscriptions/orig-1': { uid: 'uid-1' },
