@@ -55,8 +55,10 @@ import stitchpad.composeapp.generated.resources.upgrade_billed_annually
 import stitchpad.composeapp.generated.resources.upgrade_billed_monthly
 import stitchpad.composeapp.generated.resources.upgrade_cadence_annual
 import stitchpad.composeapp.generated.resources.upgrade_cadence_monthly
+import stitchpad.composeapp.generated.resources.upgrade_link_separator
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
 import stitchpad.composeapp.generated.resources.upgrade_price_loading
+import stitchpad.composeapp.generated.resources.upgrade_privacy_policy
 import stitchpad.composeapp.generated.resources.upgrade_pro_annual
 import stitchpad.composeapp.generated.resources.upgrade_pro_name
 import stitchpad.composeapp.generated.resources.upgrade_pro_price
@@ -66,6 +68,7 @@ import stitchpad.composeapp.generated.resources.upgrade_starting_checkout
 import stitchpad.composeapp.generated.resources.upgrade_subscribe
 import stitchpad.composeapp.generated.resources.upgrade_terms
 import stitchpad.composeapp.generated.resources.upgrade_terms_apple
+import stitchpad.composeapp.generated.resources.upgrade_terms_of_use
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,6 +214,30 @@ fun UpgradeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
+
+            // Functional Privacy Policy + Terms of Use links (Apple Guideline 3.1.2).
+            Row(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { onAction(UpgradeAction.OnPrivacyClick) }) {
+                    Text(
+                        text = stringResource(Res.string.upgrade_privacy_policy),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.upgrade_link_separator),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { onAction(UpgradeAction.OnTermsClick) }) {
+                    Text(
+                        text = stringResource(Res.string.upgrade_terms_of_use),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
 
             // Apple requires a "Restore purchases" affordance for subscriptions.
             if (state.checkoutProvider == CheckoutProvider.APPLE) {
