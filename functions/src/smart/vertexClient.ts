@@ -13,7 +13,7 @@ const MODEL_ID = 'gemini-3.1-flash-lite';
  * tested with a fake client (no real LLM calls in CI — cost + flake).
  */
 export interface VertexClient {
-  generateText(args: { systemPrompt: string; userPrompt: string }): Promise<string>;
+  generateText(args: { systemPrompt: string; userPrompt: string; maxOutputTokens?: number }): Promise<string>;
 }
 
 let cachedClient: VertexClient | null = null;
@@ -26,14 +26,14 @@ export function getVertexClient(): VertexClient {
   const ai = new GoogleGenAI({ vertexai: true, project: PROJECT_ID, location: LOCATION });
 
   cachedClient = {
-    async generateText({ systemPrompt, userPrompt }) {
+    async generateText({ systemPrompt, userPrompt, maxOutputTokens = 200 }) {
       const response = await ai.models.generateContent({
         model: MODEL_ID,
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
         config: {
           systemInstruction: systemPrompt,
           temperature: 0.7,
-          maxOutputTokens: 200,
+          maxOutputTokens,
         },
       });
       const text = response.text;

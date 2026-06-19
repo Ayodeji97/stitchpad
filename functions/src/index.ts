@@ -70,3 +70,4 @@ export {
   expireUnclaimedGifts,
   resendUnclaimedGiftEmails,
 } from './billing/giftBilling';
+export { whatsappWebhook } from './whatsapp';
