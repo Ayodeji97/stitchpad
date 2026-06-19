@@ -55,6 +55,7 @@ import stitchpad.composeapp.generated.resources.upgrade_billed_annually
 import stitchpad.composeapp.generated.resources.upgrade_billed_monthly
 import stitchpad.composeapp.generated.resources.upgrade_cadence_annual
 import stitchpad.composeapp.generated.resources.upgrade_cadence_monthly
+import stitchpad.composeapp.generated.resources.upgrade_link_separator
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
 import stitchpad.composeapp.generated.resources.upgrade_price_loading
 import stitchpad.composeapp.generated.resources.upgrade_privacy_policy
@@ -226,7 +227,7 @@ fun UpgradeScreen(
                     )
                 }
                 Text(
-                    text = "·",
+                    text = stringResource(Res.string.upgrade_link_separator),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
