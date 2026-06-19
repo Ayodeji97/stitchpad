@@ -3,10 +3,6 @@ package com.danzucker.stitchpad.core.media
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
@@ -25,7 +21,6 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 
 @Stable
@@ -111,94 +106,10 @@ private fun launchCapture(
 private const val MAX_DIM = 1920
 private const val JPEG_QUALITY = 85
 
-// Single ownership point for recycling: the `finally` below recycles every
-// bitmap this function allocated, each exactly once (recycleIfDistinct guards
-// against double-recycling shared instances). Any RuntimeException from decode/
-// rotate/scale propagates after cleanup runs.
-@Suppress("ReturnCount")
+// Reads the captured JPEG and runs it through the same downscale used for gallery
+// picks (see AndroidImageCompressor). Falls back to the original bytes if the file
+// can't be decoded; null only when it can't be read at all.
 private fun File.toDownscaledJpegBytes(): ByteArray? {
     val raw = runCatching { readBytes() }.getOrNull() ?: return null
-
-    val dimensions = raw.imageDimensions() ?: return raw
-    val decoded = BitmapFactory.decodeByteArray(
-        raw, 0, raw.size,
-        BitmapFactory.Options().apply { inSampleSize = dimensions.sampleSize() }
-    ) ?: return raw
-
-    val rotation = runCatching {
-        ExifInterface(absolutePath).rotationDegrees()
-    }.getOrDefault(0)
-
-    var oriented: Bitmap? = null
-    var scaled: Bitmap? = null
-    try {
-        oriented = if (rotation == 0) decoded else decoded.rotated(rotation)
-        scaled = oriented.scaledToMaxDimension()
-        return scaled.toJpegBytes()
-    } finally {
-        scaled?.recycleIfDistinct(oriented ?: decoded, decoded)
-        oriented?.recycleIfDistinct(decoded)
-        decoded.recycle()
-    }
-}
-
-private data class ImageDimensions(
-    val width: Int,
-    val height: Int
-) {
-    fun sampleSize(): Int {
-        var sampleSize = 1
-        while (width / (sampleSize * 2) >= MAX_DIM || height / (sampleSize * 2) >= MAX_DIM) {
-            sampleSize *= 2
-        }
-        return sampleSize
-    }
-}
-
-private fun Bitmap.toJpegBytes(): ByteArray {
-    val out = ByteArrayOutputStream()
-    compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-    return out.toByteArray()
-}
-
-private fun ByteArray.imageDimensions(): ImageDimensions? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(this, 0, size, bounds)
-    return if (bounds.outWidth > 0 && bounds.outHeight > 0) {
-        ImageDimensions(bounds.outWidth, bounds.outHeight)
-    } else {
-        null
-    }
-}
-
-private fun Bitmap.scaledToMaxDimension(): Bitmap {
-    val longEdge = maxOf(width, height).toFloat()
-    val scale = longEdge / MAX_DIM
-    return if (scale > 1f) {
-        val newW = (width / scale).toInt().coerceAtLeast(1)
-        val newH = (height / scale).toInt().coerceAtLeast(1)
-        Bitmap.createScaledBitmap(this, newW, newH, true)
-    } else {
-        this
-    }
-}
-
-private fun Bitmap.recycleIfDistinct(vararg others: Bitmap) {
-    if (others.none { this === it }) {
-        recycle()
-    }
-}
-
-private fun Bitmap.rotated(degrees: Int): Bitmap {
-    val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
-    return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
-}
-
-private fun ExifInterface.rotationDegrees(): Int = when (
-    getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED)
-) {
-    ExifInterface.ORIENTATION_ROTATE_90 -> 90
-    ExifInterface.ORIENTATION_ROTATE_180 -> 180
-    ExifInterface.ORIENTATION_ROTATE_270 -> 270
-    else -> 0
+    return downscaleJpegBytes(raw, MAX_DIM, JPEG_QUALITY) ?: raw
 }

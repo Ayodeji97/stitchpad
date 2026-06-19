@@ -71,6 +71,11 @@
     <!-- Splash -->
     <string name="splash_tagline">Your tailor's notebook</string>
 
+    <!-- Welcome (logged-out video landing) -->
+    <string name="welcome_headline">Every measurement, order, and customer in one place.</string>
+    <string name="welcome_get_started">Get started</string>
+    <string name="welcome_sign_in">Sign in</string>
+
     <!-- Onboarding carousel -->
     <string name="onboarding_title_1">Never lose a customer's measurements again</string>
     <string name="onboarding_subtitle_1">Store chest, waist, hip and all body measurements safely in one place.</string>
@@ -428,17 +433,25 @@
     <string name="settings_measurement_unit_label">Measurement unit</string>
 
     <!-- Style gallery -->
-    <string name="style_gallery_title">Styles</string>
+    <string name="style_gallery_title">Closet</string>
+    <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
-    <string name="style_description_label">Description</string>
+    <string name="style_description_label">Description (optional)</string>
     <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
+    <string name="style_pick_photos">Tap to add photos</string>
     <string name="style_change_photo">Change photo</string>
+    <!-- Shown above the picked-photos grid; count is always 2 or more here. -->
+    <string name="style_photos_selected">%1$d photos selected · tap to change</string>
     <string name="style_save_button">Save style</string>
     <string name="style_empty_title">No styles yet</string>
     <string name="style_empty_subtitle">Add photos of past work or inspiration for this customer.</string>
-    <string name="style_section_header">STYLES</string>
+    <string name="style_inspiration_empty_title">No saved styles yet</string>
+    <string name="style_inspiration_empty_subtitle">Save looks you love here, then use them for any customer.</string>
+    <string name="style_section_header">CLOSET</string>
+    <!-- Prominent closet row title, e.g. "Hauwa&apos;s Closet". Arg is the customer&apos;s first name. -->
+    <string name="style_closet_name_format">%1$s&apos;s Closet</string>
     <string name="style_section_count_singular">%1$d style</string>
     <string name="style_section_count_plural">%1$d styles</string>
     <string name="style_section_empty_cta">Add a style</string>
@@ -450,7 +463,57 @@
     <string name="style_description_required">Please enter a description.</string>
     <string name="style_photo_required">Please pick a photo first.</string>
 
+    <!-- Style copy / move between customers -->
+    <string name="style_action_copy">Copy to another customer</string>
+    <string name="style_action_move">Move to another customer</string>
+    <string name="style_action_delete">Delete style</string>
+    <string name="style_transfer_copy_title">Copy to</string>
+    <string name="style_transfer_move_title">Move to</string>
+    <string name="style_transfer_empty">No other customers to send this to yet.</string>
+    <string name="style_copied_snackbar">Copied to %1$s</string>
+    <string name="style_moved_snackbar">Moved to %1$s</string>
+    <string name="style_transfer_view_cta">View</string>
+    <string name="style_transfer_choose_folder">Choose a folder</string>
+
+    <!-- Style Collections — folders grid -->
+    <string name="style_folders_default_name">My styles</string>
+    <string name="style_folders_create_title">New folder</string>
+    <string name="style_folder_name_placeholder">e.g. Corset</string>
+    <string name="style_folder_duplicate_name">A folder with that name already exists.</string>
+    <string name="style_folders_rename_title">Rename folder</string>
+    <string name="style_folder_delete_title">Delete folder?</string>
+    <string name="style_folder_delete_message">All styles inside this folder will also be deleted. This cannot be undone.</string>
+    <string name="style_folder_count">%1$d styles</string>
+    <string name="style_folders_create_cd">New folder</string>
+    <string name="style_folder_full_snackbar">This folder is full (%1$d styles). Upgrade for more room.</string>
+    <string name="style_folder_full_action">Upgrade</string>
+    <string name="style_folder_batch_over_cap">This folder holds %1$d styles. Remove some and try again.</string>
+    <string name="style_folder_action_rename">Rename</string>
+    <string name="style_folder_action_delete">Delete</string>
+
+    <!-- Style cap-reached upgrade sheet -->
+    <string name="style_cap_folder_eyebrow">FOLDER LIMIT REACHED</string>
+    <string name="style_cap_style_eyebrow">STYLE LIMIT REACHED</string>
+    <string name="style_cap_folder_title">You&apos;ve filled your folders</string>
+    <string name="style_cap_style_title">You&apos;ve reached your style limit</string>
+    <string name="style_cap_folder_body">You&apos;ve reached your plan&apos;s folder limit. Upgrade to create more folders and keep your collections organised.</string>
+    <string name="style_cap_style_body">You&apos;ve reached your plan&apos;s style limit. Upgrade for more room — organise your styles into folders and save many more.</string>
+    <string name="style_cap_upgrade_pro">Upgrade to Tailor Pro</string>
+    <string name="style_cap_upgrade_atelier">Upgrade to Tailor Atelier</string>
+    <string name="style_cap_max_title">You&apos;re on our top plan</string>
+    <string name="style_cap_max_body">Tailor Atelier is our highest tier — you&apos;ve already unlocked everything StitchPad has to offer.</string>
+    <string name="style_cap_limit_title">You&apos;ve reached the limit</string>
+    <string name="style_cap_limit_body">This is the most folders a customer&apos;s closet can hold on any plan. Remove one to make room, or keep adding styles to your existing folders.</string>
+    <string name="style_cap_dismiss">Not now</string>
+    <string name="style_cap_got_it">Got it</string>
+
+    <!-- Style read-only (locked style — Free tier over cap) -->
+    <string name="style_readonly_upgrade_cta">Upgrade to edit</string>
+    <string name="style_readonly_hint">This style is locked. Upgrade to Pro to edit it.</string>
+    <string name="style_locked_a11y">Locked. Upgrade to edit.</string>
+
     <!-- Style errors -->
+    <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>
     <string name="error_style_not_found">Style not found</string>
     <string name="error_style_unknown">Could not save style. Please try again.</string>
     <string name="error_photo_too_large">Photo is too large. Please pick one under 5 MB.</string>
@@ -465,8 +528,13 @@
     <string name="order_empty_ready_title">No orders ready</string>
     <string name="order_empty_delivered_title">No delivered orders</string>
     <string name="order_empty_filtered_subtitle">Try another tab to see your orders</string>
+    <string name="order_empty_archived_title">No archived orders</string>
+    <string name="order_empty_archived_subtitle">Orders you archive show up here. You can restore them anytime.</string>
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
+    <string name="order_filter_archived">Archived</string>
+    <string name="order_restore_cta">Restore</string>
+    <string name="order_restored_snackbar">Order restored</string>
     <string name="order_items_count_singular">%1$d item</string>
     <string name="order_items_count_plural">%1$d items</string>
     <string name="order_overdue_label">Overdue</string>
@@ -544,7 +612,10 @@
     <string name="order_form_price_label">Unit price (₦)</string>
     <string name="order_form_line_total">%1$d × ₦%2$s = ₦%3$s</string>
     <string name="order_form_summary_title">Order summary</string>
+    <string name="order_form_summary_subtotal">Subtotal</string>
     <string name="order_form_summary_total">Total</string>
+    <string name="order_form_summary_discount">Discount (%1$s)</string>
+    <string name="order_form_summary_discount_plain">Discount</string>
     <string name="order_form_summary_item_qty">%1$d × ₦%2$s</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
@@ -556,6 +627,9 @@
     <string name="order_form_deposit_placeholder">0</string>
     <string name="order_form_notes_label">Notes (optional)</string>
     <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
+    <string name="order_form_discount_label">Discount (₦)</string>
+    <string name="order_form_discount_reason_label">Discount reason (optional)</string>
+    <string name="order_form_discount_reason_placeholder">e.g. New customer</string>
     <string name="order_form_create_button">Create Order</string>
     <string name="order_form_save_button">Save Changes</string>
     <string name="order_form_next">Next</string>
@@ -595,6 +669,12 @@
     <string name="style_picker_already_added">Already added</string>
     <string name="order_form_style_picker_title">Pick a style</string>
     <string name="order_form_style_picker_empty">No saved styles yet</string>
+    <string name="order_style_source_closet">Your closet</string>
+    <string name="order_style_source_inspiration">Inspiration</string>
+    <string name="order_style_inspiration_empty">No styles in Inspiration yet</string>
+    <string name="order_style_closet_empty">No saved styles yet for this customer</string>
+    <string name="order_style_folder_back">Back to folders</string>
+    <string name="order_style_folder_count">%1$d styles</string>
 
     <!-- Order form validation -->
     <string name="order_form_error_no_customer">Please select a customer</string>
@@ -655,6 +735,8 @@
     <string name="error_order_unknown">Could not save order. Please try again.</string>
     <string name="error_order_item_quantity_required">Enter a quantity for every item before saving.</string>
     <string name="error_order_item_price_required">Enter a price for every item before saving.</string>
+    <string name="error_order_discount_exceeds_total">Discount can&apos;t be more than the order total.</string>
+    <string name="error_order_deposit_exceeds_total">Deposit can&apos;t be more than the order total.</string>
     <string name="error_order_customer_required">Select a customer before saving.</string>
     <string name="error_order_items_required">Pick what you&apos;re making to save this order.</string>
     <string name="error_order_photo_too_large">Choose a photo under 5 MB.</string>
@@ -725,8 +807,13 @@
     <!-- Dashboard speed-dial FAB labels (PTSP-1) -->
     <string name="dashboard_quick_action_customer">Add customer</string>
     <string name="dashboard_quick_action_order">Add order</string>
+    <string name="dashboard_quick_action_inspiration">Inspiration</string>
     <string name="dashboard_fab_new_customer_cd">Add a new customer</string>
     <string name="dashboard_fab_new_order_cd">Add a new order</string>
+    <string name="dashboard_fab_inspiration_cd">Open Inspiration gallery</string>
+    <string name="dashboard_inspiration_card_title">Inspiration</string>
+    <string name="dashboard_inspiration_card_subtitle">Looks you&apos;ve saved</string>
+    <string name="dashboard_inspiration_cd">Open Inspiration</string>
     <string name="dashboard_fab_close_cd">Close quick actions</string>
     <string name="dashboard_fab_quick_actions_cd">Open quick actions</string>
     <!-- Dashboard tile grid -->
@@ -973,7 +1060,7 @@
     <string name="order_detail_overflow_archive">Archive order</string>
     <string name="order_detail_overflow_delete">Delete order</string>
     <string name="order_detail_archive_confirm_title">Archive this order?</string>
-    <string name="order_detail_archive_confirm_body">It will be hidden from the dashboard and orders list. You can restore it from Reports.</string>
+    <string name="order_detail_archive_confirm_body">It will be hidden from the dashboard and orders list. You can restore it from the Archived filter on the Orders tab.</string>
     <string name="order_detail_archive_confirm_cta">Archive</string>
     <string name="order_archived_snackbar">Order archived</string>
     <string name="order_detail_send_reminder">Send reminder</string>
@@ -1020,6 +1107,8 @@
     <string name="order_detail_payment_total">Total</string>
     <string name="order_detail_payment_paid">Paid</string>
     <string name="order_detail_payment_balance">Balance</string>
+    <string name="order_detail_payment_subtotal">Subtotal %1$s</string>
+    <string name="order_detail_payment_discount">Discount %1$s</string>
 
     <!-- Production stages -->
     <string name="order_stage_pending">Pending</string>
@@ -1285,8 +1374,18 @@
     <string name="upgrade_cadence_monthly">Monthly</string>
     <string name="upgrade_cadence_annual">Annual</string>
     <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
+    <string name="upgrade_subscribe">Subscribe</string>
     <string name="upgrade_starting_checkout">Starting secure checkout...</string>
     <string name="upgrade_terms">Prepaid access via Paystack. No automatic renewal; renew when your period ends.</string>
+    <string name="upgrade_terms_apple">Auto-renewing subscription billed through your Apple ID. Cancel anytime in your device Settings.</string>
+    <string name="upgrade_purchase_pending">Your purchase is pending approval. We&apos;ll unlock your plan once it&apos;s confirmed.</string>
+    <string name="upgrade_price_loading">Loading price…</string>
+    <string name="upgrade_billed_monthly">Billed monthly, renews automatically</string>
+    <string name="upgrade_billed_annually">Billed annually, renews automatically</string>
+    <string name="upgrade_restore">Restore purchases</string>
+    <string name="upgrade_privacy_policy">Privacy Policy</string>
+    <string name="upgrade_terms_of_use">Terms of Use</string>
+    <string name="upgrade_link_separator">·</string>
     <string name="upgrade_back_content_description">Back</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
     <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
@@ -1476,4 +1575,40 @@
     <string name="push_prompt_body">Get a quick morning reminder of orders due and money owed.</string>
     <string name="push_prompt_confirm">Turn on reminders</string>
     <string name="push_prompt_dismiss">Not now</string>
+
+    <!-- Gift subscription — redeem -->
+    <string name="gift_redeem_title">Redeem a gift</string>
+    <string name="gift_redeem_heading">You&apos;ve got a gift</string>
+    <string name="gift_redeem_subtitle">Enter the gift code from your email or message to unlock your StitchPad plan.</string>
+    <string name="gift_redeem_code_label">Gift code</string>
+    <string name="gift_redeem_cta">Redeem gift</string>
+    <string name="gift_redeem_success">Gift claimed! Your StitchPad plan is now active.</string>
+    <string name="gift_accept_sheet_title">Claim your gift?</string>
+    <string name="gift_accept_sheet_body_with_email">This will apply your gift to %1$s.</string>
+    <string name="gift_accept_sheet_body_no_email">This will apply your gift to your StitchPad account.</string>
+    <string name="gift_accept_sheet_confirm">Accept gift</string>
+    <string name="gift_accept_sheet_cancel">Not now</string>
+    <string name="gift_error_not_found">We couldn&apos;t find that gift code. Check it and try again.</string>
+    <string name="gift_error_already_claimed">This gift has already been claimed.</string>
+    <string name="gift_error_expired">This gift has expired.</string>
+    <string name="gift_error_not_payable">This gift isn&apos;t ready to claim yet. Please try again shortly.</string>
+    <string name="gift_error_unauthenticated">Please sign in to claim your gift.</string>
+
+    <!-- Gift subscription — received notification -->
+    <string name="gift_notification_title_pro">You&apos;ve been gifted Tailor Pro</string>
+    <string name="gift_notification_title_atelier">You&apos;ve been gifted Tailor Atelier</string>
+    <string name="gift_notification_title_generic">You&apos;ve received a gift</string>
+    <string name="gift_notification_from">from %1$s</string>
+
+    <!-- Gift subscription — share your "Gift me" link -->
+    <string name="gift_share_settings_row">Your gift link</string>
+    <string name="gift_share_settings_subtitle">Let friends, family or clients support your business</string>
+    <string name="gift_share_sheet_title">Your gift link</string>
+    <string name="gift_share_sheet_body">Share this link with friends, family or clients. When they open it, they can support your StitchPad plan as a gift.</string>
+    <string name="gift_share_copy">Copy link</string>
+    <string name="gift_share_share">Share link</string>
+    <string name="gift_share_copied">Link copied</string>
+    <string name="gift_share_error">Couldn&apos;t create your gift link. Please try again.</string>
+    <string name="gift_share_retry">Try again</string>
+    <string name="gift_share_whatsapp_message">I run my tailoring business on StitchPad. You can support me by covering my subscription plan here: %1$s</string>
 </resources>

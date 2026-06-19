@@ -83,7 +83,10 @@ object ReceiptFormatter {
             customerName = order.customerName,
             dateFormatted = dateFormatted,
             items = groupedItems,
-            totalFormatted = "₦${formatPrice(order.totalPrice)}",
+            subtotalFormatted = "₦${formatPrice(order.totalPrice)}",
+            discountFormatted = if (order.discount > 0.0) "−₦${formatPrice(order.discount)}" else null,
+            discountReason = order.discountReason,
+            totalFormatted = "₦${formatPrice(order.payableTotal)}",
             depositFormatted = "₦${formatPrice(order.depositPaid)}",
             balanceFormatted = "₦${formatPrice(order.balanceRemaining)}",
             isFullyPaid = fullyPaid,
@@ -131,6 +134,12 @@ object ReceiptFormatter {
      * both call sites stay in lockstep.
      */
     fun resolveDocumentType(order: Order): ReceiptDocumentType = when {
+        // A priced order fully covered by a discount owes nothing even with no
+        // payments — it is settled, so label it RECEIPT, not INVOICE. Gated on
+        // totalPrice > 0 so a genuinely unpriced/draft order (totalPrice == 0)
+        // still reads INVOICE.
+        order.payments.isEmpty() && order.totalPrice > 0.0 && order.payableTotal <= 0.0 ->
+            ReceiptDocumentType.RECEIPT
         order.payments.isEmpty() -> ReceiptDocumentType.INVOICE
         order.balanceRemaining <= 0.0 -> ReceiptDocumentType.RECEIPT
         else -> ReceiptDocumentType.DEPOSIT_RECEIPT
@@ -208,6 +217,10 @@ object ReceiptFormatter {
      * (garmentType == OTHER with a non-blank customGarmentName) get their own
      * line item per distinct name, so the customer sees the tailor's actual
      * label (e.g. "Iro and Buba") instead of a generic "Other" bucket.
+     *
+     * Items also group by unit price: two items of the same garment merge only
+     * when they share a price, so every line can show a truthful unit price
+     * (PTSP-35). Same garment at differing prices stays on separate lines.
      */
     private fun groupReceiptItems(
         items: List<OrderItem>,
@@ -218,11 +231,13 @@ object ReceiptFormatter {
             // (FirebaseCustomGarmentTypeRepository / GarmentPickerFilter). Two items
             // with the same name but differing casing must collapse into one line.
             val customName = item.customGarmentName
-            if (item.garmentType == GarmentType.OTHER && !customName.isNullOrBlank()) {
+            val garmentKey = if (item.garmentType == GarmentType.OTHER && !customName.isNullOrBlank()) {
                 "custom:${customName.trim().lowercase()}"
             } else {
                 item.garmentType.name
             }
+            // Pair garment with unit price so a merged line always shares one price.
+            garmentKey to item.price
         }
         .map { (_, group) ->
             val first = group.first()
@@ -233,10 +248,12 @@ object ReceiptFormatter {
             } else {
                 garmentNames[first.garmentType] ?: first.garmentType.name
             }
+            val totalQuantity = group.sumOf { it.quantity }
             ReceiptItem(
-                quantity = group.sumOf { it.quantity },
+                quantity = totalQuantity,
                 garmentName = garmentName,
-                formattedPrice = "₦${formatPrice(group.sumOf { it.price * it.quantity })}",
+                formattedUnitPrice = "₦${formatPrice(first.price)}",
+                formattedPrice = "₦${formatPrice(first.price * totalQuantity)}",
             )
         }
 

@@ -188,6 +188,8 @@ describe('paystackWebhookHandler', () => {
       subscriptionTier: 'pro',
       subscriptionStatus: 'active',
       subscriptionRenews: false,
+      // Provenance marked so a stale Apple downgrade can't clobber this grant.
+      subscriptionSource: 'paystack',
     });
     expect(store.get(`users/uid-1/billingTransactions/${reference}`)).toMatchObject({
       status: 'paid',
@@ -394,6 +396,54 @@ describe('expirePrepaidSubscriptionsHandler', () => {
       admin.firestore.Timestamp.fromDate(new Date('2026-07-01T00:00:00Z')),
     );
     expect(writes).toEqual(['users/expired:free:expired']);
+  });
+
+  it('promotes a queued fallback to active instead of dropping to Free', async () => {
+    const writes: string[] = [];
+    const docs = [
+      {
+        ref: { path: 'users/queued' },
+        data: () => ({
+          subscriptionFallbackTier: 'pro',
+          subscriptionFallbackEndsAt: admin.firestore.Timestamp.fromDate(new Date('2027-01-01T00:00:00Z')),
+        }),
+      },
+    ];
+    const query: any = { where: jest.fn(() => query), get: jest.fn(async () => ({ docs })) };
+    const batch = {
+      set: jest.fn((ref: any, data: any) =>
+        writes.push(`${ref.path}:${data.subscriptionTier}:${data.subscriptionStatus}:${data.subscriptionFallbackTier}`)),
+      commit: jest.fn(),
+    };
+    const db = { collection: jest.fn(() => query), batch: jest.fn(() => batch) };
+
+    await expirePrepaidSubscriptionsHandler({ db: db as never, now: () => new Date('2026-07-01T00:00:00Z') });
+
+    // Active (higher) segment expired → promote Pro to active, clear the fallback slot.
+    expect(writes).toEqual(['users/queued:pro:active:null']);
+  });
+
+  it('drops to Free when the queued fallback has also expired', async () => {
+    const writes: string[] = [];
+    const docs = [
+      {
+        ref: { path: 'users/both-expired' },
+        data: () => ({
+          subscriptionFallbackTier: 'pro',
+          subscriptionFallbackEndsAt: admin.firestore.Timestamp.fromDate(new Date('2026-02-01T00:00:00Z')),
+        }),
+      },
+    ];
+    const query: any = { where: jest.fn(() => query), get: jest.fn(async () => ({ docs })) };
+    const batch = {
+      set: jest.fn((ref: any, data: any) => writes.push(`${ref.path}:${data.subscriptionTier}:${data.subscriptionStatus}`)),
+      commit: jest.fn(),
+    };
+    const db = { collection: jest.fn(() => query), batch: jest.fn(() => batch) };
+
+    await expirePrepaidSubscriptionsHandler({ db: db as never, now: () => new Date('2026-07-01T00:00:00Z') });
+
+    expect(writes).toEqual(['users/both-expired:free:expired']);
   });
 });
 

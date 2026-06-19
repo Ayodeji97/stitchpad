@@ -5,6 +5,8 @@ import coil3.SingletonImageLoader
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
+import com.danzucker.stitchpad.core.media.ImageCompressor
+import com.danzucker.stitchpad.core.media.IosImageCompressor
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadScheduler
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
@@ -14,6 +16,9 @@ import com.danzucker.stitchpad.feature.auth.data.IosSsoCredentialProvider
 import com.danzucker.stitchpad.feature.auth.data.NativeAppleSignInLauncher
 import com.danzucker.stitchpad.feature.auth.data.NativeGoogleSignInLauncher
 import com.danzucker.stitchpad.feature.auth.data.SsoCredentialProvider
+import com.danzucker.stitchpad.feature.freemium.data.NativeStoreKitPurchaser
+import com.danzucker.stitchpad.feature.freemium.data.StoreKitPaymentRepository
+import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
 import com.danzucker.stitchpad.feature.notification.push.IosPushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.NativePushService
@@ -40,6 +45,13 @@ var iosNativeAppleSignInLauncher: NativeAppleSignInLauncher? = null
  */
 var iosNativePushService: NativePushService? = null
 
+/**
+ * Set from Swift's AppDelegate before doInitKoin. StoreKit 2's Product.purchase /
+ * AppStore.sync / Transaction APIs are Swift-only, so the purchase flow is bridged
+ * through this — mirrors [iosNativeAppleSignInLauncher].
+ */
+var iosNativeStoreKitPurchaser: NativeStoreKitPurchaser? = null
+
 actual val platformModule: Module = module {
     // Expose the Coil singleton ImageLoader and PlatformContext so ViewModels can
     // prefetch images (e.g. brand logo bytes for receipt rendering) without a Compose context.
@@ -49,6 +61,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { ThemePreferences() } bind ThemePreferencesStore::class
     single { OfflinePhotoStore() }
+    single<ImageCompressor> { IosImageCompressor() }
     single { OfflineUploadScheduler() }
     single { OrderReceiptSharer() }
     single { WhatsAppLauncher() }
@@ -66,5 +79,19 @@ actual val platformModule: Module = module {
                     "Check iOSApp.swift's AppDelegate.didFinishLaunchingWithOptions."
             )
         IosSsoCredentialProvider(googleLauncher = google, appleLauncher = apple)
+    }
+    // iOS sells subscriptions through Apple IAP (Guideline 3.1.1) — Android binds
+    // the Paystack CloudFunctionsPaymentRepository instead (PlatformModule.android.kt).
+    single<PaymentRepository> {
+        val purchaser = iosNativeStoreKitPurchaser
+            ?: error(
+                "iosNativeStoreKitPurchaser must be set from Swift before doInitKoin. " +
+                    "Check iOSApp.swift's AppDelegate.didFinishLaunchingWithOptions."
+            )
+        StoreKitPaymentRepository(
+            purchaser = purchaser,
+            functions = get(),
+            authRepository = get(),
+        )
     }
 }

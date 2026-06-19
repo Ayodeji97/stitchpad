@@ -165,6 +165,7 @@ class DashboardViewModel(
                 }
             )
             DashboardAction.OnNewCustomerClick -> emitEvent(DashboardEvent.NavigateToCustomerForm)
+            DashboardAction.OnInspirationClick -> emitEvent(DashboardEvent.NavigateToInspiration)
             DashboardAction.OnAddMeasurementClick -> emitEvent(
                 if (_state.value.uiState == DashboardUiState.BrandNew) {
                     DashboardEvent.NavigateToAddCustomerFirst
@@ -460,7 +461,7 @@ class DashboardViewModel(
                 hasDueDate = hasDueDate,
                 hasDeposit = hasDeposit,
                 garmentLabel = firstOrder?.items?.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty(),
-                totalAmount = firstOrder?.totalPrice ?: 0.0,
+                totalAmount = firstOrder?.payableTotal ?: 0.0,
             )
         } else {
             null

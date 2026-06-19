@@ -2,7 +2,19 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 export const FROM = 'StitchPad <noreply@send.getstitchpad.com>';
 export const REPLY_TO = 'support@getstitchpad.com';
 
-/** POSTs one email through Resend. Throws on a non-ok response (caller logs/handles). */
+/** A Resend send failure carrying the HTTP status, so callers can tell a permanent
+ *  4xx (bad address — don't retry) from a transient 5xx/network error (retry). */
+export class ResendError extends Error {
+  /** HTTP status from Resend, or undefined for a network-level failure (no response). */
+  readonly status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ResendError';
+    this.status = status;
+  }
+}
+
+/** POSTs one email through Resend. Throws [ResendError] on a non-ok response (caller logs/handles). */
 export async function sendResendEmail(
   apiKey: string,
   params: { to: string; subject: string; html: string; text?: string },
@@ -21,6 +33,6 @@ export async function sendResendEmail(
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    throw new Error(`Resend responded ${response.status}: ${detail}`);
+    throw new ResendError(`Resend responded ${response.status}: ${detail}`, response.status);
   }
 }

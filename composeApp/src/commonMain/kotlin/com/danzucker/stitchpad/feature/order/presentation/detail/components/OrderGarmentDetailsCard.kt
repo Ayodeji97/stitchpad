@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.BorderStroke
@@ -20,9 +22,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Texture
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
@@ -63,20 +69,29 @@ import stitchpad.composeapp.generated.resources.order_detail_fabric_caption
 import stitchpad.composeapp.generated.resources.order_detail_garment_section
 import stitchpad.composeapp.generated.resources.order_detail_quantity
 import stitchpad.composeapp.generated.resources.order_detail_style_caption
+import stitchpad.composeapp.generated.resources.order_form_image_add_tile
 import stitchpad.composeapp.generated.resources.order_priority_high_pill
 import stitchpad.composeapp.generated.resources.order_priority_rush_pill
 import kotlin.math.roundToInt
 
 private val REFERENCE_TILE_HEIGHT = 128.dp
 private val REFERENCE_MULTI_TILE_WIDTH = 100.dp
+private const val MAX_IMAGES_PER_CATEGORY = 3
+
+data class ReferenceImage(
+    val url: String,
+    val sourceIndex: Int,
+)
 
 @Composable
 fun OrderGarmentDetailsCard(
     items: List<OrderItem>,
     priority: OrderPriority,
-    styleImageUrls: List<String>,
-    onAddStyleClick: () -> Unit,
-    onAddFabricPhotoClick: () -> Unit,
+    styleImagesByItemId: Map<String, List<ReferenceImage>>,
+    onAddStyleClick: (String) -> Unit,
+    onRemoveStyleImage: (String, Int) -> Unit,
+    onAddFabricPhotoClick: (String) -> Unit,
+    onRemoveFabricImage: (String, Int) -> Unit,
     onAddFabricNameClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -116,40 +131,23 @@ fun OrderGarmentDetailsCard(
                 )
                 Spacer(Modifier.height(DesignTokens.space3))
 
-                if (index == 0) {
-                    // Style is order-level — pair it with the first item's fabric.
-                    Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
-                        ReferenceColumn(
-                            label = stringResource(Res.string.order_detail_style_caption),
-                            icon = Icons.Default.Checkroom,
-                            urls = styleImageUrls,
-                            ctaLabel = if (styleImageUrls.isEmpty()) {
-                                Res.string.order_detail_add_style
-                            } else {
-                                null
-                            },
-                            onCtaClick = onAddStyleClick,
-                            onImageClick = openViewer,
-                            modifier = Modifier.weight(1f),
-                        )
-                        FabricColumn(
-                            item = item,
-                            showCta = firstNeedsFabricIndex == index,
-                            onAddFabricPhotoClick = onAddFabricPhotoClick,
-                            onAddFabricNameClick = onAddFabricNameClick,
-                            onImageClick = openViewer,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                } else {
-                    // Additional garment items: fabric only, full width (no style column).
+                Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+                    StyleColumn(
+                        item = item,
+                        styleImages = styleImagesByItemId[item.id].orEmpty(),
+                        onAddStyleClick = onAddStyleClick,
+                        onRemoveStyleImage = onRemoveStyleImage,
+                        onImageClick = openViewer,
+                        modifier = Modifier.weight(1f),
+                    )
                     FabricColumn(
                         item = item,
                         showCta = firstNeedsFabricIndex == index,
                         onAddFabricPhotoClick = onAddFabricPhotoClick,
+                        onRemoveFabricImage = onRemoveFabricImage,
                         onAddFabricNameClick = onAddFabricNameClick,
                         onImageClick = openViewer,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -229,21 +227,49 @@ private fun GarmentTextBlock(
 }
 
 @Composable
+private fun StyleColumn(
+    item: OrderItem,
+    styleImages: List<ReferenceImage>,
+    onAddStyleClick: (String) -> Unit,
+    onRemoveStyleImage: (String, Int) -> Unit,
+    onImageClick: (List<String>, Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val urls = styleImages.map { it.url }
+    ReferenceColumn(
+        label = stringResource(Res.string.order_detail_style_caption),
+        icon = Icons.Default.Checkroom,
+        urls = urls,
+        ctaLabel = if (urls.isEmpty()) Res.string.order_detail_add_style else null,
+        canAdd = styleImages.size < MAX_IMAGES_PER_CATEGORY,
+        onCtaClick = { onAddStyleClick(item.id) },
+        onAddClick = { onAddStyleClick(item.id) },
+        onRemove = if (styleImages.isNotEmpty()) {
+            { displayIndex ->
+                styleImages.getOrNull(displayIndex)?.sourceIndex?.let { onRemoveStyleImage(item.id, it) }
+            }
+        } else {
+            null
+        },
+        onImageClick = onImageClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
 private fun FabricColumn(
     item: OrderItem,
     showCta: Boolean,
-    onAddFabricPhotoClick: () -> Unit,
+    onAddFabricPhotoClick: (String) -> Unit,
+    onRemoveFabricImage: (String, Int) -> Unit,
     onAddFabricNameClick: () -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val legacyUrl = item.fabricPhotoUrl
-    val urls = when {
-        item.fabricImages.isNotEmpty() -> item.fabricImages.map { it.localPhotoPath ?: it.photoUrl }
-        !legacyUrl.isNullOrBlank() -> listOf(legacyUrl)
-        else -> emptyList()
-    }
+    val refs = fabricReferenceImages(item.fabricImages, item.fabricPhotoUrl)
+    val urls = refs.map { it.url }
     val needsPhoto = urls.isEmpty()
+    val canAddPhoto = item.fabricImages.size < MAX_IMAGES_PER_CATEGORY
     val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
     val ctaLabel: StringResource? = when {
         !showCta -> null
@@ -251,17 +277,53 @@ private fun FabricColumn(
         needsName -> Res.string.order_detail_add_fabric_name
         else -> null
     }
-    val onCtaClick: () -> Unit = if (needsPhoto) onAddFabricPhotoClick else onAddFabricNameClick
+    val onAddClick: () -> Unit = { onAddFabricPhotoClick(item.id) }
+    val onCtaClick: () -> Unit = if (needsPhoto) {
+        { onAddFabricPhotoClick(item.id) }
+    } else {
+        onAddFabricNameClick
+    }
 
     ReferenceColumn(
         label = stringResource(Res.string.order_detail_fabric_caption),
         icon = Icons.Default.Texture,
         urls = urls,
         ctaLabel = ctaLabel,
+        canAdd = canAddPhoto,
         onCtaClick = onCtaClick,
+        onAddClick = onAddClick,
+        onRemove = if (refs.isNotEmpty()) {
+            { displayIndex ->
+                refs.getOrNull(displayIndex)?.sourceIndex?.let { onRemoveFabricImage(item.id, it) }
+            }
+        } else {
+            null
+        },
         onImageClick = onImageClick,
         modifier = modifier,
     )
+}
+
+/**
+ * Resolves an item's fabric photos to renderable [ReferenceImage]s, dropping any ref with no
+ * usable source. A PENDING upload persists to Firestore as `photoUrl=""` with `localPhotoPath`
+ * re-hydrated from the offline outbox; once that outbox entry is gone the ref arrives with
+ * `localPhotoPath=null` + a BLANK `photoUrl`. Mapping that to `[""]` made the column believe a
+ * photo existed — a permanent LoadingDots tile with no "Add" CTA. We drop blanks so the empty
+ * state (and the Add CTA) returns, and we keep each surviving ref's ORIGINAL index so delete
+ * targets the correct `fabricImages` entry. Pure so it's unit-tested.
+ */
+internal fun fabricReferenceImages(
+    fabricImages: List<FabricImageRef>,
+    legacyUrl: String?,
+): List<ReferenceImage> = when {
+    fabricImages.isNotEmpty() -> fabricImages.mapIndexedNotNull { index, img ->
+        val url = img.localPhotoPath?.takeIf { it.isNotBlank() }
+            ?: img.photoUrl.takeIf { it.isNotBlank() }
+        url?.let { ReferenceImage(url = it, sourceIndex = index) }
+    }
+    !legacyUrl.isNullOrBlank() -> listOf(ReferenceImage(url = legacyUrl, sourceIndex = 0))
+    else -> emptyList()
 }
 
 /**
@@ -277,7 +339,10 @@ private fun ReferenceColumn(
     icon: ImageVector,
     urls: List<String>,
     ctaLabel: StringResource?,
+    canAdd: Boolean,
     onCtaClick: () -> Unit,
+    onAddClick: () -> Unit,
+    onRemove: ((Int) -> Unit)?,
     onImageClick: (List<String>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -303,16 +368,14 @@ private fun ReferenceColumn(
         when {
             urls.isEmpty() -> ReferencePlaceholder(
                 icon = icon,
-                onClick = if (ctaLabel != null) onCtaClick else null,
-            )
-            urls.size == 1 -> SingleReferenceTile(
-                url = urls[0],
-                contentDescription = label,
-                onClick = { onImageClick(urls, 0) },
+                onClick = if (canAdd) onAddClick else null,
             )
             else -> MultiReferenceStrip(
                 urls = urls,
+                canAdd = canAdd,
                 contentDescription = label,
+                onAddClick = onAddClick,
+                onRemove = onRemove,
                 onImageClick = onImageClick,
             )
         }
@@ -349,27 +412,12 @@ private fun ReferenceTileImage(url: String, contentDescription: String?) {
 }
 
 @Composable
-private fun SingleReferenceTile(
-    url: String,
-    contentDescription: String?,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(REFERENCE_TILE_HEIGHT)
-            .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable { onClick() },
-    ) {
-        ReferenceTileImage(url = url, contentDescription = contentDescription)
-    }
-}
-
-@Composable
 private fun MultiReferenceStrip(
     urls: List<String>,
+    canAdd: Boolean,
     contentDescription: String?,
+    onAddClick: () -> Unit,
+    onRemove: ((Int) -> Unit)?,
     onImageClick: (List<String>, Int) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -391,23 +439,76 @@ private fun MultiReferenceStrip(
                         .clickable { onImageClick(urls, index) },
                 ) {
                     ReferenceTileImage(url = url, contentDescription = contentDescription)
+                    if (onRemove != null) {
+                        IconButton(
+                            onClick = { onRemove(index) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(22.dp)
+                                .background(Color.Black.copy(alpha = 0.65f), CircleShape),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp),
+                            )
+                        }
+                    }
                 }
             }
+            if (canAdd) {
+                AddReferenceTile(onClick = onAddClick)
+            }
         }
-        Text(
-            text = "${currentIndex + 1}/${urls.size}",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(DesignTokens.space2)
-                .background(
-                    color = Color.Black.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(DesignTokens.radiusFull),
-                )
-                .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
-        )
+        if (urls.size > 1) {
+            Text(
+                text = "${currentIndex + 1}/${urls.size}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(DesignTokens.space2)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(DesignTokens.radiusFull),
+                    )
+                    .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddReferenceTile(onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .width(REFERENCE_MULTI_TILE_WIDTH)
+            .height(REFERENCE_TILE_HEIGHT)
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                text = stringResource(Res.string.order_form_image_add_tile),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
@@ -515,9 +616,11 @@ private fun OrderGarmentDetailsCardOneEachPreview() {
                 ),
             ),
             priority = OrderPriority.URGENT,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
-            onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            styleImagesByItemId = mapOf("i1" to listOf(ReferenceImage("https://example.com/style1.jpg", 0))),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -540,13 +643,17 @@ private fun OrderGarmentDetailsCardMultiStylePreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf(
-                "https://example.com/style1.jpg",
-                "https://example.com/style2.jpg",
-                "https://example.com/style3.jpg",
+            styleImagesByItemId = mapOf(
+                "i1" to listOf(
+                    ReferenceImage("https://example.com/style1.jpg", 0),
+                    ReferenceImage("https://example.com/style2.jpg", 1),
+                    ReferenceImage("https://example.com/style3.jpg", 2),
+                ),
             ),
-            onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -569,9 +676,11 @@ private fun OrderGarmentDetailsCardAsymmetricPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
-            onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            styleImagesByItemId = mapOf("i1" to listOf(ReferenceImage("https://example.com/style1.jpg", 0))),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -593,9 +702,11 @@ private fun OrderGarmentDetailsCardEmptyPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = emptyList(),
-            onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            styleImagesByItemId = emptyMap(),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -618,9 +729,11 @@ private fun OrderGarmentDetailsCardDarkPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
-            onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            styleImagesByItemId = mapOf("i1" to listOf(ReferenceImage("https://example.com/style1.jpg", 0))),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
         )
     }
@@ -650,9 +763,14 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
                 ),
             ),
             priority = OrderPriority.NORMAL,
-            styleImageUrls = listOf("https://example.com/style1.jpg"),
-            onAddStyleClick = {},
-            onAddFabricPhotoClick = {},
+            styleImagesByItemId = mapOf(
+                "i1" to listOf(ReferenceImage("https://example.com/style1.jpg", 0)),
+                "i2" to emptyList(),
+            ),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
         )
     }

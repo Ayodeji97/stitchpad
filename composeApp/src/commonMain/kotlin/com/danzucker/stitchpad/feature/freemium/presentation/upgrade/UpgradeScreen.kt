@@ -31,6 +31,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.feature.freemium.domain.AppleProductIds
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -49,15 +51,24 @@ import stitchpad.composeapp.generated.resources.upgrade_atelier_annual
 import stitchpad.composeapp.generated.resources.upgrade_atelier_name
 import stitchpad.composeapp.generated.resources.upgrade_atelier_price
 import stitchpad.composeapp.generated.resources.upgrade_back_content_description
+import stitchpad.composeapp.generated.resources.upgrade_billed_annually
+import stitchpad.composeapp.generated.resources.upgrade_billed_monthly
 import stitchpad.composeapp.generated.resources.upgrade_cadence_annual
 import stitchpad.composeapp.generated.resources.upgrade_cadence_monthly
+import stitchpad.composeapp.generated.resources.upgrade_link_separator
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
+import stitchpad.composeapp.generated.resources.upgrade_price_loading
+import stitchpad.composeapp.generated.resources.upgrade_privacy_policy
 import stitchpad.composeapp.generated.resources.upgrade_pro_annual
 import stitchpad.composeapp.generated.resources.upgrade_pro_name
 import stitchpad.composeapp.generated.resources.upgrade_pro_price
+import stitchpad.composeapp.generated.resources.upgrade_restore
 import stitchpad.composeapp.generated.resources.upgrade_screen_title
 import stitchpad.composeapp.generated.resources.upgrade_starting_checkout
+import stitchpad.composeapp.generated.resources.upgrade_subscribe
 import stitchpad.composeapp.generated.resources.upgrade_terms
+import stitchpad.composeapp.generated.resources.upgrade_terms_apple
+import stitchpad.composeapp.generated.resources.upgrade_terms_of_use
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,19 +118,27 @@ fun UpgradeScreen(
         ) {
             Spacer(Modifier.height(DesignTokens.space4))
 
-            // Tier picker
+            // Tier picker. On iOS the price + hint come from StoreKit (the price
+            // Apple actually charges for the selected cadence); on Android they are
+            // the bundled NGN Paystack strings.
+            val isApple = state.checkoutProvider == CheckoutProvider.APPLE
             Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
                 TierCard(
                     name = stringResource(Res.string.upgrade_pro_name),
-                    monthlyPrice = stringResource(Res.string.upgrade_pro_price),
-                    annualHint = stringResource(Res.string.upgrade_pro_annual),
+                    monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.PRO, Res.string.upgrade_pro_price),
+                    annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_pro_annual),
                     isSelected = state.selectedTier == SubscriptionTier.PRO,
                     onClick = { onAction(UpgradeAction.SelectTier(SubscriptionTier.PRO)) },
                 )
                 TierCard(
                     name = stringResource(Res.string.upgrade_atelier_name),
-                    monthlyPrice = stringResource(Res.string.upgrade_atelier_price),
-                    annualHint = stringResource(Res.string.upgrade_atelier_annual),
+                    monthlyPrice = tierPriceText(
+                        isApple,
+                        state,
+                        SubscriptionTier.ATELIER,
+                        Res.string.upgrade_atelier_price
+                    ),
+                    annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_atelier_annual),
                     isSelected = state.selectedTier == SubscriptionTier.ATELIER,
                     onClick = { onAction(UpgradeAction.SelectTier(SubscriptionTier.ATELIER)) },
                 )
@@ -147,7 +166,7 @@ fun UpgradeScreen(
 
             // Pay CTA
             Button(
-                onClick = { onAction(UpgradeAction.PayWithPaystack) },
+                onClick = { onAction(UpgradeAction.StartCheckout) },
                 enabled = !state.isStartingCheckout,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -167,10 +186,12 @@ fun UpgradeScreen(
                 }
                 Text(
                     text = stringResource(
-                        if (state.isStartingCheckout) {
-                            Res.string.upgrade_starting_checkout
-                        } else {
-                            Res.string.upgrade_pay_with_paystack
+                        when {
+                            state.isStartingCheckout -> Res.string.upgrade_starting_checkout
+                            // Apple Guideline 3.1.1: the iOS CTA must not name
+                            // Paystack or imply web payment — it's the native sheet.
+                            state.checkoutProvider == CheckoutProvider.APPLE -> Res.string.upgrade_subscribe
+                            else -> Res.string.upgrade_pay_with_paystack
                         }
                     ),
                     style = MaterialTheme.typography.labelLarge,
@@ -182,15 +203,87 @@ fun UpgradeScreen(
             Spacer(Modifier.height(DesignTokens.space3))
 
             Text(
-                text = stringResource(Res.string.upgrade_terms),
+                text = stringResource(
+                    if (state.checkoutProvider == CheckoutProvider.APPLE) {
+                        Res.string.upgrade_terms_apple
+                    } else {
+                        Res.string.upgrade_terms
+                    }
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
 
+            // Functional Privacy Policy + Terms of Use links (Apple Guideline 3.1.2).
+            Row(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { onAction(UpgradeAction.OnPrivacyClick) }) {
+                    Text(
+                        text = stringResource(Res.string.upgrade_privacy_policy),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.upgrade_link_separator),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { onAction(UpgradeAction.OnTermsClick) }) {
+                    Text(
+                        text = stringResource(Res.string.upgrade_terms_of_use),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+
+            // Apple requires a "Restore purchases" affordance for subscriptions.
+            if (state.checkoutProvider == CheckoutProvider.APPLE) {
+                TextButton(
+                    onClick = { onAction(UpgradeAction.RestorePurchases) },
+                    enabled = !state.isStartingCheckout,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                ) {
+                    Text(stringResource(Res.string.upgrade_restore))
+                }
+            }
+
             Spacer(Modifier.height(DesignTokens.space5))
         }
     }
+}
+
+/**
+ * The price shown on a tier card: the StoreKit price for the selected cadence on
+ * iOS (a loading placeholder until products resolve), or the bundled NGN Paystack
+ * string on Android.
+ */
+@Composable
+private fun tierPriceText(
+    isApple: Boolean,
+    state: UpgradeState,
+    tier: SubscriptionTier,
+    paystackPrice: org.jetbrains.compose.resources.StringResource,
+): String {
+    if (!isApple) return stringResource(paystackPrice)
+    val productId = AppleProductIds.idFor(tier, state.billingCadence)
+    return state.appleDisplayPrices[productId] ?: stringResource(Res.string.upgrade_price_loading)
+}
+
+/** The secondary hint: the auto-renew cadence on iOS, or the bundled annual hint on Android. */
+@Composable
+private fun tierHintText(
+    isApple: Boolean,
+    cadence: BillingCadence,
+    paystackHint: org.jetbrains.compose.resources.StringResource,
+): String = if (isApple) {
+    stringResource(
+        if (cadence == BillingCadence.ANNUAL) Res.string.upgrade_billed_annually else Res.string.upgrade_billed_monthly,
+    )
+} else {
+    stringResource(paystackHint)
 }
 
 @Composable
@@ -281,6 +374,25 @@ private fun UpgradeScreenAtelierAnnualPreview() {
                 currentTier = SubscriptionTier.PRO,
                 selectedTier = SubscriptionTier.ATELIER,
                 billingCadence = BillingCadence.ANNUAL,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            onAction = {},
+            onBack = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun UpgradeScreenApplePreview() {
+    StitchPadTheme {
+        UpgradeScreen(
+            state = UpgradeState(
+                currentTier = SubscriptionTier.FREE,
+                selectedTier = SubscriptionTier.PRO,
+                billingCadence = BillingCadence.MONTHLY,
+                checkoutProvider = CheckoutProvider.APPLE,
             ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},

@@ -33,7 +33,26 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Deep link from the renewal-reminder email "Renew" button. -->
+            <!-- Renewal-reminder "Renew" button (/upgrade) and gift-claim email link
+                 (/claim), both https App Links. autoVerify ties to
+                 https://link.getstitchpad.com/.well-known/assetlinks.json so Android opens
+                 the app directly instead of the browser. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="link.getstitchpad.com"
+                    android:path="/upgrade" />
+                <data
+                    android:scheme="https"
+                    android:host="link.getstitchpad.com"
+                    android:path="/claim" />
+            </intent-filter>
+            <!-- Legacy custom scheme: Apple-Mail-equivalent / manual taps on Android. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -41,6 +60,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="stitchpad" android:host="upgrade" />
+                <data android:scheme="stitchpad" android:host="claim" />
             </intent-filter>
         </activity>
         <provider

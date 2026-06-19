@@ -246,16 +246,34 @@ class OfflineUploadOutbox(
         rememberCompletedUpload(job.storagePath, downloadUrl)
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private suspend fun patchStyleImage(
         job: OfflineUploadJob,
         downloadUrl: String,
     ) {
-        val docRef = firestore.collection("users")
-            .document(job.userId)
-            .collection("customers")
-            .document(requireNotNull(job.customerId))
-            .collection("styles")
-            .document(requireNotNull(job.styleId))
+        val docRef = if (job.inspirationStyle) {
+            val folderId = job.folderId
+            if (folderId != null) {
+                firestore.collection("users").document(job.userId)
+                    .collection("inspirationFolders").document(folderId)
+                    .collection("styles").document(requireNotNull(job.styleId))
+            } else {
+                firestore.collection("users").document(job.userId)
+                    .collection("inspiration").document(requireNotNull(job.styleId))
+            }
+        } else {
+            val folderId = job.folderId
+            if (folderId != null) {
+                firestore.collection("users").document(job.userId)
+                    .collection("customers").document(requireNotNull(job.customerId))
+                    .collection("styleFolders").document(folderId)
+                    .collection("styles").document(requireNotNull(job.styleId))
+            } else {
+                firestore.collection("users").document(job.userId)
+                    .collection("customers").document(requireNotNull(job.customerId))
+                    .collection("styles").document(requireNotNull(job.styleId))
+            }
+        }
         if (!docRef.get().exists) {
             runCatching { storage.reference.child(job.storagePath).delete() }
             return
@@ -354,6 +372,8 @@ data class OfflineUploadJob(
     val orderId: String? = null,
     val itemId: String? = null,
     val styleId: String? = null,
+    val inspirationStyle: Boolean = false,
+    val folderId: String? = null,
     val attempts: Int = 0,
     val nextAttemptAt: Long = 0L,
     val lastError: String? = null,

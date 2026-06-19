@@ -54,14 +54,14 @@ object CustomerInsightsCalculator {
         for (order in orders) {
             val l = lifetimeByCustomer.getOrPut(order.customerId) { Lifetime() }
             l.orders += 1
-            l.collected += (order.totalPrice - order.balanceRemaining).coerceAtLeast(0.0)
+            l.collected += order.depositPaid
         }
 
         data class Acc(var total: Double = 0.0, var count: Int = 0)
         val accByCustomer = HashMap<String, Acc>()
         for (order in orders) {
             if (order.updatedAt !in windowStart until windowEnd) continue
-            val collected = (order.totalPrice - order.balanceRemaining).coerceAtLeast(0.0)
+            val collected = order.depositPaid
             val acc = accByCustomer.getOrPut(order.customerId) { Acc() }
             acc.total += collected
             acc.count += 1

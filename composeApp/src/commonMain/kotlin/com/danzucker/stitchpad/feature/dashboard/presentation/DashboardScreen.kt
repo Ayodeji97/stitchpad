@@ -2,6 +2,7 @@
 
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,8 +23,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Notifications
@@ -34,11 +37,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -112,12 +117,16 @@ import stitchpad.composeapp.generated.resources.cd_open_settings
 import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_inspiration_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_customer_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_order_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
+import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_subtitle
+import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_title
+import stitchpad.composeapp.generated.resources.dashboard_inspiration_cd
 import stitchpad.composeapp.generated.resources.dashboard_loading_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
@@ -144,6 +153,7 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_customer
+import stitchpad.composeapp.generated.resources.dashboard_quick_action_inspiration
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_order
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions
 import stitchpad.composeapp.generated.resources.dashboard_section_next_actions_subtitle
@@ -279,6 +289,7 @@ fun DashboardRoot(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
@@ -318,6 +329,7 @@ fun DashboardRoot(
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToAddCustomerFirst = onNavigateToAddCustomerFirst,
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
+            onNavigateToInspiration = onNavigateToInspiration,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
             onNavigateToUpgrade = onNavigateToUpgrade,
             onNavigateToNotifications = onNavigateToNotifications,
@@ -441,6 +453,7 @@ private fun handleDashboardEvent(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
     onNavigateToCustomerDetail: (String) -> Unit,
+    onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
@@ -456,6 +469,7 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToSettings -> onNavigateToSettings()
         DashboardEvent.NavigateToAddCustomerFirst -> onNavigateToAddCustomerFirst()
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
+        DashboardEvent.NavigateToInspiration -> onNavigateToInspiration()
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
         DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         DashboardEvent.NavigateToNotifications -> onNavigateToNotifications()
@@ -538,6 +552,8 @@ fun DashboardScreen(
     val customerCd = stringResource(Res.string.dashboard_fab_new_customer_cd)
     val orderLabel = stringResource(Res.string.dashboard_quick_action_order)
     val orderCd = stringResource(Res.string.dashboard_fab_new_order_cd)
+    val inspirationLabel = stringResource(Res.string.dashboard_quick_action_inspiration)
+    val inspirationCd = stringResource(Res.string.dashboard_fab_inspiration_cd)
     val speedDialActions = listOf(
         SpeedDialAction(
             label = customerLabel,
@@ -555,6 +571,15 @@ fun DashboardScreen(
             onClick = {
                 collapseFab()
                 onAction(DashboardAction.OnNewOrderClick)
+            },
+        ),
+        SpeedDialAction(
+            label = inspirationLabel,
+            icon = Icons.Default.CollectionsBookmark,
+            contentDescription = inspirationCd,
+            onClick = {
+                collapseFab()
+                onAction(DashboardAction.OnInspirationClick)
             },
         ),
     )
@@ -583,7 +608,24 @@ fun DashboardScreen(
         ) {
             val contentModifier = Modifier.fillMaxSize()
             when (state.uiState) {
-                DashboardUiState.Loading -> LoadingState(modifier = contentModifier)
+                // Render the header (with the Inspiration + notifications icons) above
+                // the spinner so those entry points stay reachable while loading.
+                DashboardUiState.Loading -> Column(
+                    modifier = contentModifier.padding(horizontal = DesignTokens.space4),
+                ) {
+                    Spacer(Modifier.height(DesignTokens.space4))
+                    DashboardHeader(
+                        firstName = state.firstName,
+                        businessLogoUrl = state.businessLogoUrl,
+                        greeting = state.greeting,
+                        todayDate = state.todayDate,
+                        unreadNotificationCount = state.unreadNotificationCount,
+                        onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
+                        onNotificationsClick = { onAction(DashboardAction.OnNotificationsClick) },
+                        onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
+                    )
+                    LoadingState(modifier = Modifier.fillMaxSize())
+                }
                 DashboardUiState.BrandNew,
                 DashboardUiState.FirstCustomer,
                 DashboardUiState.QuietDay,
@@ -665,6 +707,7 @@ private fun DashboardContent(
             unreadNotificationCount = state.unreadNotificationCount,
             onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
             onNotificationsClick = { onAction(DashboardAction.OnNotificationsClick) },
+            onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
         )
 
         // 2. Illustrated focus card (null headline means no card to show)
@@ -885,6 +928,97 @@ private fun DashboardContent(
             onMessageClick = { id -> onAction(DashboardAction.OnReconnectClick(id)) },
             onViewAllClick = { onAction(DashboardAction.OnViewReconnectClick) },
         )
+
+        // 8. Quick access — Inspiration shortcut row. Visible in all populated
+        //    states (app-bar icon guarantees access in Loading/BrandNew too).
+        if (state.uiState != DashboardUiState.Loading) {
+            QuickAccessSection(
+                onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
+            )
+        }
+    }
+}
+
+/**
+ * "Quick access" section header + Inspiration shortcut row. Placed at the
+ * bottom of the scrollable content so it never competes with revenue cards
+ * but is always reachable in every populated dashboard state.
+ */
+@Composable
+private fun QuickAccessSection(
+    onInspirationClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
+        Text(
+            text = "Quick access",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        InspirationShortcutRow(onClick = onInspirationClick)
+    }
+}
+
+@Composable
+private fun InspirationShortcutRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusLg),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        ) {
+            // Indigo icon chip — matches brand primaryContainer treatment.
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CollectionsBookmark,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.dashboard_inspiration_card_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(Res.string.dashboard_inspiration_card_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
@@ -1273,6 +1407,7 @@ private fun DashboardHeader(
     unreadNotificationCount: Int,
     onAvatarClick: () -> Unit,
     onNotificationsClick: () -> Unit,
+    onInspirationClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val name = firstName.ifBlank { "?" }
@@ -1306,6 +1441,13 @@ private fun DashboardHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
+            IconButton(onClick = onInspirationClick) {
+                Icon(
+                    imageVector = Icons.Default.CollectionsBookmark,
+                    contentDescription = stringResource(Res.string.dashboard_inspiration_cd),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             BellButton(
                 onClick = onNotificationsClick,
                 unreadCount = unreadNotificationCount,

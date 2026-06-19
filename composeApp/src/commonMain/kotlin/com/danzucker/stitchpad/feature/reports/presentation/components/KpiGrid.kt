@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.reports.domain.model.KpiSummary
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -31,8 +30,13 @@ fun KpiGrid(
     periodLabel: String,
     modifier: Modifier = Modifier
 ) {
-    val purple = Color(0xFF7B4DB5)
-    val purpleBg = Color(0x227B4DB5)
+    // PTSP-39 "Calm" direction: every KPI icon chip is indigo (the unifying
+    // brand accent). Colour is reserved for meaning — the Outstanding value
+    // renders red, and the delta chips stay green/red. Sparklines all use the
+    // primary accent so the grid reads as one calm family (no orphan purple).
+    val iconTint = MaterialTheme.colorScheme.onPrimaryContainer
+    val iconBg = MaterialTheme.colorScheme.primaryContainer
+    val spark = MaterialTheme.colorScheme.primary
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)
@@ -42,25 +46,25 @@ fun KpiGrid(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.reports_kpi_revenue),
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
-                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                iconBackground = MaterialTheme.colorScheme.primaryContainer,
+                iconTint = iconTint,
+                iconBackground = iconBg,
                 kpi = summary.revenue,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
-                sparklineColor = DesignTokens.success500
+                sparklineColor = spark
             )
             KpiTile(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.reports_kpi_collected),
                 icon = Icons.Default.AccountBalanceWallet,
-                iconTint = DesignTokens.success500,
-                iconBackground = DesignTokens.success50,
+                iconTint = iconTint,
+                iconBackground = iconBg,
                 kpi = summary.collected,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
-                sparklineColor = DesignTokens.success500
+                sparklineColor = spark
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
@@ -68,13 +72,16 @@ fun KpiGrid(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.reports_kpi_outstanding),
                 icon = Icons.AutoMirrored.Filled.ReceiptLong,
-                iconTint = DesignTokens.error500,
-                iconBackground = DesignTokens.error50,
+                iconTint = iconTint,
+                iconBackground = iconBg,
                 kpi = summary.outstanding,
                 valueFormatter = ::formatNaira,
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
-                sparklineColor = DesignTokens.error500,
+                sparklineColor = spark,
+                // Outstanding is money owed — render the value red so it reads as
+                // the figure that needs action.
+                valueColor = DesignTokens.error500,
                 // Outstanding rising = bad: a + delta should render red.
                 invertDeltaSign = true
             )
@@ -82,13 +89,13 @@ fun KpiGrid(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.reports_kpi_orders),
                 icon = Icons.Default.ShoppingBag,
-                iconTint = purple,
-                iconBackground = purpleBg,
+                iconTint = iconTint,
+                iconBackground = iconBg,
                 kpi = summary.orders,
                 valueFormatter = ::formatCount,
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
-                sparklineColor = purple
+                sparklineColor = spark
             )
         }
     }

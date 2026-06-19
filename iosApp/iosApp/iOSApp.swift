@@ -17,6 +17,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         PlatformModule_iosKt.iosNativeGoogleSignInLauncher = GoogleSignInLauncherIos()
         PlatformModule_iosKt.iosNativeAppleSignInLauncher = AppleSignInLauncherIos()
 
+        // Apple In-App Purchase (StoreKit 2). Register before doInitKoin so the
+        // iOS PaymentRepository (StoreKitPaymentRepository) can resolve it. The
+        // Transaction.updates listener is started AFTER doInitKoin (below) because
+        // it forwards into Koin and can fire immediately at launch (Ask-to-Buy /
+        // recovery), which would crash/drop if Koin weren't initialized yet.
+        let storeKitPurchaser = StoreKitPurchaserIos()
+        PlatformModule_iosKt.iosNativeStoreKitPurchaser = storeKitPurchaser
+
         // Push: set the messaging + notification delegates and the Swift→Kotlin
         // bridge BEFORE doInitKoin, mirroring the SSO launchers, so the shared
         // push layer can read the token / permission state through Koin.
@@ -26,6 +34,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         PushServiceIos.shared.refreshAuthorizationStatus()
 
         StitchPadAppKt.doInitKoin(platformConfig: { _ in })
+
+        // Now that Koin is initialized, start observing StoreKit transactions —
+        // the listener's iosOnStoreKitTransaction bridge resolves PaymentRepository
+        // from Koin, so it must not run before doInitKoin.
+        storeKitPurchaser.startObservingTransactions()
         return true
     }
 
@@ -103,15 +116,23 @@ struct iOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-        }
-        .onOpenURL { url in
-            // SwiftUI App-lifecycle apps deliver custom-scheme opens HERE, not via the
-            // AppDelegate's application(_:open:) — so the renewal email's
-            // stitchpad://upgrade link must be handled on this path. Falls through to
-            // Google Sign-In for its callback URL.
-            if !IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString) {
-                _ = GIDSignIn.sharedInstance.handle(url)
-            }
+                .onOpenURL { url in
+                    // SwiftUI App-lifecycle apps deliver custom-scheme opens HERE (a View
+                    // modifier on the root view), not via the AppDelegate's
+                    // application(_:open:) — so the renewal email's stitchpad://upgrade
+                    // link must be handled on this path. Falls through to Google Sign-In.
+                    if !IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString) {
+                        _ = GIDSignIn.sharedInstance.handle(url)
+                    }
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    // https Universal Links (the renewal email's link.getstitchpad.com URL)
+                    // arrive as a browsing-web user activity, NOT via .onOpenURL. Gmail's iOS
+                    // app refuses custom schemes, so the email uses the https form.
+                    if let url = activity.webpageURL {
+                        _ = IosDeepLinkKt.handleIosDeepLink(url: url.absoluteString)
+                    }
+                }
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {

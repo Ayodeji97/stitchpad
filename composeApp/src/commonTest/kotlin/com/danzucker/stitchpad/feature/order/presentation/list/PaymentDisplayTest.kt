@@ -7,30 +7,36 @@ class PaymentDisplayTest {
 
     @Test
     fun fullyPaidReturnsPaid() {
-        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 10_000.0, totalPrice = 10_000.0))
+        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 10_000.0, amountOwed = 10_000.0))
     }
 
     @Test
     fun overpaidReturnsPaid() {
-        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 12_000.0, totalPrice = 10_000.0))
+        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 12_000.0, amountOwed = 10_000.0))
     }
 
     @Test
     fun zeroTotalReturnsPaid() {
-        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 0.0, totalPrice = 0.0))
+        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 0.0, amountOwed = 0.0))
     }
 
     @Test
     fun partialPaymentReturnsPartial() {
         assertEquals(
             PaymentDisplay.Partial(amountPaid = 5_000.0),
-            formatPaymentStatus(depositPaid = 5_000.0, totalPrice = 10_000.0)
+            formatPaymentStatus(depositPaid = 5_000.0, amountOwed = 10_000.0)
         )
     }
 
     @Test
     fun zeroPaidReturnsUnpaid() {
-        assertEquals(PaymentDisplay.Unpaid, formatPaymentStatus(depositPaid = 0.0, totalPrice = 10_000.0))
+        assertEquals(PaymentDisplay.Unpaid, formatPaymentStatus(depositPaid = 0.0, amountOwed = 10_000.0))
+    }
+
+    @Test
+    fun depositCoveringDiscountedTotalReturnsPaid() {
+        // amountOwed is the payable (post-discount) total: subtotal 12_000 − 2_000 discount.
+        assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 10_000.0, amountOwed = 10_000.0))
     }
 
     @Test

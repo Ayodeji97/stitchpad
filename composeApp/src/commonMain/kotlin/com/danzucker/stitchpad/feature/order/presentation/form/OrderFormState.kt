@@ -10,8 +10,12 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+/** Which source is currently active in the style-picker's Closet/Inspiration toggle. */
+enum class StylePickerSource { CLOSET, INSPIRATION }
 
 data class OrderFormState(
     val currentStep: Int = 1,
@@ -23,6 +27,19 @@ data class OrderFormState(
     // Step 2 - Items
     val items: List<OrderItemFormState> = listOf(OrderItemFormState()),
     val availableStyles: List<Style> = emptyList(),
+    val inspirationStyles: List<Style> = emptyList(),
+    /** Folders with their styles for the current customer's closet. */
+    val closetFolders: List<StylePickerFolder> = emptyList(),
+    /** Folders with their styles for the shared Inspiration library. */
+    val inspirationFolders: List<StylePickerFolder> = emptyList(),
+    /**
+     * Key ([StylePickerFolder.key]) of the folder drilled into in the style picker.
+     * Null = show the folder grid (or the default-folder styles directly when there
+     * are no named folders). Stored as a key, not a snapshot, so the drilled-in view
+     * always resolves the LIVE folder from the current folder list.
+     */
+    val pickerOpenFolderKey: String? = null,
+    val stylePickerSource: StylePickerSource = StylePickerSource.CLOSET,
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Item id whose Style picker sheet is currently visible. Null = no sheet. */
     val stylePickerSheetForItemId: String? = null,
@@ -35,6 +52,8 @@ data class OrderFormState(
     val priority: OrderPriority = OrderPriority.NORMAL,
     val depositPaid: String = "",
     val notes: String = "",
+    val discount: String = "",
+    val discountReason: String = "",
     val depositReconciliationPrompt: DepositPrompt? = null,
     // General
     val isLoading: Boolean = false,

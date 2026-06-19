@@ -1,11 +1,11 @@
 package com.danzucker.stitchpad.feature.reports.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -57,17 +57,12 @@ fun TopCustomersCard(
 ) {
     if (rankings.items.isEmpty()) return
     val mono = JetBrainsMonoFamily()
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DesignTokens.radiusLg))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(DesignTokens.radiusLg)
-            )
-            .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space3)
+    ReportsCard(
+        modifier = modifier,
+        contentPadding = PaddingValues(
+            horizontal = DesignTokens.space4,
+            vertical = DesignTokens.space3
+        )
     ) {
         CardHeader(
             title = stringResource(Res.string.reports_section_top_customers),
@@ -172,8 +167,10 @@ private fun BadgeChip(badge: CustomerBadge) {
         CustomerBadge.REPEAT -> BadgeStyle(
             text = stringResource(Res.string.reports_badge_repeat),
             icon = Icons.Default.Loop,
-            fg = DesignTokens.success500,
-            bg = DesignTokens.success50
+            // Calm (PTSP-39): Repeat uses the indigo accent rather than a third
+            // green; VIP keeps its saffron heritage badge as the single highlight.
+            fg = MaterialTheme.colorScheme.primary,
+            bg = MaterialTheme.colorScheme.primaryContainer
         )
         CustomerBadge.NONE -> return
     }

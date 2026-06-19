@@ -84,6 +84,8 @@ data class Order(
     val priority: OrderPriority,
     val statusHistory: List<StatusChange>,
     val totalPrice: Double,
+    val discount: Double = 0.0,
+    val discountReason: String? = null,
     val payments: List<Payment> = emptyList(),
     val deadline: Long?,
     val notes: String?,
@@ -94,8 +96,11 @@ data class Order(
     /** Sum of all recorded payments. Replaces the prior persisted `depositPaid` field. */
     val depositPaid: Double get() = payments.sumOf { it.amount }
 
-    /** Outstanding balance. Always recomputed from [totalPrice] and [payments]. */
-    val balanceRemaining: Double get() = (totalPrice - depositPaid).coerceAtLeast(0.0)
+    /** Subtotal ([totalPrice]) minus the whole-order [discount], floored at 0. The canonical "amount owed". */
+    val payableTotal: Double get() = (totalPrice - discount).coerceAtLeast(0.0)
+
+    /** Outstanding balance. Recomputed from [payableTotal] and [payments]. */
+    val balanceRemaining: Double get() = (payableTotal - depositPaid).coerceAtLeast(0.0)
 }
 
 fun Order.ownedStoragePaths(): List<String> =

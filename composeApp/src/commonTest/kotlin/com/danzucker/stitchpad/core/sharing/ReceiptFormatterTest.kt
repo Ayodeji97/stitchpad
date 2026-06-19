@@ -106,18 +106,51 @@ class ReceiptFormatterTest {
     }
 
     @Test
-    fun itemsGroupedByGarmentType() {
+    fun itemsGroupedByGarmentTypeAndUnitPrice() {
+        // Same garment type AND same unit price collapse into one line so the
+        // line can carry an honest unit price (qty summed, total = unit \u00D7 qty).
         val orderWithDuplicates = testOrder.copy(
             items = listOf(
                 OrderItem(id = "i1", garmentType = GarmentType.TROUSER, description = "T1", price = 5000.0, quantity = 2),
-                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 7000.0, quantity = 3)
+                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 5000.0, quantity = 3)
             )
         )
         val names = mapOf(GarmentType.TROUSER to "Trouser")
         val result = ReceiptFormatter.format(orderWithDuplicates, testUser, names)
         assertEquals(1, result.items.size)
         assertEquals(5, result.items[0].quantity)
-        assertEquals("\u20A631,000", result.items[0].formattedPrice)
+        assertEquals("\u20A65,000", result.items[0].formattedUnitPrice)
+        assertEquals("\u20A625,000", result.items[0].formattedPrice)
+    }
+
+    @Test
+    fun sameGarmentDifferentUnitPriceSplitsIntoSeparateLines() {
+        // Differently-priced items of the same garment type must NOT merge \u2014
+        // a blended line could not show a truthful unit price.
+        val orderWithMixedPrices = testOrder.copy(
+            items = listOf(
+                OrderItem(id = "i1", garmentType = GarmentType.TROUSER, description = "T1", price = 5000.0, quantity = 2),
+                OrderItem(id = "i2", garmentType = GarmentType.TROUSER, description = "T2", price = 7000.0, quantity = 3)
+            )
+        )
+        val names = mapOf(GarmentType.TROUSER to "Trouser")
+        val result = ReceiptFormatter.format(orderWithMixedPrices, testUser, names)
+        assertEquals(2, result.items.size)
+        val byUnit = result.items.associateBy { it.formattedUnitPrice }
+        assertEquals(2, byUnit.getValue("\u20A65,000").quantity)
+        assertEquals("\u20A610,000", byUnit.getValue("\u20A65,000").formattedPrice)
+        assertEquals(3, byUnit.getValue("\u20A67,000").quantity)
+        assertEquals("\u20A621,000", byUnit.getValue("\u20A67,000").formattedPrice)
+    }
+
+    @Test
+    fun singleItemExposesUnitPrice() {
+        val result = formatResult()
+        // testOrder's first line: one Agbada at \u20A645,000.
+        val agbada = result.items.first { it.garmentName == "Agbada" }
+        assertEquals(1, agbada.quantity)
+        assertEquals("\u20A645,000", agbada.formattedUnitPrice)
+        assertEquals("\u20A645,000", agbada.formattedPrice)
     }
 
     @Test
@@ -210,6 +243,25 @@ class ReceiptFormatterTest {
         val result = ReceiptFormatter.format(paidOrder, testUser, garmentNames)
         assertEquals("RECEIPT", result.documentTypeLabel)
         assertEquals(ReceiptDocumentType.RECEIPT, result.documentType)
+    }
+
+    @Test
+    fun fullyDiscountedOrderWithNoPaymentsUsesReceiptLabel() {
+        // A priced order fully covered by a discount owes nothing — it is settled,
+        // so the document must read RECEIPT, not INVOICE (which would imply money due).
+        val waived = testOrder.copy(payments = emptyList(), discount = testOrder.totalPrice)
+        val result = ReceiptFormatter.format(waived, testUser, garmentNames)
+        assertEquals("RECEIPT", result.documentTypeLabel)
+        assertEquals(ReceiptDocumentType.RECEIPT, result.documentType)
+    }
+
+    @Test
+    fun unpricedOrderWithNoPaymentsStaysInvoice() {
+        // totalPrice 0 with no discount is an unpriced order, not a settled one —
+        // it must remain an INVOICE so the fully-discounted carve-out can't over-reach.
+        val unpriced = testOrder.copy(payments = emptyList(), totalPrice = 0.0, discount = 0.0)
+        val result = ReceiptFormatter.format(unpriced, testUser, garmentNames)
+        assertEquals(ReceiptDocumentType.INVOICE, result.documentType)
     }
 
     @Test
@@ -508,5 +560,30 @@ class ReceiptFormatterTest {
             tier = SubscriptionTier.ATELIER,
         )
         assertEquals(WatermarkSpec.None, withoutLogo.watermark)
+    }
+
+    // --- Discount lines ---
+
+    @Test
+    fun `discount populates subtotal and signed discount lines`() {
+        val order = testOrder.copy(
+            totalPrice = 32_500.0,
+            discount = 2_500.0,
+            discountReason = "New customer",
+            payments = emptyList(),
+        )
+        val data = ReceiptFormatter.format(order, testUser, garmentNames = emptyMap())
+        assertEquals("₦32,500", data.subtotalFormatted)
+        assertEquals("−₦2,500", data.discountFormatted)
+        assertEquals("New customer", data.discountReason)
+        assertEquals("₦30,000", data.totalFormatted)   // net total, not subtotal
+    }
+
+    @Test
+    fun `no discount yields null discount line and total equals subtotal`() {
+        val order = testOrder.copy(totalPrice = 32_500.0, discount = 0.0, payments = emptyList())
+        val data = ReceiptFormatter.format(order, testUser, garmentNames = emptyMap())
+        assertEquals(null, data.discountFormatted)
+        assertEquals("₦32,500", data.totalFormatted)
     }
 }

@@ -164,27 +164,46 @@ class FirebaseOrderRepository(
         ).items,
     )
 
+    // Parse every order doc in a snapshot. Archive partitioning happens client-side:
+    // the GitLive SDK doesn't support `whereEqualTo(field, null)` cleanly across
+    // platforms, and the per-user dataset is small enough (< 1k orders) that
+    // filtering in memory is fine.
+    private fun List<dev.gitlive.firebase.firestore.DocumentSnapshot>.toOrders(
+        userId: String,
+    ): List<Order> = mapNotNull { doc ->
+        runCatching {
+            doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+                .toOrder(userId)
+                .withLocalPendingImages()
+        }.getOrNull()
+    }
+
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         ordersCollection(userId)
             .snapshots()
             .map { snapshot ->
-                val orders = snapshot.documents
-                    .mapNotNull { doc ->
-                        runCatching {
-                            doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
-                                .toOrder(userId)
-                                .withLocalPendingImages()
-                        }.getOrNull()
-                    }
-                    // Filter archived orders client-side. The GitLive Firebase
-                    // SDK doesn't support `whereEqualTo(field, null)` cleanly
-                    // across platforms, and the per-user dataset is small
-                    // enough (< 1k orders) that client-side filtering is fine.
+                val orders = snapshot.documents.toOrders(userId)
                     .filter { it.archivedAt == null }
                 Result.Success(orders) as Result<List<Order>, DataError.Network>
             }
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeOrders failed" }
+                emit(Result.Error(DataError.Network.UNKNOWN))
+            }
+
+    override fun observeArchivedOrders(
+        userId: String,
+    ): Flow<Result<List<Order>, DataError.Network>> =
+        ordersCollection(userId)
+            .snapshots()
+            .map { snapshot ->
+                val archived = snapshot.documents.toOrders(userId)
+                    .filter { it.archivedAt != null }
+                    .sortedByDescending { it.archivedAt }
+                Result.Success(archived) as Result<List<Order>, DataError.Network>
+            }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) { "observeArchivedOrders failed" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
 
@@ -355,6 +374,25 @@ class FirebaseOrderRepository(
         return Result.Success(Unit)
     }
 
+    override suspend fun unarchiveOrder(
+        userId: String,
+        orderId: String,
+    ): EmptyResult<DataError.Network> {
+        val now = Clock.System.now().toEpochMilliseconds()
+        // Clear archivedAt (delete the field) so the order rejoins observeOrders.
+        // Mirrors updateNotes/updateSubStatus's FieldValue.delete null-clear pattern.
+        val accepted = offlineWrites.enqueue("unarchiveOrder orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                "archivedAt" to FieldValue.delete,
+                "updatedAt" to now,
+            )
+        }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
+    }
+
     override suspend fun deleteOrder(
         userId: String,
         orderId: String,
@@ -378,6 +416,10 @@ class FirebaseOrderRepository(
     }
 
     private suspend fun deleteOrderImagePath(storagePath: String) {
+        cancelPendingOrderImageUploadAndDeleteStorage(storagePath)
+    }
+
+    private suspend fun cancelPendingOrderImageUploadAndDeleteStorage(storagePath: String) {
         uploadOutbox.cancel(uploadJobId(OfflineUploadJobType.ORDER_FABRIC_IMAGE, storagePath))
         uploadOutbox.cancel(uploadJobId(OfflineUploadJobType.ORDER_STYLE_IMAGE, storagePath))
         uploadOutbox.enqueue(
@@ -522,7 +564,11 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         paths.filter { it.isNotBlank() }.forEach { path ->
             runCatching {
-                deleteOrderImagePath(path)
+                cancelPendingOrderImageUploadAndDeleteStorage(path)
+            }.onFailure { throwable ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "deleteStoragePaths cleanup enqueue failed path=$path"
+                }
             }
         }
         return Result.Success(Unit)

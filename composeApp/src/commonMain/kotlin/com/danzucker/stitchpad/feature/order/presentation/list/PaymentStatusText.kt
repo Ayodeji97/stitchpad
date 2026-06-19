@@ -15,10 +15,10 @@ import stitchpad.composeapp.generated.resources.payment_unpaid
 @Composable
 fun PaymentStatusText(
     depositPaid: Double,
-    totalPrice: Double,
+    amountOwed: Double,
     modifier: Modifier = Modifier
 ) {
-    val display = formatPaymentStatus(depositPaid, totalPrice)
+    val display = formatPaymentStatus(depositPaid, amountOwed)
     val (text, color) = when (display) {
         PaymentDisplay.Paid -> stringResource(Res.string.payment_paid) to DesignTokens.success500
         is PaymentDisplay.Partial -> {

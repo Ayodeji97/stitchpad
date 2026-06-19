@@ -73,7 +73,11 @@ class NotificationsInboxViewModel(
         viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.id ?: return@launch
             notificationRepository.markAsRead(uid, action.notification.id)
-            _events.send(NotificationsInboxEvent.NavigateToOrderDetail(action.notification.orderId))
+            // Gift notifications carry no order — tapping just marks them read.
+            val orderId = action.notification.orderId
+            if (orderId.isNotBlank()) {
+                _events.send(NotificationsInboxEvent.NavigateToOrderDetail(orderId))
+            }
         }
     }
 

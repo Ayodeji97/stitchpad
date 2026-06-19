@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
@@ -37,8 +38,6 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.settings_invite_share_message
 import stitchpad.composeapp.generated.resources.settings_support_intro_message
 
-private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
-private const val TERMS_URL = "https://getstitchpad.com/terms"
 private const val SUPPORT_WHATSAPP_NUMBER = "+2348064816696"
 
 private const val TAG = "SettingsVM"
@@ -100,8 +99,8 @@ class SettingsViewModel(
             SettingsAction.OnSignOutRowClick -> uiState.update { it.copy(showSignOutDialog = true) }
             SettingsAction.OnSignOutDismiss -> uiState.update { it.copy(showSignOutDialog = false) }
             SettingsAction.OnSignOutConfirm -> signOut()
-            SettingsAction.OnPrivacyClick -> emit(SettingsEvent.OpenUrl(PRIVACY_URL))
-            SettingsAction.OnTermsClick -> emit(SettingsEvent.OpenUrl(TERMS_URL))
+            SettingsAction.OnPrivacyClick -> emit(SettingsEvent.OpenUrl(LegalUrls.PRIVACY))
+            SettingsAction.OnTermsClick -> emit(SettingsEvent.OpenUrl(LegalUrls.TERMS))
             SettingsAction.OnDeleteAccountClick -> emit(SettingsEvent.NavigateToDeleteAccount)
             SettingsAction.OnInviteClick -> {
                 // Empty phone → WhatsApp opens its universal share picker so the
@@ -119,6 +118,7 @@ class SettingsViewModel(
             SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
+            SettingsAction.OnGetGiftedClick -> emit(SettingsEvent.NavigateToShareGiftLink)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
             is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
         }
