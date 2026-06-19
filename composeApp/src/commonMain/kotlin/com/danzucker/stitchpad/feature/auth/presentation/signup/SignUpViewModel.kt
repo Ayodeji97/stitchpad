@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.auth.presentation.signup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -21,9 +22,6 @@ import stitchpad.composeapp.generated.resources.error_name_required
 import stitchpad.composeapp.generated.resources.error_name_too_short
 import stitchpad.composeapp.generated.resources.error_password_too_short
 import stitchpad.composeapp.generated.resources.error_passwords_mismatch
-
-private const val PRIVACY_URL = "https://getstitchpad.com/privacy"
-private const val TERMS_URL = "https://getstitchpad.com/terms"
 
 class SignUpViewModel(
     private val authRepository: AuthRepository,
@@ -81,10 +79,10 @@ class SignUpViewModel(
                 _state.update { it.copy(acceptedTerms = !it.acceptedTerms) }
             }
             SignUpAction.OnTermsLinkClick -> {
-                viewModelScope.launch { _events.send(SignUpEvent.OpenUrl(TERMS_URL)) }
+                viewModelScope.launch { _events.send(SignUpEvent.OpenUrl(LegalUrls.TERMS)) }
             }
             SignUpAction.OnPrivacyLinkClick -> {
-                viewModelScope.launch { _events.send(SignUpEvent.OpenUrl(PRIVACY_URL)) }
+                viewModelScope.launch { _events.send(SignUpEvent.OpenUrl(LegalUrls.PRIVACY)) }
             }
             SignUpAction.OnAppleSignInClick -> appleSignIn()
             SignUpAction.OnGoogleSignInClick -> googleSignIn()

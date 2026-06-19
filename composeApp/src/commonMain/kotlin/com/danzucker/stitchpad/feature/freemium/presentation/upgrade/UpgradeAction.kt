@@ -13,4 +13,9 @@ sealed interface UpgradeAction {
 
     // Apple's required "Restore purchases" affordance (shown only on iOS).
     data object RestorePurchases : UpgradeAction
+
+    // Open the legal pages in the browser. Apple Guideline 3.1.2 wants functional
+    // Privacy Policy + Terms of Use (EULA) links on/near the subscription paywall.
+    data object OnPrivacyClick : UpgradeAction
+    data object OnTermsClick : UpgradeAction
 }

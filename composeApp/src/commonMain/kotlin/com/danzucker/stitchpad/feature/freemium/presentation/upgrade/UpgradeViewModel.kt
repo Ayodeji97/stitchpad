@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
@@ -107,6 +108,10 @@ class UpgradeViewModel(
                 if (!_state.value.isStartingCheckout) _state.update { it.copy(billingCadence = action.cadence) }
             UpgradeAction.StartCheckout -> startCheckout()
             UpgradeAction.RestorePurchases -> restorePurchases()
+            UpgradeAction.OnPrivacyClick ->
+                viewModelScope.launch { _events.send(UpgradeEvent.OpenExternalBrowser(LegalUrls.PRIVACY)) }
+            UpgradeAction.OnTermsClick ->
+                viewModelScope.launch { _events.send(UpgradeEvent.OpenExternalBrowser(LegalUrls.TERMS)) }
         }
     }
 

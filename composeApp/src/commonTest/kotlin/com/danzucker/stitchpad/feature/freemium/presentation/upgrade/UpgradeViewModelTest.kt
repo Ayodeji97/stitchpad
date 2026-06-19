@@ -160,6 +160,32 @@ class UpgradeViewModelTest {
     }
 
     @Test
+    fun onPrivacyClick_opens_the_getstitchpad_privacy_url() = runTest {
+        val vm = newVm()
+        val eventDeferred = async { vm.events.first() }
+
+        vm.onAction(UpgradeAction.OnPrivacyClick)
+        runCurrent()
+
+        val event = eventDeferred.await()
+        assertIs<UpgradeEvent.OpenExternalBrowser>(event)
+        assertEquals("https://getstitchpad.com/privacy", event.url)
+    }
+
+    @Test
+    fun onTermsClick_opens_the_getstitchpad_terms_url() = runTest {
+        val vm = newVm()
+        val eventDeferred = async { vm.events.first() }
+
+        vm.onAction(UpgradeAction.OnTermsClick)
+        runCurrent()
+
+        val event = eventDeferred.await()
+        assertIs<UpgradeEvent.OpenExternalBrowser>(event)
+        assertEquals("https://getstitchpad.com/terms", event.url)
+    }
+
+    @Test
     fun tier_upgrade_emits_upgradeDetected() = runTest {
         val vm = newVm()
         val eventDeferred = async { vm.events.first() }
