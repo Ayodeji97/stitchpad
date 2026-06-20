@@ -238,7 +238,9 @@ fun SignUpScreen(
                     value = state.confirmPassword,
                     onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
-                    autofill = AuthAutofill.NewPassword,
+                    // No autofill role: only the primary password field is tagged
+                    // NewPassword. Tagging confirm too makes iOS leave it empty after a
+                    // generated strong password (Apple FB) and adds no save benefit.
                     imeAction = ImeAction.Done,
                     isPassword = true,
                     isPasswordVisible = state.isConfirmPasswordVisible,

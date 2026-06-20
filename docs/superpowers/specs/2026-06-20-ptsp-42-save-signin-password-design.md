@@ -60,8 +60,9 @@ Mapping:
 ### 3. Call sites
 - **`LoginScreen`** — email → `LoginEmail`, password → `LoginPassword`
 - **`SignUpScreen`** — email → `NewEmail`, password → `NewPassword`,
-  confirm-password → `NewPassword` (both password fields share the role so a
-  generated strong password fills both)
+  confirm-password → `None` (left untagged: tagging confirm `NewPassword` makes
+  iOS leave it empty after a generated strong password, and the credential saves
+  from the primary field regardless — so the tag adds risk, no benefit)
 
 Sign-up is the primary *save* trigger (dedicated new-credential content types);
 login is the *fill* trigger. Login's password stays plain `Password` — tagging it
