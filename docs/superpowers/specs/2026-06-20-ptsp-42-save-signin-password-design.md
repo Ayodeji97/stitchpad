@@ -103,35 +103,40 @@ settings (Settings → Passwords / Autofill service → Google). With no provide
 selected, autofill never appears regardless of code — this is the most common cause
 of "nothing happened." Fill additionally needs a previously-saved credential to offer.
 
-## iOS — via native text input (PR #201, pending device verification)
+## iOS — native UITextField bridge (PR #201, pending device verification)
 
-> Originally deferred; then implemented after finding the real entry point.
+Two earlier Compose-level approaches both failed:
+1. `contentType` semantics — ignored on iOS (`AutofillManager` is `null` there).
+2. CMP native text-input mode (`PlatformImeOptions { usingNativeTextInput(true) }`)
+   — **juddered** the auth screens on keyboard dismiss and still surfaced no
+   autofill on device. Reverted.
 
-iOS **ignores the Compose `contentType` semantics**. It derives the iOS
-`UITextContentType` (in `SkikoUITextInputTraits.getUITextInputTraits`) only when
-CMP's **native text-input mode** is enabled — from an explicit
-`platformImeOptions.textContentType`, or a `keyboardType` fallback
-(`Password → .password`, `Email → .emailAddress`).
+**Current approach:** the editable core of `AuthTextField` is now an
+`expect/actual` composable, `AuthPlatformTextInput`:
+- **Android** (`.android.kt`) — the original Compose `BasicTextField`, unchanged
+  (Android autofill keeps working as in #200).
+- **iOS** (`.ios.kt`) — a real **UIKit `UITextField` via `UIKitView`**, with
+  `textContentType` set to `.username` / `.password` / `.newPassword`, a
+  `UITextFieldDelegate` coordinator bridging value/focus changes back to Compose.
+  The surrounding Compose chrome (icon, dark card, eye toggle, error/helper) is
+  unchanged.
 
-So iOS autofill needs a `PlatformImeOptions` per auth field:
-
-```kotlin
-PlatformImeOptions {
-    usingNativeTextInput(true)
-    textContentType(/* .username | .password | .newPassword */)
-}
+**Required infra — Associated Domains `webcredentials`:** iOS only binds iCloud
+Keychain credentials to the app if the live
+`link.getstitchpad.com/.well-known/apple-app-site-association` includes a
+`webcredentials` section. As of this writing it has only `applinks`. Add:
+```json
+"webcredentials": { "apps": ["7DUJFVWF7W.com.danzucker.stitchpad"] }
 ```
+The app entitlement `webcredentials:link.getstitchpad.com` is already added.
+Until the AASA is deployed, iOS autofill will NOT work.
 
-This is exposed via the `authImeOptions()` expect/actual: `null` on Android,
-the options above on iOS, fed into `AuthTextField`'s `KeyboardOptions.platformImeOptions`.
+**Verify on device:** autofill fill/save; and that the bridge didn't regress
+typing, caret, password masking + show/hide toggle, field-to-field navigation, and
+scrolling (UIKitView in a scroll container).
 
-`AutofillManager` is still `null` on iOS, so the Android `commit()` path is a no-op
-there — iOS save/fill is driven entirely by the native text input + content type.
-
-**Open risk (verify on device):** native text-input mode changes how the field
-takes input. Confirm the password show/hide toggle, masking, typing/caret, and
-field-to-field navigation are unaffected. Fallback if it regresses: a native UIKit
-`UITextField` bridge for the iOS auth fields.
+**Known polish gaps (follow-up, non-blocking):** the native field uses the iOS
+system font (not Manrope) and the default placeholder color (not `#7D7970`).
 
 ## Out of scope
 
