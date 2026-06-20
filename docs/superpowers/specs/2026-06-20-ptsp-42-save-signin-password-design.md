@@ -103,20 +103,35 @@ settings (Settings → Passwords / Autofill service → Google). With no provide
 selected, autofill never appears regardless of code — this is the most common cause
 of "nothing happened." Fill additionally needs a previously-saved credential to offer.
 
-## iOS — not supported in CMP 1.11 (deferred)
+## iOS — via native text input (PR #201, pending device verification)
 
-iOS autofill is **deferred**, not delivered. Evidence:
-- `AutofillManager` is `null` on iOS, so the `commit()`/save path does not exist there.
-- iOS autofill only exists through an opt-in **native text input** mode whose toggle
-  (`UIKitNativeTextInputContext.usingNativeTextInput` / `LocalNativeTextInputContext`)
-  is `@InternalComposeUiApi` — not a production-safe public API in 1.11.
-- JetBrains' 1.11 notes only promise *fill* ("filling from saved passwords one field
-  at a time"); the save prompt is unconfirmed, and community reports call it flaky
-  (e.g. email/username content type ignored).
+> Originally deferred; then implemented after finding the real entry point.
 
-Revisit when CMP stabilizes native text input (target 1.12+). The `contentType`
-hints are already in place, so iOS should light up with minimal change once the
-platform supports it.
+iOS **ignores the Compose `contentType` semantics**. It derives the iOS
+`UITextContentType` (in `SkikoUITextInputTraits.getUITextInputTraits`) only when
+CMP's **native text-input mode** is enabled — from an explicit
+`platformImeOptions.textContentType`, or a `keyboardType` fallback
+(`Password → .password`, `Email → .emailAddress`).
+
+So iOS autofill needs a `PlatformImeOptions` per auth field:
+
+```kotlin
+PlatformImeOptions {
+    usingNativeTextInput(true)
+    textContentType(/* .username | .password | .newPassword */)
+}
+```
+
+This is exposed via the `authImeOptions()` expect/actual: `null` on Android,
+the options above on iOS, fed into `AuthTextField`'s `KeyboardOptions.platformImeOptions`.
+
+`AutofillManager` is still `null` on iOS, so the Android `commit()` path is a no-op
+there — iOS save/fill is driven entirely by the native text input + content type.
+
+**Open risk (verify on device):** native text-input mode changes how the field
+takes input. Confirm the password show/hide toggle, masking, typing/caret, and
+field-to-field navigation are unaffected. Fallback if it regresses: a native UIKit
+`UITextField` bridge for the iOS auth fields.
 
 ## Out of scope
 
