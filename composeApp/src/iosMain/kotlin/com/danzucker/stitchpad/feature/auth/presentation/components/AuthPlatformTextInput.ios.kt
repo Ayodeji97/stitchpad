@@ -54,7 +54,11 @@ internal actual fun AuthPlatformTextInput(
         factory = {
             UITextField(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)).apply {
                 borderStyle = UITextBorderStyle.UITextBorderStyleNone
-                backgroundColor = UIColor.clearColor
+                // Match the AuthTextField card (#2A2825). A clear background here
+                // composites as an opaque BLACK box through the UIKitView interop
+                // layer, so paint the card colour to blend in instead.
+                setOpaque(false)
+                backgroundColor = fieldBackgroundColor
                 textColor = fieldTextColor
                 tintColor = brandAccentColor
                 font = UIFont.systemFontOfSize(15.0)
@@ -129,6 +133,14 @@ private fun ImeAction.toUIReturnKeyType() = when (this) {
     ImeAction.Next -> UIReturnKeyType.UIReturnKeyNext
     else -> UIReturnKeyType.UIReturnKeyDone
 }
+
+// Matches the AuthTextField card background Color(0xFF2A2825).
+private val fieldBackgroundColor = UIColor(
+    red = 0x2A / 255.0,
+    green = 0x28 / 255.0,
+    blue = 0x25 / 255.0,
+    alpha = 1.0,
+)
 
 private val fieldTextColor = UIColor(
     red = 0xF5 / 255.0,
