@@ -88,8 +88,9 @@ fun LoginRoot(
         when (event) {
             LoginEvent.NavigateToSignUp -> onNavigateToSignUp()
             LoginEvent.NavigateToForgotPassword -> onNavigateToForgotPassword()
-            LoginEvent.NavigateToHome -> {
-                autofillManager?.commit()
+            is LoginEvent.NavigateToHome -> {
+                // Only password sign-in has typed credentials worth saving; SSO does not.
+                if (event.fromPasswordLogin) autofillManager?.commit()
                 onNavigateToHome()
             }
             is LoginEvent.ShowError -> {
