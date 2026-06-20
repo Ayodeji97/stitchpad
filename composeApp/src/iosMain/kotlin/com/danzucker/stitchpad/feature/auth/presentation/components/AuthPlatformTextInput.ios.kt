@@ -45,10 +45,12 @@ internal actual fun AuthPlatformTextInput(
     isPasswordVisible: Boolean,
     onFocusChange: (Boolean) -> Unit,
 ) {
+    val focusController = LocalAuthFocusController.current
     val coordinator = remember { AuthTextFieldCoordinator() }
     coordinator.onValueChange = onValueChange
     coordinator.onFocusChange = onFocusChange
     coordinator.imeAction = imeAction
+    coordinator.focusController = focusController
 
     UIKitView(
         factory = {
@@ -70,6 +72,8 @@ internal actual fun AuthPlatformTextInput(
                     action = NSSelectorFromString("editingChanged:"),
                     forControlEvents = UIControlEventEditingChanged,
                 )
+                // Register in composition (visual) order so "Next" can advance.
+                focusController.register(this)
             }
         },
         modifier = modifier.height(24.dp),
@@ -84,6 +88,9 @@ internal actual fun AuthPlatformTextInput(
                 field.text = value
             }
         },
+        onRelease = { field ->
+            focusController.unregister(field)
+        },
     )
 }
 
@@ -92,6 +99,7 @@ private class AuthTextFieldCoordinator : NSObject(), UITextFieldDelegateProtocol
     var onFocusChange: (Boolean) -> Unit = {}
     var imeAction: ImeAction = ImeAction.Default
     var field: UITextField? = null
+    var focusController: AuthFocusController? = null
 
     @OptIn(BetaInteropApi::class)
     @ObjCAction
@@ -108,8 +116,19 @@ private class AuthTextFieldCoordinator : NSObject(), UITextFieldDelegateProtocol
     }
 
     override fun textFieldShouldReturn(textField: UITextField): Boolean {
-        textField.resignFirstResponder()
-        onFocusChange(false)
+        // On "Next", advance first responder to the next registered field; on
+        // "Done" (or the last field) dismiss the keyboard. Focus callbacks are
+        // driven by textFieldDidBegin/EndEditing, so don't fire them here.
+        val nextField = if (imeAction == ImeAction.Next) {
+            focusController?.nextAfter(textField) as? UITextField
+        } else {
+            null
+        }
+        if (nextField != null) {
+            nextField.becomeFirstResponder()
+        } else {
+            textField.resignFirstResponder()
+        }
         return true
     }
 }
