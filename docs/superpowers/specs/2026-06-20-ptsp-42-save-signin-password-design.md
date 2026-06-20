@@ -141,8 +141,14 @@ composition order (and unregisters on `onRelease`). `textFieldShouldReturn` adva
 first responder to the next registered field for `ImeAction.Next`, and dismisses on
 `Done`/the last field. Android is unchanged (Compose `KeyboardActions` already does this).
 
-**Remaining follow-ups (non-blocking):** the native iOS field uses the system font
-(not Manrope) and the default placeholder color (not `#7D7970`).
+**Tap-to-dismiss keyboard — fixed.** The native `UITextField` is outside Compose's
+focus system, so `clearFocusOnTap()`'s `clearFocus()` couldn't dismiss its keyboard.
+Added an `expect/actual dismissNativeKeyboard()` (iOS sends `resignFirstResponder` to
+the current first responder; no-op on Android) and call it from `clearFocusOnTap()`.
+
+**Remaining follow-ups (non-blocking):** VoiceOver/accessibility exposure of the
+bridged field through the `UIKitView` interop layer; the native iOS field uses the
+system font (not Manrope) and the default placeholder color (not `#7D7970`).
 
 ## Out of scope
 

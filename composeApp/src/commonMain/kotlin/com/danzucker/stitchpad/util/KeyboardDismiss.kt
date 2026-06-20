@@ -30,6 +30,18 @@ fun Modifier.clearFocusOnTap(): Modifier {
     return this.clickable(
         interactionSource = interactionSource,
         indication = null,
-        onClick = { focusManager.clearFocus() },
+        onClick = {
+            focusManager.clearFocus()
+            // iOS auth fields are native UITextFields outside Compose's focus
+            // system, so clearFocus() can't dismiss their keyboard — resign the
+            // native first responder too. No-op on Android.
+            dismissNativeKeyboard()
+        },
     )
 }
+
+/**
+ * Resigns the platform's current native text first responder (dismissing its
+ * keyboard). No-op on Android, where Compose focus already handles dismissal.
+ */
+expect fun dismissNativeKeyboard()
