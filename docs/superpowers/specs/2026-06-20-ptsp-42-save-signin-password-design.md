@@ -60,13 +60,25 @@ Mapping:
 ### 3. Call sites
 - **`LoginScreen`** — email → `LoginEmail`, password → `LoginPassword`
 - **`SignUpScreen`** — email → `NewEmail`, password → `NewPassword`,
-  confirm-password → `None` (left untagged: tagging confirm `NewPassword` makes
-  iOS leave it empty after a generated strong password, and the credential saves
-  from the primary field regardless — so the tag adds risk, no benefit)
+  confirm-password → `NewPassword` (the standard confirm pattern). This is
+  **required**, not cosmetic: `BasicTextField` auto-derives `ContentType.Password`
+  from the password keyboard (see note below), so an untagged confirm field would
+  become a stray *existing-password fill* target. Tagging it `NewPassword` folds it
+  into the new credential. (iOS autofill is deferred, so the iOS "empty confirm after
+  generated strong password" concern doesn't apply now; revisit when iOS is enabled.)
 
 Sign-up is the primary *save* trigger (dedicated new-credential content types);
 login is the *fill* trigger. Login's password stays plain `Password` — tagging it
 `NewPassword` would wrongly suppress fill suggestions.
+
+### Framework auto-derivation (important)
+
+In CMP 1.11, `BasicTextField` already assigns a content type from the keyboard type
+(`CoreTextFieldSemanticsModifier`): `Email → EmailAddress`, `Password → Password`,
+`Phone → PhoneNumber`. Our explicit `Modifier.semantics { contentType = … }`
+*overrides* that default (per Android's autofill docs). Consequence: a field cannot
+be fully opted *out* of autofill just by omitting an app-level role — a password
+field is always at least `Password`. To change its role you must set an explicit one.
 
 ## Triggering the save prompt (Android) — `commit()` is required
 

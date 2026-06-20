@@ -245,9 +245,13 @@ fun SignUpScreen(
                     value = state.confirmPassword,
                     onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
-                    // No autofill role: only the primary password field is tagged
-                    // NewPassword. Tagging confirm too makes iOS leave it empty after a
-                    // generated strong password (Apple FB) and adds no save benefit.
+                    // Both password fields are NewPassword — the standard confirm pattern.
+                    // Required: BasicTextField auto-derives ContentType.Password from the
+                    // password keyboard, so leaving this untagged would make confirm an
+                    // existing-password *fill* field. NewPassword folds it into the new
+                    // credential instead. (iOS autofill is deferred, so the prior iOS
+                    // empty-confirm concern doesn't apply for now.)
+                    autofill = AuthAutofill.NewPassword,
                     imeAction = ImeAction.Done,
                     isPassword = true,
                     isPasswordVisible = state.isConfirmPasswordVisible,
