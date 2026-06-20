@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -79,12 +80,18 @@ fun LoginRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val comingSoon = stringResource(Res.string.auth_coming_soon)
+    // Android-only: commits the entered credentials so the OS offers to save them
+    // on successful login. Null on iOS (autofill goes through native text input).
+    val autofillManager = LocalAutofillManager.current
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             LoginEvent.NavigateToSignUp -> onNavigateToSignUp()
             LoginEvent.NavigateToForgotPassword -> onNavigateToForgotPassword()
-            LoginEvent.NavigateToHome -> onNavigateToHome()
+            LoginEvent.NavigateToHome -> {
+                autofillManager?.commit()
+                onNavigateToHome()
+            }
             is LoginEvent.ShowError -> {
                 scope.launch {
                     val message = when (val text = event.message) {

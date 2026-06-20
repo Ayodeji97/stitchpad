@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -98,12 +99,18 @@ fun SignUpRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    // Android-only: commits the new credentials so the OS offers to save them after
+    // a successful email/password sign-up. Null on iOS (native text input path).
+    val autofillManager = LocalAutofillManager.current
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             SignUpEvent.NavigateToLogin -> onNavigateToLogin()
             SignUpEvent.NavigateToHome -> onNavigateToHome()
-            SignUpEvent.NavigateToEmailVerification -> onNavigateToEmailVerification()
+            SignUpEvent.NavigateToEmailVerification -> {
+                autofillManager?.commit()
+                onNavigateToEmailVerification()
+            }
             is SignUpEvent.ShowError -> {
                 scope.launch {
                     val message = when (val text = event.message) {

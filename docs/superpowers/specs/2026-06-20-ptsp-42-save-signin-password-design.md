@@ -68,43 +68,73 @@ Sign-up is the primary *save* trigger (dedicated new-credential content types);
 login is the *fill* trigger. Login's password stays plain `Password` — tagging it
 `NewPassword` would wrongly suppress fill suggestions.
 
-## Why this fires the save prompt
+## Triggering the save prompt (Android) — `commit()` is required
 
-Compose commits the autofill context when the autofillable nodes leave composition
-— i.e. on successful login/signup navigation. At that point Android/iOS offers to
-save the credential. On the next visit the OS offers to fill it.
+> **Revised 2026-06-20 after device testing showed nothing on either platform.**
+
+Setting `contentType` alone was **not enough**. Per Google's Compose autofill docs,
+the save dialog is raised when the autofill session is *committed*. Auto-commit on
+"navigate away" is timing-dependent and did not fire for our submit-then-navigate
+flow. The deterministic, documented fix is to call
+`LocalAutofillManager.current?.commit()` on success:
+
+- `LoginRoot` — on `LoginEvent.NavigateToHome` (login succeeded), before navigating.
+- `SignUpRoot` — on `SignUpEvent.NavigateToEmailVerification` (email/password sign-up
+  succeeded), before navigating. SSO paths have no password to save, so they're skipped.
+
+`LocalAutofillManager` is `androidx.compose.ui.platform.LocalAutofillManager`; it
+returns a non-null `AutofillManager` on Android and **`null` on iOS** (the iOS owner
+hardcodes `autofillManager = null`), so the call is a safe no-op on iOS.
+
+**Android also requires, on the device:** a credential provider enabled in system
+settings (Settings → Passwords / Autofill service → Google). With no provider
+selected, autofill never appears regardless of code — this is the most common cause
+of "nothing happened." Fill additionally needs a previously-saved credential to offer.
+
+## iOS — not supported in CMP 1.11 (deferred)
+
+iOS autofill is **deferred**, not delivered. Evidence:
+- `AutofillManager` is `null` on iOS, so the `commit()`/save path does not exist there.
+- iOS autofill only exists through an opt-in **native text input** mode whose toggle
+  (`UIKitNativeTextInputContext.usingNativeTextInput` / `LocalNativeTextInputContext`)
+  is `@InternalComposeUiApi` — not a production-safe public API in 1.11.
+- JetBrains' 1.11 notes only promise *fill* ("filling from saved passwords one field
+  at a time"); the save prompt is unconfirmed, and community reports call it flaky
+  (e.g. email/username content type ignored).
+
+Revisit when CMP stabilizes native text input (target 1.12+). The `contentType`
+hints are already in place, so iOS should light up with minimal change once the
+platform supports it.
 
 ## Out of scope
 
 - Forgot-password screen and `ReauthBottomSheet` (per agreed Login + Sign-up scope).
 - Native Credential Manager / custom credential-picker UI.
+- Native UIKit `UITextField` bridge for iOS (considered; too costly vs. value now).
 - Session persistence (Firebase Auth already persists sessions; not the reported pain).
-
-## Expected iOS behavior to note during testing
-
-Tagging the sign-up password field as `newPassword` makes iOS offer an
-auto-generated strong password (tinted QuickType overlay). The user can tap
-**"Choose My Own Password"** to type their own — generation is never forced. This
-is standard iOS behavior, not a defect.
 
 ## Testing / verification
 
-Pure Compose semantics change — no ViewModel logic changes, so existing unit tests
-remain valid. Autofill does not surface reliably on simulators, so verification is
-a manual smoke test on **real devices**:
+Autofill does not surface on simulators/emulators reliably, so verify on a **real
+Android device** (iOS is deferred — expect nothing there yet).
 
-**Android device**
-1. Sign up with a new email/password → expect "Save password to Google?" prompt.
-2. Sign out → return to Login → expect the email/password to be offered as autofill.
+**Android device — prerequisite (do this first):**
+Settings → search "Autofill service" (or Passwords & accounts) → set the service to
+**Google**. Without this, nothing below will appear.
 
-**iOS device**
-1. Sign up → expect iCloud Keychain "Save Password?" (or use the strong-password
-   suggestion) → confirm saved.
-2. Sign out → return to Login → expect the QuickType / key-icon autofill suggestion.
+**Android device — smoke test**
+1. Sign up with a brand-new email/password → on success expect "Save password to
+   Google?" (the `commit()` on sign-up success raises this).
+2. Sign out → return to Login → focus the email field → expect a fill chip above the
+   keyboard offering the saved credential.
+3. (Optional) Log in with a new credential typed manually → on success expect a
+   save/update prompt.
+
+**iOS device** — deferred; no autofill expected yet (see "iOS — not supported" above).
 
 ## Risks
 
-- Experimental Compose API (`@ExperimentalComposeUiApi`) — surface area is small
-  and contained to `AuthTextField`.
-- iOS autofill maturity in CMP — verify on a real iPhone before declaring done
-  (matches the project's standing rule to run a real iOS device for auth changes).
+- `contentType` semantics use `@ExperimentalComposeUiApi` — contained to `AuthTextField`.
+- `LocalAutofillManager` / `commit()` are stable (non-experimental) common APIs.
+- Android save dialog ultimately depends on the device's autofill service and the
+  provider's heuristics — code can request the save, but the OS decides whether to show it.
