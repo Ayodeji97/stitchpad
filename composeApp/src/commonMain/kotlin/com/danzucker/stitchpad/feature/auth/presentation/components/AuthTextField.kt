@@ -138,6 +138,9 @@ fun AuthTextField(
                         keyboardType
                     },
                     imeAction = imeAction,
+                    // iOS: switches this field to native text input + UITextContentType so
+                    // iCloud Keychain autofill works. Null on Android (no-op).
+                    platformImeOptions = authImeOptions(autofill),
                 ),
                 // Wire Next → move focus down, Done → dismiss keyboard. Required
                 // because iOS numeric keypads (KeyboardType.Phone, Number) never
