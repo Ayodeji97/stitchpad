@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthAutofill
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
@@ -97,12 +99,18 @@ fun SignUpRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    // Android-only: commits the new credentials so the OS offers to save them after
+    // a successful email/password sign-up. Null on iOS (native text input path).
+    val autofillManager = LocalAutofillManager.current
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             SignUpEvent.NavigateToLogin -> onNavigateToLogin()
             SignUpEvent.NavigateToHome -> onNavigateToHome()
-            SignUpEvent.NavigateToEmailVerification -> onNavigateToEmailVerification()
+            SignUpEvent.NavigateToEmailVerification -> {
+                autofillManager?.commit()
+                onNavigateToEmailVerification()
+            }
             is SignUpEvent.ShowError -> {
                 scope.launch {
                     val message = when (val text = event.message) {
@@ -183,6 +191,7 @@ fun SignUpScreen(
                     value = state.email,
                     onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
+                    autofill = AuthAutofill.NewEmail,
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next,
                     placeholder = stringResource(Res.string.placeholder_email),
@@ -197,6 +206,7 @@ fun SignUpScreen(
                     value = state.password,
                     onValueChange = { onAction(SignUpAction.OnPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
+                    autofill = AuthAutofill.NewPassword,
                     imeAction = ImeAction.Next,
                     isPassword = true,
                     isPasswordVisible = state.isPasswordVisible,
@@ -235,6 +245,13 @@ fun SignUpScreen(
                     value = state.confirmPassword,
                     onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
+                    // Both password fields are NewPassword — the standard confirm pattern.
+                    // Required: BasicTextField auto-derives ContentType.Password from the
+                    // password keyboard, so leaving this untagged would make confirm an
+                    // existing-password *fill* field. NewPassword folds it into the new
+                    // credential instead. (iOS autofill is deferred, so the prior iOS
+                    // empty-confirm concern doesn't apply for now.)
+                    autofill = AuthAutofill.NewPassword,
                     imeAction = ImeAction.Done,
                     isPassword = true,
                     isPasswordVisible = state.isConfirmPasswordVisible,

@@ -20,7 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
@@ -28,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -43,6 +47,7 @@ import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
  * Themed text field for auth screens — icon prefix + optional eye-toggle suffix.
  * Always renders on dark surfaces (matches AuthCard).
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Suppress("CyclomaticComplexMethod")
 @Composable
 fun AuthTextField(
@@ -52,6 +57,7 @@ fun AuthTextField(
     leadingIcon: ImageVector,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    autofill: AuthAutofill = AuthAutofill.None,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Default,
     isPassword: Boolean = false,
@@ -100,11 +106,19 @@ fun AuthTextField(
                 modifier = Modifier.size(20.dp),
             )
             val wasFocused = remember { mutableStateOf(false) }
+            val autofillContentType = autofill.toContentType()
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier
                     .weight(1f)
+                    .then(
+                        if (autofillContentType != null) {
+                            Modifier.semantics { contentType = autofillContentType }
+                        } else {
+                            Modifier
+                        }
+                    )
                     .onFocusChanged { focusState ->
                         if (wasFocused.value && !focusState.isFocused) {
                             onFocusLost?.invoke()
@@ -185,4 +199,18 @@ fun AuthTextField(
             }
         }
     }
+}
+
+/**
+ * Maps the app-level [AuthAutofill] role to a Compose [ContentType]. `New*` roles
+ * combine email + new-credential hints so the OS offers to SAVE; login roles use
+ * plain hints so the OS offers to FILL. Returns null when no hint should be set.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+private fun AuthAutofill.toContentType(): ContentType? = when (this) {
+    AuthAutofill.LoginEmail -> ContentType.Username + ContentType.EmailAddress
+    AuthAutofill.LoginPassword -> ContentType.Password
+    AuthAutofill.NewEmail -> ContentType.NewUsername + ContentType.EmailAddress
+    AuthAutofill.NewPassword -> ContentType.NewPassword
+    AuthAutofill.None -> null
 }

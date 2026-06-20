@@ -68,7 +68,7 @@ class LoginViewModel(
             _state.update { it.copy(isSsoLoading = true) }
             try {
                 when (val result = authRepository.signInWithGoogle()) {
-                    is Result.Success -> _events.send(LoginEvent.NavigateToHome)
+                    is Result.Success -> _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
                     is Result.Error -> {
                         if (result.error != AuthError.SSO_CANCELLED) {
                             _events.send(LoginEvent.ShowError(result.error.toUiText()))
@@ -86,7 +86,7 @@ class LoginViewModel(
             _state.update { it.copy(isSsoLoading = true) }
             try {
                 when (val result = authRepository.signInWithApple()) {
-                    is Result.Success -> _events.send(LoginEvent.NavigateToHome)
+                    is Result.Success -> _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
                     is Result.Error -> {
                         if (result.error != AuthError.SSO_CANCELLED) {
                             _events.send(LoginEvent.ShowError(result.error.toUiText()))
@@ -129,7 +129,7 @@ class LoginViewModel(
             try {
                 val result = authRepository.signInWithEmail(_state.value.email, _state.value.password)
                 when (result) {
-                    is Result.Success -> _events.send(LoginEvent.NavigateToHome)
+                    is Result.Success -> _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = true))
                     is Result.Error -> _events.send(LoginEvent.ShowError(result.error.toUiText()))
                 }
             } finally {

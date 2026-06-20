@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthAutofill
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
@@ -78,12 +80,19 @@ fun LoginRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val comingSoon = stringResource(Res.string.auth_coming_soon)
+    // Android-only: commits the entered credentials so the OS offers to save them
+    // on successful login. Null on iOS (autofill goes through native text input).
+    val autofillManager = LocalAutofillManager.current
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             LoginEvent.NavigateToSignUp -> onNavigateToSignUp()
             LoginEvent.NavigateToForgotPassword -> onNavigateToForgotPassword()
-            LoginEvent.NavigateToHome -> onNavigateToHome()
+            is LoginEvent.NavigateToHome -> {
+                // Only password sign-in has typed credentials worth saving; SSO does not.
+                if (event.fromPasswordLogin) autofillManager?.commit()
+                onNavigateToHome()
+            }
             is LoginEvent.ShowError -> {
                 scope.launch {
                     val message = when (val text = event.message) {
@@ -153,6 +162,7 @@ fun LoginScreen(
                     value = state.email,
                     onValueChange = { onAction(LoginAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
+                    autofill = AuthAutofill.LoginEmail,
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next,
                     placeholder = stringResource(Res.string.placeholder_email),
@@ -167,6 +177,7 @@ fun LoginScreen(
                         value = state.password,
                         onValueChange = { onAction(LoginAction.OnPasswordChange(it)) },
                         leadingIcon = Icons.Outlined.Lock,
+                        autofill = AuthAutofill.LoginPassword,
                         imeAction = ImeAction.Done,
                         isPassword = true,
                         isPasswordVisible = state.isPasswordVisible,
