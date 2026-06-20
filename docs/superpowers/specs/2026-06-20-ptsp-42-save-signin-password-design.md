@@ -59,7 +59,9 @@ Mapping:
 
 ### 3. Call sites
 - **`LoginScreen`** — email → `LoginEmail`, password → `LoginPassword`
-- **`SignUpScreen`** — email → `NewEmail`, password → `NewPassword`
+- **`SignUpScreen`** — email → `NewEmail`, password → `NewPassword`,
+  confirm-password → `NewPassword` (both password fields share the role so a
+  generated strong password fills both)
 
 Sign-up is the primary *save* trigger (dedicated new-credential content types);
 login is the *fill* trigger. Login's password stays plain `Password` — tagging it

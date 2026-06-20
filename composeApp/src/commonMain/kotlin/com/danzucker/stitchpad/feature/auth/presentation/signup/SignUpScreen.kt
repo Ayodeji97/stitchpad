@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.auth.presentation.components.AuthAutofill
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
@@ -183,6 +184,7 @@ fun SignUpScreen(
                     value = state.email,
                     onValueChange = { onAction(SignUpAction.OnEmailChange(it)) },
                     leadingIcon = Icons.Outlined.Mail,
+                    autofill = AuthAutofill.NewEmail,
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next,
                     placeholder = stringResource(Res.string.placeholder_email),
@@ -197,6 +199,7 @@ fun SignUpScreen(
                     value = state.password,
                     onValueChange = { onAction(SignUpAction.OnPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
+                    autofill = AuthAutofill.NewPassword,
                     imeAction = ImeAction.Next,
                     isPassword = true,
                     isPasswordVisible = state.isPasswordVisible,
@@ -235,6 +238,7 @@ fun SignUpScreen(
                     value = state.confirmPassword,
                     onValueChange = { onAction(SignUpAction.OnConfirmPasswordChange(it)) },
                     leadingIcon = Icons.Outlined.Lock,
+                    autofill = AuthAutofill.NewPassword,
                     imeAction = ImeAction.Done,
                     isPassword = true,
                     isPasswordVisible = state.isConfirmPasswordVisible,
