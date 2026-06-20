@@ -135,8 +135,13 @@ Until the AASA is deployed, iOS autofill will NOT work.
 typing, caret, password masking + show/hide toggle, field-to-field navigation, and
 scrolling (UIKitView in a scroll container).
 
-**Known polish gaps (follow-up, non-blocking):** the native field uses the iOS
-system font (not Manrope) and the default placeholder color (not `#7D7970`).
+**Known follow-ups (after the device test confirms the approach):**
+- **Keyboard "Next" key** dismisses instead of advancing — the bridge's
+  `textFieldShouldReturn` always resigns. Advancing across separate native
+  `UITextField`s needs a focus/responder chain owned by the screen (it knows field
+  order), not `AuthTextField` alone.
+- Native field uses the iOS **system font** (not Manrope) and the **default
+  placeholder color** (not `#7D7970`).
 
 ## Out of scope
 
