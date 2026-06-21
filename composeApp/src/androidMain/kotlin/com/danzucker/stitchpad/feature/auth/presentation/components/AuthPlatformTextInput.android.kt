@@ -26,6 +26,8 @@ internal actual fun AuthPlatformTextInput(
     onValueChange: (String) -> Unit,
     modifier: Modifier,
     placeholder: String,
+    // Compose's BasicTextField is already exposed to TalkBack; no extra label needed.
+    @Suppress("UNUSED_PARAMETER") accessibilityLabel: String,
     autofill: AuthAutofill,
     keyboardType: KeyboardType,
     imeAction: ImeAction,
