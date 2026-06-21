@@ -98,6 +98,7 @@ import com.danzucker.stitchpad.feature.order.domain.discountBreakdown
 import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.feature.style.presentation.form.styleFormSelectionMode
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
@@ -333,12 +334,10 @@ fun OrderFormScreen(
             state.stylePickerSheetForItemId?.let { itemId ->
                 val targetItem = state.items.find { it.id == itemId }
                 if (targetItem != null) {
-                    val alreadyPickedIds = targetItem.styleImageRefs
+                    val alreadyAddedIds = targetItem.styleImageRefs
                         .filter { it.source == StyleImageSource.LIBRARY }
                         .mapNotNull { it.styleId }
                         .toSet()
-                    val usedSlots = targetItem.styleImageRefs.size + targetItem.uploadedStyleBytesList.size
-                    val remaining = MAX_IMAGES_PER_CATEGORY - usedSlots
                     StylePickerSheet(
                         closetFolders = state.closetFolders,
                         inspirationFolders = state.inspirationFolders,
@@ -347,15 +346,13 @@ fun OrderFormScreen(
                         pickerOpenFolderKey = state.pickerOpenFolderKey,
                         onFolderOpen = { onAction(OrderFormAction.OnPickerFolderOpen(it)) },
                         onFolderBack = { onAction(OrderFormAction.OnPickerFolderBack) },
-                        alreadySelectedStyleIds = alreadyPickedIds,
-                        remainingCapacity = remaining,
-                        onSelect = { style ->
-                            onAction(OrderFormAction.OnItemPickSavedStyle(itemId, style.id))
-                            val nextRemaining = remaining - 1
-                            if (nextRemaining <= 0) {
-                                onAction(OrderFormAction.OnDismissStylePickerSheet)
-                            }
-                        },
+                        alreadyAddedStyleIds = alreadyAddedIds,
+                        committedSlots = targetItem.styleImageRefs.size +
+                            targetItem.uploadedStyleBytesList.size,
+                        pendingStyleIds = state.stylePickerPendingIds,
+                        maxRefs = MAX_IMAGES_PER_CATEGORY,
+                        onToggle = { onAction(OrderFormAction.OnItemTogglePendingStyle(it.id)) },
+                        onDone = { onAction(OrderFormAction.OnItemCommitPendingStyles(itemId)) },
                         onDismiss = { onAction(OrderFormAction.OnDismissStylePickerSheet) },
                     )
                 }
@@ -1367,15 +1364,21 @@ private fun StyleImageSection(
     var showStyleSheet by remember { mutableStateOf(false) }
     var pendingStyleSource by remember { mutableStateOf<PhotoSource?>(null) }
 
-    val styleGalleryPicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let {
-                onAction(OrderFormAction.OnItemAddStylePhoto(item.id, it))
-            }
-        },
-    )
+    // Multi-select up to the remaining slots (re-keyed so it recomputes as slots
+    // fill). The VM's add handler cap-guards each photo, so the loop is safe.
+    val styleRemaining = capacityRemaining.coerceAtLeast(1)
+    val styleGalleryPicker = key(styleRemaining) {
+        rememberImagePickerLauncher(
+            selectionMode = styleFormSelectionMode(
+                allowMultiPhoto = true,
+                maxPhotoSelection = styleRemaining,
+            ),
+            scope = pickerScope,
+            onResult = { byteArrays ->
+                byteArrays.forEach { onAction(OrderFormAction.OnItemAddStylePhoto(item.id, it)) }
+            },
+        )
+    }
     val styleCameraLauncher = rememberImageCaptureLauncher { bytes ->
         if (bytes != null) onAction(OrderFormAction.OnItemAddStylePhoto(item.id, bytes))
     }

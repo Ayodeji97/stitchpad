@@ -168,23 +168,37 @@ class OrderFormViewModel(
             is OrderFormAction.OnItemFabricNameChange -> updateItem(action.itemId) {
                 it.copy(fabricName = action.fabricName)
             }
-            is OrderFormAction.OnItemPickSavedStyle -> updateItem(action.itemId) {
-                // Append a LIBRARY ref. Capacity check: stylePickerSheet already
-                // marks already-picked as disabled, so the user shouldn't be able
-                // to over-pick — but defend with a guard anyway.
-                val total = it.styleImageRefs.size + it.uploadedStyleBytesList.size
-                if (total >= 3) return@updateItem it
-                val alreadyHasStyle = it.styleImageRefs.any { ref ->
-                    ref.source == StyleImageSource.LIBRARY && ref.styleId == action.styleId
+            is OrderFormAction.OnItemTogglePendingStyle -> _state.update { st ->
+                val itemId = st.stylePickerSheetForItemId ?: return@update st
+                val item = st.items.find { it.id == itemId } ?: return@update st
+                val committedSlots = item.styleImageRefs.size + item.uploadedStyleBytesList.size
+                val pending = st.stylePickerPendingIds
+                val newPending = when {
+                    action.styleId in pending -> pending - action.styleId
+                    committedSlots + pending.size >= MAX_STYLE_REFS -> pending
+                    else -> pending + action.styleId
                 }
-                if (alreadyHasStyle) {
-                    return@updateItem it // already picked
+                st.copy(stylePickerPendingIds = newPending)
+            }
+            is OrderFormAction.OnItemCommitPendingStyles -> _state.update { st ->
+                val pending = st.stylePickerPendingIds
+                val withRefs = st.items.map { item ->
+                    if (item.id != action.itemId) return@map item
+                    val existing = item.styleImageRefs.mapNotNull { it.styleId }.toSet()
+                    val usedSlots = item.styleImageRefs.size + item.uploadedStyleBytesList.size
+                    val toAdd = pending.filter { it !in existing }
+                        // Defensive cap: never let a raced/oversized pending list push the
+                        // item past MAX_STYLE_REFS, even though the toggle handler already
+                        // gates selection at the cap.
+                        .take((MAX_STYLE_REFS - usedSlots).coerceAtLeast(0))
+                        .map { StyleImageRef(source = StyleImageSource.LIBRARY, styleId = it) }
+                    item.copy(styleImageRefs = item.styleImageRefs + toAdd)
                 }
-                it.copy(
-                    styleImageRefs = it.styleImageRefs + StyleImageRef(
-                        source = StyleImageSource.LIBRARY,
-                        styleId = action.styleId,
-                    ),
+                st.copy(
+                    items = withRefs,
+                    stylePickerPendingIds = emptyList(),
+                    stylePickerSheetForItemId = null,
+                    pickerOpenFolderKey = null,
                 )
             }
             is OrderFormAction.OnItemAddStylePhoto ->
@@ -228,16 +242,25 @@ class OrderFormViewModel(
             is OrderFormAction.OnOpenStylePickerSheet -> {
                 // Always open the picker on the closet tab and return to the
                 // folder grid so the default experience is consistent.
+                // Clear any pending picks from a previous session so the picker
+                // always starts fresh.
                 _state.update {
                     it.copy(
                         stylePickerSheetForItemId = action.itemId,
                         stylePickerSource = StylePickerSource.CLOSET,
                         pickerOpenFolderKey = null,
+                        stylePickerPendingIds = emptyList(),
                     )
                 }
             }
             OrderFormAction.OnDismissStylePickerSheet -> {
-                _state.update { it.copy(stylePickerSheetForItemId = null, pickerOpenFolderKey = null) }
+                _state.update {
+                    it.copy(
+                        stylePickerSheetForItemId = null,
+                        pickerOpenFolderKey = null,
+                        stylePickerPendingIds = emptyList(),
+                    )
+                }
             }
             is OrderFormAction.OnStylePickerSourceChange -> {
                 // Switching the source also clears any open folder (return to grid).
@@ -1054,5 +1077,6 @@ class OrderFormViewModel(
 
     private companion object {
         const val MAX_ORDER_PHOTO_BYTES = 5 * 1024 * 1024
+        const val MAX_STYLE_REFS = 3
     }
 }

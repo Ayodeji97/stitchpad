@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
+import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
@@ -1065,6 +1066,157 @@ class OrderFormViewModelTest {
         assertEquals(listOf("closet-1"), vm.state.value.availableStyles.map { it.id })
         // Inspiration must only have the inspiration style.
         assertEquals(listOf("insp-1"), vm.state.value.inspirationStyles.map { it.id })
+    }
+
+    // ─── Saved-style picker — batch pending selection ────────────────────────
+
+    /**
+     * Creates a VM with one styled order item and seeds the style repository
+     * with four styles (s1–s4) in the customer's closet. Opens the picker for
+     * the item so [stylePickerSheetForItemId] is set and ready for toggle tests.
+     * Returns Pair(viewModel, itemId).
+     */
+    private fun TestScope.createViewModelWithPickerOpen(): Pair<OrderFormViewModel, String> {
+        val cid = testCustomer.id
+        fun makeStyle(id: String) = Style(
+            id = id,
+            customerId = cid,
+            description = id,
+            photoUrl = "https://example.com/$id.jpg",
+            photoStoragePath = "users/user-1/styles/$id",
+            createdAt = 0L,
+            updatedAt = 0L,
+            syncState = com.danzucker.stitchpad.core.domain.model.ImageSyncState.SYNCED,
+        )
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset(cid, folderId = null)] =
+            listOf(makeStyle("s1"), makeStyle("s2"), makeStyle("s3"), makeStyle("s4"))
+
+        val vm = createViewModel(orderId = null)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val itemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        return vm to itemId
+    }
+
+    @Test
+    fun togglePendingStyle_selectsThenDeselects() = runTest {
+        val (vm, _) = createViewModelWithPickerOpen()
+
+        // Select s1, s2
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s2"))
+        assertEquals(listOf("s1", "s2"), vm.state.value.stylePickerPendingIds)
+
+        // Deselect s1 → only s2 remains
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        assertEquals(listOf("s2"), vm.state.value.stylePickerPendingIds)
+    }
+
+    @Test
+    fun togglePendingStyle_respectsCapWithAlreadyAdded() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        // Commit s1 first so the item already has 1 LIBRARY ref.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+        // Reopen the picker.
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+
+        // committed=1; toggle s2 → pending=[s2] (total 2), toggle s3 → pending=[s2,s3] (total 3)
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s2"))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s3"))
+        assertEquals(listOf("s2", "s3"), vm.state.value.stylePickerPendingIds)
+
+        // s4 would exceed cap → blocked
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s4"))
+        assertEquals(listOf("s2", "s3"), vm.state.value.stylePickerPendingIds, "s4 must be blocked at cap")
+    }
+
+    @Test
+    fun commitPendingStyles_appendsLibraryRefs_andClearsPending() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s2"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val state = vm.state.value
+        val item = state.items.find { it.id == itemId }!!
+        assertEquals(2, item.styleImageRefs.size)
+        assertEquals(StyleImageSource.LIBRARY, item.styleImageRefs[0].source)
+        assertEquals("s1", item.styleImageRefs[0].styleId)
+        assertEquals(StyleImageSource.LIBRARY, item.styleImageRefs[1].source)
+        assertEquals("s2", item.styleImageRefs[1].styleId)
+        assertTrue(state.stylePickerPendingIds.isEmpty(), "pending must be cleared after commit")
+        assertNull(state.stylePickerSheetForItemId, "sheet must be dismissed after commit")
+    }
+
+    @Test
+    fun openingOrDismissingPicker_clearsPending() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        assertEquals(listOf("s1"), vm.state.value.stylePickerPendingIds)
+
+        // Dismiss → pending must be wiped
+        vm.onAction(OrderFormAction.OnDismissStylePickerSheet)
+        assertTrue(vm.state.value.stylePickerPendingIds.isEmpty(), "dismiss must clear pending")
+
+        // Reopen and toggle, then open again — opening must also clear
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s2"))
+        assertEquals(listOf("s2"), vm.state.value.stylePickerPendingIds)
+
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        assertTrue(vm.state.value.stylePickerPendingIds.isEmpty(), "reopening picker must clear pending")
+    }
+
+    @Test
+    fun commitPendingStyles_neverExceedsCap() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        // Build up to 2 committed LIBRARY refs (s1, s2) via two real commit cycles.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s2"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val seeded = vm.state.value.items.find { it.id == itemId }!!
+        assertEquals(2, seeded.styleImageRefs.size, "precondition: 2 committed refs")
+
+        // Reopen with 2 committed slots: cap=3 leaves room for exactly 1 more.
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s3"))
+        // s4 must be blocked at the cap — only s3 is pending.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s4"))
+        assertEquals(listOf("s3"), vm.state.value.stylePickerPendingIds, "cap blocks s4")
+
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val item = vm.state.value.items.find { it.id == itemId }!!
+        // Defensive take() guarantees the item never exceeds the cap of 3.
+        assertEquals(3, item.styleImageRefs.size, "total refs must never exceed cap")
+        assertEquals(listOf("s1", "s2", "s3"), item.styleImageRefs.mapNotNull { it.styleId })
+    }
+
+    @Test
+    fun commitPendingStyles_skipsAlreadyCommittedId() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        // Commit s1 first so the item already has 1 LIBRARY ref.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        // Reopen and pick s1 AGAIN (an already-committed id).
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val item = vm.state.value.items.find { it.id == itemId }!!
+        // Dedup must drop the duplicate — still exactly one ref, no duplicate.
+        assertEquals(1, item.styleImageRefs.size, "duplicate id must not be re-appended")
+        assertEquals(listOf("s1"), item.styleImageRefs.mapNotNull { it.styleId })
     }
 
     private companion object {

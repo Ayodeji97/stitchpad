@@ -58,8 +58,11 @@ sealed interface OrderFormAction {
 
     // PTSP-11 multi-image actions — STYLE
 
-    /** User picked a style from the saved-styles picker sheet. Appends a LIBRARY ref. */
-    data class OnItemPickSavedStyle(val itemId: String, val styleId: String) : OrderFormAction
+    /** Toggle a saved style in the open picker's pending selection (select/deselect). */
+    data class OnItemTogglePendingStyle(val styleId: String) : OrderFormAction
+
+    /** Commit all pending picks as LIBRARY refs on the item, then close the picker. */
+    data class OnItemCommitPendingStyles(val itemId: String) : OrderFormAction
 
     /** User uploaded a new style photo (camera or gallery). Appends to uploadedStyleBytesList. */
     data class OnItemAddStylePhoto(val itemId: String, val photoBytes: ByteArray) : OrderFormAction

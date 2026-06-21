@@ -52,6 +52,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -100,6 +101,7 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Refe
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.feature.style.presentation.form.styleFormSelectionMode
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -186,6 +188,7 @@ import stitchpad.composeapp.generated.resources.share_summary_total
 import kotlin.time.Clock
 
 private const val MILLIS_PER_DAY: Long = 86_400_000L
+private const val MAX_STYLE_IMAGES = 3
 
 private enum class DetailPhotoSource { Camera, Gallery }
 
@@ -501,7 +504,7 @@ fun OrderDetailScreen(
             .filter { it.source == StyleImageSource.LIBRARY }
             .mapNotNull { it.styleId }
             .toSet()
-        val remainingCapacity = 3 - pickerItemStyleImages.size // MAX_IMAGES_PER_CATEGORY = 3
+        val remainingCapacity = MAX_STYLE_IMAGES - pickerItemStyleImages.size
         StylePickerSheet(
             styles = state.availableStyles,
             alreadySelectedStyleIds = alreadySelectedStyleIds,
@@ -1057,15 +1060,20 @@ private fun OrderDetailContent(
     var pendingFabricPhotoItemId by remember { mutableStateOf<String?>(null) }
     var pendingStylePhotoSource by remember { mutableStateOf<DetailPhotoSource?>(null) }
     var pendingFabricPhotoSource by remember { mutableStateOf<DetailPhotoSource?>(null) }
-    val styleGalleryPicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            val itemId = pendingStylePhotoItemId ?: return@rememberImagePickerLauncher
-            byteArrays.firstOrNull()?.let { onAction(OrderDetailAction.OnAddStylePhoto(itemId, it)) }
-            pendingStylePhotoItemId = null
-        },
-    )
+    val styleDetailUsed =
+        state.order?.items?.firstOrNull { it.id == pendingStylePhotoItemId }?.styleImages?.size ?: 0
+    val styleDetailRemaining = (MAX_STYLE_IMAGES - styleDetailUsed).coerceAtLeast(1)
+    val styleGalleryPicker = key(pendingStylePhotoItemId) {
+        rememberImagePickerLauncher(
+            selectionMode = styleFormSelectionMode(allowMultiPhoto = true, maxPhotoSelection = styleDetailRemaining),
+            scope = pickerScope,
+            onResult = { byteArrays ->
+                val itemId = pendingStylePhotoItemId ?: return@rememberImagePickerLauncher
+                byteArrays.forEach { onAction(OrderDetailAction.OnAddStylePhoto(itemId, it)) }
+                pendingStylePhotoItemId = null
+            },
+        )
+    }
     val styleCameraLauncher = rememberImageCaptureLauncher { bytes ->
         val itemId = pendingStylePhotoItemId ?: return@rememberImageCaptureLauncher
         if (bytes != null) onAction(OrderDetailAction.OnAddStylePhoto(itemId, bytes))

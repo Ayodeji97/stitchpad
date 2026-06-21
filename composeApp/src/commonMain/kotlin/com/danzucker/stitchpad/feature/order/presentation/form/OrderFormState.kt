@@ -43,6 +43,8 @@ data class OrderFormState(
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Item id whose Style picker sheet is currently visible. Null = no sheet. */
     val stylePickerSheetForItemId: String? = null,
+    /** In-progress (uncommitted) saved-style picks for the open picker, in tap order. */
+    val stylePickerPendingIds: List<String> = emptyList(),
     // Garment picker (PTSP-XX)
     val customGarmentTypes: List<CustomGarmentType> = emptyList(),
     val activePickerItemId: String? = null,
