@@ -23,8 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,8 +48,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,14 +75,17 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_add_more_photos
 import stitchpad.composeapp.generated.resources.style_add_title
 import stitchpad.composeapp.generated.resources.style_change_photo
 import stitchpad.composeapp.generated.resources.style_edit_title
-import stitchpad.composeapp.generated.resources.style_photos_selected
+import stitchpad.composeapp.generated.resources.style_photos_count
+import stitchpad.composeapp.generated.resources.style_photos_edit_hint
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
 import stitchpad.composeapp.generated.resources.style_readonly_hint
 import stitchpad.composeapp.generated.resources.style_readonly_upgrade_cta
+import stitchpad.composeapp.generated.resources.style_remove_photo
 import stitchpad.composeapp.generated.resources.style_save_button
 
 // MultiPhotoPreview lays thumbnails out 3 per row. The multi-pick batch size is
@@ -209,7 +221,8 @@ fun StyleFormScreen(
                 }
                 PhotoSection(
                     state = state,
-                    onPickClick = onPickClick
+                    onPickClick = onPickClick,
+                    onAction = onAction
                 )
                 if (state.readOnly) {
                     Text(
@@ -284,10 +297,19 @@ fun StyleFormScreen(
 @Composable
 private fun PhotoSection(
     state: StyleFormState,
-    onPickClick: (() -> Unit)?
+    onPickClick: (() -> Unit)?,
+    onAction: (StyleFormAction) -> Unit
 ) {
-    if (state.selectedPhotos.size > 1) {
-        MultiPhotoPreview(photos = state.selectedPhotos, onPickClick = onPickClick)
+    // Closet multi-add mode shows the editable grid even for a single photo (so
+    // each thumbnail can be removed and "Add more" stays reachable). Edit and
+    // order-link mode — and the empty state — stay on the single replace-on-tap tile.
+    if (state.allowMultiPhoto && state.selectedPhotos.isNotEmpty()) {
+        MultiPhotoPreview(
+            photos = state.selectedPhotos,
+            maxPhotoSelection = state.maxPhotoSelection,
+            onRemovePhoto = { onAction(StyleFormAction.OnRemovePhoto(it)) },
+            onAddMore = onPickClick
+        )
     } else {
         SinglePhotoPreview(state = state, onPickClick = onPickClick)
     }
@@ -396,29 +418,85 @@ private fun SinglePhotoPreview(
     }
 }
 
+/**
+ * One cell in the editable photo grid: either a picked photo (carrying its
+ * absolute index in [StyleFormState.selectedPhotos] so it can remove itself) or
+ * the trailing "Add more" tile.
+ */
+private sealed interface PhotoGridCell {
+    data class Photo(val index: Int, val bytes: ByteArray) : PhotoGridCell {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Photo) return false
+            return index == other.index && bytes.contentEquals(other.bytes)
+        }
+
+        override fun hashCode(): Int = 31 * index + bytes.contentHashCode()
+    }
+
+    data object AddMore : PhotoGridCell
+}
+
 @Composable
 private fun MultiPhotoPreview(
     photos: List<ByteArray>,
-    onPickClick: (() -> Unit)?
+    maxPhotoSelection: Int,
+    onRemovePhoto: (Int) -> Unit,
+    onAddMore: (() -> Unit)?,
 ) {
-    val baseModifier = Modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(DesignTokens.radiusMd))
-        .background(MaterialTheme.colorScheme.surfaceVariant)
-        .border(
-            BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            RoundedCornerShape(DesignTokens.radiusMd)
-        )
-    val columnModifier = if (onPickClick != null) {
-        baseModifier.clickable(onClick = onPickClick).padding(DesignTokens.space3)
-    } else {
-        baseModifier.padding(DesignTokens.space3)
-    }
-
     Column(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        modifier = columnModifier
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                RoundedCornerShape(DesignTokens.radiusMd)
+            )
+            .padding(DesignTokens.space3)
     ) {
+        MultiPhotoHeader(count = photos.size, maxPhotoSelection = maxPhotoSelection)
+
+        // Each photo keeps its absolute index so a thumbnail's ✕ removes the
+        // right entry, then an optional trailing "Add more" tile. Manual grid
+        // (3 per row): nesting a lazy grid inside the form's vertical scroll
+        // would conflict; the picked set is small and bounded.
+        val cells: List<PhotoGridCell> = buildList {
+            photos.forEachIndexed { index, bytes -> add(PhotoGridCell.Photo(index, bytes)) }
+            if (onAddMore != null && photos.size < maxPhotoSelection) add(PhotoGridCell.AddMore)
+        }
+        cells.chunked(MULTI_PREVIEW_COLUMNS).forEach { rowCells ->
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                rowCells.forEach { cell ->
+                    when (cell) {
+                        is PhotoGridCell.Photo -> PhotoThumbnail(
+                            bytes = cell.bytes,
+                            onRemove = { onRemovePhoto(cell.index) },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        PhotoGridCell.AddMore -> AddMoreTile(
+                            onClick = { onAddMore?.invoke() },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                // Pad a short final row so cells keep a consistent square size.
+                repeat(MULTI_PREVIEW_COLUMNS - rowCells.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiPhotoHeader(
+    count: Int,
+    maxPhotoSelection: Int
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1)
@@ -430,40 +508,115 @@ private fun MultiPhotoPreview(
                 modifier = Modifier.size(16.dp)
             )
             Text(
-                text = stringResource(Res.string.style_photos_selected, photos.size),
+                text = stringResource(Res.string.style_photos_count, count, maxPhotoSelection),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        // Manual grid (3 per row): nesting a lazy grid inside the form's vertical
-        // scroll would conflict; the picked set is small and bounded.
-        photos.chunked(MULTI_PREVIEW_COLUMNS).forEach { rowPhotos ->
-            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                rowPhotos.forEach { bytes ->
-                    SubcomposeAsyncImage(
-                        model = bytes,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        loading = {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                LoadingDots()
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(DesignTokens.radiusSm))
-                    )
+        Text(
+            text = stringResource(Res.string.style_photos_edit_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PhotoThumbnail(
+    bytes: ByteArray,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.aspectRatio(1f)) {
+        SubcomposeAsyncImage(
+            model = bytes,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            loading = {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    LoadingDots()
                 }
-                // Pad a short final row so thumbnails keep a consistent size.
-                repeat(MULTI_PREVIEW_COLUMNS - rowPhotos.size) {
-                    Spacer(Modifier.weight(1f))
-                }
-            }
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(DesignTokens.radiusSm))
+        )
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(DesignTokens.space1)
+                .size(22.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(DesignTokens.radiusFull)
+                )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(Res.string.style_remove_photo),
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(14.dp)
+            )
         }
+    }
+}
+
+@Composable
+private fun AddMoreTile(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val ringColor = MaterialTheme.colorScheme.outline
+    val density = LocalDensity.current
+    val strokeWidthPx = with(density) { 1.dp.toPx() }
+    val dashOnPx = with(density) { 4.dp.toPx() }
+    val dashOffPx = with(density) { 3.dp.toPx() }
+    val cornerPx = with(density) { DesignTokens.radiusSm.toPx() }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(DesignTokens.radiusSm))
+            .drawBehind {
+                val inset = strokeWidthPx / 2f
+                drawRoundRect(
+                    color = ringColor,
+                    topLeft = Offset(inset, inset),
+                    size = Size(
+                        size.width - strokeWidthPx,
+                        size.height - strokeWidthPx
+                    ),
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    style = Stroke(
+                        width = strokeWidthPx,
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(dashOnPx, dashOffPx),
+                            0f,
+                        ),
+                    ),
+                )
+            }
+            .clickable(onClick = onClick)
+            .padding(DesignTokens.space1)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(DesignTokens.space1))
+        Text(
+            text = stringResource(Res.string.style_add_more_photos),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -498,7 +651,8 @@ private fun StyleFormScreenMultiPhotoPreview() {
         StyleFormScreen(
             state = StyleFormState(
                 allowMultiPhoto = true,
-                selectedPhotos = listOf(ByteArray(0), ByteArray(0), ByteArray(0), ByteArray(0))
+                selectedPhotos = listOf(ByteArray(0), ByteArray(0)),
+                maxPhotoSelection = 6
             ),
             onAction = {}
         )

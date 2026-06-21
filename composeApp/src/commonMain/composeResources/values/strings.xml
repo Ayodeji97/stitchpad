@@ -440,8 +440,11 @@
     <string name="style_pick_photo">Tap to add photo</string>
     <string name="style_pick_photos">Tap to add photos</string>
     <string name="style_change_photo">Change photo</string>
-    <!-- Shown above the picked-photos grid; count is always 2 or more here. -->
-    <string name="style_photos_selected">%1$d photos selected · tap to change</string>
+    <!-- Editable picked-photos grid header: "3 of 6 photos". -->
+    <string name="style_photos_count">%1$d of %2$d photos</string>
+    <string name="style_photos_edit_hint">Tap ✕ to remove · ＋ to add more</string>
+    <string name="style_remove_photo">Remove photo</string>
+    <string name="style_add_more_photos">Add more</string>
     <string name="style_save_button">Save style</string>
     <string name="style_empty_title">No styles yet</string>
     <string name="style_empty_subtitle">Add photos of past work or inspiration for this customer.</string>
