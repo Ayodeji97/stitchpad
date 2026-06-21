@@ -435,15 +435,15 @@ class StyleFormViewModelTest {
     @Test
     fun save_batchOverCap_setsCapSheet_stylesPro() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // PRO customer: maxImagesPerFolder = 3. Existing 2 styles + picking 4 = 6 > 3 → blocked.
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        // PRO customer: maxImagesPerFolder = 3. Existing 3 styles (at cap) + picking 1 = 4 > 3 → blocked.
+        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
-        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
@@ -484,14 +484,14 @@ class StyleFormViewModelTest {
     @Test
     fun onDismissCapSheet_clearsCapSheet() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
-        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
         vm.onAction(StyleFormAction.OnSaveClick)
         assertNotNull(vm.state.value.capSheet)
 
@@ -503,14 +503,14 @@ class StyleFormViewModelTest {
     @Test
     fun onUpgradeFromCap_clearsCapSheet_andEmitsNavigateToUpgrade() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
-        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
         vm.onAction(StyleFormAction.OnSaveClick)
         assertNotNull(vm.state.value.capSheet)
 
@@ -760,6 +760,56 @@ class StyleFormViewModelTest {
         assertIs<StyleFormEvent.NavigateBack>(event)
         assertNotNull(styleRepository.lastCreatedDescription, "Style must be created when under flat cap")
         assertNull(vm.state.value.capSheet)
+    }
+
+    // --- Additive photo picking + per-photo removal ---
+
+    @Test
+    fun picking_photos_twice_appends_instead_of_replacing() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2))))
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(3))))
+        assertEquals(3, vm.state.value.selectedPhotos.size)
+    }
+
+    @Test
+    fun appending_is_capped_at_maxPhotoSelection() = runTest {
+        // PRO + folderId + 1 existing style → maxPhotoSelection = 3 - 1 = 2.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = List(1) { fakeStyle(id = "existing-0") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+        assertEquals(2, vm.state.value.maxPhotoSelection)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2))))
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(3))))
+        // cap is 2 → merged list (2+1=3) is trimmed to 2
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+    }
+
+    @Test
+    fun removing_a_photo_drops_only_that_index() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(
+            StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2), byteArrayOf(3)))
+        )
+        assertEquals(3, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnRemovePhoto(1))
+
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+        // index 0 → byte 1, index 1 → byte 3 (middle removed)
+        assertEquals(1, vm.state.value.selectedPhotos[0][0])
+        assertEquals(3, vm.state.value.selectedPhotos[1][0])
     }
 
     // --- Free-tier flattened cap count ---

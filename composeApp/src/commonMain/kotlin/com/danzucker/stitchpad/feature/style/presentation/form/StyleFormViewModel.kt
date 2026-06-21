@@ -97,6 +97,9 @@ class StyleFormViewModel(
                 _state.update { it.copy(description = action.description) }
             }
             is StyleFormAction.OnPhotosPicked -> onPhotosPicked(action.photos)
+            is StyleFormAction.OnRemovePhoto -> _state.update {
+                it.copy(selectedPhotos = it.selectedPhotos.filterIndexed { i, _ -> i != action.index })
+            }
             StyleFormAction.OnSaveClick -> save()
             StyleFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(StyleFormEvent.NavigateBack) }
@@ -124,18 +127,18 @@ class StyleFormViewModel(
             // guard so a normal phone photo is accepted instead of rejected. A decode
             // failure (null) falls back to the original bytes and lets the guard decide.
             val processed = photos.map { imageCompressor.compress(it) ?: it }
-            // A fresh pick replaces the current selection. Reject the whole batch if
-            // any image still exceeds the cap so the user sees the failure before saving.
+            // Reject the whole new batch if any image still exceeds the cap after
+            // compression. The existing selection is preserved so the user doesn't lose
+            // previously accepted photos.
             if (processed.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
-                _state.update {
-                    it.copy(
-                        errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
-                        selectedPhotos = emptyList()
-                    )
-                }
+                _state.update { it.copy(errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText()) }
                 return@launch
             }
-            _state.update { it.copy(selectedPhotos = processed, errorMessage = null) }
+            // Append new picks to the existing selection, trimmed to the per-session cap.
+            _state.update { current ->
+                val merged = (current.selectedPhotos + processed).take(current.maxPhotoSelection)
+                current.copy(selectedPhotos = merged, errorMessage = null)
+            }
         }
     }
 
