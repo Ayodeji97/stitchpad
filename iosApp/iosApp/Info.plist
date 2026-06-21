@@ -2,23 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>GIDClientID</key>
-	<string>683791063936-9s6315iaq9plqfq98k23ra4r9gninai8.apps.googleusercontent.com</string>
-	<key>UILaunchScreen</key>
-	<dict>
-		<key>UIColorName</key>
-		<string>SplashBackground</string>
-		<key>UIImageName</key>
-		<string>BrandMark</string>
-		<key>UIImageRespectsSafeAreaInsets</key>
-		<true/>
-	</dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.danzucker.stitchpad.offlineUploads</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>StitchPad needs access to your photos so you can attach style references to customers.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>StitchPad needs camera access so you can snap a photo of the fabric or style reference.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -36,16 +25,31 @@
 			</array>
 		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>683791063936-9s6315iaq9plqfq98k23ra4r9gninai8.apps.googleusercontent.com</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<key>NSCameraUsageDescription</key>
+	<string>StitchPad needs camera access so you can snap a photo of the fabric or style reference.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>StitchPad needs access to your photos so you can attach style references to customers.</string>
+	<key>UIAppFonts</key>
 	<array>
-		<string>com.danzucker.stitchpad.offlineUploads</string>
+		<string>manrope_regular.ttf</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>processing</string>
 		<string>remote-notification</string>
 	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>SplashBackground</string>
+		<key>UIImageName</key>
+		<string>BrandMark</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

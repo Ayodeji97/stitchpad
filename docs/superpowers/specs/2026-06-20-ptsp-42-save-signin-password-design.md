@@ -146,9 +146,15 @@ focus system, so `clearFocusOnTap()`'s `clearFocus()` couldn't dismiss its keybo
 Added an `expect/actual dismissNativeKeyboard()` (iOS sends `resignFirstResponder` to
 the current first responder; no-op on Android) and call it from `clearFocusOnTap()`.
 
-**Remaining follow-ups (non-blocking):** VoiceOver/accessibility exposure of the
-bridged field through the `UIKitView` interop layer; the native iOS field uses the
-system font (not Manrope) and the default placeholder color (not `#7D7970`).
+**iOS field polish — done.**
+- **Accessibility:** native interop a11y stays off (with multiple `UIKitView`s only
+  the first would be reachable — a documented CMP limitation), so each field is
+  described to VoiceOver via Compose `semantics { contentDescription = label }`.
+- **Font:** `manrope_regular.ttf` is bundled in the iOS app and registered via
+  `Info.plist UIAppFonts`; the native field uses `UIFont.fontWithName("Manrope-ExtraLight")`
+  (the file's PostScript name — it's the same file Compose renders, so the field
+  matches the rest of the UI) with a system-font fallback so it can't regress.
+- **Placeholder color:** set via `attributedPlaceholder` to `#7D7970`.
 
 ## Out of scope
 

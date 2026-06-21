@@ -106,6 +106,7 @@ fun AuthTextField(
                         }
                     ),
                 placeholder = placeholder,
+                accessibilityLabel = label.ifEmpty { placeholder },
                 autofill = autofill,
                 keyboardType = keyboardType,
                 imeAction = imeAction,
@@ -177,6 +178,7 @@ internal expect fun AuthPlatformTextInput(
     onValueChange: (String) -> Unit,
     modifier: Modifier,
     placeholder: String,
+    accessibilityLabel: String,
     autofill: AuthAutofill,
     keyboardType: KeyboardType,
     imeAction: ImeAction,

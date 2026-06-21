@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -12,7 +14,10 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
 import platform.CoreGraphics.CGRectMake
+import platform.Foundation.NSAttributedString
 import platform.Foundation.NSSelectorFromString
+import platform.Foundation.create
+import platform.UIKit.NSForegroundColorAttributeName
 import platform.UIKit.UIColor
 import platform.UIKit.UIControlEventEditingChanged
 import platform.UIKit.UIFont
@@ -38,6 +43,7 @@ internal actual fun AuthPlatformTextInput(
     onValueChange: (String) -> Unit,
     modifier: Modifier,
     placeholder: String,
+    accessibilityLabel: String,
     autofill: AuthAutofill,
     keyboardType: KeyboardType,
     imeAction: ImeAction,
@@ -63,7 +69,7 @@ internal actual fun AuthPlatformTextInput(
                 backgroundColor = fieldBackgroundColor
                 textColor = fieldTextColor
                 tintColor = brandAccentColor
-                font = UIFont.systemFontOfSize(15.0)
+                font = fieldFont
                 autocapitalizationType = UITextAutocapitalizationType.UITextAutocapitalizationTypeNone
                 autocorrectionType = UITextAutocorrectionType.UITextAutocorrectionTypeNo
                 delegate = coordinator
@@ -76,14 +82,21 @@ internal actual fun AuthPlatformTextInput(
                 focusController.register(this)
             }
         },
-        modifier = modifier.height(24.dp),
+        // Native a11y stays off (with multiple UIKitViews only the first would be
+        // reachable); describe the field to VoiceOver through Compose semantics instead.
+        modifier = modifier
+            .height(24.dp)
+            .semantics { contentDescription = accessibilityLabel },
         update = { field ->
             coordinator.field = field
             field.textContentType = autofill.toUITextContentType()
             field.keyboardType = keyboardType.toUIKeyboardType(isPassword)
             field.returnKeyType = imeAction.toUIReturnKeyType()
             field.secureTextEntry = isPassword && !isPasswordVisible
-            field.placeholder = placeholder
+            field.attributedPlaceholder = NSAttributedString.create(
+                string = placeholder,
+                attributes = mapOf<Any?, Any>(NSForegroundColorAttributeName to placeholderColor),
+            )
             if (field.text.orEmpty() != value) {
                 field.text = value
             }
@@ -152,6 +165,21 @@ private fun ImeAction.toUIReturnKeyType() = when (this) {
     ImeAction.Next -> UIReturnKeyType.UIReturnKeyNext
     else -> UIReturnKeyType.UIReturnKeyDone
 }
+
+// Manrope (the app body font) registered via Info.plist UIAppFonts. The bundled
+// manrope_regular.ttf reports PostScript name "Manrope-ExtraLight"; using the same
+// file Compose renders keeps the native field consistent with the rest of the UI.
+// Falls back to the system font if registration ever fails — never a regression.
+private val fieldFont: UIFont =
+    UIFont.fontWithName("Manrope-ExtraLight", 15.0) ?: UIFont.systemFontOfSize(15.0)
+
+// Placeholder colour matching the Compose field (#7D7970).
+private val placeholderColor = UIColor(
+    red = 0x7D / 255.0,
+    green = 0x79 / 255.0,
+    blue = 0x70 / 255.0,
+    alpha = 1.0,
+)
 
 // Matches the AuthTextField card background Color(0xFF2A2825).
 private val fieldBackgroundColor = UIColor(
