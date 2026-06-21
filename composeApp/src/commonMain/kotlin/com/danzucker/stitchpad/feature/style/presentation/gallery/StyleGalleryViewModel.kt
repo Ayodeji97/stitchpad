@@ -151,6 +151,26 @@ class StyleGalleryViewModel(
                 _state.update { it.copy(capSheet = null) }
                 viewModelScope.launch { _events.send(StyleGalleryEvent.NavigateToUpgrade) }
             }
+            is StyleGalleryAction.OnEditTitleClick ->
+                _state.update { it.copy(titleEditTarget = action.style) }
+            is StyleGalleryAction.OnConfirmTitle -> {
+                val target = _state.value.titleEditTarget ?: return
+                _state.update { it.copy(titleEditTarget = null) }
+                viewModelScope.launch {
+                    val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                    val result = styleRepository.setStyleTitle(
+                        userId = userId,
+                        location = locationOf(target.id),
+                        styleId = target.id,
+                        title = action.title,
+                    )
+                    if (result is Result.Error) {
+                        _state.update { it.copy(errorMessage = result.error.toStyleUiText()) }
+                    }
+                }
+            }
+            StyleGalleryAction.OnDismissTitleSheet ->
+                _state.update { it.copy(titleEditTarget = null) }
         }
     }
 

@@ -23,4 +23,13 @@ sealed interface StyleGalleryAction {
 
     /** CTA tapped on the cap-reached sheet — clears sheet then routes to Upgrade. */
     data object OnUpgradeFromCap : StyleGalleryAction
+
+    /** "Add title" / edit-pencil tapped on a style card — opens the title editor sheet. */
+    data class OnEditTitleClick(val style: Style) : StyleGalleryAction
+
+    /** Confirm in the title editor — persists the title (blank clears it). */
+    data class OnConfirmTitle(val title: String) : StyleGalleryAction
+
+    /** Dismiss the title editor sheet without saving. */
+    data object OnDismissTitleSheet : StyleGalleryAction
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,6 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -50,11 +55,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -62,6 +71,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -73,6 +84,7 @@ import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapReachedShe
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -84,6 +96,7 @@ import stitchpad.composeapp.generated.resources.fab_add_style
 import stitchpad.composeapp.generated.resources.style_action_copy
 import stitchpad.composeapp.generated.resources.style_action_delete
 import stitchpad.composeapp.generated.resources.style_action_move
+import stitchpad.composeapp.generated.resources.style_add_title_cta
 import stitchpad.composeapp.generated.resources.style_copied_snackbar
 import stitchpad.composeapp.generated.resources.style_delete_cancel
 import stitchpad.composeapp.generated.resources.style_delete_confirm
@@ -98,6 +111,10 @@ import stitchpad.composeapp.generated.resources.style_inspiration_empty_title
 import stitchpad.composeapp.generated.resources.style_inspiration_title
 import stitchpad.composeapp.generated.resources.style_locked_a11y
 import stitchpad.composeapp.generated.resources.style_moved_snackbar
+import stitchpad.composeapp.generated.resources.style_title_placeholder
+import stitchpad.composeapp.generated.resources.style_title_remove
+import stitchpad.composeapp.generated.resources.style_title_save
+import stitchpad.composeapp.generated.resources.style_title_sheet_heading
 import stitchpad.composeapp.generated.resources.style_transfer_choose_folder
 import stitchpad.composeapp.generated.resources.style_transfer_copy_title
 import stitchpad.composeapp.generated.resources.style_transfer_empty
@@ -253,7 +270,8 @@ fun StyleGalleryScreen(
                             style = style,
                             isLocked = style.id in state.lockedStyleIds,
                             onClick = { onAction(StyleGalleryAction.OnStyleClick(style)) },
-                            onLongClick = { onAction(StyleGalleryAction.OnStyleLongPress(style)) }
+                            onLongClick = { onAction(StyleGalleryAction.OnStyleLongPress(style)) },
+                            onEditTitle = { onAction(StyleGalleryAction.OnEditTitleClick(style)) }
                         )
                     }
                 }
@@ -330,6 +348,87 @@ fun StyleGalleryScreen(
             onUpgradeClick = { onAction(StyleGalleryAction.OnUpgradeFromCap) },
             onDismiss = { onAction(StyleGalleryAction.OnDismissCapSheet) },
         )
+    }
+
+    state.titleEditTarget?.let { target ->
+        StyleTitleSheet(
+            initialTitle = target.description,
+            onConfirm = { onAction(StyleGalleryAction.OnConfirmTitle(it)) },
+            onDismiss = { onAction(StyleGalleryAction.OnDismissTitleSheet) },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StyleTitleSheet(
+    initialTitle: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Local TextFieldValue to avoid cursor desync when VM owns the string.
+    var textValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(initialTitle))
+    }
+    val placeholder = stringResource(Res.string.style_title_placeholder)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = DesignTokens.space5)
+                .padding(bottom = DesignTokens.space8),
+        ) {
+            Text(
+                text = stringResource(Res.string.style_title_sheet_heading),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(DesignTokens.space4))
+            OutlinedTextField(
+                value = textValue,
+                onValueChange = { textValue = it },
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = { onConfirm(textValue.text.trim()) }
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+            )
+            Spacer(Modifier.height(DesignTokens.space4))
+            Button(
+                onClick = { onConfirm(textValue.text.trim()) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+            ) {
+                Text(
+                    text = stringResource(Res.string.style_title_save),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            TextButton(
+                onClick = { onConfirm("") },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(Res.string.style_title_remove),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -525,7 +624,8 @@ private fun StyleCard(
     style: Style,
     isLocked: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    onEditTitle: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -589,18 +689,49 @@ private fun StyleCard(
                     }
                 }
             }
-            if (style.description.isNotBlank()) {
-                Text(
-                    text = style.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(
-                        horizontal = DesignTokens.space3,
-                        vertical = DesignTokens.space2
+            // Locked cards stay read-only — no title CTA / edit affordance.
+            if (!isLocked) {
+                if (style.description.isNotBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onEditTitle)
+                            .padding(
+                                horizontal = DesignTokens.space3,
+                                vertical = DesignTokens.space2
+                            )
+                    ) {
+                        Text(
+                            text = style.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(Res.string.style_add_title_cta),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = LocalStitchPadColors.current.brandAccent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onEditTitle)
+                            .padding(
+                                horizontal = DesignTokens.space3,
+                                vertical = DesignTokens.space2
+                            )
                     )
-                )
+                }
             }
         }
     }

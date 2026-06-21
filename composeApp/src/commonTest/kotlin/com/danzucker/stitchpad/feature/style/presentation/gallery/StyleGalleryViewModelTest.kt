@@ -1030,6 +1030,41 @@ class StyleGalleryViewModelTest {
         assertEquals(setOf("r4", "r5"), vm.state.value.lockedStyleIds)
     }
 
+    // --- Task: optional per-style title ---
+
+    @Test
+    fun confirming_a_title_persists_it_and_closes_the_sheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "s1", description = ""))
+        val vm = createViewModel()
+
+        val style = vm.state.value.styles.first { it.id == "s1" }
+        vm.onAction(StyleGalleryAction.OnEditTitleClick(style))
+        assertEquals("s1", vm.state.value.titleEditTarget?.id)
+
+        vm.onAction(StyleGalleryAction.OnConfirmTitle("Red agbada"))
+
+        assertNull(vm.state.value.titleEditTarget)
+        assertEquals("s1", styleRepository.lastSetTitleStyleId)
+        assertEquals("Red agbada", styleRepository.lastSetTitle)
+        assertEquals("Red agbada", styleRepository.stylesList.first { it.id == "s1" }.description)
+    }
+
+    @Test
+    fun onDismissTitleSheet_clearsTitleEditTarget() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "s1", description = ""))
+        val vm = createViewModel()
+
+        val style = vm.state.value.styles.first { it.id == "s1" }
+        vm.onAction(StyleGalleryAction.OnEditTitleClick(style))
+        assertNotNull(vm.state.value.titleEditTarget)
+
+        vm.onAction(StyleGalleryAction.OnDismissTitleSheet)
+
+        assertNull(vm.state.value.titleEditTarget)
+    }
+
     @Test
     fun free_longPressActiveStyle_opensActionSheet() = runTest {
         // FREE forCustomer: flatCap = 5, 3 styles → all active.

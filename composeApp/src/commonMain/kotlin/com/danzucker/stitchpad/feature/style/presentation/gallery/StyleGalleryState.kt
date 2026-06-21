@@ -65,4 +65,6 @@ data class StyleGalleryState(
     val capSheet: StyleCapInfo? = null,
     /** Ids of styles shown read-only (over the current tier cap). Empty on paid within cap. */
     val lockedStyleIds: Set<String> = emptySet(),
+    /** Style whose optional-title editor sheet is open, or null when closed. */
+    val titleEditTarget: Style? = null,
 )
