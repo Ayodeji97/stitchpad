@@ -69,6 +69,7 @@ import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -210,6 +211,7 @@ fun StyleFormScreen(
                     .pointerInput(Unit) {
                         detectTapGestures(onTap = { focusManager.clearFocus() })
                     }
+                    .dismissKeyboardOnScroll()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4),
                 verticalArrangement = Arrangement.spacedBy(DesignTokens.space4)

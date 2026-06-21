@@ -69,6 +69,7 @@ import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.bank_details_account_name_label
@@ -182,6 +183,7 @@ fun EditProfileScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .clearFocusOnTap()
+                .dismissKeyboardOnScroll()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = DesignTokens.space4),
             horizontalAlignment = Alignment.CenterHorizontally,
