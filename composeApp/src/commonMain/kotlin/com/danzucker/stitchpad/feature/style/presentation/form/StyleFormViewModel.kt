@@ -134,9 +134,14 @@ class StyleFormViewModel(
                 _state.update { it.copy(errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText()) }
                 return@launch
             }
-            // Append new picks to the existing selection, trimmed to the per-session cap.
+            // Multi-photo closet add: append and trim to cap.
+            // Single/edit/order-link: replace entirely so "tap to change" swaps the photo.
             _state.update { current ->
-                val merged = (current.selectedPhotos + processed).take(current.maxPhotoSelection)
+                val merged = if (current.allowMultiPhoto) {
+                    (current.selectedPhotos + processed).take(current.maxPhotoSelection)
+                } else {
+                    processed
+                }
                 current.copy(selectedPhotos = merged, errorMessage = null)
             }
         }

@@ -776,6 +776,24 @@ class StyleFormViewModelTest {
     }
 
     @Test
+    fun picking_in_single_mode_replaces_instead_of_appending() = runTest {
+        // Edit mode (styleId set) → allowMultiPhoto = false. A second pick must REPLACE,
+        // not append. save() uses selectedPhotos.firstOrNull(), so stale bytes must not
+        // survive a re-pick.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "style-7"))
+        val vm = createViewModel(styleId = "style-7")
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1))))
+        assertEquals(1, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(2))))
+
+        assertEquals(1, vm.state.value.selectedPhotos.size, "re-pick must replace, not append")
+        assertEquals(2, vm.state.value.selectedPhotos.first()[0], "latest picked byte must be stored")
+    }
+
+    @Test
     fun appending_is_capped_at_maxPhotoSelection() = runTest {
         // PRO + folderId + 1 existing style → maxPhotoSelection = 3 - 1 = 2.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
