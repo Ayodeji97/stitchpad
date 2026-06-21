@@ -84,6 +84,7 @@ import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.order.presentation.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementDetailSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
@@ -99,7 +100,6 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Orde
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.RecordPaymentDialogV2
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.ReferenceImage
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.StatusTransitionSheet
-import com.danzucker.stitchpad.feature.order.presentation.detail.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.feature.style.presentation.form.styleFormSelectionMode
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
@@ -492,33 +492,32 @@ fun OrderDetailScreen(
         )
     }
 
-    // Style picker sheet — lets user link an existing style or create a new one
+    // Style picker sheet — lets user batch-pick existing styles or create a new one
     if (state.showStylePickerSheet && state.order != null) {
-        val pickerItemId = state.stylePickerItemId
-        val pickerItemStyleImages = if (pickerItemId != null) {
-            state.order.items.firstOrNull { it.id == pickerItemId }?.styleImages.orEmpty()
-        } else {
-            state.order.items.firstOrNull()?.styleImages.orEmpty()
+        val pickerItemId = state.stylePickerItemId ?: state.order.items.firstOrNull()?.id
+        val targetItem = state.order.items.firstOrNull { it.id == pickerItemId }
+        if (pickerItemId != null && targetItem != null) {
+            val alreadyAddedIds = targetItem.styleImages
+                .filter { it.source == StyleImageSource.LIBRARY }
+                .mapNotNull { it.styleId }.toSet()
+            StylePickerSheet(
+                closetFolders = state.closetFolders,
+                inspirationFolders = state.inspirationFolders,
+                selectedSource = state.stylePickerSource,
+                onSourceChange = { onAction(OrderDetailAction.OnStylePickerSourceChange(it)) },
+                pickerOpenFolderKey = state.pickerOpenFolderKey,
+                onFolderOpen = { onAction(OrderDetailAction.OnPickerFolderOpen(it)) },
+                onFolderBack = { onAction(OrderDetailAction.OnPickerFolderBack) },
+                alreadyAddedStyleIds = alreadyAddedIds,
+                committedSlots = targetItem.styleImages.size,
+                pendingStyleIds = state.stylePickerPendingIds,
+                maxRefs = MAX_STYLE_IMAGES,
+                onToggle = { onAction(OrderDetailAction.OnItemTogglePendingStyle(it.id)) },
+                onDone = { onAction(OrderDetailAction.OnItemCommitPendingStyles(pickerItemId)) },
+                onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },
+                onCreateNew = { onAction(OrderDetailAction.OnCreateNewStyleClick(pickerItemId)) },
+            )
         }
-        val alreadySelectedStyleIds = pickerItemStyleImages
-            .filter { it.source == StyleImageSource.LIBRARY }
-            .mapNotNull { it.styleId }
-            .toSet()
-        val remainingCapacity = MAX_STYLE_IMAGES - pickerItemStyleImages.size
-        StylePickerSheet(
-            styles = state.availableStyles,
-            alreadySelectedStyleIds = alreadySelectedStyleIds,
-            remainingCapacity = remainingCapacity,
-            onSelectStyle = { styleId ->
-                val targetItemId = pickerItemId ?: state.order.items.firstOrNull()?.id ?: return@StylePickerSheet
-                onAction(OrderDetailAction.OnSelectStyle(styleId, targetItemId))
-            },
-            onCreateNewClick = {
-                val targetItemId = pickerItemId ?: state.order.items.firstOrNull()?.id ?: return@StylePickerSheet
-                onAction(OrderDetailAction.OnCreateNewStyleClick(targetItemId))
-            },
-            onDismiss = { onAction(OrderDetailAction.OnDismissStylePickerSheet) },
-        )
     }
 
     // Archive confirm dialog — non-destructive but worth confirming

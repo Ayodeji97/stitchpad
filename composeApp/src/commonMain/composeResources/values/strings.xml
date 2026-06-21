@@ -1106,11 +1106,7 @@
     <string name="measurement_detail_view_full">View full measurement</string>
     <string name="measurement_detail_change">Change measurement</string>
     <string name="measurement_detail_empty">No values recorded yet.</string>
-    <string name="style_picker_title">Link a style</string>
-    <string name="style_picker_empty">No styles yet for this customer.</string>
-    <string name="style_picker_created_caption">Created %1$s</string>
     <string name="style_picker_create_new">Create new style</string>
-    <string name="style_untitled">Untitled style</string>
     <string name="order_detail_measured_caption">Measured %1$s</string>
     <string name="order_detail_no_measurements">No measurements linked yet</string>
     <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>

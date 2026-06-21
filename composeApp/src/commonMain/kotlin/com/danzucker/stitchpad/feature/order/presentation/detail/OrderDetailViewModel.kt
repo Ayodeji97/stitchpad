@@ -18,6 +18,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
+import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -33,9 +34,9 @@ import com.danzucker.stitchpad.core.sharing.toPngBytes
 import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
-import com.danzucker.stitchpad.feature.style.domain.observeAllCustomerStyles
-import com.danzucker.stitchpad.feature.style.domain.observeAllInspirationStyles
+import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -289,7 +290,15 @@ class OrderDetailViewModel(
             OrderDetailAction.OnCallClick -> launchDialer()
             OrderDetailAction.OnSendReminderClick -> launchWhatsApp()
             is OrderDetailAction.OnAddStyleClick ->
-                _state.update { it.copy(showStylePickerSheet = true, stylePickerItemId = action.itemId) }
+                _state.update {
+                    it.copy(
+                        showStylePickerSheet = true,
+                        stylePickerItemId = action.itemId,
+                        stylePickerSource = StylePickerSource.CLOSET,
+                        pickerOpenFolderKey = null,
+                        stylePickerPendingIds = emptyList(),
+                    )
+                }
             is OrderDetailAction.OnAddStylePhoto -> addStylePhoto(action.itemId, action.photoBytes)
             is OrderDetailAction.OnRemoveStyleImage -> removeStyleImage(action.itemId, action.index)
             OrderDetailAction.OnAddFabricClick -> {
@@ -319,7 +328,25 @@ class OrderDetailViewModel(
             }
 
             // Styles
-            is OrderDetailAction.OnSelectStyle -> linkExistingStyle(action.styleId, action.itemId)
+            is OrderDetailAction.OnStylePickerSourceChange ->
+                _state.update { it.copy(stylePickerSource = action.source, pickerOpenFolderKey = null) }
+            is OrderDetailAction.OnPickerFolderOpen ->
+                _state.update { it.copy(pickerOpenFolderKey = action.folder.key) }
+            OrderDetailAction.OnPickerFolderBack ->
+                _state.update { it.copy(pickerOpenFolderKey = null) }
+            is OrderDetailAction.OnItemTogglePendingStyle -> _state.update { st ->
+                val itemId = st.stylePickerItemId ?: return@update st
+                val item = st.order?.items?.find { it.id == itemId } ?: return@update st
+                st.copy(
+                    stylePickerPendingIds = togglePendingStyle(
+                        pending = st.stylePickerPendingIds,
+                        styleId = action.styleId,
+                        committedSlots = item.styleImages.size,
+                        maxRefs = MAX_IMAGES_PER_CATEGORY,
+                    ),
+                )
+            }
+            is OrderDetailAction.OnItemCommitPendingStyles -> commitPendingStyles(action.itemId)
 
             is OrderDetailAction.OnCreateNewStyleClick -> {
                 val orderId = orderId ?: return
@@ -332,7 +359,14 @@ class OrderDetailViewModel(
             }
 
             OrderDetailAction.OnDismissStylePickerSheet ->
-                _state.update { it.copy(showStylePickerSheet = false, stylePickerItemId = null) }
+                _state.update {
+                    it.copy(
+                        showStylePickerSheet = false,
+                        stylePickerItemId = null,
+                        stylePickerPendingIds = emptyList(),
+                        pickerOpenFolderKey = null,
+                    )
+                }
 
             // Measurements
             OrderDetailAction.OnLinkMeasurementsClick ->
@@ -792,49 +826,70 @@ class OrderDetailViewModel(
         loadedStylesCustomerId = customerId
         styleJob?.cancel()
         styleJob = viewModelScope.launch {
-            // Combine the customer's closet (default + named folders) with the shared
-            // Inspiration library so that LIBRARY refs pointing at Inspiration styles
-            // resolve correctly in the hero / thumbnail renderer.
+            // Load FOLDERS (default + named) for both the customer's closet and the
+            // shared Inspiration library so the saved-style picker can drill into
+            // folders. The flat availableStyles / styles map is derived from them so
+            // LIBRARY refs (closet OR inspiration) still resolve in the hero / thumbnail
+            // renderer.
             combine(
-                styleRepository.observeAllCustomerStyles(userId, customerId),
-                styleRepository.observeAllInspirationStyles(userId),
-            ) { closet, inspiration -> closet + inspiration }
-                .collect { merged ->
+                styleRepository.observeFoldersWithStyles(
+                    userId,
+                    StyleLocation.CustomerCloset(customerId),
+                ),
+                styleRepository.observeFoldersWithStyles(userId, StyleLocation.Inspiration()),
+            ) { closet, inspiration -> closet to inspiration }
+                .collect { (closet, inspiration) ->
+                    val merged = closet.flatMap { it.styles } + inspiration.flatMap { it.styles }
                     _state.update { current ->
                         current.copy(
+                            closetFolders = closet,
+                            inspirationFolders = inspiration,
                             availableStyles = merged,
-                            styles = merged.associateBy { it.id },
+                            styles = merged.associateBy { s -> s.id },
                         )
                     }
                 }
         }
     }
 
-    private fun linkExistingStyle(styleId: String, itemId: String) {
-        _state.update { it.copy(showStylePickerSheet = false, stylePickerItemId = null) }
-        val order = _state.value.order ?: return
+    /**
+     * Commits the in-progress picker selection to the item's styleImages and PERSISTS
+     * it. Unlike the order-FORM (which only mutates local state, saved later), the
+     * detail screen edits a LIVE order — so committing writes through
+     * [OrderRepository.updateOrder], mirroring [linkExistingMeasurement]'s persist +
+     * error idiom. State is updated optimistically; the snapshot listener re-emits.
+     */
+    private fun commitPendingStyles(itemId: String) {
+        val st = _state.value
+        val pending = st.stylePickerPendingIds
+        val order = st.order ?: return
         val item = order.items.firstOrNull { it.id == itemId } ?: return
-        // PTSP-11 — APPEND a LIBRARY ref to the target item's styleImages list.
-        // Guard against duplicates and the 3-image cap.
-        val alreadyHas = item.styleImages.any {
-            it.source == StyleImageSource.LIBRARY && it.styleId == styleId
+        val existing = item.styleImages.mapNotNull { it.styleId }.toSet()
+        val toAdd = pendingStyleRefsToAdd(
+            pending = pending,
+            existingStyleIds = existing,
+            usedSlots = item.styleImages.size,
+            maxRefs = MAX_IMAGES_PER_CATEGORY,
+        )
+        val updatedItems = order.items.map {
+            if (it.id == itemId) it.copy(styleImages = it.styleImages + toAdd) else it
         }
-        val atCap = item.styleImages.size >= MAX_IMAGES_PER_CATEGORY
-        if (!alreadyHas && !atCap) {
-            val newRef = StyleImageRef(
-                source = StyleImageSource.LIBRARY,
-                styleId = styleId,
+        _state.update {
+            it.copy(
+                order = order.copy(items = updatedItems),
+                stylePickerPendingIds = emptyList(),
+                showStylePickerSheet = false,
+                stylePickerItemId = null,
+                pickerOpenFolderKey = null,
             )
-            val updatedItems = order.items.map { current ->
-                if (current.id == itemId) current.copy(styleImages = current.styleImages + newRef) else current
-            }
+        }
+        // Nothing new fitted (duplicate picks or already at cap) — no write needed.
+        if (toAdd.isNotEmpty()) {
             viewModelScope.launch {
                 val userId = authRepository.getCurrentUser()?.id ?: return@launch
                 when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
                     is Result.Success -> Unit
-                    is Result.Error -> _state.update {
-                        it.copy(errorMessage = res.error.toOrderUiText())
-                    }
+                    is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
                 }
             }
         }

@@ -1,6 +1,6 @@
 @file:Suppress("TooManyFunctions")
 
-package com.danzucker.stitchpad.feature.order.presentation.form.components
+package com.danzucker.stitchpad.feature.order.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -30,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -73,6 +75,7 @@ import stitchpad.composeapp.generated.resources.order_style_source_inspiration
 import stitchpad.composeapp.generated.resources.style_folders_default_name
 import stitchpad.composeapp.generated.resources.style_picker_already_added
 import stitchpad.composeapp.generated.resources.style_picker_cap_fmt
+import stitchpad.composeapp.generated.resources.style_picker_create_new
 import stitchpad.composeapp.generated.resources.style_picker_done_fmt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,6 +95,7 @@ fun StylePickerSheet(
     onToggle: (Style) -> Unit,
     onDone: () -> Unit,
     onDismiss: () -> Unit,
+    onCreateNew: (() -> Unit)? = null,
 ) {
     val folders = if (selectedSource == StylePickerSource.CLOSET) closetFolders else inspirationFolders
     val namedFolders = folders.filter { it.folderId != null }
@@ -228,6 +232,13 @@ fun StylePickerSheet(
             }
 
             // --- Sticky Done bar (pinned below the scroll area) ---
+            onCreateNew?.let { createNew ->
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                TextButton(
+                    onClick = createNew,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = DesignTokens.space4),
+                ) { Text(stringResource(Res.string.style_picker_create_new)) }
+            }
             Button(
                 onClick = onDone,
                 enabled = pendingStyleIds.isNotEmpty(),
