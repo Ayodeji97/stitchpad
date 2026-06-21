@@ -38,6 +38,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,9 +100,11 @@ fun StylePickerSheet(
     // grid if the folder no longer exists (deleted, or source switched).
     val pickerOpenFolder = pickerOpenFolderKey?.let { key -> folders.firstOrNull { it.key == key } }
     val defaultFolderName = stringResource(Res.string.style_folders_default_name)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -540,16 +543,22 @@ private fun StylePickerCard(
 
                 else -> {
                     // Empty ring: selectable (full opacity) or cap-full (dimmed via cardAlpha).
+                    // Only announce "Select style" when the card is actually selectable; cap-full
+                    // cards are not clickable so the label would be misleading — omit semantics.
+                    val ringModifier = Modifier
+                        .padding(DesignTokens.space2)
+                        .size(BADGE_SIZE)
+                        .clip(CircleShape)
+                        .border(
+                            BorderStroke(2.dp, Color.White.copy(alpha = 0.6f)),
+                            CircleShape,
+                        )
                     Box(
-                        modifier = Modifier
-                            .padding(DesignTokens.space2)
-                            .size(BADGE_SIZE)
-                            .clip(CircleShape)
-                            .border(
-                                BorderStroke(2.dp, Color.White.copy(alpha = 0.6f)),
-                                CircleShape,
-                            )
-                            .semantics { contentDescription = selectCd },
+                        modifier = if (selectable) {
+                            ringModifier.semantics { contentDescription = selectCd }
+                        } else {
+                            ringModifier
+                        },
                     )
                 }
             }
