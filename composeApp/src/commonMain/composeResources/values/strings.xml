@@ -437,13 +437,15 @@
     <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
-    <string name="style_description_label">Description (optional)</string>
-    <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
     <string name="style_pick_photos">Tap to add photos</string>
     <string name="style_change_photo">Change photo</string>
-    <!-- Shown above the picked-photos grid; count is always 2 or more here. -->
-    <string name="style_photos_selected">%1$d photos selected · tap to change</string>
+    <!-- Editable picked-photos grid header: "3 of 6 photos". -->
+    <string name="style_photos_count">%1$d of %2$d photos</string>
+    <string name="style_photos_edit_hint">Tap ✕ to remove · ＋ to add more</string>
+    <string name="style_photos_remove_hint">Tap ✕ to remove</string>
+    <string name="style_remove_photo">Remove photo</string>
+    <string name="style_add_more_photos">Add more</string>
     <string name="style_save_button">Save style</string>
     <string name="style_empty_title">No styles yet</string>
     <string name="style_empty_subtitle">Add photos of past work or inspiration for this customer.</string>
@@ -460,7 +462,6 @@
     <string name="style_delete_message">This style photo will be permanently removed. This cannot be undone.</string>
     <string name="style_delete_confirm">Delete</string>
     <string name="style_delete_cancel">Cancel</string>
-    <string name="style_description_required">Please enter a description.</string>
     <string name="style_photo_required">Please pick a photo first.</string>
 
     <!-- Style copy / move between customers -->
@@ -511,6 +512,13 @@
     <string name="style_readonly_upgrade_cta">Upgrade to edit</string>
     <string name="style_readonly_hint">This style is locked. Upgrade to Pro to edit it.</string>
     <string name="style_locked_a11y">Locked. Upgrade to edit.</string>
+
+    <!-- Style optional title (CTA + editor sheet) -->
+    <string name="style_add_title_cta">＋ Add title</string>
+    <string name="style_title_sheet_heading">Title (optional)</string>
+    <string name="style_title_placeholder">e.g. Red agbada with gold trim</string>
+    <string name="style_title_save">Save title</string>
+    <string name="style_title_remove">Remove title</string>
 
     <!-- Style errors -->
     <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>
@@ -1098,6 +1106,7 @@
     <string name="style_picker_empty">No styles yet for this customer.</string>
     <string name="style_picker_created_caption">Created %1$s</string>
     <string name="style_picker_create_new">Create new style</string>
+    <string name="style_untitled">Untitled style</string>
     <string name="order_detail_measured_caption">Measured %1$s</string>
     <string name="order_detail_no_measurements">No measurements linked yet</string>
     <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>

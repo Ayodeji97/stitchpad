@@ -44,6 +44,7 @@ import stitchpad.composeapp.generated.resources.style_picker_create_new
 import stitchpad.composeapp.generated.resources.style_picker_created_caption
 import stitchpad.composeapp.generated.resources.style_picker_empty
 import stitchpad.composeapp.generated.resources.style_picker_title
+import stitchpad.composeapp.generated.resources.style_untitled
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +169,7 @@ private fun StyleRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = style.description,
+                text = style.description.ifBlank { stringResource(Res.string.style_untitled) },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,

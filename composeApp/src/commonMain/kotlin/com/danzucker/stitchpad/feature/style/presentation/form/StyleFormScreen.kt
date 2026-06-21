@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,21 +20,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,15 +48,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,16 +75,18 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_add_more_photos
 import stitchpad.composeapp.generated.resources.style_add_title
 import stitchpad.composeapp.generated.resources.style_change_photo
-import stitchpad.composeapp.generated.resources.style_description_label
-import stitchpad.composeapp.generated.resources.style_description_placeholder
 import stitchpad.composeapp.generated.resources.style_edit_title
-import stitchpad.composeapp.generated.resources.style_photos_selected
+import stitchpad.composeapp.generated.resources.style_photos_count
+import stitchpad.composeapp.generated.resources.style_photos_edit_hint
+import stitchpad.composeapp.generated.resources.style_photos_remove_hint
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
 import stitchpad.composeapp.generated.resources.style_readonly_hint
 import stitchpad.composeapp.generated.resources.style_readonly_upgrade_cta
+import stitchpad.composeapp.generated.resources.style_remove_photo
 import stitchpad.composeapp.generated.resources.style_save_button
 
 // MultiPhotoPreview lays thumbnails out 3 per row. The multi-pick batch size is
@@ -141,14 +142,16 @@ fun StyleFormScreen(
 
     val focusManager = LocalFocusManager.current
 
-    // Key on maxPhotoSelection so the launcher is rebuilt once the VM resolves the
-    // folder's remaining capacity (the remembered launcher won't otherwise pick up
-    // a changed maxSelection).
-    val imagePicker = key(state.allowMultiPhoto, state.maxPhotoSelection) {
+    // Limit the picker to remaining slots so "Add more" can't exceed the cap.
+    // coerceAtLeast(1) keeps the picker legal (Single mode) even if somehow called at cap;
+    // styleFormSelectionMode converts it to Single when remainingPhotoSlots <= 1,
+    // preserving the peekaboo Multiple(maxSelection<=1) crash guard.
+    val remainingPhotoSlots = (state.maxPhotoSelection - state.selectedPhotos.size).coerceAtLeast(1)
+    val imagePicker = key(state.allowMultiPhoto, remainingPhotoSlots) {
         rememberImagePickerLauncher(
             selectionMode = styleFormSelectionMode(
                 allowMultiPhoto = state.allowMultiPhoto,
-                maxPhotoSelection = state.maxPhotoSelection,
+                maxPhotoSelection = remainingPhotoSlots,
             ),
             scope = pickerScope,
             onResult = { byteArrays ->
@@ -157,8 +160,8 @@ fun StyleFormScreen(
         )
     }
 
-    // Description is optional; a create still needs at least one photo, and an
-    // edit still needs a loaded style — so we never persist a fully empty entry.
+    // A create needs at least one photo, and an edit still needs a loaded style
+    // — so we never persist a fully empty entry.
     val canSave = (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
         !state.isSaving
 
@@ -221,13 +224,8 @@ fun StyleFormScreen(
                 }
                 PhotoSection(
                     state = state,
-                    onPickClick = onPickClick
-                )
-                StyleDescriptionField(
-                    value = state.description,
-                    readOnly = state.readOnly,
-                    onValueChange = { onAction(StyleFormAction.OnDescriptionChange(it)) },
-                    onDone = { focusManager.clearFocus() }
+                    onPickClick = onPickClick,
+                    onAction = onAction
                 )
                 if (state.readOnly) {
                     Text(
@@ -302,10 +300,24 @@ fun StyleFormScreen(
 @Composable
 private fun PhotoSection(
     state: StyleFormState,
-    onPickClick: (() -> Unit)?
+    onPickClick: (() -> Unit)?,
+    onAction: (StyleFormAction) -> Unit
 ) {
-    if (state.selectedPhotos.size > 1) {
-        MultiPhotoPreview(photos = state.selectedPhotos, onPickClick = onPickClick)
+    // Closet multi-add mode shows the editable grid even for a single photo (so
+    // each thumbnail can be removed and "Add more" stays reachable). Edit and
+    // order-link mode — and the empty state — stay on the single replace-on-tap tile.
+    if (state.allowMultiPhoto && state.selectedPhotos.isNotEmpty()) {
+        val onRemovePhoto: ((ByteArray) -> Unit)? = if (state.readOnly) {
+            null
+        } else {
+            { photo -> onAction(StyleFormAction.OnRemovePhoto(photo)) }
+        }
+        MultiPhotoPreview(
+            photos = state.selectedPhotos,
+            maxPhotoSelection = state.maxPhotoSelection,
+            onRemovePhoto = onRemovePhoto,
+            onAddMore = onPickClick
+        )
     } else {
         SinglePhotoPreview(state = state, onPickClick = onPickClick)
     }
@@ -344,7 +356,7 @@ private fun SinglePhotoPreview(
         if (model != null) {
             SubcomposeAsyncImage(
                 model = model,
-                contentDescription = state.description.ifBlank { null },
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 loading = {
                     Box(
@@ -414,29 +426,83 @@ private fun SinglePhotoPreview(
     }
 }
 
+/**
+ * One cell in the editable photo grid: either a picked photo (identified by its
+ * ByteArray instance so it can remove itself by identity) or the trailing "Add more" tile.
+ * Plain class — inherits reference-identity equals/hashCode from Any.
+ */
+private sealed interface PhotoGridCell {
+    class Photo(val bytes: ByteArray) : PhotoGridCell
+
+    data object AddMore : PhotoGridCell
+}
+
 @Composable
 private fun MultiPhotoPreview(
     photos: List<ByteArray>,
-    onPickClick: (() -> Unit)?
+    maxPhotoSelection: Int,
+    onRemovePhoto: ((ByteArray) -> Unit)?,
+    onAddMore: (() -> Unit)?,
 ) {
-    val baseModifier = Modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(DesignTokens.radiusMd))
-        .background(MaterialTheme.colorScheme.surfaceVariant)
-        .border(
-            BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            RoundedCornerShape(DesignTokens.radiusMd)
-        )
-    val columnModifier = if (onPickClick != null) {
-        baseModifier.clickable(onClick = onPickClick).padding(DesignTokens.space3)
-    } else {
-        baseModifier.padding(DesignTokens.space3)
-    }
-
+    val canAddMore = onAddMore != null && photos.size < maxPhotoSelection
     Column(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        modifier = columnModifier
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                RoundedCornerShape(DesignTokens.radiusMd)
+            )
+            .padding(DesignTokens.space3)
     ) {
+        MultiPhotoHeader(
+            count = photos.size,
+            maxPhotoSelection = maxPhotoSelection,
+            canAddMore = canAddMore,
+        )
+
+        // Each photo cell is identified by its ByteArray instance so a thumbnail's ✕
+        // removes the right entry by identity, then an optional trailing "Add more"
+        // tile. Manual grid (3 per row): nesting a lazy grid inside the form's
+        // vertical scroll would conflict; the picked set is small and bounded.
+        val cells: List<PhotoGridCell> = buildList {
+            photos.forEach { bytes -> add(PhotoGridCell.Photo(bytes)) }
+            if (canAddMore) add(PhotoGridCell.AddMore)
+        }
+        cells.chunked(MULTI_PREVIEW_COLUMNS).forEach { rowCells ->
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                rowCells.forEach { cell ->
+                    when (cell) {
+                        is PhotoGridCell.Photo -> PhotoThumbnail(
+                            bytes = cell.bytes,
+                            onRemove = onRemovePhoto?.let { { it(cell.bytes) } },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        PhotoGridCell.AddMore -> AddMoreTile(
+                            onClick = { onAddMore?.invoke() },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                // Pad a short final row so cells keep a consistent square size.
+                repeat(MULTI_PREVIEW_COLUMNS - rowCells.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiPhotoHeader(
+    count: Int,
+    maxPhotoSelection: Int,
+    canAddMore: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1)
@@ -448,127 +514,128 @@ private fun MultiPhotoPreview(
                 modifier = Modifier.size(16.dp)
             )
             Text(
-                text = stringResource(Res.string.style_photos_selected, photos.size),
+                text = stringResource(Res.string.style_photos_count, count, maxPhotoSelection),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        // Manual grid (3 per row): nesting a lazy grid inside the form's vertical
-        // scroll would conflict; the picked set is small and bounded.
-        photos.chunked(MULTI_PREVIEW_COLUMNS).forEach { rowPhotos ->
-            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                rowPhotos.forEach { bytes ->
-                    SubcomposeAsyncImage(
-                        model = bytes,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        loading = {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                LoadingDots()
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(DesignTokens.radiusSm))
-                    )
+        Text(
+            text = if (canAddMore) {
+                stringResource(Res.string.style_photos_edit_hint)
+            } else {
+                stringResource(Res.string.style_photos_remove_hint)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PhotoThumbnail(
+    bytes: ByteArray,
+    onRemove: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.aspectRatio(1f)) {
+        SubcomposeAsyncImage(
+            model = bytes,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            loading = {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    LoadingDots()
                 }
-                // Pad a short final row so thumbnails keep a consistent size.
-                repeat(MULTI_PREVIEW_COLUMNS - rowPhotos.size) {
-                    Spacer(Modifier.weight(1f))
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(DesignTokens.radiusSm))
+        )
+        if (onRemove != null) {
+            // 40dp clickable area for accessibility; 22dp visual badge for aesthetics.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(40.dp)
+                    .clickable(onClick = onRemove)
+                    .padding(DesignTokens.space1)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(DesignTokens.radiusFull)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(Res.string.style_remove_photo),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StyleDescriptionField(
-    value: String,
-    readOnly: Boolean = false,
-    onValueChange: (String) -> Unit,
-    onDone: () -> Unit
+private fun AddMoreTile(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val enabled = !readOnly
-    val colors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-        focusedContainerColor = MaterialTheme.colorScheme.surface,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-        disabledBorderColor = MaterialTheme.colorScheme.outline,
-        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    val interactionSource = remember { MutableInteractionSource() }
-    val placeholder = stringResource(Res.string.style_description_placeholder)
+    val ringColor = MaterialTheme.colorScheme.outline
+    val density = LocalDensity.current
+    val strokeWidthPx = with(density) { 1.dp.toPx() }
+    val dashOnPx = with(density) { 4.dp.toPx() }
+    val dashOffPx = with(density) { 3.dp.toPx() }
+    val cornerPx = with(density) { DesignTokens.radiusSm.toPx() }
 
-    Column {
-        Text(
-            text = stringResource(Res.string.style_description_label).uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = DesignTokens.space1)
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = false,
-            minLines = 3,
-            maxLines = 6,
-            readOnly = readOnly,
-            enabled = enabled,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(onDone = { onDone() }),
-            interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth(),
-            decorationBox = { innerTextField ->
-                OutlinedTextFieldDefaults.DecorationBox(
-                    value = value,
-                    innerTextField = innerTextField,
-                    enabled = enabled,
-                    singleLine = false,
-                    visualTransformation = VisualTransformation.None,
-                    interactionSource = interactionSource,
-                    placeholder = {
-                        Text(
-                            text = placeholder,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    colors = colors,
-                    container = {
-                        OutlinedTextFieldDefaults.Container(
-                            enabled = enabled,
-                            isError = false,
-                            interactionSource = interactionSource,
-                            colors = colors,
-                            shape = RoundedCornerShape(DesignTokens.radiusMd),
-                            focusedBorderThickness = 1.dp,
-                            unfocusedBorderThickness = 1.dp
-                        )
-                    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(DesignTokens.radiusSm))
+            .drawBehind {
+                val inset = strokeWidthPx / 2f
+                drawRoundRect(
+                    color = ringColor,
+                    topLeft = Offset(inset, inset),
+                    size = Size(
+                        size.width - strokeWidthPx,
+                        size.height - strokeWidthPx
+                    ),
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    style = Stroke(
+                        width = strokeWidthPx,
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(dashOnPx, dashOffPx),
+                            0f,
+                        ),
+                    ),
                 )
             }
+            .clickable(onClick = onClick)
+            .padding(DesignTokens.space1)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(DesignTokens.space1))
+        Text(
+            text = stringResource(Res.string.style_add_more_photos),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -589,7 +656,6 @@ private fun StyleFormScreenFilledPreview() {
     StitchPadTheme {
         StyleFormScreen(
             state = StyleFormState(
-                description = "Red agbada with gold trim",
                 selectedPhotos = listOf(ByteArray(0))
             ),
             onAction = {}
@@ -604,9 +670,9 @@ private fun StyleFormScreenMultiPhotoPreview() {
     StitchPadTheme {
         StyleFormScreen(
             state = StyleFormState(
-                description = "Owambe inspiration",
                 allowMultiPhoto = true,
-                selectedPhotos = listOf(ByteArray(0), ByteArray(0), ByteArray(0), ByteArray(0))
+                selectedPhotos = listOf(ByteArray(0), ByteArray(0)),
+                maxPhotoSelection = 6
             ),
             onAction = {}
         )
@@ -622,7 +688,6 @@ private fun StyleFormScreenReadOnlyPreview() {
             state = StyleFormState(
                 isEditMode = true,
                 readOnly = true,
-                description = "Ankara gown",
                 existingStyle = Style(
                     id = "preview-id",
                     customerId = "preview-customer",

@@ -93,10 +93,13 @@ class StyleFormViewModel(
 
     fun onAction(action: StyleFormAction) {
         when (action) {
-            is StyleFormAction.OnDescriptionChange -> {
-                _state.update { it.copy(description = action.description) }
-            }
             is StyleFormAction.OnPhotosPicked -> onPhotosPicked(action.photos)
+            is StyleFormAction.OnRemovePhoto -> {
+                if (_state.value.readOnly) return
+                _state.update {
+                    it.copy(selectedPhotos = it.selectedPhotos.filterNot { p -> p === action.photo })
+                }
+            }
             StyleFormAction.OnSaveClick -> save()
             StyleFormAction.OnNavigateBack -> {
                 viewModelScope.launch { _events.send(StyleFormEvent.NavigateBack) }
@@ -124,18 +127,23 @@ class StyleFormViewModel(
             // guard so a normal phone photo is accepted instead of rejected. A decode
             // failure (null) falls back to the original bytes and lets the guard decide.
             val processed = photos.map { imageCompressor.compress(it) ?: it }
-            // A fresh pick replaces the current selection. Reject the whole batch if
-            // any image still exceeds the cap so the user sees the failure before saving.
+            // Reject the whole new batch if any image still exceeds the cap after
+            // compression. The existing selection is preserved so the user doesn't lose
+            // previously accepted photos.
             if (processed.any { it.size > MAX_PHOTO_SIZE_BYTES }) {
-                _state.update {
-                    it.copy(
-                        errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText(),
-                        selectedPhotos = emptyList()
-                    )
-                }
+                _state.update { it.copy(errorMessage = StyleError.PHOTO_TOO_LARGE.toUiText()) }
                 return@launch
             }
-            _state.update { it.copy(selectedPhotos = processed, errorMessage = null) }
+            // Multi-photo closet add: append and trim to cap.
+            // Single/edit/order-link: replace entirely so "tap to change" swaps the photo.
+            _state.update { current ->
+                val merged = if (current.allowMultiPhoto) {
+                    (current.selectedPhotos + processed).take(current.maxPhotoSelection)
+                } else {
+                    processed
+                }
+                current.copy(selectedPhotos = merged, errorMessage = null)
+            }
         }
     }
 
@@ -188,7 +196,6 @@ class StyleFormViewModel(
                     if (style != null) {
                         _state.update {
                             it.copy(
-                                description = style.description,
                                 existingStyle = style,
                                 isLoading = false
                             )
@@ -292,9 +299,8 @@ class StyleFormViewModel(
             return
         }
         val s = _state.value
-        // Description is optional — only a photo (create) or a loaded style (edit)
-        // is required, so we never persist a fully empty entry.
-        val trimmedDescription = s.description.trim()
+        // Only a photo (create) or a loaded style (edit) is required,
+        // so we never persist a fully empty entry.
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
         val missingStyleForEdit = s.isEditMode && s.existingStyle == null
         if (missingPhotoForCreate || missingStyleForEdit) return
@@ -309,7 +315,7 @@ class StyleFormViewModel(
                 val updateResult = styleRepository.updateStyle(
                     userId = userId,
                     location = location,
-                    style = s.existingStyle.copy(description = trimmedDescription),
+                    style = s.existingStyle,
                     newPhotoBytes = s.selectedPhotos.firstOrNull(),
                 )
                 _state.update { it.copy(isSaving = false) }
@@ -380,7 +386,7 @@ class StyleFormViewModel(
                 val batchResult = styleRepository.createStyles(
                     userId = userId,
                     location = location,
-                    description = trimmedDescription,
+                    description = "",
                     photoBytesList = s.selectedPhotos,
                 )
                 _state.update { it.copy(isSaving = false) }
@@ -396,7 +402,7 @@ class StyleFormViewModel(
             val createResult = styleRepository.createStyle(
                 userId = userId,
                 location = location,
-                description = trimmedDescription,
+                description = "",
                 photoBytes = s.selectedPhotos.firstOrNull() ?: ByteArray(0),
             )
             if (createResult is Result.Error) {

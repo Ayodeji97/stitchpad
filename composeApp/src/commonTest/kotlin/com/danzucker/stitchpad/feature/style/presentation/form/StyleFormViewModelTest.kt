@@ -155,6 +155,42 @@ class StyleFormViewModelTest {
     }
 
     @Test
+    fun oversize_repick_keeps_existing_photos() = runTest {
+        // Regression: an oversize re-pick must surface PHOTO_TOO_LARGE but must NOT
+        // wipe the photos that were already accepted by the previous valid pick.
+        //
+        // Strategy: use a stateful compressor whose first call produces 1 byte (valid)
+        // and whose second call produces null (decode failure fallback), paired with a
+        // 6 MiB input so the fallback bytes exceed MAX_PHOTO_SIZE_BYTES.
+        var callCount = 0
+        val statefulCompressor = object : ImageCompressor {
+            override suspend fun compress(bytes: ByteArray, maxEdgePx: Int, jpegQuality: Int): ByteArray? {
+                return if (callCount++ == 0) byteArrayOf(1) else null
+            }
+        }
+
+        // Multi-photo (closet-add, allowMultiPhoto = true) VM.
+        val vm = createViewModel(imageCompressor = statefulCompressor)
+
+        // Step 1: pick one valid small photo → accepted.
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1))))
+        assertEquals(1, vm.state.value.selectedPhotos.size, "valid pick must be stored")
+        assertNull(vm.state.value.errorMessage)
+
+        // Step 2: re-pick a photo that compresses to null (fallback = 6 MiB original) → oversize.
+        val oversized = ByteArray(6 * 1024 * 1024)
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(oversized)))
+
+        // Error must fire (PHOTO_TOO_LARGE) AND the previously valid photo must survive.
+        assertNotNull(vm.state.value.errorMessage, "PHOTO_TOO_LARGE error must be set")
+        assertEquals(
+            1,
+            vm.state.value.selectedPhotos.size,
+            "oversize re-pick must NOT wipe the existing valid selection",
+        )
+    }
+
+    @Test
     fun editMode_saveAwaitsInFlightCompression_usesNewlyPickedPhoto() = runTest {
         // Race guard: tapping Save while a just-picked replacement photo is still
         // compressing must not persist the old style without the new photo.
@@ -214,14 +250,13 @@ class StyleFormViewModelTest {
 
         assertFalse(vm.state.value.isEditMode)
         assertFalse(vm.state.value.isLoading)
-        assertEquals("", vm.state.value.description)
         assertNull(vm.state.value.existingStyle)
     }
 
     // --- Load existing style (edit mode) ---
 
     @Test
-    fun editMode_loadSuccess_populatesDescriptionAndExistingStyle() = runTest {
+    fun editMode_loadSuccess_populatesExistingStyle() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val existing = fakeStyle(id = "style-7", description = "Existing style")
         styleRepository.stylesList = listOf(existing)
@@ -229,7 +264,6 @@ class StyleFormViewModelTest {
         val vm = createViewModel(styleId = "style-7")
 
         assertTrue(vm.state.value.isEditMode)
-        assertEquals("Existing style", vm.state.value.description)
         assertEquals(existing, vm.state.value.existingStyle)
         assertFalse(vm.state.value.isLoading)
     }
@@ -264,17 +298,6 @@ class StyleFormViewModelTest {
 
         assertFalse(vm.state.value.isLoading)
         assertNull(vm.state.value.existingStyle)
-    }
-
-    // --- Description change ---
-
-    @Test
-    fun onDescriptionChange_updatesDescription() = runTest {
-        val vm = createViewModel()
-
-        vm.onAction(StyleFormAction.OnDescriptionChange("Blue kaftan"))
-
-        assertEquals("Blue kaftan", vm.state.value.description)
     }
 
     // --- Photo picked ---
@@ -344,7 +367,6 @@ class StyleFormViewModelTest {
     fun onSaveClick_createMode_noPhoto_doesNotCallRepository() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada"))
         // no photo
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -356,13 +378,12 @@ class StyleFormViewModelTest {
     fun onSaveClick_createMode_success_callsCreate_andEmitsNavigateBack() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada  "))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10) { it.toByte() })))
 
         vm.onAction(StyleFormAction.OnSaveClick)
         val event = vm.events.first()
 
-        assertEquals("Red agbada", styleRepository.lastCreatedDescription)
+        assertEquals("", styleRepository.lastCreatedDescription)
         assertNotNull(styleRepository.lastCreatedPhotoBytes)
         assertIs<StyleFormEvent.NavigateBack>(event)
         assertFalse(vm.state.value.isSaving)
@@ -372,7 +393,6 @@ class StyleFormViewModelTest {
     fun onSaveClick_createMode_multiplePhotos_callsBatchCreate_andEmitsNavigateBack() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnDescriptionChange("Owambe inspiration"))
         vm.onAction(
             StyleFormAction.OnPhotosPicked(listOf(ByteArray(10), ByteArray(20), ByteArray(30)))
         )
@@ -382,7 +402,7 @@ class StyleFormViewModelTest {
 
         // Batch path used, not the single-create path.
         assertEquals(3, styleRepository.lastBatchCreatedCount)
-        assertEquals("Owambe inspiration", styleRepository.lastBatchCreatedDescription)
+        assertEquals("", styleRepository.lastBatchCreatedDescription)
         assertNull(styleRepository.lastCreatedDescription)
         assertIs<StyleFormEvent.NavigateBack>(event)
         assertFalse(vm.state.value.isSaving)
@@ -393,7 +413,6 @@ class StyleFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -406,7 +425,6 @@ class StyleFormViewModelTest {
     fun onSaveClick_createMode_noAuthUser_doesNotCallRepository() = runTest {
         // no signUp
         val vm = createViewModel()
-        vm.onAction(StyleFormAction.OnDescriptionChange("Red agbada"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -421,7 +439,6 @@ class StyleFormViewModelTest {
         styleRepository.stylesList = listOf(fakeStyle(id = "other"))
         val vm = createViewModel(styleId = "missing-id")
         // style failed to load → existingStyle is null but isEditMode is true
-        vm.onAction(StyleFormAction.OnDescriptionChange("New description"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -435,15 +452,14 @@ class StyleFormViewModelTest {
     @Test
     fun save_batchOverCap_setsCapSheet_stylesPro() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // PRO customer: maxImagesPerFolder = 3. Existing 2 styles + picking 4 = 6 > 3 → blocked.
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        // PRO customer: maxImagesPerFolder = 3. Existing 3 styles (at cap) + picking 1 = 4 > 3 → blocked.
+        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
-        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
-        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
@@ -467,7 +483,6 @@ class StyleFormViewModelTest {
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
-        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
         vm.onAction(StyleFormAction.OnPhotosPicked(List(2) { ByteArray(10) }))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -484,14 +499,13 @@ class StyleFormViewModelTest {
     @Test
     fun onDismissCapSheet_clearsCapSheet() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
-        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
-        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
         vm.onAction(StyleFormAction.OnSaveClick)
         assertNotNull(vm.state.value.capSheet)
 
@@ -503,14 +517,13 @@ class StyleFormViewModelTest {
     @Test
     fun onUpgradeFromCap_clearsCapSheet_andEmitsNavigateToUpgrade() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
+        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
             folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
-        vm.onAction(StyleFormAction.OnDescriptionChange("Ankara set"))
-        vm.onAction(StyleFormAction.OnPhotosPicked(List(4) { ByteArray(10) }))
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
         vm.onAction(StyleFormAction.OnSaveClick)
         assertNotNull(vm.state.value.capSheet)
 
@@ -554,13 +567,13 @@ class StyleFormViewModelTest {
         val existing = fakeStyle(id = "style-7", description = "Old")
         styleRepository.stylesList = listOf(existing)
         val vm = createViewModel(styleId = "style-7")
-        vm.onAction(StyleFormAction.OnDescriptionChange("New description"))
 
         vm.onAction(StyleFormAction.OnSaveClick)
         val event = vm.events.first()
 
         assertEquals("style-7", styleRepository.lastUpdatedStyle?.id)
-        assertEquals("New description", styleRepository.lastUpdatedStyle?.description)
+        // Description must be passed unchanged from the loaded style.
+        assertEquals("Old", styleRepository.lastUpdatedStyle?.description)
         assertNull(styleRepository.lastUpdatedPhotoBytes)
         assertIs<StyleFormEvent.NavigateBack>(event)
     }
@@ -581,17 +594,16 @@ class StyleFormViewModelTest {
     }
 
     @Test
-    fun onSaveClick_editMode_blankDescription_updatesWithEmptyDescription() = runTest {
+    fun onSaveClick_editMode_preservesExistingDescription() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        val existing = fakeStyle(id = "style-7", description = "Old")
+        val existing = fakeStyle(id = "style-7", description = "Old description")
         styleRepository.stylesList = listOf(existing)
         val vm = createViewModel(styleId = "style-7")
-        // Clearing the description is now allowed — it is optional.
-        vm.onAction(StyleFormAction.OnDescriptionChange("   "))
 
         vm.onAction(StyleFormAction.OnSaveClick)
 
-        assertEquals("", styleRepository.lastUpdatedStyle?.description)
+        // The form no longer collects description; the existing value must be passed through.
+        assertEquals("Old description", styleRepository.lastUpdatedStyle?.description)
     }
 
     // --- Navigation & error dismiss ---
@@ -622,7 +634,6 @@ class StyleFormViewModelTest {
         // observeError will make the count read fail.
         styleRepository.observeError = DataError.Network.UNKNOWN
         val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
-        vm.onAction(StyleFormAction.OnDescriptionChange("Blue kaftan"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -640,7 +651,6 @@ class StyleFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.observeError = DataError.Network.UNKNOWN
         val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.FREE)
-        vm.onAction(StyleFormAction.OnDescriptionChange("Indigo dress"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -666,8 +676,6 @@ class StyleFormViewModelTest {
         val existing = fakeStyle(id = "s1", customerId = "c1")
         styleRepository.stylesList = listOf(existing)
         val vm = createViewModel(customerId = "c1", styleId = "s1", readOnly = true)
-        // populate description so the normal validation guard doesn't short-circuit
-        vm.onAction(StyleFormAction.OnDescriptionChange("Read-only attempt"))
 
         vm.onAction(StyleFormAction.OnSaveClick)
         val event = vm.events.first()
@@ -710,7 +718,6 @@ class StyleFormViewModelTest {
         )
 
         val vm = createViewModel(customerId = "customer-flat", tier = SubscriptionTier.FREE)
-        vm.onAction(StyleFormAction.OnDescriptionChange("New style"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -751,7 +758,6 @@ class StyleFormViewModelTest {
         )
 
         val vm = createViewModel(customerId = "customer-flat", tier = SubscriptionTier.FREE)
-        vm.onAction(StyleFormAction.OnDescriptionChange("New style"))
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
 
         vm.onAction(StyleFormAction.OnSaveClick)
@@ -760,6 +766,78 @@ class StyleFormViewModelTest {
         assertIs<StyleFormEvent.NavigateBack>(event)
         assertNotNull(styleRepository.lastCreatedDescription, "Style must be created when under flat cap")
         assertNull(vm.state.value.capSheet)
+    }
+
+    // --- Additive photo picking + per-photo removal ---
+
+    @Test
+    fun picking_photos_twice_appends_instead_of_replacing() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2))))
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(3))))
+        assertEquals(3, vm.state.value.selectedPhotos.size)
+    }
+
+    @Test
+    fun picking_in_single_mode_replaces_instead_of_appending() = runTest {
+        // Edit mode (styleId set) → allowMultiPhoto = false. A second pick must REPLACE,
+        // not append. save() uses selectedPhotos.firstOrNull(), so stale bytes must not
+        // survive a re-pick.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "style-7"))
+        val vm = createViewModel(styleId = "style-7")
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1))))
+        assertEquals(1, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(2))))
+
+        assertEquals(1, vm.state.value.selectedPhotos.size, "re-pick must replace, not append")
+        assertEquals(2, vm.state.value.selectedPhotos.first()[0], "latest picked byte must be stored")
+    }
+
+    @Test
+    fun appending_is_capped_at_maxPhotoSelection() = runTest {
+        // PRO + folderId + 1 existing style → maxPhotoSelection = 3 - 1 = 2.
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = List(1) { fakeStyle(id = "existing-0") }
+        val vm = createViewModel(
+            customerId = "customer-1",
+            folderId = "f1",
+            tier = SubscriptionTier.PRO,
+        )
+        assertEquals(2, vm.state.value.maxPhotoSelection)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2))))
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(3))))
+        // cap is 2 → merged list (2+1=3) is trimmed to 2
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+    }
+
+    @Test
+    fun removing_a_photo_drops_only_that_instance() = runTest {
+        // FakeImageCompressor with no args returns the same ByteArray instance
+        // (identity preserved), so the post-pick state holds the original instances.
+        val vm = createViewModel()
+
+        vm.onAction(
+            StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2), byteArrayOf(3)))
+        )
+        assertEquals(3, vm.state.value.selectedPhotos.size)
+
+        // Capture the exact post-compression instances from state and remove the middle one.
+        val picked = vm.state.value.selectedPhotos
+        vm.onAction(StyleFormAction.OnRemovePhoto(picked[1]))
+
+        assertEquals(2, vm.state.value.selectedPhotos.size)
+        // byte 2 (index 1) removed; byte 1 and byte 3 remain
+        assertEquals(1, vm.state.value.selectedPhotos[0][0])
+        assertEquals(3, vm.state.value.selectedPhotos[1][0])
     }
 
     // --- Free-tier flattened cap count ---
@@ -804,7 +882,6 @@ class StyleFormViewModelTest {
         assertFalse(vm.state.value.readOnly)
 
         // Now save — should update (edit mode) rather than redirect to upgrade.
-        vm.onAction(StyleFormAction.OnDescriptionChange("Updated description"))
         vm.onAction(StyleFormAction.OnSaveClick)
 
         val event = vm.events.first()
