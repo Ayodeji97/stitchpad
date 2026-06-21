@@ -142,14 +142,16 @@ fun StyleFormScreen(
 
     val focusManager = LocalFocusManager.current
 
-    // Key on maxPhotoSelection so the launcher is rebuilt once the VM resolves the
-    // folder's remaining capacity (the remembered launcher won't otherwise pick up
-    // a changed maxSelection).
-    val imagePicker = key(state.allowMultiPhoto, state.maxPhotoSelection) {
+    // Limit the picker to remaining slots so "Add more" can't exceed the cap.
+    // coerceAtLeast(1) keeps the picker legal (Single mode) even if somehow called at cap;
+    // styleFormSelectionMode converts it to Single when remainingPhotoSlots <= 1,
+    // preserving the peekaboo Multiple(maxSelection<=1) crash guard.
+    val remainingPhotoSlots = (state.maxPhotoSelection - state.selectedPhotos.size).coerceAtLeast(1)
+    val imagePicker = key(state.allowMultiPhoto, remainingPhotoSlots) {
         rememberImagePickerLauncher(
             selectionMode = styleFormSelectionMode(
                 allowMultiPhoto = state.allowMultiPhoto,
-                maxPhotoSelection = state.maxPhotoSelection,
+                maxPhotoSelection = remainingPhotoSlots,
             ),
             scope = pickerScope,
             onResult = { byteArrays ->
