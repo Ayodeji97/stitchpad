@@ -81,6 +81,7 @@ import stitchpad.composeapp.generated.resources.style_change_photo
 import stitchpad.composeapp.generated.resources.style_edit_title
 import stitchpad.composeapp.generated.resources.style_photos_count
 import stitchpad.composeapp.generated.resources.style_photos_edit_hint
+import stitchpad.composeapp.generated.resources.style_photos_remove_hint
 import stitchpad.composeapp.generated.resources.style_pick_photo
 import stitchpad.composeapp.generated.resources.style_pick_photos
 import stitchpad.composeapp.generated.resources.style_readonly_hint
@@ -304,10 +305,15 @@ private fun PhotoSection(
     // each thumbnail can be removed and "Add more" stays reachable). Edit and
     // order-link mode — and the empty state — stay on the single replace-on-tap tile.
     if (state.allowMultiPhoto && state.selectedPhotos.isNotEmpty()) {
+        val onRemovePhoto: ((ByteArray) -> Unit)? = if (state.readOnly) {
+            null
+        } else {
+            { photo -> onAction(StyleFormAction.OnRemovePhoto(photo)) }
+        }
         MultiPhotoPreview(
             photos = state.selectedPhotos,
             maxPhotoSelection = state.maxPhotoSelection,
-            onRemovePhoto = { onAction(StyleFormAction.OnRemovePhoto(it)) },
+            onRemovePhoto = onRemovePhoto,
             onAddMore = onPickClick
         )
     } else {
@@ -419,20 +425,12 @@ private fun SinglePhotoPreview(
 }
 
 /**
- * One cell in the editable photo grid: either a picked photo (carrying its
- * absolute index in [StyleFormState.selectedPhotos] so it can remove itself) or
- * the trailing "Add more" tile.
+ * One cell in the editable photo grid: either a picked photo (identified by its
+ * ByteArray instance so it can remove itself by identity) or the trailing "Add more" tile.
+ * Plain class — inherits reference-identity equals/hashCode from Any.
  */
 private sealed interface PhotoGridCell {
-    data class Photo(val index: Int, val bytes: ByteArray) : PhotoGridCell {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is Photo) return false
-            return index == other.index && bytes.contentEquals(other.bytes)
-        }
-
-        override fun hashCode(): Int = 31 * index + bytes.contentHashCode()
-    }
+    class Photo(val bytes: ByteArray) : PhotoGridCell
 
     data object AddMore : PhotoGridCell
 }
@@ -441,9 +439,10 @@ private sealed interface PhotoGridCell {
 private fun MultiPhotoPreview(
     photos: List<ByteArray>,
     maxPhotoSelection: Int,
-    onRemovePhoto: (Int) -> Unit,
+    onRemovePhoto: ((ByteArray) -> Unit)?,
     onAddMore: (() -> Unit)?,
 ) {
+    val canAddMore = onAddMore != null && photos.size < maxPhotoSelection
     Column(
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         modifier = Modifier
@@ -456,15 +455,19 @@ private fun MultiPhotoPreview(
             )
             .padding(DesignTokens.space3)
     ) {
-        MultiPhotoHeader(count = photos.size, maxPhotoSelection = maxPhotoSelection)
+        MultiPhotoHeader(
+            count = photos.size,
+            maxPhotoSelection = maxPhotoSelection,
+            canAddMore = canAddMore,
+        )
 
-        // Each photo keeps its absolute index so a thumbnail's ✕ removes the
-        // right entry, then an optional trailing "Add more" tile. Manual grid
-        // (3 per row): nesting a lazy grid inside the form's vertical scroll
-        // would conflict; the picked set is small and bounded.
+        // Each photo cell is identified by its ByteArray instance so a thumbnail's ✕
+        // removes the right entry by identity, then an optional trailing "Add more"
+        // tile. Manual grid (3 per row): nesting a lazy grid inside the form's
+        // vertical scroll would conflict; the picked set is small and bounded.
         val cells: List<PhotoGridCell> = buildList {
-            photos.forEachIndexed { index, bytes -> add(PhotoGridCell.Photo(index, bytes)) }
-            if (onAddMore != null && photos.size < maxPhotoSelection) add(PhotoGridCell.AddMore)
+            photos.forEach { bytes -> add(PhotoGridCell.Photo(bytes)) }
+            if (canAddMore) add(PhotoGridCell.AddMore)
         }
         cells.chunked(MULTI_PREVIEW_COLUMNS).forEach { rowCells ->
             Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
@@ -472,7 +475,7 @@ private fun MultiPhotoPreview(
                     when (cell) {
                         is PhotoGridCell.Photo -> PhotoThumbnail(
                             bytes = cell.bytes,
-                            onRemove = { onRemovePhoto(cell.index) },
+                            onRemove = onRemovePhoto?.let { { it(cell.bytes) } },
                             modifier = Modifier.weight(1f)
                         )
 
@@ -494,7 +497,8 @@ private fun MultiPhotoPreview(
 @Composable
 private fun MultiPhotoHeader(
     count: Int,
-    maxPhotoSelection: Int
+    maxPhotoSelection: Int,
+    canAddMore: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
         Row(
@@ -514,7 +518,11 @@ private fun MultiPhotoHeader(
             )
         }
         Text(
-            text = stringResource(Res.string.style_photos_edit_hint),
+            text = if (canAddMore) {
+                stringResource(Res.string.style_photos_edit_hint)
+            } else {
+                stringResource(Res.string.style_photos_remove_hint)
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -524,7 +532,7 @@ private fun MultiPhotoHeader(
 @Composable
 private fun PhotoThumbnail(
     bytes: ByteArray,
-    onRemove: () -> Unit,
+    onRemove: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.aspectRatio(1f)) {
@@ -544,23 +552,33 @@ private fun PhotoThumbnail(
                 .fillMaxSize()
                 .clip(RoundedCornerShape(DesignTokens.radiusSm))
         )
-        IconButton(
-            onClick = onRemove,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(DesignTokens.space1)
-                .size(22.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(DesignTokens.radiusFull)
-                )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(Res.string.style_remove_photo),
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(14.dp)
-            )
+        if (onRemove != null) {
+            // 40dp clickable area for accessibility; 22dp visual badge for aesthetics.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(40.dp)
+                    .clickable(onClick = onRemove)
+                    .padding(DesignTokens.space1)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(DesignTokens.radiusFull)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(Res.string.style_remove_photo),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
         }
     }
 }

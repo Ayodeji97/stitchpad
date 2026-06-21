@@ -94,8 +94,11 @@ class StyleFormViewModel(
     fun onAction(action: StyleFormAction) {
         when (action) {
             is StyleFormAction.OnPhotosPicked -> onPhotosPicked(action.photos)
-            is StyleFormAction.OnRemovePhoto -> _state.update {
-                it.copy(selectedPhotos = it.selectedPhotos.filterIndexed { i, _ -> i != action.index })
+            is StyleFormAction.OnRemovePhoto -> {
+                if (_state.value.readOnly) return
+                _state.update {
+                    it.copy(selectedPhotos = it.selectedPhotos.filterNot { p -> p === action.photo })
+                }
             }
             StyleFormAction.OnSaveClick -> save()
             StyleFormAction.OnNavigateBack -> {

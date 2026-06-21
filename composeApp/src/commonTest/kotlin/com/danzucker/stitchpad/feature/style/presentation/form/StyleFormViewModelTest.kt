@@ -820,7 +820,9 @@ class StyleFormViewModelTest {
     }
 
     @Test
-    fun removing_a_photo_drops_only_that_index() = runTest {
+    fun removing_a_photo_drops_only_that_instance() = runTest {
+        // FakeImageCompressor with no args returns the same ByteArray instance
+        // (identity preserved), so the post-pick state holds the original instances.
         val vm = createViewModel()
 
         vm.onAction(
@@ -828,10 +830,12 @@ class StyleFormViewModelTest {
         )
         assertEquals(3, vm.state.value.selectedPhotos.size)
 
-        vm.onAction(StyleFormAction.OnRemovePhoto(1))
+        // Capture the exact post-compression instances from state and remove the middle one.
+        val picked = vm.state.value.selectedPhotos
+        vm.onAction(StyleFormAction.OnRemovePhoto(picked[1]))
 
         assertEquals(2, vm.state.value.selectedPhotos.size)
-        // index 0 → byte 1, index 1 → byte 3 (middle removed)
+        // byte 2 (index 1) removed; byte 1 and byte 3 remain
         assertEquals(1, vm.state.value.selectedPhotos[0][0])
         assertEquals(3, vm.state.value.selectedPhotos[1][0])
     }
