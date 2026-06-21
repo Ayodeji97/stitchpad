@@ -45,6 +45,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.feature.order.domain.filterGarmentOptions
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.garment_picker_add_custom_format
@@ -173,6 +174,7 @@ private fun GarmentPickerSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false)
+                .dismissKeyboardOnScroll()
                 .padding(bottom = 12.dp),
         ) {
             if (filterResult.matchingCustoms.isNotEmpty()) {

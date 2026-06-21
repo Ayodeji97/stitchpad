@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 
 /**
  * Dark form card with rounded top corners, overlaps the hero by 22dp.
@@ -31,6 +32,7 @@ fun AuthCard(
             .offset(y = (-22).dp)
             .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
             .background(Color(0xFF1A1815))
+            .dismissKeyboardOnScroll()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),

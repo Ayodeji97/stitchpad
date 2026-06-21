@@ -64,6 +64,7 @@ import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -190,6 +191,7 @@ fun CustomerFormScreen(
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 }
+                .dismissKeyboardOnScroll()
                 .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(horizontal = DesignTokens.space4, vertical = DesignTokens.space4)

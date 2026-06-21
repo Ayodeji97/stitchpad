@@ -41,6 +41,7 @@ import com.danzucker.stitchpad.feature.smart.presentation.draft.components.Order
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_generate_cta
@@ -71,6 +72,7 @@ fun DraftMessageScreen(
         modifier = modifier
             .fillMaxSize()
             .clearFocusOnTap()
+            .dismissKeyboardOnScroll()
             .verticalScroll(rememberScrollState())
             .padding(DesignTokens.space4),
     ) {

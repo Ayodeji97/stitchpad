@@ -5,6 +5,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalFocusManager
 
 /**
@@ -38,6 +42,30 @@ fun Modifier.clearFocusOnTap(): Modifier {
             dismissNativeKeyboard()
         },
     )
+}
+
+/**
+ * Scroll-container modifier that dismisses the soft keyboard when the user DRAGS
+ * to scroll. Reacts only to user-input scrolls (not the programmatic auto-scroll
+ * Compose does to keep a newly-focused field above the keyboard — otherwise tapping
+ * a field would instantly close the keyboard). Consumes nothing, so scroll/fling
+ * behave normally.
+ */
+@Composable
+fun Modifier.dismissKeyboardOnScroll(): Modifier {
+    val focusManager = LocalFocusManager.current
+    val connection = remember(focusManager) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) {
+                    focusManager.clearFocus()
+                    dismissNativeKeyboard()
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    return this.nestedScroll(connection)
 }
 
 /**

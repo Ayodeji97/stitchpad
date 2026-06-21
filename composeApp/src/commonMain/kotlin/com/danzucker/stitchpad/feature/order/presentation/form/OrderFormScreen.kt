@@ -108,6 +108,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.BackHandler
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
@@ -563,7 +564,8 @@ private fun CustomerSelectionStep(
         Spacer(Modifier.height(DesignTokens.space2))
 
         LazyColumn(
-            contentPadding = PaddingValues(bottom = DesignTokens.space4)
+            contentPadding = PaddingValues(bottom = DesignTokens.space4),
+            modifier = Modifier.dismissKeyboardOnScroll()
         ) {
             items(items = filteredCustomers, key = { it.id }) { customer ->
                 val isSelected = state.selectedCustomer?.id == customer.id
@@ -623,6 +625,7 @@ private fun ItemsStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .dismissKeyboardOnScroll()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = DesignTokens.space4)
     ) {
@@ -971,6 +974,7 @@ private fun DetailsStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .dismissKeyboardOnScroll()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = DesignTokens.space4)
     ) {

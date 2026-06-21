@@ -78,6 +78,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.danzucker.stitchpad.util.clearFocusOnTap
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
@@ -229,7 +230,7 @@ fun CustomerListScreen(
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 80.dp),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().dismissKeyboardOnScroll()
                     ) {
                         items(items = state.customers, key = { it.id }) { customer ->
                             SwipeableCustomerItem(
