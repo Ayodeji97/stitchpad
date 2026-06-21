@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
+import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
+import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 
 sealed interface OrderDetailAction {
     // Navigation
@@ -78,7 +80,11 @@ sealed interface OrderDetailAction {
     data object OnAddPhoneClick : OrderDetailAction
 
     // Styles
-    data class OnSelectStyle(val styleId: String, val itemId: String) : OrderDetailAction
+    data class OnStylePickerSourceChange(val source: StylePickerSource) : OrderDetailAction
+    data class OnPickerFolderOpen(val folder: StylePickerFolder) : OrderDetailAction
+    data object OnPickerFolderBack : OrderDetailAction
+    data class OnItemTogglePendingStyle(val styleId: String) : OrderDetailAction
+    data class OnItemCommitPendingStyles(val itemId: String) : OrderDetailAction
     data class OnCreateNewStyleClick(val itemId: String) : OrderDetailAction
     data object OnDismissStylePickerSheet : OrderDetailAction
 

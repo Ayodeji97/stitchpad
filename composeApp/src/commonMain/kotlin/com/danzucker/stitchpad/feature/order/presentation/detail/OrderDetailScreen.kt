@@ -510,8 +510,12 @@ fun OrderDetailScreen(
             alreadySelectedStyleIds = alreadySelectedStyleIds,
             remainingCapacity = remainingCapacity,
             onSelectStyle = { styleId ->
+                // INTERIM (Task 2): old single-select sheet bridged to the new batch
+                // MVI — toggle then immediately commit. Task 3 swaps this host to the
+                // shared StylePickerSheet that drives toggle/commit directly.
                 val targetItemId = pickerItemId ?: state.order.items.firstOrNull()?.id ?: return@StylePickerSheet
-                onAction(OrderDetailAction.OnSelectStyle(styleId, targetItemId))
+                onAction(OrderDetailAction.OnItemTogglePendingStyle(styleId))
+                onAction(OrderDetailAction.OnItemCommitPendingStyles(targetItemId))
             },
             onCreateNewClick = {
                 val targetItemId = pickerItemId ?: state.order.items.firstOrNull()?.id ?: return@StylePickerSheet

@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
+import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
+import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 
 data class OrderDetailState(
     val order: Order? = null,
@@ -30,6 +32,21 @@ data class OrderDetailState(
     val showStylePickerSheet: Boolean = false,
     val stylePickerItemId: String? = null,
     val availableStyles: List<Style> = emptyList(),
+    /** Folders with their styles for the order customer's closet (saved-style picker). */
+    val closetFolders: List<StylePickerFolder> = emptyList(),
+    /** Folders with their styles for the shared Inspiration library. */
+    val inspirationFolders: List<StylePickerFolder> = emptyList(),
+    /** Which source is active in the picker's Closet/Inspiration toggle. */
+    val stylePickerSource: StylePickerSource = StylePickerSource.CLOSET,
+    /**
+     * Key ([StylePickerFolder.key]) of the folder drilled into in the picker.
+     * Null = show the folder grid (or the default-folder styles when there are no
+     * named folders). A key (not a snapshot) so the drilled-in view resolves the
+     * LIVE folder from the current list each render.
+     */
+    val pickerOpenFolderKey: String? = null,
+    /** In-progress (uncommitted) saved-style picks for the open picker, in tap order. */
+    val stylePickerPendingIds: List<String> = emptyList(),
     val showFabricSourceSheet: Boolean = false,
     val fabricSourceItemIndex: Int? = null,
     val isUploadingFabric: Boolean = false,
