@@ -437,8 +437,6 @@
     <string name="style_inspiration_title">Inspiration</string>
     <string name="style_add_title">Add style</string>
     <string name="style_edit_title">Edit style</string>
-    <string name="style_description_label">Description (optional)</string>
-    <string name="style_description_placeholder">e.g. Red agbada with gold trim</string>
     <string name="style_pick_photo">Tap to add photo</string>
     <string name="style_pick_photos">Tap to add photos</string>
     <string name="style_change_photo">Change photo</string>
@@ -460,7 +458,6 @@
     <string name="style_delete_message">This style photo will be permanently removed. This cannot be undone.</string>
     <string name="style_delete_confirm">Delete</string>
     <string name="style_delete_cancel">Cancel</string>
-    <string name="style_description_required">Please enter a description.</string>
     <string name="style_photo_required">Please pick a photo first.</string>
 
     <!-- Style copy / move between customers -->
@@ -1105,6 +1102,7 @@
     <string name="style_picker_empty">No styles yet for this customer.</string>
     <string name="style_picker_created_caption">Created %1$s</string>
     <string name="style_picker_create_new">Create new style</string>
+    <string name="style_untitled">Untitled style</string>
     <string name="order_detail_measured_caption">Measured %1$s</string>
     <string name="order_detail_no_measurements">No measurements linked yet</string>
     <string name="order_detail_footer_caption">Order #%1$s · Created %2$s</string>
