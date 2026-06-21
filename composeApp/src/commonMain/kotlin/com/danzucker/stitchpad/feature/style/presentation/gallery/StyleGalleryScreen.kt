@@ -689,28 +689,29 @@ private fun StyleCard(
                     }
                 }
             }
-            // Locked cards stay read-only — no title CTA / edit affordance.
-            if (!isLocked) {
-                if (style.description.isNotBlank()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onEditTitle)
-                            .padding(
-                                horizontal = DesignTokens.space3,
-                                vertical = DesignTokens.space2
-                            )
-                    ) {
-                        Text(
-                            text = style.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+            // Titled styles: always show the title read-only; gate the edit affordance on !isLocked.
+            // Untitled styles: show "+ Add title" CTA only when !isLocked (can't title a locked card).
+            if (style.description.isNotBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (!isLocked) Modifier.clickable(onClick = onEditTitle) else Modifier)
+                        .padding(
+                            horizontal = DesignTokens.space3,
+                            vertical = DesignTokens.space2
                         )
+                ) {
+                    Text(
+                        text = style.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (!isLocked) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = null,
@@ -718,20 +719,20 @@ private fun StyleCard(
                             modifier = Modifier.size(14.dp)
                         )
                     }
-                } else {
-                    Text(
-                        text = stringResource(Res.string.style_add_title_cta),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LocalStitchPadColors.current.brandAccent,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onEditTitle)
-                            .padding(
-                                horizontal = DesignTokens.space3,
-                                vertical = DesignTokens.space2
-                            )
-                    )
                 }
+            } else if (!isLocked) {
+                Text(
+                    text = stringResource(Res.string.style_add_title_cta),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LocalStitchPadColors.current.brandAccent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onEditTitle)
+                        .padding(
+                            horizontal = DesignTokens.space3,
+                            vertical = DesignTokens.space2
+                        )
+                )
             }
         }
     }
