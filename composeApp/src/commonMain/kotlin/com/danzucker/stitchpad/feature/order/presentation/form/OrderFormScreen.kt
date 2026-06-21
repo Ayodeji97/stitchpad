@@ -98,6 +98,7 @@ import com.danzucker.stitchpad.feature.order.domain.discountBreakdown
 import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.form.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
+import com.danzucker.stitchpad.feature.style.presentation.form.styleFormSelectionMode
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
@@ -1367,15 +1368,16 @@ private fun StyleImageSection(
     var showStyleSheet by remember { mutableStateOf(false) }
     var pendingStyleSource by remember { mutableStateOf<PhotoSource?>(null) }
 
-    val styleGalleryPicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
-        scope = pickerScope,
-        onResult = { byteArrays ->
-            byteArrays.firstOrNull()?.let {
-                onAction(OrderFormAction.OnItemAddStylePhoto(item.id, it))
-            }
-        },
-    )
+    val styleRemaining = capacityRemaining.coerceAtLeast(1)
+    val styleGalleryPicker = key(styleRemaining) {
+        rememberImagePickerLauncher(
+            selectionMode = styleFormSelectionMode(allowMultiPhoto = true, maxPhotoSelection = styleRemaining),
+            scope = pickerScope,
+            onResult = { byteArrays ->
+                byteArrays.forEach { onAction(OrderFormAction.OnItemAddStylePhoto(item.id, it)) }
+            },
+        )
+    }
     val styleCameraLauncher = rememberImageCaptureLauncher { bytes ->
         if (bytes != null) onAction(OrderFormAction.OnItemAddStylePhoto(item.id, bytes))
     }
