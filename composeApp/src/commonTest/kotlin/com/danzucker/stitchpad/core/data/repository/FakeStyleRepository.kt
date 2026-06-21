@@ -131,8 +131,10 @@ class FakeStyleRepository : StyleRepository {
         lastSetTitle = title.trim()
         val trimmed = title.trim()
         stylesList = stylesList.map { s -> if (s.id == styleId) s.copy(description = trimmed) else s }
-        stylesByLocation.replaceAll { _, styles ->
-            styles.map { s -> if (s.id == styleId) s.copy(description = trimmed) else s }
+        // Portable across JVM + Native: MutableMap.replaceAll is JVM-only.
+        for (key in stylesByLocation.keys.toList()) {
+            stylesByLocation[key] = stylesByLocation.getValue(key)
+                .map { s -> if (s.id == styleId) s.copy(description = trimmed) else s }
         }
         return Result.Success(Unit)
     }
