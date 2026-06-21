@@ -333,12 +333,10 @@ fun OrderFormScreen(
             state.stylePickerSheetForItemId?.let { itemId ->
                 val targetItem = state.items.find { it.id == itemId }
                 if (targetItem != null) {
-                    val alreadyPickedIds = targetItem.styleImageRefs
+                    val alreadyAddedIds = targetItem.styleImageRefs
                         .filter { it.source == StyleImageSource.LIBRARY }
                         .mapNotNull { it.styleId }
                         .toSet()
-                    val usedSlots = targetItem.styleImageRefs.size + targetItem.uploadedStyleBytesList.size
-                    val remaining = MAX_IMAGES_PER_CATEGORY - usedSlots
                     StylePickerSheet(
                         closetFolders = state.closetFolders,
                         inspirationFolders = state.inspirationFolders,
@@ -347,11 +345,13 @@ fun OrderFormScreen(
                         pickerOpenFolderKey = state.pickerOpenFolderKey,
                         onFolderOpen = { onAction(OrderFormAction.OnPickerFolderOpen(it)) },
                         onFolderBack = { onAction(OrderFormAction.OnPickerFolderBack) },
-                        alreadySelectedStyleIds = alreadyPickedIds,
-                        remainingCapacity = remaining,
-                        onSelect = { style ->
-                            onAction(OrderFormAction.OnItemTogglePendingStyle(style.id))
-                        },
+                        alreadyAddedStyleIds = alreadyAddedIds,
+                        committedSlots = targetItem.styleImageRefs.size +
+                            targetItem.uploadedStyleBytesList.size,
+                        pendingStyleIds = state.stylePickerPendingIds,
+                        maxRefs = MAX_IMAGES_PER_CATEGORY,
+                        onToggle = { onAction(OrderFormAction.OnItemTogglePendingStyle(it.id)) },
+                        onDone = { onAction(OrderFormAction.OnItemCommitPendingStyles(itemId)) },
                         onDismiss = { onAction(OrderFormAction.OnDismissStylePickerSheet) },
                     )
                 }

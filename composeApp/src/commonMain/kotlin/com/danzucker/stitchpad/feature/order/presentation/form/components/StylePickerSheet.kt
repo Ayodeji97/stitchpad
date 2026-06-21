@@ -2,7 +2,9 @@
 
 package com.danzucker.stitchpad.feature.order.presentation.form.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,8 +43,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +61,8 @@ import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.cd_style_select
+import stitchpad.composeapp.generated.resources.cd_style_selected_fmt
 import stitchpad.composeapp.generated.resources.order_form_style_picker_title
 import stitchpad.composeapp.generated.resources.order_style_closet_empty
 import stitchpad.composeapp.generated.resources.order_style_folder_back
@@ -62,6 +71,8 @@ import stitchpad.composeapp.generated.resources.order_style_source_closet
 import stitchpad.composeapp.generated.resources.order_style_source_inspiration
 import stitchpad.composeapp.generated.resources.style_folders_default_name
 import stitchpad.composeapp.generated.resources.style_picker_already_added
+import stitchpad.composeapp.generated.resources.style_picker_cap_fmt
+import stitchpad.composeapp.generated.resources.style_picker_done_fmt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,9 +84,12 @@ fun StylePickerSheet(
     pickerOpenFolderKey: String?,
     onFolderOpen: (StylePickerFolder) -> Unit,
     onFolderBack: () -> Unit,
-    alreadySelectedStyleIds: Set<String>,
-    remainingCapacity: Int,
-    onSelect: (Style) -> Unit,
+    alreadyAddedStyleIds: Set<String>,
+    committedSlots: Int,
+    pendingStyleIds: List<String>,
+    maxRefs: Int,
+    onToggle: (Style) -> Unit,
+    onDone: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val folders = if (selectedSource == StylePickerSource.CLOSET) closetFolders else inspirationFolders
@@ -90,7 +104,7 @@ fun StylePickerSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             // --- Title row (with optional back arrow when drilled in) ---
             if (pickerOpenFolder != null) {
                 Row(
@@ -152,51 +166,85 @@ fun StylePickerSheet(
                 )
             }
 
-            // --- Body ---
-            when {
-                // Drilled into a folder: show its styles as 2-col grid.
-                pickerOpenFolder != null -> {
-                    StyleGrid(
-                        styles = pickerOpenFolder.styles,
-                        alreadySelectedStyleIds = alreadySelectedStyleIds,
-                        remainingCapacity = remainingCapacity,
-                        emptyText = if (selectedSource == StylePickerSource.INSPIRATION) {
-                            stringResource(Res.string.order_style_inspiration_empty)
-                        } else {
-                            stringResource(Res.string.order_style_closet_empty)
-                        },
-                        onSelect = onSelect,
-                    )
-                }
+            // --- Cap header (selection progress) ---
+            Text(
+                text = stringResource(
+                    Res.string.style_picker_cap_fmt,
+                    pendingStyleIds.size,
+                    committedSlots,
+                    committedSlots + pendingStyleIds.size,
+                    maxRefs,
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(
+                    horizontal = DesignTokens.space4,
+                    vertical = DesignTokens.space1,
+                ),
+            )
 
-                // No named folders: go straight to the default folder's styles.
-                namedFolders.isEmpty() -> {
-                    val defaultStyles = folders.firstOrNull()?.styles ?: emptyList()
-                    StyleGrid(
-                        styles = defaultStyles,
-                        alreadySelectedStyleIds = alreadySelectedStyleIds,
-                        remainingCapacity = remainingCapacity,
-                        emptyText = if (selectedSource == StylePickerSource.INSPIRATION) {
-                            stringResource(Res.string.order_style_inspiration_empty)
-                        } else {
-                            stringResource(Res.string.order_style_closet_empty)
-                        },
-                        onSelect = onSelect,
-                    )
-                }
+            // --- Body (scrolls in the weighted area) ---
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    // Drilled into a folder: show its styles as 2-col grid.
+                    pickerOpenFolder != null -> {
+                        StyleGrid(
+                            styles = pickerOpenFolder.styles,
+                            alreadyAddedStyleIds = alreadyAddedStyleIds,
+                            committedSlots = committedSlots,
+                            pendingStyleIds = pendingStyleIds,
+                            maxRefs = maxRefs,
+                            emptyText = emptyStateText(selectedSource),
+                            onToggle = onToggle,
+                        )
+                    }
 
-                // Named folders exist: show the folder grid.
-                else -> {
-                    FolderGrid(
-                        folders = folders,
-                        defaultFolderName = defaultFolderName,
-                        onFolderClick = onFolderOpen,
-                    )
+                    // No named folders: go straight to the default folder's styles.
+                    namedFolders.isEmpty() -> {
+                        val defaultStyles = folders.firstOrNull()?.styles ?: emptyList()
+                        StyleGrid(
+                            styles = defaultStyles,
+                            alreadyAddedStyleIds = alreadyAddedStyleIds,
+                            committedSlots = committedSlots,
+                            pendingStyleIds = pendingStyleIds,
+                            maxRefs = maxRefs,
+                            emptyText = emptyStateText(selectedSource),
+                            onToggle = onToggle,
+                        )
+                    }
+
+                    // Named folders exist: show the folder grid.
+                    else -> {
+                        FolderGrid(
+                            folders = folders,
+                            defaultFolderName = defaultFolderName,
+                            onFolderClick = onFolderOpen,
+                        )
+                    }
                 }
+            }
+
+            // --- Sticky Done bar (pinned below the scroll area) ---
+            Button(
+                onClick = onDone,
+                enabled = pendingStyleIds.isNotEmpty(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(DesignTokens.space4),
+            ) {
+                Text(stringResource(Res.string.style_picker_done_fmt, pendingStyleIds.size))
             }
         }
     }
 }
+
+@Composable
+private fun emptyStateText(source: StylePickerSource): String =
+    if (source == StylePickerSource.INSPIRATION) {
+        stringResource(Res.string.order_style_inspiration_empty)
+    } else {
+        stringResource(Res.string.order_style_closet_empty)
+    }
 
 // ---------------------------------------------------------------------------
 // Folder grid (2-col)
@@ -343,10 +391,12 @@ private fun PickerFolderCard(
 @Composable
 private fun StyleGrid(
     styles: List<Style>,
-    alreadySelectedStyleIds: Set<String>,
-    remainingCapacity: Int,
+    alreadyAddedStyleIds: Set<String>,
+    committedSlots: Int,
+    pendingStyleIds: List<String>,
+    maxRefs: Int,
     emptyText: String,
-    onSelect: (Style) -> Unit,
+    onToggle: (Style) -> Unit,
 ) {
     if (styles.isEmpty()) {
         Text(
@@ -360,7 +410,7 @@ private fun StyleGrid(
         )
         return
     }
-    val alreadyAddedLabel = stringResource(Res.string.style_picker_already_added)
+    val capFull = committedSlots + pendingStyleIds.size >= maxRefs
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(
@@ -374,14 +424,17 @@ private fun StyleGrid(
         modifier = Modifier.fillMaxWidth(),
     ) {
         items(items = styles, key = { it.id }) { style ->
-            val alreadyPicked = style.id in alreadySelectedStyleIds
-            val outOfCapacity = remainingCapacity <= 0
-            val disabled = alreadyPicked || outOfCapacity
+            val alreadyAdded = style.id in alreadyAddedStyleIds
+            val selectedIndex = pendingStyleIds.indexOf(style.id)
+            val isSelected = selectedIndex >= 0
+            val selectable = !alreadyAdded && (isSelected || !capFull)
             StylePickerCard(
                 style = style,
-                disabled = disabled,
-                statusLabel = if (alreadyPicked) alreadyAddedLabel else null,
-                onClick = { if (!disabled) onSelect(style) },
+                alreadyAdded = alreadyAdded,
+                isSelected = isSelected,
+                selectedPosition = selectedIndex + 1,
+                selectable = selectable,
+                onClick = { if (selectable) onToggle(style) },
             )
         }
     }
@@ -390,22 +443,46 @@ private fun StyleGrid(
 @Composable
 private fun StylePickerCard(
     style: Style,
-    disabled: Boolean,
-    statusLabel: String?,
+    alreadyAdded: Boolean,
+    isSelected: Boolean,
+    selectedPosition: Int,
+    selectable: Boolean,
     onClick: () -> Unit,
 ) {
-    val cardAlpha = if (disabled) 0.5f else 1f
+    val brandAccent = LocalStitchPadColors.current.brandAccent
+    val alreadyAddedLabel = stringResource(Res.string.style_picker_already_added)
+    val selectCd = stringResource(Res.string.cd_style_select)
+    val selectedCd = stringResource(Res.string.cd_style_selected_fmt, selectedPosition)
+
+    val cardAlpha = when {
+        alreadyAdded -> ALPHA_ALREADY_ADDED
+        !selectable -> ALPHA_CAP_FULL
+        else -> 1f
+    }
+    val clickable = !alreadyAdded && selectable
+    val selectedBorder = if (isSelected) {
+        Modifier.border(
+            width = 2.5.dp,
+            color = brandAccent,
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+        )
+    } else {
+        Modifier
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(cardAlpha)
             .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .clickable(role = Role.Button, enabled = !disabled, onClick = onClick),
+            .clickable(role = Role.Button, enabled = clickable, onClick = onClick),
     ) {
         Box(
+            contentAlignment = Alignment.TopEnd,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .then(selectedBorder)
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(DesignTokens.radiusMd)),
         ) {
             SubcomposeAsyncImage(
@@ -422,20 +499,62 @@ private fun StylePickerCard(
                     .fillMaxSize()
                     .clip(RoundedCornerShape(DesignTokens.radiusMd)),
             )
+
+            // --- Top-end status indicator ---
+            when {
+                alreadyAdded -> {
+                    Text(
+                        text = "✓ $alreadyAddedLabel",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .padding(DesignTokens.space2)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(DesignTokens.radiusSm),
+                            )
+                            .padding(horizontal = DesignTokens.space2, vertical = 2.dp),
+                    )
+                }
+
+                isSelected -> {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .padding(DesignTokens.space2)
+                            .size(BADGE_SIZE)
+                            .clip(CircleShape)
+                            .background(brandAccent)
+                            .border(2.dp, Color.White, CircleShape)
+                            .semantics { contentDescription = selectedCd },
+                    ) {
+                        Text(
+                            text = selectedPosition.toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                    }
+                }
+
+                else -> {
+                    // Empty ring: selectable (full opacity) or cap-full (dimmed via cardAlpha).
+                    Box(
+                        modifier = Modifier
+                            .padding(DesignTokens.space2)
+                            .size(BADGE_SIZE)
+                            .clip(CircleShape)
+                            .border(
+                                BorderStroke(2.dp, Color.White.copy(alpha = 0.6f)),
+                                CircleShape,
+                            )
+                            .semantics { contentDescription = selectCd },
+                    )
+                }
+            }
         }
-        if (statusLabel != null) {
-            Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(
-                    horizontal = DesignTokens.space2,
-                    vertical = DesignTokens.space1,
-                ),
-            )
-        } else if (style.description.isNotBlank()) {
+        if (style.description.isNotBlank()) {
             Text(
                 text = style.description,
                 style = MaterialTheme.typography.labelSmall,
@@ -450,3 +569,7 @@ private fun StylePickerCard(
         }
     }
 }
+
+private val BADGE_SIZE = 26.dp
+private const val ALPHA_ALREADY_ADDED = 0.5f
+private const val ALPHA_CAP_FULL = 0.35f

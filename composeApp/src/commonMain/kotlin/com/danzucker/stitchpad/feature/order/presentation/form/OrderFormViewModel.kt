@@ -185,7 +185,12 @@ class OrderFormViewModel(
                 val withRefs = st.items.map { item ->
                     if (item.id != action.itemId) return@map item
                     val existing = item.styleImageRefs.mapNotNull { it.styleId }.toSet()
+                    val usedSlots = item.styleImageRefs.size + item.uploadedStyleBytesList.size
                     val toAdd = pending.filter { it !in existing }
+                        // Defensive cap: never let a raced/oversized pending list push the
+                        // item past MAX_STYLE_REFS, even though the toggle handler already
+                        // gates selection at the cap.
+                        .take((MAX_STYLE_REFS - usedSlots).coerceAtLeast(0))
                         .map { StyleImageRef(source = StyleImageSource.LIBRARY, styleId = it) }
                     item.copy(styleImageRefs = item.styleImageRefs + toAdd)
                 }

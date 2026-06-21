@@ -1171,6 +1171,54 @@ class OrderFormViewModelTest {
         assertTrue(vm.state.value.stylePickerPendingIds.isEmpty(), "reopening picker must clear pending")
     }
 
+    @Test
+    fun commitPendingStyles_neverExceedsCap() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        // Build up to 2 committed LIBRARY refs (s1, s2) via two real commit cycles.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s2"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val seeded = vm.state.value.items.find { it.id == itemId }!!
+        assertEquals(2, seeded.styleImageRefs.size, "precondition: 2 committed refs")
+
+        // Reopen with 2 committed slots: cap=3 leaves room for exactly 1 more.
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s3"))
+        // s4 must be blocked at the cap — only s3 is pending.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s4"))
+        assertEquals(listOf("s3"), vm.state.value.stylePickerPendingIds, "cap blocks s4")
+
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val item = vm.state.value.items.find { it.id == itemId }!!
+        // Defensive take() guarantees the item never exceeds the cap of 3.
+        assertEquals(3, item.styleImageRefs.size, "total refs must never exceed cap")
+        assertEquals(listOf("s1", "s2", "s3"), item.styleImageRefs.mapNotNull { it.styleId })
+    }
+
+    @Test
+    fun commitPendingStyles_skipsAlreadyCommittedId() = runTest {
+        val (vm, itemId) = createViewModelWithPickerOpen()
+
+        // Commit s1 first so the item already has 1 LIBRARY ref.
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        // Reopen and pick s1 AGAIN (an already-committed id).
+        vm.onAction(OrderFormAction.OnOpenStylePickerSheet(itemId))
+        vm.onAction(OrderFormAction.OnItemTogglePendingStyle("s1"))
+        vm.onAction(OrderFormAction.OnItemCommitPendingStyles(itemId))
+
+        val item = vm.state.value.items.find { it.id == itemId }!!
+        // Dedup must drop the duplicate — still exactly one ref, no duplicate.
+        assertEquals(1, item.styleImageRefs.size, "duplicate id must not be re-appended")
+        assertEquals(listOf("s1"), item.styleImageRefs.mapNotNull { it.styleId })
+    }
+
     private companion object {
         const val MAX_TEST_PHOTO_BYTES = 5 * 1024 * 1024
     }
