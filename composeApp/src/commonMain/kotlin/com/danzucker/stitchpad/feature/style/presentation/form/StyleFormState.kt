@@ -8,7 +8,6 @@ import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapInfo
 internal const val STYLE_MULTI_PICK_CEILING = 10
 
 data class StyleFormState(
-    val description: String = "",
     /**
      * Photos picked for this save. Empty until the user picks. In edit mode and
      * the order-link flow this holds at most one entry; in closet add mode
@@ -45,7 +44,6 @@ data class StyleFormState(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is StyleFormState) return false
-        if (description != other.description) return false
         if (!selectedPhotos.contentEqualsSafe(other.selectedPhotos)) return false
         if (existingStyle != other.existingStyle) return false
         if (isEditMode != other.isEditMode) return false
@@ -60,8 +58,7 @@ data class StyleFormState(
     }
 
     override fun hashCode(): Int {
-        var result = description.hashCode()
-        result = 31 * result + selectedPhotos.fold(0) { acc, bytes -> 31 * acc + bytes.contentHashCode() }
+        var result = selectedPhotos.fold(0) { acc, bytes -> 31 * acc + bytes.contentHashCode() }
         result = 31 * result + (existingStyle?.hashCode() ?: 0)
         result = 31 * result + isEditMode.hashCode()
         result = 31 * result + allowMultiPhoto.hashCode()

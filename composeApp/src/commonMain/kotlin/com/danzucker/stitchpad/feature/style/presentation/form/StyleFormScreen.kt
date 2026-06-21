@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,7 +31,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,15 +46,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,8 +68,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.style_add_title
 import stitchpad.composeapp.generated.resources.style_change_photo
-import stitchpad.composeapp.generated.resources.style_description_label
-import stitchpad.composeapp.generated.resources.style_description_placeholder
 import stitchpad.composeapp.generated.resources.style_edit_title
 import stitchpad.composeapp.generated.resources.style_photos_selected
 import stitchpad.composeapp.generated.resources.style_pick_photo
@@ -157,8 +145,8 @@ fun StyleFormScreen(
         )
     }
 
-    // Description is optional; a create still needs at least one photo, and an
-    // edit still needs a loaded style — so we never persist a fully empty entry.
+    // A create needs at least one photo, and an edit still needs a loaded style
+    // — so we never persist a fully empty entry.
     val canSave = (state.isEditMode || state.selectedPhotos.isNotEmpty()) &&
         !state.isSaving
 
@@ -222,12 +210,6 @@ fun StyleFormScreen(
                 PhotoSection(
                     state = state,
                     onPickClick = onPickClick
-                )
-                StyleDescriptionField(
-                    value = state.description,
-                    readOnly = state.readOnly,
-                    onValueChange = { onAction(StyleFormAction.OnDescriptionChange(it)) },
-                    onDone = { focusManager.clearFocus() }
                 )
                 if (state.readOnly) {
                     Text(
@@ -344,7 +326,7 @@ private fun SinglePhotoPreview(
         if (model != null) {
             SubcomposeAsyncImage(
                 model = model,
-                contentDescription = state.description.ifBlank { null },
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 loading = {
                     Box(
@@ -485,94 +467,6 @@ private fun MultiPhotoPreview(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StyleDescriptionField(
-    value: String,
-    readOnly: Boolean = false,
-    onValueChange: (String) -> Unit,
-    onDone: () -> Unit
-) {
-    val enabled = !readOnly
-    val colors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-        focusedContainerColor = MaterialTheme.colorScheme.surface,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-        disabledBorderColor = MaterialTheme.colorScheme.outline,
-        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    val interactionSource = remember { MutableInteractionSource() }
-    val placeholder = stringResource(Res.string.style_description_placeholder)
-
-    Column {
-        Text(
-            text = stringResource(Res.string.style_description_label).uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = DesignTokens.space1)
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = false,
-            minLines = 3,
-            maxLines = 6,
-            readOnly = readOnly,
-            enabled = enabled,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(onDone = { onDone() }),
-            interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth(),
-            decorationBox = { innerTextField ->
-                OutlinedTextFieldDefaults.DecorationBox(
-                    value = value,
-                    innerTextField = innerTextField,
-                    enabled = enabled,
-                    singleLine = false,
-                    visualTransformation = VisualTransformation.None,
-                    interactionSource = interactionSource,
-                    placeholder = {
-                        Text(
-                            text = placeholder,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    colors = colors,
-                    container = {
-                        OutlinedTextFieldDefaults.Container(
-                            enabled = enabled,
-                            isError = false,
-                            interactionSource = interactionSource,
-                            colors = colors,
-                            shape = RoundedCornerShape(DesignTokens.radiusMd),
-                            focusedBorderThickness = 1.dp,
-                            unfocusedBorderThickness = 1.dp
-                        )
-                    }
-                )
-            }
-        )
-    }
-}
-
 @Suppress("UnusedPrivateMember")
 @Composable
 @Preview
@@ -589,7 +483,6 @@ private fun StyleFormScreenFilledPreview() {
     StitchPadTheme {
         StyleFormScreen(
             state = StyleFormState(
-                description = "Red agbada with gold trim",
                 selectedPhotos = listOf(ByteArray(0))
             ),
             onAction = {}
@@ -604,7 +497,6 @@ private fun StyleFormScreenMultiPhotoPreview() {
     StitchPadTheme {
         StyleFormScreen(
             state = StyleFormState(
-                description = "Owambe inspiration",
                 allowMultiPhoto = true,
                 selectedPhotos = listOf(ByteArray(0), ByteArray(0), ByteArray(0), ByteArray(0))
             ),
@@ -622,7 +514,6 @@ private fun StyleFormScreenReadOnlyPreview() {
             state = StyleFormState(
                 isEditMode = true,
                 readOnly = true,
-                description = "Ankara gown",
                 existingStyle = Style(
                     id = "preview-id",
                     customerId = "preview-customer",

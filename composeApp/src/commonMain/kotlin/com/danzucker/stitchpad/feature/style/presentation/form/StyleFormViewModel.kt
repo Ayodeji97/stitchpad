@@ -93,9 +93,6 @@ class StyleFormViewModel(
 
     fun onAction(action: StyleFormAction) {
         when (action) {
-            is StyleFormAction.OnDescriptionChange -> {
-                _state.update { it.copy(description = action.description) }
-            }
             is StyleFormAction.OnPhotosPicked -> onPhotosPicked(action.photos)
             is StyleFormAction.OnRemovePhoto -> _state.update {
                 it.copy(selectedPhotos = it.selectedPhotos.filterIndexed { i, _ -> i != action.index })
@@ -196,7 +193,6 @@ class StyleFormViewModel(
                     if (style != null) {
                         _state.update {
                             it.copy(
-                                description = style.description,
                                 existingStyle = style,
                                 isLoading = false
                             )
@@ -300,9 +296,8 @@ class StyleFormViewModel(
             return
         }
         val s = _state.value
-        // Description is optional — only a photo (create) or a loaded style (edit)
-        // is required, so we never persist a fully empty entry.
-        val trimmedDescription = s.description.trim()
+        // Only a photo (create) or a loaded style (edit) is required,
+        // so we never persist a fully empty entry.
         val missingPhotoForCreate = !s.isEditMode && s.selectedPhotos.isEmpty()
         val missingStyleForEdit = s.isEditMode && s.existingStyle == null
         if (missingPhotoForCreate || missingStyleForEdit) return
@@ -317,7 +312,7 @@ class StyleFormViewModel(
                 val updateResult = styleRepository.updateStyle(
                     userId = userId,
                     location = location,
-                    style = s.existingStyle.copy(description = trimmedDescription),
+                    style = s.existingStyle,
                     newPhotoBytes = s.selectedPhotos.firstOrNull(),
                 )
                 _state.update { it.copy(isSaving = false) }
@@ -388,7 +383,7 @@ class StyleFormViewModel(
                 val batchResult = styleRepository.createStyles(
                     userId = userId,
                     location = location,
-                    description = trimmedDescription,
+                    description = "",
                     photoBytesList = s.selectedPhotos,
                 )
                 _state.update { it.copy(isSaving = false) }
@@ -404,7 +399,7 @@ class StyleFormViewModel(
             val createResult = styleRepository.createStyle(
                 userId = userId,
                 location = location,
-                description = trimmedDescription,
+                description = "",
                 photoBytes = s.selectedPhotos.firstOrNull() ?: ByteArray(0),
             )
             if (createResult is Result.Error) {
