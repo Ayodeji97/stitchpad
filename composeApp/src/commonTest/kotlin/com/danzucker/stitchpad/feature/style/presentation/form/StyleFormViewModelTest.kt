@@ -155,6 +155,42 @@ class StyleFormViewModelTest {
     }
 
     @Test
+    fun oversize_repick_keeps_existing_photos() = runTest {
+        // Regression: an oversize re-pick must surface PHOTO_TOO_LARGE but must NOT
+        // wipe the photos that were already accepted by the previous valid pick.
+        //
+        // Strategy: use a stateful compressor whose first call produces 1 byte (valid)
+        // and whose second call produces null (decode failure fallback), paired with a
+        // 6 MiB input so the fallback bytes exceed MAX_PHOTO_SIZE_BYTES.
+        var callCount = 0
+        val statefulCompressor = object : ImageCompressor {
+            override suspend fun compress(bytes: ByteArray, maxEdgePx: Int, jpegQuality: Int): ByteArray? {
+                return if (callCount++ == 0) byteArrayOf(1) else null
+            }
+        }
+
+        // Multi-photo (closet-add, allowMultiPhoto = true) VM.
+        val vm = createViewModel(imageCompressor = statefulCompressor)
+
+        // Step 1: pick one valid small photo → accepted.
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(byteArrayOf(1))))
+        assertEquals(1, vm.state.value.selectedPhotos.size, "valid pick must be stored")
+        assertNull(vm.state.value.errorMessage)
+
+        // Step 2: re-pick a photo that compresses to null (fallback = 6 MiB original) → oversize.
+        val oversized = ByteArray(6 * 1024 * 1024)
+        vm.onAction(StyleFormAction.OnPhotosPicked(listOf(oversized)))
+
+        // Error must fire (PHOTO_TOO_LARGE) AND the previously valid photo must survive.
+        assertNotNull(vm.state.value.errorMessage, "PHOTO_TOO_LARGE error must be set")
+        assertEquals(
+            1,
+            vm.state.value.selectedPhotos.size,
+            "oversize re-pick must NOT wipe the existing valid selection",
+        )
+    }
+
+    @Test
     fun editMode_saveAwaitsInFlightCompression_usesNewlyPickedPhoto() = runTest {
         // Race guard: tapping Save while a just-picked replacement photo is still
         // compressing must not persist the old style without the new photo.
