@@ -103,20 +103,52 @@ settings (Settings → Passwords / Autofill service → Google). With no provide
 selected, autofill never appears regardless of code — this is the most common cause
 of "nothing happened." Fill additionally needs a previously-saved credential to offer.
 
-## iOS — not supported in CMP 1.11 (deferred)
+## iOS — native UITextField bridge (PR #201, pending device verification)
 
-iOS autofill is **deferred**, not delivered. Evidence:
-- `AutofillManager` is `null` on iOS, so the `commit()`/save path does not exist there.
-- iOS autofill only exists through an opt-in **native text input** mode whose toggle
-  (`UIKitNativeTextInputContext.usingNativeTextInput` / `LocalNativeTextInputContext`)
-  is `@InternalComposeUiApi` — not a production-safe public API in 1.11.
-- JetBrains' 1.11 notes only promise *fill* ("filling from saved passwords one field
-  at a time"); the save prompt is unconfirmed, and community reports call it flaky
-  (e.g. email/username content type ignored).
+Two earlier Compose-level approaches both failed:
+1. `contentType` semantics — ignored on iOS (`AutofillManager` is `null` there).
+2. CMP native text-input mode (`PlatformImeOptions { usingNativeTextInput(true) }`)
+   — **juddered** the auth screens on keyboard dismiss and still surfaced no
+   autofill on device. Reverted.
 
-Revisit when CMP stabilizes native text input (target 1.12+). The `contentType`
-hints are already in place, so iOS should light up with minimal change once the
-platform supports it.
+**Current approach:** the editable core of `AuthTextField` is now an
+`expect/actual` composable, `AuthPlatformTextInput`:
+- **Android** (`.android.kt`) — the original Compose `BasicTextField`, unchanged
+  (Android autofill keeps working as in #200).
+- **iOS** (`.ios.kt`) — a real **UIKit `UITextField` via `UIKitView`**, with
+  `textContentType` set to `.username` / `.password` / `.newPassword`, a
+  `UITextFieldDelegate` coordinator bridging value/focus changes back to Compose.
+  The surrounding Compose chrome (icon, dark card, eye toggle, error/helper) is
+  unchanged.
+
+**Required infra — Associated Domains `webcredentials`:** iOS only binds iCloud
+Keychain credentials to the app if the live
+`link.getstitchpad.com/.well-known/apple-app-site-association` includes a
+`webcredentials` section. As of this writing it has only `applinks`. Add:
+```json
+"webcredentials": { "apps": ["7DUJFVWF7W.com.danzucker.stitchpad"] }
+```
+The app entitlement `webcredentials:link.getstitchpad.com` is already added.
+Until the AASA is deployed, iOS autofill will NOT work.
+
+**Verify on device:** autofill fill/save; and that the bridge didn't regress
+typing, caret, password masking + show/hide toggle, field-to-field navigation, and
+scrolling (UIKitView in a scroll container).
+
+**Keyboard "Next" key — fixed.** An `AuthFocusController` (common) keeps an ordered
+registry of the on-screen fields; the iOS bridge registers each `UITextField` in
+composition order (and unregisters on `onRelease`). `textFieldShouldReturn` advances
+first responder to the next registered field for `ImeAction.Next`, and dismisses on
+`Done`/the last field. Android is unchanged (Compose `KeyboardActions` already does this).
+
+**Tap-to-dismiss keyboard — fixed.** The native `UITextField` is outside Compose's
+focus system, so `clearFocusOnTap()`'s `clearFocus()` couldn't dismiss its keyboard.
+Added an `expect/actual dismissNativeKeyboard()` (iOS sends `resignFirstResponder` to
+the current first responder; no-op on Android) and call it from `clearFocusOnTap()`.
+
+**Remaining follow-ups (non-blocking):** VoiceOver/accessibility exposure of the
+bridged field through the `UIKitView` interop layer; the native iOS field uses the
+system font (not Manrope) and the default placeholder color (not `#7D7970`).
 
 ## Out of scope
 
