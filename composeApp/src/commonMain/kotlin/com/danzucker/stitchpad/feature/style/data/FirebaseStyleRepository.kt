@@ -394,6 +394,24 @@ class FirebaseStyleRepository(
             Result.Error(DataError.Network.UNKNOWN)
         }
 
+    override suspend fun setStyleTitle(
+        userId: String,
+        location: StyleLocation,
+        styleId: String,
+        title: String,
+    ): EmptyResult<DataError.Network> =
+        try {
+            val now = Clock.System.now().toEpochMilliseconds()
+            val accepted = offlineWrites.enqueue("setStyleTitle styleId=$styleId") {
+                collectionFor(userId, location).document(styleId)
+                    .update("description" to title.trim(), "updatedAt" to now)
+            }
+            if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "setStyleTitle failed styleId=$styleId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
+
     /**
      * Write a style for [to] location that shows [source]'s image.
      *

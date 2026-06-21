@@ -25,6 +25,8 @@ class FakeStyleRepository : StyleRepository {
     var lastDeletedLocation: StyleLocation? = null
     var lastCopied: Triple<StyleLocation, String, StyleLocation>? = null  // (from, styleId, to)
     var lastMoved: Triple<StyleLocation, String, StyleLocation>? = null
+    var lastSetTitleStyleId: String? = null
+    var lastSetTitle: String? = null
 
     var folders: List<StyleFolder> = emptyList()
     var lastCreatedFolderName: String? = null
@@ -115,6 +117,23 @@ class FakeStyleRepository : StyleRepository {
     ): EmptyResult<DataError.Network> {
         operationError?.let { return Result.Error(it) }
         lastMoved = Triple(from, style.id, to)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun setStyleTitle(
+        userId: String,
+        location: StyleLocation,
+        styleId: String,
+        title: String,
+    ): EmptyResult<DataError.Network> {
+        operationError?.let { return Result.Error(it) }
+        lastSetTitleStyleId = styleId
+        lastSetTitle = title.trim()
+        val trimmed = title.trim()
+        stylesList = stylesList.map { s -> if (s.id == styleId) s.copy(description = trimmed) else s }
+        stylesByLocation.replaceAll { _, styles ->
+            styles.map { s -> if (s.id == styleId) s.copy(description = trimmed) else s }
+        }
         return Result.Success(Unit)
     }
 

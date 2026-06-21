@@ -89,4 +89,12 @@ interface StyleRepository {
         style: Style,
         to: StyleLocation,
     ): EmptyResult<DataError.Network>
+
+    /** Sets (or clears, when blank) a style's optional title. */
+    suspend fun setStyleTitle(
+        userId: String,
+        location: StyleLocation,
+        styleId: String,
+        title: String,
+    ): EmptyResult<DataError.Network>
 }
