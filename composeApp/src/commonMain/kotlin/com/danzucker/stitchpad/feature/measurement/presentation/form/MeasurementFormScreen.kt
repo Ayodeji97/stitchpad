@@ -90,6 +90,7 @@ import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -280,6 +281,7 @@ fun MeasurementFormScreen(
                         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
                         modifier = Modifier
                             .fillMaxSize()
+                            .dismissKeyboardOnScroll()
                             .verticalScroll(rememberScrollState())
                             .padding(
                                 horizontal = DesignTokens.space4,
