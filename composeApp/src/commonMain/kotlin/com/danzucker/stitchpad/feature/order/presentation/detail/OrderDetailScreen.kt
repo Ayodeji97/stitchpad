@@ -188,6 +188,7 @@ import stitchpad.composeapp.generated.resources.share_summary_total
 import kotlin.time.Clock
 
 private const val MILLIS_PER_DAY: Long = 86_400_000L
+private const val MAX_STYLE_IMAGES = 3
 
 private enum class DetailPhotoSource { Camera, Gallery }
 
@@ -503,7 +504,7 @@ fun OrderDetailScreen(
             .filter { it.source == StyleImageSource.LIBRARY }
             .mapNotNull { it.styleId }
             .toSet()
-        val remainingCapacity = 3 - pickerItemStyleImages.size // MAX_IMAGES_PER_CATEGORY = 3
+        val remainingCapacity = MAX_STYLE_IMAGES - pickerItemStyleImages.size
         StylePickerSheet(
             styles = state.availableStyles,
             alreadySelectedStyleIds = alreadySelectedStyleIds,
@@ -1061,8 +1062,8 @@ private fun OrderDetailContent(
     var pendingFabricPhotoSource by remember { mutableStateOf<DetailPhotoSource?>(null) }
     val styleDetailUsed =
         state.order?.items?.firstOrNull { it.id == pendingStylePhotoItemId }?.styleImages?.size ?: 0
-    val styleDetailRemaining = (3 - styleDetailUsed).coerceAtLeast(1)
-    val styleGalleryPicker = key(pendingStylePhotoItemId, styleDetailRemaining) {
+    val styleDetailRemaining = (MAX_STYLE_IMAGES - styleDetailUsed).coerceAtLeast(1)
+    val styleGalleryPicker = key(pendingStylePhotoItemId) {
         rememberImagePickerLauncher(
             selectionMode = styleFormSelectionMode(allowMultiPhoto = true, maxPhotoSelection = styleDetailRemaining),
             scope = pickerScope,
