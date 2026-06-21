@@ -30,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -232,6 +233,7 @@ fun StylePickerSheet(
 
             // --- Sticky Done bar (pinned below the scroll area) ---
             onCreateNew?.let { createNew ->
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 TextButton(
                     onClick = createNew,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DesignTokens.space4),
