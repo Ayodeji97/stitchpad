@@ -479,4 +479,66 @@ class CustomerDetailViewModelTest {
         vm.onAction(CustomerDetailAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
     }
+
+    // --- Rename measurement flow ---
+
+    @Test
+    fun renameClick_prefillsDraftWithCurrentName() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        val m = fakeMeasurement().copy(name = "Old Name")
+        measurementRepository.measurementsList = listOf(m)
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
+
+        assertEquals(m.id, vm.state.value.measurementToRename?.id)
+        assertEquals("Old Name", vm.state.value.renameDraft)
+    }
+
+    @Test
+    fun confirmRename_persistsTrimmedName_andClosesDialog() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        val m = fakeMeasurement().copy(name = "Old Name")
+        measurementRepository.measurementsList = listOf(m)
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
+        vm.onAction(CustomerDetailAction.OnRenameDraftChange("  Wedding Agbada  "))
+        vm.onAction(CustomerDetailAction.OnConfirmRename)
+
+        assertEquals("Wedding Agbada", measurementRepository.lastUpdatedMeasurement!!.name)
+        assertNull(vm.state.value.measurementToRename)
+    }
+
+    @Test
+    fun confirmRename_blankDraft_noUpdate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        val m = fakeMeasurement().copy(name = "Old Name")
+        measurementRepository.measurementsList = listOf(m)
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
+        vm.onAction(CustomerDetailAction.OnRenameDraftChange(""))
+        vm.onAction(CustomerDetailAction.OnConfirmRename)
+
+        assertNull(measurementRepository.lastUpdatedMeasurement)
+    }
+
+    @Test
+    fun dismissRename_clearsState() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        val m = fakeMeasurement().copy(name = "Old Name")
+        measurementRepository.measurementsList = listOf(m)
+        val vm = createViewModel()
+
+        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
+        vm.onAction(CustomerDetailAction.OnDismissRenameDialog)
+
+        assertNull(vm.state.value.measurementToRename)
+        assertEquals("", vm.state.value.renameDraft)
+    }
 }

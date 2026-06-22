@@ -114,6 +114,18 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(showDeleteDialog = true, measurementToDelete = action.measurement) }
             }
             CustomerDetailAction.OnConfirmDelete -> deleteMeasurement()
+            is CustomerDetailAction.OnRenameMeasurementClick -> {
+                _state.update {
+                    it.copy(measurementToRename = action.measurement, renameDraft = action.measurement.name)
+                }
+            }
+            is CustomerDetailAction.OnRenameDraftChange -> {
+                _state.update { it.copy(renameDraft = action.name) }
+            }
+            CustomerDetailAction.OnConfirmRename -> renameMeasurement()
+            CustomerDetailAction.OnDismissRenameDialog -> {
+                _state.update { it.copy(measurementToRename = null, renameDraft = "") }
+            }
             CustomerDetailAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, measurementToDelete = null) }
             }
@@ -316,6 +328,26 @@ class CustomerDetailViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = measurementRepository.deleteMeasurement(userId, customerId, measurement.id)
+            if (result is Result.Error) {
+                _state.update { it.copy(errorMessage = result.error.toMeasurementUiText()) }
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun renameMeasurement() {
+        val measurement = _state.value.measurementToRename ?: return
+        val newName = _state.value.renameDraft.trim()
+        if (newName.isBlank()) return
+        val customerId = customerId ?: return
+        _state.update { it.copy(measurementToRename = null, renameDraft = "") }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val result = measurementRepository.updateMeasurement(
+                userId,
+                customerId,
+                measurement.copy(name = newName),
+            )
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toMeasurementUiText()) }
             }

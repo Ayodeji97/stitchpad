@@ -31,6 +31,8 @@ data class CustomerDetailState(
      * "edit existing vs create new" sheet so tailors stop creating accidental duplicates.
      */
     val showAddMeasurementSheet: Boolean = false,
+    val measurementToRename: Measurement? = null,
+    val renameDraft: String = "",
 ) {
     /**
      * True when the loaded customer is in the LOCKED slot state. Drives the read-only

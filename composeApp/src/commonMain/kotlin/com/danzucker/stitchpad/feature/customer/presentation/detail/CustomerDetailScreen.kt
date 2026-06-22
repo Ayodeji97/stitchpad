@@ -41,22 +41,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -90,6 +90,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_customer_overflow
 import stitchpad.composeapp.generated.resources.cd_edit_customer
+import stitchpad.composeapp.generated.resources.cd_measurement_overflow
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_dismiss
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_message
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_title
@@ -107,11 +108,17 @@ import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_ti
 import stitchpad.composeapp.generated.resources.customer_locked_detail_unlock_cta
 import stitchpad.composeapp.generated.resources.dialer_launch_failed
 import stitchpad.composeapp.generated.resources.fab_add_measurement
-import stitchpad.composeapp.generated.resources.measurement_delete_content_description
 import stitchpad.composeapp.generated.resources.measurement_delete_message
 import stitchpad.composeapp.generated.resources.measurement_delete_title
 import stitchpad.composeapp.generated.resources.measurement_gender_men
 import stitchpad.composeapp.generated.resources.measurement_gender_women
+import stitchpad.composeapp.generated.resources.measurement_menu_delete
+import stitchpad.composeapp.generated.resources.measurement_menu_rename
+import stitchpad.composeapp.generated.resources.measurement_name_label
+import stitchpad.composeapp.generated.resources.measurement_name_placeholder
+import stitchpad.composeapp.generated.resources.measurement_rename_cancel
+import stitchpad.composeapp.generated.resources.measurement_rename_dialog_title
+import stitchpad.composeapp.generated.resources.measurement_rename_save
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_closet_name_format
@@ -323,6 +330,7 @@ fun CustomerDetailScreen(
                                     position = position,
                                     onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
                                     onDelete = { onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement)) },
+                                    onRename = { onAction(CustomerDetailAction.OnRenameMeasurementClick(measurement)) },
                                 )
                             }
                             HorizontalDivider(
@@ -422,6 +430,35 @@ fun CustomerDetailScreen(
             },
             shape = RoundedCornerShape(DesignTokens.radiusXl),
             containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    if (state.measurementToRename != null) {
+        AlertDialog(
+            onDismissRequest = { onAction(CustomerDetailAction.OnDismissRenameDialog) },
+            title = { Text(stringResource(Res.string.measurement_rename_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = state.renameDraft,
+                    onValueChange = { onAction(CustomerDetailAction.OnRenameDraftChange(it)) },
+                    label = { Text(stringResource(Res.string.measurement_name_label)) },
+                    placeholder = { Text(stringResource(Res.string.measurement_name_placeholder)) },
+                    singleLine = true,
+                    isError = state.renameDraft.isBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onAction(CustomerDetailAction.OnConfirmRename) },
+                    enabled = state.renameDraft.isNotBlank(),
+                ) { Text(stringResource(Res.string.measurement_rename_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { onAction(CustomerDetailAction.OnDismissRenameDialog) }) {
+                    Text(stringResource(Res.string.measurement_rename_cancel))
+                }
+            },
         )
     }
 
@@ -730,7 +767,6 @@ private fun MeasurementsEmptyState(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableMeasurementItem(
     measurement: Measurement,
@@ -738,50 +774,20 @@ private fun SwipeableMeasurementItem(
     position: Int,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onRename: () -> Unit,
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                false
-            } else {
-                false
-            }
-        }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            Box(
-                contentAlignment = Alignment.CenterEnd,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(end = DesignTokens.space5)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            MeasurementListItem(
-                measurement = measurement,
-                customFieldLabels = customFieldLabels,
-                position = position,
-                onClick = onClick,
-                onDelete = onDelete,
-            )
-        }
+        MeasurementListItem(
+            measurement = measurement,
+            customFieldLabels = customFieldLabels,
+            position = position,
+            onClick = onClick,
+            onDelete = onDelete,
+            onRename = onRename,
+        )
     }
 }
 
@@ -928,6 +934,7 @@ private fun MeasurementListItem(
     position: Int,
     onClick: (() -> Unit)?,
     onDelete: (() -> Unit)? = null,
+    onRename: (() -> Unit)? = null,
 ) {
     val title = measurementDisplayName(measurement, position)
     val genderWord = stringResource(
@@ -1009,18 +1016,37 @@ private fun MeasurementListItem(
             }
         }
 
-        // Explicit, always-visible delete affordance. Swipe-to-delete alone was
-        // undiscoverable and unreliable (especially on iOS), so a tappable trash
-        // icon guarantees deletion works on every platform. Routes through the
-        // same confirm dialog as the swipe.
-        if (onDelete != null) {
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(Res.string.measurement_delete_content_description),
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(20.dp),
-                )
+        if (onDelete != null || onRename != null) {
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(Res.string.cd_measurement_overflow),
+                    )
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    if (onRename != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.measurement_menu_rename)) },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onRename()
+                            },
+                        )
+                    }
+                    if (onDelete != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.measurement_menu_delete)) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            },
+                        )
+                    }
+                }
             }
         }
     }
