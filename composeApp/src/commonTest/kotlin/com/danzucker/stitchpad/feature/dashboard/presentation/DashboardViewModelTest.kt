@@ -23,6 +23,7 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
@@ -133,7 +134,7 @@ class DashboardViewModelTest {
             timeZone = testTimeZone,
             appConfigRepository = FakeAppConfigRepository(),
             communityJoinTracker = FakeCommunityJoinTracker(),
-            onboardingPrefs = FakeOnboardingPreferences(),
+            dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

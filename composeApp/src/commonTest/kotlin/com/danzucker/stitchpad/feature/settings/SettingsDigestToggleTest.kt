@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
@@ -189,7 +190,7 @@ private fun buildSettingsVmForDigest(
         pushPermissionController = pushPermissionController,
         appConfigRepository = FakeAppConfigRepository(),
         communityJoinTracker = FakeCommunityJoinTracker(),
-        onboardingPrefs = FakeOnboardingPreferences(),
+        dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
     )
     return vm to userRepo
 }

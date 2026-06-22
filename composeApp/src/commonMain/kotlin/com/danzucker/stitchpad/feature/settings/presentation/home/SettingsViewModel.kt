@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
@@ -26,7 +27,6 @@ import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
-import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,7 +73,7 @@ class SettingsViewModel(
     private val pushPermissionController: PushPermissionController,
     private val appConfigRepository: AppConfigRepository,
     private val communityJoinTracker: CommunityJoinTracker,
-    private val onboardingPrefs: OnboardingPreferencesStore,
+    private val dismissal: CommunityBannerDismissal,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -132,7 +132,7 @@ class SettingsViewModel(
                 val url = state.value.communityUrl ?: return
                 emit(SettingsEvent.OpenCommunityLink(url))
                 viewModelScope.launch { communityJoinTracker.trackJoinTapped() }
-                viewModelScope.launch { onboardingPrefs.setCommunityBannerDismissed() }
+                viewModelScope.launch { dismissal.markDismissed() }
             }
         }
     }

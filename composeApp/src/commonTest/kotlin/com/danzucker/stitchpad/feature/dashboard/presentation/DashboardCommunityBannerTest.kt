@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
@@ -58,6 +59,7 @@ class DashboardCommunityBannerTest {
     private lateinit var appConfig: FakeAppConfigRepository
     private lateinit var communityJoinTracker: FakeCommunityJoinTracker
     private lateinit var prefs: FakeOnboardingPreferences
+    private lateinit var dismissal: CommunityBannerDismissal
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -75,6 +77,7 @@ class DashboardCommunityBannerTest {
         appConfig = FakeAppConfigRepository()
         communityJoinTracker = FakeCommunityJoinTracker()
         prefs = FakeOnboardingPreferences()
+        dismissal = CommunityBannerDismissal(prefs)
     }
 
     @AfterTest
@@ -100,7 +103,7 @@ class DashboardCommunityBannerTest {
             timeZone = testTimeZone,
             appConfigRepository = appConfig,
             communityJoinTracker = communityJoinTracker,
-            onboardingPrefs = prefs,
+            dismissal = dismissal,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -153,6 +156,27 @@ class DashboardCommunityBannerTest {
         assertEquals(1, communityJoinTracker.tapCount)
         assertTrue(prefs.hasDismissedCommunityBanner())
         assertFalse(vm.state.value.showCommunityBanner)
+    }
+
+    /**
+     * Reactivity test: a Settings-side join (simulated by calling
+     * [CommunityBannerDismissal.markDismissed] directly on the shared singleton)
+     * must hide the banner on an already-alive DashboardViewModel WITHOUT recreating it.
+     *
+     * RED before the fix (dismissal was a local var read once at init);
+     * GREEN after (combine reacts to the dismissal.dismissed StateFlow).
+     */
+    @Test
+    fun settingsJoin_hidesLiveDashboardBannerWithoutVmRecreation() = runTest {
+        appConfig.emit(AppConfig(communityEnabled = true, communityInviteUrl = "https://chat.whatsapp.com/X"))
+        val vm = createViewModel()
+        assertTrue(vm.state.value.showCommunityBanner, "precondition: banner visible before Settings join")
+
+        // Simulate the Settings ViewModel calling dismissal.markDismissed() on the shared singleton.
+        dismissal.markDismissed()
+
+        assertFalse(vm.state.value.showCommunityBanner, "banner must hide on live VM after Settings join")
+        assertTrue(prefs.hasDismissedCommunityBanner(), "persist flag must also be set")
     }
 
     private class FakeSmartUsageStoreCommunity : SmartUsageStore {

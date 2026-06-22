@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.settings
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
@@ -47,6 +48,7 @@ class SettingsCommunityTest {
     private lateinit var appConfigRepository: FakeAppConfigRepository
     private lateinit var communityJoinTracker: FakeCommunityJoinTracker
     private lateinit var prefs: FakeOnboardingPreferences
+    private lateinit var dismissal: CommunityBannerDismissal
 
     @BeforeTest
     fun setUp() {
@@ -54,6 +56,7 @@ class SettingsCommunityTest {
         appConfigRepository = FakeAppConfigRepository()
         communityJoinTracker = FakeCommunityJoinTracker()
         prefs = FakeOnboardingPreferences()
+        dismissal = CommunityBannerDismissal(prefs)
     }
 
     @AfterTest
@@ -147,7 +150,7 @@ class SettingsCommunityTest {
             pushPermissionController = CommunityNoOpPushPermissionController(),
             appConfigRepository = appConfigRepository,
             communityJoinTracker = communityJoinTracker,
-            onboardingPrefs = prefs,
+            dismissal = dismissal,
         )
     }
 }
