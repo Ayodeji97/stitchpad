@@ -25,7 +25,7 @@ class DebugSessionActionsTest {
         authRepository = FakeAuthRepository()
         onboardingPreferences = FakeOnboardingPreferences().apply {
             onboardingSeen = true
-            workshopSetupCompleted = true
+            completedWorkshopSetups.add("u1")
         }
         sessionActions = DebugSessionActions(
             authRepository = authRepository,
@@ -46,7 +46,7 @@ class DebugSessionActionsTest {
         sessionActions.resetOnboardingFlags()
 
         assertFalse(onboardingPreferences.onboardingSeen)
-        assertFalse(onboardingPreferences.workshopSetupCompleted)
+        assertFalse(onboardingPreferences.hasCompletedWorkshopSetup("u1"))
     }
 
     @Test

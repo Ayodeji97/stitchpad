@@ -12,7 +12,7 @@ class ResolveNeedsWorkshopSetupTest {
 
     @Test
     fun localFlagCompleted_returnsFalse_withoutHittingRemote() = runTest {
-        val prefs = FakeOnboardingPreferences().apply { workshopSetupCompleted = true }
+        val prefs = FakeOnboardingPreferences().apply { completedWorkshopSetups.add("u1") }
         val users = FakeUserRepository().apply { hasWorkshopProfileResult = false }
 
         val needsSetup = ResolveNeedsWorkshopSetup(prefs, users)("u1")
@@ -24,7 +24,7 @@ class ResolveNeedsWorkshopSetupTest {
     @Test
     fun localFlagWiped_butRemoteHasWorkshop_returnsFalse_andHealsPerUserFlag() = runTest {
         // The reinstall scenario: local flag gone, but Firestore still has the profile.
-        val prefs = FakeOnboardingPreferences().apply { workshopSetupCompleted = false }
+        val prefs = FakeOnboardingPreferences()
         val users = FakeUserRepository().apply { hasWorkshopProfileResult = true }
 
         val needsSetup = ResolveNeedsWorkshopSetup(prefs, users)("u1")
@@ -34,9 +34,8 @@ class ResolveNeedsWorkshopSetupTest {
             prefs.hasConfirmedRemoteWorkshopProfile("u1"),
             "per-user flag should be healed for fast future launches",
         )
-        // The device-wide flag must NOT be set by a remote heal — that would let a
-        // different account on the same device skip its own setup.
-        assertFalse(prefs.hasCompletedWorkshopSetup())
+        // A remote heal sets the per-user CONFIRMED flag, not the COMPLETED flag.
+        assertFalse(prefs.hasCompletedWorkshopSetup("u1"))
     }
 
     @Test
@@ -52,14 +51,23 @@ class ResolveNeedsWorkshopSetupTest {
     }
 
     @Test
+    fun deviceCompletedByOneUser_doesNotSkipSetupForADifferentUser() = runTest {
+        // The reported bug: user A finishes (or skips) workshop setup on this install,
+        // then user B registers on the SAME build. B must still see the workshop screen.
+        val prefs = FakeOnboardingPreferences().apply { completedWorkshopSetups.add("userA") }
+        val resolveForB = ResolveNeedsWorkshopSetup(prefs, FakeUserRepository().apply { hasWorkshopProfileResult = false })
+        assertTrue(resolveForB("userB"), "a different account must still be gated through setup")
+    }
+
+    @Test
     fun localFlagWiped_andRemoteEmpty_returnsTrue() = runTest {
         // A genuinely new (or skipped) user with no workshop data still sees setup.
-        val prefs = FakeOnboardingPreferences().apply { workshopSetupCompleted = false }
+        val prefs = FakeOnboardingPreferences()
         val users = FakeUserRepository().apply { hasWorkshopProfileResult = false }
 
         val needsSetup = ResolveNeedsWorkshopSetup(prefs, users)("u1")
 
         assertTrue(needsSetup)
-        assertFalse(prefs.hasCompletedWorkshopSetup())
+        assertFalse(prefs.hasCompletedWorkshopSetup("u1"))
     }
 }
