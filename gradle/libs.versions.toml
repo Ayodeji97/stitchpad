@@ -80,6 +80,7 @@ firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = 
 firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "firebase-gitlive" }
 firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "firebase-gitlive" }
 firebase-functions = { module = "dev.gitlive:firebase-functions", version.ref = "firebase-gitlive" }
+firebase-analytics = { module = "dev.gitlive:firebase-analytics", version.ref = "firebase-gitlive" }
 
 # Firebase Android (native — used only in androidMain for Crashlytics + Messaging)
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
