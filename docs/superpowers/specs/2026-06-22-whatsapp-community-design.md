@@ -181,14 +181,14 @@ All copy via string resources; apostrophes as `&apos;` (never `\'`).
 
 - Banner pill: **StitchPad Community**
 - Banner title: **Join the tailors&apos; circle**
-- Banner body: **Get product updates, tips & member-only discounts. Connect with
-  other Nigerian tailors on WhatsApp.**
+- Banner body: **Get product updates, tips & early news. Connect with other
+  Nigerian tailors on WhatsApp.**
 - Banner button: **Join community**
 - Settings row label: **Join our community**
 - Snackbar (open failure): **Couldn&apos;t open WhatsApp**
 
-*(Copy is provisional — confirm "member-only discounts" is a promise we want to
-make before shipping.)*
+*(Discounts removed from the promise — if member-only discounts become real, the
+body line can be revised then.)*
 
 ## QA smoke test (manual — Daniel)
 
