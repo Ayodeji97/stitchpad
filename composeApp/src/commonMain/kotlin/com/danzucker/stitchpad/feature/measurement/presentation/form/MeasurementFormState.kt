@@ -9,6 +9,11 @@ import com.danzucker.stitchpad.core.presentation.UiText
 
 data class MeasurementFormState(
     val gender: CustomerGender? = null,
+    val name: String = "",
+    /** True once the tailor edits the name; stops the gender-driven default from overwriting it. */
+    val isNameUserEdited: Boolean = false,
+    /** 1-based position used to build the distinct default name. */
+    val nameOrdinal: Int = 1,
     val sections: List<MeasurementSection> = emptyList(),
     val currentSectionIndex: Int = 0,
     val isCurrentSectionExpanded: Boolean = true,
@@ -47,6 +52,7 @@ data class MeasurementFormState(
      */
     val canSave: Boolean
         get() = gender != null &&
+            name.isNotBlank() &&
             fields.values.any { (it.toDoubleOrNull() ?: 0.0) > 0.0 } &&
             !isLoading
 }

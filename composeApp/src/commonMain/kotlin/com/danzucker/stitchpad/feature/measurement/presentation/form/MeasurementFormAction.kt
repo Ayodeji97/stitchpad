@@ -4,6 +4,8 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 
 sealed interface MeasurementFormAction {
     data class OnGenderChange(val gender: CustomerGender) : MeasurementFormAction
+    data class OnNameChange(val name: String) : MeasurementFormAction
+    data class OnNameDefaultApplied(val name: String) : MeasurementFormAction
     data class OnSectionChange(val index: Int) : MeasurementFormAction
     data object OnNextSection : MeasurementFormAction
     data object OnPreviousSection : MeasurementFormAction

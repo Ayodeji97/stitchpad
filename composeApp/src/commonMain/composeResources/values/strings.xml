@@ -346,6 +346,11 @@
     <string name="measurement_create_flow_save_button">Save</string>
     <string name="measurement_skip_for_now">Skip for now</string>
     <string name="measurement_garment_type_label">Garment type</string>
+    <string name="measurement_name_label">Measurement name</string>
+    <string name="measurement_name_placeholder">e.g. Wedding Agbada, School uniform</string>
+    <string name="measurement_name_required_hint">Name your measurement</string>
+    <string name="measurement_name_default_female">Women&apos;s measurement %1$d</string>
+    <string name="measurement_name_default_male">Men&apos;s measurement %1$d</string>
     <string name="measurement_gender_label">Gender</string>
     <string name="measurement_body_shape_label">Body shape (optional)</string>
     <string name="measurement_show_more">Show more</string>

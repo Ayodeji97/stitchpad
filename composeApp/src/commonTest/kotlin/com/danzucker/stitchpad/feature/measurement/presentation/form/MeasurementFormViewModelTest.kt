@@ -399,6 +399,9 @@ class MeasurementFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel(fromCustomerCreation = true)
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        // Name is mandatory; the Root effect pre-fills it in production, so set it
+        // here to reach the same canSave=true precondition.
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         // Precondition: canSave is true, so a save WOULD persist here. This makes the
         // null assertions below prove that skip actively avoids the write, not that
         // there was simply nothing to save.
@@ -418,6 +421,7 @@ class MeasurementFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         assertNotNull(measurementRepository.lastCreatedMeasurement)
@@ -431,6 +435,7 @@ class MeasurementFormViewModelTest {
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "90"))
         vm.onAction(MeasurementFormAction.OnFieldChange("waist", ""))  // blank → 0.0 → filtered out
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         val saved = measurementRepository.lastCreatedMeasurement
@@ -453,6 +458,7 @@ class MeasurementFormViewModelTest {
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "90"))
         vm.onAction(MeasurementFormAction.OnFieldChange("f-both", "13"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
 
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
@@ -499,6 +505,7 @@ class MeasurementFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         assertNotNull(measurementRepository.lastUpdatedMeasurement)
@@ -511,6 +518,7 @@ class MeasurementFormViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         val saved = measurementRepository.lastUpdatedMeasurement
@@ -538,6 +546,7 @@ class MeasurementFormViewModelTest {
         // Provide at least one positive field so canSave is true and save()
         // actually reaches the repository (where the injected error fires).
         vm.onAction(MeasurementFormAction.OnFieldChange(key = "chest", value = "38"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Men's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         assertNotNull(vm.state.value.errorMessage)
@@ -563,6 +572,7 @@ class MeasurementFormViewModelTest {
         // Provide at least one positive field so canSave is true and save()
         // actually reaches the repository (where the injected error fires).
         vm.onAction(MeasurementFormAction.OnFieldChange(key = "chest", value = "38"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Men's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
         assertNotNull(vm.state.value.errorMessage)
 
@@ -914,6 +924,7 @@ class MeasurementFormViewModelTest {
         val vm = createViewModel(measurementId = "meas-1")
 
         vm.onAction(MeasurementFormAction.OnArchiveCustomFieldConfirm("f1"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         assertNull(vm.state.value.fields["f1"])
@@ -984,7 +995,9 @@ class MeasurementFormViewModelTest {
         )
         measurementRepository.measurementsList = listOf(measurement)
         val vm = createViewModel(measurementId = "m1")
-        // Save without modification
+        // Name is mandatory; the seeded measurement has none, so set it (the Root
+        // effect would pre-fill in production). Then save without other modification.
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         val updated = measurementRepository.lastUpdatedMeasurement
@@ -1154,12 +1167,79 @@ class MeasurementFormViewModelTest {
         assertTrue(customFieldsAfterGenderChange.any { it.id == "archived-cuff" })
         assertEquals("11", vm.state.value.fields["archived-cuff"])
 
+        vm.onAction(MeasurementFormAction.OnNameChange("Men's measurement 1"))
         vm.onAction(MeasurementFormAction.OnSaveClick)
 
         val updated = measurementRepository.lastUpdatedMeasurement
         assertNotNull(updated)
         assertEquals(11.0, updated.fields["archived-cuff"])
         assertEquals(7.0, updated.fields["orphan-key-99"])
+    }
+
+    // --- Measurement name (mandatory + pre-filled) ---
+
+    @Test
+    fun blankName_blocksSave() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        // Clearing the (default-filled) name must block save.
+        vm.onAction(MeasurementFormAction.OnNameChange(""))
+
+        assertFalse(vm.state.value.canSave)
+
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+        assertNull(measurementRepository.lastCreatedMeasurement)
+    }
+
+    @Test
+    fun namePersists_onCreate() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Wedding Agbada"))
+
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        assertEquals("Wedding Agbada", measurementRepository.lastCreatedMeasurement?.name)
+    }
+
+    @Test
+    fun namePersists_onEdit() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        measurementRepository.measurementsList = listOf(
+            fakeMeasurement(id = "meas-1").copy(name = "Original"),
+        )
+        val vm = createViewModel(measurementId = "meas-1")
+        vm.onAction(MeasurementFormAction.OnNameChange("Renamed"))
+
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+
+        assertEquals("Renamed", measurementRepository.lastUpdatedMeasurement?.name)
+    }
+
+    @Test
+    fun editPrefill_setsName() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        measurementRepository.measurementsList = listOf(
+            fakeMeasurement(id = "meas-1").copy(name = "X"),
+        )
+        val vm = createViewModel(measurementId = "meas-1")
+
+        assertEquals("X", vm.state.value.name)
+    }
+
+    @Test
+    fun ordinalDefault_isCountPlusOne() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // observeMeasurements is backed by measurementsList in the fake.
+        measurementRepository.measurementsList = listOf(
+            fakeMeasurement(id = "meas-1"),
+            fakeMeasurement(id = "meas-2"),
+        )
+        val vm = createViewModel()
+
+        assertEquals(3, vm.state.value.nameOrdinal)
     }
 
     private fun customField(

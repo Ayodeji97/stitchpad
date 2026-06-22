@@ -52,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -91,6 +92,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -113,6 +115,11 @@ import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
 import stitchpad.composeapp.generated.resources.measurement_go_to_section
+import stitchpad.composeapp.generated.resources.measurement_name_default_female
+import stitchpad.composeapp.generated.resources.measurement_name_default_male
+import stitchpad.composeapp.generated.resources.measurement_name_label
+import stitchpad.composeapp.generated.resources.measurement_name_placeholder
+import stitchpad.composeapp.generated.resources.measurement_name_required_hint
 import stitchpad.composeapp.generated.resources.measurement_next
 import stitchpad.composeapp.generated.resources.measurement_notes_label
 import stitchpad.composeapp.generated.resources.measurement_notes_placeholder
@@ -149,6 +156,23 @@ fun MeasurementFormRoot(
         if (errorMessage != null) {
             snackbarHostState.showSnackbar(errorMessage)
             viewModel.onAction(MeasurementFormAction.OnErrorDismiss)
+        }
+    }
+
+    // Resolve the localized default name in the Root (ViewModels can't read string
+    // resources) and feed it back via an action. Applying it keeps isNameUserEdited
+    // false and makes name non-blank, so the keys don't retrigger → no loop. A loaded
+    // real name in edit mode is non-blank → the isBlank() guard prevents overwrite.
+    LaunchedEffect(state.gender, state.nameOrdinal, state.isNameUserEdited, state.name.isBlank()) {
+        if (!state.isNameUserEdited && state.name.isBlank() && state.gender != null) {
+            val res = if (state.gender == CustomerGender.FEMALE) {
+                Res.string.measurement_name_default_female
+            } else {
+                Res.string.measurement_name_default_male
+            }
+            viewModel.onAction(
+                MeasurementFormAction.OnNameDefaultApplied(getString(res, state.nameOrdinal)),
+            )
         }
     }
 
@@ -242,6 +266,21 @@ fun MeasurementFormScreen(
         ) {
             // ── Fixed header ─────────────────────────────────────────────
             Column(modifier = Modifier.padding(horizontal = DesignTokens.space4)) {
+                Spacer(Modifier.height(DesignTokens.space4))
+                OutlinedTextField(
+                    value = state.name,
+                    onValueChange = { onAction(MeasurementFormAction.OnNameChange(it)) },
+                    label = { Text(stringResource(Res.string.measurement_name_label)) },
+                    placeholder = { Text(stringResource(Res.string.measurement_name_placeholder)) },
+                    singleLine = true,
+                    isError = state.name.isBlank(),
+                    supportingText = if (state.name.isBlank()) {
+                        { Text(stringResource(Res.string.measurement_name_required_hint)) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.height(DesignTokens.space4))
                 GenderSelector(
                     selected = state.gender,
