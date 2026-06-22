@@ -4,6 +4,7 @@ data class Measurement(
     val id: String,
     val customerId: String,
     val gender: CustomerGender,
+    val name: String = "",
     val fields: Map<String, Double>,
     val unit: MeasurementUnit,
     val notes: String?,
