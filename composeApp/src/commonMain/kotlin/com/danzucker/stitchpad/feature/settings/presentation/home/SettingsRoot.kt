@@ -46,8 +46,14 @@ fun SettingsRoot(
             SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
             SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
-            is SettingsEvent.OpenCommunityLink -> runCatching { uriHandler.openUri(event.url) }
-                .onFailure { AppLogger.e(tag = "SettingsRoot") { "No handler for community invite URL: ${event.url}" } }
+            is SettingsEvent.OpenCommunityLink ->
+                runCatching { uriHandler.openUri(event.url) }
+                    .onFailure {
+                        // Never log the URL — the invite token grants community access.
+                        AppLogger.e(tag = "SettingsRoot", throwable = it) {
+                            "No handler to open community invite"
+                        }
+                    }
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {
                     val message = getString(event.messageRes)

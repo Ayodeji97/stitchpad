@@ -321,9 +321,11 @@ fun DashboardRoot(
         if (event is DashboardEvent.OpenCommunityLink) {
             runCatching { uriHandler.openUri(event.url) }
                 .onFailure {
+                    // Never log the URL — the invite token grants community access.
                     AppLogger.e(
-                        tag = "DashboardRoot"
-                    ) { "No handler for community invite URL: ${event.url}" }
+                        tag = "DashboardRoot",
+                        throwable = it,
+                    ) { "No handler to open community invite" }
                 }
             return@ObserveAsEvents
         }
