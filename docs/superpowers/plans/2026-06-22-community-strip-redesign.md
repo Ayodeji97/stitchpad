@@ -28,11 +28,11 @@
 - Create: `composeApp/src/commonMain/composeResources/drawable/ic_whatsapp_glyph.xml`
 
 **Interfaces:**
-- Produces: `Res.string.community_strip_subtitle`, `Res.string.community_strip_join`, `Res.drawable.ic_whatsapp_glyph`. Removes `Res.string.community_banner_body`, `Res.string.community_banner_cta`. Keeps `community_banner_title`, `community_banner_dismiss_cd`, `community_banner_icon_cd`.
+- Produces: `Res.string.community_strip_subtitle`, `Res.string.community_strip_join`, `Res.drawable.ic_whatsapp_glyph`. Keeps `community_banner_title`, `community_banner_dismiss_cd`, `community_banner_icon_cd` (value changed to "WhatsApp"). **Leaves `community_banner_body`/`community_banner_cta` in place** — they are still used by `CommunityBanner.kt` and are removed in Task 2 when that file is deleted (removing them now breaks the build).
 
 - [ ] **Step 1: Update the community strings**
 
-In `strings.xml`, replace the two now-unused card strings and add the two strip strings. Find:
+In `strings.xml`, ADD the two strip strings and change the icon contentDescription value. Do NOT remove `community_banner_body`/`community_banner_cta` (still used until Task 2). Find:
 ```xml
     <string name="community_banner_title">Join our WhatsApp community</string>
     <string name="community_banner_body">Get product updates, tips &amp; early news. Connect with other Nigerian tailors on WhatsApp.</string>
@@ -45,10 +45,12 @@ Replace with:
     <string name="community_banner_title">Join our WhatsApp community</string>
     <string name="community_strip_subtitle">Updates, tips &amp; other Nigerian tailors</string>
     <string name="community_strip_join">Join</string>
+    <string name="community_banner_body">Get product updates, tips &amp; early news. Connect with other Nigerian tailors on WhatsApp.</string>
+    <string name="community_banner_cta">Join community</string>
     <string name="community_banner_dismiss_cd">Dismiss</string>
     <string name="community_banner_icon_cd">WhatsApp</string>
 ```
-(The `community_banner_body` and `community_banner_cta` lines are removed; `community_banner_icon_cd` value changes to "WhatsApp" since the glyph is now the WhatsApp logo.)
+(Adds the two strip strings; changes `community_banner_icon_cd` value to "WhatsApp"; keeps body/cta for now.)
 
 - [ ] **Step 2: Create the WhatsApp glyph vector drawable**
 
@@ -243,12 +245,19 @@ private fun CommunityStripPreviewDark() {
 ```
 > Verify `Icons.AutoMirrored.Filled.ArrowForward` resolves (it's in the bundled material-icons; the project already uses `Icons.AutoMirrored` elsewhere). `Surface(border = …)` is a standard Material3 param. If `Color.Transparent` + `Surface` shows an unwanted elevation shadow, leave `tonalElevation`/`shadowElevation` at their defaults (0) — they already are.
 
-- [ ] **Step 2: Delete the old card**
+- [ ] **Step 2: Delete the old card + its now-unused strings**
 
 ```bash
 git rm composeApp/src/commonMain/kotlin/com/danzucker/stitchpad/feature/dashboard/presentation/components/CommunityBanner.kt
 ```
 (Its only call site is `DashboardScreen.kt`, rewired in Task 3. Nothing else references it — confirmed: no test imports `CommunityBanner`.)
+
+With `CommunityBanner.kt` gone, `community_banner_body` and `community_banner_cta` are no longer used — remove both lines from `composeApp/src/commonMain/composeResources/values/strings.xml`:
+```xml
+    <string name="community_banner_body">Get product updates, tips &amp; early news. Connect with other Nigerian tailors on WhatsApp.</string>
+    <string name="community_banner_cta">Join community</string>
+```
+Then regenerate: `./gradlew :composeApp:generateComposeResClass` (expected: SUCCESSFUL; those two accessors gone).
 
 - [ ] **Step 3: Build (will fail at DashboardScreen until Task 3 — verify only the strip compiles)**
 
