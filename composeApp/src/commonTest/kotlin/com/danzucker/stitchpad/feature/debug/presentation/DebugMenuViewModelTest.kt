@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,7 @@ class DebugMenuViewModelTest {
             authRepository = fakeAuth,
             onboardingPreferences = fakeOnboarding,
             signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+            communityBannerDismissal = CommunityBannerDismissal(fakeOnboarding),
         )
     }
 

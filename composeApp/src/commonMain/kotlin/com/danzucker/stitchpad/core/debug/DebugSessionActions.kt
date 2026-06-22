@@ -18,14 +18,14 @@ class DebugSessionActions(
     private val authRepository: AuthRepository,
     private val onboardingPreferences: OnboardingPreferencesStore,
     private val signOutUseCase: SignOutUseCase,
-    private val communityBannerDismissal: CommunityBannerDismissal? = null,
+    private val communityBannerDismissal: CommunityBannerDismissal,
 ) {
     suspend fun resetOnboardingFlags() {
         onboardingPreferences.resetForDebug()
     }
 
     suspend fun clearCommunityBannerDismissed() {
-        communityBannerDismissal?.reset() ?: onboardingPreferences.clearCommunityBannerDismissed()
+        communityBannerDismissal.reset()
     }
 
     suspend fun signOut(): SessionActionResult = when (val r = signOutUseCase()) {
