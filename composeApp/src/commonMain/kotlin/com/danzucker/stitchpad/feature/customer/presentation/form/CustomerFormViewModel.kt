@@ -118,6 +118,7 @@ class CustomerFormViewModel(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod")
     @OptIn(ExperimentalUuidApi::class)
     private fun save() {
         // Re-entrancy guard: SaveButton's enabled=!isLoading propagates through

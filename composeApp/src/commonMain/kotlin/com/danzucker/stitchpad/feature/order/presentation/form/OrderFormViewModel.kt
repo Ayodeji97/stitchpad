@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
@@ -20,8 +22,6 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
-import com.danzucker.stitchpad.core.analytics.domain.Analytics
-import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.media.ImageCompressor
