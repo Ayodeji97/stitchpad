@@ -35,4 +35,19 @@ class CommunityInviteTest {
     fun missingScheme_returnsFalse() {
         assertFalse(isUsableCommunityInviteUrl("chat.whatsapp.com/x"))
     }
+
+    @Test
+    fun barePrefixWithoutCode_returnsFalse() {
+        assertFalse(isUsableCommunityInviteUrl("https://chat.whatsapp.com/"))
+    }
+
+    @Test
+    fun prefixWithBlankCode_returnsFalse() {
+        assertFalse(isUsableCommunityInviteUrl("https://chat.whatsapp.com/   "))
+    }
+
+    @Test
+    fun surroundingWhitespace_isTrimmedAndAccepted() {
+        assertTrue(isUsableCommunityInviteUrl("  https://chat.whatsapp.com/abc123  "))
+    }
 }
