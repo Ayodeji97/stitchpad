@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.freemium.presentation.upgrade
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.legal.LegalUrls
@@ -27,6 +29,7 @@ class UpgradeViewModel(
     private val entitlements: EntitlementsProvider,
     private val paymentRepository: PaymentRepository,
     pendingDeepLink: PendingDeepLinkHolder,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(initialState(entitlements, pendingDeepLink))
@@ -44,11 +47,16 @@ class UpgradeViewModel(
         // user on a now-irrelevant upgrade picker.
         viewModelScope.launch {
             val startingTier = entitlements.current().tier
+            var lastTier = startingTier
             entitlements.flow.collect { e ->
                 _state.update { it.copy(currentTier = e.tier) }
                 if (e.tier.isHigherThan(startingTier)) {
                     _events.send(UpgradeEvent.UpgradeDetected)
                 }
+                if (e.tier.isHigherThan(lastTier)) {
+                    analytics.logEvent(AnalyticsEvent.UpgradeCompleted(tier = e.tier.name.lowercase()))
+                }
+                lastTier = e.tier
             }
         }
 
