@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -53,11 +55,16 @@ fun CommunityStrip(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val shape = RoundedCornerShape(DesignTokens.radiusMd)
+    // Surface(onClick=...) is avoided per project convention (see IllustratedFocusCard /
+    // WeeklyGoalsCard); clip(shape) + clickable clips the tap ripple to the rounded shape.
     Surface(
-        onClick = onJoin,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(onClick = onJoin, role = Role.Button),
         color = Color.Transparent,
-        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        shape = shape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(
