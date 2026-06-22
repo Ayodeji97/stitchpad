@@ -213,6 +213,21 @@ class DebugMenuViewModelTest {
     }
 
     @Test
+    fun `OnResetCommunityBannerClick clears dismissed flag and emits ShowSnackbar`() = runTest {
+        fakeOnboarding.communityBannerDismissed = true
+        val vm = createViewModel()
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnResetCommunityBannerClick)
+
+        assertFalse(fakeOnboarding.communityBannerDismissed)
+        assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
+    }
+
+    @Test
     fun `OnSignOutClick on success emits NavigateToLogin event`() = runTest {
         val vm = createViewModel()
 

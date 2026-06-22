@@ -128,6 +128,12 @@ fun DebugMenuScreen(
                 )
                 SettingsRowDivider()
                 SettingsRow(
+                    icon = Icons.Outlined.Refresh,
+                    label = "Reset community banner",
+                    onClick = { onAction(DebugMenuAction.OnResetCommunityBannerClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
                     icon = Icons.AutoMirrored.Outlined.Logout,
                     label = "Sign out",
                     onClick = { onAction(DebugMenuAction.OnSignOutClick) },
