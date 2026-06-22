@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,7 @@ class DebugMenuViewModelTest {
             authRepository = fakeAuth,
             onboardingPreferences = fakeOnboarding,
             signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+            communityBannerDismissal = CommunityBannerDismissal(fakeOnboarding),
         )
     }
 
@@ -210,6 +212,21 @@ class DebugMenuViewModelTest {
         assertFalse(fakeOnboarding.onboardingSeen)
         assertFalse(fakeOnboarding.hasCompletedWorkshopSetup("u1"))
         assertTrue(events.any { it is DebugMenuEvent.NavigateToSplash })
+    }
+
+    @Test
+    fun `OnResetCommunityBannerClick clears dismissed flag and emits ShowSnackbar`() = runTest {
+        fakeOnboarding.communityBannerDismissed = true
+        val vm = createViewModel()
+
+        val events = mutableListOf<DebugMenuEvent>()
+        backgroundScope.launch(Dispatchers.Main) {
+            vm.events.collect { events.add(it) }
+        }
+        vm.onAction(DebugMenuAction.OnResetCommunityBannerClick)
+
+        assertFalse(fakeOnboarding.communityBannerDismissed)
+        assertTrue(events.any { it is DebugMenuEvent.ShowSnackbar })
     }
 
     @Test

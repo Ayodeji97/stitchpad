@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
+import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
@@ -45,7 +46,14 @@ data class SettingsState(
     val pushReminderSupported: Boolean = true,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
+    val communityEnabled: Boolean = false,
+    val communityUrl: String? = null,
 ) {
+
+    /** Settings community row shows only when remotely enabled with a usable link. */
+    val showCommunityRow: Boolean
+        get() = communityEnabled && isUsableCommunityInviteUrl(communityUrl)
+
     /**
      * Combined display string for the profile hero subtitle.
      * The separator uses a Unicode escape (U+2022 BULLET) rather than a literal

@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.debug
 
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
@@ -17,9 +18,14 @@ class DebugSessionActions(
     private val authRepository: AuthRepository,
     private val onboardingPreferences: OnboardingPreferencesStore,
     private val signOutUseCase: SignOutUseCase,
+    private val communityBannerDismissal: CommunityBannerDismissal,
 ) {
     suspend fun resetOnboardingFlags() {
         onboardingPreferences.resetForDebug()
+    }
+
+    suspend fun clearCommunityBannerDismissed() {
+        communityBannerDismissal.reset()
     }
 
     suspend fun signOut(): SessionActionResult = when (val r = signOutUseCase()) {

@@ -2,6 +2,10 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
+import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
+import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -61,7 +65,10 @@ class DashboardViewModel(
     private val notificationRepository: NotificationRepository,
     private val pushTokenRegistrar: PushTokenRegistrar,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
-    private val timeZone: TimeZone = TimeZone.currentSystemDefault()
+    private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    private val appConfigRepository: AppConfigRepository,
+    private val communityJoinTracker: CommunityJoinTracker,
+    private val dismissal: CommunityBannerDismissal,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
@@ -78,6 +85,7 @@ class DashboardViewModel(
                 observeSmartQuota()
                 observeEntitlements()
                 observeUnreadNotifications()
+                observeCommunity()
             }
         }
         .stateIn(
@@ -131,6 +139,34 @@ class DashboardViewModel(
                 _state.update { it.copy(unreadNotificationCount = count) }
             }
         }
+    }
+
+    /**
+     * Hydrates the dismissal singleton from persisted prefs, then combines the
+     * remote app config flow with [CommunityBannerDismissal.dismissed] so that
+     * a dismiss/join from ANY surface (Settings row, dashboard banner, debug
+     * reset) updates this already-alive ViewModel live — not just on recreation.
+     */
+    private fun observeCommunity() {
+        viewModelScope.launch {
+            dismissal.hydrate()
+            combine(appConfigRepository.config, dismissal.dismissed) { cfg, dismissed ->
+                cfg to dismissed
+            }.collect { (cfg, dismissed) ->
+                _state.update {
+                    it.copy(
+                        communityUrl = cfg.communityInviteUrl,
+                        showCommunityBanner = cfg.communityEnabled &&
+                            isUsableCommunityInviteUrl(cfg.communityInviteUrl) &&
+                            !dismissed,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun dismissCommunityBanner() {
+        viewModelScope.launch { dismissal.markDismissed() }
     }
 
     // Single sealed-action dispatch table — every DashboardAction handled in
@@ -216,6 +252,13 @@ class DashboardViewModel(
             DashboardAction.OpenUpgrade -> emitEvent(DashboardEvent.NavigateToUpgrade)
             DashboardAction.OnNotificationsClick -> emitEvent(DashboardEvent.NavigateToNotifications)
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
+            DashboardAction.OnJoinCommunity -> {
+                val url = _state.value.communityUrl
+                if (url != null) emitEvent(DashboardEvent.OpenCommunityLink(url))
+                viewModelScope.launch { communityJoinTracker.trackJoinTapped() }
+                dismissCommunityBanner()
+            }
+            DashboardAction.OnDismissCommunityBanner -> dismissCommunityBanner()
         }
     }
 

@@ -74,6 +74,10 @@ class DebugMenuViewModel(
                 sessionActions.resetOnboardingFlags()
                 emit(DebugMenuEvent.NavigateToSplash)
             }
+            DebugMenuAction.OnResetCommunityBannerClick -> runJob {
+                sessionActions.clearCommunityBannerDismissed()
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Community banner reset")))
+            }
             DebugMenuAction.OnSignOutClick -> runSignOut()
             DebugMenuAction.OnSwitchToFolaClick -> runJob {
                 handleSwitch(
