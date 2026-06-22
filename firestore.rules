@@ -278,6 +278,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Global remote app config (community link, future feature flags) ──
+    // Read-only for any signed-in user; only console/admin writes.
+    match /config/{configDoc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────
     // FirestoreDeletionFeedbackRepository writes anonymous-shaped feedback
     // (reason, additionalNotes, plan, daysActive, platform, appVersion,
