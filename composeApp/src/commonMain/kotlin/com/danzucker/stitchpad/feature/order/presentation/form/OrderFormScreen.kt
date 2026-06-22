@@ -94,6 +94,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
 import com.danzucker.stitchpad.feature.order.domain.discountBreakdown
 import com.danzucker.stitchpad.feature.order.presentation.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
@@ -920,8 +921,9 @@ private fun MeasurementPickerField(
         onExpandedChange = { measurementExpanded = it },
     ) {
         val selectedMeasurement = availableMeasurements.find { it.id == item.measurementId }
+        val selectedPosition = availableMeasurements.indexOf(selectedMeasurement) + 1
         val measurementLabel = if (selectedMeasurement != null) {
-            "${selectedMeasurement.gender.name} - ${selectedMeasurement.fields.size} fields"
+            measurementDisplayName(selectedMeasurement, selectedPosition)
         } else {
             stringResource(Res.string.order_form_no_measurement)
         }
@@ -947,10 +949,11 @@ private fun MeasurementPickerField(
                     measurementExpanded = false
                 },
             )
-            availableMeasurements.forEach { measurement ->
+            availableMeasurements.forEachIndexed { index, measurement ->
+                val position = index + 1
                 DropdownMenuItem(
                     text = {
-                        Text("${measurement.gender.name} - ${measurement.fields.size} fields")
+                        Text(measurementDisplayName(measurement, position))
                     },
                     onClick = {
                         onAction(OrderFormAction.OnItemMeasurementChange(item.id, measurement.id))

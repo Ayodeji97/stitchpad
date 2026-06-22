@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,6 +76,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -107,8 +109,8 @@ import stitchpad.composeapp.generated.resources.fab_add_measurement
 import stitchpad.composeapp.generated.resources.measurement_delete_content_description
 import stitchpad.composeapp.generated.resources.measurement_delete_message
 import stitchpad.composeapp.generated.resources.measurement_delete_title
-import stitchpad.composeapp.generated.resources.measurement_female_profile
-import stitchpad.composeapp.generated.resources.measurement_male_profile
+import stitchpad.composeapp.generated.resources.measurement_gender_men
+import stitchpad.composeapp.generated.resources.measurement_gender_women
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_closet_name_format
@@ -302,7 +304,8 @@ fun CustomerDetailScreen(
                             )
                         }
                     } else {
-                        items(items = state.measurements, key = { it.id }) { measurement ->
+                        itemsIndexed(items = state.measurements, key = { _, m -> m.id }) { index, measurement ->
+                            val position = index + 1
                             if (state.isLocked) {
                                 // Locked customers: row is fully inert (no tap, no swipe) and
                                 // visually muted so the affordance matches the behavior. Only
@@ -310,11 +313,13 @@ fun CustomerDetailScreen(
                                 ReadOnlyMeasurementItem(
                                     measurement = measurement,
                                     customFieldLabels = state.customFieldLabels,
+                                    position = position,
                                 )
                             } else {
                                 SwipeableMeasurementItem(
                                     measurement = measurement,
                                     customFieldLabels = state.customFieldLabels,
+                                    position = position,
                                     onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
                                     onDelete = { onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement)) },
                                 )
@@ -720,6 +725,7 @@ private fun MeasurementsEmptyState(
 private fun SwipeableMeasurementItem(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
+    position: Int,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -761,6 +767,7 @@ private fun SwipeableMeasurementItem(
             MeasurementListItem(
                 measurement = measurement,
                 customFieldLabels = customFieldLabels,
+                position = position,
                 onClick = onClick,
                 onDelete = onDelete,
             )
@@ -772,6 +779,7 @@ private fun SwipeableMeasurementItem(
 private fun ReadOnlyMeasurementItem(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
+    position: Int,
 ) {
     // Used when the customer is locked: no swipe-to-delete wrapper AND no click handler.
     // Per V1.0 design spec decision #2, locked customers are fully visible read-only —
@@ -786,6 +794,7 @@ private fun ReadOnlyMeasurementItem(
         MeasurementListItem(
             measurement = measurement,
             customFieldLabels = customFieldLabels,
+            position = position,
             onClick = null,
         )
     }
@@ -906,14 +915,18 @@ private fun StylesSectionRow(
 private fun MeasurementListItem(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
+    position: Int,
     onClick: (() -> Unit)?,
     onDelete: (() -> Unit)? = null,
 ) {
-    val profileTitle = if (measurement.gender == CustomerGender.FEMALE) {
-        stringResource(Res.string.measurement_female_profile)
-    } else {
-        stringResource(Res.string.measurement_male_profile)
-    }
+    val title = measurementDisplayName(measurement, position)
+    val genderWord = stringResource(
+        if (measurement.gender == CustomerGender.FEMALE) {
+            Res.string.measurement_gender_women
+        } else {
+            Res.string.measurement_gender_men
+        }
+    )
     val unitLabel = if (measurement.unit == MeasurementUnit.INCHES) {
         stringResource(Res.string.measurement_unit_inches)
     } else {
@@ -922,7 +935,7 @@ private fun MeasurementListItem(
     val dateText = remember(measurement.dateTaken) {
         epochToDateString(measurement.dateTaken)
     }
-    val subtitleParts = listOfNotNull(dateText.ifBlank { null }, unitLabel)
+    val subtitleParts = listOfNotNull(genderWord, dateText.ifBlank { null }, unitLabel)
 
     val tapModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Row(
@@ -935,7 +948,7 @@ private fun MeasurementListItem(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = profileTitle,
+                text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
