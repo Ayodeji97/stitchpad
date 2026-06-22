@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.auth.presentation.signup
 
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
@@ -33,7 +34,7 @@ class SignUpViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         authRepository = FakeAuthRepository()
         emailValidator = FakePatternValidator(shouldMatch = true)
-        viewModel = SignUpViewModel(authRepository, emailValidator)
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
     }
 
     @AfterTest
@@ -105,7 +106,7 @@ class SignUpViewModelTest {
     @Test
     fun signUpWithInvalidEmailShowsError() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = SignUpViewModel(authRepository, emailValidator)
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
 
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
@@ -135,7 +136,7 @@ class SignUpViewModelTest {
     @Test
     fun signUpWithMultipleErrorsSetsAllErrors() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = SignUpViewModel(authRepository, emailValidator)
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
 
         // All fields invalid: blank name, bad email, short password, mismatched confirm
         viewModel.onAction(SignUpAction.OnPasswordChange("123"))
@@ -164,7 +165,7 @@ class SignUpViewModelTest {
     @Test
     fun emailChangeClearsError() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = SignUpViewModel(authRepository, emailValidator)
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
         assertNotNull(viewModel.state.value.emailError)

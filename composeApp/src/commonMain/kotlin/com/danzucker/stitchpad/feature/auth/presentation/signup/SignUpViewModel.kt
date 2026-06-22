@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.auth.presentation.signup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.presentation.UiText
@@ -25,7 +27,8 @@ import stitchpad.composeapp.generated.resources.error_passwords_mismatch
 
 class SignUpViewModel(
     private val authRepository: AuthRepository,
-    private val emailValidator: PatternValidator
+    private val emailValidator: PatternValidator,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SignUpState())
@@ -196,7 +199,10 @@ class SignUpViewModel(
                 when (result) {
                     // The verify screen sends the verification email on entry,
                     // so the same path serves signup, login and splash re-entry.
-                    is Result.Success -> _events.send(SignUpEvent.NavigateToEmailVerification)
+                    is Result.Success -> {
+                        analytics.logEvent(AnalyticsEvent.SignUp)
+                        _events.send(SignUpEvent.NavigateToEmailVerification)
+                    }
                     is Result.Error -> _events.send(SignUpEvent.ShowError(result.error.toUiText()))
                 }
             } finally {
