@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.debug.presentation
 
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 
+import com.danzucker.stitchpad.core.debug.AnalyticsDebugActions
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
@@ -73,10 +74,20 @@ class DebugMenuViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private class FakeAnalyticsDebugActions : AnalyticsDebugActions {
+        var lastEnabledValue: Boolean? = null
+        var callCount = 0
+        override fun setAnalyticsEnabled(enabled: Boolean) {
+            lastEnabledValue = enabled
+            callCount++
+        }
+    }
+
     private fun TestScope.createViewModel(
         testAccountsConfigured: Boolean = true,
         digestActions: DigestDebugActions = NoopDigestDebugActions,
         reminderActions: ReminderDebugActions = NoopReminderDebugActions,
+        analyticsActions: AnalyticsDebugActions = FakeAnalyticsDebugActions(),
     ): DebugMenuViewModel {
         val vm = DebugMenuViewModel(
             seeder = seeder,
@@ -84,6 +95,7 @@ class DebugMenuViewModelTest {
             freemiumActions = NoopFreemiumDebugActions,
             digestActions = digestActions,
             reminderActions = reminderActions,
+            analyticsActions = analyticsActions,
             now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
@@ -522,6 +534,36 @@ class DebugMenuViewModelTest {
         // Should mention push but NOT claim it was sent
         assertTrue(messageText.contains("push", ignoreCase = true), "Expected 'push' in message, got: $messageText")
         assertFalse(messageText.lowercase().startsWith("test push sent"), "Should not claim push was sent, got: $messageText")
+    }
+
+    // --- Analytics toggle ---
+
+    @Test
+    fun `ToggleAnalyticsCollection(false) calls actions with false and updates state`() = runTest {
+        val fakeAnalytics = FakeAnalyticsDebugActions()
+        val vm = createViewModel(analyticsActions = fakeAnalytics)
+
+        // Default state: enabled
+        assertTrue(vm.state.first().analyticsCollectionEnabled)
+
+        vm.onAction(DebugMenuAction.ToggleAnalyticsCollection(false))
+
+        assertEquals(false, fakeAnalytics.lastEnabledValue)
+        assertEquals(1, fakeAnalytics.callCount)
+        assertFalse(vm.state.first().analyticsCollectionEnabled)
+    }
+
+    @Test
+    fun `ToggleAnalyticsCollection(true) re-enables after disable`() = runTest {
+        val fakeAnalytics = FakeAnalyticsDebugActions()
+        val vm = createViewModel(analyticsActions = fakeAnalytics)
+
+        vm.onAction(DebugMenuAction.ToggleAnalyticsCollection(false))
+        vm.onAction(DebugMenuAction.ToggleAnalyticsCollection(true))
+
+        assertEquals(true, fakeAnalytics.lastEnabledValue)
+        assertEquals(2, fakeAnalytics.callCount)
+        assertTrue(vm.state.first().analyticsCollectionEnabled)
     }
 
     private class FakeDebugSeeder : DebugSeeder {

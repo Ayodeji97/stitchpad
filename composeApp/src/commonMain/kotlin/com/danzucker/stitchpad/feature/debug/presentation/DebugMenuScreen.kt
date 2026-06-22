@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -262,6 +263,27 @@ fun DebugMenuScreen(
                     icon = Icons.Outlined.Mail,
                     label = "Send renewal reminder now",
                     onClick = onSendReminderClick,
+                )
+            }
+
+            SettingsSectionCard(label = "Analytics") {
+                SettingsRow(
+                    icon = Icons.Outlined.BugReport,
+                    label = "Analytics collection",
+                    subtitle = "Session-scoped display — SDK persists the real value across launches",
+                    onClick = {
+                        onAction(
+                            DebugMenuAction.ToggleAnalyticsCollection(!state.analyticsCollectionEnabled)
+                        )
+                    },
+                    trailing = {
+                        Switch(
+                            checked = state.analyticsCollectionEnabled,
+                            onCheckedChange = { enabled ->
+                                onAction(DebugMenuAction.ToggleAnalyticsCollection(enabled))
+                            },
+                        )
+                    },
                 )
             }
 

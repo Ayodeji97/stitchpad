@@ -15,6 +15,10 @@ data class DebugMenuState(
     val bulkSeed: BulkSeedDialogState? = null,
     val smartUsage: SmartUsageDialogState? = null,
     val welcomeDaysLeft: WelcomeDaysLeftDialogState? = null,
+    // Optimistic / session-scoped: the GitLive SDK persists the real value internally
+    // but exposes no getter, so we default to true (enabled) on every cold launch and
+    // track what the user toggled this session. SDK persistence governs actual behavior.
+    val analyticsCollectionEnabled: Boolean = true,
 )
 
 data class WelcomeDaysLeftDialogState(
