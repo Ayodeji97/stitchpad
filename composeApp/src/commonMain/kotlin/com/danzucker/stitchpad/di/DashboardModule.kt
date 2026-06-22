@@ -16,6 +16,9 @@ val dashboardPresentationModule = module {
             entitlements = get(),
             notificationRepository = get(),
             pushTokenRegistrar = get(),
+            appConfigRepository = get(),
+            communityJoinTracker = get(),
+            onboardingPrefs = get(),
         )
     }
 }

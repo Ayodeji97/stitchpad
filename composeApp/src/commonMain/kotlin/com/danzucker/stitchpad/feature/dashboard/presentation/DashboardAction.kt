@@ -73,4 +73,10 @@ sealed interface DashboardAction {
 
     /** Tapped the bell / notifications button → navigate to the in-app inbox. */
     data object OnNotificationsClick : DashboardAction
+
+    /** Community banner Join tapped → open the invite + record + dismiss. */
+    data object OnJoinCommunity : DashboardAction
+
+    /** Community banner ✕ tapped → hide it for good (local flag). */
+    data object OnDismissCommunityBanner : DashboardAction
 }

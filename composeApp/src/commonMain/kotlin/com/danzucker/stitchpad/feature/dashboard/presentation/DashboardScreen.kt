@@ -89,6 +89,9 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
+import androidx.compose.ui.platform.LocalUriHandler
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityBanner
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.DashboardBannerPager
 import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndingBanner
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
@@ -302,6 +305,7 @@ fun DashboardRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signature = state.businessName ?: state.firstName
+    val uriHandler = LocalUriHandler.current
 
     // Push-permission pre-prompt: show once, on first dashboard landing,
     // only when Android 13+ and POST_NOTIFICATIONS is not yet granted.
@@ -313,6 +317,11 @@ fun DashboardRoot(
     }
 
     ObserveAsEvents(viewModel.events) { event ->
+        // OpenCommunityLink is handled inline where LocalUriHandler is in scope.
+        if (event is DashboardEvent.OpenCommunityLink) {
+            uriHandler.openUri(event.url)
+            return@ObserveAsEvents
+        }
         handleDashboardEvent(
             event = event,
             scope = scope,
@@ -486,6 +495,8 @@ private fun handleDashboardEvent(
             whatsAppLauncher,
             event
         )
+        // Handled inline in DashboardRoot (ObserveAsEvents) where LocalUriHandler is in scope.
+        is DashboardEvent.OpenCommunityLink -> Unit
     }
 }
 
@@ -688,15 +699,29 @@ private fun DashboardContent(
     ) {
         Spacer(Modifier.height(DesignTokens.space4))
 
-        // 0. Welcome-ending warning banner — shown when the free welcome
-        //    window is within 3 days of expiring. Placed above everything
-        //    else so the high-urgency message gets immediate attention.
-        if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
-            WelcomeEndingBanner(
-                daysLeft = state.welcomeBannerDaysLeft,
-                onSeeUpgrade = { onAction(DashboardAction.OpenUpgrade) },
-            )
+        // 0. Banner carousel — welcome-ending and community banners rendered
+        //    in a swipeable pager so they coexist without competing for space.
+        //    Placed above everything else so high-urgency messages get
+        //    immediate attention on every dashboard load.
+        val banners = buildList<@Composable () -> Unit> {
+            if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
+                add {
+                    WelcomeEndingBanner(
+                        daysLeft = state.welcomeBannerDaysLeft,
+                        onSeeUpgrade = { onAction(DashboardAction.OpenUpgrade) },
+                    )
+                }
+            }
+            if (state.showCommunityBanner) {
+                add {
+                    CommunityBanner(
+                        onJoin = { onAction(DashboardAction.OnJoinCommunity) },
+                        onDismiss = { onAction(DashboardAction.OnDismissCommunityBanner) },
+                    )
+                }
+            }
         }
+        DashboardBannerPager(banners = banners)
 
         // 1. Header
         DashboardHeader(

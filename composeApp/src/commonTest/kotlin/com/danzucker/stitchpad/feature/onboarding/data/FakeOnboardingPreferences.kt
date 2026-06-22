@@ -20,9 +20,11 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
     override suspend fun setEmailVerificationBypassed() { emailVerificationBypassed = true }
     override suspend fun hasAskedPushPermission() = askedPushPermission
     override suspend fun setAskedPushPermission() { askedPushPermission = true }
-    override suspend fun hasDismissedCommunityBanner(): Boolean = false
-    override suspend fun setCommunityBannerDismissed() {}
-    override suspend fun clearCommunityBannerDismissed() {}
+    var communityBannerDismissed = false
+
+    override suspend fun hasDismissedCommunityBanner(): Boolean = communityBannerDismissed
+    override suspend fun setCommunityBannerDismissed() { communityBannerDismissed = true }
+    override suspend fun clearCommunityBannerDismissed() { communityBannerDismissed = false }
     override suspend fun resetForDebug() {
         onboardingSeen = false
         workshopSetupCompleted = false

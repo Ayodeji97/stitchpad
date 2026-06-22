@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -28,6 +30,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -61,10 +64,14 @@ class DashboardViewModel(
     private val notificationRepository: NotificationRepository,
     private val pushTokenRegistrar: PushTokenRegistrar,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
-    private val timeZone: TimeZone = TimeZone.currentSystemDefault()
+    private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    private val appConfigRepository: AppConfigRepository,
+    private val communityJoinTracker: CommunityJoinTracker,
+    private val onboardingPrefs: OnboardingPreferencesStore,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
+    private var communityBannerDismissed = false
     private val _state = MutableStateFlow(DashboardState())
 
     private val _events = Channel<DashboardEvent>()
@@ -78,6 +85,7 @@ class DashboardViewModel(
                 observeSmartQuota()
                 observeEntitlements()
                 observeUnreadNotifications()
+                observeCommunity()
             }
         }
         .stateIn(
@@ -131,6 +139,33 @@ class DashboardViewModel(
                 _state.update { it.copy(unreadNotificationCount = count) }
             }
         }
+    }
+
+    /**
+     * Loads the one-time dismissed flag then collects remote app config to
+     * compute whether the community banner should be visible. Analogous to
+     * [observeEntitlements] — started once alongside the other observers.
+     */
+    private fun observeCommunity() {
+        viewModelScope.launch {
+            communityBannerDismissed = onboardingPrefs.hasDismissedCommunityBanner()
+            appConfigRepository.config.collect { cfg ->
+                _state.update {
+                    it.copy(
+                        communityUrl = cfg.communityInviteUrl,
+                        showCommunityBanner = cfg.communityEnabled &&
+                            !cfg.communityInviteUrl.isNullOrBlank() &&
+                            !communityBannerDismissed,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun dismissCommunityBanner() {
+        communityBannerDismissed = true
+        _state.update { it.copy(showCommunityBanner = false) }
+        viewModelScope.launch { onboardingPrefs.setCommunityBannerDismissed() }
     }
 
     // Single sealed-action dispatch table — every DashboardAction handled in
@@ -216,6 +251,13 @@ class DashboardViewModel(
             DashboardAction.OpenUpgrade -> emitEvent(DashboardEvent.NavigateToUpgrade)
             DashboardAction.OnNotificationsClick -> emitEvent(DashboardEvent.NavigateToNotifications)
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
+            DashboardAction.OnJoinCommunity -> {
+                val url = _state.value.communityUrl
+                if (url != null) emitEvent(DashboardEvent.OpenCommunityLink(url))
+                viewModelScope.launch { communityJoinTracker.trackJoinTapped() }
+                dismissCommunityBanner()
+            }
+            DashboardAction.OnDismissCommunityBanner -> dismissCommunityBanner()
         }
     }
 
