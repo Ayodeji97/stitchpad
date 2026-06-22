@@ -71,6 +71,7 @@ val smartPresentationModule = module {
             customerProvider = get(),
             connectivity = get(named("connectivity")),
             usageStore = get(),
+            analytics = get(),
         )
     }
 }
