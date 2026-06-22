@@ -31,9 +31,21 @@ class MeasurementFormStateTest {
     fun canSave_isTrue_whenGenderSet_andAtLeastOneFieldHasParsableNumber() {
         val state = MeasurementFormState(
             gender = CustomerGender.FEMALE,
+            // Name is mandatory; in production it's pre-filled by the Root effect.
+            name = "Women's measurement 1",
             fields = mapOf("chest" to "38", "waist" to "", "hip" to ""),
         )
         assertTrue(state.canSave)
+    }
+
+    @Test
+    fun canSave_isFalse_whenNameBlank_evenIfFieldsValid() {
+        val state = MeasurementFormState(
+            gender = CustomerGender.FEMALE,
+            name = "",
+            fields = mapOf("chest" to "38"),
+        )
+        assertFalse(state.canSave)
     }
 
     @Test

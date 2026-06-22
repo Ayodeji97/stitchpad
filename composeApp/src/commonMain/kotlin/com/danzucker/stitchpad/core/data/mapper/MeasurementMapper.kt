@@ -10,6 +10,7 @@ fun MeasurementDto.toMeasurement(customerId: String): Measurement = Measurement(
     id = id,
     customerId = customerId,
     gender = parseGender(gender, garmentType),
+    name = name,
     fields = fields,
     unit = runCatching { MeasurementUnit.valueOf(unit) }.getOrDefault(MeasurementUnit.INCHES),
     notes = notes,
@@ -22,6 +23,7 @@ fun Measurement.toMeasurementDto(): MeasurementDto {
     return MeasurementDto(
         id = id,
         gender = gender.name,
+        name = name,
         bodyShape = null,
         fields = fields,
         unit = unit.name,

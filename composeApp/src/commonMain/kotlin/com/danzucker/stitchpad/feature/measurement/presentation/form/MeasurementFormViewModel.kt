@@ -100,6 +100,8 @@ class MeasurementFormViewModel(
     fun onAction(action: MeasurementFormAction) {
         when (action) {
             is MeasurementFormAction.OnGenderChange -> onGenderChange(action.gender)
+            is MeasurementFormAction.OnNameChange ->
+                _state.update { it.copy(name = action.name) }
             is MeasurementFormAction.OnSectionChange -> {
                 _state.update { it.copy(currentSectionIndex = action.index, isCurrentSectionExpanded = true) }
             }
@@ -314,6 +316,7 @@ class MeasurementFormViewModel(
         return key in customFieldIds || key !in templateKeys
     }
 
+    @Suppress("LongMethod")
     private fun loadMeasurement(id: String) {
         val customerId = customerId ?: return
         viewModelScope.launch {
@@ -359,6 +362,7 @@ class MeasurementFormViewModel(
                         _state.update {
                             it.copy(
                                 gender = measurement.gender,
+                                name = measurement.name,
                                 sections = sections,
                                 fields = fieldsAsString,
                                 customFields = visibleCustom,
@@ -430,6 +434,7 @@ class MeasurementFormViewModel(
                 id = effectiveId,
                 customerId = customerId,
                 gender = gender,
+                name = s.name.trim(),
                 fields = parsedFields,
                 unit = s.unit,
                 notes = s.notes.trim().ifBlank { null },

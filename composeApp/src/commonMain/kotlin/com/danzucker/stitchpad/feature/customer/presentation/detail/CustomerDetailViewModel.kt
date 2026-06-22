@@ -79,13 +79,31 @@ class CustomerDetailViewModel(
                 }
             }
             CustomerDetailAction.OnAddMeasurementClick -> {
+                // Existing measurements → offer edit-vs-create so tailors stop making
+                // duplicates. Empty list → straight to a blank new form (no needless sheet).
+                if (_state.value.measurements.isNotEmpty()) {
+                    _state.update { it.copy(showAddMeasurementSheet = true) }
+                } else {
+                    withCustomerId {
+                        viewModelScope.launch {
+                            _events.send(CustomerDetailEvent.NavigateToAddMeasurement(it))
+                        }
+                    }
+                }
+            }
+            CustomerDetailAction.OnCreateNewMeasurementClick -> {
+                _state.update { it.copy(showAddMeasurementSheet = false) }
                 withCustomerId {
                     viewModelScope.launch {
                         _events.send(CustomerDetailEvent.NavigateToAddMeasurement(it))
                     }
                 }
             }
+            CustomerDetailAction.OnDismissAddMeasurementSheet -> {
+                _state.update { it.copy(showAddMeasurementSheet = false) }
+            }
             is CustomerDetailAction.OnMeasurementClick -> {
+                _state.update { it.copy(showAddMeasurementSheet = false) }
                 withCustomerId {
                     viewModelScope.launch {
                         _events.send(CustomerDetailEvent.NavigateToEditMeasurement(it, action.measurement.id))
@@ -96,6 +114,18 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(showDeleteDialog = true, measurementToDelete = action.measurement) }
             }
             CustomerDetailAction.OnConfirmDelete -> deleteMeasurement()
+            is CustomerDetailAction.OnRenameMeasurementClick -> {
+                _state.update {
+                    it.copy(measurementToRename = action.measurement, renameDraft = action.measurement.name)
+                }
+            }
+            is CustomerDetailAction.OnRenameDraftChange -> {
+                _state.update { it.copy(renameDraft = action.name) }
+            }
+            CustomerDetailAction.OnConfirmRename -> renameMeasurement()
+            CustomerDetailAction.OnDismissRenameDialog -> {
+                _state.update { it.copy(measurementToRename = null, renameDraft = "") }
+            }
             CustomerDetailAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, measurementToDelete = null) }
             }
@@ -215,9 +245,15 @@ class CustomerDetailViewModel(
     private suspend fun observeMeasurements(userId: String, customerId: String) {
         measurementRepository.observeMeasurements(userId, customerId).collect { result ->
             when (result) {
-                is Result.Success -> _state.update { it.copy(measurements = result.data, isLoading = false) }
+                is Result.Success -> _state.update {
+                    it.copy(measurements = result.data, isLoading = false, measurementsLoaded = true)
+                }
                 is Result.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = result.error.toMeasurementUiText())
+                    it.copy(
+                        isLoading = false,
+                        measurementsLoaded = true,
+                        errorMessage = result.error.toMeasurementUiText(),
+                    )
                 }
             }
         }
@@ -298,6 +334,26 @@ class CustomerDetailViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             val result = measurementRepository.deleteMeasurement(userId, customerId, measurement.id)
+            if (result is Result.Error) {
+                _state.update { it.copy(errorMessage = result.error.toMeasurementUiText()) }
+            }
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun renameMeasurement() {
+        val measurement = _state.value.measurementToRename ?: return
+        val newName = _state.value.renameDraft.trim()
+        if (newName.isBlank()) return
+        val customerId = customerId ?: return
+        _state.update { it.copy(measurementToRename = null, renameDraft = "") }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val result = measurementRepository.updateMeasurement(
+                userId,
+                customerId,
+                measurement.copy(name = newName),
+            )
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toMeasurementUiText()) }
             }

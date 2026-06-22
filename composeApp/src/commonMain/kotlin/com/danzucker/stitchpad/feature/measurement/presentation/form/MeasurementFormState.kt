@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 
 data class MeasurementFormState(
     val gender: CustomerGender? = null,
+    val name: String = "",
     val sections: List<MeasurementSection> = emptyList(),
     val currentSectionIndex: Int = 0,
     val isCurrentSectionExpanded: Boolean = true,
@@ -47,6 +48,7 @@ data class MeasurementFormState(
      */
     val canSave: Boolean
         get() = gender != null &&
+            name.isNotBlank() &&
             fields.values.any { (it.toDoubleOrNull() ?: 0.0) > 0.0 } &&
             !isLoading
 }

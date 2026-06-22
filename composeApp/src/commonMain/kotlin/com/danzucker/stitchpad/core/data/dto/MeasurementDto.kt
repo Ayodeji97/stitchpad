@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class MeasurementDto(
     val id: String = "",
     val gender: String = "FEMALE",
+    val name: String = "",
     val bodyShape: String? = null,
     val fields: Map<String, Double> = emptyMap(),
     val unit: String = "INCHES",

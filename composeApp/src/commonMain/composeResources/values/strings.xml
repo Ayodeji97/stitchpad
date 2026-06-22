@@ -346,6 +346,11 @@
     <string name="measurement_create_flow_save_button">Save</string>
     <string name="measurement_skip_for_now">Skip for now</string>
     <string name="measurement_garment_type_label">Garment type</string>
+    <string name="measurement_name_label">Measurement name</string>
+    <string name="measurement_name_placeholder">e.g. Wedding Agbada, School uniform</string>
+    <string name="measurement_name_required_hint">Name your measurement</string>
+    <string name="measurement_name_default_female">Women&apos;s measurement %1$d</string>
+    <string name="measurement_name_default_male">Men&apos;s measurement %1$d</string>
     <string name="measurement_gender_label">Gender</string>
     <string name="measurement_body_shape_label">Body shape (optional)</string>
     <string name="measurement_show_more">Show more</string>
@@ -362,6 +367,11 @@
     <string name="measurement_empty_state">No measurements yet. Tap + to add one.</string>
     <string name="measurement_female_profile">Women's Measurements</string>
     <string name="measurement_male_profile">Men's Measurements</string>
+    <string name="measurement_gender_women">Women&apos;s</string>
+    <string name="measurement_gender_men">Men&apos;s</string>
+    <string name="measurement_add_sheet_title">Add a measurement</string>
+    <string name="measurement_add_sheet_existing">Edit an existing measurement</string>
+    <string name="measurement_add_sheet_create_new">Create new measurement</string>
     <string name="fab_add_measurement">Add measurement</string>
 
     <!-- Gender labels -->
@@ -424,6 +434,12 @@
     <string name="custom_field_sheet_cancel">Cancel</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
     <string name="measurement_delete_content_description">Delete measurement</string>
+    <string name="cd_measurement_overflow">Measurement options</string>
+    <string name="measurement_menu_rename">Rename</string>
+    <string name="measurement_menu_delete">Delete</string>
+    <string name="measurement_rename_dialog_title">Rename measurement</string>
+    <string name="measurement_rename_save">Save</string>
+    <string name="measurement_rename_cancel">Cancel</string>
     <string name="custom_field_sheet_archive">Delete custom field</string>
     <string name="custom_field_archive_dialog_title">Delete this field?</string>
     <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>

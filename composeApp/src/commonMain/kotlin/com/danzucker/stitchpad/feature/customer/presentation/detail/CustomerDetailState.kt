@@ -9,6 +9,12 @@ data class CustomerDetailState(
     val customer: Customer? = null,
     val measurements: List<Measurement> = emptyList(),
     val isLoading: Boolean = true,
+    /**
+     * True once the measurements observation has produced its first result. The add
+     * FAB is gated on this so tapping "+" never decides edit-vs-create on a stale empty
+     * list during the window after the customer doc loads but before measurements emit.
+     */
+    val measurementsLoaded: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val measurementToDelete: Measurement? = null,
     val errorMessage: UiText? = null,
@@ -26,6 +32,13 @@ data class CustomerDetailState(
      * values render with their human label instead of disappearing.
      */
     val customFieldLabels: Map<String, String> = emptyMap(),
+    /**
+     * True when "+" is tapped and the customer already has measurements — shows the
+     * "edit existing vs create new" sheet so tailors stop creating accidental duplicates.
+     */
+    val showAddMeasurementSheet: Boolean = false,
+    val measurementToRename: Measurement? = null,
+    val renameDraft: String = "",
 ) {
     /**
      * True when the loaded customer is in the LOCKED slot state. Drives the read-only

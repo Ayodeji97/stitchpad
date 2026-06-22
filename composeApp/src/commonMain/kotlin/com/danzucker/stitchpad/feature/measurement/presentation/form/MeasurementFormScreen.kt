@@ -52,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -113,6 +114,9 @@ import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
 import stitchpad.composeapp.generated.resources.measurement_go_to_section
+import stitchpad.composeapp.generated.resources.measurement_name_label
+import stitchpad.composeapp.generated.resources.measurement_name_placeholder
+import stitchpad.composeapp.generated.resources.measurement_name_required_hint
 import stitchpad.composeapp.generated.resources.measurement_next
 import stitchpad.composeapp.generated.resources.measurement_notes_label
 import stitchpad.composeapp.generated.resources.measurement_notes_placeholder
@@ -242,6 +246,21 @@ fun MeasurementFormScreen(
         ) {
             // ── Fixed header ─────────────────────────────────────────────
             Column(modifier = Modifier.padding(horizontal = DesignTokens.space4)) {
+                Spacer(Modifier.height(DesignTokens.space4))
+                OutlinedTextField(
+                    value = state.name,
+                    onValueChange = { onAction(MeasurementFormAction.OnNameChange(it)) },
+                    label = { Text(stringResource(Res.string.measurement_name_label)) },
+                    placeholder = { Text(stringResource(Res.string.measurement_name_placeholder)) },
+                    singleLine = true,
+                    isError = state.name.isBlank(),
+                    supportingText = if (state.name.isBlank()) {
+                        { Text(stringResource(Res.string.measurement_name_required_hint)) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.height(DesignTokens.space4))
                 GenderSelector(
                     selected = state.gender,
