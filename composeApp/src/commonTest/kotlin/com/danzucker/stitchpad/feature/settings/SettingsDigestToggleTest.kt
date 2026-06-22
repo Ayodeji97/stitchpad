@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.settings
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
+import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
@@ -184,6 +186,8 @@ private fun buildSettingsVmForDigest(
         smartUsageDocSource = FakeSmartUsageDocSource(),
         signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
         pushPermissionController = pushPermissionController,
+        appConfigRepository = FakeAppConfigRepository(),
+        communityJoinTracker = FakeCommunityJoinTracker(),
     )
     return vm to userRepo
 }

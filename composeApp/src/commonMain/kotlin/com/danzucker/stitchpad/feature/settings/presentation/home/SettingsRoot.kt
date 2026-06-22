@@ -45,6 +45,7 @@ fun SettingsRoot(
             SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
             SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
+            is SettingsEvent.OpenCommunityLink -> uriHandler.openUri(event.url)
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {
                     val message = getString(event.messageRes)
