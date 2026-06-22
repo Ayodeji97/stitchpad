@@ -224,6 +224,25 @@ class BucketCalculatorTest {
         assertNull(buckets.pipelineInProgress.single().daysLate)
     }
 
+    @Test
+    fun pipelineRowCarriesOrderValueAndDepositDueWhenNoPayments() {
+        val orders = listOf(
+            order(
+                id = "o1",
+                totalPrice = 40000.0,
+                balanceRemaining = 40000.0,
+                deadline = today.plusDays(5),
+                status = OrderStatus.IN_PROGRESS
+            )
+        )
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.pipelineInProgress.single()
+
+        assertEquals(40000.0, row.orderValue)
+        assertEquals(PipelinePaymentStatus.DepositDue, row.paymentStatus)
+    }
+
     private fun LocalDate.minusDays(n: Long): LocalDate =
         LocalDate.fromEpochDays((toEpochDays() - n).toInt())
 
