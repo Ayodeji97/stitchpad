@@ -11,6 +11,9 @@ import org.koin.dsl.module
 
 val configDataModule = module {
     singleOf(::FirebaseAppConfigRepository) bind AppConfigRepository::class
-    singleOf(::FirebaseCommunityJoinTracker) bind CommunityJoinTracker::class
+    // Lambda form (not singleOf): FirebaseCommunityJoinTracker has a `nowMillis: () -> Long`
+    // default param. singleOf's constructor reflection ignores Kotlin defaults and tries to
+    // resolve the Function0 from Koin → NoDefinitionFoundException crash at graph creation.
+    single<CommunityJoinTracker> { FirebaseCommunityJoinTracker(get(), get()) }
     singleOf(::CommunityBannerDismissal)
 }
