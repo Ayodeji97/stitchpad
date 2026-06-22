@@ -251,7 +251,11 @@ class WorkshopSetupViewModel(
                 }
                 LogoUploadState.Empty -> Unit
             }
-            onboardingPreferences.setWorkshopSetupCompleted()
+            // Per-user so skipping on one account never suppresses setup for another on
+            // this device. The user is signed in during setup, so id is present.
+            authRepository.getCurrentUser()?.id?.let {
+                onboardingPreferences.setWorkshopSetupCompleted(it)
+            }
             _events.send(WorkshopSetupEvent.NavigateToHome)
         }
     }
@@ -414,7 +418,7 @@ class WorkshopSetupViewModel(
                     }
                 }
 
-                onboardingPreferences.setWorkshopSetupCompleted()
+                onboardingPreferences.setWorkshopSetupCompleted(user.id)
                 _events.send(WorkshopSetupEvent.NavigateToHome)
             } finally {
                 _state.update { it.copy(isLoading = false, isAwaitingLogo = false) }

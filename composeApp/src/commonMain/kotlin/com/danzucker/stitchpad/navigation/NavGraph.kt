@@ -49,18 +49,17 @@ private suspend fun AuthRepository.needsEmailVerification(
 }
 
 /**
- * Whether to route the signed-in user to workshop setup. Resolves the current user id
- * and delegates to [ResolveNeedsWorkshopSetup], which checks the local "completed" flag
- * first and falls back to the remote profile (the reinstall case). If the user id can't
- * be resolved we fall back to the local flag alone — never blocking entry incorrectly.
+ * Whether to route the signed-in user to workshop setup. Resolves the current user id and
+ * delegates to [ResolveNeedsWorkshopSetup], which checks the per-user "completed" flag first
+ * and falls back to the remote profile (the reinstall case). If the user id can't be
+ * resolved (no signed-in user) we return false — there's no per-user flag to check and a
+ * logged-out user is routed elsewhere; never force setup incorrectly.
  */
 private suspend fun needsWorkshopSetupForCurrentUser(
     authRepository: AuthRepository,
-    onboardingPreferences: OnboardingPreferences,
     resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup,
 ): Boolean {
-    val userId = authRepository.getCurrentUser()?.id
-        ?: return !onboardingPreferences.hasCompletedWorkshopSetup()
+    val userId = authRepository.getCurrentUser()?.id ?: return false
     return resolveNeedsWorkshopSetup(userId)
 }
 
@@ -137,7 +136,6 @@ fun StitchPadNavHost(
                                 EmailVerificationRoute
                             needsWorkshopSetupForCurrentUser(
                                 authRepository,
-                                onboardingPreferences,
                                 resolveNeedsWorkshopSetup,
                             ) -> WorkshopSetupRoute
                             else -> HomeRoute
@@ -186,7 +184,6 @@ fun StitchPadNavHost(
                                 EmailVerificationRoute
                             needsWorkshopSetupForCurrentUser(
                                 authRepository,
-                                onboardingPreferences,
                                 resolveNeedsWorkshopSetup,
                             ) -> WorkshopSetupRoute
                             else -> HomeRoute
@@ -234,7 +231,6 @@ fun StitchPadNavHost(
                         val destination = if (
                             needsWorkshopSetupForCurrentUser(
                                 authRepository,
-                                onboardingPreferences,
                                 resolveNeedsWorkshopSetup,
                             )
                         ) {
