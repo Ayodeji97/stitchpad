@@ -82,8 +82,28 @@ are simply its first occupants.
 - **Actions:** `DashboardAction.OnJoinCommunity`, `DashboardAction.OnDismissCommunityBanner`.
 - **Events:** `DashboardEvent.OpenCommunityLink(url)`.
 - **Placement:** top of the scrollable dashboard content, in the same region as
-  `WelcomeEndingBanner`. If both could show, the welcome/upgrade banner takes
-  priority (community is lower urgency) — show at most one at a time.
+  `WelcomeEndingBanner`, hosted by a new banner carousel (below).
+
+### Dashboard banner carousel
+
+Rather than show at most one banner, a small presentational host lets the user
+swipe between banners when more than one is live.
+
+- **Composable** `DashboardBannerPager(modifier, content: List<@Composable () -> Unit>)`
+  (or a typed list of banner slots). Behavior by count:
+  - **0 banners** → renders nothing.
+  - **1 banner** → renders it directly, no pager, no dots.
+  - **2+ banners** → a `HorizontalPager` (one banner per page) with a row of
+    page-indicator dots beneath it.
+- **Order:** welcome/upgrade banner first (higher urgency), community banner
+  second.
+- **State:** `PagerState` via `rememberPagerState` — Compose-internal state,
+  allowed in `remember` per project rules. There is **no** ViewModel↔pager sync
+  (dismiss simply removes a banner from the list and the carousel recomposes), so
+  the `settledPage` notify gotcha does not apply here.
+- Dashboard composes the list from `state.showWelcomeBanner` and
+  `state.showCommunityBanner`; if the active page's banner is dismissed and the
+  list shrinks to one, the carousel collapses to the single-banner form.
 
 ### Open mechanism
 
@@ -179,15 +199,16 @@ Per the per-feature debug-menu convention, add a debug-build-only entry:
 
 All copy via string resources; apostrophes as `&apos;` (never `\'`).
 
-- Banner pill: **StitchPad Community**
-- Banner title: **Join the tailors&apos; circle**
+- Banner title: **Join our WhatsApp community**
 - Banner body: **Get product updates, tips & early news. Connect with other
   Nigerian tailors on WhatsApp.**
 - Banner button: **Join community**
 - Settings row label: **Join our community**
 - Snackbar (open failure): **Couldn&apos;t open WhatsApp**
 
-*(Discounts removed from the promise — if member-only discounts become real, the
+*(The earlier "StitchPad Community" pill is dropped — the title now names WhatsApp,
+so a "Community" pill would be redundant; the banner keeps the community icon tile.
+Discounts removed from the promise — if member-only discounts become real, the
 body line can be revised then.)*
 
 ## QA smoke test (manual — Daniel)
