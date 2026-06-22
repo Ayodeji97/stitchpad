@@ -36,6 +36,18 @@ interface OnboardingPreferencesStore {
     suspend fun setAskedPushPermission()
 
     /**
+     * Whether the user has dismissed (via ✕) or already acted on (tapped Join)
+     * the Dashboard community banner. Device-wide, like the push-permission
+     * flag — once set, the banner never shows again. The Settings row is
+     * unaffected and remains the permanent entry point.
+     */
+    suspend fun hasDismissedCommunityBanner(): Boolean
+    suspend fun setCommunityBannerDismissed()
+
+    /** Debug-menu only: re-show the community banner by clearing the dismiss flag. */
+    suspend fun clearCommunityBannerDismissed()
+
+    /**
      * Resets all onboarding flags to false. Debug-menu use only — production
      * code should not call this. Idempotent.
      */
