@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -67,7 +68,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityBanner
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.DashboardBannerPager
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyCardCtaStyle
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
@@ -89,9 +92,6 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
-import androidx.compose.ui.platform.LocalUriHandler
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityBanner
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.DashboardBannerPager
 import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndingBanner
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore

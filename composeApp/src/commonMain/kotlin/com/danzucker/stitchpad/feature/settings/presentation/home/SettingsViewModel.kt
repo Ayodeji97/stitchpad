@@ -2,6 +2,9 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.model.AppConfig
+import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
@@ -18,9 +21,6 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
-import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
-import com.danzucker.stitchpad.core.config.domain.model.AppConfig
-import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase

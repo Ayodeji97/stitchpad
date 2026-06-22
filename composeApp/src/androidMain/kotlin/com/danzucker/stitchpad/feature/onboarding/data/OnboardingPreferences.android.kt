@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.onboarding.data
 
 import android.content.Context

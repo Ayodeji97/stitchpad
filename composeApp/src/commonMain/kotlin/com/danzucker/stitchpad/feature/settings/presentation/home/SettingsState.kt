@@ -52,6 +52,7 @@ data class SettingsState(
     /** Settings community row shows only when remotely enabled with a usable link. */
     val showCommunityRow: Boolean
         get() = communityEnabled && !communityUrl.isNullOrBlank()
+
     /**
      * Combined display string for the profile hero subtitle.
      * The separator uses a Unicode escape (U+2022 BULLET) rather than a literal
