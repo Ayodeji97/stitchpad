@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,6 +54,7 @@ fun CommunityStrip(
     modifier: Modifier = Modifier,
 ) {
     Surface(
+        onClick = onJoin,
         modifier = modifier.fillMaxWidth(),
         color = Color.Transparent,
         shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -62,8 +62,7 @@ fun CommunityStrip(
     ) {
         Row(
             modifier = Modifier
-                .clickable(onClick = onJoin)
-                .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space3),
+                .padding(start = DesignTokens.space3, top = DesignTokens.space2, bottom = DesignTokens.space2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -97,33 +96,29 @@ fun CommunityStrip(
                 )
             }
             Spacer(Modifier.width(DesignTokens.space2))
-            Column(horizontalAlignment = Alignment.End) {
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(Res.string.community_banner_dismiss_cd),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                Spacer(Modifier.size(DesignTokens.space1))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(Res.string.community_strip_join),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(Res.string.community_strip_join),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            // Dismiss uses a default IconButton (40dp visual, 48dp interactive
+            // touch target) — its own end-padding sets the strip's right inset.
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = stringResource(Res.string.community_banner_dismiss_cd),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }
