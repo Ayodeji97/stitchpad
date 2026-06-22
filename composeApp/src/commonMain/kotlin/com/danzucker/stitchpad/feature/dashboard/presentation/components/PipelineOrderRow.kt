@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
-import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -76,7 +75,7 @@ fun PipelineOrderRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             ) {
-                CustomerAvatar(name = row.customerName, size = AVATAR_SIZE)
+                IndigoAvatar(name = row.customerName)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -110,6 +109,30 @@ fun PipelineOrderRow(
         }
     }
 }
+
+@Composable
+private fun IndigoAvatar(name: String) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(AVATAR_SIZE)
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(scheme.primary.copy(alpha = 0.16f)),
+    ) {
+        Text(
+            text = pipelineInitialsOf(name),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = scheme.primary,
+        )
+    }
+}
+
+private fun pipelineInitialsOf(name: String): String =
+    name.trim().split(" ").filter { it.isNotEmpty() }.take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("").ifEmpty { "?" }
 
 @Composable
 private fun GarmentRow(label: String) {
