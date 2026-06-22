@@ -97,7 +97,9 @@ private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
         orderId = id,
         customerName = customerName,
         primaryLabel = garment,
-        daysLate = daysLate
+        daysLate = daysLate,
+        orderValue = payableTotal,
+        paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
     )
 }
 
@@ -112,6 +114,8 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
         customerName = customerName,
         primaryLabel = garment,
         daysUntilDeadline = daysUntil,
-        createdAtEpochMillis = createdAt
+        createdAtEpochMillis = createdAt,
+        orderValue = payableTotal,
+        paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
     )
 }

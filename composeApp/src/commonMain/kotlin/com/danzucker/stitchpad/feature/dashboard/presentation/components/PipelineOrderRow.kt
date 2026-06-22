@@ -12,14 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,48 +25,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_due_in_days
-import stitchpad.composeapp.generated.resources.dashboard_pipeline_row_bespoke
-import stitchpad.composeapp.generated.resources.dashboard_pipeline_row_created
-import stitchpad.composeapp.generated.resources.dashboard_pipeline_row_custom_size
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_deposit_due
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_deposit_paid
+import stitchpad.composeapp.generated.resources.dashboard_pipeline_paid
 
 private val AVATAR_SIZE = 56.dp
 private val DUE_PILL_ICON_SIZE = 14.dp
 private val META_ICON_SIZE = 12.dp
-private val MONTH_ABBREV = listOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-)
 
 /**
  * V2 pipeline order row. Replaces the AccentedOrderRow used previously in
- * the Work Pipeline section. Visually brand-aligned: dashed-brand-primary
- * avatar, garment label with hanger icon, due-date pill on the right,
- * and a metadata footer ("Custom size · Bespoke · Created 2 May").
- *
- * The "Custom size" + "Bespoke" labels are static for now — every order
- * StitchPad models is bespoke + custom-measured. If/when we support
- * standard sizes or ready-to-wear, they should become conditional.
+ * the Work Pipeline section. Visually brand-aligned: solid CustomerAvatar,
+ * garment label with hanger icon, due-date pill on the right, and a payment
+ * status + order-value footer.
  */
 @Composable
 fun PipelineOrderRow(
@@ -94,7 +75,7 @@ fun PipelineOrderRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
             ) {
-                DashedAvatar(initials = pipelineInitialsOf(row.customerName))
+                IndigoAvatar(name = row.customerName)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -119,52 +100,39 @@ fun PipelineOrderRow(
                     modifier = Modifier.size(20.dp),
                 )
             }
-            Spacer(Modifier.height(DesignTokens.space3))
-            HorizontalDivider(color = scheme.outlineVariant.copy(alpha = 0.6f))
-            Spacer(Modifier.height(DesignTokens.space3))
-            MetadataFooter(createdAt = row.createdAtEpochMillis)
+            if (row.paymentStatus != null || row.orderValue != null) {
+                Spacer(Modifier.height(DesignTokens.space3))
+                HorizontalDivider(color = scheme.outlineVariant.copy(alpha = 0.6f))
+                Spacer(Modifier.height(DesignTokens.space3))
+                MetadataFooter(row = row)
+            }
         }
     }
 }
 
 @Composable
-private fun DashedAvatar(initials: String) {
+private fun IndigoAvatar(name: String) {
     val scheme = MaterialTheme.colorScheme
-    val ring = scheme.primary
-    val bg = scheme.primary.copy(alpha = 0.14f)
-    val density = LocalDensity.current
-    val strokeWidthPx = with(density) { 1.5.dp.toPx() }
-    val dashOnPx = with(density) { 4.dp.toPx() }
-    val dashOffPx = with(density) { 3.dp.toPx() }
-
     Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(AVATAR_SIZE)
-            .background(color = bg, shape = CircleShape)
-            .drawBehind {
-                drawCircle(
-                    color = ring,
-                    radius = (size.minDimension / 2f) - (strokeWidthPx / 2f),
-                    center = Offset(size.width / 2f, size.height / 2f),
-                    style = Stroke(
-                        width = strokeWidthPx,
-                        pathEffect = PathEffect.dashPathEffect(
-                            floatArrayOf(dashOnPx, dashOffPx),
-                            0f,
-                        ),
-                    ),
-                )
-            },
-        contentAlignment = Alignment.Center,
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(scheme.primary.copy(alpha = 0.16f)),
     ) {
         Text(
-            text = initials,
+            text = pipelineInitialsOf(name),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = ring,
+            color = scheme.primary,
         )
     }
 }
+
+private fun pipelineInitialsOf(name: String): String =
+    name.trim().split(" ").filter { it.isNotEmpty() }.take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("").ifEmpty { "?" }
 
 @Composable
 private fun GarmentRow(label: String) {
@@ -227,54 +195,39 @@ private fun HorizontalDivider(color: androidx.compose.ui.graphics.Color) {
 }
 
 @Composable
-private fun MetadataFooter(createdAt: Long) {
+private fun MetadataFooter(row: DashboardOrderRow) {
+    val scheme = MaterialTheme.colorScheme
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        MetaItem(
-            icon = Icons.Default.Straighten,
-            label = stringResource(Res.string.dashboard_pipeline_row_custom_size),
-        )
-        MetaSeparator()
-        MetaItem(
-            icon = Icons.Default.Checkroom,
-            label = stringResource(Res.string.dashboard_pipeline_row_bespoke),
-        )
-        if (createdAt > 0L) {
-            MetaSeparator()
-            MetaItem(
-                icon = Icons.Default.Schedule,
-                label = stringResource(
-                    Res.string.dashboard_pipeline_row_created,
-                    formatCreatedDate(createdAt),
-                ),
+        row.paymentStatus?.let { status ->
+            val (labelRes, color) = when (status) {
+                // Sienna (tertiary) = brand warmth accent: a soft "attention", not an
+                // alarming error and NOT saffron. Other states stay calm.
+                PipelinePaymentStatus.DepositDue ->
+                    Res.string.dashboard_pipeline_deposit_due to scheme.tertiary
+                PipelinePaymentStatus.DepositPaid ->
+                    Res.string.dashboard_pipeline_deposit_paid to scheme.onSurfaceVariant
+                PipelinePaymentStatus.Paid ->
+                    Res.string.dashboard_pipeline_paid to scheme.onSurfaceVariant
+            }
+            Text(
+                text = stringResource(labelRes),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = color,
             )
         }
-    }
-}
-
-@Composable
-private fun MetaItem(icon: ImageVector, label: String) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = scheme.onSurfaceVariant,
-            modifier = Modifier.size(META_ICON_SIZE),
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = scheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (row.paymentStatus != null && row.orderValue != null) MetaSeparator()
+        row.orderValue?.let { value ->
+            Text(
+                text = formatPrice(value),
+                style = MaterialTheme.typography.labelSmall,
+                color = scheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -285,23 +238,6 @@ private fun MetaSeparator() {
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-}
-
-/** "1746137600000" → "2 May" using the device's TZ. */
-private fun formatCreatedDate(epochMillis: Long): String {
-    val date: LocalDate = Instant.fromEpochMilliseconds(epochMillis)
-        .toLocalDateTime(TimeZone.currentSystemDefault()).date
-    val month = MONTH_ABBREV.getOrNull(date.monthNumber - 1) ?: ""
-    return "${date.dayOfMonth} $month"
-}
-
-private fun pipelineInitialsOf(name: String): String {
-    val parts = name.trim().split(' ', '\t').filter { it.isNotEmpty() }
-    return when {
-        parts.isEmpty() -> "?"
-        parts.size == 1 -> parts[0].take(1).uppercase()
-        else -> (parts.first().take(1) + parts.last().take(1)).uppercase()
-    }
 }
 
 @Suppress("UnusedPrivateMember")
@@ -316,6 +252,8 @@ private fun PipelineOrderRowPreview() {
                 primaryLabel = "Kaftan",
                 daysUntilDeadline = 17,
                 createdAtEpochMillis = 1746144000000L,
+                orderValue = 40000.0,
+                paymentStatus = PipelinePaymentStatus.DepositDue,
             ),
             onClick = {},
             modifier = Modifier.padding(DesignTokens.space4),

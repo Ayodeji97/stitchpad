@@ -6,14 +6,14 @@ import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStor
 /**
  * Decides whether the workshop-setup screen must be shown for a logged-in user.
  *
- * The fast path is the device-wide "completed" flag (set when a user finishes setup on
- * this install) or a per-user "remote-confirmed" flag. Both are wiped on uninstall, so an
- * existing user who reinstalls and signs back in would wrongly be sent to setup again. To
+ * The fast path is the per-user "completed" flag (set when THIS user finishes/skips setup
+ * on this install) or the per-user "remote-confirmed" flag. Both are wiped on uninstall, so
+ * an existing user who reinstalls and signs back in would wrongly be sent to setup again. To
  * avoid that, when neither flag is set we fall back to a one-shot read of the remote
  * profile: if it already holds workshop data we treat setup as done and heal the per-user
  * flag so subsequent launches are instant and offline-safe.
  *
- * The heal is scoped to [userId] (not the device-wide flag) so confirming one account
+ * Every flag is scoped to [userId] — never device-wide — so one account finishing setup
  * never lets a different account on the same device skip its own setup.
  */
 class ResolveNeedsWorkshopSetup(
@@ -22,7 +22,7 @@ class ResolveNeedsWorkshopSetup(
 ) {
     /** Returns true when the workshop-setup screen should be shown for [userId]. */
     suspend operator fun invoke(userId: String): Boolean {
-        val alreadyDone = onboardingPreferences.hasCompletedWorkshopSetup() ||
+        val alreadyDone = onboardingPreferences.hasCompletedWorkshopSetup(userId) ||
             onboardingPreferences.hasConfirmedRemoteWorkshopProfile(userId)
         if (alreadyDone) return false
 

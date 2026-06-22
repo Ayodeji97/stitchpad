@@ -198,7 +198,7 @@ class DebugMenuViewModelTest {
     @Test
     fun `OnResetOnboardingClick clears flags and emits NavigateToSplash`() = runTest {
         fakeOnboarding.onboardingSeen = true
-        fakeOnboarding.workshopSetupCompleted = true
+        fakeOnboarding.completedWorkshopSetups.add("u1")
         val vm = createViewModel()
 
         val events = mutableListOf<DebugMenuEvent>()
@@ -208,7 +208,7 @@ class DebugMenuViewModelTest {
         vm.onAction(DebugMenuAction.OnResetOnboardingClick)
 
         assertFalse(fakeOnboarding.onboardingSeen)
-        assertFalse(fakeOnboarding.workshopSetupCompleted)
+        assertFalse(fakeOnboarding.hasCompletedWorkshopSetup("u1"))
         assertTrue(events.any { it is DebugMenuEvent.NavigateToSplash })
     }
 

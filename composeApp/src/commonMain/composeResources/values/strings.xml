@@ -863,10 +863,10 @@
     <!-- V2 pipeline subsection labels — saffron-coloured, dot-separated count -->
     <string name="dashboard_pipeline_in_progress_v2">In progress · %1$d</string>
     <string name="dashboard_pipeline_pending_v2">Not started · %1$d</string>
-    <!-- V2 pipeline order row metadata footer -->
-    <string name="dashboard_pipeline_row_custom_size">Custom size</string>
-    <string name="dashboard_pipeline_row_bespoke">Bespoke</string>
-    <string name="dashboard_pipeline_row_created">Created %1$s</string>
+    <!-- V2 pipeline order row payment footer -->
+    <string name="dashboard_pipeline_deposit_due">Deposit due</string>
+    <string name="dashboard_pipeline_deposit_paid">Deposit paid</string>
+    <string name="dashboard_pipeline_paid">Paid</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
     <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
     <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$d days past deadline</string>
