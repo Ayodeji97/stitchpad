@@ -133,6 +133,15 @@ class DashboardCommunityBannerTest {
     }
 
     @Test
+    fun communityEnabledWithInvalidUrl_hidesBanner() = runTest {
+        prefs.clearCommunityBannerDismissed()
+        // Malformed URL — predicate must reject this.
+        appConfig.emit(AppConfig(communityEnabled = true, communityInviteUrl = "chat.whatsapp.com/foo"))
+        val vm = createViewModel()
+        assertFalse(vm.state.value.showCommunityBanner)
+    }
+
+    @Test
     fun onJoin_emitsOpenLinkTracksAndDismisses() = runTest {
         appConfig.emit(AppConfig(communityEnabled = true, communityInviteUrl = "https://chat.whatsapp.com/X"))
         val vm = createViewModel()

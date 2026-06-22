@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -154,7 +155,7 @@ class DashboardViewModel(
                     it.copy(
                         communityUrl = cfg.communityInviteUrl,
                         showCommunityBanner = cfg.communityEnabled &&
-                            !cfg.communityInviteUrl.isNullOrBlank() &&
+                            isUsableCommunityInviteUrl(cfg.communityInviteUrl) &&
                             !communityBannerDismissed,
                     )
                 }

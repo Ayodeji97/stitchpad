@@ -21,6 +21,7 @@ import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsEvent
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
@@ -38,18 +39,21 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SettingsCommunityTest {
 
     private lateinit var appConfigRepository: FakeAppConfigRepository
     private lateinit var communityJoinTracker: FakeCommunityJoinTracker
+    private lateinit var prefs: FakeOnboardingPreferences
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         appConfigRepository = FakeAppConfigRepository()
         communityJoinTracker = FakeCommunityJoinTracker()
+        prefs = FakeOnboardingPreferences()
     }
 
     @AfterTest
@@ -89,6 +93,22 @@ class SettingsCommunityTest {
             cancelAndIgnoreRemainingEvents()
         }
         assertEquals(1, communityJoinTracker.tapCount)
+        // Finding 1: joining from Settings must also persist the banner-dismiss flag.
+        assertTrue(prefs.hasDismissedCommunityBanner())
+    }
+
+    @Test
+    fun communityEnabledWithInvalidUrl_hidesRow() = runTest {
+        appConfigRepository.emit(
+            // Malformed: no https scheme — predicate must reject this.
+            AppConfig(communityEnabled = true, communityInviteUrl = "chat.whatsapp.com/foo"),
+        )
+        val vm = createViewModel()
+        vm.state.test {
+            val state = awaitItem()
+            assertFalse(state.showCommunityRow)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     private fun createViewModel(): SettingsViewModel {
@@ -127,6 +147,7 @@ class SettingsCommunityTest {
             pushPermissionController = CommunityNoOpPushPermissionController(),
             appConfigRepository = appConfigRepository,
             communityJoinTracker = communityJoinTracker,
+            onboardingPrefs = prefs,
         )
     }
 }

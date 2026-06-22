@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -45,7 +46,8 @@ fun SettingsRoot(
             SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
             SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
-            is SettingsEvent.OpenCommunityLink -> uriHandler.openUri(event.url)
+            is SettingsEvent.OpenCommunityLink -> runCatching { uriHandler.openUri(event.url) }
+                .onFailure { AppLogger.e(tag = "SettingsRoot") { "No handler for community invite URL: ${event.url}" } }
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {
                     val message = getString(event.messageRes)

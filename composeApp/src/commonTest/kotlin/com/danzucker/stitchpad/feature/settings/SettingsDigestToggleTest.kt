@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -188,6 +189,7 @@ private fun buildSettingsVmForDigest(
         pushPermissionController = pushPermissionController,
         appConfigRepository = FakeAppConfigRepository(),
         communityJoinTracker = FakeCommunityJoinTracker(),
+        onboardingPrefs = FakeOnboardingPreferences(),
     )
     return vm to userRepo
 }

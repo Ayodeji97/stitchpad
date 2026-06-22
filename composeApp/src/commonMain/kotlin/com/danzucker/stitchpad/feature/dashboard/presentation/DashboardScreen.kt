@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
@@ -319,7 +320,12 @@ fun DashboardRoot(
     ObserveAsEvents(viewModel.events) { event ->
         // OpenCommunityLink is handled inline where LocalUriHandler is in scope.
         if (event is DashboardEvent.OpenCommunityLink) {
-            uriHandler.openUri(event.url)
+            runCatching { uriHandler.openUri(event.url) }
+                .onFailure {
+                    AppLogger.e(
+                        tag = "DashboardRoot"
+                    ) { "No handler for community invite URL: ${event.url}" }
+                }
             return@ObserveAsEvents
         }
         handleDashboardEvent(
