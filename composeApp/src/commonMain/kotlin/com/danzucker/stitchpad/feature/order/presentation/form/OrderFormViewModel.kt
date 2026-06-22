@@ -20,6 +20,8 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.repository.CustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.media.ImageCompressor
@@ -60,6 +62,7 @@ class OrderFormViewModel(
     private val authRepository: AuthRepository,
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
     private val imageCompressor: ImageCompressor,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -887,6 +890,7 @@ class OrderFormViewModel(
             }
             when (result) {
                 is Result.Success -> {
+                    if (!isEdit) analytics.logEvent(AnalyticsEvent.OrderCreated)
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
                     _events.send(OrderFormEvent.OrderSaved)
