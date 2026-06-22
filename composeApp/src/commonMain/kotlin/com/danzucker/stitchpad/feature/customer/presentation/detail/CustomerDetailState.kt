@@ -9,6 +9,12 @@ data class CustomerDetailState(
     val customer: Customer? = null,
     val measurements: List<Measurement> = emptyList(),
     val isLoading: Boolean = true,
+    /**
+     * True once the measurements observation has produced its first result. The add
+     * FAB is gated on this so tapping "+" never decides edit-vs-create on a stale empty
+     * list during the window after the customer doc loads but before measurements emit.
+     */
+    val measurementsLoaded: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val measurementToDelete: Measurement? = null,
     val errorMessage: UiText? = null,

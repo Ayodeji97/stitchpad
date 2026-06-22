@@ -245,9 +245,15 @@ class CustomerDetailViewModel(
     private suspend fun observeMeasurements(userId: String, customerId: String) {
         measurementRepository.observeMeasurements(userId, customerId).collect { result ->
             when (result) {
-                is Result.Success -> _state.update { it.copy(measurements = result.data, isLoading = false) }
+                is Result.Success -> _state.update {
+                    it.copy(measurements = result.data, isLoading = false, measurementsLoaded = true)
+                }
                 is Result.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = result.error.toMeasurementUiText())
+                    it.copy(
+                        isLoading = false,
+                        measurementsLoaded = true,
+                        errorMessage = result.error.toMeasurementUiText(),
+                    )
                 }
             }
         }

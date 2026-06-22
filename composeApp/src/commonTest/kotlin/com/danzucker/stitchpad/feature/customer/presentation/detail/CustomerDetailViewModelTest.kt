@@ -157,6 +157,19 @@ class CustomerDetailViewModelTest {
     }
 
     @Test
+    fun measurementsLoaded_becomesTrue_afterMeasurementsEmit() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+
+        val vm = createViewModel()
+
+        // The add FAB is gated on this — it must be true once measurements have loaded
+        // so "+" never decides edit-vs-create on a stale empty list.
+        assertTrue(vm.state.value.measurementsLoaded)
+    }
+
+    @Test
     fun loadData_noAuthUser_setsIsLoadingFalse() = runTest {
         // no signUp — no current user
         val vm = createViewModel()

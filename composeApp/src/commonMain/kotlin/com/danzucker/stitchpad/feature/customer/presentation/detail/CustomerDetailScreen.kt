@@ -238,7 +238,9 @@ fun CustomerDetailScreen(
             )
         },
         floatingActionButton = {
-            if (!state.isLocked) {
+            // Gate on measurementsLoaded so "+" can't decide edit-vs-create on a
+            // not-yet-loaded (stale empty) measurements list during cold start.
+            if (!state.isLocked && state.measurementsLoaded) {
                 StitchPadFab(
                     onClick = { onAction(CustomerDetailAction.OnAddMeasurementClick) },
                     contentDescription = stringResource(Res.string.fab_add_measurement),
@@ -1093,6 +1095,7 @@ private fun CustomerDetailScreenEmptyPreview() {
         CustomerDetailScreen(
             state = CustomerDetailState(
                 isLoading = false,
+                measurementsLoaded = true,
                 customer = Customer(
                     id = "1",
                     userId = "u1",
@@ -1114,6 +1117,7 @@ private fun CustomerDetailScreenFilledPreview() {
         CustomerDetailScreen(
             state = CustomerDetailState(
                 isLoading = false,
+                measurementsLoaded = true,
                 customer = Customer(
                     id = "1",
                     userId = "u1",
