@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.domain.model
 
+import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
+
 data class DashboardOrderRow(
     val orderId: String,
     val customerName: String,
@@ -13,5 +15,9 @@ data class DashboardOrderRow(
      * row's metadata footer ("Created 2 May"). Defaults to 0 for legacy
      * call-sites / tests that don't supply it.
      */
-    val createdAtEpochMillis: Long = 0L
+    val createdAtEpochMillis: Long = 0L,
+    /** Order payable total (after discount). Null → omit the value in the footer. */
+    val orderValue: Double? = null,
+    /** Deposit/payment state for the footer chip. Null → omit the chip. */
+    val paymentStatus: PipelinePaymentStatus? = null,
 )
