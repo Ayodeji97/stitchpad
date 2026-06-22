@@ -128,6 +128,34 @@ class CustomerDetailViewModelTest {
         assertFalse(state.isLoading)
     }
 
+    // --- Add-measurement flow (edit vs create) ---
+
+    @Test
+    fun onAddMeasurement_withExistingMeasurements_showsSheet() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+        val vm = createViewModel()
+        assertEquals(1, vm.state.value.measurements.size)
+
+        vm.onAction(CustomerDetailAction.OnAddMeasurementClick)
+
+        assertTrue(vm.state.value.showAddMeasurementSheet)
+    }
+
+    @Test
+    fun onAddMeasurement_withNoMeasurements_navigatesToAdd() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        assertTrue(vm.state.value.measurements.isEmpty())
+
+        vm.onAction(CustomerDetailAction.OnAddMeasurementClick)
+
+        assertIs<CustomerDetailEvent.NavigateToAddMeasurement>(vm.events.first())
+        assertFalse(vm.state.value.showAddMeasurementSheet)
+    }
+
     @Test
     fun loadData_noAuthUser_setsIsLoadingFalse() = runTest {
         // no signUp — no current user

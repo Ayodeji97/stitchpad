@@ -79,13 +79,31 @@ class CustomerDetailViewModel(
                 }
             }
             CustomerDetailAction.OnAddMeasurementClick -> {
+                // Existing measurements → offer edit-vs-create so tailors stop making
+                // duplicates. Empty list → straight to a blank new form (no needless sheet).
+                if (_state.value.measurements.isNotEmpty()) {
+                    _state.update { it.copy(showAddMeasurementSheet = true) }
+                } else {
+                    withCustomerId {
+                        viewModelScope.launch {
+                            _events.send(CustomerDetailEvent.NavigateToAddMeasurement(it))
+                        }
+                    }
+                }
+            }
+            CustomerDetailAction.OnCreateNewMeasurementClick -> {
+                _state.update { it.copy(showAddMeasurementSheet = false) }
                 withCustomerId {
                     viewModelScope.launch {
                         _events.send(CustomerDetailEvent.NavigateToAddMeasurement(it))
                     }
                 }
             }
+            CustomerDetailAction.OnDismissAddMeasurementSheet -> {
+                _state.update { it.copy(showAddMeasurementSheet = false) }
+            }
             is CustomerDetailAction.OnMeasurementClick -> {
+                _state.update { it.copy(showAddMeasurementSheet = false) }
                 withCustomerId {
                     viewModelScope.launch {
                         _events.send(CustomerDetailEvent.NavigateToEditMeasurement(it, action.measurement.id))

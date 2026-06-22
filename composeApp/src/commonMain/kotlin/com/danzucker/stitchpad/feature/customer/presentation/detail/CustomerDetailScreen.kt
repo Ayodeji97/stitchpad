@@ -75,6 +75,7 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
+import com.danzucker.stitchpad.feature.customer.presentation.detail.components.AddMeasurementSheet
 import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
@@ -369,6 +370,15 @@ fun CustomerDetailScreen(
                 }
             }
         }
+    }
+
+    if (state.showAddMeasurementSheet) {
+        AddMeasurementSheet(
+            measurements = state.measurements,
+            onEditMeasurement = { onAction(CustomerDetailAction.OnMeasurementClick(it)) },
+            onCreateNew = { onAction(CustomerDetailAction.OnCreateNewMeasurementClick) },
+            onDismiss = { onAction(CustomerDetailAction.OnDismissAddMeasurementSheet) },
+        )
     }
 
     if (state.showDeleteDialog && state.measurementToDelete != null) {

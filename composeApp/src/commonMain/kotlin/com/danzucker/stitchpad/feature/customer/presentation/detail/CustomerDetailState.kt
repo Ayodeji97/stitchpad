@@ -26,6 +26,11 @@ data class CustomerDetailState(
      * values render with their human label instead of disappearing.
      */
     val customFieldLabels: Map<String, String> = emptyMap(),
+    /**
+     * True when "+" is tapped and the customer already has measurements — shows the
+     * "edit existing vs create new" sheet so tailors stop creating accidental duplicates.
+     */
+    val showAddMeasurementSheet: Boolean = false,
 ) {
     /**
      * True when the loaded customer is in the LOCKED slot state. Drives the read-only
