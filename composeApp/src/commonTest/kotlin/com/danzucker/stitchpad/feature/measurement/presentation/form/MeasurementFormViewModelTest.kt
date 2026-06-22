@@ -1230,16 +1230,9 @@ class MeasurementFormViewModelTest {
     }
 
     @Test
-    fun ordinalDefault_isCountPlusOne() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // observeMeasurements is backed by measurementsList in the fake.
-        measurementRepository.measurementsList = listOf(
-            fakeMeasurement(id = "meas-1"),
-            fakeMeasurement(id = "meas-2"),
-        )
+    fun create_startsWithEmptyName() = runTest {
         val vm = createViewModel()
-
-        assertEquals(3, vm.state.value.nameOrdinal)
+        assertEquals("", vm.state.value.name)
     }
 
     private fun customField(

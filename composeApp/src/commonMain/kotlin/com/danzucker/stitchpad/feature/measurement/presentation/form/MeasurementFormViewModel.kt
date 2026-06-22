@@ -82,15 +82,6 @@ class MeasurementFormViewModel(
                 if (measurementId != null) {
                     loadMeasurement(measurementId)
                 } else {
-                    val userId = authRepository.getCurrentUser()?.id
-                    val count = if (userId != null) {
-                        val existing = measurementRepository
-                            .observeMeasurements(userId, customerId).first()
-                        (existing as? Result.Success)?.data?.size ?: 0
-                    } else {
-                        0
-                    }
-                    _state.update { it.copy(nameOrdinal = count + 1) }
                     onGenderChange(CustomerGender.FEMALE)
                 }
                 observeCustomFields()
@@ -110,8 +101,6 @@ class MeasurementFormViewModel(
         when (action) {
             is MeasurementFormAction.OnGenderChange -> onGenderChange(action.gender)
             is MeasurementFormAction.OnNameChange ->
-                _state.update { it.copy(name = action.name, isNameUserEdited = true) }
-            is MeasurementFormAction.OnNameDefaultApplied ->
                 _state.update { it.copy(name = action.name) }
             is MeasurementFormAction.OnSectionChange -> {
                 _state.update { it.copy(currentSectionIndex = action.index, isCurrentSectionExpanded = true) }
@@ -240,9 +229,6 @@ class MeasurementFormViewModel(
             val newFields = allKeys.associateWith { key -> current.fields[key] ?: "" }
             current.copy(
                 gender = gender,
-                // Let the Root recompute the localized default with the new gender
-                // word when the tailor hasn't typed a name yet.
-                name = if (current.isNameUserEdited) current.name else "",
                 sections = sections,
                 currentSectionIndex = 0,
                 isCurrentSectionExpanded = true,
@@ -373,16 +359,10 @@ class MeasurementFormViewModel(
                                 ""
                             }
                         }
-                        // 1-based position of this measurement within the customer's
-                        // history (oldest first), used as the default-name ordinal.
-                        val position = result.data
-                            .sortedBy { it.createdAt }
-                            .indexOfFirst { it.id == id } + 1
                         _state.update {
                             it.copy(
                                 gender = measurement.gender,
                                 name = measurement.name,
-                                nameOrdinal = if (position > 0) position else 1,
                                 sections = sections,
                                 fields = fieldsAsString,
                                 customFields = visibleCustom,
