@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.customer.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -33,6 +35,7 @@ class CustomerFormViewModel(
     private val authRepository: AuthRepository,
     private val emailValidator: PatternValidator,
     private val entitlements: EntitlementsProvider,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -152,6 +155,9 @@ class CustomerFormViewModel(
             _state.update { it.copy(isLoading = false) }
             when (result) {
                 is Result.Success -> {
+                    if (customerId == null) {
+                        analytics.logEvent(AnalyticsEvent.CustomerCreated)
+                    }
                     val event = if (!s.isEditMode && s.addMeasurementsNext) {
                         CustomerFormEvent.NavigateToNewCustomerMeasurement(customerId = newId)
                     } else {

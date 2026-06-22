@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.customer.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
@@ -59,6 +60,7 @@ class CustomerFormViewModelTest {
             authRepository = authRepository,
             emailValidator = emailValidator,
             entitlements = FakeEntitlementsProvider(),
+            analytics = FakeAnalytics(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -75,6 +77,7 @@ class CustomerFormViewModelTest {
             authRepository = authRepository,
             emailValidator = validator,
             entitlements = FakeEntitlementsProvider(),
+            analytics = FakeAnalytics(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
