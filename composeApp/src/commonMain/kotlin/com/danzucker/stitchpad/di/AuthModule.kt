@@ -52,5 +52,5 @@ val authPresentationModule = module {
     // Koin's reflection-based viewModelOf would try to resolve that lambda type
     // from the graph and fail. Omitting it from the call list lets Kotlin's
     // default kick in (see WorkshopSetupViewModel.compressLogo).
-    viewModel { WorkshopSetupViewModel(get(), get(), get(), get()) }
+    viewModel { WorkshopSetupViewModel(get(), get(), get(), get(), analytics = get()) }
 }

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.User
@@ -45,6 +46,7 @@ class WorkshopSetupViewModelTest {
         viewModel = WorkshopSetupViewModel(
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
+            analytics = FakeAnalytics(),
         )
     }
 
@@ -96,6 +98,7 @@ class WorkshopSetupViewModelTest {
         viewModel = WorkshopSetupViewModel(
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
+            analytics = FakeAnalytics(),
         )
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
@@ -124,6 +127,7 @@ class WorkshopSetupViewModelTest {
         viewModel = WorkshopSetupViewModel(
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
+            analytics = FakeAnalytics(),
         )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
@@ -141,6 +145,7 @@ class WorkshopSetupViewModelTest {
         viewModel = WorkshopSetupViewModel(
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
+            analytics = FakeAnalytics(),
         )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
@@ -159,6 +164,7 @@ class WorkshopSetupViewModelTest {
         viewModel = WorkshopSetupViewModel(
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
+            analytics = FakeAnalytics(),
         )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))

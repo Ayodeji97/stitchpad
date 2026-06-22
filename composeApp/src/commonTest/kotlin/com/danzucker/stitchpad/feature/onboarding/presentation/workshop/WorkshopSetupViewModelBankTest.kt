@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -36,7 +37,7 @@ class WorkshopSetupViewModelBankTest {
         fakeUserRepository = FakeUserRepository()
         fakeAuth = FakeAuthRepository()
         onboardingPreferences = FakeOnboardingPreferences()
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences, analytics = FakeAnalytics())
     }
 
     @AfterTest
@@ -47,7 +48,7 @@ class WorkshopSetupViewModelBankTest {
     @Test
     fun `all blank bank fields pass validation and write nulls to repository`() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences, analytics = FakeAnalytics())
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -62,7 +63,7 @@ class WorkshopSetupViewModelBankTest {
     @Test
     fun `partial bank input flags missing fields and blocks save`() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences, analytics = FakeAnalytics())
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnBankNameChange("GTBank"))
@@ -111,7 +112,7 @@ class WorkshopSetupViewModelBankTest {
     @Test
     fun `valid bank trio is written to repository on Continue`() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences)
+        viewModel = WorkshopSetupViewModel(fakeUserRepository, fakeAuth, onboardingPreferences, analytics = FakeAnalytics())
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnBankNameChange("GTBank"))
