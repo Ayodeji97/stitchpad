@@ -69,9 +69,8 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityBanner
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityStrip
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.DashboardBannerPager
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyCardCtaStyle
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
@@ -705,29 +704,15 @@ private fun DashboardContent(
     ) {
         Spacer(Modifier.height(DesignTokens.space4))
 
-        // 0. Banner carousel — welcome-ending and community banners rendered
-        //    in a swipeable pager so they coexist without competing for space.
-        //    Placed above everything else so high-urgency messages get
-        //    immediate attention on every dashboard load.
-        val banners = buildList<@Composable () -> Unit> {
-            if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
-                add {
-                    WelcomeEndingBanner(
-                        daysLeft = state.welcomeBannerDaysLeft,
-                        onSeeUpgrade = { onAction(DashboardAction.OpenUpgrade) },
-                    )
-                }
-            }
-            if (state.showCommunityBanner) {
-                add {
-                    CommunityBanner(
-                        onJoin = { onAction(DashboardAction.OnJoinCommunity) },
-                        onDismiss = { onAction(DashboardAction.OnDismissCommunityBanner) },
-                    )
-                }
-            }
+        // 0. Welcome-ending banner (top). The community invite is a separate
+        //    slim strip rendered below the focus card, not here — so the
+        //    dashboard never opens on the community message.
+        if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
+            WelcomeEndingBanner(
+                daysLeft = state.welcomeBannerDaysLeft,
+                onSeeUpgrade = { onAction(DashboardAction.OpenUpgrade) },
+            )
         }
-        DashboardBannerPager(banners = banners)
 
         // 1. Header
         DashboardHeader(
@@ -752,6 +737,16 @@ private fun DashboardContent(
                 ctaSubtitle = state.focusCtaSubtitle?.asString(),
                 sectionLabel = state.focusSectionLabel?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
+            )
+        }
+
+        // Community invite — slim strip, directly below the hero focus card so
+        // the tailor's work leads. Shown only when remote config enables it
+        // with a valid invite and the user hasn't dismissed/joined.
+        if (state.showCommunityBanner) {
+            CommunityStrip(
+                onJoin = { onAction(DashboardAction.OnJoinCommunity) },
+                onDismiss = { onAction(DashboardAction.OnDismissCommunityBanner) },
             )
         }
 
