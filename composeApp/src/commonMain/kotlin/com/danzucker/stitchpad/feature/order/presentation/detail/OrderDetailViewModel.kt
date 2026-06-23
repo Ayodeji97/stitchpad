@@ -8,6 +8,7 @@ import coil3.PlatformContext
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
@@ -73,7 +74,7 @@ private const val MAX_IMAGES_PER_CATEGORY = 3
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
 // A refactor to bundle repositories into a single dependency would obscure the
 // per-layer wiring; staying explicit + suppressing here keeps the seams visible.
-@Suppress("TooManyFunctions", "LongParameterList", "LargeClass", "UnusedPrivateProperty")
+@Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
@@ -959,6 +960,7 @@ class OrderDetailViewModel(
                 _state.update { it.copy(errorMessage = statusResult.error.toOrderUiText()) }
                 return@launch
             }
+            analytics.logEvent(AnalyticsEvent.OrderStatusAdvanced(status = newStatus.name.lowercase()))
             // Always normalise subStatus: only IN_PROGRESS keeps it; other states clear.
             val effectiveSub = if (newStatus == OrderStatus.IN_PROGRESS) newSubStatus else null
             val subResult = orderRepository.updateSubStatus(userId, orderId, effectiveSub)
