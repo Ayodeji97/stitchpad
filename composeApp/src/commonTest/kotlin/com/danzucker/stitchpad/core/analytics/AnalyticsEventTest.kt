@@ -29,4 +29,39 @@ class AnalyticsEventTest {
         assertEquals("upgrade_completed", event.name)
         assertEquals(mapOf("tier" to "pro"), event.params)
     }
+
+    @Test
+    fun measurementAddedNameNoParams() {
+        val e = AnalyticsEvent.MeasurementAdded
+        assertEquals("measurement_added", e.name)
+        assertTrue(e.params.isEmpty())
+    }
+
+    @Test
+    fun orderStatusAdvancedCarriesStatus() {
+        val e = AnalyticsEvent.OrderStatusAdvanced(status = "ready")
+        assertEquals("order_status_advanced", e.name)
+        assertEquals(mapOf("status" to "ready"), e.params)
+    }
+
+    @Test
+    fun paymentRecordedCarriesIsFullyPaidAsString() {
+        assertEquals(mapOf("is_fully_paid" to "true"), AnalyticsEvent.PaymentRecorded(isFullyPaid = true).params)
+        assertEquals(mapOf("is_fully_paid" to "false"), AnalyticsEvent.PaymentRecorded(isFullyPaid = false).params)
+        assertEquals("payment_recorded", AnalyticsEvent.PaymentRecorded(true).name)
+    }
+
+    @Test
+    fun receiptSentCarriesDocTypeAndFormat() {
+        val e = AnalyticsEvent.ReceiptSent(documentType = "invoice", format = "pdf")
+        assertEquals("receipt_sent", e.name)
+        assertEquals(mapOf("document_type" to "invoice", "format" to "pdf"), e.params)
+    }
+
+    @Test
+    fun whatsAppMessageSentCarriesContext() {
+        val e = AnalyticsEvent.WhatsAppMessageSent(context = "draft_message")
+        assertEquals("whatsapp_message_sent", e.name)
+        assertEquals(mapOf("context" to "draft_message"), e.params)
+    }
 }

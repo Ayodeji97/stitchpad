@@ -33,4 +33,29 @@ sealed interface AnalyticsEvent {
         override val name = "upgrade_completed"
         override val params = mapOf("tier" to tier)
     }
+
+    data object MeasurementAdded : AnalyticsEvent {
+        override val name = "measurement_added"
+    }
+
+    data class OrderStatusAdvanced(val status: String) : AnalyticsEvent {
+        override val name = "order_status_advanced"
+        override val params = mapOf("status" to status)
+    }
+
+    data class PaymentRecorded(val isFullyPaid: Boolean) : AnalyticsEvent {
+        override val name = "payment_recorded"
+        // String, not Boolean: GA4 param types are string/number; keep it queryable.
+        override val params = mapOf("is_fully_paid" to isFullyPaid.toString())
+    }
+
+    data class ReceiptSent(val documentType: String, val format: String) : AnalyticsEvent {
+        override val name = "receipt_sent"
+        override val params = mapOf("document_type" to documentType, "format" to format)
+    }
+
+    data class WhatsAppMessageSent(val context: String) : AnalyticsEvent {
+        override val name = "whatsapp_message_sent"
+        override val params = mapOf("context" to context)
+    }
 }
