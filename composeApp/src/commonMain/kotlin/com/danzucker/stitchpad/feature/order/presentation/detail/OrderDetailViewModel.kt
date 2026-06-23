@@ -1067,6 +1067,9 @@ class OrderDetailViewModel(
                         val existing = current.order ?: return@update current
                         current.copy(order = existing.copy(payments = existing.payments + payment))
                     }
+                    analytics.logEvent(
+                        AnalyticsEvent.PaymentRecorded(isFullyPaid = safeAmount >= order.balanceRemaining)
+                    )
                     _events.send(OrderDetailEvent.PaymentRecorded)
                 }
                 is Result.Error ->
