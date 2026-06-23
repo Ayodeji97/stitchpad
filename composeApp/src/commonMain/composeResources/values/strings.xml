@@ -1391,6 +1391,7 @@
     <string name="plan_card_free_state">You&apos;re on Free</string>
     <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>
     <string name="plan_card_atelier_state">You&apos;re on Tailor Atelier</string>
+    <string name="plan_card_pro_upgrade_hint">Tap to explore Tailor Atelier</string>
     <string name="plan_card_upgrade_cta">Upgrade</string>
     <string name="plan_card_customer_progress">%1$d of %2$d customers</string>
     <string name="plan_card_customer_unlimited">Unlimited customers</string>
@@ -1419,6 +1420,7 @@
     <string name="upgrade_terms_of_use">Terms of Use</string>
     <string name="upgrade_link_separator">·</string>
     <string name="upgrade_back_content_description">Back</string>
+    <string name="upgrade_current_plan">Current plan</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
     <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
     <string name="payment_error_invalid_plan">That plan is not available. Choose another plan and try again.</string>
