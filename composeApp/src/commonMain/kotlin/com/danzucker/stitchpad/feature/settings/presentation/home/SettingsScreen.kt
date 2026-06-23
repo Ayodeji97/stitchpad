@@ -156,6 +156,7 @@ fun SettingsScreen(
                 welcomeDaysLeft = state.welcomeDaysLeft,
                 onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
                 modifier = Modifier,
+                subscriptionStatus = state.subscriptionStatus,
             )
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
