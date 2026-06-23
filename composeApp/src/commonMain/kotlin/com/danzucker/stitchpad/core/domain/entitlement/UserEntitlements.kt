@@ -45,4 +45,12 @@ data class UserEntitlements(
      * welcome window as a taste. Reverts to gated when welcome ends.
      */
     val canUseCustomMeasurements: Boolean,
+    /** Paid-subscription end date (gift end, or current paid period end). Null for Free / unset. */
+    val subscriptionEndsAt: Instant? = null,
+    /** True when the subscription auto-renews (Apple/Paystack); false for a gift. */
+    val subscriptionRenews: Boolean = false,
+    /** Calendar days (Africa/Lagos) until [subscriptionEndsAt], for a NON-renewing paid sub. Null otherwise. */
+    val subscriptionDaysLeft: Int? = null,
+    /** Whole calendar months (Africa/Lagos) until [subscriptionEndsAt], for a NON-renewing paid sub. Null otherwise. */
+    val subscriptionMonthsLeft: Int? = null,
 )
