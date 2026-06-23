@@ -7,6 +7,8 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
@@ -86,6 +88,7 @@ class OrderDetailViewModel(
     private val imageLoader: ImageLoader,
     private val platformContext: PlatformContext,
     private val entitlementsProvider: EntitlementsProvider,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -222,12 +225,12 @@ class OrderDetailViewModel(
                 _state.update { it.copy(showShareSheet = true) }
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt { receiptSharer.shareReceiptAsImage(it) }
+                shareReceipt(format = "image") { receiptSharer.shareReceiptAsImage(it) }
                 _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt { receiptSharer.shareReceiptAsPdf(it) }
+                shareReceipt(format = "pdf") { receiptSharer.shareReceiptAsPdf(it) }
                 _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnDismissShareSheet ->
@@ -632,7 +635,7 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun shareReceipt(share: suspend (ReceiptData) -> Unit) {
+    private fun shareReceipt(format: String, share: suspend (ReceiptData) -> Unit) {
         val order = _state.value.order ?: return
         val user = _state.value.user ?: return
         val choice = _state.value.documentTypeChoice
@@ -665,6 +668,12 @@ class OrderDetailViewModel(
                     forceDocumentType = choice,
                 )
                 share(receiptData)
+                analytics.logEvent(
+                    AnalyticsEvent.ReceiptSent(
+                        documentType = receiptData.documentType.name.lowercase(),
+                        format = format,
+                    )
+                )
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
                     it.copy(errorMessage = UiText.StringResourceText(Res.string.receipt_share_error))
@@ -957,6 +966,7 @@ class OrderDetailViewModel(
                 _state.update { it.copy(errorMessage = statusResult.error.toOrderUiText()) }
                 return@launch
             }
+            analytics.logEvent(AnalyticsEvent.OrderStatusAdvanced(status = newStatus.name.lowercase()))
             // Always normalise subStatus: only IN_PROGRESS keeps it; other states clear.
             val effectiveSub = if (newStatus == OrderStatus.IN_PROGRESS) newSubStatus else null
             val subResult = orderRepository.updateSubStatus(userId, orderId, effectiveSub)
@@ -990,6 +1000,7 @@ class OrderDetailViewModel(
         viewModelScope.launch {
             val message = WhatsAppMessageBuilder.buildForOrder(order, customer)
             _events.send(OrderDetailEvent.LaunchWhatsApp(customer.phone, message))
+            analytics.logEvent(AnalyticsEvent.WhatsAppMessageSent(context = "order_update"))
         }
     }
 
@@ -1063,6 +1074,9 @@ class OrderDetailViewModel(
                         val existing = current.order ?: return@update current
                         current.copy(order = existing.copy(payments = existing.payments + payment))
                     }
+                    analytics.logEvent(
+                        AnalyticsEvent.PaymentRecorded(isFullyPaid = safeAmount >= order.balanceRemaining)
+                    )
                     _events.send(OrderDetailEvent.PaymentRecorded)
                 }
                 is Result.Error ->

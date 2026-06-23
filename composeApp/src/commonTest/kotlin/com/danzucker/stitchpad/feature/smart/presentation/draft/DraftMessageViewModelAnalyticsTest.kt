@@ -92,6 +92,39 @@ class DraftMessageViewModelAnalyticsTest {
         assertFalse(fakeAnalytics.events.any { it is AnalyticsEvent.AiFeatureUsed })
     }
 
+    @Test
+    fun sendViaWhatsApp_logs_whatsapp_message_sent_draft_context() = runTest {
+        fakeOrders.openOrdersFor("c1") { listOf(testOrder) }
+        fakeRepo.respondWith(Result.Success(DraftMessageResult("Hi Folake!", remainingFreeQuota = 4)))
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        vm.onAction(DraftMessageAction.SendViaWhatsApp)
+        runCurrent()
+
+        assertTrue(fakeAnalytics.events.contains(AnalyticsEvent.WhatsAppMessageSent(context = "draft_message")))
+    }
+
+    @Test
+    fun sendViaWhatsApp_does_not_log_whatsapp_message_sent_when_no_whatsapp_number() = runTest {
+        val customerWithoutPhone = CustomerSummary(id = "c2", firstName = "Adaeze", whatsappNumber = null)
+        fakeOrders.openOrdersFor("c2") { listOf(testOrder.copy(customerId = "c2")) }
+        fakeRepo.respondWith(Result.Success(DraftMessageResult("Hi Adaeze!", remainingFreeQuota = 4)))
+        val vm = newVm()
+        vm.onAction(DraftMessageAction.SelectCustomer(customerWithoutPhone))
+        vm.onAction(DraftMessageAction.SelectOrder(testOrder.copy(customerId = "c2")))
+        vm.onAction(DraftMessageAction.SelectIntent(DraftIntent.BalanceReminder))
+        vm.onAction(DraftMessageAction.GenerateDraft)
+        runCurrent()
+        vm.onAction(DraftMessageAction.SendViaWhatsApp)
+        runCurrent()
+
+        assertFalse(fakeAnalytics.events.any { it is AnalyticsEvent.WhatsAppMessageSent })
+    }
+
     // --- Fakes (mirror DraftMessageViewModelTest) ---
 
     private class FakeSmartRepository : SmartRepository {

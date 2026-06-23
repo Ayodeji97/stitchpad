@@ -259,6 +259,7 @@ class DraftMessageViewModel(
         }
         viewModelScope.launch {
             _events.send(DraftMessageEvent.LaunchWhatsApp(phoneE164 = phone, message = draft))
+            analytics.logEvent(AnalyticsEvent.WhatsAppMessageSent(context = "draft_message"))
         }
     }
 

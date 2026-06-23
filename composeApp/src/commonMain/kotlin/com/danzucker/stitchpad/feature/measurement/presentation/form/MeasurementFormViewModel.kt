@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.measurement.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
@@ -37,6 +39,7 @@ class MeasurementFormViewModel(
     private val orderRepository: OrderRepository,
     private val customFieldRepository: CustomMeasurementFieldRepository,
     private val entitlements: EntitlementsProvider,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -455,6 +458,7 @@ class MeasurementFormViewModel(
 
             if (isCreate) {
                 linkMeasurementToOrderIfRequested(userId, effectiveId)
+                analytics.logEvent(AnalyticsEvent.MeasurementAdded)
             }
 
             _state.update { it.copy(isLoading = false) }
