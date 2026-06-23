@@ -796,7 +796,9 @@ private fun subscriptionStatusText(status: SubscriptionStatus): String {
 }
 
 private fun formatPlanDate(endsAt: Instant): String {
-    val date = endsAt.toLocalDateTime(TimeZone.currentSystemDefault()).date
+    // Africa/Lagos to match the countdown's TZ (EntitlementsCalculator computes
+    // days/months-left in Lagos) — keeps the shown date and "N days left" consistent.
+    val date = endsAt.toLocalDateTime(TimeZone.of("Africa/Lagos")).date
     val monthAbbrev = arrayOf(
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
