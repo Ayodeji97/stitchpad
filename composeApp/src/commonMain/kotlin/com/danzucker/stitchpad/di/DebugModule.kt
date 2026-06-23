@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.debug.AnalyticsDebugActions
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
+import com.danzucker.stitchpad.core.debug.DefaultAnalyticsDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultDebugSeeder
 import com.danzucker.stitchpad.core.debug.DefaultDigestDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultFreemiumDebugActions
@@ -46,6 +48,7 @@ val debugModule = module {
     }
     single<DigestDebugActions> { DefaultDigestDebugActions(functions = get()) }
     single<ReminderDebugActions> { DefaultReminderDebugActions(functions = get()) }
+    single<AnalyticsDebugActions> { DefaultAnalyticsDebugActions() }
     // Explicit `viewModel { ... }` factory rather than viewModelOf(::DebugMenuViewModel) because
     // the VM takes a defaulted Boolean param (testAccountsConfigured) — viewModelOf can't skip
     // defaulted params (see feedback_ios_clock_injection memory).
@@ -56,6 +59,7 @@ val debugModule = module {
             freemiumActions = get(),
             digestActions = get(),
             reminderActions = get(),
+            analyticsActions = get(),
             now = ::nowEpochMs,
         )
     }

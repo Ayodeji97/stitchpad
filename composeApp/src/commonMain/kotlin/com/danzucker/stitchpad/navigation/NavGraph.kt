@@ -11,6 +11,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -106,6 +107,21 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
     }
 }
 
+/**
+ * Logs a screen_view for every destination the user lands on. One hook covers every
+ * route — no per-screen code. Keys on the route string so re-landing the same screen
+ * (e.g. tab reselects to the same destination) does not spam duplicates.
+ */
+@Composable
+private fun ScreenViewTrackingEffect(navController: NavHostController) {
+    val analytics: Analytics = koinInject()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val route = currentEntry?.destination?.route
+    LaunchedEffect(route) {
+        if (route != null) analytics.logScreenView(screenNameFor(route))
+    }
+}
+
 @Composable
 fun StitchPadNavHost(
     navController: NavHostController,
@@ -118,6 +134,7 @@ fun StitchPadNavHost(
     }
 
     PushDeepLinkRedirectEffect(navController)
+    ScreenViewTrackingEffect(navController)
 
     NavHost(
         navController = navController,

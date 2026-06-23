@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
@@ -47,6 +49,7 @@ class WorkshopSetupViewModel(
     // than the class — JVM unit tests substitute an identity lambda.
     private val compressLogo: suspend (ByteArray) -> ByteArray? = ::defaultCompressLogo,
     private val confirmCodeGenerator: () -> String = ::defaultWhatsAppConfirmCode,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkshopSetupState())
@@ -419,6 +422,7 @@ class WorkshopSetupViewModel(
                 }
 
                 onboardingPreferences.setWorkshopSetupCompleted(user.id)
+                analytics.logEvent(AnalyticsEvent.WorkshopSetupCompleted)
                 _events.send(WorkshopSetupEvent.NavigateToHome)
             } finally {
                 _state.update { it.copy(isLoading = false, isAwaitingLogo = false) }

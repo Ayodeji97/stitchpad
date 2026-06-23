@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.smart.presentation.draft
 
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
@@ -64,6 +65,7 @@ class DraftMessageViewModelTest {
         customerProvider = fakeCustomers,
         connectivity = fakeConnectivity,
         usageStore = fakeUsageStore,
+        analytics = FakeAnalytics(),
     )
 
     @Test
@@ -327,6 +329,7 @@ class DraftMessageViewModelTest {
             customerProvider = fakeCustomers,
             connectivity = fakeConnectivity,
             usageStore = fakeUsageStore,
+            analytics = FakeAnalytics(),
         )
 
         vm.onAction(DraftMessageAction.SelectCustomer(customerA))
@@ -382,6 +385,7 @@ class DraftMessageViewModelTest {
             customerProvider = fakeCustomers,
             connectivity = fakeConnectivity,
             usageStore = fakeUsageStore,
+            analytics = FakeAnalytics(),
         )
         vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
         vm.onAction(DraftMessageAction.SelectOrder(testOrder))
@@ -420,6 +424,7 @@ class DraftMessageViewModelTest {
             customerProvider = fakeCustomers,
             connectivity = fakeConnectivity,
             usageStore = fakeUsageStore,
+            analytics = FakeAnalytics(),
         )
         val events = mutableListOf<DraftMessageEvent>()
         val job = launch { vm.events.collect { events += it } }
@@ -467,6 +472,7 @@ class DraftMessageViewModelTest {
             customerProvider = fakeCustomers,
             connectivity = fakeConnectivity,
             usageStore = fakeUsageStore,
+            analytics = FakeAnalytics(),
         )
         vm.onAction(DraftMessageAction.SelectCustomer(testCustomer))
         vm.onAction(DraftMessageAction.SelectOrder(testOrder))

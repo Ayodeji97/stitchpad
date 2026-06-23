@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
@@ -106,6 +107,7 @@ class OrderFormViewModelTest {
             authRepository = authRepository,
             customGarmentTypeRepository = customGarmentTypeRepository,
             imageCompressor = imageCompressor,
+            analytics = FakeAnalytics(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

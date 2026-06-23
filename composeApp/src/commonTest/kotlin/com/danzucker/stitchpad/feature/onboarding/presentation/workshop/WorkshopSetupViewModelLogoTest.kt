@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -62,6 +63,7 @@ class WorkshopSetupViewModelLogoTest {
             // which throws "Stub!" in non-Robolectric JVM unit tests. We're not
             // testing image decoding here — just the VM's compress→upload wiring.
             compressLogo = { it },
+            analytics = FakeAnalytics(),
         )
     }
 
@@ -162,6 +164,7 @@ class WorkshopSetupViewModelLogoTest {
             authRepository = authRepo,
             onboardingPreferences = FakeOnboardingPreferences(),
             compressLogo = { gate.await(); it },
+            analytics = FakeAnalytics(),
         )
 
         vm.onAction(WorkshopSetupAction.OnBusinessNameChange("Esther"))

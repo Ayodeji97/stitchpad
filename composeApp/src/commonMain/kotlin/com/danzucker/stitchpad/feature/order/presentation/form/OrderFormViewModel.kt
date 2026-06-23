@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
@@ -60,6 +62,7 @@ class OrderFormViewModel(
     private val authRepository: AuthRepository,
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
     private val imageCompressor: ImageCompressor,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -887,6 +890,7 @@ class OrderFormViewModel(
             }
             when (result) {
                 is Result.Success -> {
+                    if (!isEdit) analytics.logEvent(AnalyticsEvent.OrderCreated)
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
                     _events.send(OrderFormEvent.OrderSaved)

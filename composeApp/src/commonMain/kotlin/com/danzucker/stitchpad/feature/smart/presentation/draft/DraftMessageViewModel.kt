@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.smart.presentation.draft
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
@@ -33,6 +35,7 @@ class DraftMessageViewModel(
     private val customerProvider: CustomerSearchProvider,
     private val connectivity: StateFlow<Boolean>,
     private val usageStore: SmartUsageStore,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -156,6 +159,7 @@ class DraftMessageViewModel(
             )
             when (val result = repository.draftMessage(req)) {
                 is Result.Success -> {
+                    analytics.logEvent(AnalyticsEvent.AiFeatureUsed(feature = "draft_message"))
                     _state.update { current ->
                         // The form stays editable during Generating. If the
                         // user changed any request input mid-flight, the

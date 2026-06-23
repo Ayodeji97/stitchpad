@@ -82,6 +82,7 @@ kotlin {
             implementation(libs.firebase.storage)
             implementation(libs.firebase.common)
             implementation(libs.firebase.functions)
+            implementation(libs.firebase.analytics)
 
             // Image loading
             implementation(libs.coil.compose)

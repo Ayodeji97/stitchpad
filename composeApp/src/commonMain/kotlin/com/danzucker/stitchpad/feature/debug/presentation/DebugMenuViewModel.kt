@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.debug.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
+import com.danzucker.stitchpad.core.debug.AnalyticsDebugActions
 import com.danzucker.stitchpad.core.debug.DebugActionResult
 import com.danzucker.stitchpad.core.debug.DebugSeeder
 import com.danzucker.stitchpad.core.debug.DebugSessionActions
@@ -32,6 +33,7 @@ class DebugMenuViewModel(
     private val freemiumActions: FreemiumDebugActions,
     private val digestActions: DigestDebugActions,
     private val reminderActions: ReminderDebugActions,
+    private val analyticsActions: AnalyticsDebugActions,
     private val now: () -> Long,
     private val testAccountsConfigured: Boolean = DebugTestAccounts.isConfigured,
 ) : ViewModel() {
@@ -44,7 +46,7 @@ class DebugMenuViewModel(
     private val _events = Channel<DebugMenuEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: DebugMenuAction) {
         if (handleFreemiumAction(action)) return
         when (action) {
@@ -99,6 +101,10 @@ class DebugMenuViewModel(
             DebugMenuAction.OnSendDailyDigestClick -> runSendDigest()
             DebugMenuAction.OnSendTestPushClick -> runSendTestPush()
             DebugMenuAction.OnSendRenewalReminderClick -> runSendReminder()
+            is DebugMenuAction.ToggleAnalyticsCollection -> {
+                analyticsActions.setAnalyticsEnabled(action.enabled)
+                _state.update { it.copy(analyticsCollectionEnabled = action.enabled) }
+            }
             else -> Unit // freemium branch handled above
         }
     }
