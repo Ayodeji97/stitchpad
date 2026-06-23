@@ -24,6 +24,32 @@ Identity: `user_id` = Firebase uid (set on login); `user_pseudo_id` = per-instal
 
 ---
 
+## Part 0 — One-time setup (done 2026-06-23)
+
+**GA linked:** Google Analytics is enabled on the Firebase project `stitchpad-30607`
+(Project settings → Integrations → Google Analytics). No re-download of the Android
+`google-services.json` was needed; the iOS `GoogleService-Info.plist` was refreshed.
+(The iOS `IS_ANALYTICS_ENABLED=false` key is legacy/ignored — not a blocker; collection
+defaults on and is gated by the in-app debug toggle.)
+
+**BigQuery export linking recipe** (Project settings → Integrations → BigQuery → Link):
+- **Region: `europe-west1`** — matches Firestore for EU data residency. This is the one
+  setting you CANNOT change later without recreating the dataset. Don't accept a US default.
+- **Daily** export ON; **Streaming** OFF (Daily is the free standard export and is plenty
+  pre-launch; add Streaming later only if you need same-day intraday tables).
+- **Include advertising identifiers** OFF (not needed, cleaner for privacy).
+- Apps exporting: all 3 (Android + iOS + web).
+- Not backfilled: data only accrues from link time forward — which is why it was linked
+  pre-launch, to bank the earliest-user cohort.
+
+The `analytics_<propertyId>` dataset and `events_YYYYMMDD` tables appear ~24h after linking
+(first daily export run). Swap `PROJECT.analytics_PROPERTYID` below for that dataset id.
+
+**Still pending:** register the 4 custom dimensions in GA4 (`screen_name`, `feature`,
+`tier`, `subscription_tier`) so they appear in console explorations (Part 1).
+
+---
+
 ## Part 1 — GA4 console explorations (no SQL, ~24h latency)
 
 Open **Firebase console → Analytics → "View in Google Analytics"** (or analytics.google.com
