@@ -7,6 +7,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
@@ -72,7 +73,7 @@ private const val MAX_IMAGES_PER_CATEGORY = 3
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
 // A refactor to bundle repositories into a single dependency would obscure the
 // per-layer wiring; staying explicit + suppressing here keeps the seams visible.
-@Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
+@Suppress("TooManyFunctions", "LongParameterList", "LargeClass", "UnusedPrivateProperty")
 class OrderDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
@@ -86,6 +87,7 @@ class OrderDetailViewModel(
     private val imageLoader: ImageLoader,
     private val platformContext: PlatformContext,
     private val entitlementsProvider: EntitlementsProvider,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
