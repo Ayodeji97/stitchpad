@@ -555,7 +555,7 @@ class DebugMenuViewModelTest {
     // --- Analytics toggle ---
 
     @Test
-    fun `ToggleAnalyticsCollection(false) calls actions with false and updates state`() = runTest {
+    fun `ToggleAnalyticsCollection false calls actions with false and updates state`() = runTest {
         val fakeAnalytics = FakeAnalyticsDebugActions()
         val vm = createViewModel(analyticsActions = fakeAnalytics)
 
@@ -570,7 +570,7 @@ class DebugMenuViewModelTest {
     }
 
     @Test
-    fun `ToggleAnalyticsCollection(true) re-enables after disable`() = runTest {
+    fun `ToggleAnalyticsCollection true re-enables after disable`() = runTest {
         val fakeAnalytics = FakeAnalyticsDebugActions()
         val vm = createViewModel(analyticsActions = fakeAnalytics)
 
