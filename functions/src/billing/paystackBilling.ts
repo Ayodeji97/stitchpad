@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { computeSubscriptionGrant, toDate } from './subscriptionPeriod';
+import type { CurrentSubscription } from './subscriptionPeriod';
 import { applyGiftWebhook, giftEmailSender } from './giftBilling';
 
 // Re-exported so existing importers (tests, templates) keep their import paths.
@@ -302,9 +303,7 @@ export async function paystackWebhookHandler(
     }
 
     const userSnap = await tx.get(userRef);
-    const userData = userSnap.data() as
-      | { subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: unknown }
-      | undefined;
+    const userData = userSnap.data() as CurrentSubscription | undefined;
     // Stacking/fresh-period logic lives in computeSubscriptionGrant (shared with
     // gifts). A purchase uses mode 'purchase' so a deliberate tier switch starts a
     // fresh period exactly as before — see that function for the full rationale.
@@ -320,6 +319,13 @@ export async function paystackWebhookHandler(
       // subscription can't clobber this Paystack grant (the Apple downgrade guard
       // in appleBilling.ts only clears the doc when subscriptionSource is 'apple').
       subscriptionSource: 'paystack',
+      // Persist (or clear) the queued lower-tier fallback so a Pro→Atelier upgrade
+      // doesn't lose the remaining Pro time. Non-upgrade grants produce null here,
+      // which explicitly clears any stale fallback fields left over from a prior gift.
+      subscriptionFallbackTier: grant.fallbackTier,
+      subscriptionFallbackEndsAt: grant.fallbackEndsAt
+        ? admin.firestore.Timestamp.fromDate(grant.fallbackEndsAt)
+        : null,
       updatedAt: nowTs,
     }, { merge: true });
     tx.set(billingRef, {
