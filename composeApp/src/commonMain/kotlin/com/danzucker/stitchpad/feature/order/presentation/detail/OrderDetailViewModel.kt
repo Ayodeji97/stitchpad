@@ -1000,6 +1000,7 @@ class OrderDetailViewModel(
         viewModelScope.launch {
             val message = WhatsAppMessageBuilder.buildForOrder(order, customer)
             _events.send(OrderDetailEvent.LaunchWhatsApp(customer.phone, message))
+            analytics.logEvent(AnalyticsEvent.WhatsAppMessageSent(context = "order_update"))
         }
     }
 
