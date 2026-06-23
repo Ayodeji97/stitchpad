@@ -423,6 +423,41 @@ describe('expirePrepaidSubscriptionsHandler', () => {
     expect(writes).toEqual(['users/queued:pro:active:null']);
   });
 
+  it('unwinds a Paystack upgrade: expired Atelier with queued Pro -> Pro active, end = fallback end', async () => {
+    // The exact shape the upgrade-preserve fix writes: active Atelier ended, Pro queued.
+    const fallbackEnd = new Date('2026-09-01T00:00:00Z');
+    const captured: Record<string, unknown>[] = [];
+    const docs = [
+      {
+        ref: { path: 'users/upgraded' },
+        data: () => ({
+          subscriptionTier: 'atelier',
+          subscriptionStatus: 'active',
+          subscriptionRenews: false,
+          subscriptionEndsAt: admin.firestore.Timestamp.fromDate(new Date('2026-06-01T00:00:00Z')), // <= now
+          subscriptionFallbackTier: 'pro',
+          subscriptionFallbackEndsAt: admin.firestore.Timestamp.fromDate(fallbackEnd), // future
+        }),
+      },
+    ];
+    const query: any = { where: jest.fn(() => query), get: jest.fn(async () => ({ docs })) };
+    const batch = {
+      set: jest.fn((_ref: any, data: any) => captured.push(data)),
+      commit: jest.fn(),
+    };
+    const db = { collection: jest.fn(() => query), batch: jest.fn(() => batch) };
+
+    await expirePrepaidSubscriptionsHandler({ db: db as never, now: () => new Date('2026-07-01T00:00:00Z') });
+
+    expect(captured).toHaveLength(1);
+    const written = captured[0] as any;
+    expect(written.subscriptionTier).toBe('pro');
+    expect(written.subscriptionStatus).toBe('active');
+    expect((written.subscriptionEndsAt as admin.firestore.Timestamp).toDate().getTime()).toBe(fallbackEnd.getTime());
+    expect(written.subscriptionFallbackTier).toBeNull();
+    expect(written.subscriptionFallbackEndsAt).toBeNull();
+  });
+
   it('drops to Free when the queued fallback has also expired', async () => {
     const writes: string[] = [];
     const docs = [
