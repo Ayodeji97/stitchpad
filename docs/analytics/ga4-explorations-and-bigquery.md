@@ -45,8 +45,19 @@ defaults on and is gated by the in-app debug toggle.)
 The `analytics_<propertyId>` dataset and `events_YYYYMMDD` tables appear ~24h after linking
 (first daily export run). Swap `PROJECT.analytics_PROPERTYID` below for that dataset id.
 
-**Still pending:** register the 4 custom dimensions in GA4 (`screen_name`, `feature`,
-`tier`, `subscription_tier`) so they appear in console explorations (Part 1).
+**Custom dimensions registered** (GA4 → Admin → Data display → Custom definitions, done 2026-06-23)
+so the params appear as selectable dimensions in explorations (Part 1):
+
+| Dimension name | Scope | Source param/property |
+|---|---|---|
+| Screen name | Event | `screen_name` |
+| AI feature | Event | `feature` |
+| Upgrade tier | Event | `tier` |
+| Subscription tier | **User** | `subscription_tier` |
+
+(Note: GA4's built-in "Screen name" dimension reads the SDK's auto `firebase_screen`, not our
+clean `screen_name` param — that's why `screen_name` is registered separately. Raw params are
+in Explorations + BigQuery regardless of registration; this just makes them UI-selectable.)
 
 ---
 
