@@ -1,6 +1,9 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.data.repository.FakeCustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
@@ -69,6 +72,7 @@ class MeasurementFormViewModelTest {
         customerId: String = "customer-1",
         measurementId: String? = null,
         fromCustomerCreation: Boolean = false,
+        analytics: Analytics = FakeAnalytics(),
     ): MeasurementFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
@@ -83,6 +87,7 @@ class MeasurementFormViewModelTest {
             orderRepository = orderRepository,
             customFieldRepository = customFieldRepository,
             entitlements = fakeEntitlements,
+            analytics = analytics,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -155,6 +160,7 @@ class MeasurementFormViewModelTest {
             orderRepository = orderRepository,
             customFieldRepository = customFieldRepository,
             entitlements = fakeEntitlements,
+            analytics = FakeAnalytics(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
@@ -1248,4 +1254,30 @@ class MeasurementFormViewModelTest {
         createdAt = 0L,
         updatedAt = 0L,
     )
+
+    // --- Analytics ---
+
+    @Test
+    fun create_save_logs_measurement_added() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val analytics = FakeAnalytics()
+        val vm = createViewModel(analytics = analytics)
+        vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+        runCurrent()
+        assertTrue(analytics.events.contains(AnalyticsEvent.MeasurementAdded))
+    }
+
+    @Test
+    fun edit_save_does_not_log_measurement_added() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+        val analytics = FakeAnalytics()
+        val vm = createViewModel(measurementId = "meas-1", analytics = analytics)
+        vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
+        vm.onAction(MeasurementFormAction.OnSaveClick)
+        runCurrent()
+        assertFalse(analytics.events.any { it is AnalyticsEvent.MeasurementAdded })
+    }
 }

@@ -45,6 +45,7 @@ sealed interface AnalyticsEvent {
 
     data class PaymentRecorded(val isFullyPaid: Boolean) : AnalyticsEvent {
         override val name = "payment_recorded"
+
         // String, not Boolean: GA4 param types are string/number; keep it queryable.
         override val params = mapOf("is_fully_paid" to isFullyPaid.toString())
     }
