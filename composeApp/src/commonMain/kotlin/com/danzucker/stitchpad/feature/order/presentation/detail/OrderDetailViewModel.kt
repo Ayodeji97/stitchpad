@@ -225,12 +225,12 @@ class OrderDetailViewModel(
                 _state.update { it.copy(showShareSheet = true) }
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt { receiptSharer.shareReceiptAsImage(it) }
+                shareReceipt(format = "image") { receiptSharer.shareReceiptAsImage(it) }
                 _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt { receiptSharer.shareReceiptAsPdf(it) }
+                shareReceipt(format = "pdf") { receiptSharer.shareReceiptAsPdf(it) }
                 _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnDismissShareSheet ->
@@ -635,7 +635,7 @@ class OrderDetailViewModel(
         }
     }
 
-    private fun shareReceipt(share: suspend (ReceiptData) -> Unit) {
+    private fun shareReceipt(format: String, share: suspend (ReceiptData) -> Unit) {
         val order = _state.value.order ?: return
         val user = _state.value.user ?: return
         val choice = _state.value.documentTypeChoice
@@ -668,6 +668,12 @@ class OrderDetailViewModel(
                     forceDocumentType = choice,
                 )
                 share(receiptData)
+                analytics.logEvent(
+                    AnalyticsEvent.ReceiptSent(
+                        documentType = receiptData.documentType.name.lowercase(),
+                        format = format,
+                    )
+                )
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
                     it.copy(errorMessage = UiText.StringResourceText(Res.string.receipt_share_error))
