@@ -103,7 +103,9 @@ class UpgradeViewModel(
         // button is already disabled via isStartingCheckout.
         when (action) {
             is UpgradeAction.SelectTier ->
-                if (!_state.value.isStartingCheckout) _state.update { it.copy(selectedTier = action.tier) }
+                if (!_state.value.isStartingCheckout && action.tier != _state.value.currentTier) {
+                    _state.update { it.copy(selectedTier = action.tier) }
+                }
             is UpgradeAction.SelectCadence ->
                 if (!_state.value.isStartingCheckout) _state.update { it.copy(billingCadence = action.cadence) }
             UpgradeAction.StartCheckout -> startCheckout()

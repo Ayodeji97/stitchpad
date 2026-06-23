@@ -1413,6 +1413,7 @@
     <string name="upgrade_terms_of_use">Terms of Use</string>
     <string name="upgrade_link_separator">·</string>
     <string name="upgrade_back_content_description">Back</string>
+    <string name="upgrade_current_plan">Current plan</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
     <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
     <string name="payment_error_invalid_plan">That plan is not available. Choose another plan and try again.</string>

@@ -222,6 +222,31 @@ class UpgradeViewModelTest {
         assertEquals(SubscriptionTier.PRO, vm.state.value.selectedTier)
     }
 
+    @Test
+    fun selectTier_ignoresCurrentTier() = runTest {
+        // PRO user → initialState defaults selectedTier to ATELIER.
+        entitlements = FakeEntitlementsProvider(SubscriptionTier.PRO)
+        val vm = newVm()
+
+        // Tapping the already-owned PRO card must be a no-op.
+        vm.onAction(UpgradeAction.SelectTier(SubscriptionTier.PRO))
+        runCurrent()
+
+        assertEquals(SubscriptionTier.ATELIER, vm.state.value.selectedTier)
+    }
+
+    @Test
+    fun selectTier_allowsUpgradeTier() = runTest {
+        // PRO user → initialState defaults selectedTier to ATELIER.
+        entitlements = FakeEntitlementsProvider(SubscriptionTier.PRO)
+        val vm = newVm()
+
+        vm.onAction(UpgradeAction.SelectTier(SubscriptionTier.ATELIER))
+        runCurrent()
+
+        assertEquals(SubscriptionTier.ATELIER, vm.state.value.selectedTier)
+    }
+
     private fun newVm(): UpgradeViewModel = UpgradeViewModel(
         entitlements = entitlements,
         paymentRepository = payments,

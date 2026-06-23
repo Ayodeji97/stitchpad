@@ -37,6 +37,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ import stitchpad.composeapp.generated.resources.upgrade_billed_annually
 import stitchpad.composeapp.generated.resources.upgrade_billed_monthly
 import stitchpad.composeapp.generated.resources.upgrade_cadence_annual
 import stitchpad.composeapp.generated.resources.upgrade_cadence_monthly
+import stitchpad.composeapp.generated.resources.upgrade_current_plan
 import stitchpad.composeapp.generated.resources.upgrade_link_separator
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
 import stitchpad.composeapp.generated.resources.upgrade_price_loading
@@ -129,6 +131,7 @@ fun UpgradeScreen(
                     annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_pro_annual),
                     isSelected = state.selectedTier == SubscriptionTier.PRO,
                     onClick = { onAction(UpgradeAction.SelectTier(SubscriptionTier.PRO)) },
+                    isCurrent = state.currentTier == SubscriptionTier.PRO,
                 )
                 TierCard(
                     name = stringResource(Res.string.upgrade_atelier_name),
@@ -141,6 +144,7 @@ fun UpgradeScreen(
                     annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_atelier_annual),
                     isSelected = state.selectedTier == SubscriptionTier.ATELIER,
                     onClick = { onAction(UpgradeAction.SelectTier(SubscriptionTier.ATELIER)) },
+                    isCurrent = state.currentTier == SubscriptionTier.ATELIER,
                 )
             }
 
@@ -294,47 +298,65 @@ private fun TierCard(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isCurrent: Boolean = false,
 ) {
-    val borderColor = if (isSelected) {
+    // A current-plan card is non-interactive: no selection ring, no click, dimmed.
+    val effectiveSelected = isSelected && !isCurrent
+    val borderColor = if (effectiveSelected) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
     Surface(
         onClick = onClick,
+        enabled = !isCurrent,
         shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = if (isSelected) {
+        color = if (effectiveSelected) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
         } else {
             MaterialTheme.colorScheme.surface
         },
         border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
+            width = if (effectiveSelected) 2.dp else 1.dp,
             color = borderColor,
         ),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (isCurrent) 0.6f else 1f),
     ) {
         Row(
             modifier = Modifier.padding(DesignTokens.space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                ) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (isCurrent) {
+                        Text(
+                            text = stringResource(Res.string.upgrade_current_plan),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = monthlyPrice,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (isSelected) {
+                    color = if (effectiveSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontWeight = if (effectiveSelected) FontWeight.SemiBold else FontWeight.Normal,
                 )
                 Text(
                     text = annualHint,
