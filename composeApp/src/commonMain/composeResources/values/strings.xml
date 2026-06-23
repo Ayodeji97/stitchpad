@@ -1384,6 +1384,7 @@
     <string name="plan_card_free_state">You&apos;re on Free</string>
     <string name="plan_card_pro_state">You&apos;re on Tailor Pro</string>
     <string name="plan_card_atelier_state">You&apos;re on Tailor Atelier</string>
+    <string name="plan_card_pro_upgrade_hint">Tap to explore Tailor Atelier</string>
     <string name="plan_card_upgrade_cta">Upgrade</string>
     <string name="plan_card_customer_progress">%1$d of %2$d customers</string>
     <string name="plan_card_customer_unlimited">Unlimited customers</string>

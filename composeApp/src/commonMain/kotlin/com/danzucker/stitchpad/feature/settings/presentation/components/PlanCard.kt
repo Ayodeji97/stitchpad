@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,6 +69,7 @@ import stitchpad.composeapp.generated.resources.plan_card_pill_free
 import stitchpad.composeapp.generated.resources.plan_card_pill_limit_reached
 import stitchpad.composeapp.generated.resources.plan_card_pill_maxed_out
 import stitchpad.composeapp.generated.resources.plan_card_pro_state
+import stitchpad.composeapp.generated.resources.plan_card_pro_upgrade_hint
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_ai_locked
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_ai_warn_first_month
 import stitchpad.composeapp.generated.resources.plan_card_subtitle_ai_warn_free
@@ -136,7 +138,7 @@ fun PlanCard(
     // PlanCardInline branch. Pro/Atelier AI exhaustion surfaces via a snackbar from
     // DraftMessageViewModel (pro_quota_exhausted marker), not the PlanCard.
     if (tier != SubscriptionTier.FREE) {
-        PlanCardPaid(tier = tier, modifier = modifier)
+        PlanCardPaid(tier = tier, onUpgradeClick = onUpgradeClick, modifier = modifier)
         return
     }
 
@@ -370,6 +372,7 @@ private fun PlanCardInline(
 @Composable
 private fun PlanCardPaid(
     tier: SubscriptionTier,
+    onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tierLabel = stringResource(
@@ -379,11 +382,20 @@ private fun PlanCardPaid(
             SubscriptionTier.FREE -> Res.string.plan_card_free_state
         }
     )
+    val canUpgrade = tier == SubscriptionTier.PRO
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (canUpgrade) {
+                    Modifier.clickable(onClick = onUpgradeClick, role = Role.Button)
+                } else {
+                    Modifier
+                },
+            ),
     ) {
         Row(
             modifier = Modifier
@@ -403,6 +415,22 @@ private fun PlanCardPaid(
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (canUpgrade) {
+                    Spacer(Modifier.height(DesignTokens.space1))
+                    Text(
+                        text = stringResource(Res.string.plan_card_pro_upgrade_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (canUpgrade) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -939,6 +967,27 @@ private fun PlanCardProPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             PlanCard(
                 tier = SubscriptionTier.PRO,
+                customerCount = 42,
+                customerLimit = null,
+                aiDraftsUsed = 10,
+                aiDraftLimit = null,
+                isFirstMonth = false,
+                welcomeDaysLeft = null,
+                onUpgradeClick = {},
+                modifier = Modifier.padding(DesignTokens.space3),
+            )
+        }
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun PlanCardAtelierPreview() {
+    StitchPadTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            PlanCard(
+                tier = SubscriptionTier.ATELIER,
                 customerCount = 42,
                 customerLimit = null,
                 aiDraftsUsed = 10,
