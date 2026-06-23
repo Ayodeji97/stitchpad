@@ -21,11 +21,15 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
+import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
+import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Dispatchers
@@ -127,7 +131,10 @@ class DashboardViewModelTest {
             notificationRepository = notificationRepository,
             pushTokenRegistrar = NoOpPushTokenRegistrar(),
             nowMillis = nowMillis,
-            timeZone = testTimeZone
+            timeZone = testTimeZone,
+            appConfigRepository = FakeAppConfigRepository(),
+            communityJoinTracker = FakeCommunityJoinTracker(),
+            dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

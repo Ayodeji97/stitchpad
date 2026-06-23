@@ -62,6 +62,10 @@ data class DashboardState(
     // false so rendering code can guard on both fields safely.
     val welcomeBannerDaysLeft: Int? = null,
     val showWelcomeBanner: Boolean = false,
+    // Community banner — shown when remote config enables it with a usable link
+    // and the user hasn't dismissed/joined. communityUrl is null when hidden.
+    val communityUrl: String? = null,
+    val showCommunityBanner: Boolean = false,
     // Live unread notification count — drives the bell badge in the dashboard header.
     val unreadNotificationCount: Int = 0,
     val errorMessage: UiText? = null

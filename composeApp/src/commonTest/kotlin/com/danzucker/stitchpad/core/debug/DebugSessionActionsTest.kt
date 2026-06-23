@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.test.runTest
@@ -31,6 +32,7 @@ class DebugSessionActionsTest {
             authRepository = authRepository,
             onboardingPreferences = onboardingPreferences,
             signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+            communityBannerDismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
         )
     }
 

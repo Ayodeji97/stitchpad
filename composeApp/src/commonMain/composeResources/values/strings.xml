@@ -1281,6 +1281,13 @@
     <string name="settings_row_invite_subtitle">Grow your network</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
+    <string name="settings_row_community">Join our community</string>
+    <string name="settings_row_community_subtitle">Updates, tips &amp; other tailors on WhatsApp</string>
+    <string name="community_banner_title">Join our WhatsApp community</string>
+    <string name="community_strip_subtitle">Updates, tips &amp; other Nigerian tailors</string>
+    <string name="community_strip_join">Join</string>
+    <string name="community_banner_dismiss_cd">Dismiss</string>
+    <string name="community_banner_icon_cd">WhatsApp</string>
     <string name="settings_invite_share_message">Hi! I&apos;ve been using StitchPad to manage my tailoring orders and customers — it&apos;s been a game-changer. Try it: https://getstitchpad.com</string>
     <string name="settings_support_intro_message">Hi StitchPad team! I need help with </string>
     <string name="settings_section_legal">Legal</string>

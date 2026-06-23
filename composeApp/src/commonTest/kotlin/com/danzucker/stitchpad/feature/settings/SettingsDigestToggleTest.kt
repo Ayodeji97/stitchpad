@@ -3,6 +3,9 @@ package com.danzucker.stitchpad.feature.settings
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
+import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
@@ -20,6 +23,7 @@ import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -184,6 +188,9 @@ private fun buildSettingsVmForDigest(
         smartUsageDocSource = FakeSmartUsageDocSource(),
         signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
         pushPermissionController = pushPermissionController,
+        appConfigRepository = FakeAppConfigRepository(),
+        communityJoinTracker = FakeCommunityJoinTracker(),
+        dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
     )
     return vm to userRepo
 }

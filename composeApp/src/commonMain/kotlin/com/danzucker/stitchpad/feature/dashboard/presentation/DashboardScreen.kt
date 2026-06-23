@@ -58,15 +58,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityStrip
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyCardCtaStyle
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
@@ -302,6 +305,7 @@ fun DashboardRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val signature = state.businessName ?: state.firstName
+    val uriHandler = LocalUriHandler.current
 
     // Push-permission pre-prompt: show once, on first dashboard landing,
     // only when Android 13+ and POST_NOTIFICATIONS is not yet granted.
@@ -313,6 +317,18 @@ fun DashboardRoot(
     }
 
     ObserveAsEvents(viewModel.events) { event ->
+        // OpenCommunityLink is handled inline where LocalUriHandler is in scope.
+        if (event is DashboardEvent.OpenCommunityLink) {
+            runCatching { uriHandler.openUri(event.url) }
+                .onFailure {
+                    // Never log the URL — the invite token grants community access.
+                    AppLogger.e(
+                        tag = "DashboardRoot",
+                        throwable = it,
+                    ) { "No handler to open community invite" }
+                }
+            return@ObserveAsEvents
+        }
         handleDashboardEvent(
             event = event,
             scope = scope,
@@ -486,6 +502,8 @@ private fun handleDashboardEvent(
             whatsAppLauncher,
             event
         )
+        // Handled inline in DashboardRoot (ObserveAsEvents) where LocalUriHandler is in scope.
+        is DashboardEvent.OpenCommunityLink -> Unit
     }
 }
 
@@ -688,9 +706,9 @@ private fun DashboardContent(
     ) {
         Spacer(Modifier.height(DesignTokens.space4))
 
-        // 0. Welcome-ending warning banner — shown when the free welcome
-        //    window is within 3 days of expiring. Placed above everything
-        //    else so the high-urgency message gets immediate attention.
+        // 0. Welcome-ending banner (top). The community invite is a separate
+        //    slim strip rendered below the focus card, not here — so the
+        //    dashboard never opens on the community message.
         if (state.showWelcomeBanner && state.welcomeBannerDaysLeft != null) {
             WelcomeEndingBanner(
                 daysLeft = state.welcomeBannerDaysLeft,
@@ -721,6 +739,16 @@ private fun DashboardContent(
                 ctaSubtitle = state.focusCtaSubtitle?.asString(),
                 sectionLabel = state.focusSectionLabel?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
+            )
+        }
+
+        // Community invite — slim strip, directly below the hero focus card so
+        // the tailor's work leads. Shown only when remote config enables it
+        // with a valid invite and the user hasn't dismissed/joined.
+        if (state.showCommunityBanner) {
+            CommunityStrip(
+                onJoin = { onAction(DashboardAction.OnJoinCommunity) },
+                onDismiss = { onAction(DashboardAction.OnDismissCommunityBanner) },
             )
         }
 

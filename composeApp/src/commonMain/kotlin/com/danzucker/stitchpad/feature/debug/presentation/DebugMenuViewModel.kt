@@ -46,7 +46,7 @@ class DebugMenuViewModel(
     private val _events = Channel<DebugMenuEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: DebugMenuAction) {
         if (handleFreemiumAction(action)) return
         when (action) {
@@ -75,6 +75,10 @@ class DebugMenuViewModel(
             DebugMenuAction.OnResetOnboardingClick -> runJob {
                 sessionActions.resetOnboardingFlags()
                 emit(DebugMenuEvent.NavigateToSplash)
+            }
+            DebugMenuAction.OnResetCommunityBannerClick -> runJob {
+                sessionActions.clearCommunityBannerDismissed()
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Community banner reset")))
             }
             DebugMenuAction.OnSignOutClick -> runSignOut()
             DebugMenuAction.OnSwitchToFolaClick -> runJob {

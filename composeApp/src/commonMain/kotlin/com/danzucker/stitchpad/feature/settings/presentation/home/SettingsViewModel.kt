@@ -2,6 +2,10 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
+import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
+import com.danzucker.stitchpad.core.config.domain.model.AppConfig
+import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
@@ -67,6 +71,9 @@ class SettingsViewModel(
     private val smartUsageDocSource: SmartUsageDocSource,
     private val signOutUseCase: SignOutUseCase,
     private val pushPermissionController: PushPermissionController,
+    private val appConfigRepository: AppConfigRepository,
+    private val communityJoinTracker: CommunityJoinTracker,
+    private val dismissal: CommunityBannerDismissal,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -121,6 +128,12 @@ class SettingsViewModel(
             SettingsAction.OnGetGiftedClick -> emit(SettingsEvent.NavigateToShareGiftLink)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
             is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
+            SettingsAction.OnCommunityClick -> {
+                val url = state.value.communityUrl ?: return
+                emit(SettingsEvent.OpenCommunityLink(url))
+                viewModelScope.launch { communityJoinTracker.trackJoinTapped() }
+                viewModelScope.launch { dismissal.markDismissed() }
+            }
         }
     }
 
@@ -157,14 +170,22 @@ class SettingsViewModel(
             smartUsageDocSource.observeSnapshot(authUser.id),
         ) { firestoreUser, usage -> firestoreUser to usage }
 
+        // Pre-combine customerCount with appConfig so the outer combine stays at
+        // 5 positional args (kotlinx-coroutines has no 6-arg overload).
+        val customerCountWithConfigFlow = combine(
+            customerCountFlow,
+            appConfigRepository.config,
+        ) { count, config -> count to config }
+
         val combined = combine(
             userWithUsageFlow,
             entitlementsProvider.flow,
-            customerCountFlow,
+            customerCountWithConfigFlow,
             smartUsageStore.remainingFreeQuota,
             uiState,
-        ) { userBundle, entitlements, customerCount, remainingAi, ui ->
+        ) { userBundle, entitlements, countWithConfig, remainingAi, ui ->
             val (firestoreUser, usage) = userBundle
+            val (customerCount, appConfig) = countWithConfig
             buildState(
                 authUser = authUser,
                 provider = provider,
@@ -174,6 +195,7 @@ class SettingsViewModel(
                 customerCount = customerCount,
                 remainingAiQuota = remainingAi,
                 ui = ui,
+                appConfig = appConfig,
             )
         }
         combined.collect { emit(it) }
@@ -189,6 +211,7 @@ class SettingsViewModel(
         customerCount: Int,
         remainingAiQuota: Int?,
         ui: LocalUiState,
+        appConfig: AppConfig = AppConfig.Disabled,
     ): SettingsState {
         val business = firestoreUser?.businessName.orEmpty().ifBlank {
             authUser.displayName.ifBlank { authUser.email.substringBefore('@') }
@@ -225,6 +248,8 @@ class SettingsViewModel(
             pushReminderSupported = true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
+            communityEnabled = appConfig.communityEnabled,
+            communityUrl = appConfig.communityInviteUrl,
         )
     }
 

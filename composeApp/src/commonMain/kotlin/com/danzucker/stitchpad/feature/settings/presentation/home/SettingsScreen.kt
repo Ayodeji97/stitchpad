@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
@@ -63,6 +64,8 @@ import stitchpad.composeapp.generated.resources.gift_share_settings_row
 import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
+import stitchpad.composeapp.generated.resources.settings_row_community
+import stitchpad.composeapp.generated.resources.settings_row_community_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_contact
 import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_daily_digest
@@ -277,6 +280,16 @@ fun SettingsScreen(
                     onClick = { onAction(SettingsAction.OnContactClick) },
                     trailing = { SettingsRowChevron() },
                 )
+                if (state.showCommunityRow) {
+                    SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Groups,
+                        label = stringResource(Res.string.settings_row_community),
+                        subtitle = stringResource(Res.string.settings_row_community_subtitle),
+                        onClick = { onAction(SettingsAction.OnCommunityClick) },
+                        trailing = { SettingsRowChevron() },
+                    )
+                }
                 SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.Outlined.Info,

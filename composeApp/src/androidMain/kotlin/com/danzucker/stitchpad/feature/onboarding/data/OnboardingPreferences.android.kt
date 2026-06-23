@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.onboarding.data
 
 import android.content.Context
@@ -49,11 +51,24 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         prefs.edit().putBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, true).apply()
     }
 
+    override suspend fun hasDismissedCommunityBanner(): Boolean {
+        return prefs.getBoolean(KEY_DISMISSED_COMMUNITY_BANNER, false)
+    }
+
+    override suspend fun setCommunityBannerDismissed() {
+        prefs.edit().putBoolean(KEY_DISMISSED_COMMUNITY_BANNER, true).apply()
+    }
+
+    override suspend fun clearCommunityBannerDismissed() {
+        prefs.edit().putBoolean(KEY_DISMISSED_COMMUNITY_BANNER, false).apply()
+    }
+
     override suspend fun resetForDebug() {
         val editor = prefs.edit()
             .putBoolean(KEY_HAS_SEEN_ONBOARDING, false)
             .putBoolean(KEY_BYPASSED_EMAIL_VERIFICATION, false)
             .putBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, false)
+            .putBoolean(KEY_DISMISSED_COMMUNITY_BANNER, false)
         // Per-user completed + confirmation keys aren't enumerable up front — clear by prefix.
         prefs.all.keys
             .filter {
@@ -75,5 +90,6 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         private const val KEY_CONFIRMED_WORKSHOP_PREFIX = "confirmed_workshop_profile_"
         private const val KEY_BYPASSED_EMAIL_VERIFICATION = "bypassed_email_verification"
         private const val KEY_HAS_ASKED_PUSH_PERMISSION = "has_asked_push_permission"
+        private const val KEY_DISMISSED_COMMUNITY_BANNER = "dismissed_community_banner"
     }
 }
