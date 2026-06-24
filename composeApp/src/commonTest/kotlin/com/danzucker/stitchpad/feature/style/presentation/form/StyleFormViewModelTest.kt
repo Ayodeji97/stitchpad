@@ -912,37 +912,28 @@ class StyleFormViewModelTest {
     }
 
     @Test
-    fun readOnly_freeToPro_styleStillOverFolderCap_staysLocked() = runTest {
-        // Style "style-old" lives in "folder-b" alongside 3 newer styles.
-        // PRO customer: maxImagesPerFolder = 3. 4 styles > 3 → oldest is locked → stays locked.
+    fun readOnly_freeToPro_styleStillOverFlatCap_staysLocked() = runTest {
+        // 16 styles in the flat closet; "style-old" is the oldest → beyond Pro's flatCap=15 → stays locked.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        val folderLocation = com.danzucker.stitchpad.core.domain.model.StyleLocation.CustomerCloset(
-            customerId = "customer-1",
-            folderId = "folder-b",
-        )
-        // "style-old" has the smallest createdAt → it lands in the over-cap tail after
-        // sortedByDescending(createdAt).drop(3) when there are 4 styles total.
-        styleRepository.stylesByLocation[folderLocation] = listOf(
-            fakeStyle(id = "style-new1", customerId = "customer-1").copy(createdAt = 4000L),
-            fakeStyle(id = "style-new2", customerId = "customer-1").copy(createdAt = 3000L),
-            fakeStyle(id = "style-new3", customerId = "customer-1").copy(createdAt = 2000L),
-            fakeStyle(id = "style-old",  customerId = "customer-1").copy(createdAt = 1000L),
-        )
+        val older = fakeStyle(id = "style-old", customerId = "customer-1").copy(createdAt = 1L)
+        val newer = List(15) { i ->
+            fakeStyle(id = "s$i", customerId = "customer-1").copy(createdAt = (i + 100).toLong())
+        }
+        styleRepository.stylesList = newer + older // 16 total; style-old is the oldest
 
         val fake = FakeEntitlementsProvider(SubscriptionTier.FREE)
         val vm = createViewModel(
             customerId = "customer-1",
             styleId = "style-old",
-            folderId = "folder-b",
             readOnly = true,
             fakeEntitlements = fake,
         )
         assertTrue(vm.state.value.readOnly)
 
-        // Upgrade to PRO: 4 styles in folder > 3 cap → style-old IS in locked set → stays locked.
+        // 16 > Pro flatCap 15 → oldest (style-old) still in the locked tail → readOnly stays true.
         fake.emitTier(SubscriptionTier.PRO)
 
-        assertTrue(vm.state.value.readOnly, "style-old must remain read-only: still over per-folder cap after PRO upgrade")
+        assertTrue(vm.state.value.readOnly)
     }
 
     @Test
