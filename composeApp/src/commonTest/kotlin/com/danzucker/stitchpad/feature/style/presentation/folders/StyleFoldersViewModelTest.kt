@@ -6,7 +6,6 @@ import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
-import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
@@ -228,19 +227,16 @@ class StyleFoldersViewModelTest {
     }
 
     @Test
-    fun createBlockedAtCap_customerFoldersPro_offersNoUpgrade() = runTest {
+    fun paidCustomer_immediatelyRedirectsToFlatGallery() = runTest {
+        // Customer styles are flat on every tier now (foldersEnabled=false), so a
+        // Pro/Atelier customer closet must redirect straight to the flat gallery,
+        // exactly like Free — never show a folder list.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // PRO customer: maxFolders = 5 on BOTH Pro and Atelier. 4 named + default = 5 → blocked,
-        // but Atelier wouldn't add folders, so the sheet must NOT promise an upgrade.
-        styleRepository.folders = List(4) { fakeFolder("f$it") }
-        val vm = createViewModel(customerId = "cust-1", tier = SubscriptionTier.PRO)
+        val vm = createViewModel(customerId = "cust-1", tier = SubscriptionTier.ATELIER)
 
-        vm.onAction(StyleFoldersAction.OnCreateClick)
-
-        val capSheet = vm.state.value.capSheet
-        assertNotNull(capSheet)
-        assertEquals(StyleCapKind.FOLDERS, capSheet.kind)
-        assertNull(capSheet.upgradeTier)
+        val event = vm.events.first()
+        assertIs<StyleFoldersEvent.RedirectToFlatGallery>(event)
+        assertEquals("cust-1", event.customerId)
     }
 
     @Test
@@ -534,26 +530,6 @@ class StyleFoldersViewModelTest {
 
         assertNotNull(vm.state.value.errorMessage)
         assertNull(styleRepository.lastCreatedFolderName)
-    }
-
-    // ---------------------------------------------------------------------------
-    // FIX 2: Customer name loaded for closet title
-    // ---------------------------------------------------------------------------
-
-    @Test
-    fun closet_customerNameLoaded_intoState() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(
-            Customer(
-                id = "cust-1",
-                userId = "test-uid",
-                name = "Amaka",
-                phone = "+2348012345678",
-            )
-        )
-        val vm = createViewModel(customerId = "cust-1", tier = SubscriptionTier.PRO)
-
-        assertEquals("Amaka", vm.state.value.customerName)
     }
 
     // ---------------------------------------------------------------------------
