@@ -9,6 +9,9 @@
 
 import type { BillingTier, BillingCadence } from './paystackBilling';
 
+/** Tier ordering for purchase upgrades (atelier is strictly higher than pro). */
+const PURCHASE_TIER_RANK: Record<BillingTier, number> = { pro: 1, atelier: 2 };
+
 export interface CurrentSubscription {
   subscriptionTier?: string;
   subscriptionStatus?: string;
@@ -92,8 +95,10 @@ export function toDate(value: unknown): Date | null {
  *      A higher-rank gift to a lower active tier still starts a fresh period at the
  *      higher tier (an immediate upgrade; remaining lower-tier days are forfeited).
  *
- * `mode === 'purchase'` skips branch 3 entirely, preserving the exact pre-existing
- * Paystack behaviour (a buyer's tier switch is a deliberate choice, not a gift).
+ * `mode === 'purchase'` skips the gift never-downgrade rule, but a purchase UPGRADE
+ * to a strictly higher tier (pro -> atelier) DOES preserve remaining lower-tier time
+ * by queueing it behind the new higher period (same queue-behind a gift uses), so a
+ * buyer no longer forfeits paid Pro days when upgrading. A downgrade still starts fresh.
  */
 export function computeSubscriptionGrant(params: {
   userData: CurrentSubscription | undefined;
@@ -121,12 +126,32 @@ export function computeSubscriptionGrant(params: {
     : null;
   const currentEndsAt = toDate(userData?.subscriptionEndsAt);
 
-  // Same-tier active early renewal stacks; otherwise fresh from paidAt.
-  const subscriptionEndsAt =
-    currentTier === tier && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()
-      ? addPeriods(currentEndsAt, cadence, quantity)
-      : addPeriods(paidAt, cadence, quantity);
-  return { subscriptionTier: tier, subscriptionEndsAt, fallbackTier: null, fallbackEndsAt: null };
+  // 1. Same-tier active → early-renewal STACK (unchanged).
+  if (currentTier === tier && currentEndsAt && currentEndsAt.getTime() > paidAt.getTime()) {
+    return {
+      subscriptionTier: tier,
+      subscriptionEndsAt: addPeriods(currentEndsAt, cadence, quantity),
+      fallbackTier: null,
+      fallbackEndsAt: null,
+    };
+  }
+
+  // 2. UPGRADE to a strictly higher tier while on an active lower tier → preserve
+  //    the remaining lower-tier time by queueing it behind the new higher period,
+  //    the SAME "never-lost" stacking gifts use (the prepaid-expiry cron promotes
+  //    the queued fallback when the higher period ends). Paystack only — Apple does
+  //    its own store-level upgrade proration and never calls this function.
+  if (currentTier && PURCHASE_TIER_RANK[tier] > PURCHASE_TIER_RANK[currentTier]) {
+    return computeGiftGrant(userData, tier, cadence, paidAt, quantity);
+  }
+
+  // 3. Free / expired / downgrade → fresh period from paidAt (unchanged).
+  return {
+    subscriptionTier: tier,
+    subscriptionEndsAt: addPeriods(paidAt, cadence, quantity),
+    fallbackTier: null,
+    fallbackEndsAt: null,
+  };
 }
 
 /**

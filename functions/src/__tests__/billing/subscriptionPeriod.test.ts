@@ -55,6 +55,53 @@ describe('computeSubscriptionGrant — purchase mode (existing behaviour)', () =
     expect(grant.subscriptionTier).toBe('pro');
     expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
   });
+
+  it('PRESERVES remaining Pro time when upgrading Pro -> Atelier (queue-behind)', () => {
+    // Fixed dates so the expected ms are exact (this is money — no approximation).
+    const upgradePaidAt = new Date('2026-05-01T00:00:00Z');
+    const grant = computeSubscriptionGrant({
+      userData: {
+        subscriptionTier: 'pro',
+        subscriptionStatus: 'active',
+        // 92 days of Pro remaining (2026-05-01 -> 2026-08-01).
+        subscriptionEndsAt: ts('2026-08-01T00:00:00Z'),
+      },
+      tier: 'atelier', cadence: 'monthly', paidAt: upgradePaidAt, mode: 'purchase',
+    });
+    // Atelier runs now for one calendar month from paidAt: setUTCMonth(+1) -> 2026-06-01.
+    expect(grant.subscriptionTier).toBe('atelier');
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-06-01T00:00:00.000Z');
+    expect(grant.subscriptionEndsAt.getTime()).toBe(1780272000000);
+    // The 92 days of Pro are queued behind the Atelier window: atelier-end + 92d.
+    expect(grant.fallbackTier).toBe('pro');
+    expect(grant.fallbackEndsAt?.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(grant.fallbackEndsAt?.getTime()).toBe(1788220800000);
+    // The preserved Pro duration equals exactly the original remaining time.
+    const preservedMs = grant.fallbackEndsAt!.getTime() - grant.subscriptionEndsAt.getTime();
+    expect(preservedMs).toBe(new Date('2026-08-01T00:00:00Z').getTime() - upgradePaidAt.getTime());
+  });
+
+  it('downgrade Atelier -> Pro starts a fresh Pro period, no fallback', () => {
+    const grant = computeSubscriptionGrant({
+      userData: { subscriptionTier: 'atelier', subscriptionStatus: 'active', subscriptionEndsAt: ts('2026-12-01T00:00:00Z') },
+      tier: 'pro', cadence: 'monthly', paidAt, mode: 'purchase',
+    });
+    expect(grant.subscriptionTier).toBe('pro');
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
+    expect(grant.fallbackTier).toBeNull();
+    expect(grant.fallbackEndsAt).toBeNull();
+  });
+
+  it('expired plan starts a fresh period regardless of tier, no fallback', () => {
+    const grant = computeSubscriptionGrant({
+      userData: { subscriptionTier: 'pro', subscriptionStatus: 'expired', subscriptionEndsAt: ts('2026-08-01T00:00:00Z') },
+      tier: 'atelier', cadence: 'monthly', paidAt, mode: 'purchase',
+    });
+    expect(grant.subscriptionTier).toBe('atelier');
+    expect(grant.subscriptionEndsAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
+    expect(grant.fallbackTier).toBeNull();
+    expect(grant.fallbackEndsAt).toBeNull();
+  });
 });
 
 describe('computeSubscriptionGrant — gift mode', () => {

@@ -262,6 +262,94 @@ describe('paystackWebhookHandler', () => {
     expect((user.subscriptionEndsAt.toDate() as Date).toISOString()).toBe('2026-07-01T10:00:00.000Z');
   });
 
+  it('persists fallback Pro when an active Pro user upgrades to Atelier (upgrade-preserve fix)', async () => {
+    const reference = 'stp_uid1_1_upgrade';
+    // Active Pro with 2 months remaining (paid to 2026-08-01).
+    const proEnd = new Date('2026-08-01T00:00:00Z');
+    const currentEnd = admin.firestore.Timestamp.fromDate(proEnd);
+    const paidAt = new Date('2026-06-01T10:00:00Z');
+    const { db, store } = dbWithTransaction(
+      reference,
+      { tier: 'atelier', cadence: 'monthly', amountKobo: 400_000, status: 'pending' },
+      { subscriptionTier: 'pro', subscriptionStatus: 'active', subscriptionEndsAt: currentEnd },
+    );
+    const payload = signed({
+      event: 'charge.success',
+      data: {
+        reference,
+        amount: 400_000,
+        currency: 'NGN',
+        status: 'success',
+        paid_at: paidAt.toISOString(),
+        metadata: { uid: 'uid-1', tier: 'atelier', cadence: 'monthly', purpose: 'stitchpad_subscription' },
+      },
+    });
+
+    await paystackWebhookHandler(payload.event, payload.signature, payload.raw, {
+      db: db as never,
+      secretKey: 'secret',
+      now: () => new Date('2026-06-01T10:01:00Z'),
+    });
+
+    const user = store.get('users/uid-1');
+    // Active tier is Atelier (the upgrade just purchased).
+    expect(user.subscriptionTier).toBe('atelier');
+    // The queued Pro fallback must be persisted — this is what the fix restores.
+    // (Before this fix, subscriptionFallbackTier was not written at all.)
+    expect(user.subscriptionFallbackTier).toBe('pro');
+    // The fallback end date must be non-null. The grant re-anchors the remaining Pro
+    // time relative to the new Atelier end (newAtelierEnd = paidAt + 1 month =
+    // 2026-07-01T10:00:00Z; proRemaining = proEnd - paidAt; newProEnd = newAtelierEnd
+    // + proRemaining = 2026-08-31T00:00:00Z). We verify it is in the future and
+    // strictly after the Atelier end — the exact date is an impl detail of
+    // computeSubscriptionGrant and is already covered by subscriptionPeriod.test.ts.
+    expect(user.subscriptionFallbackEndsAt).not.toBeNull();
+    const atelierEndsAt = (user.subscriptionEndsAt as admin.firestore.Timestamp).toDate();
+    const fallbackEndsAt = (user.subscriptionFallbackEndsAt as admin.firestore.Timestamp).toDate();
+    expect(fallbackEndsAt.getTime()).toBeGreaterThan(atelierEndsAt.getTime());
+  });
+
+  it('clears stale fallback fields on a non-upgrade purchase (free -> Pro)', async () => {
+    // Covers the case where a user previously had a gift-sourced fallback sitting
+    // in their doc, then buys Pro outright — the Paystack write must null out the
+    // stale fields so they aren't accidentally promoted later.
+    const reference = 'stp_uid1_1_fresh';
+    const staleEnd = admin.firestore.Timestamp.fromDate(new Date('2027-01-01T00:00:00Z'));
+    const { db, store } = dbWithTransaction(
+      reference,
+      { tier: 'pro', cadence: 'monthly', amountKobo: 200_000, status: 'pending' },
+      {
+        subscriptionTier: 'free',
+        subscriptionStatus: 'active',
+        subscriptionFallbackTier: 'pro',
+        subscriptionFallbackEndsAt: staleEnd,
+      },
+    );
+    const payload = signed({
+      event: 'charge.success',
+      data: {
+        reference,
+        amount: 200_000,
+        currency: 'NGN',
+        status: 'success',
+        paid_at: '2026-06-01T10:00:00Z',
+        metadata: { uid: 'uid-1', tier: 'pro', cadence: 'monthly', purpose: 'stitchpad_subscription' },
+      },
+    });
+
+    await paystackWebhookHandler(payload.event, payload.signature, payload.raw, {
+      db: db as never,
+      secretKey: 'secret',
+      now: () => new Date('2026-06-01T10:01:00Z'),
+    });
+
+    const user = store.get('users/uid-1');
+    expect(user.subscriptionTier).toBe('pro');
+    // A free→pro purchase produces no fallback — stale fields must be explicitly null.
+    expect(user.subscriptionFallbackTier).toBeNull();
+    expect(user.subscriptionFallbackEndsAt).toBeNull();
+  });
+
   it('ignores a client-planted subscriptionEndsAt on a non-paid user', async () => {
     const reference = 'stp_uid1_1_plant';
     // Attacker planted a far-future end date at user-doc creation while still on free.
@@ -421,6 +509,41 @@ describe('expirePrepaidSubscriptionsHandler', () => {
 
     // Active (higher) segment expired → promote Pro to active, clear the fallback slot.
     expect(writes).toEqual(['users/queued:pro:active:null']);
+  });
+
+  it('unwinds a Paystack upgrade: expired Atelier with queued Pro -> Pro active, end = fallback end', async () => {
+    // The exact shape the upgrade-preserve fix writes: active Atelier ended, Pro queued.
+    const fallbackEnd = new Date('2026-09-01T00:00:00Z');
+    const captured: Record<string, unknown>[] = [];
+    const docs = [
+      {
+        ref: { path: 'users/upgraded' },
+        data: () => ({
+          subscriptionTier: 'atelier',
+          subscriptionStatus: 'active',
+          subscriptionRenews: false,
+          subscriptionEndsAt: admin.firestore.Timestamp.fromDate(new Date('2026-06-01T00:00:00Z')), // <= now
+          subscriptionFallbackTier: 'pro',
+          subscriptionFallbackEndsAt: admin.firestore.Timestamp.fromDate(fallbackEnd), // future
+        }),
+      },
+    ];
+    const query: any = { where: jest.fn(() => query), get: jest.fn(async () => ({ docs })) };
+    const batch = {
+      set: jest.fn((_ref: any, data: any) => captured.push(data)),
+      commit: jest.fn(),
+    };
+    const db = { collection: jest.fn(() => query), batch: jest.fn(() => batch) };
+
+    await expirePrepaidSubscriptionsHandler({ db: db as never, now: () => new Date('2026-07-01T00:00:00Z') });
+
+    expect(captured).toHaveLength(1);
+    const written = captured[0] as any;
+    expect(written.subscriptionTier).toBe('pro');
+    expect(written.subscriptionStatus).toBe('active');
+    expect((written.subscriptionEndsAt as admin.firestore.Timestamp).toDate().getTime()).toBe(fallbackEnd.getTime());
+    expect(written.subscriptionFallbackTier).toBeNull();
+    expect(written.subscriptionFallbackEndsAt).toBeNull();
   });
 
   it('drops to Free when the queued fallback has also expired', async () => {
