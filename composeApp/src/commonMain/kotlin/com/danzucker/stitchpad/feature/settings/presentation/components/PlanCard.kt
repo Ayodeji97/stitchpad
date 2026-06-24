@@ -41,8 +41,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.feature.settings.domain.SubscriptionStatus
+import com.danzucker.stitchpad.feature.settings.domain.SubscriptionStatusKind
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.plan_card_ai_resets_caption
@@ -85,6 +90,12 @@ import stitchpad.composeapp.generated.resources.plan_card_title_locked
 import stitchpad.composeapp.generated.resources.plan_card_title_maxed_out
 import stitchpad.composeapp.generated.resources.plan_card_title_warn_one
 import stitchpad.composeapp.generated.resources.plan_card_title_warn_other
+import stitchpad.composeapp.generated.resources.settings_plan_expires_days
+import stitchpad.composeapp.generated.resources.settings_plan_expires_months_one
+import stitchpad.composeapp.generated.resources.settings_plan_expires_months_other
+import stitchpad.composeapp.generated.resources.settings_plan_expires_today
+import stitchpad.composeapp.generated.resources.settings_plan_expires_tomorrow
+import stitchpad.composeapp.generated.resources.settings_plan_renews_fmt
 
 // Hero-warn variant kicks in at 80% of the cap (e.g. 12/15 customers, 4/5 AI drafts).
 // Tuned with the freemium V1.0 decisions (see docs/design/freemium-v1.0-design-spec.md).
@@ -116,6 +127,7 @@ private const val MINUTES_SAVED_PER_AI_DRAFT = 1.5f
  * @param aiDraftLimit Monthly AI draft cap; null = unlimited (Atelier)
  * @param isFirstMonth True while the user is in their First Month window
  * @param welcomeDaysLeft Days remaining in First Month; only used when isFirstMonth=true
+ * @param subscriptionStatus Resolved renewal/expiry status for paid tiers; null = show nothing
  */
 @Composable
 @Suppress("LongParameterList", "CyclomaticComplexMethod")
@@ -130,6 +142,7 @@ fun PlanCard(
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
     upgradePriceNgn: String = "2,000",
+    subscriptionStatus: SubscriptionStatus? = null,
 ) {
     // Any paid tier short-circuits to the "you're on Pro/Atelier" card regardless of
     // their AI quota state. The previous gate required BOTH customer- and AI-limits to
@@ -138,7 +151,12 @@ fun PlanCard(
     // PlanCardInline branch. Pro/Atelier AI exhaustion surfaces via a snackbar from
     // DraftMessageViewModel (pro_quota_exhausted marker), not the PlanCard.
     if (tier != SubscriptionTier.FREE) {
-        PlanCardPaid(tier = tier, onUpgradeClick = onUpgradeClick, modifier = modifier)
+        PlanCardPaid(
+            tier = tier,
+            onUpgradeClick = onUpgradeClick,
+            modifier = modifier,
+            subscriptionStatus = subscriptionStatus,
+        )
         return
     }
 
@@ -374,6 +392,7 @@ private fun PlanCardPaid(
     tier: SubscriptionTier,
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subscriptionStatus: SubscriptionStatus? = null,
 ) {
     val tierLabel = stringResource(
         when (tier) {
@@ -416,6 +435,14 @@ private fun PlanCardPaid(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                subscriptionStatus?.let { status ->
+                    Spacer(Modifier.height(DesignTokens.space1))
+                    Text(
+                        text = subscriptionStatusText(status),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (canUpgrade) {
                     Spacer(Modifier.height(DesignTokens.space1))
                     Text(
@@ -749,6 +776,37 @@ private fun PlanHeroFrame(
 }
 
 @Composable
+private fun subscriptionStatusText(status: SubscriptionStatus): String {
+    val dateText = formatPlanDate(status.endsAt)
+    return when (status.kind) {
+        SubscriptionStatusKind.RENEWS -> stringResource(Res.string.settings_plan_renews_fmt, dateText)
+        SubscriptionStatusKind.EXPIRES_MONTHS -> {
+            val res = if (status.count == 1) {
+                Res.string.settings_plan_expires_months_one
+            } else {
+                Res.string.settings_plan_expires_months_other
+            }
+            stringResource(res, dateText, status.count)
+        }
+        SubscriptionStatusKind.EXPIRES_DAYS ->
+            stringResource(Res.string.settings_plan_expires_days, dateText, status.count)
+        SubscriptionStatusKind.EXPIRES_TOMORROW -> stringResource(Res.string.settings_plan_expires_tomorrow)
+        SubscriptionStatusKind.EXPIRES_TODAY -> stringResource(Res.string.settings_plan_expires_today)
+    }
+}
+
+private fun formatPlanDate(endsAt: Instant): String {
+    // Africa/Lagos to match the countdown's TZ (EntitlementsCalculator computes
+    // days/months-left in Lagos) — keeps the shown date and "N days left" consistent.
+    val date = endsAt.toLocalDateTime(TimeZone.of("Africa/Lagos")).date
+    val monthAbbrev = arrayOf(
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    )
+    return "${date.dayOfMonth} ${monthAbbrev[date.monthNumber - 1]} ${date.year}"
+}
+
+@Composable
 private fun PlanPill(
     text: String,
     backgroundColor: Color,
@@ -975,6 +1033,11 @@ private fun PlanCardProPreview() {
                 welcomeDaysLeft = null,
                 onUpgradeClick = {},
                 modifier = Modifier.padding(DesignTokens.space3),
+                subscriptionStatus = SubscriptionStatus(
+                    SubscriptionStatusKind.EXPIRES_MONTHS,
+                    Instant.fromEpochMilliseconds(1_790_000_000_000L),
+                    3,
+                ),
             )
         }
     }
@@ -996,6 +1059,11 @@ private fun PlanCardAtelierPreview() {
                 welcomeDaysLeft = null,
                 onUpgradeClick = {},
                 modifier = Modifier.padding(DesignTokens.space3),
+                subscriptionStatus = SubscriptionStatus(
+                    SubscriptionStatusKind.EXPIRES_MONTHS,
+                    Instant.fromEpochMilliseconds(1_790_000_000_000L),
+                    3,
+                ),
             )
         }
     }

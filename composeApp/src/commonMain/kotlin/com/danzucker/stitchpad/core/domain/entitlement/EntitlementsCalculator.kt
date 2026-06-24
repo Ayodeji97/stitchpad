@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
+import kotlinx.datetime.monthsUntil
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.days
 
@@ -52,11 +53,14 @@ object EntitlementsCalculator {
      */
     const val WELCOME_WINDOW_DAYS: Int = 30
 
+    @Suppress("CyclomaticComplexMethod")
     fun calculate(
         tier: SubscriptionTier,
         welcomeBonusAppliedAt: Instant?,
         now: Instant,
         timeZone: TimeZone,
+        subscriptionEndsAt: Instant? = null,
+        subscriptionRenews: Boolean = false,
     ): UserEntitlements {
         // `Instant + Duration` is the canonical signature across Kotlin/Native and JVM.
         // The 3-arg form `plus(value, unit)` exists only on JVM kotlinx.datetime and
@@ -95,6 +99,15 @@ object EntitlementsCalculator {
             tier == SubscriptionTier.ATELIER ||
             isInWelcomeWindow
 
+        val isPaid = tier != SubscriptionTier.FREE
+        val nonRenewingPaidEnd = subscriptionEndsAt?.takeIf { isPaid && !subscriptionRenews }
+        val subDaysLeft: Int? = nonRenewingPaidEnd?.let { end ->
+            now.toLocalDateTime(timeZone).date.daysUntil(end.toLocalDateTime(timeZone).date)
+        }
+        val subMonthsLeft: Int? = nonRenewingPaidEnd?.let { end ->
+            now.toLocalDateTime(timeZone).date.monthsUntil(end.toLocalDateTime(timeZone).date)
+        }
+
         return UserEntitlements(
             tier = tier,
             customerCap = customerCap,
@@ -104,6 +117,10 @@ object EntitlementsCalculator {
             isWithinWelcomeEndingWarning = isWithinWelcomeEndingWarning,
             welcomeDaysLeft = welcomeDaysLeft,
             canUseCustomMeasurements = canUseCustomMeasurements,
+            subscriptionEndsAt = subscriptionEndsAt,
+            subscriptionRenews = subscriptionRenews,
+            subscriptionDaysLeft = subDaysLeft,
+            subscriptionMonthsLeft = subMonthsLeft,
         )
     }
 }

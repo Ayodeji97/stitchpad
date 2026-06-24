@@ -27,6 +27,7 @@ import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
+import com.danzucker.stitchpad.feature.settings.domain.resolveSubscriptionStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -235,6 +236,7 @@ class SettingsViewModel(
             signInProvider = provider,
             maskedSignInIdentifier = authUser.email,
             subscriptionTier = entitlements.tier,
+            subscriptionStatus = resolveSubscriptionStatus(entitlements),
             customerCount = customerCount,
             customerLimit = if (entitlements.customerCap == Int.MAX_VALUE) null else entitlements.customerCap,
             aiDraftsUsed = aiDisplay.used,

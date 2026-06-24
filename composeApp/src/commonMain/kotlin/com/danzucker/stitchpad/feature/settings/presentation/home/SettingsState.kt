@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.settings.domain.SubscriptionStatus
 import org.jetbrains.compose.resources.StringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.settings_hero_plan_atelier
@@ -20,6 +21,7 @@ data class SettingsState(
     val signInProvider: SignInProvider = SignInProvider.UNKNOWN,
     val maskedSignInIdentifier: String = "",
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
+    val subscriptionStatus: SubscriptionStatus? = null,
     val customerCount: Int = 0,
     /** null means unlimited (Pro / Atelier tier). */
     val customerLimit: Int? = null,

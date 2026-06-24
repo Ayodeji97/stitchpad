@@ -63,6 +63,8 @@ private const val SNAPSHOT_RETRY_DELAY_MS = 5_000L
 private data class UserEntitlementsDoc(
     val subscriptionTier: String? = null,
     val welcomeBonusAppliedAt: Timestamp? = null,
+    val subscriptionEndsAt: Timestamp? = null,
+    val subscriptionRenews: Boolean = false,
 )
 
 /**
@@ -190,11 +192,16 @@ internal class UserDocEntitlementsProvider(
         val seededAt = data.welcomeBonusAppliedAt?.let {
             Instant.fromEpochMilliseconds(it.toMilliseconds().toLong())
         }
+        val subEndsAt = data.subscriptionEndsAt?.let {
+            Instant.fromEpochMilliseconds(it.toMilliseconds().toLong())
+        }
         return EntitlementsCalculator.calculate(
             tier = SubscriptionTier.fromWire(data.subscriptionTier),
             welcomeBonusAppliedAt = seededAt,
             now = now(),
             timeZone = timeZone,
+            subscriptionEndsAt = subEndsAt,
+            subscriptionRenews = data.subscriptionRenews,
         )
     }
 

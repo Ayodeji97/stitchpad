@@ -223,4 +223,62 @@ class EntitlementsCalculatorTest {
         )
         assertFalse(result.canUseCustomMeasurements)
     }
+
+    // --- subscriptionEndsAt / subscriptionDaysLeft / subscriptionMonthsLeft ---
+
+    @Test
+    fun non_renewing_paid_sub_exposes_days_and_months_left() {
+        // now  = 2026-05-01 00:00 UTC (= May 1 in Africa/Lagos at 01:00 WAT)
+        // end  = 2026-08-01 00:00 UTC (= Aug 1 in Africa/Lagos at 01:00 WAT)
+        // May→Aug = 3 whole calendar months, 92 calendar days (31+30+31).
+        val now = Instant.parse("2026-05-01T00:00:00Z")
+        val end = Instant.parse("2026-08-01T00:00:00Z")
+        val e = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.PRO,
+            welcomeBonusAppliedAt = null,
+            now = now,
+            timeZone = tz,
+            subscriptionEndsAt = end,
+            subscriptionRenews = false,
+        )
+        assertEquals(end, e.subscriptionEndsAt)
+        assertFalse(e.subscriptionRenews)
+        assertEquals(92, e.subscriptionDaysLeft)
+        assertEquals(3, e.subscriptionMonthsLeft)
+    }
+
+    @Test
+    fun renewing_paid_sub_has_null_days_and_months_left() {
+        // Auto-renewing subscriptions don't show a countdown — null out both fields.
+        val now = Instant.parse("2026-05-01T00:00:00Z")
+        val end = Instant.parse("2026-08-01T00:00:00Z")
+        val e = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.PRO,
+            welcomeBonusAppliedAt = null,
+            now = now,
+            timeZone = tz,
+            subscriptionEndsAt = end,
+            subscriptionRenews = true,
+        )
+        assertEquals(end, e.subscriptionEndsAt)
+        assertTrue(e.subscriptionRenews)
+        assertEquals(null, e.subscriptionDaysLeft)
+        assertEquals(null, e.subscriptionMonthsLeft)
+    }
+
+    @Test
+    fun free_user_has_null_subscription_fields() {
+        // Free tier: no subscription data at all — all four new fields default/null.
+        val now = Instant.parse("2026-05-01T00:00:00Z")
+        val e = EntitlementsCalculator.calculate(
+            tier = SubscriptionTier.FREE,
+            welcomeBonusAppliedAt = null,
+            now = now,
+            timeZone = tz,
+        )
+        assertEquals(null, e.subscriptionEndsAt)
+        assertFalse(e.subscriptionRenews)
+        assertEquals(null, e.subscriptionDaysLeft)
+        assertEquals(null, e.subscriptionMonthsLeft)
+    }
 }

@@ -1275,6 +1275,12 @@
     <string name="settings_section_account">Account</string>
     <string name="settings_hero_plan_pro">Tailor Pro</string>
     <string name="settings_hero_plan_atelier">Tailor Atelier</string>
+    <string name="settings_plan_renews_fmt">Renews %1$s</string>
+    <string name="settings_plan_expires_months_one">Expires %1$s · %2$d month left</string>
+    <string name="settings_plan_expires_months_other">Expires %1$s · %2$d months left</string>
+    <string name="settings_plan_expires_days">Expires %1$s · %2$d days left</string>
+    <string name="settings_plan_expires_tomorrow">Expires tomorrow</string>
+    <string name="settings_plan_expires_today">Expires today</string>
     <string name="settings_section_business">Business</string>
     <string name="settings_section_support">Support</string>
     <string name="settings_row_invite">Invite a tailor</string>
