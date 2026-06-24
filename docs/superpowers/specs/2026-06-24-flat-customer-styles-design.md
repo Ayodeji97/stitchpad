@@ -77,7 +77,14 @@ fun forCustomer(tier: SubscriptionTier): StyleCollectionLimits = when (tier) {
   Pro→15 / Atelier→25 means existing paid users see *fewer* locks than before,
   never more.
 - **Transfer to a customer** targets the flat closet (`folderId = null`); the
-  folder-destination branch is gated off by the flag.
+  folder-destination branch is gated off by the flag. The destination-folder
+  picker (`onTargetSelected` → `destinationFolders`) is reached only when the
+  target's `foldersEnabled` is true. With customer folders off, copying/moving a
+  style **to a customer** takes the flat path (`onTargetSelected` lines ~221-240:
+  flat-cap check, then direct transfer). The picker survives **only for the
+  Inspiration target** (transferring a customer's style into the Pro/Atelier
+  lookbook), which is still offered from a customer closet (`openTransfer`
+  line ~186-187). No transfer code changes — this is all driven by the flag.
 
 ## Scope boundaries (YAGNI)
 
@@ -96,13 +103,57 @@ fun forCustomer(tier: SubscriptionTier): StyleCollectionLimits = when (tier) {
 
 ## Testing
 
-- Update `StyleCollectionLimitsTest` to assert `forCustomer` returns
-  `foldersEnabled = false` with `flatCap` 5/15/25 for Free/Pro/Atelier.
-- Review `StyleFoldersViewModelTest` and `StyleGalleryViewModel` customer-context
-  tests for any assertion that customer folders are enabled for Pro/Atelier;
-  update to expect the flat/redirect path.
+The production change is a single factory, but it deliberately removes
+customer-folder behavior, so several existing tests that asserted that behavior
+must be updated. Enumerated surface (verified against current test files):
+
+**`StyleCollectionLimitsTest`** (domain) — TDD anchor:
+- Rewrite `pro_customer_5folders_3each` → `pro_customer_flat_15`: assert
+  `foldersEnabled == false`, `flatCap == 15`.
+- Rewrite `atelier_customer_5folders_5each` → `atelier_customer_flat_25`: assert
+  `foldersEnabled == false`, `flatCap == 25`.
+- `free_hasNoFolders_flatCaps` already asserts Free `forCustomer` flatCap == 5 —
+  keep unchanged.
+
+**`StyleFoldersViewModelTest`** (presentation):
+- `createBlockedAtCap_customerFoldersPro_offersNoUpgrade` tests a customer folder
+  cap that no longer exists. Replace with a test that a **Pro/Atelier customer**
+  closet immediately emits `RedirectToFlatGallery(customerId)` (folders off on
+  every tier now), mirroring the existing Free redirect test.
+
+**`StyleGalleryViewModelTest`** (presentation):
+- `proTier_closet_perFolder_locksOldestOverFolderCap` and
+  `proTier_closet_perFolder_scrambledDates_sortsNewestFirst_andLocksOldest`:
+  Pro customer now flat with cap 15. Update to seed >15 styles to exercise
+  locking (or assert 0 locked under cap) and keep the newest-first sort check.
+- `transferToPaidTarget_showsDestinationFolders`,
+  `onDestinationFolderSelected_named_copiesToThatFolder`,
+  `onDestinationFolderSelected_fullFolder_setsCapSheet_noCopy`,
+  `transfer_paidTier_whenDestinationCountReadErrors_noCopy_errorSurfaced`:
+  these exercise the paid folder-picker via a **Customer** destination, which no
+  longer has folders. Move them to the **Inspiration** target (still folder-
+  enabled on Pro) to keep covering the picker path.
+- `observeError` test (line ~180) and `onErrorDismiss_clearsErrorMessage`
+  (line ~757) use a PRO **customer** gallery to hit the per-folder error-
+  propagation path (`observePerFolder`). With customer folders off, a PRO
+  customer now uses `observeFlattened` (keep-last, silently degrades) and would
+  not surface the error. Switch these to an **Inspiration** PRO gallery
+  (`customerId = null`) to keep exercising `observePerFolder`.
+
+**`StyleFormViewModelTest`** (presentation):
+- `save_batchOverCap_setsCapSheet_stylesPro`, `onDismissCapSheet`,
+  `onUpgradeFromCap`, `maxPhotoSelection_proFolderWithExisting_clampsToRemaining`:
+  these assume Pro customer `maxImagesPerFolder = 3`. Pro customer is now flat
+  with cap 15. Drop the `folderId = "f1"` arg and update seed counts to the flat
+  cap (e.g. seed 15 existing to hit the cap; seed 2 → expect 13 remaining).
+- `maxPhotoSelection_emptyFreeCustomer_isFlatCap` (Free flatCap = 5) — unchanged.
+
+Note: after the Task-1 production change, the gallery/form/folders tests above
+go red until their tasks land. This is expected; the suite returns green at the
+final task.
+
 - Confirm `StyleLockPolicy` behavior at the new caps (oldest-beyond-cap lock) for
-  customer context.
+  customer context via the updated gallery lock tests.
 
 ### Manual smoke test (Daniel = QA)
 
