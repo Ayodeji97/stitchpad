@@ -450,13 +450,12 @@ class StyleFormViewModelTest {
     // --- Save: cap enforcement ---
 
     @Test
-    fun save_batchOverCap_setsCapSheet_stylesPro() = runTest {
+    fun save_batchOverCap_setsCapSheet_customerFlat() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // PRO customer: maxImagesPerFolder = 3. Existing 3 styles (at cap) + picking 1 = 4 > 3 → blocked.
-        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
+        // PRO customer is now flat: flatCap = 15. 15 existing (at cap) + picking 1 = 16 > 15 → blocked.
+        styleRepository.stylesList = List(15) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
-            folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
@@ -467,7 +466,6 @@ class StyleFormViewModelTest {
         assertNotNull(capSheet)
         assertEquals(StyleCapKind.STYLES, capSheet.kind)
         assertEquals(SubscriptionTier.PRO, capSheet.currentTier)
-        // No create call recorded.
         assertNull(styleRepository.lastCreatedDescription)
         assertNull(styleRepository.lastBatchCreatedDescription)
         assertFalse(vm.state.value.isSaving)
@@ -476,11 +474,10 @@ class StyleFormViewModelTest {
     @Test
     fun save_batchWithinCap_creates() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // PRO customer: maxImagesPerFolder = 3. Existing 1 + picking 2 = 3 == cap → allowed.
+        // PRO customer flat: flatCap = 15. 1 existing + picking 2 = 3 ≤ 15 → allowed.
         styleRepository.stylesList = List(1) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
-            folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnPhotosPicked(List(2) { ByteArray(10) }))
@@ -489,7 +486,6 @@ class StyleFormViewModelTest {
         val event = vm.events.first()
 
         assertIs<StyleFormEvent.NavigateBack>(event)
-        // Batch create was called (2 photos).
         assertEquals(2, styleRepository.lastBatchCreatedCount)
         assertFalse(vm.state.value.isSaving)
     }
@@ -499,10 +495,9 @@ class StyleFormViewModelTest {
     @Test
     fun onDismissCapSheet_clearsCapSheet() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
+        styleRepository.stylesList = List(15) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
-            folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
@@ -517,10 +512,9 @@ class StyleFormViewModelTest {
     @Test
     fun onUpgradeFromCap_clearsCapSheet_andEmitsNavigateToUpgrade() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(3) { fakeStyle(id = "existing-$it") }
+        styleRepository.stylesList = List(15) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
-            folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         vm.onAction(StyleFormAction.OnPhotosPicked(listOf(ByteArray(10))))
@@ -536,17 +530,13 @@ class StyleFormViewModelTest {
     // --- Multi-pick limit = folder's remaining capacity ---
 
     @Test
-    fun maxPhotoSelection_proFolderWithExisting_clampsToRemaining() = runTest {
+    fun maxPhotoSelection_proCustomerFlat_clampsToRemaining() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        // PRO customer: maxImagesPerFolder = 3. 2 already in the folder → can pick 1 more.
-        styleRepository.stylesList = List(2) { fakeStyle(id = "existing-$it") }
-        val vm = createViewModel(
-            customerId = "customer-1",
-            folderId = "f1",
-            tier = SubscriptionTier.PRO,
-        )
+        // PRO customer flat: flatCap = 15. 13 already in the closet → can pick 2 more.
+        styleRepository.stylesList = List(13) { fakeStyle(id = "existing-$it") }
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
 
-        assertEquals(1, vm.state.value.maxPhotoSelection)
+        assertEquals(2, vm.state.value.maxPhotoSelection)
     }
 
     @Test
@@ -801,12 +791,11 @@ class StyleFormViewModelTest {
 
     @Test
     fun appending_is_capped_at_maxPhotoSelection() = runTest {
-        // PRO + folderId + 1 existing style → maxPhotoSelection = 3 - 1 = 2.
+        // PRO customer flat: flatCap = 15. 13 existing → maxPhotoSelection = 2.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        styleRepository.stylesList = List(1) { fakeStyle(id = "existing-0") }
+        styleRepository.stylesList = List(13) { fakeStyle(id = "existing-$it") }
         val vm = createViewModel(
             customerId = "customer-1",
-            folderId = "f1",
             tier = SubscriptionTier.PRO,
         )
         assertEquals(2, vm.state.value.maxPhotoSelection)
