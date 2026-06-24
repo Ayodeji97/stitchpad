@@ -13,7 +13,7 @@ Six open Dependabot PRs against `main`:
 | #208 | `actions/checkout` 6 → 7 | 1 — Low (CI only) |
 | #209 | gradle-wrapper 9.5.1 → 9.6.0 | ❌ BLOCKED — incompatible with AGP 8.11.2 |
 | #137 | composeMultiplatform 1.11.0 → 1.11.1 | 2 — Medium |
-| #170 | coil 3.4.0 → 3.5.0 | 2 — Medium (re-check AsyncImage/LoadingDots) |
+| #170 | coil 3.4.0 → 3.5.0 | 3 — High (requires Kotlin 2.4.0; moved to ride with #138) |
 | #138 | kotlin 2.3.21 → 2.4.0 | 3 — High (drags Compose compiler; `composeCompiler` refs `kotlin`) |
 | #210 | compose material3 1.11.0-alpha07 → 1.12.0-alpha02 | 4 — High (alpha→alpha API churn) |
 
@@ -28,8 +28,10 @@ Apply bumps by editing `gradle/libs.versions.toml` directly per batch rather tha
 1. **Batch 1 — Low:** #208 only (checkout v7). CI-config change, no app/dependency impact — CI-green is the gate.
 
 > **#209 (gradle-wrapper 9.6.0) is BLOCKED.** Gradle 9.6.0 removed `org.gradle.api.problems.internal.InternalProblems`, which AGP 8.11.2 relies on; the build fails at plugin-apply (`com.android.internal.application`). Gradle's upgrade guide flags this as `agp_8x_incompatible`. Unblocking requires an AGP upgrade past 8.11.2 (out of this batch set's scope) — defer #209 until AGP is bumped. Close the Dependabot PR or leave it pending behind the AGP work.
-2. **Batch 2 — Medium:** #137 + #170. Re-verify image-loading paths.
-3. **Batch 3 — Kotlin 2.4.0:** #138, solo. iOS Xcode build mandatory.
+2. **Batch 2 — Medium:** #137 only (compose 1.11.1). Image-loading paths re-verified via coil API-surface review + compile/iOS-link gate.
+
+> **#170 (coil 3.5.0) moved to Batch 3.** coil 3.5.0 transitively requires `kotlin-stdlib:2.4.0` (`coil-compose:3.5.0 → coil:3.5.0 → kotlin-stdlib:2.4.0`). On Kotlin 2.3.21 the iOS link fails (can't resolve coil's 2.4.0-built klibs) and the 2.4.0 metadata is too new for the toolchain. `assembleDebug` false-greened it; the iOS-link + release gates caught it. coil 3.5.0 lands together with Kotlin 2.4.0.
+3. **Batch 3 — Kotlin 2.4.0 + coil 3.5.0:** #138 + #170 together. iOS Xcode build mandatory.
 4. **Batch 4 — material3 alpha:** #210, solo. Walk M3 component surface.
 
 ## Per-batch merge gate
@@ -38,9 +40,9 @@ Apply bumps by editing `gradle/libs.versions.toml` directly per batch rather tha
 - `./gradlew detekt`
 - `./gradlew :composeApp:testDebugUnitTest` (+ `allTests` where it adds coverage)
 - `./gradlew :composeApp:assembleDebug`
-- iOS framework link (`linkPodDebugFramework*` / `:composeApp:compileKotlinIos*`)
+- iOS framework link (`:composeApp:compileKotlinIosSimulatorArm64`) — the authoritative iOS-compat gate; catches klib/toolchain mismatches CI's build-ios can miss
 - crash-check `scanner.sh` on the batch diff
-- `./gradlew :composeApp:assembleRelease` (R8 — watch for missing keep rules)
+- `./gradlew :composeApp:minifyReleaseWithR8` (R8 — watch for missing keep rules). NOT `assembleRelease`: the worktree has no release keystore, so `packageRelease` always fails at signing (`storeFile` missing) regardless of deps. R8 minify is the meaningful local release check; the signed AAB is Daniel's manual gate.
 
 > Capture gradle exit codes directly — piping to `tail` reports the wrapper exit, not gradle's (known footgun).
 
