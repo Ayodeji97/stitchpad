@@ -26,9 +26,9 @@ data class StyleCollectionLimits(
         }
 
         fun forCustomer(tier: SubscriptionTier): StyleCollectionLimits = when (tier) {
-            SubscriptionTier.FREE -> StyleCollectionLimits(false, 0, 0, flatCap = 5)
-            SubscriptionTier.PRO -> StyleCollectionLimits(true, maxFolders = 5, maxImagesPerFolder = 3, flatCap = 3)
-            SubscriptionTier.ATELIER -> StyleCollectionLimits(true, maxFolders = 5, maxImagesPerFolder = 5, flatCap = 5)
+            SubscriptionTier.FREE -> StyleCollectionLimits(foldersEnabled = false, maxFolders = 0, maxImagesPerFolder = 0, flatCap = 5)
+            SubscriptionTier.PRO -> StyleCollectionLimits(foldersEnabled = false, maxFolders = 0, maxImagesPerFolder = 0, flatCap = 15)
+            SubscriptionTier.ATELIER -> StyleCollectionLimits(foldersEnabled = false, maxFolders = 0, maxImagesPerFolder = 0, flatCap = 25)
         }
     }
 }
