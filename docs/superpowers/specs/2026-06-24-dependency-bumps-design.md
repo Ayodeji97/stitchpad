@@ -11,7 +11,7 @@ Six open Dependabot PRs against `main`:
 | PR | Bump | Tier |
 |----|------|------|
 | #208 | `actions/checkout` 6 → 7 | 1 — Low (CI only) |
-| #209 | gradle-wrapper 9.5.1 → 9.6.0 | 1 — Low (stay <10.x per Gradle-10 backlog) |
+| #209 | gradle-wrapper 9.5.1 → 9.6.0 | ❌ BLOCKED — incompatible with AGP 8.11.2 |
 | #137 | composeMultiplatform 1.11.0 → 1.11.1 | 2 — Medium |
 | #170 | coil 3.4.0 → 3.5.0 | 2 — Medium (re-check AsyncImage/LoadingDots) |
 | #138 | kotlin 2.3.21 → 2.4.0 | 3 — High (drags Compose compiler; `composeCompiler` refs `kotlin`) |
@@ -25,7 +25,9 @@ Apply bumps by editing `gradle/libs.versions.toml` directly per batch rather tha
 
 ### Batches (sequential — each merges before the next starts)
 
-1. **Batch 1 — Low:** #208 + #209. CI/tooling only.
+1. **Batch 1 — Low:** #208 only (checkout v7). CI-config change, no app/dependency impact — CI-green is the gate.
+
+> **#209 (gradle-wrapper 9.6.0) is BLOCKED.** Gradle 9.6.0 removed `org.gradle.api.problems.internal.InternalProblems`, which AGP 8.11.2 relies on; the build fails at plugin-apply (`com.android.internal.application`). Gradle's upgrade guide flags this as `agp_8x_incompatible`. Unblocking requires an AGP upgrade past 8.11.2 (out of this batch set's scope) — defer #209 until AGP is bumped. Close the Dependabot PR or leave it pending behind the AGP work.
 2. **Batch 2 — Medium:** #137 + #170. Re-verify image-loading paths.
 3. **Batch 3 — Kotlin 2.4.0:** #138, solo. iOS Xcode build mandatory.
 4. **Batch 4 — material3 alpha:** #210, solo. Walk M3 component surface.
