@@ -140,7 +140,9 @@ export function buildGiftClaimEmail(params: {
   const code = escapeHtml(params.code);
   const claimUrl = escapeHtml(params.claimUrl);
   const note = params.note?.trim();
-  const subject = `${gifter.text} sent you a StitchPad gift`;
+  // Transactional subject (no gifter name / "gift!" marketing) so Gmail keeps it
+  // in Primary rather than Promotions. The gifter is still named in the body.
+  const subject = 'Your StitchPad gift code';
 
   const noteBlockHtml = note
     ? `<p style="margin:0 0 24px;padding:14px 16px;background-color:${CODE_BG};border-radius:10px;font-size:14px;line-height:1.6;color:${INK};font-style:italic;">&ldquo;${escapeHtml(note)}&rdquo;</p>`
@@ -148,7 +150,7 @@ export function buildGiftClaimEmail(params: {
 
   const inner = `<h1 style="margin:0 0 18px;font-family:${SERIF_STACK};font-size:28px;font-weight:700;color:${INDIGO};line-height:1.2;">You have a gift</h1>
                 <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${MUTED};">
-                  ${gifter.html} gifted you <strong>${tierLabel}</strong> for <strong>${duration}</strong> on StitchPad, the smart work pad for tailors. Claim it to unlock unlimited customers and your Smart tools.
+                  ${gifter.html} gifted you <strong>${tierLabel}</strong> for <strong>${duration}</strong> on StitchPad. Claim it to unlock unlimited customers and your Smart tools.
                 </p>
                 ${noteBlockHtml}
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
@@ -162,7 +164,7 @@ export function buildGiftClaimEmail(params: {
                   </tr>
                 </table>
                 <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:${MUTED};">
-                  Or open StitchPad, tap <strong>Redeem a gift</strong> in Settings, and enter this code:
+                  If the button does not open the app, open StitchPad, tap <strong>Redeem a gift</strong> in Settings, and enter this code:
                 </p>
                 <p style="margin:0 0 30px;padding:12px 16px;background-color:${CODE_BG};border:1px solid ${BORDER};border-radius:10px;font-family:${MONO_STACK};font-size:20px;font-weight:700;letter-spacing:2px;color:${INK};text-align:center;">
                   ${code}
@@ -175,7 +177,7 @@ export function buildGiftClaimEmail(params: {
 ${note ? `\n"${note}"\n` : ''}
 Claim your gift: ${params.claimUrl}
 
-Or open StitchPad, tap "Redeem a gift" in Settings, and enter this code:
+If the button does not open the app, open StitchPad, tap "Redeem a gift" in Settings, and enter this code:
 ${params.code}
 
 New to StitchPad? The link will help you create an account first, then apply your gift. This gift is valid for 12 months.

@@ -130,6 +130,13 @@ export interface GiftWebhookDeps {
 
 export interface RedeemGiftRequest {
   code?: unknown;
+  /**
+   * When true, a public-flow gift (one with a stored recipientEmail) is applied
+   * only if the authenticated caller's email matches that recipient. The web
+   * /claim page sets this so a gift lands on its intended recipient; the in-app
+   * flow omits it and stays bearer (the code itself is the secret).
+   */
+  requireRecipientMatch?: unknown;
 }
 
 export interface RedeemGiftResponse {
@@ -531,6 +538,7 @@ export async function redeemGiftHandler(
       quantity?: number;
       claimedByUid?: string | null;
       expiresAt?: unknown;
+      recipientEmail?: string | null;
     };
 
     if (gift.status === 'claimed') {
@@ -550,6 +558,26 @@ export async function redeemGiftHandler(
     const expiresAt = toDate(gift.expiresAt);
     if (expiresAt && expiresAt.getTime() <= now.getTime()) {
       throw new functions.https.HttpsError('failed-precondition', 'gift_expired');
+    }
+
+    // Web /claim sets requireRecipientMatch so a public gift only lands on its
+    // intended recipient. Enforced only when the gift carries a recipientEmail
+    // (public flow); gift_me gifts have none and stay bearer. The in-app flow
+    // omits the flag entirely and also stays bearer.
+    const recipientEmail = typeof gift.recipientEmail === 'string' ? gift.recipientEmail.trim() : '';
+    if (data.requireRecipientMatch === true && recipientEmail !== '') {
+      const token = context.auth?.token;
+      const callerEmail = typeof token?.email === 'string' ? token.email.trim().toLowerCase() : '';
+      if (!callerEmail || callerEmail !== recipientEmail.toLowerCase()) {
+        throw new functions.https.HttpsError('permission-denied', 'recipient_email_mismatch');
+      }
+      // A matching address alone doesn't prove ownership: Firebase email/password
+      // accounts carry the email claim before the address is verified, so a holder
+      // of a leaked code could sign up as the recipient. Require a verified email.
+      // (Google sign-in always sets email_verified.)
+      if (token?.email_verified !== true) {
+        throw new functions.https.HttpsError('permission-denied', 'recipient_email_unverified');
+      }
     }
 
     const tier = gift.tier as BillingTier;

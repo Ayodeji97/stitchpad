@@ -331,7 +331,9 @@ describe('applyGiftWebhook', () => {
 });
 
 describe('redeemGiftHandler', () => {
-  const ctx = (uid?: string) => ({ auth: uid ? { uid } : undefined } as functions.https.CallableContext);
+  const ctx = (uid?: string, email?: string, emailVerified = true) => ({
+    auth: uid ? { uid, token: email ? { email, email_verified: emailVerified } : undefined } : undefined,
+  } as functions.https.CallableContext);
 
   function paidGift(extra: Record<string, any> = {}) {
     return {
@@ -391,6 +393,74 @@ describe('redeemGiftHandler', () => {
     const { db } = makeDb(paidGift({ status: 'pending' }));
     await expect(redeemGiftHandler({ code: 'CODE' }, ctx('ada'), { db, now: () => NOW }))
       .rejects.toMatchObject({ message: 'gift_not_payable' });
+  });
+
+  it('applies a public gift when requireRecipientMatch and the caller email matches (case-insensitive)', async () => {
+    const { store, db } = makeDb(paidGift({ recipientEmail: 'Ada@X.com' }));
+    const res = await redeemGiftHandler(
+      { code: 'CODE', requireRecipientMatch: true },
+      ctx('ada', ' ada@x.com '),
+      { db, now: () => NOW },
+    );
+    expect(res).toEqual({ tier: 'pro', cadence: 'monthly' });
+    expect(store.get('users/ada')).toMatchObject({ subscriptionTier: 'pro', subscriptionStatus: 'active' });
+    expect(store.get('gifts/CODE')).toMatchObject({ status: 'claimed', claimedByUid: 'ada' });
+  });
+
+  it('rejects a public gift when requireRecipientMatch and the caller email differs, applying nothing', async () => {
+    const { store, db } = makeDb(paidGift({ recipientEmail: 'ada@x.com' }));
+    await expect(redeemGiftHandler(
+      { code: 'CODE', requireRecipientMatch: true },
+      ctx('zoe', 'zoe@other.com'),
+      { db, now: () => NOW },
+    )).rejects.toMatchObject({ code: 'permission-denied', message: 'recipient_email_mismatch' });
+    expect(store.get('users/zoe')).toBeUndefined();
+    // Gift untouched: still paid, never claimed.
+    expect(store.get('gifts/CODE')).toMatchObject({ status: 'paid' });
+    expect(store.get('gifts/CODE').claimedByUid).toBeUndefined();
+  });
+
+  it('rejects when requireRecipientMatch and the email matches but is unverified, applying nothing', async () => {
+    const { store, db } = makeDb(paidGift({ recipientEmail: 'ada@x.com' }));
+    await expect(redeemGiftHandler(
+      { code: 'CODE', requireRecipientMatch: true },
+      ctx('ada', 'ada@x.com', false),
+      { db, now: () => NOW },
+    )).rejects.toMatchObject({ code: 'permission-denied', message: 'recipient_email_unverified' });
+    expect(store.get('users/ada')).toBeUndefined();
+    expect(store.get('gifts/CODE')).toMatchObject({ status: 'paid' });
+  });
+
+  it('rejects when requireRecipientMatch but the caller has no email on the token', async () => {
+    const { store, db } = makeDb(paidGift({ recipientEmail: 'ada@x.com' }));
+    await expect(redeemGiftHandler(
+      { code: 'CODE', requireRecipientMatch: true },
+      ctx('ada'),
+      { db, now: () => NOW },
+    )).rejects.toMatchObject({ code: 'permission-denied', message: 'recipient_email_mismatch' });
+    expect(store.get('users/ada')).toBeUndefined();
+  });
+
+  it('stays bearer when requireRecipientMatch is absent (any signed-in caller can redeem)', async () => {
+    const { store, db } = makeDb(paidGift({ recipientEmail: 'ada@x.com' }));
+    const res = await redeemGiftHandler(
+      { code: 'CODE' },
+      ctx('zoe', 'zoe@other.com'),
+      { db, now: () => NOW },
+    );
+    expect(res).toEqual({ tier: 'pro', cadence: 'monthly' });
+    expect(store.get('users/zoe')).toMatchObject({ subscriptionTier: 'pro' });
+  });
+
+  it('stays bearer when requireRecipientMatch but the gift has no recipientEmail (gift_me)', async () => {
+    const { store, db } = makeDb(paidGift({ flow: 'gift_me', recipientEmail: null }));
+    const res = await redeemGiftHandler(
+      { code: 'CODE', requireRecipientMatch: true },
+      ctx('zoe', 'zoe@other.com'),
+      { db, now: () => NOW },
+    );
+    expect(res).toEqual({ tier: 'pro', cadence: 'monthly' });
+    expect(store.get('users/zoe')).toMatchObject({ subscriptionTier: 'pro' });
   });
 });
 
