@@ -29,12 +29,25 @@ describe('buildGiftClaimEmail (public claim)', () => {
       gifterName: 'Bola', note: 'For your new shop!', code: 'ABC234', tier: 'pro', cadence: 'annual',
       claimUrl: 'https://link.getstitchpad.com/claim?code=ABC234',
     });
-    expect(subject).toBe('Bola sent you a StitchPad gift');
+    // Transactional subject (no gifter name / marketing) keeps it out of Gmail Promotions.
+    expect(subject).toBe('Your StitchPad gift code');
     expect(html).toContain('ABC234');
     expect(html).toContain('https://link.getstitchpad.com/claim?code=ABC234');
     expect(html).toContain('For your new shop!');
     expect(html).toContain('1 year');
     expect(text).toContain('ABC234');
+    // Still names the gifter in the body so the recipient knows who it's from.
+    expect(html).toContain('Bola');
+  });
+
+  it('tells the recipient how to redeem if the claim link does not open the app', () => {
+    const { html, text } = buildGiftClaimEmail({
+      code: 'ABC234', tier: 'pro', cadence: 'monthly',
+      claimUrl: 'https://link.getstitchpad.com/claim?code=ABC234',
+    });
+    expect(html).toContain('Settings');
+    expect(html).toContain('Redeem a gift');
+    expect(text).toContain('Redeem a gift');
   });
 
   it('escapes HTML in the note to prevent injection', () => {
