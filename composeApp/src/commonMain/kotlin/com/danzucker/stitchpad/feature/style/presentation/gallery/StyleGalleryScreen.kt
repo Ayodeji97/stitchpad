@@ -689,8 +689,8 @@ private fun StyleCard(
                     }
                 }
             }
-            // Titled styles: always show the title read-only; gate the edit affordance on !isLocked.
-            // Untitled styles: show "+ Add title" CTA only when !isLocked (can't title a locked card).
+            // Named styles: always show the name read-only; gate the edit affordance on !isLocked.
+            // Unnamed styles: show "+ Add style name" CTA only when !isLocked (can't name a locked card).
             if (style.description.isNotBlank()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
