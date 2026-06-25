@@ -142,6 +142,13 @@ export interface RedeemGiftRequest {
 export interface RedeemGiftResponse {
   tier: BillingTier;
   cadence: BillingCadence;
+  /**
+   * True when the caller had already claimed this gift (idempotent re-redeem /
+   * page refresh) — nothing was granted again. Lets the web /claim page show
+   * "already active on your account" instead of a fresh "claimed!" message.
+   * Omitted on a first, fresh claim.
+   */
+  alreadyClaimed?: boolean;
 }
 
 export interface RedeemGiftDeps {
@@ -542,9 +549,15 @@ export async function redeemGiftHandler(
     };
 
     if (gift.status === 'claimed') {
-      // Same caller re-redeeming (double tap / retry) is a success, not an error.
+      // Same caller re-redeeming (double tap / retry / web refresh) is a success,
+      // not an error — and nothing is granted again. Flag it so the web can say
+      // "already active" rather than re-announcing a fresh claim.
       if (gift.claimedByUid === uid) {
-        result = { tier: gift.tier as BillingTier, cadence: gift.cadence as BillingCadence };
+        result = {
+          tier: gift.tier as BillingTier,
+          cadence: gift.cadence as BillingCadence,
+          alreadyClaimed: true,
+        };
         return;
       }
       throw new functions.https.HttpsError('failed-precondition', 'gift_already_claimed');
