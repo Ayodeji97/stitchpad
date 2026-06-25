@@ -331,8 +331,8 @@ describe('applyGiftWebhook', () => {
 });
 
 describe('redeemGiftHandler', () => {
-  const ctx = (uid?: string, email?: string) => ({
-    auth: uid ? { uid, token: email ? { email } : undefined } : undefined,
+  const ctx = (uid?: string, email?: string, emailVerified = true) => ({
+    auth: uid ? { uid, token: email ? { email, email_verified: emailVerified } : undefined } : undefined,
   } as functions.https.CallableContext);
 
   function paidGift(extra: Record<string, any> = {}) {
@@ -418,6 +418,17 @@ describe('redeemGiftHandler', () => {
     // Gift untouched: still paid, never claimed.
     expect(store.get('gifts/CODE')).toMatchObject({ status: 'paid' });
     expect(store.get('gifts/CODE').claimedByUid).toBeUndefined();
+  });
+
+  it('rejects when requireRecipientMatch and the email matches but is unverified, applying nothing', async () => {
+    const { store, db } = makeDb(paidGift({ recipientEmail: 'ada@x.com' }));
+    await expect(redeemGiftHandler(
+      { code: 'CODE', requireRecipientMatch: true },
+      ctx('ada', 'ada@x.com', false),
+      { db, now: () => NOW },
+    )).rejects.toMatchObject({ code: 'permission-denied', message: 'recipient_email_unverified' });
+    expect(store.get('users/ada')).toBeUndefined();
+    expect(store.get('gifts/CODE')).toMatchObject({ status: 'paid' });
   });
 
   it('rejects when requireRecipientMatch but the caller has no email on the token', async () => {

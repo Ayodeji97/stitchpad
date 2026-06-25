@@ -566,10 +566,17 @@ export async function redeemGiftHandler(
     // omits the flag entirely and also stays bearer.
     const recipientEmail = typeof gift.recipientEmail === 'string' ? gift.recipientEmail.trim() : '';
     if (data.requireRecipientMatch === true && recipientEmail !== '') {
-      const callerEmail = context.auth?.token?.email;
-      const normalizedCaller = typeof callerEmail === 'string' ? callerEmail.trim().toLowerCase() : '';
-      if (!normalizedCaller || normalizedCaller !== recipientEmail.toLowerCase()) {
+      const token = context.auth?.token;
+      const callerEmail = typeof token?.email === 'string' ? token.email.trim().toLowerCase() : '';
+      if (!callerEmail || callerEmail !== recipientEmail.toLowerCase()) {
         throw new functions.https.HttpsError('permission-denied', 'recipient_email_mismatch');
+      }
+      // A matching address alone doesn't prove ownership: Firebase email/password
+      // accounts carry the email claim before the address is verified, so a holder
+      // of a leaked code could sign up as the recipient. Require a verified email.
+      // (Google sign-in always sets email_verified.)
+      if (token?.email_verified !== true) {
+        throw new functions.https.HttpsError('permission-denied', 'recipient_email_unverified');
       }
     }
 
