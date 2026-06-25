@@ -26,6 +26,7 @@ sealed interface SettingsEvent {
     data object NavigateToUpgrade : SettingsEvent
     data object NavigateToFoundersNote : SettingsEvent
     data object NavigateToShareGiftLink : SettingsEvent
+    data object NavigateToRedeemGift : SettingsEvent
 
     /** Open the WhatsApp community invite (a chat.whatsapp.com link) directly. */
     data class OpenCommunityLink(val url: String) : SettingsEvent

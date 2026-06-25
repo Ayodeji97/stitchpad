@@ -27,6 +27,7 @@ fun SettingsRoot(
     onNavigateToUpgrade: () -> Unit,
     onNavigateToFoundersNote: () -> Unit,
     onNavigateToShareGiftLink: () -> Unit,
+    onNavigateToRedeemGift: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -45,6 +46,7 @@ fun SettingsRoot(
             SettingsEvent.NavigateToUpgrade -> onNavigateToUpgrade()
             SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
             SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
+            SettingsEvent.NavigateToRedeemGift -> onNavigateToRedeemGift()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
             is SettingsEvent.OpenCommunityLink ->
                 runCatching { uriHandler.openUri(event.url) }

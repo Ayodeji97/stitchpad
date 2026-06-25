@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.Redeem
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +61,8 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.gift_redeem_settings_subtitle
+import stitchpad.composeapp.generated.resources.gift_redeem_title
 import stitchpad.composeapp.generated.resources.gift_share_settings_row
 import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_appearance
@@ -172,6 +175,13 @@ fun SettingsScreen(
                     label = stringResource(Res.string.gift_share_settings_row),
                     subtitle = stringResource(Res.string.gift_share_settings_subtitle),
                     onClick = { onAction(SettingsAction.OnGetGiftedClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRow(
+                    icon = Icons.Outlined.Redeem,
+                    label = stringResource(Res.string.gift_redeem_title),
+                    subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
+                    onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
                     trailing = { SettingsRowChevron() },
                 )
             }

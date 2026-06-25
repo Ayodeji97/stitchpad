@@ -506,6 +506,7 @@ private fun MainNavGraph(
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
                 onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
+                onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
             )
         }
         composable<FoundersNoteRoute> {

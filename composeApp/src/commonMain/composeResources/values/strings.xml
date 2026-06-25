@@ -1618,6 +1618,7 @@
 
     <!-- Gift subscription — redeem -->
     <string name="gift_redeem_title">Redeem a gift</string>
+    <string name="gift_redeem_settings_subtitle">Have a gift code? Enter it to unlock your plan</string>
     <string name="gift_redeem_heading">You&apos;ve got a gift</string>
     <string name="gift_redeem_subtitle">Enter the gift code from your email or message to unlock your StitchPad plan.</string>
     <string name="gift_redeem_code_label">Gift code</string>
