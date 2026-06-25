@@ -371,10 +371,21 @@ describe('redeemGiftHandler', () => {
       .rejects.toMatchObject({ message: 'gift_already_claimed' });
   });
 
-  it('treats re-redeem by the same caller as success (double-tap)', async () => {
+  it('treats re-redeem by the same caller as success, flagged alreadyClaimed (double-tap)', async () => {
     const { db } = makeDb(paidGift({ status: 'claimed', claimedByUid: 'ada' }));
     const res = await redeemGiftHandler({ code: 'CODE' }, ctx('ada'), { db, now: () => NOW });
-    expect(res).toEqual({ tier: 'pro', cadence: 'monthly' });
+    expect(res).toEqual({ tier: 'pro', cadence: 'monthly', alreadyClaimed: true });
+  });
+
+  it('re-claiming does not extend the subscription (idempotent, no double grant)', async () => {
+    const { store, db } = makeDb(paidGift());
+    const first = await redeemGiftHandler({ code: 'CODE' }, ctx('ada'), { db, now: () => NOW });
+    expect(first.alreadyClaimed).toBeFalsy(); // a fresh claim is not flagged
+    const endAfterFirst = store.get('users/ada').subscriptionEndsAt;
+    const second = await redeemGiftHandler({ code: 'CODE' }, ctx('ada'), { db, now: () => NOW });
+    expect(second).toMatchObject({ tier: 'pro', cadence: 'monthly', alreadyClaimed: true });
+    // End date unchanged across the second call → no second grant was applied.
+    expect(store.get('users/ada').subscriptionEndsAt).toEqual(endAfterFirst);
   });
 
   it('rejects an expired-status gift', async () => {
