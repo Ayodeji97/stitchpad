@@ -529,12 +529,12 @@
     <string name="style_readonly_hint">This style is locked. Upgrade to Pro to edit it.</string>
     <string name="style_locked_a11y">Locked. Upgrade to edit.</string>
 
-    <!-- Style optional title (CTA + editor sheet) -->
-    <string name="style_add_title_cta">＋ Add title</string>
-    <string name="style_title_sheet_heading">Title (optional)</string>
+    <!-- Style optional name (CTA + editor sheet) -->
+    <string name="style_add_title_cta">＋ Add style name</string>
+    <string name="style_title_sheet_heading">Style name (optional)</string>
     <string name="style_title_placeholder">e.g. Red agbada with gold trim</string>
-    <string name="style_title_save">Save title</string>
-    <string name="style_title_remove">Remove title</string>
+    <string name="style_title_save">Save name</string>
+    <string name="style_title_remove">Remove name</string>
 
     <!-- Style errors -->
     <string name="style_action_verify_failed">Couldn&apos;t verify your folder. Check your connection and try again.</string>

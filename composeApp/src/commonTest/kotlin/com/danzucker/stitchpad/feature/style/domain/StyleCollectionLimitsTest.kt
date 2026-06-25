@@ -20,12 +20,12 @@ class StyleCollectionLimitsTest {
         val l = StyleCollectionLimits.forInspiration(SubscriptionTier.ATELIER)
         assertEquals(20, l.maxFolders); assertEquals(10, l.maxImagesPerFolder)
     }
-    @Test fun pro_customer_5folders_3each() {
+    @Test fun pro_customer_flat_cap15() {
         val l = StyleCollectionLimits.forCustomer(SubscriptionTier.PRO)
-        assertEquals(5, l.maxFolders); assertEquals(3, l.maxImagesPerFolder)
+        assertFalse(l.foldersEnabled); assertEquals(15, l.flatCap)
     }
-    @Test fun atelier_customer_5folders_5each() {
+    @Test fun atelier_customer_flat_cap25() {
         val l = StyleCollectionLimits.forCustomer(SubscriptionTier.ATELIER)
-        assertEquals(5, l.maxFolders); assertEquals(5, l.maxImagesPerFolder)
+        assertFalse(l.foldersEnabled); assertEquals(25, l.flatCap)
     }
 }

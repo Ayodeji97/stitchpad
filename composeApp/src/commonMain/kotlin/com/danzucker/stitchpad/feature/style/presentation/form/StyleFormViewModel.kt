@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -169,18 +170,63 @@ class StyleFormViewModel(
         } else {
             StyleCollectionLimits.forCustomer(tier)
         }
-        // Free (no folders): the form was opened read-only from a locked context and no
-        // upgrade has changed that — keep it locked. (Only paid tiers can unlock.)
-        if (!limits.foldersEnabled) return true
+        // Free preserves the route's read-only state — staying on Free never unlocks.
+        // Only an upgrade to a paid tier can unlock; paid tiers recompute below.
+        if (tier == SubscriptionTier.FREE) return true
         val userId = authRepository.getCurrentUser()?.id ?: return true // can't tell -> fail safe: stay locked
-        val targetStyleId = styleId ?: return false
-        // `location` already targets this style's true folder (nav passes the real folderId).
+        val targetStyleId = styleId
+        if (!limits.foldersEnabled) {
+            // Flat collection (paid customer closet): recompute lock against the flat cap
+            // across all folders, mirroring the gallery. Use point-in-time reads (not the
+            // resilient keepingLast flows) so .first() gets actual data, not the runningFold seed.
+            val all = readAllStylesFlat(userId, location) ?: return true // fail safe
+            // No specific style (the "add" entry point): locked iff the collection is at/over cap.
+            if (targetStyleId == null) return all.size >= limits.flatCap
+            return StyleLockPolicy.lockedStyleIds(all.sortedByDescending { it.createdAt }, limits.flatCap)
+                .contains(targetStyleId)
+        }
+        // Folders enabled (paid inspiration): per-folder cap on the current location.
+        if (targetStyleId == null) return false
         val folderStyles = when (val r = styleRepository.observeStyles(userId, location).first()) {
             is Result.Success -> r.data
             is Result.Error -> return true // can't determine -> stay locked (fail safe)
         }
         return StyleLockPolicy.lockedStyleIds(folderStyles, limits.maxImagesPerFolder)
             .contains(targetStyleId)
+    }
+
+    /**
+     * Point-in-time read of ALL styles across every folder in the flat collection rooted at
+     * [loc]'s customer/inspiration scope. Uses direct .first() reads (no keepingLast resilience
+     * flow) so callers get real data instead of the runningFold empty seed. Returns null if any
+     * sub-read fails — callers must fail-safe (treat null as locked).
+     */
+    @Suppress("ReturnCount")
+    private suspend fun readAllStylesFlat(userId: String, loc: StyleLocation): List<Style>? {
+        val root = when (loc) {
+            is StyleLocation.CustomerCloset -> StyleLocation.CustomerCloset(loc.customerId)
+            is StyleLocation.Inspiration -> StyleLocation.Inspiration()
+        }
+        val rootStyles = when (val r = styleRepository.observeStyles(userId, root).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> return null
+        }
+        val folders = when (val r = styleRepository.observeFolders(userId, root).first()) {
+            is Result.Success -> r.data
+            is Result.Error -> return null
+        }
+        val namedStyles = mutableListOf<Style>()
+        for (folder in folders) {
+            val folderLoc = when (root) {
+                is StyleLocation.CustomerCloset -> StyleLocation.CustomerCloset(root.customerId, folder.id)
+                is StyleLocation.Inspiration -> StyleLocation.Inspiration(folder.id)
+            }
+            when (val r = styleRepository.observeStyles(userId, folderLoc).first()) {
+                is Result.Success -> namedStyles.addAll(r.data)
+                is Result.Error -> return null
+            }
+        }
+        return rootStyles + namedStyles
     }
 
     private fun loadStyle(id: String) {

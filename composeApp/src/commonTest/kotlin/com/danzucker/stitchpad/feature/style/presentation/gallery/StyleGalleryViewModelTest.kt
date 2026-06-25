@@ -177,7 +177,7 @@ class StyleGalleryViewModelTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.observeError = DataError.Network.UNKNOWN
 
-        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
 
         assertNotNull(vm.state.value.errorMessage)
         assertFalse(vm.state.value.isLoading)
@@ -222,53 +222,44 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
-    fun proTier_closet_perFolder_locksOldestOverFolderCap() = runTest {
-        // PRO forCustomer: maxImagesPerFolder = 3, foldersEnabled = true.
-        // Seed 5 styles in the root folder → newest 3 active, oldest 2 locked.
+    fun proTier_closet_flat_locksOldestOverFlatCap() = runTest {
+        // PRO forCustomer is now flat: flatCap = 15, foldersEnabled = false.
+        // Seed 16 styles in the root closet → newest 15 active, oldest 1 locked.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
 
-        val rootStyles = listOf(
-            fakeStyle(id = "s1", createdAt = 500L),
-            fakeStyle(id = "s2", createdAt = 400L),
-            fakeStyle(id = "s3", createdAt = 300L),
-            fakeStyle(id = "s4", createdAt = 200L),
-            fakeStyle(id = "s5", createdAt = 100L),
-        )
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = rootStyles
+        val styles = List(16) { i ->
+            fakeStyle(id = "s$i", createdAt = (16 - i).toLong()) // s0 newest (16) … s15 oldest (1)
+        }
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = styles
 
         val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
 
-        assertEquals(5, vm.state.value.styles.size)
-        // maxImagesPerFolder=3 → oldest 2 (s4, s5) are locked
-        assertEquals(setOf("s4", "s5"), vm.state.value.lockedStyleIds)
+        assertEquals(16, vm.state.value.styles.size)
+        assertEquals("s0", vm.state.value.styles.first().id)
+        // flatCap=15 → only the single oldest (s15) is locked
+        assertEquals(setOf("s15"), vm.state.value.lockedStyleIds)
         assertFalse(vm.state.value.isLoading)
     }
 
     @Test
-    fun proTier_closet_perFolder_scrambledDates_sortsNewestFirst_andLocksOldest() = runTest {
-        // PRO forCustomer: maxImagesPerFolder = 3, foldersEnabled = true.
-        // Seed 5 styles in NON-descending createdAt order (scrambled).
-        // VM must sort newest-first in state AND compute locked IDs on the sorted list.
+    fun proTier_closet_flat_scrambledDates_sortsNewestFirst() = runTest {
+        // PRO forCustomer is now flat: flatCap = 15, foldersEnabled = false.
+        // 5 styles in scrambled createdAt order → all under cap (0 locked), sorted newest-first.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
 
-        val scrambledStyles = listOf(
+        val scrambled = listOf(
             fakeStyle(id = "s2", createdAt = 400L),
             fakeStyle(id = "s5", createdAt = 100L),
             fakeStyle(id = "s1", createdAt = 500L),
             fakeStyle(id = "s3", createdAt = 300L),
             fakeStyle(id = "s4", createdAt = 200L),
         )
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = scrambledStyles
+        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-1")] = scrambled
 
         val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
 
-        // All 5 styles present
-        assertEquals(5, vm.state.value.styles.size)
-        // Styles in state must be newest-first (descending by createdAt)
-        val stateIds = vm.state.value.styles.map { it.id }
-        assertEquals(listOf("s1", "s2", "s3", "s4", "s5"), stateIds)
-        // maxImagesPerFolder=3 → newest 3 active (s1, s2, s3), oldest 2 locked (s4, s5)
-        assertEquals(setOf("s4", "s5"), vm.state.value.lockedStyleIds)
+        assertEquals(listOf("s1", "s2", "s3", "s4", "s5"), vm.state.value.styles.map { it.id })
+        assertTrue(vm.state.value.lockedStyleIds.isEmpty())
         assertFalse(vm.state.value.isLoading)
     }
 
@@ -621,27 +612,23 @@ class StyleGalleryViewModelTest {
     // --- Destination-folder picker (paid path) ---
 
     @Test
-    fun transferToPaidTarget_showsDestinationFolders() = runTest {
+    fun transferToInspirationTarget_showsDestinationFolders() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(
-            fakeCustomer(id = "customer-1"),
-            fakeCustomer(id = "customer-2", name = "Bisi"),
-        )
-        // Seed one named folder in the destination customer's closet.
-        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+        // Transfer FROM a customer closet TO the shared Inspiration library
+        // (still folder-enabled on Pro). Customer destinations are flat now.
+        customerRepository.customersList = listOf(fakeCustomer(id = "customer-1"))
+        styleRepository.foldersByLocation[StyleLocation.Inspiration()] = listOf(
             StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
         )
-        // Seed 1 style in the default location and 0 in the named folder.
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] =
-            listOf(fakeStyle(id = "dest-default"))
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.Inspiration()] = listOf(fakeStyle(id = "dest-default"))
+        styleRepository.stylesByLocation[StyleLocation.Inspiration("f1")] = emptyList()
 
-        // PRO tier — forCustomer(PRO): foldersEnabled=true, maxImagesPerFolder=3
-        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        // PRO tier — forInspiration(PRO): foldersEnabled=true, maxImagesPerFolder=5
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
         vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
         vm.onAction(StyleGalleryAction.OnCopyClick)
 
-        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
 
         val transfer = vm.state.value.transfer
         assertNotNull(transfer)
@@ -651,37 +638,33 @@ class StyleGalleryViewModelTest {
         // First option = default (folderId null)
         assertNull(folders[0].folderId)
         assertEquals(1, folders[0].count)
-        assertEquals(3, folders[0].cap)
+        assertEquals(5, folders[0].cap)
         // Second option = named "Wedding"
         assertEquals("f1", folders[1].folderId)
         assertEquals("Wedding", folders[1].name)
         assertEquals(0, folders[1].count)
-        // Transfer is NOT performed yet — no copy happened.
         assertNull(styleRepository.lastCopied)
     }
 
     @Test
-    fun onDestinationFolderSelected_named_copiesToThatFolder() = runTest {
+    fun onDestinationFolderSelected_named_copiesToInspirationFolder() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(
-            fakeCustomer(id = "customer-1"),
-            fakeCustomer(id = "customer-2", name = "Bisi"),
-        )
-        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+        customerRepository.customersList = listOf(fakeCustomer(id = "customer-1"))
+        styleRepository.foldersByLocation[StyleLocation.Inspiration()] = listOf(
             StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
         )
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.Inspiration()] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.Inspiration("f1")] = emptyList()
 
-        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
         vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
         vm.onAction(StyleGalleryAction.OnCopyClick)
-        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
 
         vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
 
         assertEquals(
-            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.CustomerCloset("customer-2", "f1")),
+            Triple(StyleLocation.CustomerCloset("customer-1"), "s1", StyleLocation.Inspiration("f1")),
             styleRepository.lastCopied,
         )
         val event = vm.events.first()
@@ -693,22 +676,19 @@ class StyleGalleryViewModelTest {
     @Test
     fun onDestinationFolderSelected_fullFolder_setsCapSheet_noCopy() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(
-            fakeCustomer(id = "customer-1"),
-            fakeCustomer(id = "customer-2", name = "Bisi"),
-        )
-        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+        customerRepository.customersList = listOf(fakeCustomer(id = "customer-1"))
+        styleRepository.foldersByLocation[StyleLocation.Inspiration()] = listOf(
             StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
         )
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
-        // PRO forCustomer: maxImagesPerFolder = 3 — fill the named folder to cap.
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] =
-            List(3) { fakeStyle(id = "dst-$it") }
+        styleRepository.stylesByLocation[StyleLocation.Inspiration()] = emptyList()
+        // PRO inspiration: maxImagesPerFolder = 5 — fill the named folder to cap.
+        styleRepository.stylesByLocation[StyleLocation.Inspiration("f1")] =
+            List(5) { fakeStyle(id = "dst-$it") }
 
-        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
         vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
         vm.onAction(StyleGalleryAction.OnCopyClick)
-        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
 
         vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
 
@@ -754,7 +734,7 @@ class StyleGalleryViewModelTest {
         // Use PRO tier so the per-folder path propagates errors (FREE silently degrades).
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         styleRepository.observeError = DataError.Network.UNKNOWN
-        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        val vm = createViewModel(customerId = null, tier = SubscriptionTier.PRO)
         assertNotNull(vm.state.value.errorMessage)
 
         vm.onAction(StyleGalleryAction.OnErrorDismiss)
@@ -793,25 +773,19 @@ class StyleGalleryViewModelTest {
 
     @Test
     fun transfer_paidTier_whenDestinationCountReadErrors_noCopy_errorSurfaced() = runTest {
-        // On paid tiers, the live re-read in performTransfer uses observeStyles directly
-        // and hard-fails on error (fail-safe: blocks the transfer and surfaces an error).
+        // Paid path: the live re-read in performTransfer hard-fails on error.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(
-            fakeCustomer(id = "customer-1"),
-            fakeCustomer(id = "customer-2", name = "Bisi"),
-        )
-        styleRepository.foldersByLocation[StyleLocation.CustomerCloset("customer-2")] = listOf(
+        customerRepository.customersList = listOf(fakeCustomer(id = "customer-1"))
+        styleRepository.foldersByLocation[StyleLocation.Inspiration()] = listOf(
             StyleFolder(id = "f1", name = "Wedding", createdAt = 0L, updatedAt = 0L)
         )
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2")] = emptyList()
-        styleRepository.stylesByLocation[StyleLocation.CustomerCloset("customer-2", "f1")] = emptyList()
-        val vm = createViewModel(tier = SubscriptionTier.PRO)
+        styleRepository.stylesByLocation[StyleLocation.Inspiration()] = emptyList()
+        styleRepository.stylesByLocation[StyleLocation.Inspiration("f1")] = emptyList()
+        val vm = createViewModel(customerId = "customer-1", tier = SubscriptionTier.PRO)
         vm.onAction(StyleGalleryAction.OnStyleLongPress(fakeStyle(id = "s1")))
         vm.onAction(StyleGalleryAction.OnCopyClick)
-        // Choose the destination target + folder (paid path: show folder picker first).
-        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("customer-2"))
-        // Now inject the read error BEFORE the folder is selected (so performTransfer's
-        // live re-read fails).
+        vm.onAction(StyleGalleryAction.OnTargetCustomerSelected("inspiration"))
+        // Inject the read error BEFORE the folder is selected so performTransfer's re-read fails.
         styleRepository.observeError = DataError.Network.UNKNOWN
 
         vm.onAction(StyleGalleryAction.OnDestinationFolderSelected("f1"))
@@ -987,11 +961,8 @@ class StyleGalleryViewModelTest {
     @Test
     fun free_upgradingToPaid_switchesOffFlattenedLock() = runTest {
         // FREE customer flatCap=5. Seed 5 root styles + 1 locked style in folder "f1".
-        // After upgrade to PRO (maxImagesPerFolder=3, foldersEnabled=true), the VM must
-        // switch from observeFlattened to observePerFolder. The per-folder view shows only
-        // root styles (5) and locks the 2 oldest (s4, s5). The FREE locked set was {"f1-style"};
-        // after upgrade the locked set changes (f1 locked style is no longer in the per-folder
-        // root view) — assert lockedStyleIds changes from the Free flattened set.
+        // After upgrade to PRO (flatCap=15, foldersEnabled=false), the VM re-runs
+        // observeFlattened with the higher cap. All 6 styles now fit (6 < 15) → no locks.
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
 
         val rootStyles = listOf(
@@ -1014,20 +985,13 @@ class StyleGalleryViewModelTest {
         // FREE: flat view with 6 styles, "f1-style" locked (oldest, beyond flatCap=5).
         assertEquals(6, vm.state.value.styles.size)
         assertTrue("f1-style" in vm.state.value.lockedStyleIds)
-        val freeLockedIds = vm.state.value.lockedStyleIds.toSet()
 
-        // Upgrade to PRO — collectLatest cancels the flattened observer and starts per-folder.
+        // Upgrade to PRO — forCustomer(PRO) is flat with flatCap=15.
         fake.emitTier(SubscriptionTier.PRO)
 
-        // PRO per-folder root view: 5 styles, maxImagesPerFolder=3 → r4 + r5 locked.
-        // The FREE locked set {"f1-style"} must be gone.
-        assertFalse(
-            vm.state.value.lockedStyleIds == freeLockedIds,
-            "lockedStyleIds must change from FREE flattened set after PRO upgrade"
-        )
+        // PRO flat view: all 6 styles fit within flatCap=15 → no locks.
         assertFalse("f1-style" in vm.state.value.lockedStyleIds)
-        // Per-folder root: oldest 2 of 5 root styles are now locked.
-        assertEquals(setOf("r4", "r5"), vm.state.value.lockedStyleIds)
+        assertTrue(vm.state.value.lockedStyleIds.isEmpty())
     }
 
     // --- Task: optional per-style title ---
