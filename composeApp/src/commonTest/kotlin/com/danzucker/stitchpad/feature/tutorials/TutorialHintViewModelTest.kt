@@ -85,6 +85,18 @@ class TutorialHintViewModelTest {
     }
 
     @Test
+    fun dismissing_before_a_later_catalog_emission_stays_collapsed() = runTest {
+        val vm = newVm()
+        runCurrent()
+        vm.onAction(TutorialHintAction.OnDismiss)
+        runCurrent()
+        // Simulate the remote snapshot arriving after the bundled fallback (and after dismiss).
+        repo.tutorialsFlow.value = listOf(tutorial(TutorialTopic.AddCustomer.id, durationSec = 55))
+        runCurrent()
+        assertFalse(vm.state.value.expanded)
+    }
+
+    @Test
     fun unknown_topic_resolves_with_no_card() = runTest {
         repo.tutorialsFlow.value = emptyList()
         val vm = newVm()

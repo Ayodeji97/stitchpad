@@ -37,9 +37,18 @@ class TutorialHintViewModel(
             _state.update { it.copy(resolved = true) }
         } else {
             viewModelScope.launch {
-                val expanded = !onboardingPreferences.hasSeenTutorial(topicId)
+                val initiallyExpanded = !onboardingPreferences.hasSeenTutorial(topicId)
                 tutorialsRepository.forTopic(topic).collect { tutorial ->
-                    _state.update { it.copy(tutorial = tutorial, expanded = expanded, resolved = true) }
+                    _state.update {
+                        it.copy(
+                            tutorial = tutorial,
+                            // Seed expanded from the seen flag only on the first emission; preserve
+                            // the user's choice afterwards. The repo emits bundled-then-remote, so
+                            // a watch/dismiss before the remote snapshot must not re-open the card.
+                            expanded = if (it.resolved) it.expanded else initiallyExpanded,
+                            resolved = true,
+                        )
+                    }
                 }
             }
         }
