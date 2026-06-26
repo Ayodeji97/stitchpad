@@ -53,7 +53,11 @@ fun TutorialThumbnail(
         )
         if (durationSec > 0) {
             Text(
-                text = stringResource(Res.string.tutorials_duration_fmt, durationSec / 60, durationSec % 60),
+                text = stringResource(
+                    Res.string.tutorials_duration_fmt,
+                    durationSec / 60,
+                    (durationSec % 60).toString().padStart(2, '0'),
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White,
                 modifier = Modifier

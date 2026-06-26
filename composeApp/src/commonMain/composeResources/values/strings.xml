@@ -1658,7 +1658,7 @@
     <string name="settings_row_tutorials">Help &amp; tutorials</string>
     <string name="settings_row_tutorials_subtitle">Short videos on how everything works</string>
     <string name="tutorials_empty">Tutorials will appear here soon.</string>
-    <string name="tutorials_duration_fmt">%1$d:%2$02d</string>
+    <string name="tutorials_duration_fmt">%1$d:%2$s</string>
     <string name="tutorials_player_error">Couldn&apos;t load this video. Check your connection and try again.</string>
     <string name="tutorials_player_retry">Try again</string>
     <string name="tutorials_player_close">Close</string>
