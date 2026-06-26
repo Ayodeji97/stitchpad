@@ -128,6 +128,7 @@ class SettingsViewModel(
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
             SettingsAction.OnGetGiftedClick -> emit(SettingsEvent.NavigateToShareGiftLink)
             SettingsAction.OnRedeemGiftClick -> emit(SettingsEvent.NavigateToRedeemGift)
+            SettingsAction.OnHelpTutorialsClick -> emit(SettingsEvent.NavigateToHelpTutorials)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
             is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
             SettingsAction.OnCommunityClick -> {

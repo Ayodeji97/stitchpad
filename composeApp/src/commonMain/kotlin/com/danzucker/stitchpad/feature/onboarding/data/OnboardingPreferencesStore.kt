@@ -55,6 +55,16 @@ interface OnboardingPreferencesStore {
     suspend fun clearCommunityBannerDismissed()
 
     /**
+     * Whether the contextual "Watch how it works" tutorial for [topicId] has been seen or
+     * dismissed on this device. Once set, the empty-state card collapses to a quiet link.
+     * Device-wide (like the push/community flags) — keyed by [topicId] so each surface tracks
+     * independently. [topicId] matches a
+     * [TutorialTopic][com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic] id.
+     */
+    suspend fun hasSeenTutorial(topicId: String): Boolean
+    suspend fun setTutorialSeen(topicId: String)
+
+    /**
      * Resets all onboarding flags to false. Debug-menu use only — production
      * code should not call this. Idempotent.
      */

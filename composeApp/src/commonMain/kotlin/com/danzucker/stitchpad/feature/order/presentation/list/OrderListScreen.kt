@@ -77,6 +77,8 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
+import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
+import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -118,7 +120,8 @@ import kotlin.time.Clock
 fun OrderListRoot(
     onNavigateToOrderForm: () -> Unit,
     onNavigateToAddCustomerFirst: () -> Unit,
-    onNavigateToOrderDetail: (String) -> Unit
+    onNavigateToOrderDetail: (String) -> Unit,
+    onNavigateToTutorial: (String) -> Unit,
 ) {
     val viewModel: OrderListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -148,7 +151,8 @@ fun OrderListRoot(
     OrderListScreen(
         state = state,
         snackbarHostState = snackbarHostState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTutorial = onNavigateToTutorial,
     )
 }
 
@@ -162,7 +166,8 @@ private val orderRowTextInset = DesignTokens.space4 + OrderRowAvatarSize + Desig
 fun OrderListScreen(
     state: OrderListState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onAction: (OrderListAction) -> Unit
+    onAction: (OrderListAction) -> Unit,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -251,6 +256,7 @@ fun OrderListScreen(
                     OrderEmptyState(
                         statusFilter = state.statusFilter,
                         onAddOrderClick = { onAction(OrderListAction.OnAddOrderClick) },
+                        onNavigateToTutorial = onNavigateToTutorial,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -513,7 +519,8 @@ private fun ArchivedEmptyState(modifier: Modifier = Modifier) {
 private fun OrderEmptyState(
     statusFilter: OrderStatus?,
     onAddOrderClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     val titleRes = when (statusFilter) {
         null -> Res.string.order_empty_title
@@ -578,6 +585,14 @@ private fun OrderEmptyState(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
+            )
+        }
+        // Only the true-empty (unfiltered) state offers the "create an order" tutorial.
+        if (statusFilter == null) {
+            Spacer(Modifier.height(DesignTokens.space5))
+            TutorialHintRoot(
+                topic = TutorialTopic.CreateOrder,
+                onNavigateToPlayer = onNavigateToTutorial,
             )
         }
         Spacer(Modifier.weight(3f))

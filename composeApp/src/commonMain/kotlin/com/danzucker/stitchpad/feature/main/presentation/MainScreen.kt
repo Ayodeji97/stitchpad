@@ -56,6 +56,8 @@ import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
+import com.danzucker.stitchpad.feature.tutorials.presentation.library.HelpTutorialsRoot
+import com.danzucker.stitchpad.feature.tutorials.presentation.player.TutorialPlayerRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
 import com.danzucker.stitchpad.navigation.ChangeEmailRoute
 import com.danzucker.stitchpad.navigation.ChangePasswordRoute
@@ -69,6 +71,7 @@ import com.danzucker.stitchpad.navigation.DraftMessageRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.FoundersNoteRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
+import com.danzucker.stitchpad.navigation.HelpTutorialsRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.NotificationsInboxRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
@@ -82,6 +85,7 @@ import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
+import com.danzucker.stitchpad.navigation.TutorialPlayerRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -231,6 +235,9 @@ private fun MainNavGraph(
                 onNavigateToOrderForm = { customerId ->
                     navController.navigate(OrderFormRoute(customerId = customerId))
                 },
+                onNavigateToTutorial = { tutorialId ->
+                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
             )
         }
         composable<CustomerDetailRoute> {
@@ -323,6 +330,9 @@ private fun MainNavGraph(
                     navController.navigate(StyleGalleryRoute(customerId = customerId, folderId = folderId))
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToTutorial = { tutorialId ->
+                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
             )
         }
         composable<StyleFormRoute> {
@@ -341,7 +351,10 @@ private fun MainNavGraph(
                 },
                 onNavigateToOrderDetail = { orderId ->
                     navController.navigate(OrderDetailRoute(orderId = orderId))
-                }
+                },
+                onNavigateToTutorial = { tutorialId ->
+                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
             )
         }
         composable<OrderFormRoute> {
@@ -445,6 +458,9 @@ private fun MainNavGraph(
                 onNavigateToNotifications = {
                     navController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
                 },
+                onNavigateToTutorial = { tutorialId ->
+                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
             )
         }
         composable<AddCustomerFirstRoute> {
@@ -488,6 +504,9 @@ private fun MainNavGraph(
                     navController.navigate(CustomerDetailRoute(customerId = customerId))
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToTutorial = { tutorialId ->
+                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
             )
         }
         composable<GoalSetupRoute> {
@@ -507,6 +526,20 @@ private fun MainNavGraph(
                 onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
                 onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
                 onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
+                onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
+            )
+        }
+        composable<HelpTutorialsRoute> {
+            HelpTutorialsRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToPlayer = { tutorialId ->
+                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
+            )
+        }
+        composable<TutorialPlayerRoute> {
+            TutorialPlayerRoot(
+                onClose = { navController.navigateUp() },
             )
         }
         composable<FoundersNoteRoute> {

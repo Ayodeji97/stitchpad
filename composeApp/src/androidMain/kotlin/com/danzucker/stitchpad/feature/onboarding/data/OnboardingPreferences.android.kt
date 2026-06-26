@@ -63,16 +63,26 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         prefs.edit().putBoolean(KEY_DISMISSED_COMMUNITY_BANNER, false).apply()
     }
 
+    override suspend fun hasSeenTutorial(topicId: String): Boolean {
+        return prefs.getBoolean(tutorialSeenKey(topicId), false)
+    }
+
+    override suspend fun setTutorialSeen(topicId: String) {
+        prefs.edit().putBoolean(tutorialSeenKey(topicId), true).apply()
+    }
+
     override suspend fun resetForDebug() {
         val editor = prefs.edit()
             .putBoolean(KEY_HAS_SEEN_ONBOARDING, false)
             .putBoolean(KEY_BYPASSED_EMAIL_VERIFICATION, false)
             .putBoolean(KEY_HAS_ASKED_PUSH_PERMISSION, false)
             .putBoolean(KEY_DISMISSED_COMMUNITY_BANNER, false)
-        // Per-user completed + confirmation keys aren't enumerable up front — clear by prefix.
+        // Per-user/per-topic keys aren't enumerable up front — clear by prefix.
         prefs.all.keys
             .filter {
-                it.startsWith(KEY_COMPLETED_WORKSHOP_PREFIX) || it.startsWith(KEY_CONFIRMED_WORKSHOP_PREFIX)
+                it.startsWith(KEY_COMPLETED_WORKSHOP_PREFIX) ||
+                    it.startsWith(KEY_CONFIRMED_WORKSHOP_PREFIX) ||
+                    it.startsWith(KEY_TUTORIAL_SEEN_PREFIX)
             }
             .forEach { editor.remove(it) }
         editor.commit()
@@ -84,6 +94,9 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
     private fun confirmedWorkshopKey(userId: String): String =
         "$KEY_CONFIRMED_WORKSHOP_PREFIX$userId"
 
+    private fun tutorialSeenKey(topicId: String): String =
+        "$KEY_TUTORIAL_SEEN_PREFIX$topicId"
+
     companion object {
         private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
         private const val KEY_COMPLETED_WORKSHOP_PREFIX = "completed_workshop_setup_"
@@ -91,5 +104,6 @@ actual class OnboardingPreferences(context: Context) : OnboardingPreferencesStor
         private const val KEY_BYPASSED_EMAIL_VERIFICATION = "bypassed_email_verification"
         private const val KEY_HAS_ASKED_PUSH_PERMISSION = "has_asked_push_permission"
         private const val KEY_DISMISSED_COMMUNITY_BANNER = "dismissed_community_banner"
+        private const val KEY_TUTORIAL_SEEN_PREFIX = "tutorial_seen_"
     }
 }

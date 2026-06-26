@@ -81,6 +81,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapReachedSheet
+import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
+import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -128,6 +130,7 @@ fun StyleGalleryRoot(
     onNavigateToEditStyle: (customerId: String?, folderId: String?, styleId: String, readOnly: Boolean) -> Unit,
     onNavigateToStyleGallery: (customerId: String?, folderId: String?) -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToTutorial: (String) -> Unit,
 ) {
     val viewModel: StyleGalleryViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -179,7 +182,8 @@ fun StyleGalleryRoot(
     StyleGalleryScreen(
         state = state,
         snackbarHostState = snackbarHostState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTutorial = onNavigateToTutorial,
     )
 }
 
@@ -188,7 +192,8 @@ fun StyleGalleryRoot(
 fun StyleGalleryScreen(
     state: StyleGalleryState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onAction: (StyleGalleryAction) -> Unit
+    onAction: (StyleGalleryAction) -> Unit,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -244,6 +249,7 @@ fun StyleGalleryScreen(
             state.styles.isEmpty() -> {
                 StyleGalleryEmptyState(
                     isInspirationGallery = state.isInspirationGallery,
+                    onNavigateToTutorial = onNavigateToTutorial,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
@@ -742,6 +748,7 @@ private fun StyleCard(
 private fun StyleGalleryEmptyState(
     isInspirationGallery: Boolean,
     modifier: Modifier = Modifier,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -790,6 +797,11 @@ private fun StyleGalleryEmptyState(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
+        )
+        androidx.compose.foundation.layout.Spacer(Modifier.height(DesignTokens.space5))
+        TutorialHintRoot(
+            topic = TutorialTopic.Styles,
+            onNavigateToPlayer = onNavigateToTutorial,
         )
     }
 }

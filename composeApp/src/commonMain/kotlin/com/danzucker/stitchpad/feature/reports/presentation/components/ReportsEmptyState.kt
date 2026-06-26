@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
+import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -27,7 +29,10 @@ import stitchpad.composeapp.generated.resources.reports_empty_subtitle
 import stitchpad.composeapp.generated.resources.reports_empty_title
 
 @Composable
-fun ReportsEmptyState(modifier: Modifier = Modifier) {
+fun ReportsEmptyState(
+    modifier: Modifier = Modifier,
+    onNavigateToTutorial: (String) -> Unit = {},
+) {
     Box(
         modifier = modifier.fillMaxSize().padding(DesignTokens.space6),
         contentAlignment = Alignment.Center
@@ -62,6 +67,11 @@ fun ReportsEmptyState(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(DesignTokens.space5))
+            TutorialHintRoot(
+                topic = TutorialTopic.Reports,
+                onNavigateToPlayer = onNavigateToTutorial,
             )
         }
     }

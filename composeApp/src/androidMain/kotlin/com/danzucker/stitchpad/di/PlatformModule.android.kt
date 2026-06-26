@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.feature.notification.push.AndroidPushPermissionCo
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
+import com.danzucker.stitchpad.feature.tutorials.data.TutorialVideoCache
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.bind
@@ -38,6 +39,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class
     single { OfflinePhotoStore(androidContext()) }
+    single { TutorialVideoCache(androidContext()) }
     single<ImageCompressor> { AndroidImageCompressor() }
     single { OfflineUploadScheduler(androidContext()) }
     single { OrderReceiptSharer(androidContext()) }

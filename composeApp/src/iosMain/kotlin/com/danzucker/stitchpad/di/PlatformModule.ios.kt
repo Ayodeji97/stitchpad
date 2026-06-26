@@ -25,6 +25,7 @@ import com.danzucker.stitchpad.feature.notification.push.NativePushService
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
+import com.danzucker.stitchpad.feature.tutorials.data.TutorialVideoCache
 import org.koin.core.module.Module
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -61,6 +62,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { ThemePreferences() } bind ThemePreferencesStore::class
     single { OfflinePhotoStore() }
+    single { TutorialVideoCache() }
     single<ImageCompressor> { IosImageCompressor() }
     single { OfflineUploadScheduler() }
     single { OrderReceiptSharer() }

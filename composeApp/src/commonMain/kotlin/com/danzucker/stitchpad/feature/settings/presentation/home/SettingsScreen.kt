@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.BugReport
@@ -87,6 +88,8 @@ import stitchpad.composeapp.generated.resources.settings_row_privacy
 import stitchpad.composeapp.generated.resources.settings_row_sign_out
 import stitchpad.composeapp.generated.resources.settings_row_signin_method
 import stitchpad.composeapp.generated.resources.settings_row_terms
+import stitchpad.composeapp.generated.resources.settings_row_tutorials
+import stitchpad.composeapp.generated.resources.settings_row_tutorials_subtitle
 import stitchpad.composeapp.generated.resources.settings_section_account
 import stitchpad.composeapp.generated.resources.settings_section_business
 import stitchpad.composeapp.generated.resources.settings_section_legal
@@ -284,6 +287,14 @@ fun SettingsScreen(
             }
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_support)) {
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                    label = stringResource(Res.string.settings_row_tutorials),
+                    subtitle = stringResource(Res.string.settings_row_tutorials_subtitle),
+                    onClick = { onAction(SettingsAction.OnHelpTutorialsClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.AutoMirrored.Outlined.Chat,
                     label = stringResource(Res.string.settings_row_contact),

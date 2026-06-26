@@ -28,11 +28,16 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
     override suspend fun hasDismissedCommunityBanner(): Boolean = communityBannerDismissed
     override suspend fun setCommunityBannerDismissed() { communityBannerDismissed = true }
     override suspend fun clearCommunityBannerDismissed() { communityBannerDismissed = false }
+    val seenTutorials = mutableSetOf<String>()
+
+    override suspend fun hasSeenTutorial(topicId: String): Boolean = seenTutorials.contains(topicId)
+    override suspend fun setTutorialSeen(topicId: String) { seenTutorials.add(topicId) }
     override suspend fun resetForDebug() {
         onboardingSeen = false
         completedWorkshopSetups.clear()
         confirmedRemoteWorkshopProfiles.clear()
         emailVerificationBypassed = false
         askedPushPermission = false
+        seenTutorials.clear()
     }
 }
