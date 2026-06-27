@@ -25,12 +25,10 @@ class FirebaseTutorialsRepository(
         firestore.collection(TUTORIALS_COLLECTION)
             .snapshots()
             .map { snapshot ->
-                val remote = snapshot.documents.mapNotNull { doc ->
-                    val dto = runCatching { doc.data<TutorialDto>() }.getOrNull() ?: return@mapNotNull null
-                    if (!dto.enabled || dto.storagePath.isBlank()) return@mapNotNull null
-                    dto.toTutorial(doc.id)
+                val docs = snapshot.documents.mapNotNull { doc ->
+                    runCatching { doc.id to doc.data<TutorialDto>() }.getOrNull()
                 }
-                remote.takeIf { it.isNotEmpty() }?.sortedBy { it.sortOrder } ?: BUNDLED_TUTORIALS
+                mergeTutorialCatalog(docs)
             }
             .onStart { emit(BUNDLED_TUTORIALS) }
             .catch { throwable ->
@@ -44,4 +42,20 @@ class FirebaseTutorialsRepository(
 
     override fun forTopic(topic: TutorialTopic): Flow<Tutorial?> =
         tutorials.map { list -> list.firstOrNull { it.topicId == topic.id } }.distinctUntilChanged()
+}
+
+/**
+ * Merges the remote `tutorials` docs with [BUNDLED_TUTORIALS]. Remote wins per topic: an enabled
+ * remote doc replaces its bundled entry, an explicitly-disabled (or storage-less) remote doc keeps
+ * that topic hidden, and a topic with no remote doc at all falls back to its bundled entry. This
+ * keeps every contextual topic's hint card working during partial seeds while still honouring
+ * remote enable/disable. Empty input → the full bundled catalog.
+ */
+internal fun mergeTutorialCatalog(docs: List<Pair<String, TutorialDto>>): List<Tutorial> {
+    val presentTopicIds = docs.mapNotNull { (_, dto) -> dto.topicId.takeIf { it.isNotBlank() } }.toSet()
+    val enabledRemote = docs.mapNotNull { (id, dto) ->
+        if (!dto.enabled || dto.storagePath.isBlank()) null else dto.toTutorial(id)
+    }
+    val bundledFallback = BUNDLED_TUTORIALS.filter { it.topicId !in presentTopicIds }
+    return (enabledRemote + bundledFallback).sortedBy { it.sortOrder }
 }
