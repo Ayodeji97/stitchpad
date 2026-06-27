@@ -19,6 +19,7 @@ sealed interface SettingsAction {
     data object OnFoundersNoteClick : SettingsAction
     data object OnGetGiftedClick : SettingsAction
     data object OnRedeemGiftClick : SettingsAction
+    data object OnHelpTutorialsClick : SettingsAction
     data class OnDailyDigestToggle(val enabled: Boolean) : SettingsAction
     data class OnDailyPushToggle(val enabled: Boolean) : SettingsAction
     data object OnCommunityClick : SettingsAction

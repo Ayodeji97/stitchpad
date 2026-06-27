@@ -137,3 +137,9 @@ data object FoundersNoteRoute
 
 @Serializable
 data object NotificationsInboxRoute
+
+@Serializable
+data object HelpTutorialsRoute
+
+@Serializable
+data class TutorialPlayerRoute(val tutorialId: String)

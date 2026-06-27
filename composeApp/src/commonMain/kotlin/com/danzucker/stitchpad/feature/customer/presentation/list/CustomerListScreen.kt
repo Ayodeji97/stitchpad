@@ -72,6 +72,8 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.customer.presentation.list.components.CustomerActionsSheet
 import com.danzucker.stitchpad.feature.freemium.presentation.swap.SwapSheet
+import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
+import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -116,6 +118,7 @@ fun CustomerListRoot(
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
     onNavigateToOrderForm: (String) -> Unit,
+    onNavigateToTutorial: (String) -> Unit,
 ) {
     val viewModel: CustomerListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -158,7 +161,8 @@ fun CustomerListRoot(
     CustomerListScreen(
         state = state,
         snackbarHostState = snackbarHostState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTutorial = onNavigateToTutorial,
     )
 }
 
@@ -167,7 +171,8 @@ fun CustomerListRoot(
 fun CustomerListScreen(
     state: CustomerListState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onAction: (CustomerListAction) -> Unit
+    onAction: (CustomerListAction) -> Unit,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -223,6 +228,7 @@ fun CustomerListScreen(
                     } else {
                         CustomerEmptyState(
                             onClick = { onAction(CustomerListAction.OnAddCustomerClick) },
+                            onNavigateToTutorial = onNavigateToTutorial,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -479,6 +485,7 @@ private fun CustomerSearchField(
 private fun CustomerEmptyState(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     val addLabel = stringResource(Res.string.customer_fab_cd)
     Column(
@@ -525,6 +532,11 @@ private fun CustomerEmptyState(
                 textAlign = TextAlign.Center
             )
         }
+        Spacer(Modifier.height(DesignTokens.space5))
+        TutorialHintRoot(
+            topic = TutorialTopic.AddCustomer,
+            onNavigateToPlayer = onNavigateToTutorial,
+        )
         Spacer(Modifier.weight(3f))
     }
 }

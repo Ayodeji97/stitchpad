@@ -84,6 +84,7 @@ import kotlin.time.ExperimentalTime
 fun ReportsRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToTutorial: (String) -> Unit,
     viewModel: ReportsViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject()
 ) {
@@ -118,7 +119,8 @@ fun ReportsRoot(
         state = state,
         snackbarHostState = snackbarHostState,
         timeZone = timeZone,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTutorial = onNavigateToTutorial,
     )
 }
 
@@ -128,7 +130,8 @@ fun ReportsScreen(
     state: ReportsState,
     snackbarHostState: SnackbarHostState,
     timeZone: TimeZone,
-    onAction: (ReportsAction) -> Unit
+    onAction: (ReportsAction) -> Unit,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     val errorString = state.errorMessage?.asString()
     LaunchedEffect(errorString) {
@@ -220,7 +223,7 @@ fun ReportsScreen(
                     !state.isPremium -> ReportsPaywallCard(
                         onUpgradeClick = { onAction(ReportsAction.OnUpgradeClick) }
                     )
-                    !state.hasAnyOrders -> ReportsEmptyState()
+                    !state.hasAnyOrders -> ReportsEmptyState(onNavigateToTutorial = onNavigateToTutorial)
                     else -> ReportsContent(
                         kpiSummary = state.kpiSummary,
                         productionCounts = state.productionCounts,

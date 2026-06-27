@@ -1652,4 +1652,29 @@
     <string name="gift_share_error">Couldn&apos;t create your gift link. Please try again.</string>
     <string name="gift_share_retry">Try again</string>
     <string name="gift_share_whatsapp_message">I run my tailoring business on StitchPad. You can support me by covering my subscription plan here: %1$s</string>
+
+    <!-- Tutorial videos -->
+    <string name="tutorials_title">Help &amp; tutorials</string>
+    <string name="settings_row_tutorials">Help &amp; tutorials</string>
+    <string name="settings_row_tutorials_subtitle">Short videos on how everything works</string>
+    <string name="tutorials_empty">Tutorials will appear here soon.</string>
+    <string name="tutorials_duration_fmt">%1$d:%2$s</string>
+    <string name="tutorials_player_error">Couldn&apos;t load this video. Check your connection and try again.</string>
+    <string name="tutorials_player_retry">Try again</string>
+    <string name="tutorials_player_close">Close</string>
+    <string name="tutorials_hint_watch">Watch how it works</string>
+    <string name="tutorials_hint_dismiss">Dismiss</string>
+    <string name="tutorials_thumbnail_cd">Play tutorial</string>
+
+    <!-- Tutorial topics: title + one-line description per contextual surface -->
+    <string name="tutorial_quick_start_title">Quick start</string>
+    <string name="tutorial_quick_start_desc">A 1-minute tour of StitchPad to get you going.</string>
+    <string name="tutorial_add_customer_title">Add your first customer</string>
+    <string name="tutorial_add_customer_desc">Save a customer&apos;s details and measurements in seconds.</string>
+    <string name="tutorial_create_order_title">Create an order</string>
+    <string name="tutorial_create_order_desc">Turn a customer request into a tracked order.</string>
+    <string name="tutorial_styles_title">Save styles &amp; fabrics</string>
+    <string name="tutorial_styles_desc">Build a lookbook of styles and fabrics for your customers.</string>
+    <string name="tutorial_reports_title">Understand your reports</string>
+    <string name="tutorial_reports_desc">See what your business earned and who to follow up with.</string>
 </resources>

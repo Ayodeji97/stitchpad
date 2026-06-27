@@ -96,6 +96,8 @@ import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndi
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import com.danzucker.stitchpad.feature.smart.presentation.SmartSectionCard
+import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
+import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.NextBestActionCard
@@ -296,6 +298,7 @@ fun DashboardRoot(
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToTutorial: (String) -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject(),
     pushPermissionController: PushPermissionController = koinInject(),
@@ -363,7 +366,8 @@ fun DashboardRoot(
     DashboardScreen(
         state = state,
         snackbarHostState = snackbarHostState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTutorial = onNavigateToTutorial,
     )
 
     if (showPushPromptSheet) {
@@ -550,7 +554,8 @@ private fun launchWhatsAppForReconnect(
 fun DashboardScreen(
     state: DashboardState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onAction: (DashboardAction) -> Unit
+    onAction: (DashboardAction) -> Unit,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     // FAB is hidden during the brand-new and loading states. Brand-new has no orders and the
     // Order form requires an existing customer; surfacing the FAB there would route the user
@@ -653,6 +658,7 @@ fun DashboardScreen(
                 DashboardUiState.ReadyForPickup -> DashboardContent(
                     state = state,
                     onAction = onAction,
+                    onNavigateToTutorial = onNavigateToTutorial,
                     modifier = contentModifier,
                     bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
                 )
@@ -695,6 +701,7 @@ private fun DashboardContent(
     onAction: (DashboardAction) -> Unit,
     modifier: Modifier = Modifier,
     bottomPadding: androidx.compose.ui.unit.Dp = FAB_BOTTOM_PADDING,
+    onNavigateToTutorial: (String) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -761,6 +768,10 @@ private fun DashboardContent(
                 onAddCustomerClick = { onAction(DashboardAction.OnNewCustomerClick) },
                 onSaveMeasurementsClick = { onAction(DashboardAction.OnAddMeasurementClick) },
                 onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
+            )
+            TutorialHintRoot(
+                topic = TutorialTopic.QuickStart,
+                onNavigateToPlayer = onNavigateToTutorial,
             )
         }
 
