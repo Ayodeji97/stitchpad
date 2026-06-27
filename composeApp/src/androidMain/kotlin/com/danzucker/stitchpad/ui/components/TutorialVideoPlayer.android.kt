@@ -39,7 +39,6 @@ actual fun TutorialVideoPlayer(
     }
 
     DisposableEffect(exoPlayer) {
-        currentOnLoadingChanged(true)
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 currentOnLoadingChanged(
@@ -48,6 +47,12 @@ actual fun TutorialVideoPlayer(
             }
         }
         exoPlayer.addListener(listener)
+        // Sample the current state too: a cached/local clip can reach STATE_READY before this
+        // effect attaches the listener, so relying on the callback alone would strand the overlay.
+        currentOnLoadingChanged(
+            exoPlayer.playbackState == Player.STATE_BUFFERING ||
+                exoPlayer.playbackState == Player.STATE_IDLE,
+        )
         onDispose { exoPlayer.removeListener(listener) }
     }
 
