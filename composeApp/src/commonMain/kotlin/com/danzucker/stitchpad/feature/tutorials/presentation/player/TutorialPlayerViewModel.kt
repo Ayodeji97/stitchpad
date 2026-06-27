@@ -43,6 +43,8 @@ class TutorialPlayerViewModel(
             TutorialPlayerAction.OnClose ->
                 viewModelScope.launch { _events.send(TutorialPlayerEvent.NavigateBack) }
             TutorialPlayerAction.OnRetry -> _state.value.tutorial?.let { resolve(it) } ?: load()
+            is TutorialPlayerAction.OnBufferingChanged ->
+                _state.update { it.copy(isBuffering = action.isBuffering) }
         }
     }
 
@@ -74,7 +76,9 @@ class TutorialPlayerViewModel(
                 if (uri == null) {
                     it.copy(isLoading = false, hasError = true)
                 } else {
-                    it.copy(isLoading = false, playableUri = uri, hasError = false)
+                    // Reset buffering to true: the player attaches next and reports ready via
+                    // OnBufferingChanged once the first frame is decoded.
+                    it.copy(isLoading = false, playableUri = uri, hasError = false, isBuffering = true)
                 }
             }
         }

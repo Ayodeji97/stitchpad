@@ -17,10 +17,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,13 +49,12 @@ fun TutorialPlayerScreen(
             state.playableUri != null -> {
                 // The player buffers the (often remote) clip before the first frame; show the
                 // branded loading indicator over the black surface until it reports ready.
-                var playerBuffering by remember(state.playableUri) { mutableStateOf(true) }
                 TutorialVideoPlayer(
                     uri = state.playableUri,
                     modifier = Modifier.fillMaxSize(),
-                    onLoadingChanged = { playerBuffering = it },
+                    onLoadingChanged = { onAction(TutorialPlayerAction.OnBufferingChanged(it)) },
                 )
-                if (playerBuffering) {
+                if (state.isBuffering) {
                     LoadingDots(color = Color.White)
                 }
             }

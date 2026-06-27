@@ -10,26 +10,29 @@ import com.danzucker.stitchpad.feature.tutorials.presentation.player.TutorialPla
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
-import org.koin.dsl.bind
 import org.koin.dsl.module
 
 val tutorialsModule = module {
-    singleOf(::FirebaseTutorialsRepository) bind TutorialsRepository::class
-
-    // App-scoped, survives the player screen so a cache download started on play finishes
-    // even after the user closes the player. Mirrors the named scopes in CoreModule.
-    single<CoroutineScope>(qualifier = named("tutorialDownloadScope")) {
+    // App-scoped: shares the catalog Firestore listener across all hint/library subscribers and
+    // survives the player screen so a cache download started on play finishes even after the user
+    // closes the player. Mirrors the named scopes in CoreModule.
+    single<CoroutineScope>(qualifier = named("tutorialsAppScope")) {
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single<TutorialsRepository> {
+        FirebaseTutorialsRepository(
+            firestore = get(),
+            appScope = get<CoroutineScope>(qualifier = named("tutorialsAppScope")),
+        )
     }
     single<TutorialUriResolver> {
         TutorialMediaResolver(
             storage = get(),
             cache = get(),
-            downloadScope = get<CoroutineScope>(qualifier = named("tutorialDownloadScope")),
+            downloadScope = get<CoroutineScope>(qualifier = named("tutorialsAppScope")),
         )
     }
 

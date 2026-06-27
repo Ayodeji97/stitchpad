@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import com.danzucker.stitchpad.feature.tutorials.domain.TutorialUriResolver
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
+import com.danzucker.stitchpad.feature.tutorials.presentation.player.TutorialPlayerAction
 import com.danzucker.stitchpad.feature.tutorials.presentation.player.TutorialPlayerViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +57,16 @@ class TutorialPlayerViewModelTest {
         assertFalse(state.hasError)
         assertEquals("https://cdn/${TutorialTopic.AddCustomer.id}.mp4", state.playableUri)
         assertTrue(prefs.seenTutorials.contains(TutorialTopic.AddCustomer.id))
+    }
+
+    @Test
+    fun buffering_starts_true_then_clears_on_player_ready() = runTest {
+        val vm = newVm()
+        runCurrent()
+        // A freshly-resolved uri leaves the overlay up until the player reports its first frame.
+        assertTrue(vm.state.value.isBuffering)
+        vm.onAction(TutorialPlayerAction.OnBufferingChanged(false))
+        assertFalse(vm.state.value.isBuffering)
     }
 
     @Test

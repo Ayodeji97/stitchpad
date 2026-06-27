@@ -8,19 +8,25 @@ import com.danzucker.stitchpad.feature.tutorials.domain.model.Tutorial
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.domain.repository.TutorialsRepository
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.shareIn
 
 private const val TAG = "TutorialsRepo"
 private const val TUTORIALS_COLLECTION = "tutorials"
 
 class FirebaseTutorialsRepository(
     private val firestore: FirebaseFirestore,
+    appScope: CoroutineScope,
 ) : TutorialsRepository {
 
+    // Shared so the (up to ~6) concurrent hint/library subscribers fan out from ONE Firestore
+    // listener. replay=1 hands the last-known catalog to late subscribers immediately.
     override val tutorials: Flow<List<Tutorial>> =
         firestore.collection(TUTORIALS_COLLECTION)
             .snapshots()
@@ -30,12 +36,13 @@ class FirebaseTutorialsRepository(
                 }
                 mergeTutorialCatalog(docs)
             }
-            .onStart { emit(BUNDLED_TUTORIALS) }
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) { "observe tutorials failed" }
                 emit(BUNDLED_TUTORIALS)
             }
+            .onStart { emit(BUNDLED_TUTORIALS) }
             .distinctUntilChanged()
+            .shareIn(appScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     override fun tutorial(id: String): Flow<Tutorial?> =
         tutorials.map { list -> list.firstOrNull { it.id == id } }.distinctUntilChanged()

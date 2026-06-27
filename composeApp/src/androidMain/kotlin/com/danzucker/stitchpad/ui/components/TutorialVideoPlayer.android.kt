@@ -56,7 +56,7 @@ actual fun TutorialVideoPlayer(
         onDispose { exoPlayer.removeListener(listener) }
     }
 
-    // Pause while backgrounded; resume on return; release on dispose.
+    // Pause while backgrounded (the user resumes via the controller on return); release on dispose.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
