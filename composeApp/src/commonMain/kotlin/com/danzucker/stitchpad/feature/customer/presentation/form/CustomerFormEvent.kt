@@ -4,6 +4,13 @@ sealed interface CustomerFormEvent {
     data object NavigateBack : CustomerFormEvent
 
     /**
+     * Emitted after a successful create (add mode, "Add measurements next"
+     * unchecked) so the Root lands on the Customers list rather than popping
+     * back to wherever the form was opened from (e.g. the dashboard FAB).
+     */
+    data object NavigateToCustomerList : CustomerFormEvent
+
+    /**
      * Emitted when createCustomer fails with CAP_REACHED so the screen can
      * show the cap-reached ModalBottomSheet instead of a generic snackbar.
      * Carries the current active count and the cap so the sheet can render

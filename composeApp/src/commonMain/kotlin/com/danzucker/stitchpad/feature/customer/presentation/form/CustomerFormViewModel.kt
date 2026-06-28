@@ -159,12 +159,7 @@ class CustomerFormViewModel(
                     if (customerId == null) {
                         analytics.logEvent(AnalyticsEvent.CustomerCreated)
                     }
-                    val event = if (!s.isEditMode && s.addMeasurementsNext) {
-                        CustomerFormEvent.NavigateToNewCustomerMeasurement(customerId = newId)
-                    } else {
-                        CustomerFormEvent.NavigateBack
-                    }
-                    _events.send(event)
+                    _events.send(postSaveEvent(s, newId))
                 }
                 is Result.Error -> {
                     if (result.error == DataError.Network.CAP_REACHED) {
@@ -187,6 +182,18 @@ class CustomerFormViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Navigation event for a successful save. Edits pop back to the launch
+     * point; a fresh create lands on the Customers list (or chains into the
+     * measurement form when the tailor opted to add measurements next) rather
+     * than returning to wherever the form was opened, e.g. the dashboard FAB.
+     */
+    private fun postSaveEvent(state: CustomerFormState, newId: String): CustomerFormEvent = when {
+        state.isEditMode -> CustomerFormEvent.NavigateBack
+        state.addMeasurementsNext -> CustomerFormEvent.NavigateToNewCustomerMeasurement(newId)
+        else -> CustomerFormEvent.NavigateToCustomerList
     }
 
     private fun validateName(): Boolean {

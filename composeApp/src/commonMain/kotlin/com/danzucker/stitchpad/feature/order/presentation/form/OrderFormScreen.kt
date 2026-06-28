@@ -197,7 +197,8 @@ import stitchpad.composeapp.generated.resources.order_priority_urgent
 
 @Composable
 fun OrderFormRoot(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOrderCreated: () -> Unit,
 ) {
     val viewModel: OrderFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -208,6 +209,7 @@ fun OrderFormRoot(
         when (event) {
             OrderFormEvent.NavigateBack -> onNavigateBack()
             OrderFormEvent.OrderSaved -> onNavigateBack()
+            OrderFormEvent.OrderCreated -> onOrderCreated()
             is OrderFormEvent.ShowCustomSavedSnackbar -> {
                 scope.launch {
                     snackbarHostState.showSnackbar(
