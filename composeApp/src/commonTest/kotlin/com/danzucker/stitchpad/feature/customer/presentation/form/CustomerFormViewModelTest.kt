@@ -318,13 +318,13 @@ class CustomerFormViewModelTest {
         assertNull(viewModel.state.value.emailError)
         assertNotNull(customerRepository.lastCreatedCustomer)
         assertNull(customerRepository.lastCreatedCustomer?.email)  // blank → stored as null
-        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
+        assertIs<CustomerFormEvent.NavigateToCustomerList>(viewModel.events.first())
     }
 
     // --- Save: create mode ---
 
     @Test
-    fun save_createMode_callsCreateCustomer_andNavigatesBack() = runTest {
+    fun save_createMode_callsCreateCustomer_andNavigatesToCustomerList() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
@@ -340,7 +340,7 @@ class CustomerFormViewModelTest {
         assertEquals("ade@gmail.com", created.email)
         assertNull(customerRepository.lastUpdatedCustomer)
 
-        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
+        assertIs<CustomerFormEvent.NavigateToCustomerList>(viewModel.events.first())
     }
 
     // --- Save: edit mode ---
@@ -511,7 +511,7 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun save_addMode_checkboxUnchecked_emitsNavigateBack() = runTest {
+    fun save_addMode_checkboxUnchecked_emitsNavigateToCustomerList() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
@@ -519,7 +519,7 @@ class CustomerFormViewModelTest {
         viewModel.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)  // → false
         viewModel.onAction(CustomerFormAction.OnSaveClick)
 
-        assertIs<CustomerFormEvent.NavigateBack>(viewModel.events.first())
+        assertIs<CustomerFormEvent.NavigateToCustomerList>(viewModel.events.first())
     }
 
     @Test

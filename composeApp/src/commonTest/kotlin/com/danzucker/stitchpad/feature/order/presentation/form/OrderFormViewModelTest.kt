@@ -344,6 +344,42 @@ class OrderFormViewModelTest {
     }
 
     @Test
+    fun save_inCreateMode_emitsOrderCreated_soRootLandsOnOrdersList() = runTest {
+        val vm = createViewModel(orderId = null)
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+        runCurrent()
+
+        assertNotNull(orderRepository.lastCreatedOrder)
+        assertTrue(events.any { it is OrderFormEvent.OrderCreated })
+        assertTrue(events.none { it is OrderFormEvent.OrderSaved })
+        job.cancel()
+    }
+
+    @Test
+    fun save_inEditMode_emitsOrderSaved_soRootPopsBack() = runTest {
+        seedOrder(payments = emptyList())
+        val vm = createViewModel(orderId = "order-1")
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        vm.onAction(OrderFormAction.OnPriorityChange(OrderPriority.RUSH))
+        vm.onAction(OrderFormAction.OnSave)
+        runCurrent()
+
+        assertNotNull(orderRepository.lastUpdatedOrder)
+        assertTrue(events.any { it is OrderFormEvent.OrderSaved })
+        assertTrue(events.none { it is OrderFormEvent.OrderCreated })
+        job.cancel()
+    }
+
+    @Test
     fun onItemQuantityChange_updatesState() = runTest {
         val vm = createViewModel(orderId = null)
         val firstItemId = vm.state.value.items.first().id

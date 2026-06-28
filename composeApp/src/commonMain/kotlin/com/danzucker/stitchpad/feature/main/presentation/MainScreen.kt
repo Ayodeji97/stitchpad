@@ -261,6 +261,17 @@ private fun MainNavGraph(
         composable<CustomerFormRoute> {
             CustomerFormRoot(
                 onNavigateBack = { navController.navigateUp() },
+                onNavigateToCustomerList = {
+                    // After a fresh create, land on the Customers list instead of
+                    // popping back to the launch point (e.g. the dashboard FAB).
+                    // Pop the form so Back from the list returns to wherever the
+                    // form was opened over; launchSingleTop avoids stacking a
+                    // second list when the form was opened from the list itself.
+                    navController.navigate(CustomerListRoute) {
+                        popUpTo<CustomerFormRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToCustomerWithMeasurement = { newId ->
                     // Chain: pop the customer form, push customer detail, then
@@ -359,7 +370,15 @@ private fun MainNavGraph(
         }
         composable<OrderFormRoute> {
             OrderFormRoot(
-                onNavigateBack = { navController.navigateUp() }
+                onNavigateBack = { navController.navigateUp() },
+                onOrderCreated = {
+                    // After a fresh create, land on the Orders list instead of
+                    // popping back to the launch point (e.g. the dashboard FAB).
+                    navController.navigate(OrderListRoute) {
+                        popUpTo<OrderFormRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable<OrderDetailRoute> {

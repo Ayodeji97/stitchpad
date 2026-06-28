@@ -86,6 +86,7 @@ import stitchpad.composeapp.generated.resources.customer_form_title_edit
 @Composable
 fun CustomerFormRoot(
     onNavigateBack: () -> Unit,
+    onNavigateToCustomerList: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToCustomerWithMeasurement: (customerId: String) -> Unit,
 ) {
@@ -101,6 +102,7 @@ fun CustomerFormRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             CustomerFormEvent.NavigateBack -> onNavigateBack()
+            CustomerFormEvent.NavigateToCustomerList -> onNavigateToCustomerList()
             is CustomerFormEvent.ShowCapReachedSheet -> capSheet = event
             is CustomerFormEvent.NavigateToNewCustomerMeasurement ->
                 onNavigateToCustomerWithMeasurement(event.customerId)

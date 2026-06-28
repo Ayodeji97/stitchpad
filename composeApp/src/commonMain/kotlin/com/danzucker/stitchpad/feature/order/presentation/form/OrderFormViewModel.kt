@@ -893,7 +893,9 @@ class OrderFormViewModel(
                     if (!isEdit) analytics.logEvent(AnalyticsEvent.OrderCreated)
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
-                    _events.send(OrderFormEvent.OrderSaved)
+                    _events.send(
+                        if (isEdit) OrderFormEvent.OrderSaved else OrderFormEvent.OrderCreated,
+                    )
                 }
                 is Result.Error -> _state.update {
                     it.copy(isSaving = false, errorMessage = result.error.toOrderUiText())
