@@ -7,7 +7,9 @@ import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSNumber
 import platform.Foundation.NSURL
+import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
@@ -16,13 +18,7 @@ import platform.Foundation.writeToFile
 @OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
 actual class OfflinePhotoStore {
     actual suspend fun save(bytes: ByteArray, fileName: String): String {
-        val dir = offlineUploadsDirectory()
-        NSFileManager.defaultManager.createDirectoryAtPath(
-            path = dir,
-            withIntermediateDirectories = true,
-            attributes = null,
-            error = null,
-        )
+        val dir = ensureOfflineUploadsDirectory()
         val path = "$dir/${fileName.safeFileName()}"
         val data = if (bytes.isEmpty()) {
             NSData.create(bytes = null, length = 0u)
@@ -52,6 +48,11 @@ actual class OfflinePhotoStore {
     }
 
     actual suspend fun writeUploadJobs(json: String) {
+        ensureOfflineUploadsDirectory()
+        json.encodeToByteArray().toNSData().writeToFile(uploadJobsPath(), atomically = true)
+    }
+
+    private fun ensureOfflineUploadsDirectory(): String {
         val dir = offlineUploadsDirectory()
         NSFileManager.defaultManager.createDirectoryAtPath(
             path = dir,
@@ -59,7 +60,11 @@ actual class OfflinePhotoStore {
             attributes = null,
             error = null,
         )
-        json.encodeToByteArray().toNSData().writeToFile(uploadJobsPath(), atomically = true)
+        // Exclude pending customer/style/order/logo images from iCloud/iTunes
+        // backup — customer PII / business assets queued for upload, not user docs.
+        NSURL.fileURLWithPath(dir, isDirectory = true)
+            .setResourceValue(NSNumber(bool = true), forKey = NSURLIsExcludedFromBackupKey, error = null)
+        return dir
     }
 
     private fun offlineUploadsDirectory(): String {

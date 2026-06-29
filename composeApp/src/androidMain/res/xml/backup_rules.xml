@@ -2,13 +2,14 @@
 <!--
   Pre-Android-12 (API < 31) backup rules. Applied via android:fullBackupContent.
 
-  Excludes stitchpad_prefs (the SharedPreferences file backing
-  OnboardingPreferences) from Auto-Backup. Without this, uninstalling and
-  reinstalling on the same Google account restores has_seen_onboarding=true
-  from cloud backup, causing the value-prop tour to be silently skipped on
-  a "fresh" install. Excluding from cloud backup means every install starts
-  with a clean preference state.
+  Excluded from Auto-Backup:
+  - stitchpad_prefs (SharedPreferences backing OnboardingPreferences) — so a
+    reinstall on the same Google account starts with a clean onboarding state.
+  - files/offline_uploads — pending offline customer/style/order/logo images
+    (OfflinePhotoStore); customer PII / business assets must not sync to a
+    user's personal cloud backup.
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="stitchpad_prefs.xml" />
+    <exclude domain="file" path="offline_uploads" />
 </full-backup-content>
