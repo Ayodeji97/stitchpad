@@ -3,18 +3,21 @@
   Android 12+ (API 31+) data extraction rules. Applied via
   android:dataExtractionRules. Supersedes backup_rules.xml on API 31+.
 
-  Two separate sections so we can opt the SharedPreferences file out of
-  BOTH cloud backup (Google Drive) AND device-to-device transfer
-  (Pixel-to-Pixel restore, Samsung Smart Switch, etc.). Without device
-  transfer exclusion the onboarding-seen flag follows the user across
-  phones — fine in the abstract, but contradicts our intent that the
-  value-prop tour reappear on every truly fresh install.
+  Excluded from BOTH cloud backup (Google Drive) AND device-to-device transfer
+  (Pixel-to-Pixel restore, Samsung Smart Switch, etc.):
+  - stitchpad_prefs.xml: the onboarding-seen flag, so the value-prop tour
+    reappears on every truly fresh install.
+  - files/offline_uploads: pending offline customer/style/order/logo images
+    (see OfflinePhotoStore). These are customer PII / business assets queued
+    for upload and must not sync to a user's personal cloud backup.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="stitchpad_prefs.xml" />
+        <exclude domain="file" path="offline_uploads" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="stitchpad_prefs.xml" />
+        <exclude domain="file" path="offline_uploads" />
     </device-transfer>
 </data-extraction-rules>
