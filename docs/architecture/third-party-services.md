@@ -37,7 +37,7 @@ The backbone. The project is on the **Blaze (pay-as-you-go) plan** — required 
 
 - **Authentication** *(free)* — email/password, Google, and Apple sign-in. Email verification gate after signup.
 - **Cloud Firestore** *(usage-based)* — the database: `users/{uid}` profiles + subcollections (`customers`, `orders`, `styles`, `measurements`, `goals`), AI usage/quota docs, entitlements. `europe-west1`. Security rules in `firestore.rules`.
-- **Cloud Storage** *(usage-based)* — brand logos, style/order photos, the email logo asset. ⚠️ No custom `storage.rules` in the repo (default rules) — a hardening to-do.
+- **Cloud Storage** *(usage-based)* — brand logos, style/order photos, the email logo asset. Owner-scoped `storage.rules` (every object under `users/{uid}/` is owner-only); deploy with `firebase deploy --only storage`.
 - **Cloud Functions** *(Blaze-only, usage-based)* — Node 20, `europe-west1`. Four deployed: `onAuthUserDeleted`, `smartDraftMessage`, `reconcileCustomerSlots`, `sendVerificationEmail`.
 - **Crashlytics** *(free)* — crash reporting, **Android only** (iOS not wired).
 - **Firebase Hosting** — a hosting block exists in `firebase.json` (`web/public`), but the live marketing domain resolves to **Vercel** (see below); Firebase Hosting is not the live host for the apex. Firebase Auth's email-action links do use the default `stitchpad-30607.firebaseapp.com/__/auth/action` handler.
@@ -144,4 +144,4 @@ Hosts the **Privacy Policy** and **Terms of Service** (linked from the app and t
 | **In-app notifications** | New surface (likely Firestore-backed) | Not built |
 | **Paystack Plans/Subscriptions (auto-renew) + renewal reminders** | Auto-renew instead of manual re-pay; remind before prepaid period ends | Prepaid + webhook live; auto-renew & reminders deferred |
 | **iOS Crashlytics** | Crash parity with Android | Android only |
-| **`storage.rules`** | Lock down Cloud Storage (default rules now) | Hardening to-do |
+| **`storage.rules`** | Lock down Cloud Storage | Done — owner-scoped rules (deploy `--only storage`) |
