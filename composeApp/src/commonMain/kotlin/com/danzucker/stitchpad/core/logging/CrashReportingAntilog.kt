@@ -4,10 +4,12 @@ import io.github.aakira.napier.Antilog
 import io.github.aakira.napier.LogLevel
 
 /**
- * Adds WARNING+ breadcrumbs to crash reports.
+ * Forwards WARNING+ logs to crash reporting:
+ * - every WARNING+ line becomes a breadcrumb via [CrashReporter.log]
+ * - a WARNING+ log carrying a throwable is also recorded as a non-fatal via
+ *   [CrashReporter.recordNonFatal], preserving the throwable's stack
  *
- * Non-fatals are recorded only through [AppLogger.reportNonFatal] so expected
- * failures, such as invalid login credentials, do not flood Crashlytics.
+ * Debug/Info logs stay local so they don't flood the dashboard.
  */
 class CrashReportingAntilog(
     private val crashReporter: CrashReporter,
@@ -31,5 +33,9 @@ class CrashReportingAntilog(
             }
         }
         crashReporter.log(line)
+
+        if (throwable != null) {
+            crashReporter.recordNonFatal(throwable = throwable, message = message)
+        }
     }
 }

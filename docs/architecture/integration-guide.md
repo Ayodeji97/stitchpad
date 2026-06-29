@@ -25,7 +25,7 @@ The KMP client (`composeApp/`) talks to Firebase via the **GitLive KMP SDK** (`d
 
 **Functions (client side)** — `core/smartinfra/data/ai/GitLiveFunctionsCaller.kt` (`httpsCallable("smartDraftMessage")`), `feature/auth/data/GitLiveVerificationEmailSender.kt` (`httpsCallable("sendVerificationEmail")`), `feature/freemium/data/CloudFunctionsFreemiumRepository.kt` (`reconcileCustomerSlots`). All map `FirebaseFunctionsException` codes → typed `AuthError`/domain errors and re-throw `CancellationException`.
 
-**Crashlytics (Android)** — `composeApp/src/androidMain/.../StitchPadApplication.kt` enables collection in non-debug builds; `core/logging/CrashlyticsAntilog.kt` bridges Napier → Crashlytics; `core/logging/AppLogger.kt` is the logging facade.
+**Crashlytics (Android + iOS)** — collection is enabled in non-debug builds only (Android: `StitchPadApplication.kt`; iOS: `iOSApp.swift` `setCrashlyticsCollectionEnabled`). `core/logging/CrashReportingAntilog.kt` bridges Napier WARNING+ → breadcrumbs + non-fatals through the platform `CrashReporter` (`AndroidCrashReporter` / `IosCrashReporter`, with `IosCrashReporterIos` as the Swift bridge); `core/logging/AppLogger.kt` is the logging facade. iOS dSYMs upload via the `Crashlytics dSYM Upload` build phase.
 
 ---
 

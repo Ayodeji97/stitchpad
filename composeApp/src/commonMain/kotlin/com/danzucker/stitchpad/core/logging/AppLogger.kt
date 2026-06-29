@@ -6,8 +6,9 @@ import io.github.aakira.napier.Napier
 
 /**
  * Thin wrapper around Napier so call sites don't couple to a specific logger.
- * Add a Firebase Crashlytics antilog (or similar) via [extraAntilogs] when
- * release-time error reporting lands.
+ * In release builds a [CrashReportingAntilog] is installed via [extraAntilogs],
+ * so WARNING+ logs become Crashlytics breadcrumbs and any throwable they carry
+ * is recorded as a non-fatal — no separate reporting call is needed at the site.
  *
  * Rules for log messages: log error class + message + stable IDs. Never log
  * tokens, API keys, full URLs, storage paths, or anything user-identifying.
@@ -39,16 +40,6 @@ object AppLogger {
 
     fun e(tag: String? = null, throwable: Throwable? = null, message: () -> String) {
         Napier.e(tag = tag, throwable = throwable, message = message)
-    }
-
-    fun reportNonFatal(tag: String? = null, throwable: Throwable, message: () -> String) {
-        val logMessage = message()
-        Napier.e(tag = tag, throwable = throwable) { logMessage }
-        crashReporter.recordNonFatal(
-            name = throwable::class.simpleName ?: "Throwable",
-            message = logMessage,
-            stackTrace = throwable.stackTraceToString(),
-        )
     }
 
     fun setCrashUserId(userId: String?) {

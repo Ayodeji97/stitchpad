@@ -10,14 +10,11 @@ class AndroidCrashReporter(
         crashlytics.log(message)
     }
 
-    override fun recordNonFatal(name: String, message: String?, stackTrace: String?) {
-        crashlytics.recordException(
-            KmpNonFatalException(
-                name = name,
-                detail = message,
-                remoteStackTrace = stackTrace,
-            )
-        )
+    override fun recordNonFatal(throwable: Throwable, message: String?) {
+        // Record the original throwable so Crashlytics keeps the real stack frames
+        // (and groups by them). The message is added as a breadcrumb for context.
+        message?.let { crashlytics.log(it) }
+        crashlytics.recordException(throwable)
     }
 
     override fun setUserId(userId: String?) {
@@ -26,18 +23,5 @@ class AndroidCrashReporter(
 
     override fun setCustomKey(key: String, value: String) {
         crashlytics.setCustomKey(key, value)
-    }
-}
-
-private class KmpNonFatalException(
-    name: String,
-    detail: String?,
-    private val remoteStackTrace: String?,
-) : RuntimeException("$name${detail?.let { ": $it" }.orEmpty()}") {
-    override fun toString(): String = message.orEmpty()
-
-    override fun printStackTrace() {
-        super.printStackTrace()
-        remoteStackTrace?.let(::println)
     }
 }

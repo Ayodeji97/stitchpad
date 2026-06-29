@@ -17,8 +17,14 @@ class IosCrashReporter(
         nativeCrashReporter.log(message)
     }
 
-    override fun recordNonFatal(name: String, message: String?, stackTrace: String?) {
-        nativeCrashReporter.recordNonFatal(name = name, message = message, stackTrace = stackTrace)
+    override fun recordNonFatal(throwable: Throwable, message: String?) {
+        // Kotlin/Native throwables can't cross into Crashlytics as-is, so stringify:
+        // the Swift bridge wraps these into an NSError grouped by name + message.
+        nativeCrashReporter.recordNonFatal(
+            name = throwable::class.simpleName ?: "Throwable",
+            message = message,
+            stackTrace = throwable.stackTraceToString(),
+        )
     }
 
     override fun setUserId(userId: String?) {
