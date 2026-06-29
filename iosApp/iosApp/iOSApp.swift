@@ -1,9 +1,58 @@
 import SwiftUI
 import ComposeApp
 import FirebaseCore
+import FirebaseCrashlytics
 import FirebaseMessaging
 import GoogleSignIn
 import UserNotifications
+
+@objc public class IosCrashReporterIos: NSObject, NativeCrashReporter {
+    private let collectionEnabled: Bool
+
+    init(collectionEnabled: Bool) {
+        self.collectionEnabled = collectionEnabled
+    }
+
+    public func log(message: String) {
+        guard collectionEnabled else { return }
+        Crashlytics.crashlytics().log(message)
+    }
+
+    public func recordNonFatal(name: String, message: String?, stackTrace: String?) {
+        guard collectionEnabled else { return }
+        var userInfo: [String: Any] = [
+            NSLocalizedDescriptionKey: message ?? name,
+            "kmp_error_name": name
+        ]
+        if let stackTrace {
+            userInfo["kmp_stack_trace"] = stackTrace
+        }
+        let error = NSError(
+            domain: "com.danzucker.stitchpad.kmp",
+            code: stableCode(for: name),
+            userInfo: userInfo
+        )
+        Crashlytics.crashlytics().record(error: error)
+    }
+
+    public func setUserId(userId_ userId: String) {
+        guard collectionEnabled else { return }
+        Crashlytics.crashlytics().setUserID(userId)
+    }
+
+    public func setCustomKey(key: String, value: String) {
+        guard collectionEnabled else { return }
+        Crashlytics.crashlytics().setCustomValue(value, forKey: key)
+    }
+
+    private func stableCode(for name: String) -> Int {
+        var hash = 5381
+        for scalar in name.unicodeScalars {
+            hash = ((hash << 5) &+ hash) &+ Int(scalar.value)
+        }
+        return abs(hash % 10_000)
+    }
+}
 
 class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNotificationCenterDelegate {
     func application(
@@ -11,6 +60,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
+        #if DEBUG
+        let crashlyticsEnabled = false
+        #else
+        let crashlyticsEnabled = true
+        #endif
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(crashlyticsEnabled)
+        IosCrashReporterKt.iosNativeCrashReporter = IosCrashReporterIos(
+            collectionEnabled: crashlyticsEnabled
+        )
         IosOfflineUploadBackgroundTasksKt.registerIosOfflineUploadTasks()
         // Must register both Swift launchers BEFORE doInitKoin so PlatformModule
         // can wire them into SsoCredentialProvider.

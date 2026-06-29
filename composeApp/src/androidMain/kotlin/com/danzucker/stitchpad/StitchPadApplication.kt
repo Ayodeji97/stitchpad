@@ -2,8 +2,10 @@ package com.danzucker.stitchpad
 
 import android.app.Application
 import android.content.pm.ApplicationInfo
+import com.danzucker.stitchpad.core.logging.AndroidCrashReporter
 import com.danzucker.stitchpad.core.logging.AppLogger
-import com.danzucker.stitchpad.core.logging.CrashlyticsAntilog
+import com.danzucker.stitchpad.core.logging.CrashReportingAntilog
+import com.danzucker.stitchpad.core.logging.NoOpCrashReporter
 import com.danzucker.stitchpad.feature.notification.push.ensureNotificationChannels
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import org.koin.android.ext.koin.androidContext
@@ -15,8 +17,10 @@ class StitchPadApplication : Application() {
         // Disable Crashlytics' built-in uncaught-exception handler for debug builds so
         // local crashes don't pollute the production dashboard.
         FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = !isDebuggable
+        val crashReporter = AndroidCrashReporter()
         AppLogger.init(
-            extraAntilogs = if (isDebuggable) emptyList() else listOf(CrashlyticsAntilog())
+            crashReporter = if (isDebuggable) NoOpCrashReporter else crashReporter,
+            extraAntilogs = if (isDebuggable) emptyList() else listOf(CrashReportingAntilog(crashReporter)),
         )
         initKoin {
             androidContext(this@StitchPadApplication)
