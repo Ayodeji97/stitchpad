@@ -16,6 +16,18 @@ data class UpgradeState(
     // tier cards must show the price Apple actually charges, not the bundled NGN
     // strings. Empty on Android / before products load.
     val appleDisplayPrices: Map<String, String> = emptyMap(),
-)
+    // Server-controlled (config/app) flag: is Android Paystack billing live? Drives
+    // the Paystack-only "Coming soon" gate below. Irrelevant on iOS (Apple path).
+    val billingEnabled: Boolean = false,
+) {
+    /**
+     * Whether the Pay CTA may initiate checkout. Apple (iOS) is always allowed —
+     * its availability is gated by App Store approval. Paystack (Android) requires
+     * the server [billingEnabled] flag, so the CTA shows "Coming soon" and can't
+     * start a real checkout until Paystack billing is flipped live.
+     */
+    val canCheckout: Boolean
+        get() = checkoutProvider == CheckoutProvider.APPLE || billingEnabled
+}
 
 enum class CheckoutProvider { PAYSTACK, APPLE }

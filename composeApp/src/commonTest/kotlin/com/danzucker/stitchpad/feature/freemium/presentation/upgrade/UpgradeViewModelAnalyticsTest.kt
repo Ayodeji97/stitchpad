@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.freemium.presentation.upgrade
 
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
+import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -103,6 +104,7 @@ class UpgradeViewModelAnalyticsTest {
         paymentRepository = payments,
         pendingDeepLink = pendingDeepLink,
         analytics = analytics,
+        appConfigRepository = FakeAppConfigRepository(),
     )
 
     private class FakePaymentRepository : PaymentRepository {

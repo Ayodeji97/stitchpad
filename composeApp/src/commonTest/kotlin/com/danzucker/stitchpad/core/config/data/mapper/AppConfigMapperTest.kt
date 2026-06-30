@@ -14,12 +14,14 @@ class AppConfigMapperTest {
         val dto = AppConfigDto(
             communityEnabled = true,
             communityInviteUrl = "https://chat.whatsapp.com/ABC123",
+            billingEnabled = true,
         )
 
         val config = dto.toAppConfig()
 
         assertTrue(config.communityEnabled)
         assertEquals("https://chat.whatsapp.com/ABC123", config.communityInviteUrl)
+        assertTrue(config.billingEnabled)
     }
 
     @Test
@@ -28,6 +30,8 @@ class AppConfigMapperTest {
 
         assertFalse(config.communityEnabled)
         assertNull(config.communityInviteUrl)
+        // Default-false billing: Android upgrades stay gated until the server flips it.
+        assertFalse(config.billingEnabled)
     }
 
     @Test
