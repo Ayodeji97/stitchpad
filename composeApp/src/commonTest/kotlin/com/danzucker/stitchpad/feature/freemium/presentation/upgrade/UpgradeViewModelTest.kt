@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.freemium.presentation.upgrade
 
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
+import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
+import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -30,6 +32,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,6 +69,36 @@ class UpgradeViewModelTest {
         assertEquals(SubscriptionTier.PRO, payments.lastTier)
         assertEquals(BillingCadence.MONTHLY, payments.lastCadence)
         assertFalse(vm.state.value.isStartingCheckout)
+    }
+
+    @Test
+    fun startCheckout_is_blocked_when_paystack_billing_not_live() = runTest {
+        // Android pre-go-live: billingEnabled=false → the Paystack CTA is "Coming
+        // soon". StartCheckout must be an inert no-op: no repo call, no spinner, no
+        // browser redirect — so a user can never hit a dead test-mode checkout.
+        val vm = newVm(billingEnabled = false)
+        runCurrent()
+        assertFalse(vm.state.value.canCheckout)
+
+        vm.onAction(UpgradeAction.StartCheckout)
+        runCurrent()
+
+        assertNull(payments.lastTier)
+        assertFalse(vm.state.value.isStartingCheckout)
+    }
+
+    @Test
+    fun checkout_is_enabled_once_paystack_billing_goes_live() = runTest {
+        // Flipping config/app.billingEnabled=true turns the Android CTA live with no
+        // app release — canCheckout becomes true and checkout proceeds.
+        val vm = newVm(billingEnabled = true)
+        runCurrent()
+        assertTrue(vm.state.value.canCheckout)
+
+        vm.onAction(UpgradeAction.StartCheckout)
+        runCurrent()
+
+        assertEquals(SubscriptionTier.PRO, payments.lastTier)
     }
 
     @Test
@@ -248,11 +281,20 @@ class UpgradeViewModelTest {
         assertEquals(SubscriptionTier.ATELIER, vm.state.value.selectedTier)
     }
 
-    private fun newVm(): UpgradeViewModel = UpgradeViewModel(
+    // billingEnabled defaults true so the existing Paystack-checkout tests exercise
+    // the live path; the gate tests pass false explicitly.
+    private fun newVm(billingEnabled: Boolean = true): UpgradeViewModel = UpgradeViewModel(
         entitlements = entitlements,
         paymentRepository = payments,
         pendingDeepLink = pendingDeepLink,
         analytics = FakeAnalytics(),
+        appConfigRepository = FakeAppConfigRepository(
+            AppConfig(
+                communityEnabled = false,
+                communityInviteUrl = null,
+                billingEnabled = billingEnabled,
+            ),
+        ),
     )
 
     private class FakePaymentRepository : PaymentRepository {

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
+import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.legal.LegalUrls
@@ -30,6 +31,7 @@ class UpgradeViewModel(
     private val paymentRepository: PaymentRepository,
     pendingDeepLink: PendingDeepLinkHolder,
     private val analytics: Analytics,
+    appConfigRepository: AppConfigRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(initialState(entitlements, pendingDeepLink))
@@ -65,6 +67,15 @@ class UpgradeViewModel(
         viewModelScope.launch {
             (paymentRepository.productCatalog() as? Result.Success)?.let { catalog ->
                 _state.update { it.copy(appleDisplayPrices = catalog.data) }
+            }
+        }
+
+        // Track the server billing kill switch so the Paystack CTA flips from
+        // "Coming soon" to live the moment config/app.billingEnabled is set true —
+        // no app release. Default AppConfig.Disabled keeps billingEnabled false.
+        viewModelScope.launch {
+            appConfigRepository.config.collect { cfg ->
+                _state.update { it.copy(billingEnabled = cfg.billingEnabled) }
             }
         }
     }
@@ -143,8 +154,11 @@ class UpgradeViewModel(
 
     private fun startCheckout() {
         val s = _state.value
-        if (s.isStartingCheckout) return
-        if (s.selectedTier == SubscriptionTier.FREE) return
+        // Don't start when a checkout is already in flight, the selected plan is
+        // Free (nothing to buy), or the Paystack CTA isn't live yet (the "Coming
+        // soon" gate; Apple/iOS is always allowed). The Pay button already enforces
+        // all three in the UI — this is the backstop for any other trigger.
+        if (s.isStartingCheckout || s.selectedTier == SubscriptionTier.FREE || !s.canCheckout) return
         _state.update { it.copy(isStartingCheckout = true) }
         viewModelScope.launch {
             when (

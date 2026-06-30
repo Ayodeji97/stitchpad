@@ -56,6 +56,7 @@ import stitchpad.composeapp.generated.resources.upgrade_billed_annually
 import stitchpad.composeapp.generated.resources.upgrade_billed_monthly
 import stitchpad.composeapp.generated.resources.upgrade_cadence_annual
 import stitchpad.composeapp.generated.resources.upgrade_cadence_monthly
+import stitchpad.composeapp.generated.resources.upgrade_coming_soon
 import stitchpad.composeapp.generated.resources.upgrade_current_plan
 import stitchpad.composeapp.generated.resources.upgrade_link_separator
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
@@ -171,7 +172,7 @@ fun UpgradeScreen(
             // Pay CTA
             Button(
                 onClick = { onAction(UpgradeAction.StartCheckout) },
-                enabled = !state.isStartingCheckout,
+                enabled = !state.isStartingCheckout && state.canCheckout,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
                 colors = ButtonDefaults.buttonColors(
@@ -192,6 +193,9 @@ fun UpgradeScreen(
                     text = stringResource(
                         when {
                             state.isStartingCheckout -> Res.string.upgrade_starting_checkout
+                            // Paystack billing not yet live (Android, pre-go-live):
+                            // disabled CTA reads "Coming soon" instead of a dead checkout.
+                            !state.canCheckout -> Res.string.upgrade_coming_soon
                             // Apple Guideline 3.1.1: the iOS CTA must not name
                             // Paystack or imply web payment — it's the native sheet.
                             state.checkoutProvider == CheckoutProvider.APPLE -> Res.string.upgrade_subscribe
