@@ -111,9 +111,18 @@ export async function recordReferralAttributionHandler(
   // other is flagged device_reuse. Best-effort — the hash resets on reinstall.
   const deviceRef = deviceHash ? deps.db.doc(`${REFERRAL_DEVICES}/${deviceHash}`) : null;
   let outcomeFlags: ReferralFlag[] = flags;
+  // Set if another call created referrals/{uid} between the pre-tx read and the
+  // transaction — we then return the PERSISTED attribution, not this call's, so
+  // logs never claim credit for a write that didn't happen.
+  let raceWinner: { marketerId: string; flags: ReferralFlag[] } | null = null;
 
   await deps.db.runTransaction(async (tx) => {
-    if ((await tx.get(referralRef)).exists) return; // race: another call won
+    const current = await tx.get(referralRef);
+    if (current.exists) {
+      const won = current.data() as { marketerId?: string; flags?: ReferralFlag[] };
+      raceWinner = { marketerId: won.marketerId ?? marketerId, flags: won.flags ?? [] };
+      return;
+    }
 
     const finalFlags = [...flags];
     let claimDevice = false;
@@ -154,6 +163,13 @@ export async function recordReferralAttributionHandler(
     outcomeFlags = finalFlags;
   });
 
+  if (raceWinner) {
+    return {
+      status: 'already_attributed',
+      marketerId: (raceWinner as { marketerId: string }).marketerId,
+      flags: (raceWinner as { flags: ReferralFlag[] }).flags,
+    };
+  }
   return { status: 'attributed', marketerId, flags: outcomeFlags };
 }
 

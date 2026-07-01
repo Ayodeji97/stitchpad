@@ -121,6 +121,19 @@ describe('recordReferralAttributionHandler — idempotency', () => {
     expect(again).toMatchObject({ status: 'already_attributed', marketerId: 'm1' });
     expect(store.get('referrals/bob').qualificationWindowEndsAt.toMillis()).toBe(firstWindow);
   });
+
+  it('returns the PERSISTED attribution when it loses the create race', async () => {
+    const { store, db } = seeded();
+    const origRunTx = db.runTransaction;
+    // Simulate a concurrent winner creating referrals/bob AFTER the pre-tx read
+    // but BEFORE this transaction runs.
+    db.runTransaction = async (fn: any) => {
+      store.set('referrals/bob', { marketerId: 'm1', flags: ['self_referral'] });
+      return origRunTx(fn);
+    };
+    const res = await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
+    expect(res).toEqual({ status: 'already_attributed', marketerId: 'm1', flags: ['self_referral'] });
+  });
 });
 
 describe('recordReferralAttributionHandler — fraud flags', () => {
