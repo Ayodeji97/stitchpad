@@ -70,4 +70,5 @@ export {
   expireUnclaimedGifts,
   resendUnclaimedGiftEmails,
 } from './billing/giftBilling';
+export { getBillingConfig } from './config/getBillingConfig';
 export { whatsappWebhook } from './whatsapp';
