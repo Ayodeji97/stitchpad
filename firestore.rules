@@ -120,7 +120,13 @@ service cloud.firestore {
         // minted only by createGiftLink (Admin SDK). A client-planted token could
         // collide with the giftLinkTokens reverse index and hijack another tailor's
         // incoming gifts, so it must never be set at creation.
-        && (!('giftLinkToken' in request.resource.data));
+        && (!('giftLinkToken' in request.resource.data))
+        // referredBy is the marketer id credited for this signup, stamped only by
+        // recordReferralAttribution (Admin SDK) after it validates the referral
+        // code. A client-planted value would let a user self-attribute to any
+        // marketer (or itself), inflating payouts — so it must never be set at
+        // creation.
+        && (!('referredBy' in request.resource.data));
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these
@@ -136,6 +142,7 @@ service cloud.firestore {
         && serverOnlyField('subscriptionFallbackTier')
         && serverOnlyField('subscriptionFallbackEndsAt')
         && serverOnlyField('giftLinkToken')
+        && serverOnlyField('referredBy')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount');
@@ -275,6 +282,36 @@ service cloud.firestore {
     // Reverse index token -> uid, read only by getPublicGiftProfile (Admin SDK) so
     // the users collection stays owner-read-only. Minted by createGiftLink. Hard deny.
     match /giftLinkTokens/{token} {
+      allow read, write: if false;
+    }
+
+    // ── Referral / marketing-attribution — all Admin-SDK only ─────────────
+    // A referral system pays real money to marketers per genuinely-active
+    // referred user, so every collection here is server-owned and hard-denied
+    // to clients (mirrors the gifts / giftLinkTokens bearer-credential model):
+    //
+    //   marketers/{id}          — the referrer entity (affiliate or, later, a
+    //                             user). Holds payout rate + bank details. A
+    //                             client read would leak other marketers' payout
+    //                             terms; a write could self-enroll or raise a rate.
+    //   referralCodes/{code}    — reverse index code -> marketerId (the code IS
+    //                             the doc id). A client write could hijack a code.
+    //   referrals/{referredUid} — per-referred-user milestone + payout state,
+    //                             computed by recordReferralAttribution +
+    //                             reconcileReferrals. A client write could self-
+    //                             mark as qualified and mint a payout.
+    //   referralDevices/{hash}  — device-dedupe reverse index; enumerating or
+    //                             forging it would defeat reinstall fraud checks.
+    match /marketers/{marketerId} {
+      allow read, write: if false;
+    }
+    match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+    match /referrals/{referredUid} {
+      allow read, write: if false;
+    }
+    match /referralDevices/{deviceHash} {
       allow read, write: if false;
     }
 

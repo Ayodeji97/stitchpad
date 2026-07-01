@@ -24,6 +24,38 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "milestone", "order": "ASCENDING" },
+        { "fieldPath": "qualificationWindowEndsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "payoutState", "order": "ASCENDING" },
+        { "fieldPath": "holdEndsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "marketerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "marketerId", "order": "ASCENDING" },
+        { "fieldPath": "payoutState", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
