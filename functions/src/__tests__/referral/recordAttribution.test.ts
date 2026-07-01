@@ -27,7 +27,11 @@ function makeDb(initial: Record<string, any> = {}) {
 }
 
 const NOW = new Date('2026-07-02T12:00:00Z');
-const deps = (db: any) => ({ db, now: () => NOW });
+const deps = (db: any, creationMs: number | null = null) => ({
+  db,
+  now: () => NOW,
+  userCreationTimeMs: async () => creationMs,
+});
 
 function ctx(uid: string | null, email?: string): functions.https.CallableContext {
   if (!uid) return {} as functions.https.CallableContext;
@@ -130,11 +134,21 @@ describe('recordReferralAttributionHandler — happy path', () => {
     expect(store.get('referrals/bob')).toMatchObject({ marketerId: 'm1', milestone: 'attributed' });
   });
 
-  it('measures the window from attribution time when the user doc has no createdAt', async () => {
+  it('falls back to attribution time when the auth creation time is unavailable', async () => {
     const { store, db } = seeded();
-    await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
+    await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db, null));
     expect(store.get('referrals/bob').qualificationWindowEndsAt.toMillis())
       .toBe(NOW.getTime() + QUALIFY_WINDOW_DAYS * DAY_MS);
+  });
+
+  it('anchors the window on the SERVER auth creation time, ignoring client-editable createdAt', async () => {
+    const signup = Date.parse('2026-06-20T00:00:00Z');
+    // Client plants a bogus far-future createdAt to try to extend the window.
+    const { store, db } = seeded({ 'users/bob': { createdAt: 9_999_999_999_999 } });
+    await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db, signup));
+    expect(store.get('referrals/bob').signupAt.toMillis()).toBe(signup);
+    expect(store.get('referrals/bob').qualificationWindowEndsAt.toMillis())
+      .toBe(signup + QUALIFY_WINDOW_DAYS * DAY_MS);
   });
 });
 

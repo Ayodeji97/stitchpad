@@ -33,6 +33,8 @@ export interface RecordAttributionResponse {
 export interface RecordAttributionDeps {
   db: admin.firestore.Firestore;
   now: () => Date;
+  // Server-authoritative signup instant (ms) for uid, or null if unavailable.
+  userCreationTimeMs: (uid: string) => Promise<number | null>;
 }
 
 export const recordReferralAttribution = functions
@@ -41,6 +43,15 @@ export const recordReferralAttribution = functions
     recordReferralAttributionHandler(data as RecordAttributionRequest, context, {
       db: admin.firestore(),
       now: () => new Date(),
+      userCreationTimeMs: async (uid) => {
+        try {
+          const t = (await admin.auth().getUser(uid)).metadata.creationTime;
+          const ms = t ? Date.parse(t) : NaN;
+          return Number.isFinite(ms) ? ms : null;
+        } catch {
+          return null;
+        }
+      },
     }));
 
 export async function recordReferralAttributionHandler(
@@ -97,10 +108,12 @@ export async function recordReferralAttributionHandler(
   const nowDate = deps.now();
   const nowTs = admin.firestore.Timestamp.fromDate(nowDate);
   const userRef = deps.db.doc(`users/${uid}`);
-  const userCreatedAtMs = toMillis(
-    (await userRef.get()).data() as { createdAt?: unknown } | undefined,
-  );
-  const signupMs = userCreatedAtMs ?? nowDate.getTime();
+  // Server-authoritative signup instant: the Firebase Auth account creation time
+  // (immutable, not client-writable). users/{uid}.createdAt is client-editable, so
+  // trusting it would let a referred user extend their own real-money
+  // qualification window. Fall back to attribution time if unavailable.
+  const authCreatedMs = await deps.userCreationTimeMs(uid);
+  const signupMs = authCreatedMs ?? nowDate.getTime();
   const signupTs = admin.firestore.Timestamp.fromMillis(signupMs);
   const windowEndsTs = admin.firestore.Timestamp.fromMillis(signupMs + QUALIFY_WINDOW_DAYS * DAY_MS);
   const referrerType: ReferrerType = marketer?.type === 'user' ? 'user' : 'affiliate';
@@ -217,12 +230,4 @@ function normEmail(value: unknown): string | null {
 
 function sha256(input: string): string {
   return crypto.createHash('sha256').update(input).digest('hex');
-}
-
-function toMillis(data: { createdAt?: unknown } | undefined): number | null {
-  const v = data?.createdAt as { toMillis?: () => number } | number | undefined;
-  if (v == null) return null;
-  if (typeof v === 'number') return v;
-  if (typeof v.toMillis === 'function') return v.toMillis();
-  return null;
 }
