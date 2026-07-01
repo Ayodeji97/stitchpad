@@ -96,8 +96,9 @@ export async function recordReferralAttributionHandler(
   // when we can read it, else attribution time.
   const nowDate = deps.now();
   const nowTs = admin.firestore.Timestamp.fromDate(nowDate);
+  const userRef = deps.db.doc(`users/${uid}`);
   const userCreatedAtMs = toMillis(
-    (await deps.db.doc(`users/${uid}`).get()).data() as { createdAt?: unknown } | undefined,
+    (await userRef.get()).data() as { createdAt?: unknown } | undefined,
   );
   const signupMs = userCreatedAtMs ?? nowDate.getTime();
   const signupTs = admin.firestore.Timestamp.fromMillis(signupMs);
@@ -137,6 +138,14 @@ export async function recordReferralAttributionHandler(
       // exists && owner === uid → idempotent re-run, leave as-is
     }
 
+    // Only stamp referredBy on an EXISTING user doc. Attribution can run before
+    // the client creates users/{uid} (SSO signup → Workshop Setup); a merge-set
+    // here would create a partial doc carrying referredBy, and the serverOnlyField
+    // rule would then reject the client's own profile create. referrals/{uid} is
+    // the canonical attribution record, so skipping the denormalized stamp when
+    // the doc is absent is safe.
+    const userExists = (await tx.get(userRef)).exists;
+
     tx.set(referralRef, {
       marketerId,
       code,
@@ -159,7 +168,10 @@ export async function recordReferralAttributionHandler(
       tx.set(deviceRef, { referredUid: uid, marketerId, createdAt: nowTs });
     }
     // Server-owned stamp (firestore.rules deny any client write of referredBy).
-    tx.set(deps.db.doc(`users/${uid}`), { referredBy: marketerId, updatedAt: nowTs }, { merge: true });
+    // Never CREATES the user doc — see the userExists note above.
+    if (userExists) {
+      tx.set(userRef, { referredBy: marketerId, updatedAt: nowTs }, { merge: true });
+    }
     outcomeFlags = finalFlags;
   });
 

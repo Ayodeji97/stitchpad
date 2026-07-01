@@ -103,6 +103,15 @@ describe('recordReferralAttributionHandler — happy path', () => {
     expect(store.get('referrals/bob')).toMatchObject({ code: 'ABCD1234' });
   });
 
+  it('does NOT create the user doc when attribution precedes profile creation', async () => {
+    const { store, db } = seeded(); // no users/bob seeded
+    await recordReferralAttributionHandler({ code: 'ABCD1234', deviceHash: 'd' }, ctx('bob'), deps(db));
+    // referral is recorded (canonical), but no partial users/bob doc is created
+    // that would later trip the serverOnlyField('referredBy') rule.
+    expect(store.has('users/bob')).toBe(false);
+    expect(store.get('referrals/bob')).toMatchObject({ marketerId: 'm1', milestone: 'attributed' });
+  });
+
   it('measures the window from attribution time when the user doc has no createdAt', async () => {
     const { store, db } = seeded();
     await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
