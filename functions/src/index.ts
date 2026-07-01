@@ -72,3 +72,4 @@ export {
 } from './billing/giftBilling';
 export { whatsappWebhook } from './whatsapp';
 export { createMarketer } from './referral/marketerAdmin';
+export { recordReferralAttribution } from './referral/recordAttribution';
