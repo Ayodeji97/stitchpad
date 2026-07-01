@@ -71,3 +71,4 @@ export {
   resendUnclaimedGiftEmails,
 } from './billing/giftBilling';
 export { whatsappWebhook } from './whatsapp';
+export { createMarketer } from './referral/marketerAdmin';
