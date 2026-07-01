@@ -20,5 +20,16 @@ service firebase.storage {
     match /users/{uid}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // Shared, read-only app content: the how-to tutorial videos at
+    // tutorials/{topic}.mp4. Same clips for every tailor, no PII. The client
+    // calls getDownloadUrl() on these paths (TutorialMediaResolver), which
+    // itself needs read permission — without this rule the path matches nothing
+    // and is denied by default (403), so tutorials never play. Reads are gated
+    // to signed-in users (tutorials are only reachable inside the app); writes
+    // stay closed — clips are uploaded out-of-band (console/CI), never by the client.
+    match /tutorials/{allPaths=**} {
+      allow read: if request.auth != null;
+    }
   }
 }
