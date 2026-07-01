@@ -90,20 +90,7 @@ export async function recordReferralAttributionHandler(
     flags.push('self_referral');
   }
 
-  // Device dedupe: one attribution per install. A second signup from a device
-  // already tied to another user is flagged (best-effort; hash resets on
-  // reinstall) and does NOT re-claim the device.
   const deviceHash = asNonEmptyString(data.deviceHash);
-  let deviceOwnedByOther = false;
-  if (deviceHash) {
-    const dev = (await deps.db.doc(`${REFERRAL_DEVICES}/${deviceHash}`).get()).data() as
-      | { referredUid?: string }
-      | undefined;
-    if (dev?.referredUid && dev.referredUid !== uid) {
-      deviceOwnedByOther = true;
-      flags.push('device_reuse');
-    }
-  }
 
   // Honest qualification window: measure from the user's real signup instant
   // when we can read it, else attribution time.
@@ -117,8 +104,30 @@ export async function recordReferralAttributionHandler(
   const windowEndsTs = admin.firestore.Timestamp.fromMillis(signupMs + QUALIFY_WINDOW_DAYS * DAY_MS);
   const referrerType: ReferrerType = marketer?.type === 'user' ? 'user' : 'affiliate';
 
+  // The device read + claim MUST happen inside the transaction: two concurrent
+  // signups with the same fresh deviceHash would otherwise both see it unclaimed
+  // pre-tx, and neither would be flagged. Reading the device doc in-tx makes the
+  // claim conflict, so exactly one caller wins ("first install wins") and any
+  // other is flagged device_reuse. Best-effort — the hash resets on reinstall.
+  const deviceRef = deviceHash ? deps.db.doc(`${REFERRAL_DEVICES}/${deviceHash}`) : null;
+  let outcomeFlags: ReferralFlag[] = flags;
+
   await deps.db.runTransaction(async (tx) => {
     if ((await tx.get(referralRef)).exists) return; // race: another call won
+
+    const finalFlags = [...flags];
+    let claimDevice = false;
+    if (deviceRef) {
+      const devSnap = await tx.get(deviceRef);
+      const owner = (devSnap.data() as { referredUid?: string } | undefined)?.referredUid;
+      if (devSnap.exists && owner && owner !== uid) {
+        finalFlags.push('device_reuse');
+      } else if (!devSnap.exists) {
+        claimDevice = true;
+      }
+      // exists && owner === uid → idempotent re-run, leave as-is
+    }
+
     tx.set(referralRef, {
       marketerId,
       code,
@@ -133,23 +142,19 @@ export async function recordReferralAttributionHandler(
       qualificationWindowEndsAt: windowEndsTs,
       activeDays: 0,
       activeDayKeys: [],
-      flags,
+      flags: finalFlags,
       createdAt: nowTs,
       updatedAt: nowTs,
     });
-    // First install wins the device claim.
-    if (deviceHash && !deviceOwnedByOther) {
-      tx.set(
-        deps.db.doc(`${REFERRAL_DEVICES}/${deviceHash}`),
-        { referredUid: uid, marketerId, createdAt: nowTs },
-        { merge: true },
-      );
+    if (claimDevice && deviceRef) {
+      tx.set(deviceRef, { referredUid: uid, marketerId, createdAt: nowTs });
     }
     // Server-owned stamp (firestore.rules deny any client write of referredBy).
     tx.set(deps.db.doc(`users/${uid}`), { referredBy: marketerId, updatedAt: nowTs }, { merge: true });
+    outcomeFlags = finalFlags;
   });
 
-  return { status: 'attributed', marketerId, flags };
+  return { status: 'attributed', marketerId, flags: outcomeFlags };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

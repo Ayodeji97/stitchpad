@@ -41,9 +41,13 @@ export const ACTIVE_DAY_TIMEZONE = 'Africa/Lagos';
 // "Have a referral code?" field. 31^8 ≈ 8.5e11 keeps collisions negligible.
 export const REFERRAL_CODE_LENGTH = 8;
 
-// Public link a marketer shares. The App-Link host link.getstitchpad.com is
-// already verified (AndroidManifest App Links + iOS associated domains); the
-// Android Play link carrying the Install Referrer is derived from the code.
+// Pretty human-facing share link. NOTE: the `/r/<code>` web landing page and the
+// app-side deep-link parser for it land in Slices 4–5/8 — until then this link
+// has no handler. On Android the ACTUAL attributing link is the Play link below
+// (Install Referrer only populates when the user routes through the Play
+// listing); the landing page's job is to redirect there carrying `referrer=` and
+// to show the code for iOS manual entry. The App-Link host is already verified
+// (AndroidManifest App Links + iOS associated domains).
 export const REFERRAL_LINK_BASE = 'https://link.getstitchpad.com/r';
 export const PLAY_PACKAGE = 'com.danzucker.stitchpad';
 
