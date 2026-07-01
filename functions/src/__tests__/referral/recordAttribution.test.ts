@@ -56,6 +56,24 @@ describe('recordReferralAttributionHandler — guards', () => {
       .rejects.toMatchObject({ code: 'invalid-argument', message: 'missing_code' });
   });
 
+  it('rejects a code containing path separators before building a doc path', async () => {
+    const { db } = seeded();
+    for (const bad of ['a/b/c', '../../secret', 'code.', 'has space']) {
+      await expect(recordReferralAttributionHandler({ code: bad }, ctx('bob'), deps(db)))
+        .rejects.toMatchObject({ code: 'invalid-argument' });
+    }
+  });
+
+  it('ignores a malformed deviceHash rather than failing attribution', async () => {
+    const { store, db } = seeded();
+    const res = await recordReferralAttributionHandler(
+      { code: 'ABCD1234', deviceHash: 'bad/hash' }, ctx('bob'), deps(db),
+    );
+    expect(res.status).toBe('attributed');
+    expect(store.get('referrals/bob').deviceHash).toBeNull();
+    expect(store.get('referrals/bob').flags).toEqual([]);
+  });
+
   it('rejects an unknown code', async () => {
     const { db } = seeded();
     await expect(recordReferralAttributionHandler({ code: 'NOPE9999' }, ctx('bob'), deps(db)))

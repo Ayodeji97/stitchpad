@@ -90,7 +90,7 @@ export async function recordReferralAttributionHandler(
     flags.push('self_referral');
   }
 
-  const deviceHash = asNonEmptyString(data.deviceHash);
+  const deviceHash = asDeviceHash(data.deviceHash);
 
   // Honest qualification window: measure from the user's real signup instant
   // when we can read it, else attribution time.
@@ -188,15 +188,21 @@ export async function recordReferralAttributionHandler(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 // Referral codes are uppercase over the Crockford-ish alphabet. Manual iOS entry
-// may arrive lowercased or spaced — normalize before the lookup.
+// may arrive lowercased or spaced — normalize, then constrain to [0-9A-Z] so the
+// value is always a safe Firestore doc-id (no '/', '.', path traversal) before we
+// build `referralCodes/${code}`. Anything outside the alphabet can't match a real
+// code anyway, so rejecting it early just yields a clean invalid-argument.
 function asCode(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const s = value.replace(/[\s-]/g, '').toUpperCase();
-  return s.length > 0 && s.length <= 32 ? s : null;
+  return /^[0-9A-Z]{1,32}$/.test(s) ? s : null;
 }
 
-function asNonEmptyString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+// Client-generated stable hash. Constrain to a URL-safe alphabet + length so it's
+// a safe Firestore doc-id for `referralDevices/${deviceHash}`. A malformed hash is
+// treated as absent (best-effort dedupe) rather than failing the whole attribution.
+function asDeviceHash(value: unknown): string | null {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value) ? value : null;
 }
 
 function asSource(value: unknown): string | null {
