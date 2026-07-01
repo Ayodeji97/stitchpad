@@ -145,4 +145,11 @@ describe('createMarketerHandler — user referrer (phase 2 shape)', () => {
       { ...AFFILIATE, payoutKind: 'credit' }, ADMIN, deps(),
     )).rejects.toMatchObject({ code: 'invalid-argument', message: 'affiliate_requires_cash' });
   });
+
+  it.each([['cash'], [undefined]])('rejects a user referrer with %s payout (no bank details collected)', async (kind) => {
+    await expect(createMarketerHandler(
+      { name: 'Bola', email: 'b@x.com', payoutRatePerUser: 100_000, type: 'user', payoutKind: kind, referrerUid: 'tailor-9' },
+      ADMIN, deps(),
+    )).rejects.toMatchObject({ code: 'invalid-argument', message: 'user_requires_credit' });
+  });
 });

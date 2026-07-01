@@ -89,6 +89,11 @@ export async function createMarketerHandler(
     bankAccountNumber = asAccountNumber(data.bankAccountNumber);
     if (!bankName || !bankAccountName || !bankAccountNumber) throw invalid('missing_bank_details');
   } else {
+    // User-referrers (phase 2) are rewarded with app credit — we never collect
+    // their bank details — so a cash payout would leave an inconsistent record
+    // (payoutKind: 'cash' with null bank fields). Require credit, symmetric to
+    // the affiliate_requires_cash rule above.
+    if (payoutKind !== 'credit') throw invalid('user_requires_credit');
     referrerUid = asNonEmptyString(data.referrerUid);
     if (!referrerUid) throw invalid('missing_referrer_uid');
   }
