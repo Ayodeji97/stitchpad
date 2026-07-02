@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.navigation
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.concurrent.Volatile
 
 enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT }
 
@@ -12,6 +13,11 @@ class PendingDeepLinkHolder {
     val target = MutableStateFlow<DeepLinkTarget?>(null)
     private var upgradePreselect: UpgradePreselect? = null
     private var claimGiftCode: String? = null
+
+    // Written from the main thread (App Link intent) AND read/consumed from the
+    // coordinator's background scope, so it needs a happens-before edge that the
+    // other single-threaded fields don't.
+    @Volatile
     private var referralCode: String? = null
 
     fun set(t: DeepLinkTarget) {

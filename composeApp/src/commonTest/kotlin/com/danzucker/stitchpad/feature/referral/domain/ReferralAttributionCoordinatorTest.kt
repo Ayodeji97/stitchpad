@@ -2,10 +2,14 @@ package com.danzucker.stitchpad.feature.referral.domain
 
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -28,29 +32,37 @@ private class FakeReferralRepository(
 
 private class FakeReferralPreferences(
     private var attributed: Boolean = false,
+    private var checkedReferrer: Boolean = false,
     private val deviceId: String = "device-uuid",
 ) : ReferralPreferencesStore {
     override suspend fun getOrCreateDeviceId(): String = deviceId
     override suspend fun hasAttributed(): Boolean = attributed
     override suspend fun setAttributed() { attributed = true }
-    override suspend fun resetForDebug() { attributed = false }
+    override suspend fun hasCheckedReferrer(): Boolean = checkedReferrer
+    override suspend fun setReferrerChecked() { checkedReferrer = true }
+    override suspend fun resetForDebug() { attributed = false; checkedReferrer = false }
+
+    fun attributedNow() = attributed
+    fun checkedNow() = checkedReferrer
 }
 
 private class FakeInstallReferrerReader(private val referrer: String?) : InstallReferrerReader {
-    override suspend fun readReferrer(): String? = referrer
+    var reads = 0
+    override suspend fun readReferrer(): String? { reads++; return referrer }
 }
 
 class ReferralAttributionCoordinatorTest {
 
     private fun coordinator(
-        scope: kotlinx.coroutines.CoroutineScope,
+        scope: CoroutineScope,
         repo: FakeReferralRepository = FakeReferralRepository(),
         prefs: FakeReferralPreferences = FakeReferralPreferences(),
         reader: FakeInstallReferrerReader = FakeInstallReferrerReader(null),
         holder: PendingDeepLinkHolder = PendingDeepLinkHolder(),
-    ) = ReferralAttributionCoordinator(repo, prefs, reader, holder, scope)
+        uidFlow: Flow<String?> = flowOf(null),
+    ) = ReferralAttributionCoordinator(repo, prefs, reader, holder, scope, uidFlow)
 
-    // ── attributeOnce ────────────────────────────────────────────────────────
+    // ── attributeOnce: code resolution priority ──────────────────────────────
 
     @Test
     fun manualCode_wins_overPending_andTagsManual() = runTest {
@@ -72,7 +84,6 @@ class ReferralAttributionCoordinatorTest {
 
         c.attributeOnce(manualCode = "MANUAL01")
 
-        // Manual won, so the captured code must still be available for later.
         assertEquals("PENDING1", holder.consumeReferralCode())
     }
 
@@ -91,15 +102,46 @@ class ReferralAttributionCoordinatorTest {
     }
 
     @Test
-    fun noManualAndNoPending_noOps() = runTest {
+    fun installReferrer_readWhenNoManualOrPending() = runTest {
         val repo = FakeReferralRepository()
-        val c = coordinator(this, repo = repo)
+        val prefs = FakeReferralPreferences()
+        val c = coordinator(this, repo = repo, prefs = prefs, reader = FakeInstallReferrerReader("ref=abcd1234"))
 
         c.attributeOnce(manualCode = null)
-        c.attributeOnce(manualCode = "   ")
+
+        assertEquals(1, repo.calls.size)
+        assertEquals("ABCD1234", repo.calls[0].code)
+        assertEquals(ReferralSource.INSTALL_REFERRER, repo.calls[0].source)
+        assertTrue(prefs.attributedNow())
+    }
+
+    @Test
+    fun noCodeAnywhere_noOps_andMarksReferrerChecked() = runTest {
+        val repo = FakeReferralRepository()
+        val prefs = FakeReferralPreferences()
+        val c = coordinator(this, repo = repo, prefs = prefs, reader = FakeInstallReferrerReader(null))
+
+        c.attributeOnce(manualCode = null)
 
         assertTrue(repo.calls.isEmpty())
+        // Organic: the read yielded nothing, so we stop re-reading Play on later launches.
+        assertTrue(prefs.checkedNow())
     }
+
+    @Test
+    fun installReferrer_notReReadOnceChecked() = runTest {
+        val reader = FakeInstallReferrerReader("ref=ABCD1234")
+        val prefs = FakeReferralPreferences(checkedReferrer = true)
+        val repo = FakeReferralRepository()
+        val c = coordinator(this, repo = repo, prefs = prefs, reader = reader)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(0, reader.reads)
+        assertTrue(repo.calls.isEmpty())
+    }
+
+    // ── attributeOnce: guards + retry semantics ──────────────────────────────
 
     @Test
     fun alreadyAttributed_noOps() = runTest {
@@ -115,8 +157,7 @@ class ReferralAttributionCoordinatorTest {
     @Test
     fun success_setsAttributed_soASecondCallNoOps() = runTest {
         val repo = FakeReferralRepository()
-        val prefs = FakeReferralPreferences()
-        val c = coordinator(this, repo = repo, prefs = prefs)
+        val c = coordinator(this, repo = repo)
 
         c.attributeOnce(manualCode = "MANUAL01")
         c.attributeOnce(manualCode = "MANUAL01")
@@ -125,10 +166,9 @@ class ReferralAttributionCoordinatorTest {
     }
 
     @Test
-    fun error_leavesUnattributed_soARetryCanRun() = runTest {
+    fun manualFailure_leavesUnattributed_soARetryCanRun() = runTest {
         val repo = FakeReferralRepository(result = Result.Error(ReferralError.NETWORK))
-        val prefs = FakeReferralPreferences()
-        val c = coordinator(this, repo = repo, prefs = prefs)
+        val c = coordinator(this, repo = repo)
 
         c.attributeOnce(manualCode = "MANUAL01")
         c.attributeOnce(manualCode = "MANUAL01")
@@ -136,50 +176,53 @@ class ReferralAttributionCoordinatorTest {
         assertEquals(2, repo.calls.size)
     }
 
-    // ── captureInstallReferrer ───────────────────────────────────────────────
-
     @Test
-    fun captureInstallReferrer_storesParsedCode() = runTest {
-        val holder = PendingDeepLinkHolder()
-        val c = coordinator(this, reader = FakeInstallReferrerReader("ref=abcd1234"), holder = holder)
+    fun pendingFailure_reStashesCode_forNextAttempt() = runTest {
+        val repo = FakeReferralRepository(result = Result.Error(ReferralError.NETWORK))
+        val holder = PendingDeepLinkHolder().apply { setReferralCode("PENDING1") }
+        val c = coordinator(this, repo = repo, holder = holder)
 
-        c.captureInstallReferrer()
+        c.attributeOnce(manualCode = null)
 
-        advanceUntilIdle()
-
-        assertEquals("ABCD1234", holder.consumeReferralCode())
+        // The consumed deep-link code was put back so a later trigger can retry it.
+        assertEquals("PENDING1", holder.consumeReferralCode())
     }
 
     @Test
-    fun captureInstallReferrer_organicReferrer_storesNothing() = runTest {
-        val holder = PendingDeepLinkHolder()
-        val c = coordinator(
-            this,
-            reader = FakeInstallReferrerReader("utm_source=google-play&utm_medium=organic"),
-            holder = holder,
-        )
+    fun installReferrerFailure_leavesCheckedUnset_forRetry() = runTest {
+        val repo = FakeReferralRepository(result = Result.Error(ReferralError.NETWORK))
+        val prefs = FakeReferralPreferences()
+        val c = coordinator(this, repo = repo, prefs = prefs, reader = FakeInstallReferrerReader("ref=ABCD1234"))
 
-        c.captureInstallReferrer()
+        c.attributeOnce(manualCode = null)
 
+        assertFalse(prefs.attributedNow())
+        // A genuine code that failed to submit must be re-readable next launch.
+        assertFalse(prefs.checkedNow())
+    }
+
+    // ── start(): auth-state trigger ──────────────────────────────────────────
+
+    @Test
+    fun start_attributesWhenSignedIn() = runTest {
+        val repo = FakeReferralRepository()
+        val c = coordinator(this, repo = repo, reader = FakeInstallReferrerReader("ref=ABCD1234"), uidFlow = flowOf("uid-1"))
+
+        c.start()
         advanceUntilIdle()
 
-        assertNull(holder.consumeReferralCode())
+        assertEquals(1, repo.calls.size)
+        assertEquals("ABCD1234", repo.calls[0].code)
     }
 
     @Test
-    fun captureInstallReferrer_whenAlreadyAttributed_skips() = runTest {
-        val holder = PendingDeepLinkHolder()
-        val c = coordinator(
-            this,
-            prefs = FakeReferralPreferences(attributed = true),
-            reader = FakeInstallReferrerReader("ref=ABCD1234"),
-            holder = holder,
-        )
+    fun start_signedOut_doesNotAttribute() = runTest {
+        val repo = FakeReferralRepository()
+        val c = coordinator(this, repo = repo, reader = FakeInstallReferrerReader("ref=ABCD1234"), uidFlow = flowOf(null))
 
-        c.captureInstallReferrer()
-
+        c.start()
         advanceUntilIdle()
 
-        assertNull(holder.consumeReferralCode())
+        assertTrue(repo.calls.isEmpty())
     }
 }

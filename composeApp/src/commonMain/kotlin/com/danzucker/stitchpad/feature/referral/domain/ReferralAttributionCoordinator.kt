@@ -5,29 +5,39 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.navigation.DeepLinkParser
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 private const val TAG = "ReferralAttribution"
 
 /**
- * The fire-and-forget hooks the app calls into. Kept as an interface so the SignUp
- * ViewModel can depend on it without constructing the full coordinator in tests.
+ * The fire-and-forget hook the SignUp ViewModel calls into. Kept as an interface so
+ * the VM can depend on it without constructing the full coordinator in tests.
  */
 interface ReferralAttribution {
-    /** Android app-start: read the Play Install Referrer once and stash any code. */
-    fun captureInstallReferrer()
-
-    /** Post-auth: attribute the manual/captured code exactly once per install. */
+    /**
+     * Attribute the manual/captured code exactly once per install. Safe to call
+     * repeatedly — no-ops once attribution has succeeded. [manualCode] (the SignUp
+     * field) wins over a captured code.
+     */
     fun submitPendingAttribution(manualCode: String?)
 }
 
 /**
- * Owns the client half of referral attribution: capture a code (Play Install Referrer
- * or a /r/ App Link), then submit it once the user is authenticated. Everything is
- * best-effort and fire-and-forget — a signup must never block or fail on attribution.
+ * Owns the client half of referral attribution: resolve a code (a manually typed one,
+ * a captured /r/ App Link, or the Play Install Referrer) and report it once the user
+ * is authenticated. Everything is best-effort and fire-and-forget — a signup must
+ * never block or fail on attribution.
  *
- * Runs on an app-lifetime [scope] (not a ViewModel's) so the submit survives the
- * SignUp screen being torn down by post-signup navigation.
+ * Two triggers, both funnelling into [attributeOnce]:
+ *  - SignUp email/SSO success (via [submitPendingAttribution]) for immediacy + the
+ *    manually typed code.
+ *  - The auth-state [start] collector, so a submit that failed at signup (flaky
+ *    network) retries on the next authenticated launch — the plan's "first
+ *    authenticated launch" semantics.
+ *
+ * Runs on an app-lifetime [scope] so a submit survives the SignUp screen being torn
+ * down by post-signup navigation.
  */
 class ReferralAttributionCoordinator(
     private val referralRepository: ReferralRepository,
@@ -35,45 +45,55 @@ class ReferralAttributionCoordinator(
     private val installReferrerReader: InstallReferrerReader,
     private val pendingDeepLink: PendingDeepLinkHolder,
     private val scope: CoroutineScope,
+    private val uidFlow: Flow<String?>,
 ) : ReferralAttribution {
 
     /**
-     * Android app-start hook: read the Play Install Referrer once and stash any code
-     * for a later submit. No-op on iOS (reader yields null) and once already attributed.
+     * Begin observing auth state: whenever a user is signed in, attempt attribution.
+     * Idempotent downstream ([attributeOnce] guards on hasAttributed), so this safely
+     * re-runs a failed submit on later launches. Called once from the DI factory.
      */
-    override fun captureInstallReferrer() {
+    fun start() {
         scope.launch {
-            if (preferences.hasAttributed()) return@launch
-            val referrer = installReferrerReader.readReferrer() ?: return@launch
-            val code = DeepLinkParser.parseInstallReferrerCode(referrer) ?: return@launch
-            pendingDeepLink.setReferralCode(code)
-            AppLogger.d(tag = TAG) { "captured install-referrer code" }
+            uidFlow.collect { uid ->
+                if (uid != null) attributeOnce(manualCode = null)
+            }
         }
     }
 
-    /**
-     * Post-auth hook (called from signup/SSO success). Fire-and-forget: resolves the
-     * code and submits attribution exactly once per install.
-     */
     override fun submitPendingAttribution(manualCode: String?) {
         scope.launch { attributeOnce(manualCode) }
     }
 
     /**
-     * The testable core. A manually-entered [manualCode] wins over a captured pending
-     * code; if neither is present, or attribution already succeeded, this no-ops.
-     * Only consumes the pending code when it's actually used, so a manual-path failure
-     * leaves the captured code available for a retry on a later launch.
+     * The testable core. Resolves the code by priority — manual field, then a captured
+     * deep-link code, then the Play Install Referrer (read at most once per install) —
+     * and submits it. No-ops when already attributed or no code is available.
      */
     suspend fun attributeOnce(manualCode: String?) {
         if (preferences.hasAttributed()) return
 
-        val normalizedManual = DeepLinkParser.normalizeReferralCode(manualCode)
-        val (code, source) = if (normalizedManual != null) {
-            normalizedManual to ReferralSource.MANUAL
-        } else {
-            val pending = pendingDeepLink.consumeReferralCode() ?: return
-            pending to ReferralSource.INSTALL_REFERRER
+        val manual = DeepLinkParser.normalizeReferralCode(manualCode)
+        // Only consume the captured code when there's no manual code to prefer; a
+        // deep-link code we do consume is re-stashed below if the submit fails.
+        val pending = if (manual == null) pendingDeepLink.consumeReferralCode() else null
+
+        val code: String
+        val source: ReferralSource
+        when {
+            manual != null -> {
+                code = manual
+                source = ReferralSource.MANUAL
+            }
+            pending != null -> {
+                code = pending
+                source = ReferralSource.INSTALL_REFERRER
+            }
+            else -> {
+                val fromInstall = readInstallReferrerCode() ?: return
+                code = fromInstall
+                source = ReferralSource.INSTALL_REFERRER
+            }
         }
 
         val deviceHash = preferences.getOrCreateDeviceId()
@@ -85,9 +105,25 @@ class ReferralAttributionCoordinator(
                 }
             }
             is Result.Error -> {
-                // Leave unattributed; the server is idempotent so a later launch can retry.
+                // Leave unattributed so a later authenticated launch retries. Re-stash a
+                // consumed deep-link code (in-memory only); the Install Referrer is
+                // re-readable next launch because its checked flag stays unset on failure.
+                if (pending != null) pendingDeepLink.setReferralCode(pending)
                 AppLogger.w(tag = TAG) { "attribution failed: ${result.error}" }
             }
         }
+    }
+
+    /**
+     * Reads the Play Install Referrer at most once per install. Sets the checked flag
+     * only when the read yields no code (organic) — a genuine code that fails to submit
+     * leaves it unset so the read + retry runs again next launch.
+     */
+    private suspend fun readInstallReferrerCode(): String? {
+        if (preferences.hasCheckedReferrer()) return null
+        val referrer = installReferrerReader.readReferrer()
+        val code = DeepLinkParser.parseInstallReferrerCode(referrer)
+        if (code == null) preferences.setReferrerChecked()
+        return code
     }
 }

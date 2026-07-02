@@ -22,12 +22,20 @@ actual class ReferralPreferences : ReferralPreferencesStore {
         defaults.setBool(true, forKey = KEY_ATTRIBUTED)
     }
 
+    override suspend fun hasCheckedReferrer(): Boolean = defaults.boolForKey(KEY_REFERRER_CHECKED)
+
+    override suspend fun setReferrerChecked() {
+        defaults.setBool(true, forKey = KEY_REFERRER_CHECKED)
+    }
+
     override suspend fun resetForDebug() {
         defaults.setBool(false, forKey = KEY_ATTRIBUTED)
+        defaults.setBool(false, forKey = KEY_REFERRER_CHECKED)
     }
 
     private companion object {
         const val KEY_DEVICE_ID = "referral_device_id"
         const val KEY_ATTRIBUTED = "referral_attributed"
+        const val KEY_REFERRER_CHECKED = "referral_referrer_checked"
     }
 }

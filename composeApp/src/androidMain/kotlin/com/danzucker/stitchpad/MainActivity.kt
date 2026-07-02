@@ -9,7 +9,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
 import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_EXTRA
 import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_INBOX
-import com.danzucker.stitchpad.feature.referral.domain.ReferralAttribution
 import com.danzucker.stitchpad.navigation.DeepLinkParser
 import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
@@ -18,7 +17,6 @@ import org.koin.android.ext.android.inject
 class MainActivity : ComponentActivity() {
     private val currentActivityHolder: CurrentActivityHolder by inject()
     private val pendingDeepLink: PendingDeepLinkHolder by inject()
-    private val referralAttribution: ReferralAttribution by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -26,11 +24,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         currentActivityHolder.activity = this
         handlePushIntent(intent)
-        // Read the Play Install Referrer once per fresh launch (not on config-change
-        // recreate) to capture a referral code for post-signup attribution.
-        if (savedInstanceState == null) {
-            referralAttribution.captureInstallReferrer()
-        }
         setContent {
             App()
         }

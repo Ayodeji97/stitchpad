@@ -103,8 +103,9 @@ class SignUpViewModel(
             try {
                 when (val result = authRepository.signInWithGoogle()) {
                     is Result.Success -> {
-                        // No manual field on the SSO path — attribute any captured code.
-                        referralAttribution.submitPendingAttribution(manualCode = null)
+                        // The referral field lives on the same screen as the SSO buttons,
+                        // so a code typed before tapping Google must still be attributed.
+                        referralAttribution.submitPendingAttribution(_state.value.referralCode)
                         _events.send(SignUpEvent.NavigateToHome)
                     }
                     is Result.Error -> {
@@ -125,7 +126,7 @@ class SignUpViewModel(
             try {
                 when (val result = authRepository.signInWithApple()) {
                     is Result.Success -> {
-                        referralAttribution.submitPendingAttribution(manualCode = null)
+                        referralAttribution.submitPendingAttribution(_state.value.referralCode)
                         _events.send(SignUpEvent.NavigateToHome)
                     }
                     is Result.Error -> {

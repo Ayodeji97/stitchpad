@@ -13,6 +13,7 @@ import org.koin.mp.KoinPlatform
  * Returns true if the URL was a StitchPad deep link we handled, so the caller can stop (and
  * not pass it on to Google Sign-In).
  */
+@Suppress("ReturnCount") // one early return per deep-link kind reads clearer than nesting
 fun handleIosDeepLink(url: String): Boolean {
     val holder = KoinPlatform.getKoin().get<PendingDeepLinkHolder>()
     val upgrade = DeepLinkParser.parseUpgrade(url)
@@ -23,6 +24,13 @@ fun handleIosDeepLink(url: String): Boolean {
     val claimCode = DeepLinkParser.parseClaimGift(url)
     if (claimCode != null) {
         holder.setClaimGift(claimCode)
+        return true
     }
-    return claimCode != null
+    // Referral App Link (/r/<code>). Silent capture — no navigation target; the
+    // coordinator submits after the user authenticates.
+    val referralCode = DeepLinkParser.parseReferral(url)
+    if (referralCode != null) {
+        holder.setReferralCode(referralCode)
+    }
+    return referralCode != null
 }

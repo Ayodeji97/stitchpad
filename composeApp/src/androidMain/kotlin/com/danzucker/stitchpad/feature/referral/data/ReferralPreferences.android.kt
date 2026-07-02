@@ -26,12 +26,22 @@ actual class ReferralPreferences(context: Context) : ReferralPreferencesStore {
         prefs.edit().putBoolean(KEY_ATTRIBUTED, true).apply()
     }
 
+    override suspend fun hasCheckedReferrer(): Boolean = prefs.getBoolean(KEY_REFERRER_CHECKED, false)
+
+    override suspend fun setReferrerChecked() {
+        prefs.edit().putBoolean(KEY_REFERRER_CHECKED, true).apply()
+    }
+
     override suspend fun resetForDebug() {
-        prefs.edit().putBoolean(KEY_ATTRIBUTED, false).apply()
+        prefs.edit()
+            .putBoolean(KEY_ATTRIBUTED, false)
+            .putBoolean(KEY_REFERRER_CHECKED, false)
+            .apply()
     }
 
     private companion object {
         const val KEY_DEVICE_ID = "referral_device_id"
         const val KEY_ATTRIBUTED = "referral_attributed"
+        const val KEY_REFERRER_CHECKED = "referral_referrer_checked"
     }
 }

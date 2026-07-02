@@ -17,6 +17,16 @@ interface ReferralPreferencesStore {
 
     suspend fun setAttributed()
 
-    /** Debug menu: clear the attributed flag (keeps the device id stable). */
+    /**
+     * True once we've read the Play Install Referrer and found it carries no code
+     * (organic install). Bounds the Play-service bind to once per install so organic
+     * users don't re-read on every launch. A genuine-but-unsubmitted referrer leaves
+     * this false so the read (and attribution retry) runs again next launch.
+     */
+    suspend fun hasCheckedReferrer(): Boolean
+
+    suspend fun setReferrerChecked()
+
+    /** Debug menu: clear the attributed + referrer-checked flags (device id stays stable). */
     suspend fun resetForDebug()
 }
