@@ -75,7 +75,9 @@ class ReferralAttributionCoordinatorTest {
         holder: PendingDeepLinkHolder = PendingDeepLinkHolder(),
         uidFlow: Flow<String?> = flowOf(null),
         clipboardEnabled: Boolean = true,
-    ) = ReferralAttributionCoordinator(repo, prefs, reader, clipboard, holder, scope, uidFlow, clipboardEnabled)
+    ) = ReferralAttributionCoordinator(
+        repo, prefs, reader, clipboard, holder, scope, uidFlow, clipboardEnabled,
+    )
 
     // ── attributeOnce: code resolution priority ──────────────────────────────
 
@@ -205,6 +207,19 @@ class ReferralAttributionCoordinatorTest {
         assertTrue(repo.calls.isEmpty())
         // Nothing for us on the clipboard → stop re-reading (and re-banner-ing).
         assertTrue(prefs.clipboardCheckedNow())
+    }
+
+    @Test
+    fun clipboard_disabledByDefault_isNotRead() = runTest {
+        // Production default: clipboard capture stays dormant until the /r/ landing page.
+        val repo = FakeReferralRepository()
+        val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/ABCD1234")
+        val c = coordinator(this, repo = repo, clipboard = clip, clipboardEnabled = false)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(0, clip.reads)
+        assertTrue(repo.calls.isEmpty())
     }
 
     @Test
