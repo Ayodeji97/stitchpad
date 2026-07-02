@@ -213,6 +213,67 @@ describe('gifts collection', () => {
   });
 });
 
+describe('referral collections (Admin-SDK only)', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'marketers/m1'), {
+        name: 'Ada', type: 'affiliate', code: 'ADA12345', payoutRatePerUser: 200000, status: 'active',
+      });
+      await setDoc(doc(admin, 'referralCodes/ADA12345'), { marketerId: 'm1' });
+      await setDoc(doc(admin, 'referrals/bob'), { marketerId: 'm1', milestone: 'attributed', payoutState: 'none' });
+      await setDoc(doc(admin, 'referralDevices/hash1'), { referredUid: 'bob', marketerId: 'm1' });
+    });
+  });
+
+  it('rejects reading a marketer (payout terms must not leak)', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'marketers/m1')));
+  });
+
+  it('rejects writing a marketer (self-enroll / rate tampering)', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'marketers/mine'), { name: 'Me', payoutRatePerUser: 999999 }));
+    await assertFails(updateDoc(doc(db('alice'), 'marketers/m1'), { payoutRatePerUser: 999999 }));
+  });
+
+  it('rejects reading or writing the referralCodes reverse index', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'referralCodes/ADA12345')));
+    await assertFails(setDoc(doc(db('alice'), 'referralCodes/MINE'), { marketerId: 'm1' }));
+  });
+
+  it('rejects reading a referral or self-marking it qualified/paid', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'referrals/bob')));
+    await assertFails(setDoc(doc(db('alice'), 'referrals/alice'), { marketerId: 'm1', milestone: 'qualified' }));
+    await assertFails(updateDoc(doc(db('bob'), 'referrals/bob'), { payoutState: 'paid' }));
+  });
+
+  it('rejects reading or forging the referralDevices dedupe index', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'referralDevices/hash1')));
+    await assertFails(setDoc(doc(db('alice'), 'referralDevices/hash2'), { referredUid: 'alice', marketerId: 'm1' }));
+  });
+});
+
+describe('referredBy field hardening', () => {
+  it('rejects planting referredBy at user-doc creation (self-attribution)', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, referredBy: 'm1' }),
+    );
+  });
+
+  it('rejects adding or changing referredBy via update', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, referredBy: 'm1' });
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { referredBy: 'm2' }));
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { referredBy: deleteField() }));
+  });
+
+  it('rejects adding referredBy to a doc that never had it', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), SEED_DEFAULTS);
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { referredBy: 'm1' }));
+  });
+});
+
 describe('giftLinkToken field hardening', () => {
   it('rejects planting a giftLinkToken at user-doc creation', async () => {
     await assertFails(
