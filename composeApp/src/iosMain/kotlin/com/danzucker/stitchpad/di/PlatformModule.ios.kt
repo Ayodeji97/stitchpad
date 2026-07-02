@@ -28,8 +28,10 @@ import com.danzucker.stitchpad.feature.notification.push.NativePushService
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
+import com.danzucker.stitchpad.feature.referral.data.IosClipboardReferralReader
 import com.danzucker.stitchpad.feature.referral.data.IosInstallReferrerReader
 import com.danzucker.stitchpad.feature.referral.data.ReferralPreferences
+import com.danzucker.stitchpad.feature.referral.domain.ClipboardReferralReader
 import com.danzucker.stitchpad.feature.referral.domain.InstallReferrerReader
 import com.danzucker.stitchpad.feature.referral.domain.ReferralPreferencesStore
 import com.danzucker.stitchpad.feature.tutorials.data.TutorialVideoCache
@@ -68,6 +70,7 @@ actual val platformModule: Module = module {
     single { OnboardingPreferences() } bind OnboardingPreferencesStore::class
     single { ReferralPreferences() } bind ReferralPreferencesStore::class
     single<InstallReferrerReader> { IosInstallReferrerReader() }
+    single<ClipboardReferralReader> { IosClipboardReferralReader() }
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { ThemePreferences() } bind ThemePreferencesStore::class
     single { OfflinePhotoStore() }
