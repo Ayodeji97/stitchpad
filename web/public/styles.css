@@ -1,6 +1,10 @@
 :root {
   --saffron: #E8A800;
   --saffron-ink: #5C4500;
+  /* Adire Atelier primary — used for the referral CTA (saffron is a heritage
+     accent only, never a primary button; see CLAUDE.md). */
+  --indigo: #2C3E7C;
+  --indigo-hover: #22305F;
   --ink: #0F172A;
   --muted: #475569;
   --bg: #FFFFFF;
@@ -210,8 +214,8 @@ footer a:hover {
   max-width: 320px;
   padding: 15px 24px;
   border-radius: 12px;
-  background: var(--saffron);
-  color: var(--saffron-ink);
+  background: var(--indigo);
+  color: #FFFFFF;
   font-size: 17px;
   font-weight: 700;
   text-decoration: none;
@@ -220,8 +224,8 @@ footer a:hover {
 }
 
 .referral .cta:hover {
-  background: #D69A00;
-  color: var(--saffron-ink);
+  background: var(--indigo-hover);
+  color: #FFFFFF;
 }
 
 .referral .cta.secondary {

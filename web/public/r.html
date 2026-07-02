@@ -62,7 +62,15 @@
         raw = q.get('ref') || q.get('code');
       }
       if (!raw) return null;
-      var cleaned = decodeURIComponent(raw).replace(/[\s-]/g, '').toUpperCase();
+      var decoded;
+      try {
+        decoded = decodeURIComponent(raw);
+      } catch (e) {
+        // Malformed percent-encoding (e.g. /r/50%off) — decodeURIComponent throws.
+        // Fall back to the raw value; it'll fail the charset check below anyway.
+        decoded = raw;
+      }
+      var cleaned = decoded.replace(/[\s-]/g, '').toUpperCase();
       return /^[0-9A-Z]{1,32}$/.test(cleaned) ? cleaned : null;
     }
 
@@ -113,7 +121,7 @@
       if (platform === 'ios') {
         // Safari requires a user gesture to write the clipboard, so do it on tap,
         // then send the user to the App Store. The app reads the token on first launch.
-        primary.textContent = 'Copy code & open App Store';
+        primary.textContent = code ? 'Copy code & open App Store' : 'Open the App Store';
         primary.href = appStoreUrl();
         primary.addEventListener('click', function (e) {
           if (code && navigator.clipboard) {
@@ -125,11 +133,15 @@
               window.location.href = appStoreUrl();
             }
           }
+          // No clipboard API (old Safari / in-app webview): fall through to the
+          // anchor's href — the visible code + manual field is the reliable path.
         });
-        hint.textContent = code
-          ? 'After installing, open the app and sign up — your code is applied automatically. ' +
-            'If asked, enter ' + code + '.'
-          : hint.textContent;
+        // Lead with manual entry so attribution never silently depends on the
+        // clipboard write landing.
+        if (code) {
+          hint.textContent = 'After installing, open the app, sign up, and enter code ' +
+            code + ' when asked.';
+        }
         return;
       }
 
