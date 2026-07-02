@@ -235,16 +235,20 @@ class ReferralAttributionCoordinatorTest {
     }
 
     @Test
-    fun clipboardFailure_leavesCheckedUnset_forRetry() = runTest {
+    fun clipboardFailure_marksCheckedAndReStashesForRetry() = runTest {
         val repo = FakeReferralRepository(result = Result.Error(ReferralError.NETWORK))
         val prefs = FakeReferralPreferences()
+        val holder = PendingDeepLinkHolder()
         val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/ABCD1234")
-        val c = coordinator(this, repo = repo, prefs = prefs, clipboard = clip)
+        val c = coordinator(this, repo = repo, prefs = prefs, clipboard = clip, holder = holder)
 
         c.attributeOnce(manualCode = null)
 
         assertFalse(prefs.attributedNow())
-        assertFalse(prefs.clipboardCheckedNow())
+        // Banner-once: the clipboard is marked checked even on failure (one read = one
+        // banner), and the code is re-stashed so a retry doesn't re-read the pasteboard.
+        assertTrue(prefs.clipboardCheckedNow())
+        assertEquals("ABCD1234", holder.consumeReferralCode())
     }
 
     // ── attributeOnce: guards + retry semantics ──────────────────────────────

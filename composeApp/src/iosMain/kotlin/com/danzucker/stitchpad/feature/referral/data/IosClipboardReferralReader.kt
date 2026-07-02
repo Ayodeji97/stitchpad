@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.referral.data
 
 import com.danzucker.stitchpad.feature.referral.domain.ClipboardReferralReader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import platform.UIKit.UIPasteboard
 
 /**
@@ -14,9 +16,10 @@ import platform.UIKit.UIPasteboard
  * content — avoids the banner for organic installs. Deferred to keep this slice small.)
  */
 class IosClipboardReferralReader : ClipboardReferralReader {
-    override suspend fun readClipboard(): String? {
+    // UIPasteboard is a main-thread-only UIKit API; the coordinator calls this from a
+    // Dispatchers.Default scope, so hop to Main before touching the pasteboard.
+    override suspend fun readClipboard(): String? = withContext(Dispatchers.Main) {
         val pasteboard = UIPasteboard.generalPasteboard
-        if (!pasteboard.hasStrings) return null
-        return pasteboard.string
+        if (!pasteboard.hasStrings) null else pasteboard.string
     }
 }
