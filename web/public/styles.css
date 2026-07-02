@@ -153,6 +153,102 @@ footer a:hover {
   margin: 0 auto;
 }
 
+/* Referral landing (r.html) */
+.referral {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 56px 24px 96px;
+  text-align: center;
+}
+
+.referral .brand-mark {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+}
+
+.referral h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.referral .subtitle {
+  font-size: 17px;
+  color: var(--muted);
+  margin: 0 0 32px;
+}
+
+.referral .code-card {
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 0 0 28px;
+  background: #FFFDF7;
+}
+
+.referral .code-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.referral .code-value {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.referral .cta {
+  display: inline-block;
+  width: 100%;
+  max-width: 320px;
+  padding: 15px 24px;
+  border-radius: 12px;
+  background: var(--saffron);
+  color: var(--saffron-ink);
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.referral .cta:hover {
+  background: #D69A00;
+  color: var(--saffron-ink);
+}
+
+.referral .cta.secondary {
+  background: transparent;
+  color: var(--link);
+  border: 1px solid var(--rule);
+  margin-top: 12px;
+}
+
+.referral .cta.secondary:hover {
+  background: #FFFDF7;
+  color: var(--link-hover);
+}
+
+.referral .hint {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 24px 0 0;
+}
+
+.referral .copied {
+  font-size: 14px;
+  color: var(--saffron-ink);
+  margin: 12px 0 0;
+  min-height: 20px;
+}
+
 @media (max-width: 640px) {
   main {
     padding: 32px 20px 64px;
