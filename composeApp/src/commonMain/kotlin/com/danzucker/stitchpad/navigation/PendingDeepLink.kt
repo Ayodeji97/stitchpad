@@ -12,6 +12,7 @@ class PendingDeepLinkHolder {
     val target = MutableStateFlow<DeepLinkTarget?>(null)
     private var upgradePreselect: UpgradePreselect? = null
     private var claimGiftCode: String? = null
+    private var referralCode: String? = null
 
     fun set(t: DeepLinkTarget) {
         upgradePreselect = null
@@ -33,6 +34,15 @@ class PendingDeepLinkHolder {
         target.value = DeepLinkTarget.CLAIM_GIFT
     }
 
+    /**
+     * Stashes a captured referral code (from the Play Install Referrer or a /r/ App
+     * Link). Unlike the others this does NOT set a navigation target — referral
+     * attribution is a silent, background submit, not a screen the user lands on.
+     */
+    fun setReferralCode(code: String) {
+        referralCode = code
+    }
+
     /** Clears the navigation target only; a pending pre-select/code survives until consumed. */
     fun clear() {
         target.value = null
@@ -49,6 +59,13 @@ class PendingDeepLinkHolder {
     fun consumeClaimGiftCode(): String? {
         val c = claimGiftCode
         claimGiftCode = null
+        return c
+    }
+
+    /** One-shot read of the referral code, consumed by ReferralAttributionCoordinator. */
+    fun consumeReferralCode(): String? {
+        val c = referralCode
+        referralCode = null
         return c
     }
 }

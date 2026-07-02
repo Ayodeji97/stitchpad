@@ -55,6 +55,8 @@
     <string name="signup_password_hint">At least 6 characters</string>
     <string name="signup_confirm_password_label">Confirm password</string>
     <string name="signup_confirm_password_placeholder">Re-enter your password</string>
+    <string name="signup_referral_label">Referral code (optional)</string>
+    <string name="signup_referral_placeholder">Have a code? Enter it here</string>
     <string name="signup_create_account">Create account</string>
     <string name="signup_button">Register</string>
     <string name="signup_have_account">Already have an account?</string>

@@ -9,6 +9,7 @@ data class SignUpState(
     val confirmPassword: String = "",
     val isPasswordVisible: Boolean = false,
     val isConfirmPasswordVisible: Boolean = false,
+    val referralCode: String = "",
     val acceptedTerms: Boolean = false,
     val isLoading: Boolean = false,
     val isSsoLoading: Boolean = false,

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Redeem
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
@@ -82,6 +83,8 @@ import stitchpad.composeapp.generated.resources.signup_password_helper
 import stitchpad.composeapp.generated.resources.signup_password_label
 import stitchpad.composeapp.generated.resources.signup_password_placeholder
 import stitchpad.composeapp.generated.resources.signup_privacy_link
+import stitchpad.composeapp.generated.resources.signup_referral_label
+import stitchpad.composeapp.generated.resources.signup_referral_placeholder
 import stitchpad.composeapp.generated.resources.signup_subtitle
 import stitchpad.composeapp.generated.resources.signup_terms_and
 import stitchpad.composeapp.generated.resources.signup_terms_link
@@ -273,7 +276,18 @@ fun SignUpScreen(
                     onFocusLost = { onAction(SignUpAction.OnConfirmPasswordBlur) },
                 )
 
-                // 7. Terms checkbox row
+                // 7. Referral code (optional). No validation — the server normalizes and
+                // silently ignores an unknown code, so a wrong entry never blocks signup.
+                AuthTextField(
+                    label = stringResource(Res.string.signup_referral_label),
+                    value = state.referralCode,
+                    onValueChange = { onAction(SignUpAction.OnReferralCodeChange(it)) },
+                    leadingIcon = Icons.Outlined.Redeem,
+                    imeAction = ImeAction.Done,
+                    placeholder = stringResource(Res.string.signup_referral_placeholder),
+                )
+
+                // 8. Terms checkbox row
                 val termsPrefix = stringResource(Res.string.signup_terms_prefix)
                 val termsLink = stringResource(Res.string.signup_terms_link)
                 val termsAnd = stringResource(Res.string.signup_terms_and)

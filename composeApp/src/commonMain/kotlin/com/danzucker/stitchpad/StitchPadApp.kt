@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.di.onboardingModule
 import com.danzucker.stitchpad.di.orderDataModule
 import com.danzucker.stitchpad.di.orderPresentationModule
 import com.danzucker.stitchpad.di.platformModule
+import com.danzucker.stitchpad.di.referralModule
 import com.danzucker.stitchpad.di.reportsPresentationModule
 import com.danzucker.stitchpad.di.settingsDataModule
 import com.danzucker.stitchpad.di.settingsPresentationModule
@@ -63,6 +64,7 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             smartPresentationModule,
             freemiumModule,
             giftModule,
+            referralModule,
             tutorialsModule,
             platformModule
         )

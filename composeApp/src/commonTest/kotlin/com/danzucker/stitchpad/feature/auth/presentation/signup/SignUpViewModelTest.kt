@@ -34,7 +34,7 @@ class SignUpViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         authRepository = FakeAuthRepository()
         emailValidator = FakePatternValidator(shouldMatch = true)
-        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics(), FakeReferralAttribution())
     }
 
     @AfterTest
@@ -106,7 +106,7 @@ class SignUpViewModelTest {
     @Test
     fun signUpWithInvalidEmailShowsError() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics(), FakeReferralAttribution())
 
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
@@ -136,7 +136,7 @@ class SignUpViewModelTest {
     @Test
     fun signUpWithMultipleErrorsSetsAllErrors() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics(), FakeReferralAttribution())
 
         // All fields invalid: blank name, bad email, short password, mismatched confirm
         viewModel.onAction(SignUpAction.OnPasswordChange("123"))
@@ -165,7 +165,7 @@ class SignUpViewModelTest {
     @Test
     fun emailChangeClearsError() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics())
+        viewModel = SignUpViewModel(authRepository, emailValidator, FakeAnalytics(), FakeReferralAttribution())
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
         assertNotNull(viewModel.state.value.emailError)
