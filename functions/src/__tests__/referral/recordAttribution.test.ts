@@ -102,7 +102,7 @@ describe('recordReferralAttributionHandler — happy path', () => {
       ctx('bob', 'newuser@example.com'),
       deps(db),
     );
-    expect(res).toEqual({ status: 'attributed', marketerId: 'm1', flags: [] });
+    expect(res).toEqual({ status: 'attributed', marketerId: 'm1' });
 
     const ref = store.get('referrals/bob');
     expect(ref).toMatchObject({
@@ -173,7 +173,9 @@ describe('recordReferralAttributionHandler — idempotency', () => {
       return origRunTx(fn);
     };
     const res = await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
-    expect(res).toEqual({ status: 'already_attributed', marketerId: 'm1', flags: ['self_referral'] });
+    expect(res).toEqual({ status: 'already_attributed', marketerId: 'm1' });
+    // Flags are persisted server-side but never echoed back to the caller.
+    expect(store.get('referrals/bob').flags).toEqual(['self_referral']);
   });
 });
 
@@ -184,7 +186,8 @@ describe('recordReferralAttributionHandler — fraud flags', () => {
       'referralCodes/USERCODE': { marketerId: 'm1' },
     });
     const res = await recordReferralAttributionHandler({ code: 'USERCODE' }, ctx('bob', 'bob@x.com'), deps(db));
-    expect(res.flags).toContain('self_referral');
+    expect(res).toEqual({ status: 'attributed', marketerId: 'm1' });
+    // Fraud flags are recorded on the doc, never returned to the caller.
     expect(store.get('referrals/bob').flags).toContain('self_referral');
     expect(store.get('referrals/bob').payoutState).toBe('none');
   });
@@ -192,7 +195,8 @@ describe('recordReferralAttributionHandler — fraud flags', () => {
   it('flags an email match against the marketer (self_referral)', async () => {
     const { db, store } = seeded();
     const res = await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob', 'Ada@Example.com'), deps(db));
-    expect(res.flags).toContain('self_referral');
+    expect(res).toEqual({ status: 'attributed', marketerId: 'm1' });
+    expect(store.get('referrals/bob').flags).toContain('self_referral');
     expect(store.get('referrals/bob').referredEmailHash).toEqual(expect.any(String));
   });
 
@@ -201,7 +205,8 @@ describe('recordReferralAttributionHandler — fraud flags', () => {
     const res = await recordReferralAttributionHandler(
       { code: 'ABCD1234', deviceHash: 'dev1' }, ctx('bob'), deps(db),
     );
-    expect(res.flags).toContain('device_reuse');
+    expect(res).toEqual({ status: 'attributed', marketerId: 'm1' });
+    expect(store.get('referrals/bob').flags).toContain('device_reuse');
     // The device stays owned by the original user — not re-pointed at bob.
     expect(store.get('referralDevices/dev1')).toEqual({ referredUid: 'someone-else', marketerId: 'm0' });
     expect(store.get('referrals/bob').deviceHash).toBe('dev1');

@@ -27,7 +27,9 @@ export interface RecordAttributionRequest {
 export interface RecordAttributionResponse {
   status: 'attributed' | 'already_attributed';
   marketerId: string;
-  flags: ReferralFlag[];
+  // NOTE: fraud flags (self_referral, device_reuse, …) are deliberately NOT
+  // returned. They live only in referrals/{uid} server-side — echoing them would
+  // hand an attacker a fraud-evasion oracle (retry until the response is clean).
 }
 
 export interface RecordAttributionDeps {
@@ -71,7 +73,7 @@ export async function recordReferralAttributionHandler(
     | { marketerId?: string; flags?: ReferralFlag[] }
     | undefined;
   if (existing?.marketerId) {
-    return { status: 'already_attributed', marketerId: existing.marketerId, flags: existing.flags ?? [] };
+    return { status: 'already_attributed', marketerId: existing.marketerId };
   }
 
   // Resolve the code → marketer. Unknown/disabled codes look identical to a
@@ -124,7 +126,6 @@ export async function recordReferralAttributionHandler(
   // claim conflict, so exactly one caller wins ("first install wins") and any
   // other is flagged device_reuse. Best-effort — the hash resets on reinstall.
   const deviceRef = deviceHash ? deps.db.doc(`${REFERRAL_DEVICES}/${deviceHash}`) : null;
-  let outcomeFlags: ReferralFlag[] = flags;
   // Set if another call created referrals/{uid} between the pre-tx read and the
   // transaction — we then return the PERSISTED attribution, not this call's, so
   // logs never claim credit for a write that didn't happen.
@@ -185,17 +186,15 @@ export async function recordReferralAttributionHandler(
     if (userExists) {
       tx.set(userRef, { referredBy: marketerId, updatedAt: nowTs }, { merge: true });
     }
-    outcomeFlags = finalFlags;
   });
 
   if (raceWinner) {
     return {
       status: 'already_attributed',
       marketerId: (raceWinner as { marketerId: string }).marketerId,
-      flags: (raceWinner as { flags: ReferralFlag[] }).flags,
     };
   }
-  return { status: 'attributed', marketerId, flags: outcomeFlags };
+  return { status: 'attributed', marketerId };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
