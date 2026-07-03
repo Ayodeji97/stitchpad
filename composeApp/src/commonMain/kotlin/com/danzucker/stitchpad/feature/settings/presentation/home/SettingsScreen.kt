@@ -59,6 +59,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.Settings
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsSectionCard
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.Platform
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -173,20 +174,27 @@ fun SettingsScreen(
                     onClick = { onAction(SettingsAction.OnInviteClick) },
                     trailing = { SettingsRowChevron() },
                 )
-                SettingsRow(
-                    icon = Icons.Outlined.CardGiftcard,
-                    label = stringResource(Res.string.gift_share_settings_row),
-                    subtitle = stringResource(Res.string.gift_share_settings_subtitle),
-                    onClick = { onAction(SettingsAction.OnGetGiftedClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-                SettingsRow(
-                    icon = Icons.Outlined.Redeem,
-                    label = stringResource(Res.string.gift_redeem_title),
-                    subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
-                    onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
-                    trailing = { SettingsRowChevron() },
-                )
+                // Gifting (buy-a-gift + redeem-a-code) unlocks paid plans OUTSIDE
+                // Apple IAP, which App Store Guideline 3.1.1 / 3.1.2 forbid on iOS
+                // (App Review rejected 1.0 for the redeem-code path). Android keeps
+                // it — gifts there are settled via Paystack/web. If iOS gifting is
+                // ever wanted, it must go through Apple Offer Codes, not this flow.
+                if (!Platform.isIos) {
+                    SettingsRow(
+                        icon = Icons.Outlined.CardGiftcard,
+                        label = stringResource(Res.string.gift_share_settings_row),
+                        subtitle = stringResource(Res.string.gift_share_settings_subtitle),
+                        onClick = { onAction(SettingsAction.OnGetGiftedClick) },
+                        trailing = { SettingsRowChevron() },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Redeem,
+                        label = stringResource(Res.string.gift_redeem_title),
+                        subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
+                        onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
+                        trailing = { SettingsRowChevron() },
+                    )
+                }
             }
 
             SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
