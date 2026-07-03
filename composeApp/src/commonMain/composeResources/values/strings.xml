@@ -1428,6 +1428,14 @@
     <string name="upgrade_link_separator">·</string>
     <string name="upgrade_back_content_description">Back</string>
     <string name="upgrade_current_plan">Current plan</string>
+    <!-- Plan benefits shown on each tier card so the paywall clearly describes what
+         the subscription includes (App Store Guideline 3.1.2c). -->
+    <string name="upgrade_pro_benefit_customers">Unlimited customers</string>
+    <string name="upgrade_pro_benefit_reports">Reports &amp; insights</string>
+    <string name="upgrade_pro_benefit_measurements">Custom measurement fields</string>
+    <string name="upgrade_pro_benefit_drafts">50 AI message drafts / month</string>
+    <string name="upgrade_atelier_benefit_everything">Everything in Pro</string>
+    <string name="upgrade_atelier_benefit_drafts">500 AI message drafts / month</string>
     <string name="payment_error_unauthenticated">Please sign in again before starting checkout.</string>
     <string name="payment_error_missing_email">Add an email address to your account in Settings before upgrading.</string>
     <string name="payment_error_invalid_plan">That plan is not available. Choose another plan and try again.</string>

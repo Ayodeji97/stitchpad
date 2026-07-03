@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,6 +50,8 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.upgrade_atelier_annual
+import stitchpad.composeapp.generated.resources.upgrade_atelier_benefit_drafts
+import stitchpad.composeapp.generated.resources.upgrade_atelier_benefit_everything
 import stitchpad.composeapp.generated.resources.upgrade_atelier_name
 import stitchpad.composeapp.generated.resources.upgrade_atelier_price
 import stitchpad.composeapp.generated.resources.upgrade_back_content_description
@@ -63,6 +66,10 @@ import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
 import stitchpad.composeapp.generated.resources.upgrade_price_loading
 import stitchpad.composeapp.generated.resources.upgrade_privacy_policy
 import stitchpad.composeapp.generated.resources.upgrade_pro_annual
+import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_customers
+import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_drafts
+import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_measurements
+import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_reports
 import stitchpad.composeapp.generated.resources.upgrade_pro_name
 import stitchpad.composeapp.generated.resources.upgrade_pro_price
 import stitchpad.composeapp.generated.resources.upgrade_restore
@@ -130,6 +137,12 @@ fun UpgradeScreen(
                     name = stringResource(Res.string.upgrade_pro_name),
                     monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.PRO, Res.string.upgrade_pro_price),
                     annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_pro_annual),
+                    benefits = listOf(
+                        stringResource(Res.string.upgrade_pro_benefit_customers),
+                        stringResource(Res.string.upgrade_pro_benefit_reports),
+                        stringResource(Res.string.upgrade_pro_benefit_measurements),
+                        stringResource(Res.string.upgrade_pro_benefit_drafts),
+                    ),
                     isSelected = state.selectedTier == SubscriptionTier.PRO,
                     onClick = { onAction(UpgradeAction.SelectTier(SubscriptionTier.PRO)) },
                     isCurrent = state.currentTier == SubscriptionTier.PRO,
@@ -143,6 +156,10 @@ fun UpgradeScreen(
                         Res.string.upgrade_atelier_price
                     ),
                     annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_atelier_annual),
+                    benefits = listOf(
+                        stringResource(Res.string.upgrade_atelier_benefit_everything),
+                        stringResource(Res.string.upgrade_atelier_benefit_drafts),
+                    ),
                     isSelected = state.selectedTier == SubscriptionTier.ATELIER,
                     onClick = { onAction(UpgradeAction.SelectTier(SubscriptionTier.ATELIER)) },
                     isCurrent = state.currentTier == SubscriptionTier.ATELIER,
@@ -303,6 +320,7 @@ private fun TierCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
+    benefits: List<String> = emptyList(),
 ) {
     // A current-plan card is non-interactive: no selection ring, no click, dimmed.
     val effectiveSelected = isSelected && !isCurrent
@@ -367,6 +385,31 @@ private fun TierCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Plan benefits — the paywall must clearly state what the subscription
+                // includes for the price (App Store Guideline 3.1.2c).
+                if (benefits.isNotEmpty()) {
+                    Spacer(Modifier.height(DesignTokens.space3))
+                    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
+                        benefits.forEach { benefit ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = benefit,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
