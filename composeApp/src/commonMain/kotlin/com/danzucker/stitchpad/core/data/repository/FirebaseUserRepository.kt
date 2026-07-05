@@ -4,6 +4,7 @@ package com.danzucker.stitchpad.core.data.repository
 
 import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.data.mapper.toUser
+import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -342,6 +343,11 @@ class FirebaseUserRepository(
         "customerCount" to 0,
         "welcomeBonusAppliedAt" to FieldValue.serverTimestamp,
         "bonusCoins" to WELCOME_BONUS_COIN_COUNT,
+        // Platform the user onboarded on ("ios"/"android"). Stamped once at doc
+        // creation so Firestore-side reporting can group onboardings by platform
+        // without depending on the GA4/BigQuery export. Seed-only: never rewritten,
+        // so a later sign-in from the other platform won't flip it.
+        "platform" to currentPlatformName,
         "createdAt" to FieldValue.serverTimestamp,
         "updatedAt" to FieldValue.serverTimestamp,
     )
