@@ -13,6 +13,7 @@ import {
   BQ_DATASET,
   BQ_LOCATION,
   BQ_PROJECT,
+  MAX_METRICS_WINDOW_DAYS,
   METRICS_EMAIL_TO,
   METRICS_WINDOW_DAYS,
   SETUP_EVENT,
@@ -23,6 +24,12 @@ const REGION = 'europe-west1';
 const SCHEDULE = '0 6 * * *';
 const TIMEZONE = 'Africa/Lagos';
 
+// BigQuery client is stateless + auth is lazy, so construct it once at module
+// scope and reuse it across warm invocations. (admin.firestore() stays lazy
+// inside the factory — at module load it would run before index.ts calls
+// admin.initializeApp().)
+const bq = new BigQuery({ projectId: BQ_PROJECT });
+
 /** metrics/onboarding_daily/days/{YYYY-MM-DD} — one upserted doc per calendar day. */
 function dailyMetricsRef(db: admin.firestore.Firestore, date: string) {
   return db.collection('metrics').doc('onboarding_daily').collection('days').doc(date);
@@ -30,13 +37,12 @@ function dailyMetricsRef(db: admin.firestore.Firestore, date: string) {
 
 function productionMetricsIO(apiKey: string): MetricsIO {
   const db = admin.firestore();
-  const bq = new BigQuery({ projectId: BQ_PROJECT });
   return {
     async queryOnboardingRows(windowDays: number): Promise<OnboardingRow[]> {
-      // windowDays is a trusted internal constant; still assert it's a plain
-      // integer before inlining it into the INTERVAL (BigQuery does not accept a
-      // query parameter inside INTERVAL). Event names stay parameterized.
-      if (!Number.isInteger(windowDays) || windowDays < 1) {
+      // windowDays is inlined into the INTERVAL (BigQuery rejects a query param
+      // there), so bound it hard: an out-of-range value would turn the rolling
+      // window into a full-dataset scan. Event names stay parameterized.
+      if (!Number.isInteger(windowDays) || windowDays < 1 || windowDays > MAX_METRICS_WINDOW_DAYS) {
         throw new Error(`invalid windowDays: ${windowDays}`);
       }
       const query = `
@@ -47,7 +53,13 @@ function productionMetricsIO(apiKey: string): MetricsIO {
           COUNT(DISTINCT user_pseudo_id) AS users
         FROM \`${BQ_PROJECT}.${BQ_DATASET}.events_*\`
         WHERE event_name IN (@signUp, @setup)
-          AND _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE('${TIMEZONE}'), INTERVAL ${windowDays} DAY))
+          -- Only date-suffixed daily tables; excludes events_intraday_* (suffix
+          -- 'intraday_…') so a future streaming-export enable can't double-count.
+          AND _TABLE_SUFFIX NOT LIKE 'intraday%'
+          -- windowDays tables inclusive of today: today - (windowDays - 1). The
+          -- CURRENT_DATE timezone must match the GA4 property's reporting timezone
+          -- that _TABLE_SUFFIX is keyed to (Nigeria property = Africa/Lagos).
+          AND _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE('${TIMEZONE}'), INTERVAL ${windowDays - 1} DAY))
         GROUP BY eventDate, platform, eventName`;
       const [rows] = await bq.query({
         query,
@@ -113,7 +125,10 @@ export const debugRunOnboardingMetrics = functions
       throw new functions.https.HttpsError('permission-denied', 'not_a_tester');
     }
     const apiKey = process.env.RESEND_API_KEY;
-    const windowDays = Number.isInteger(data?.windowDays) ? data.windowDays : METRICS_WINDOW_DAYS;
+    // Clamp the caller-supplied window to [1, MAX] so a tester can't request a
+    // full-dataset scan (queryOnboardingRows also hard-rejects out-of-range).
+    const requested = Number.isInteger(data?.windowDays) ? data.windowDays : METRICS_WINDOW_DAYS;
+    const windowDays = Math.min(Math.max(1, requested), MAX_METRICS_WINDOW_DAYS);
     return runOnboardingMetrics(productionMetricsIO(apiKey ?? ''), Date.now(), {
       windowDays,
       emailTo: apiKey ? METRICS_EMAIL_TO : undefined,

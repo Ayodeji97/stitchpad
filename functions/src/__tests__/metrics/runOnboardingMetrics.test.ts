@@ -122,4 +122,17 @@ describe('buildMetricsEmail', () => {
     expect(email.text).toContain('7 sign-ups');
     expect(email.html).toContain('Android');
   });
+
+  it('surfaces the other bucket in the HTML so Total stays consistent with iOS+Android+other', () => {
+    const email = buildMetricsEmail(
+      aggregateRows([
+        { eventDate: '20260701', platform: 'IOS', eventName: 'sign_up', users: 2 },
+        { eventDate: '20260701', platform: 'WEB', eventName: 'sign_up', users: 1 },
+      ]),
+      7,
+    );
+    // Total is 3 (2 iOS + 1 other); the HTML must show the 'other' split, not a
+    // bare 3 that looks inconsistent against iOS 2 / Android 0.
+    expect(email.html).toContain('other 1');
+  });
 });

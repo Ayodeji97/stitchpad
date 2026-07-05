@@ -24,6 +24,13 @@ export const BQ_LOCATION = 'europe-west1';
  */
 export const METRICS_WINDOW_DAYS = 7;
 
+/**
+ * Hard cap on the window, enforced when the value is inlined into the BigQuery
+ * INTERVAL. Stops a debug caller (or a bad constant) from turning the rolling
+ * window into a full-dataset scan of every GA4 export table.
+ */
+export const MAX_METRICS_WINDOW_DAYS = 90;
+
 /** Where the daily summary email is sent (ops recipient). */
 export const METRICS_EMAIL_TO = 'danielayodeji97@gmail.com';
 

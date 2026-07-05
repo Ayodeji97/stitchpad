@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions/v1';
-import { METRICS_WINDOW_DAYS } from './metricsConstants';
+import { METRICS_WINDOW_DAYS, SETUP_EVENT, SIGN_UP_EVENT } from './metricsConstants';
 
 /**
  * Daily onboarding metrics — how many people signed up / completed workshop setup,
@@ -104,8 +104,8 @@ export function aggregateRows(rows: OnboardingRow[]): DailyOnboardingMetrics[] {
       day = { date, signups: emptyCounts(), setups: emptyCounts() };
       byDate.set(date, day);
     }
-    const bucket = row.eventName === 'sign_up' ? day.signups
-      : row.eventName === 'workshop_setup_completed' ? day.setups
+    const bucket = row.eventName === SIGN_UP_EVENT ? day.signups
+      : row.eventName === SETUP_EVENT ? day.setups
         : null;
     if (!bucket) continue;
     const count = Number.isFinite(row.users) ? Math.max(0, Math.trunc(row.users)) : 0;
@@ -127,15 +127,14 @@ export function buildMetricsEmail(days: DailyOnboardingMetrics[], windowDays: nu
   const totalSignups = days.reduce((n, d) => n + d.signups.total, 0);
   const totalSetups = days.reduce((n, d) => n + d.setups.total, 0);
 
+  // Each cell uses the same counts() helper as the plain-text body, so the two
+  // halves of the email always agree and Total always equals iOS + Android + other.
+  const cell = 'padding:6px 12px;border-bottom:1px solid #eee;';
   const rowsHtml = recent.map((d) => `
     <tr>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;">${d.date}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">${d.signups.total}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">${d.signups.ios}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">${d.signups.android}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">${d.setups.total}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">${d.setups.ios}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">${d.setups.android}</td>
+      <td style="${cell}">${d.date}</td>
+      <td style="${cell}">${counts(d.signups)}</td>
+      <td style="${cell}">${counts(d.setups)}</td>
     </tr>`).join('');
 
   const html = `
@@ -146,14 +145,10 @@ export function buildMetricsEmail(days: DailyOnboardingMetrics[], windowDays: nu
       </p>
       <table style="border-collapse:collapse;font-size:14px;">
         <thead>
-          <tr style="text-align:right;color:#555;">
-            <th style="padding:6px 12px;text-align:left;">Date</th>
-            <th style="padding:6px 12px;">Signups</th>
-            <th style="padding:6px 12px;">↳ iOS</th>
-            <th style="padding:6px 12px;">↳ Android</th>
-            <th style="padding:6px 12px;">Setups</th>
-            <th style="padding:6px 12px;">↳ iOS</th>
-            <th style="padding:6px 12px;">↳ Android</th>
+          <tr style="text-align:left;color:#555;">
+            <th style="padding:6px 12px;">Date</th>
+            <th style="padding:6px 12px;">Signups (iOS · Android)</th>
+            <th style="padding:6px 12px;">Setups (iOS · Android)</th>
           </tr>
         </thead>
         <tbody>${rowsHtml || '<tr><td style="padding:6px 12px;color:#999;">No onboarding activity in window.</td></tr>'}</tbody>
@@ -185,9 +180,8 @@ export async function runOnboardingMetrics(
   const rows = await io.queryOnboardingRows(windowDays);
   const days = aggregateRows(rows);
 
-  for (const day of days) {
-    await io.writeDailyMetrics({ ...day, generatedAt: nowMs });
-  }
+  // Per-day upserts are independent and idempotent, so write them concurrently.
+  await Promise.all(days.map((day) => io.writeDailyMetrics({ ...day, generatedAt: nowMs })));
 
   let emailSent = false;
   if (options.emailTo) {
