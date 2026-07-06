@@ -75,3 +75,4 @@ export { whatsappWebhook } from './whatsapp';
 export { createMarketer } from './referral/marketerAdmin';
 export { recordReferralAttribution } from './referral/recordAttribution';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
+export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
