@@ -7,6 +7,14 @@
  * Skips anyone already on an ACTIVE paid tier — real Apple/Paystack/gift
  * subscribers and manual tester grants are left untouched.
  *
+ * Also CLEARS (deletes) any stale billing fields left over from a prior,
+ * now-lapsed subscription (subscriptionEndsAt, subscriptionRenews,
+ * subscriptionSource, subscriptionFallbackTier, subscriptionFallbackEndsAt,
+ * appleOriginalTransactionId, appleLastSignedDate). merge:true does NOT
+ * remove fields by omission, so without these deletes a lapsed subscriber
+ * would get silently reverted to Free within 24h by the nightly
+ * expirePrepaidSubscriptions / reconcileAppleSubscriptions crons.
+ *
  * Field shape + predicate MUST stay in lockstep with
  * functions/src/freemium/launchGrant.ts.
  *
@@ -37,6 +45,7 @@ async function main() {
 
   const snap = await db.collection('users').get();
   const now = admin.firestore.Timestamp.now();
+  const del = admin.firestore.FieldValue.delete();
 
   let granted = 0;
   let skipped = 0;
@@ -58,6 +67,15 @@ async function main() {
           grantSource: LAUNCH_GRANT_SOURCE,
           grantedAt: now,
           updatedAt: now,
+          // Clear stale billing fields from a prior (now-lapsed) subscription so
+          // the nightly billing crons can't re-select this doc and revert it.
+          subscriptionEndsAt: del,
+          subscriptionRenews: del,
+          subscriptionSource: del,
+          subscriptionFallbackTier: del,
+          subscriptionFallbackEndsAt: del,
+          appleOriginalTransactionId: del,
+          appleLastSignedDate: del,
         },
         { merge: true },
       );

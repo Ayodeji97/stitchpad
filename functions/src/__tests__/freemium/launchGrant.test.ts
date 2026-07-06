@@ -1,3 +1,4 @@
+import * as admin from 'firebase-admin';
 import {
   shouldGrantLaunchFree,
   buildLaunchGrantFields,
@@ -33,13 +34,25 @@ describe('shouldGrantLaunchFree', () => {
 });
 
 describe('buildLaunchGrantFields', () => {
-  it('sets tier=atelier + active + tag, and omits expiry/renew/source', () => {
+  it('sets tier=atelier + active + tag, and deletes stale billing fields', () => {
     const fields = buildLaunchGrantFields(new Date('2026-07-06T00:00:00Z'));
     expect(fields.subscriptionTier).toBe('atelier');
     expect(fields.subscriptionStatus).toBe('active');
     expect(fields.grantSource).toBe(LAUNCH_GRANT_SOURCE);
-    expect(fields).not.toHaveProperty('subscriptionEndsAt');
-    expect(fields).not.toHaveProperty('subscriptionRenews');
-    expect(fields).not.toHaveProperty('subscriptionSource');
+
+    const deleteSentinel = admin.firestore.FieldValue.delete();
+    const staleFields = [
+      'subscriptionEndsAt',
+      'subscriptionRenews',
+      'subscriptionSource',
+      'subscriptionFallbackTier',
+      'subscriptionFallbackEndsAt',
+      'appleOriginalTransactionId',
+      'appleLastSignedDate',
+    ] as const;
+
+    for (const field of staleFields) {
+      expect(deleteSentinel.isEqual(fields[field])).toBe(true);
+    }
   });
 });

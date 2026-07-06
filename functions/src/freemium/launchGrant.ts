@@ -37,22 +37,37 @@ export function shouldGrantLaunchFree(user: UserSubscriptionFields | undefined):
 /**
  * The exact fields a launch grant writes (merge-set).
  *
- * Deliberately omits subscriptionEndsAt, subscriptionRenews and
- * subscriptionSource:
- *   - no endsAt  -> Settings shows no expiry line (resolveSubscriptionStatus
- *                   returns null on a null endsAt) and the app treats it as an
- *                   open-ended grant.
- *   - no renews / endsAt / source -> invisible to expirePrepaidSubscriptions,
- *                   prepaidSubscriptionReminder and reconcileAppleSubscriptions,
- *                   which all filter on those fields. Nothing can expire it.
+ * Explicitly CLEARS (deletes) subscriptionEndsAt, subscriptionRenews,
+ * subscriptionSource, subscriptionFallbackTier, subscriptionFallbackEndsAt,
+ * appleOriginalTransactionId and appleLastSignedDate. merge:true does NOT
+ * remove fields by omission, so a user whose real Paystack/gift/Apple
+ * subscription had lapsed would otherwise keep a past subscriptionEndsAt +
+ * subscriptionRenews:false (or a stale subscriptionSource/appleOriginalTransactionId)
+ * and get silently reverted back to Free within 24h by the nightly
+ * expirePrepaidSubscriptions / reconcileAppleSubscriptions crons, which
+ * re-select docs by those leftover fields. Explicit deletes make the grant
+ * genuinely invisible to every billing cron, not just to a merge-omission.
  */
 export function buildLaunchGrantFields(now: Date) {
   const ts = admin.firestore.Timestamp.fromDate(now);
+  const del = admin.firestore.FieldValue.delete();
   return {
     subscriptionTier: LAUNCH_GRANT_TIER,
     subscriptionStatus: 'active',
     grantSource: LAUNCH_GRANT_SOURCE,
     grantedAt: ts,
     updatedAt: ts,
+    // Clear any leftover billing fields from a prior (now-lapsed) subscription.
+    // merge:true does NOT remove fields by omission, so a lapsed subscriber would
+    // keep a past subscriptionEndsAt + subscriptionRenews:false and get reverted to
+    // Free by the nightly expire / apple-reconcile crons within 24h. Explicit
+    // deletes make the grant genuinely invisible to every billing cron.
+    subscriptionEndsAt: del,
+    subscriptionRenews: del,
+    subscriptionSource: del,
+    subscriptionFallbackTier: del,
+    subscriptionFallbackEndsAt: del,
+    appleOriginalTransactionId: del,
+    appleLastSignedDate: del,
   };
 }
