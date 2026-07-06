@@ -19,6 +19,9 @@ import { subtractKobo, addKobo } from './marketerBalance';
 /** payoutRejectedReason written when a flagged referral is refused at hold-release. */
 export const REJECT_FLAGGED_DURING_HOLD = 'flagged_during_hold';
 
+/** payoutRejectedReason for a pending referral with no marketer to pay (malformed). */
+export const REJECT_MISSING_MARKETER = 'missing_marketer';
+
 export type HoldOutcome = { action: 'confirm' } | { action: 'reject'; reason: string } | null;
 
 /**
@@ -89,8 +92,16 @@ export async function confirmReferralPayoutsHandler(
         // have been pushed into the future (an ops hold extension) since.
         if ((f.holdEndsAt?.toMillis?.() ?? 0) > nowMs) return null;
         if (!f.marketerId) {
-          functions.logger.warn('confirmReferralPayouts: pending referral missing marketerId', { id: doc.id });
-          return null;
+          // A pending payout with no marketer can never be paid. Reject it so it
+          // leaves the (payoutState, holdEndsAt) query instead of being re-scanned
+          // every night forever. No marketer aggregate to reverse.
+          functions.logger.warn('confirmReferralPayouts: pending referral missing marketerId — rejecting', { id: doc.id });
+          tx.set(doc.ref, {
+            payoutState: 'rejected',
+            payoutRejectedReason: REJECT_MISSING_MARKETER,
+            updatedAt: nowTs,
+          }, { merge: true });
+          return 'reject';
         }
 
         const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);

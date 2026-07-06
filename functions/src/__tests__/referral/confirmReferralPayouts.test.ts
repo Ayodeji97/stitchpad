@@ -135,6 +135,16 @@ describe('confirmReferralPayoutsHandler', () => {
     expect(store.get('marketers/m1').confirmedAmount).toBe(0);
   });
 
+  it('rejects a malformed pending payout with no marketerId (never re-scanned)', async () => {
+    const { store, db } = seed({ marketerId: undefined });
+    const res = await confirmReferralPayoutsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, confirmed: 0, rejected: 1, failed: 0 });
+    expect(store.get('referrals/u1')).toMatchObject({
+      payoutState: 'rejected',
+      payoutRejectedReason: 'missing_marketer',
+    });
+  });
+
   it('never writes a negative marketer balance (clamped at 0)', async () => {
     // pendingAmount smaller than the payout (e.g. a prior manual edit).
     const { store, db } = seed({}, { pendingAmount: 100_000 });
