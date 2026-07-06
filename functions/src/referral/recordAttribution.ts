@@ -160,6 +160,13 @@ export async function recordReferralAttributionHandler(
     // the doc is absent is safe.
     const userExists = (await tx.get(userRef)).exists;
 
+    // Bump the marketer's install counter — the top of the funnel the nightly
+    // grader (reconcileReferrals) then advances to activated/qualified. Read
+    // before the writes below (Firestore requires reads-before-writes) and only
+    // on this new-attribution path, so the race-loser branch never double-counts.
+    const marketerRef = deps.db.doc(`${MARKETERS}/${marketerId}`);
+    const installs = ((await tx.get(marketerRef)).data()?.installs as number) ?? 0;
+
     tx.set(referralRef, {
       marketerId,
       code,
@@ -178,6 +185,7 @@ export async function recordReferralAttributionHandler(
       createdAt: nowTs,
       updatedAt: nowTs,
     });
+    tx.set(marketerRef, { installs: installs + 1, updatedAt: nowTs }, { merge: true });
     if (claimDevice && deviceRef) {
       tx.set(deviceRef, { referredUid: uid, marketerId, createdAt: nowTs });
     }

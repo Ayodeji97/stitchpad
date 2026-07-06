@@ -188,10 +188,12 @@ async function gatherSignals(
   let dayKeys = computeActiveDayKeys(activityMs, signupMs, windowEndMs);
 
   // Only pay for the (potentially many) per-customer measurement reads if we
-  // still need more distinct days to qualify.
+  // still need more distinct days to qualify — and fetch them concurrently.
   if (dayKeys.length < QUALIFY_DISTINCT_DAYS) {
-    for (const c of customersSnap.docs) {
-      const mSnap = await db.collection(`users/${uid}/customers/${c.id}/measurements`).get();
+    const measurementSnaps = await Promise.all(
+      customersSnap.docs.map((c) => db.collection(`users/${uid}/customers/${c.id}/measurements`).get()),
+    );
+    for (const mSnap of measurementSnaps) {
       for (const m of mSnap.docs) activityMs.push(m.data()?.createdAt as number);
     }
     dayKeys = computeActiveDayKeys(activityMs, signupMs, windowEndMs);
@@ -232,6 +234,9 @@ export async function reconcileReferralsHandler(
     // Re-read the racy fields (milestone/payoutState/flags) inside the transaction
     // so a concurrent run or a manual debug invocation can't double-count.
     const applied = await db.runTransaction(async (tx) => {
+      // ALL reads first — Firestore transactions reject a read after any write.
+      // We read both the referral (racy fields) and its marketer (rate +
+      // counters) up front, before deciding the writes below.
       const fresh = await tx.get(doc.ref);
       if (!fresh.exists) return null;
       const f = fresh.data() as {
@@ -239,12 +244,10 @@ export async function reconcileReferralsHandler(
         payoutState: PayoutState;
         flags?: ReferralFlag[];
         marketerId: string;
+        activeDayKeys?: string[];
       };
-
       const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);
-      const needsRate = qualifiesByActivity && signals.activated && f.payoutState === 'none';
-      const marketerSnap = needsRate ? await tx.get(marketerRef) : null;
-      const payoutRatePerUser = (marketerSnap?.data()?.payoutRatePerUser as number) ?? 0;
+      const m = (await tx.get(marketerRef)).data() ?? {};
 
       const grade = gradeReferral({
         milestone: f.milestone,
@@ -252,29 +255,37 @@ export async function reconcileReferralsHandler(
         activated: signals.activated,
         qualifiesByActivity,
         hasFlags: (f.flags?.length ?? 0) > 0,
-        payoutRatePerUser,
+        payoutRatePerUser: (m.payoutRatePerUser as number) ?? 0,
         nowMs,
       });
-      if (!grade) return null;
+
+      // Refresh the cached day-count even when no milestone changes — a referral
+      // can gain active days while still under the bar. Skip the write only when
+      // truly nothing changed.
+      const prevKeys = f.activeDayKeys ?? [];
+      const daysChanged =
+        prevKeys.length !== signals.activeDayKeys.length ||
+        prevKeys.some((k, i) => k !== signals.activeDayKeys[i]);
+      if (!grade && !daysChanged) return null;
 
       const update: Record<string, unknown> = {
-        milestone: grade.milestone,
-        payoutState: grade.payoutState,
         activeDays: signals.activeDayKeys.length,
         activeDayKeys: signals.activeDayKeys,
         updatedAt: nowTs,
       };
-      if (grade.payoutState === 'pending' && f.payoutState === 'none') {
-        update.payoutAmount = grade.payoutAmount;
-        update.holdEndsAt = admin.firestore.Timestamp.fromMillis(grade.holdEndsAtMs as number);
+      if (grade) {
+        update.milestone = grade.milestone;
+        update.payoutState = grade.payoutState;
+        if (grade.payoutState === 'pending' && f.payoutState === 'none') {
+          update.payoutAmount = grade.payoutAmount;
+          update.holdEndsAt = admin.firestore.Timestamp.fromMillis(grade.holdEndsAtMs as number);
+        }
       }
       tx.set(doc.ref, update, { merge: true });
 
       // Roll up marketer aggregates via read-modify-write inside the same
       // transaction (race-safe, and testable without FieldValue.increment).
-      if (grade.activatedDelta || grade.qualifiedDelta || grade.pendingAmountDelta) {
-        const mSnap = marketerSnap ?? await tx.get(marketerRef);
-        const m = mSnap.data() ?? {};
+      if (grade && (grade.activatedDelta || grade.qualifiedDelta || grade.pendingAmountDelta)) {
         tx.set(marketerRef, {
           activated: ((m.activated as number) ?? 0) + grade.activatedDelta,
           qualified: ((m.qualified as number) ?? 0) + grade.qualifiedDelta,

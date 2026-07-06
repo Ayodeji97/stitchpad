@@ -116,6 +116,15 @@ describe('recordReferralAttributionHandler — happy path', () => {
     expect(store.get('users/bob')).toMatchObject({ referredBy: 'm1' });
   });
 
+  it('increments the marketer install counter once (funnel top)', async () => {
+    const { store, db } = seeded({ 'marketers/m1': { type: 'affiliate', status: 'active', email: 'a@b.co', installs: 4 } });
+    await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
+    expect(store.get('marketers/m1').installs).toBe(5);
+    // Idempotent re-run (already attributed) must NOT bump it again.
+    await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
+    expect(store.get('marketers/m1').installs).toBe(5);
+  });
+
   it('normalizes a lowercased / spaced manually-entered code', async () => {
     const { store, db } = seeded();
     const res = await recordReferralAttributionHandler(

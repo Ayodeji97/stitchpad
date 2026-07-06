@@ -50,17 +50,26 @@ function makeDb(initial: Record<string, any> = {}) {
       return { docs, size: docs.length, empty: docs.length === 0 };
     },
   });
-  const tx = {
-    get: async (ref: any) => ({ exists: store.has(ref.path), data: () => store.get(ref.path) }),
-    set: (ref: any, data: any, opts?: { merge?: boolean }) => {
-      const prev = store.get(ref.path) ?? {};
-      store.set(ref.path, opts?.merge ? { ...prev, ...data } : data);
-    },
-  };
   const db: any = {
     doc: (path: string) => docRef(path),
     collection: (path: string) => makeQuery(path, []),
-    runTransaction: async (fn: any) => fn(tx),
+    // A fresh tx per run that enforces Firestore's real read-before-write rule,
+    // so a read-after-write (which the emulator/prod rejects) fails here too.
+    runTransaction: async (fn: any) => {
+      let hasWritten = false;
+      const tx = {
+        get: async (ref: any) => {
+          if (hasWritten) throw new Error('Firestore transactions require all reads before writes');
+          return { exists: store.has(ref.path), data: () => store.get(ref.path) };
+        },
+        set: (ref: any, data: any, opts?: { merge?: boolean }) => {
+          hasWritten = true;
+          const prev = store.get(ref.path) ?? {};
+          store.set(ref.path, opts?.merge ? { ...prev, ...data } : data);
+        },
+      };
+      return fn(tx);
+    },
   };
   return { store, db };
 }
@@ -232,6 +241,19 @@ describe('reconcileReferralsHandler', () => {
     expect(store.get('referrals/u1').payoutState).toBe('none');
     expect(store.get('referrals/u1').payoutAmount).toBeUndefined();
     expect(store.get('marketers/m1').pendingAmount).toBe(0);
+  });
+
+  it('refreshes the cached day-count even when the milestone does not change', async () => {
+    // Already activated, stale stored day-count of 2, now genuinely 3 (still < 4).
+    const { store, db } = seed(customersOnDays(3), {
+      milestone: 'activated',
+      activeDays: 2,
+      activeDayKeys: ['2026-06-30', '2026-07-01'],
+    });
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 0, qualified: 0 });
+    expect(store.get('referrals/u1').milestone).toBe('activated');
+    expect(store.get('referrals/u1').activeDays).toBe(3);
   });
 
   it('is idempotent — a second run makes no further change', async () => {
