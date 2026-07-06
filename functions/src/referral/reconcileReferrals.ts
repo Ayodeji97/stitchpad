@@ -38,6 +38,11 @@ const MILESTONE_RANK: Record<ReferralMilestone, number> = {
   qualified: 2,
 };
 
+// How long past a referral's qualification-window close the grader keeps
+// scanning it, so activity on the final window day (made after that night's run)
+// is still graded on a later run. Must exceed the max gap between nightly runs.
+const RECONCILE_GRACE_DAYS = 2;
+
 // ── Pure: distinct Lagos write-days within the qualification window ───────────
 
 /**
@@ -209,14 +214,21 @@ export async function reconcileReferralsHandler(
   const nowMs = deps.now().getTime();
   const nowTs = admin.firestore.Timestamp.fromMillis(nowMs);
 
-  // Only grade referrals still inside their qualification window that haven't
-  // qualified yet — a naturally-rolling ~14-day set. Post-window referrals can
-  // never gain a new in-window active day, so re-scanning them nightly is pure
-  // waste. Pre-indexed by the (milestone, qualificationWindowEndsAt) composite.
+  // Grade referrals still inside their qualification window (plus a short grace)
+  // that haven't qualified yet — a naturally-rolling ~14-day set. The grace
+  // matters: the grader runs once nightly, so a user's writes on the FINAL window
+  // day AFTER that run — but still before qualificationWindowEndsAt — aren't seen
+  // until the next night, by which point a hard `>= now` cutoff would already
+  // exclude them and a genuine 4th distinct day (→ payout) would be lost. Scanning
+  // for RECONCILE_GRACE_DAYS past window-close catches that final-day activity;
+  // the distinct-day math itself still counts only in-window writes (windowEndMs),
+  // so the grace never over-qualifies. Pre-indexed by the
+  // (milestone, qualificationWindowEndsAt) composite.
+  const graceCutoffTs = admin.firestore.Timestamp.fromMillis(nowMs - RECONCILE_GRACE_DAYS * DAY_MS);
   const snap = await db
     .collection(REFERRALS)
     .where('milestone', 'in', ['attributed', 'activated'])
-    .where('qualificationWindowEndsAt', '>=', nowTs)
+    .where('qualificationWindowEndsAt', '>=', graceCutoffTs)
     .get();
 
   let activatedCount = 0;

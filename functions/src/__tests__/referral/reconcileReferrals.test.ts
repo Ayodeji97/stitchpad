@@ -265,9 +265,19 @@ describe('reconcileReferralsHandler', () => {
     expect(store.get('marketers/m1')).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 500_000 });
   });
 
-  it('skips referrals whose qualification window has expired', async () => {
+  it('still qualifies final-window-day activity graded within the grace period', async () => {
+    // Window closed 1 day ago (< grace) — the user finished their 4th distinct
+    // in-window day after the last in-window run, so tonight must still catch it.
     const { store, db } = seed(customersOnDays(4));
-    const res = await reconcileReferralsHandler(deps(db, WINDOW_END + DAY_MS)); // now past window
+    const res = await reconcileReferralsHandler(deps(db, WINDOW_END + DAY_MS));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+    expect(store.get('referrals/u1').payoutState).toBe('pending');
+  });
+
+  it('drops referrals more than the grace period past their window', async () => {
+    const { store, db } = seed(customersOnDays(4));
+    const res = await reconcileReferralsHandler(deps(db, WINDOW_END + 3 * DAY_MS)); // beyond grace
     expect(res.scanned).toBe(0);
     expect(store.get('referrals/u1').milestone).toBe('attributed');
   });
