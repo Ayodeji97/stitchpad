@@ -46,6 +46,19 @@ class AppGateTest {
     }
 
     @Test
+    fun blankUpdateUrl_normalisesToNull() {
+        val config = AppConfig.Disabled.copy(
+            minSupportedBuildAndroid = 420,
+            updateUrlAndroid = "   ",
+        )
+
+        val decision = AppGate.evaluate(config, isIos = false, currentBuild = 1)
+
+        val forceUpdate = assertIs<AppGateDecision.ForceUpdate>(decision)
+        assertEquals(null, forceUpdate.updateUrl)
+    }
+
+    @Test
     fun buildEqualToFloor_isAllowed() {
         val config = AppConfig.Disabled.copy(minSupportedBuildAndroid = 420)
 

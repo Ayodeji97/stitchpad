@@ -43,7 +43,10 @@ object AppGate {
         return when {
             mustUpdate -> AppGateDecision.ForceUpdate(
                 message = config.forceUpdateMessage,
-                updateUrl = if (isIos) config.updateUrlIos else config.updateUrlAndroid,
+                // Blank (non-null) remote strings normalise to null so the CTA hides
+                // instead of opening an empty URL.
+                updateUrl = (if (isIos) config.updateUrlIos else config.updateUrlAndroid)
+                    ?.takeIf { it.isNotBlank() },
             )
 
             config.maintenanceMode -> AppGateDecision.Maintenance(config.maintenanceMessage)

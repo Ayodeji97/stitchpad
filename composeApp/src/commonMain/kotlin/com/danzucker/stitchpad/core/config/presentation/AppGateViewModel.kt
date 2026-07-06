@@ -36,11 +36,12 @@ class AppGateViewModel(
         .map { config -> AppGateState(AppGate.evaluate(config, isIos, currentBuild)) }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+            // Eagerly (not WhileSubscribed): the gate is app-global and must stay
+            // authoritative. WhileSubscribed cancels the upstream when the UI
+            // backgrounds, and on resume the repo's onStart re-emits Disabled →
+            // Allowed, flashing the working app during an active force-update /
+            // maintenance lock. Keeping the single-doc listener hot avoids that.
+            started = SharingStarted.Eagerly,
             initialValue = AppGateState(),
         )
-
-    private companion object {
-        const val STOP_TIMEOUT_MS = 5_000L
-    }
 }
