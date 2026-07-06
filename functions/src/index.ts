@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { deleteUserFirestoreData } from './cleanup/firestore';
 import { deleteUserStorageData } from './cleanup/storage';
+import { clawbackReferralOnDelete } from './referral/clawback';
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -14,9 +15,11 @@ export const onAuthUserDeleted = functions
     const uid = user.uid;
     functions.logger.info('cleanup starting', { uid });
 
-    const [firestoreResult, storageResult] = await Promise.allSettled([
+    const [firestoreResult, storageResult, clawbackResult] = await Promise.allSettled([
       deleteUserFirestoreData(uid, admin.firestore()),
       deleteUserStorageData(uid, admin.storage().bucket()),
+      // Reverse any unpaid referral bounty owed for this (now-deleted) user.
+      clawbackReferralOnDelete(uid, admin.firestore()),
     ]);
 
     // Honest completion signal: the cleanup modules currently never throw
@@ -33,6 +36,10 @@ export const onAuthUserDeleted = functions
       }),
       ...(storageResult.status === 'rejected' && {
         storageError: serialiseSettledError(storageResult.reason),
+      }),
+      referralClawback: clawbackResult.status === 'fulfilled' ? clawbackResult.value : 'rejected',
+      ...(clawbackResult.status === 'rejected' && {
+        clawbackError: serialiseSettledError(clawbackResult.reason),
       }),
     });
   });
@@ -75,5 +82,6 @@ export { whatsappWebhook } from './whatsapp';
 export { createMarketer } from './referral/marketerAdmin';
 export { recordReferralAttribution } from './referral/recordAttribution';
 export { reconcileReferrals, debugReconcileReferrals } from './referral/reconcileReferrals';
+export { confirmReferralPayouts, debugConfirmReferralPayouts } from './referral/confirmReferralPayouts';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
 export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
