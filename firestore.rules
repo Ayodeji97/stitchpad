@@ -315,10 +315,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ── Global remote app config (community link, future feature flags) ──
-    // Read-only for any signed-in user; only console/admin writes.
+    // ── Global remote app config (community link, kill switch, feature flags) ──
+    // PUBLIC read: the break-glass app gate (force-update / maintenance) wraps the
+    // whole app INCLUDING the logged-out login/onboarding screens, so the config
+    // must be readable before auth — otherwise the gate silently fails open for
+    // first-run/signed-out users. The doc holds nothing sensitive (community link,
+    // billingEnabled, update floors, maintenance flag; billingEnabled is already
+    // exposed unauthenticated via the getBillingConfig callable). Writes stay
+    // console/admin-only.
     match /config/{configDoc} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if false;
     }
 
