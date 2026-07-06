@@ -5,7 +5,9 @@ import com.danzucker.stitchpad.core.config.data.FirebaseCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
+import com.danzucker.stitchpad.core.config.presentation.AppGateViewModel
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -16,4 +18,11 @@ val configDataModule = module {
     // resolve the Function0 from Koin → NoDefinitionFoundException crash at graph creation.
     single<CommunityJoinTracker> { FirebaseCommunityJoinTracker(get(), get()) }
     singleOf(::CommunityBannerDismissal)
+}
+
+val configPresentationModule = module {
+    // Lambda factory (not viewModelOf): AppGateViewModel has default-value params
+    // (isIos, currentBuild) sourced from platform globals — viewModelOf resolves every
+    // constructor param through Koin and can't skip defaults.
+    viewModel { AppGateViewModel(appConfigRepository = get()) }
 }
