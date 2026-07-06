@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import type { Firestore } from 'firebase-admin/firestore';
 import { REFERRALS, MARKETERS } from './referralConstants';
 import type { PayoutState } from './referralConstants';
+import { subtractKobo } from './marketerBalance';
 
 // Account-deletion clawback. When a referred user deletes their account, any
 // UNPAID payout owed for them is reversed — a marketer isn't paid a bounty for a
@@ -48,8 +49,11 @@ export async function clawbackReferralOnDelete(
     const field = f ? REVERSIBLE[f.payoutState ?? ''] : undefined;
     if (!f || !field) return 'none'; // state changed under us (e.g. just paid)
 
-    const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);
-    const m = (await tx.get(marketerRef)).data() ?? {};
+    // Read the marketer (if any) before the writes below. A malformed referral
+    // with no marketerId is still marked rejected, but we never write to a junk
+    // marketers/undefined aggregate.
+    const marketerRef = f.marketerId ? db.doc(`${MARKETERS}/${f.marketerId}`) : null;
+    const m = marketerRef ? (await tx.get(marketerRef)).data() ?? {} : {};
     const amount = f.payoutAmount ?? 0;
 
     tx.set(referralRef, {
@@ -57,10 +61,12 @@ export async function clawbackReferralOnDelete(
       payoutRejectedReason: REJECT_ACCOUNT_DELETED,
       updatedAt: nowTs,
     }, { merge: true });
-    tx.set(marketerRef, {
-      [field]: ((m[field] as number) ?? 0) - amount,
-      updatedAt: nowTs,
-    }, { merge: true });
+    if (marketerRef) {
+      tx.set(marketerRef, {
+        [field]: subtractKobo(m[field], amount),
+        updatedAt: nowTs,
+      }, { merge: true });
+    }
     return 'clawed_back';
   });
 }

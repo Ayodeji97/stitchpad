@@ -2,6 +2,8 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION, REFERRALS, MARKETERS } from './referralConstants';
 import type { PayoutState, ReferralFlag } from './referralConstants';
+import { REJECT_ACCOUNT_DELETED } from './clawback';
+import { subtractKobo, addKobo } from './marketerBalance';
 
 // confirmReferralPayouts — the second half of the payout lifecycle. Slice 6's
 // grader opens a qualified referral's payout as `pending` with a `holdEndsAt`
@@ -17,16 +19,24 @@ import type { PayoutState, ReferralFlag } from './referralConstants';
 /** payoutRejectedReason written when a flagged referral is refused at hold-release. */
 export const REJECT_FLAGGED_DURING_HOLD = 'flagged_during_hold';
 
-export type HoldDecision = 'confirm' | 'reject';
+export type HoldOutcome = { action: 'confirm' } | { action: 'reject'; reason: string } | null;
 
 /**
  * What to do with a held payout once its hold has expired. Only `pending`
- * referrals are actionable; a clean one confirms, a flagged one is refused so its
- * money never leaves `pendingAmount` limbo. Pure + fully unit-testable.
+ * referrals are actionable. A flagged one is refused; a referral whose user no
+ * longer exists is refused as a clawback backstop (if onAuthUserDeleted's
+ * clawback failed transiently, we catch it here before releasing the bounty);
+ * otherwise it confirms. Pure + fully unit-testable.
  */
-export function decideHoldRelease(payoutState: PayoutState, hasFlags: boolean): HoldDecision | null {
+export function decideHoldRelease(
+  payoutState: PayoutState,
+  hasFlags: boolean,
+  userExists: boolean,
+): HoldOutcome {
   if (payoutState !== 'pending') return null;
-  return hasFlags ? 'reject' : 'confirm';
+  if (hasFlags) return { action: 'reject', reason: REJECT_FLAGGED_DURING_HOLD };
+  if (!userExists) return { action: 'reject', reason: REJECT_ACCOUNT_DELETED };
+  return { action: 'confirm' };
 }
 
 export interface ConfirmPayoutsDeps {
@@ -38,13 +48,15 @@ export interface ConfirmPayoutsResult {
   scanned: number;
   confirmed: number;
   rejected: number;
+  failed: number;
 }
 
 export async function confirmReferralPayoutsHandler(
   deps: ConfirmPayoutsDeps,
 ): Promise<ConfirmPayoutsResult> {
   const { db } = deps;
-  const nowTs = admin.firestore.Timestamp.fromDate(deps.now());
+  const nowMs = deps.now().getTime();
+  const nowTs = admin.firestore.Timestamp.fromMillis(nowMs);
 
   // Pending payouts whose hold has elapsed. Pre-indexed by the
   // (payoutState, holdEndsAt) composite in firestore.indexes.json.
@@ -56,50 +68,75 @@ export async function confirmReferralPayoutsHandler(
 
   let confirmed = 0;
   let rejected = 0;
+  let failed = 0;
 
   for (const doc of snap.docs) {
-    // Re-read the racy payoutState/flags inside the transaction so a concurrent
-    // run, a debug call, or a mid-run clawback can't double-move the money.
-    const decision = await db.runTransaction(async (tx) => {
-      const fresh = await tx.get(doc.ref);
-      if (!fresh.exists) return null;
-      const f = fresh.data() as {
-        payoutState: PayoutState;
-        flags?: ReferralFlag[];
-        marketerId: string;
-        payoutAmount?: number;
-      };
-      const release = decideHoldRelease(f.payoutState, (f.flags?.length ?? 0) > 0);
-      if (!release) return null;
+    try {
+      // Re-read the racy fields inside the transaction so a concurrent run, a
+      // debug call, or a mid-run clawback can't double-move the money.
+      const decision = await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(doc.ref);
+        if (!fresh.exists) return null;
+        const f = fresh.data() as {
+          payoutState: PayoutState;
+          flags?: ReferralFlag[];
+          marketerId?: string;
+          payoutAmount?: number;
+          holdEndsAt?: admin.firestore.Timestamp;
+        };
+        if (f.payoutState !== 'pending') return null;
+        // Re-establish the hold-expiry guard the query applied — the value could
+        // have been pushed into the future (an ops hold extension) since.
+        if ((f.holdEndsAt?.toMillis?.() ?? 0) > nowMs) return null;
+        if (!f.marketerId) {
+          functions.logger.warn('confirmReferralPayouts: pending referral missing marketerId', { id: doc.id });
+          return null;
+        }
 
-      const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);
-      const m = (await tx.get(marketerRef)).data() ?? {};
-      const amount = f.payoutAmount ?? 0;
-      const pendingAmount = ((m.pendingAmount as number) ?? 0) - amount;
+        const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);
+        const m = (await tx.get(marketerRef)).data() ?? {};
+        // Clawback backstop: a qualified referral is always activated, so its
+        // users/{uid} doc exists — its absence means the account was deleted and
+        // a clawback was (or should have been) applied. Don't release the bounty.
+        const userExists = (await tx.get(db.doc(`users/${doc.id}`))).exists;
 
-      if (release === 'confirm') {
-        tx.set(doc.ref, { payoutState: 'confirmed', updatedAt: nowTs }, { merge: true });
-        tx.set(marketerRef, {
-          pendingAmount,
-          confirmedAmount: ((m.confirmedAmount as number) ?? 0) + amount,
-          updatedAt: nowTs,
-        }, { merge: true });
-      } else {
-        tx.set(doc.ref, {
-          payoutState: 'rejected',
-          payoutRejectedReason: REJECT_FLAGGED_DURING_HOLD,
-          updatedAt: nowTs,
-        }, { merge: true });
-        tx.set(marketerRef, { pendingAmount, updatedAt: nowTs }, { merge: true });
-      }
-      return release;
-    });
+        const release = decideHoldRelease(f.payoutState, (f.flags?.length ?? 0) > 0, userExists);
+        if (!release) return null;
 
-    if (decision === 'confirm') confirmed++;
-    else if (decision === 'reject') rejected++;
+        const amount = f.payoutAmount ?? 0;
+        const pendingAmount = subtractKobo(m.pendingAmount, amount);
+        if (release.action === 'confirm') {
+          tx.set(doc.ref, { payoutState: 'confirmed', updatedAt: nowTs }, { merge: true });
+          tx.set(marketerRef, {
+            pendingAmount,
+            confirmedAmount: addKobo(m.confirmedAmount, amount),
+            updatedAt: nowTs,
+          }, { merge: true });
+        } else {
+          tx.set(doc.ref, {
+            payoutState: 'rejected',
+            payoutRejectedReason: release.reason,
+            updatedAt: nowTs,
+          }, { merge: true });
+          tx.set(marketerRef, { pendingAmount, updatedAt: nowTs }, { merge: true });
+        }
+        return release.action;
+      });
+
+      if (decision === 'confirm') confirmed++;
+      else if (decision === 'reject') rejected++;
+    } catch (error) {
+      // Per-doc isolation: one poison referral must not abort the nightly run
+      // and strand every later payout in `pending`.
+      failed++;
+      functions.logger.error('confirmReferralPayouts: referral failed, continuing', {
+        id: doc.id,
+        error: error instanceof Error ? { name: error.name, message: error.message } : error,
+      });
+    }
   }
 
-  const result: ConfirmPayoutsResult = { scanned: snap.size, confirmed, rejected };
+  const result: ConfirmPayoutsResult = { scanned: snap.size, confirmed, rejected, failed };
   functions.logger.info('confirmReferralPayouts complete', { ...result });
   return result;
 }

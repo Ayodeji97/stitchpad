@@ -37,7 +37,7 @@ export const onAuthUserDeleted = functions
       ...(storageResult.status === 'rejected' && {
         storageError: serialiseSettledError(storageResult.reason),
       }),
-      referralClawback: clawbackResult.status === 'fulfilled' ? clawbackResult.value : 'rejected',
+      referralClawback: clawbackResult.status === 'fulfilled' ? clawbackResult.value : 'error',
       ...(clawbackResult.status === 'rejected' && {
         clawbackError: serialiseSettledError(clawbackResult.reason),
       }),

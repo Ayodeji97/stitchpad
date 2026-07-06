@@ -4,6 +4,7 @@ import {
   decideHoldRelease,
   REJECT_FLAGGED_DURING_HOLD,
 } from '../../referral/confirmReferralPayouts';
+import { REJECT_ACCOUNT_DELETED } from '../../referral/clawback';
 import { DAY_MS } from '../../referral/referralConstants';
 
 // Fake Firestore that enforces Firestore's read-before-write rule inside a
@@ -68,8 +69,8 @@ const ts = (ms: number) => admin.firestore.Timestamp.fromMillis(ms);
 const NOW = Date.UTC(2026, 6, 20, 4, 0, 0);
 const deps = (db: any) => ({ db, now: () => new Date(NOW) });
 
-function seed(referral: Record<string, any> = {}, marketer: Record<string, any> = {}) {
-  return makeDb({
+function seed(referral: Record<string, any> = {}, marketer: Record<string, any> = {}, seedUser = true) {
+  const init: Record<string, any> = {
     'marketers/m1': { pendingAmount: 500_000, confirmedAmount: 0, ...marketer },
     'referrals/u1': {
       payoutState: 'pending',
@@ -79,20 +80,27 @@ function seed(referral: Record<string, any> = {}, marketer: Record<string, any> 
       holdEndsAt: ts(NOW - DAY_MS), // hold already expired
       ...referral,
     },
-  });
+  };
+  // A qualified/pending referral is always activated, so the user doc exists —
+  // unless the account was deleted (the backstop case below).
+  if (seedUser) init['users/u1'] = { businessName: 'Ada Styles' };
+  return makeDb(init);
 }
 
 describe('decideHoldRelease', () => {
-  it('confirms a clean pending payout', () => {
-    expect(decideHoldRelease('pending', false)).toBe('confirm');
+  it('confirms a clean pending payout whose user still exists', () => {
+    expect(decideHoldRelease('pending', false, true)).toEqual({ action: 'confirm' });
   });
   it('rejects a flagged pending payout', () => {
-    expect(decideHoldRelease('pending', true)).toBe('reject');
+    expect(decideHoldRelease('pending', true, true)).toEqual({ action: 'reject', reason: REJECT_FLAGGED_DURING_HOLD });
+  });
+  it('rejects (clawback backstop) when the referred user no longer exists', () => {
+    expect(decideHoldRelease('pending', false, false)).toEqual({ action: 'reject', reason: REJECT_ACCOUNT_DELETED });
   });
   it('ignores payouts not in pending', () => {
-    expect(decideHoldRelease('confirmed', false)).toBeNull();
-    expect(decideHoldRelease('none', false)).toBeNull();
-    expect(decideHoldRelease('paid', true)).toBeNull();
+    expect(decideHoldRelease('confirmed', false, true)).toBeNull();
+    expect(decideHoldRelease('none', false, true)).toBeNull();
+    expect(decideHoldRelease('paid', true, true)).toBeNull();
   });
 });
 
@@ -100,7 +108,7 @@ describe('confirmReferralPayoutsHandler', () => {
   it('confirms an expired-hold clean payout and moves the money', async () => {
     const { store, db } = seed();
     const res = await confirmReferralPayoutsHandler(deps(db));
-    expect(res).toEqual({ scanned: 1, confirmed: 1, rejected: 0 });
+    expect(res).toEqual({ scanned: 1, confirmed: 1, rejected: 0, failed: 0 });
     expect(store.get('referrals/u1').payoutState).toBe('confirmed');
     expect(store.get('marketers/m1')).toMatchObject({ pendingAmount: 0, confirmedAmount: 500_000 });
   });
@@ -108,7 +116,7 @@ describe('confirmReferralPayoutsHandler', () => {
   it('rejects a flagged payout at hold-release and reverses the pending amount', async () => {
     const { store, db } = seed({ flags: ['device_reuse'] });
     const res = await confirmReferralPayoutsHandler(deps(db));
-    expect(res).toEqual({ scanned: 1, confirmed: 0, rejected: 1 });
+    expect(res).toEqual({ scanned: 1, confirmed: 0, rejected: 1, failed: 0 });
     expect(store.get('referrals/u1')).toMatchObject({
       payoutState: 'rejected',
       payoutRejectedReason: REJECT_FLAGGED_DURING_HOLD,
@@ -116,10 +124,29 @@ describe('confirmReferralPayoutsHandler', () => {
     expect(store.get('marketers/m1')).toMatchObject({ pendingAmount: 0, confirmedAmount: 0 });
   });
 
+  it('backstops a missed clawback — rejects when the referred user is gone', async () => {
+    const { store, db } = seed({}, {}, false); // no users/u1
+    const res = await confirmReferralPayoutsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, confirmed: 0, rejected: 1, failed: 0 });
+    expect(store.get('referrals/u1')).toMatchObject({
+      payoutState: 'rejected',
+      payoutRejectedReason: REJECT_ACCOUNT_DELETED,
+    });
+    expect(store.get('marketers/m1').confirmedAmount).toBe(0);
+  });
+
+  it('never writes a negative marketer balance (clamped at 0)', async () => {
+    // pendingAmount smaller than the payout (e.g. a prior manual edit).
+    const { store, db } = seed({}, { pendingAmount: 100_000 });
+    await confirmReferralPayoutsHandler(deps(db));
+    expect(store.get('marketers/m1').pendingAmount).toBe(0);
+    expect(store.get('marketers/m1').confirmedAmount).toBe(500_000);
+  });
+
   it('leaves a payout whose hold has not yet expired', async () => {
     const { store, db } = seed({ holdEndsAt: ts(NOW + DAY_MS) });
     const res = await confirmReferralPayoutsHandler(deps(db));
-    expect(res).toEqual({ scanned: 0, confirmed: 0, rejected: 0 });
+    expect(res).toEqual({ scanned: 0, confirmed: 0, rejected: 0, failed: 0 });
     expect(store.get('referrals/u1').payoutState).toBe('pending');
   });
 
@@ -127,7 +154,7 @@ describe('confirmReferralPayoutsHandler', () => {
     const { store, db } = seed();
     await confirmReferralPayoutsHandler(deps(db));
     const res2 = await confirmReferralPayoutsHandler(deps(db));
-    expect(res2).toEqual({ scanned: 0, confirmed: 0, rejected: 0 });
+    expect(res2).toEqual({ scanned: 0, confirmed: 0, rejected: 0, failed: 0 });
     expect(store.get('marketers/m1')).toMatchObject({ pendingAmount: 0, confirmedAmount: 500_000 });
   });
 });
