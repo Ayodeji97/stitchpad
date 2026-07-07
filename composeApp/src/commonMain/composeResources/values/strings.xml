@@ -1686,4 +1686,11 @@
     <string name="tutorial_styles_desc">Build a lookbook of styles and fabrics for your customers.</string>
     <string name="tutorial_reports_title">Understand your reports</string>
     <string name="tutorial_reports_desc">See what your business earned and who to follow up with.</string>
+
+    <!-- App gate: break-glass force-update + maintenance blocking screens -->
+    <string name="app_gate_update_title">Update required</string>
+    <string name="app_gate_update_body">A newer version of StitchPad is needed to keep going. Please update to continue.</string>
+    <string name="app_gate_update_button">Update StitchPad</string>
+    <string name="app_gate_maintenance_title">We&apos;ll be right back</string>
+    <string name="app_gate_maintenance_body">StitchPad is briefly down for maintenance. Please check back in a few minutes.</string>
 </resources>

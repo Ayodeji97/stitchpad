@@ -6,6 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.rememberNavController
+import com.danzucker.stitchpad.core.config.presentation.AppGateRoot
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
@@ -36,11 +37,16 @@ fun App() {
         ThemePreference.DARK -> true
     }
     StitchPadTheme(darkTheme = darkTheme) {
-        val navController = rememberNavController()
-        val onboardingPreferences: OnboardingPreferences = koinInject()
-        StitchPadNavHost(
-            navController = navController,
-            onboardingPreferences = onboardingPreferences
-        )
+        // Break-glass gate: replaces the whole app with a blocking screen when the
+        // remote config forces an update or flips on maintenance mode. Fail-open —
+        // renders the nav host normally until the config actively says to block.
+        AppGateRoot {
+            val navController = rememberNavController()
+            val onboardingPreferences: OnboardingPreferences = koinInject()
+            StitchPadNavHost(
+                navController = navController,
+                onboardingPreferences = onboardingPreferences
+            )
+        }
     }
 }

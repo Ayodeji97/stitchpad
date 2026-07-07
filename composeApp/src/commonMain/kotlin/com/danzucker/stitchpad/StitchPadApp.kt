@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.di.analyticsModule
 import com.danzucker.stitchpad.di.authDataModule
 import com.danzucker.stitchpad.di.authPresentationModule
 import com.danzucker.stitchpad.di.configDataModule
+import com.danzucker.stitchpad.di.configPresentationModule
 import com.danzucker.stitchpad.di.coreModule
 import com.danzucker.stitchpad.di.customerDataModule
 import com.danzucker.stitchpad.di.customerPresentationModule
@@ -40,6 +41,7 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             coreModule,
             analyticsModule,
             configDataModule,
+            configPresentationModule,
             authDataModule,
             authPresentationModule,
             onboardingModule,
