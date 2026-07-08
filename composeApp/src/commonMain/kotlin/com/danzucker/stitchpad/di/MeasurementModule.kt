@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.measurement.data.FirebaseMeasurementRepos
 import com.danzucker.stitchpad.feature.measurement.presentation.detail.MeasurementDetailViewModel
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormViewModel
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -18,5 +19,18 @@ val measurementDataModule = module {
 
 val measurementPresentationModule = module {
     viewModelOf(::MeasurementFormViewModel)
-    viewModelOf(::MeasurementDetailViewModel)
+    // Explicit `viewModel { ... }` factory rather than viewModelOf(::MeasurementDetailViewModel)
+    // because the VM takes a defaulted shareLabelsResolver param — viewModelOf can't skip
+    // defaulted params (see feedback_koin_constructor_ref_defaults memory).
+    viewModel {
+        MeasurementDetailViewModel(
+            savedStateHandle = get(),
+            measurementRepository = get(),
+            customFieldRepository = get(),
+            customerRepository = get(),
+            authRepository = get(),
+            analytics = get(),
+            measurementSharer = get(),
+        )
+    }
 }

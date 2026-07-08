@@ -118,6 +118,9 @@ fun MeasurementDetailRoot(
             is MeasurementDetailEvent.NavigateToEdit ->
                 onNavigateToEdit(event.customerId, event.measurementId)
             MeasurementDetailEvent.NavigateToUpgrade -> onNavigateToUpgrade()
+            // Task 4 wires the actual WhatsApp launcher + share sheet UI; this
+            // branch only exists to keep the exhaustive `when` compiling.
+            is MeasurementDetailEvent.LaunchWhatsApp -> Unit
         }
     }
 

@@ -12,4 +12,9 @@ sealed interface MeasurementDetailAction {
     data object OnSavedMessageShown : MeasurementDetailAction
     data object OnNavigateBack : MeasurementDetailAction
     data object OnErrorDismiss : MeasurementDetailAction
+    data object OnShareClick : MeasurementDetailAction
+    data object OnShareAsImageClick : MeasurementDetailAction
+    data object OnShareAsPdfClick : MeasurementDetailAction
+    data object OnShareWhatsAppClick : MeasurementDetailAction
+    data object OnDismissShareSheet : MeasurementDetailAction
 }

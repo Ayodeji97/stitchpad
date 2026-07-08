@@ -1128,6 +1128,7 @@
     <string name="measurement_picker_taken_date">Taken %1$s</string>
     <string name="measurement_picker_create_new">Create new measurement</string>
     <string name="measurement_detail_title">Customer measurement</string>
+    <string name="measurement_share_error">Could not share measurement. Please try again.</string>
     <string name="measurement_detail_view_full">View full measurement</string>
     <string name="measurement_detail_change">Change measurement</string>
     <string name="measurement_detail_empty">No values recorded yet.</string>
