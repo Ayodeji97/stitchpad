@@ -341,14 +341,18 @@ private fun MetaChipsRow(measurement: Measurement) {
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        MetaChip(
-            text = stringResource(
-                Res.string.measurement_detail_taken,
-                formatTakenDate(measurement.dateTaken),
-            ),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        // Legacy docs can carry dateTaken == 0L (pre-mapper-backfill) — hide the
+        // chip rather than showing a 1970 date, matching the list's blank-date rule.
+        if (measurement.dateTaken > 0L) {
+            MetaChip(
+                text = stringResource(
+                    Res.string.measurement_detail_taken,
+                    formatTakenDate(measurement.dateTaken),
+                ),
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
