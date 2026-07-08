@@ -434,7 +434,6 @@
     <string name="custom_field_sheet_cancel">Cancel</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
     <string name="measurement_delete_content_description">Delete measurement</string>
-    <string name="cd_measurement_overflow">Measurement options</string>
     <string name="measurement_menu_rename">Rename</string>
     <string name="measurement_menu_delete">Delete</string>
     <string name="measurement_rename_dialog_title">Rename measurement</string>

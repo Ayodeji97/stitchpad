@@ -8,9 +8,6 @@ sealed interface CustomerDetailAction {
     data object OnDismissAddMeasurementSheet : CustomerDetailAction
     data object OnCreateNewMeasurementClick : CustomerDetailAction
     data class OnMeasurementClick(val measurement: Measurement) : CustomerDetailAction
-    data class OnDeleteMeasurementClick(val measurement: Measurement) : CustomerDetailAction
-    data object OnConfirmDelete : CustomerDetailAction
-    data object OnDismissDeleteDialog : CustomerDetailAction
 
     // PTSP-31: top-bar overflow menu + delete-customer flow.
     data object OnOverflowClick : CustomerDetailAction
@@ -18,11 +15,6 @@ sealed interface CustomerDetailAction {
     data object OnDeleteCustomerClick : CustomerDetailAction
     data object OnConfirmDeleteCustomer : CustomerDetailAction
     data object OnDismissDeleteCustomerDialog : CustomerDetailAction
-
-    data class OnRenameMeasurementClick(val measurement: Measurement) : CustomerDetailAction
-    data class OnRenameDraftChange(val name: String) : CustomerDetailAction
-    data object OnConfirmRename : CustomerDetailAction
-    data object OnDismissRenameDialog : CustomerDetailAction
 
     // PTSP-33: visible contact actions in the customer header.
     data object OnMessageWhatsAppClick : CustomerDetailAction
