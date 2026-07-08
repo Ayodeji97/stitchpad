@@ -99,6 +99,7 @@ class SettingsViewModel(
     @Suppress("CyclomaticComplexMethod")
     fun onAction(action: SettingsAction) {
         when (action) {
+            SettingsAction.OnBackClick -> emit(SettingsEvent.NavigateBack)
             SettingsAction.OnProfileClick -> emit(SettingsEvent.NavigateToEditProfile)
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
             SettingsAction.OnAppearanceClick -> cycleTheme()

@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import org.jetbrains.compose.resources.StringResource
 
 sealed interface SettingsEvent {
+    data object NavigateBack : SettingsEvent
     data object NavigateToEditProfile : SettingsEvent
     data object NavigateToChangeEmail : SettingsEvent
     data object NavigateToChangePassword : SettingsEvent

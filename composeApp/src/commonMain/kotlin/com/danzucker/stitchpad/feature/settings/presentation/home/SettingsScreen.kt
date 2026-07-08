@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.outlined.Redeem
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -66,6 +69,7 @@ import stitchpad.composeapp.generated.resources.gift_redeem_settings_subtitle
 import stitchpad.composeapp.generated.resources.gift_redeem_title
 import stitchpad.composeapp.generated.resources.gift_share_settings_row
 import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
+import stitchpad.composeapp.generated.resources.settings_back_cd
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_community
@@ -131,6 +135,14 @@ fun SettingsScreen(
                         text = stringResource(Res.string.settings_title),
                         fontWeight = FontWeight.Bold,
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { onAction(SettingsAction.OnBackClick) }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.settings_back_cd),
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
