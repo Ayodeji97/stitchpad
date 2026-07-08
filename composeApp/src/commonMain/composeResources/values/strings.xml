@@ -440,6 +440,14 @@
     <string name="measurement_rename_dialog_title">Rename measurement</string>
     <string name="measurement_rename_save">Save</string>
     <string name="measurement_rename_cancel">Cancel</string>
+
+    <!-- Measurement detail (read-only view) -->
+    <string name="measurement_detail_taken">Taken %1$s</string>
+    <string name="measurement_detail_edit_button">Edit measurement</string>
+    <string name="measurement_detail_saved_snackbar">Measurement saved</string>
+    <string name="measurement_detail_notes_title">Notes</string>
+    <string name="cd_measurement_detail_overflow">More options</string>
+    <string name="cd_measurement_detail_back">Back</string>
     <string name="custom_field_sheet_archive">Delete custom field</string>
     <string name="custom_field_archive_dialog_title">Delete this field?</string>
     <string name="custom_field_archive_dialog_body">“%1$s” will stop appearing on new measurements. Values already saved stay visible on past measurements.</string>
