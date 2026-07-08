@@ -568,7 +568,11 @@ class MeasurementFormViewModelTest {
         assertNull(measurementRepository.lastCreatedMeasurement)
         // Standalone edit (no fromCustomerCreation, no linkToOrderId) lands on
         // the read-only detail view rather than navigating back — see Task 5.
-        assertIs<MeasurementFormEvent.MeasurementSaved>(vm.events.first())
+        val event = assertIs<MeasurementFormEvent.MeasurementSaved>(vm.events.first())
+        // Edit must keep the EXISTING measurement id (no fresh UUID) so the
+        // detail view opens the document that was just updated.
+        assertEquals("meas-1", event.measurementId)
+        assertEquals("customer-1", event.customerId)
     }
 
     @Test

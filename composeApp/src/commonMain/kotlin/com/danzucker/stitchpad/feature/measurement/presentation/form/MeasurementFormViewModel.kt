@@ -31,10 +31,13 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-// TooManyFunctions sits exactly at detekt's threshold (15) already; Task 5
-// extracted a small `sendSaveCompletedEvent` helper out of `save()` to dodge
-// LongMethod, which tips the class to 16. Suppressing here rather than
-// re-inlining the helper and re-growing save() past LongMethod again.
+// TooManyFunctions: this class had 14 functions before the post-save landing
+// change; extracting the small `sendSaveCompletedEvent` helper out of `save()`
+// (to keep save() under LongMethod) made it 15, crossing detekt's >= 15
+// threshold. Suppressing rather than re-inlining the helper and re-growing
+// save() past LongMethod. The real fix is the save() decomposition (extract
+// validation, persistence, navigation arms) already flagged by the
+// CyclomaticComplexMethod note above save().
 @Suppress("TooManyFunctions")
 class MeasurementFormViewModel(
     savedStateHandle: SavedStateHandle,
