@@ -41,17 +41,20 @@ object AppGate {
         val floor = if (isIos) config.minSupportedBuildIos else config.minSupportedBuildAndroid
         val mustUpdate = floor != null && currentBuild != null && currentBuild < floor
         return when {
+            // Blank (non-null) remote strings normalise to null so the screen falls
+            // back to its default copy and the CTA hides — an empty field in the
+            // console (an easy mistake mid-incident) must not blank out the message
+            // or open an empty URL.
             mustUpdate -> AppGateDecision.ForceUpdate(
-                message = config.forceUpdateMessage,
-                // Blank (non-null) remote strings normalise to null so the CTA hides
-                // instead of opening an empty URL.
-                updateUrl = (if (isIos) config.updateUrlIos else config.updateUrlAndroid)
-                    ?.takeIf { it.isNotBlank() },
+                message = config.forceUpdateMessage.blankToNull(),
+                updateUrl = (if (isIos) config.updateUrlIos else config.updateUrlAndroid).blankToNull(),
             )
 
-            config.maintenanceMode -> AppGateDecision.Maintenance(config.maintenanceMessage)
+            config.maintenanceMode -> AppGateDecision.Maintenance(config.maintenanceMessage.blankToNull())
 
             else -> AppGateDecision.Allowed
         }
     }
+
+    private fun String?.blankToNull(): String? = this?.takeIf { it.isNotBlank() }
 }
