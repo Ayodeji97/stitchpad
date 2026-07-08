@@ -59,6 +59,32 @@ class AppGateTest {
     }
 
     @Test
+    fun blankForceUpdateMessage_normalisesToNull() {
+        val config = AppConfig.Disabled.copy(
+            minSupportedBuildAndroid = 420,
+            forceUpdateMessage = "   ",
+        )
+
+        val decision = AppGate.evaluate(config, isIos = false, currentBuild = 1)
+
+        val forceUpdate = assertIs<AppGateDecision.ForceUpdate>(decision)
+        assertEquals(null, forceUpdate.message)
+    }
+
+    @Test
+    fun blankMaintenanceMessage_normalisesToNull() {
+        val config = AppConfig.Disabled.copy(
+            maintenanceMode = true,
+            maintenanceMessage = "",
+        )
+
+        val decision = AppGate.evaluate(config, isIos = false, currentBuild = 100)
+
+        val maintenance = assertIs<AppGateDecision.Maintenance>(decision)
+        assertEquals(null, maintenance.message)
+    }
+
+    @Test
     fun buildEqualToFloor_isAllowed() {
         val config = AppConfig.Disabled.copy(minSupportedBuildAndroid = 420)
 
