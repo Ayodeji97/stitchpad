@@ -133,6 +133,7 @@ import stitchpad.composeapp.generated.resources.measurement_unit_inches
 fun MeasurementFormRoot(
     onNavigateBack: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToDetail: (customerId: String, measurementId: String) -> Unit,
 ) {
     val viewModel: MeasurementFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -145,6 +146,8 @@ fun MeasurementFormRoot(
             // customer (already persisted) detail. No measurement is written.
             MeasurementFormEvent.SkipMeasurements -> onNavigateBack()
             MeasurementFormEvent.NavigateToUpgrade -> onNavigateToUpgrade()
+            is MeasurementFormEvent.MeasurementSaved ->
+                onNavigateToDetail(event.customerId, event.measurementId)
         }
     }
 

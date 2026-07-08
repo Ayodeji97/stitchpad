@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
@@ -72,12 +73,14 @@ class MeasurementFormViewModelTest {
         customerId: String = "customer-1",
         measurementId: String? = null,
         fromCustomerCreation: Boolean = false,
+        linkToOrderId: String? = null,
         analytics: Analytics = FakeAnalytics(),
     ): MeasurementFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
             if (measurementId != null) put("measurementId", measurementId)
             put("fromCustomerCreation", fromCustomerCreation)
+            if (linkToOrderId != null) put("linkToOrderId", linkToOrderId)
         }
         val vm = MeasurementFormViewModel(
             savedStateHandle = SavedStateHandle(args),
@@ -423,7 +426,7 @@ class MeasurementFormViewModelTest {
     // --- Save: create mode ---
 
     @Test
-    fun save_createMode_callsCreateMeasurement_andNavigatesBack() = runTest {
+    fun save_createMode_callsCreateMeasurement_andEmitsMeasurementSaved() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
@@ -432,7 +435,10 @@ class MeasurementFormViewModelTest {
 
         assertNotNull(measurementRepository.lastCreatedMeasurement)
         assertNull(measurementRepository.lastUpdatedMeasurement)
-        assertIs<MeasurementFormEvent.NavigateBack>(vm.events.first())
+        // Standalone create (no fromCustomerCreation, no linkToOrderId) lands on
+        // the read-only detail view rather than navigating back to the form's
+        // caller — see Task 5.
+        assertIs<MeasurementFormEvent.MeasurementSaved>(vm.events.first())
     }
 
     @Test
@@ -504,10 +510,54 @@ class MeasurementFormViewModelTest {
         assertNull(measurementRepository.lastCreatedMeasurement?.notes)
     }
 
+    // --- Save: post-save navigation (Task 5) ---
+
+    @Test
+    fun `save emits MeasurementSaved with the persisted id`() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        // canSave requires gender + non-blank name + at least one positive field.
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.FEMALE))
+        vm.onAction(MeasurementFormAction.OnNameChange("Agbada"))
+        vm.onAction(MeasurementFormAction.OnFieldChange("waist", "31"))
+        vm.events.test {
+            vm.onAction(MeasurementFormAction.OnSaveClick)
+            val event = assertIs<MeasurementFormEvent.MeasurementSaved>(awaitItem())
+            assertEquals("customer-1", event.customerId)
+            assertEquals(measurementRepository.lastCreatedMeasurement?.id, event.measurementId)
+        }
+    }
+
+    @Test
+    fun `save during customer creation still navigates back`() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel(fromCustomerCreation = true)
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.FEMALE))
+        vm.onAction(MeasurementFormAction.OnNameChange("Agbada"))
+        vm.onAction(MeasurementFormAction.OnFieldChange("waist", "31"))
+        vm.events.test {
+            vm.onAction(MeasurementFormAction.OnSaveClick)
+            assertIs<MeasurementFormEvent.NavigateBack>(awaitItem())
+        }
+    }
+
+    @Test
+    fun `save with linkToOrderId still navigates back`() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel(linkToOrderId = "order-1")
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.FEMALE))
+        vm.onAction(MeasurementFormAction.OnNameChange("Agbada"))
+        vm.onAction(MeasurementFormAction.OnFieldChange("waist", "31"))
+        vm.events.test {
+            vm.onAction(MeasurementFormAction.OnSaveClick)
+            assertIs<MeasurementFormEvent.NavigateBack>(awaitItem())
+        }
+    }
+
     // --- Save: edit mode ---
 
     @Test
-    fun save_editMode_callsUpdateMeasurement_andNavigatesBack() = runTest {
+    fun save_editMode_callsUpdateMeasurement_andEmitsMeasurementSaved() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
@@ -516,7 +566,9 @@ class MeasurementFormViewModelTest {
 
         assertNotNull(measurementRepository.lastUpdatedMeasurement)
         assertNull(measurementRepository.lastCreatedMeasurement)
-        assertIs<MeasurementFormEvent.NavigateBack>(vm.events.first())
+        // Standalone edit (no fromCustomerCreation, no linkToOrderId) lands on
+        // the read-only detail view rather than navigating back — see Task 5.
+        assertIs<MeasurementFormEvent.MeasurementSaved>(vm.events.first())
     }
 
     @Test

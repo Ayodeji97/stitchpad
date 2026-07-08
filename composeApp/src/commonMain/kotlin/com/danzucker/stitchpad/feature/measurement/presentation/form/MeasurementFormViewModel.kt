@@ -31,6 +31,11 @@ import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+// TooManyFunctions sits exactly at detekt's threshold (15) already; Task 5
+// extracted a small `sendSaveCompletedEvent` helper out of `save()` to dodge
+// LongMethod, which tips the class to 16. Suppressing here rather than
+// re-inlining the helper and re-growing save() past LongMethod again.
+@Suppress("TooManyFunctions")
 class MeasurementFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val measurementRepository: MeasurementRepository,
@@ -462,7 +467,21 @@ class MeasurementFormViewModel(
             }
 
             _state.update { it.copy(isLoading = false) }
+            sendSaveCompletedEvent(customerId, effectiveId)
+        }
+    }
+
+    /**
+     * Standalone create/edit lands on the read-only detail view (replacing the
+     * form in the back stack). The chained flows — customer creation and
+     * order-linking — keep [MeasurementFormEvent.NavigateBack] so they return
+     * to their parent (customer detail / order detail).
+     */
+    private suspend fun sendSaveCompletedEvent(customerId: String, measurementId: String) {
+        if (fromCustomerCreation || linkToOrderId != null) {
             _events.send(MeasurementFormEvent.NavigateBack)
+        } else {
+            _events.send(MeasurementFormEvent.MeasurementSaved(customerId, measurementId))
         }
     }
 

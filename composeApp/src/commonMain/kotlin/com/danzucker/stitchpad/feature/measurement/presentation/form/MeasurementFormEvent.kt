@@ -17,4 +17,12 @@ sealed interface MeasurementFormEvent {
      * navigation to the existing UpgradeRoute (no new conversion UI).
      */
     data object NavigateToUpgrade : MeasurementFormEvent
+
+    /**
+     * Save succeeded on a standalone create/edit — land on the read-only detail
+     * view (replacing the form in the back stack). The chained flows — customer
+     * creation and order-linking — keep [NavigateBack] so they return to their
+     * parent (customer detail / order detail).
+     */
+    data class MeasurementSaved(val customerId: String, val measurementId: String) : MeasurementFormEvent
 }

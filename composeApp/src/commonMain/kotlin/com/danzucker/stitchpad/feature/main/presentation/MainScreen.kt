@@ -307,6 +307,20 @@ private fun MainNavGraph(
             MeasurementFormRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToDetail = { customerId, measurementId ->
+                    navController.navigate(
+                        MeasurementDetailRoute(
+                            customerId = customerId,
+                            measurementId = measurementId,
+                            source = MeasurementDetailSource.POST_SAVE,
+                            fromSave = true,
+                        ),
+                    ) {
+                        // Replace the form: Back from the detail view returns to wherever the
+                        // form was opened from (customer detail), never to the stale form.
+                        popUpTo<MeasurementFormRoute> { inclusive = true }
+                    }
+                },
             )
         }
         composable<MeasurementDetailRoute> {
