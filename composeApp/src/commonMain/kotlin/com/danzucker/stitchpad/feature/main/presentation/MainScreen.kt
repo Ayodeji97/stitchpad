@@ -31,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
@@ -304,6 +305,7 @@ private fun MainNavGraph(
             )
         }
         composable<MeasurementFormRoute> {
+            val formRoute = it.toRoute<MeasurementFormRoute>()
             MeasurementFormRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
@@ -316,9 +318,14 @@ private fun MainNavGraph(
                             fromSave = true,
                         ),
                     ) {
-                        // Replace the form: Back from the detail view returns to wherever the
-                        // form was opened from (customer detail), never to the stale form.
-                        popUpTo<MeasurementFormRoute> { inclusive = true }
+                        // Edit mode was opened from a MeasurementDetailRoute — replace that
+                        // stale detail entry too, so Back returns to customer detail. Create
+                        // mode has no detail beneath; just replace the form.
+                        if (formRoute.measurementId != null) {
+                            popUpTo<MeasurementDetailRoute> { inclusive = true }
+                        } else {
+                            popUpTo<MeasurementFormRoute> { inclusive = true }
+                        }
                     }
                 },
             )

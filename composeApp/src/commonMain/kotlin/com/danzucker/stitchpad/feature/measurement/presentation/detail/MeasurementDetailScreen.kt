@@ -132,8 +132,8 @@ fun MeasurementDetailRoot(
     val savedMessage = stringResource(Res.string.measurement_detail_saved_snackbar)
     LaunchedEffect(state.showSavedMessage) {
         if (state.showSavedMessage) {
-            viewModel.onAction(MeasurementDetailAction.OnSavedMessageShown)
             snackbarHostState.showSnackbar(savedMessage)
+            viewModel.onAction(MeasurementDetailAction.OnSavedMessageShown)
         }
     }
 

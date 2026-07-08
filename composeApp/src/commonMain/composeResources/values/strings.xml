@@ -370,7 +370,7 @@
     <string name="measurement_gender_women">Women&apos;s</string>
     <string name="measurement_gender_men">Men&apos;s</string>
     <string name="measurement_add_sheet_title">Add a measurement</string>
-    <string name="measurement_add_sheet_existing">Edit an existing measurement</string>
+    <string name="measurement_add_sheet_existing">View an existing measurement</string>
     <string name="measurement_add_sheet_create_new">Create new measurement</string>
     <string name="fab_add_measurement">Add measurement</string>
 
