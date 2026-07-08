@@ -60,7 +60,10 @@ actual fun TutorialVideoPlayer(
     LaunchedEffect(playback) {
         while (coroutineContext.isActive) {
             if (playback.hasFailed()) {
-                AppLogger.e(tag = TAG) { "playback failed uri=$uri" }
+                // Log the source kind, never the uri itself: remote uris are Firebase download
+                // URLs whose token= must not reach crash telemetry (see AppLogger's rules).
+                val sourceKind = if (uri.startsWith("file:")) "local" else "remote"
+                AppLogger.e(tag = TAG) { "playback failed src=$sourceKind" }
                 currentOnPlaybackError()
                 break
             }

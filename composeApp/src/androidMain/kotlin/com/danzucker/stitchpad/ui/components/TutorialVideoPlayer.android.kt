@@ -22,6 +22,8 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 
 private const val TAG = "TutorialVideoPlayer"
 
+private fun String.sourceKind(): String = if (startsWith("file:")) "local" else "remote"
+
 /**
  * Android [TutorialVideoPlayer] backed by Media3 ExoPlayer with the default [PlayerView]
  * controller (play/pause, scrubber, mute, settings) enabled. Plays once with sound. Reports
@@ -56,8 +58,10 @@ actual fun TutorialVideoPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                // Log the source kind, never the uri itself: remote uris are Firebase download
+                // URLs whose token= must not reach Crashlytics (see AppLogger's rules).
                 AppLogger.e(tag = TAG, throwable = error) {
-                    "playback failed code=${error.errorCodeName} uri=$uri"
+                    "playback failed code=${error.errorCodeName} src=${uri.sourceKind()}"
                 }
                 currentOnPlaybackError()
             }
