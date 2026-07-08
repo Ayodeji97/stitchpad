@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
@@ -25,6 +26,8 @@ import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -55,7 +58,17 @@ fun DebugMenuScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Debug menu") })
+            TopAppBar(
+                title = { Text("Debug menu") },
+                navigationIcon = {
+                    IconButton(onClick = { onAction(DebugMenuAction.OnBackClick) }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                        )
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues: PaddingValues ->
