@@ -1,7 +1,18 @@
 # Scroll-to-dismiss keyboard — design
 
-**Status:** Design approved (2026-06-21)
+**Status:** Design approved (2026-06-21). **Implementation superseded (2026-07-08)** —
+see "Update" below.
 **Branch:** `feat/scroll-to-dismiss-keyboard`
+
+> **Update (2026-07-08):** The `NestedScrollSource.UserInput` filter documented below
+> did NOT hold on Compose Multiplatform iOS. The focus bring-into-view auto-scroll is
+> reported there as `UserInput` (not `SideEffect`), so tapping a field low on a long
+> form (Edit Profile) tripped the filter and instantly closed the keyboard — exactly
+> the failure "Testing" step 2 was meant to guard against. `dismissKeyboardOnScroll()`
+> was rewritten to detect a genuine finger drag via a non-consuming pointer observer
+> (`awaitEachGesture` on the Initial pass): a real drag emits pointer events, the
+> programmatic auto-scroll emits none, so the ambiguity is gone. The prose below
+> reflects the original (now-replaced) NestedScroll approach.
 **Source:** tester pain point — on a multi-field form the soft keyboard only dismisses
 by tapping outside; the expected mobile behavior (scroll the form → keyboard closes)
 is missing.
