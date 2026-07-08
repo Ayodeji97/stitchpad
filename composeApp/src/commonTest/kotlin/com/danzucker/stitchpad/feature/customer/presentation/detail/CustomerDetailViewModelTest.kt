@@ -239,13 +239,13 @@ class CustomerDetailViewModelTest {
     }
 
     @Test
-    fun onMeasurementClick_emitsNavigateToEditMeasurement_withCorrectIds() = runTest {
+    fun onMeasurementClick_emitsNavigateToViewMeasurement_withCorrectIds() = runTest {
         val vm = createViewModel()
         val measurement = fakeMeasurement(id = "meas-42")
         vm.onAction(CustomerDetailAction.OnMeasurementClick(measurement))
 
         val event = vm.events.first()
-        assertIs<CustomerDetailEvent.NavigateToEditMeasurement>(event)
+        assertIs<CustomerDetailEvent.NavigateToViewMeasurement>(event)
         assertEquals("customer-1", event.customerId)
         assertEquals("meas-42", event.measurementId)
     }
@@ -255,75 +255,6 @@ class CustomerDetailViewModelTest {
         val vm = createViewModel()
         vm.onAction(CustomerDetailAction.OnNavigateBack)
         assertIs<CustomerDetailEvent.NavigateBack>(vm.events.first())
-    }
-
-    // --- Delete measurement flow ---
-
-    @Test
-    fun onDeleteMeasurementClick_showsDeleteDialog_withMeasurement() = runTest {
-        val vm = createViewModel()
-        val measurement = fakeMeasurement()
-
-        vm.onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement))
-
-        assertTrue(vm.state.value.showDeleteDialog)
-        assertEquals(measurement, vm.state.value.measurementToDelete)
-    }
-
-    @Test
-    fun onDismissDeleteDialog_hidesDialog_andClearsMeasurementToDelete() = runTest {
-        val vm = createViewModel()
-        vm.onAction(CustomerDetailAction.OnDeleteMeasurementClick(fakeMeasurement()))
-        assertTrue(vm.state.value.showDeleteDialog)
-
-        vm.onAction(CustomerDetailAction.OnDismissDeleteDialog)
-
-        assertFalse(vm.state.value.showDeleteDialog)
-        assertNull(vm.state.value.measurementToDelete)
-    }
-
-    @Test
-    fun onConfirmDelete_callsDeleteMeasurement_andHidesDialog() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        val vm = createViewModel()
-        val measurement = fakeMeasurement(id = "meas-1")
-        vm.onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement))
-        vm.onAction(CustomerDetailAction.OnConfirmDelete)
-
-        assertEquals("meas-1", measurementRepository.lastDeletedMeasurementId)
-        assertFalse(vm.state.value.showDeleteDialog)
-        assertNull(vm.state.value.measurementToDelete)
-    }
-
-    @Test
-    fun onConfirmDelete_withNoMeasurementToDelete_doesNotCallRepository() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        val vm = createViewModel()
-        // no OnDeleteMeasurementClick — measurementToDelete is null
-        vm.onAction(CustomerDetailAction.OnConfirmDelete)
-
-        assertNull(measurementRepository.lastDeletedMeasurementId)
-    }
-
-    @Test
-    fun deleteMeasurement_withRepositoryError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        measurementRepository.operationError = DataError.Network.UNKNOWN
-        val vm = createViewModel()
-        vm.onAction(CustomerDetailAction.OnDeleteMeasurementClick(fakeMeasurement()))
-        vm.onAction(CustomerDetailAction.OnConfirmDelete)
-
-        assertNotNull(vm.state.value.errorMessage)
-    }
-
-    @Test
-    fun deleteMeasurement_withNoAuthUser_doesNotCallRepository() = runTest {
-        // no signUp
-        val vm = createViewModel()
-        vm.onAction(CustomerDetailAction.OnDeleteMeasurementClick(fakeMeasurement()))
-        vm.onAction(CustomerDetailAction.OnConfirmDelete)
-
-        assertNull(measurementRepository.lastDeletedMeasurementId)
     }
 
     // --- Delete customer flow (PTSP-31) ---
@@ -491,67 +422,5 @@ class CustomerDetailViewModelTest {
 
         vm.onAction(CustomerDetailAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
-    }
-
-    // --- Rename measurement flow ---
-
-    @Test
-    fun renameClick_prefillsDraftWithCurrentName() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(fakeCustomer())
-        val m = fakeMeasurement().copy(name = "Old Name")
-        measurementRepository.measurementsList = listOf(m)
-        val vm = createViewModel()
-
-        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
-
-        assertEquals(m.id, vm.state.value.measurementToRename?.id)
-        assertEquals("Old Name", vm.state.value.renameDraft)
-    }
-
-    @Test
-    fun confirmRename_persistsTrimmedName_andClosesDialog() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(fakeCustomer())
-        val m = fakeMeasurement().copy(name = "Old Name")
-        measurementRepository.measurementsList = listOf(m)
-        val vm = createViewModel()
-
-        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
-        vm.onAction(CustomerDetailAction.OnRenameDraftChange("  Wedding Agbada  "))
-        vm.onAction(CustomerDetailAction.OnConfirmRename)
-
-        assertEquals("Wedding Agbada", measurementRepository.lastUpdatedMeasurement!!.name)
-        assertNull(vm.state.value.measurementToRename)
-    }
-
-    @Test
-    fun confirmRename_blankDraft_noUpdate() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(fakeCustomer())
-        val m = fakeMeasurement().copy(name = "Old Name")
-        measurementRepository.measurementsList = listOf(m)
-        val vm = createViewModel()
-
-        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
-        vm.onAction(CustomerDetailAction.OnRenameDraftChange(""))
-        vm.onAction(CustomerDetailAction.OnConfirmRename)
-
-        assertNull(measurementRepository.lastUpdatedMeasurement)
-    }
-
-    @Test
-    fun dismissRename_clearsState() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
-        customerRepository.customersList = listOf(fakeCustomer())
-        val m = fakeMeasurement().copy(name = "Old Name")
-        measurementRepository.measurementsList = listOf(m)
-        val vm = createViewModel()
-
-        vm.onAction(CustomerDetailAction.OnRenameMeasurementClick(m))
-        vm.onAction(CustomerDetailAction.OnDismissRenameDialog)
-
-        assertNull(vm.state.value.measurementToRename)
-        assertEquals("", vm.state.value.renameDraft)
     }
 }

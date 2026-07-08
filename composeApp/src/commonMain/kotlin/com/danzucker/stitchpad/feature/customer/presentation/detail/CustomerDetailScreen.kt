@@ -41,7 +41,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,10 +52,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -90,7 +87,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_customer_overflow
 import stitchpad.composeapp.generated.resources.cd_edit_customer
-import stitchpad.composeapp.generated.resources.cd_measurement_overflow
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_dismiss
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_message
 import stitchpad.composeapp.generated.resources.customer_delete_blocked_title
@@ -108,17 +104,8 @@ import stitchpad.composeapp.generated.resources.customer_locked_detail_banner_ti
 import stitchpad.composeapp.generated.resources.customer_locked_detail_unlock_cta
 import stitchpad.composeapp.generated.resources.dialer_launch_failed
 import stitchpad.composeapp.generated.resources.fab_add_measurement
-import stitchpad.composeapp.generated.resources.measurement_delete_message
-import stitchpad.composeapp.generated.resources.measurement_delete_title
 import stitchpad.composeapp.generated.resources.measurement_gender_men
 import stitchpad.composeapp.generated.resources.measurement_gender_women
-import stitchpad.composeapp.generated.resources.measurement_menu_delete
-import stitchpad.composeapp.generated.resources.measurement_menu_rename
-import stitchpad.composeapp.generated.resources.measurement_name_label
-import stitchpad.composeapp.generated.resources.measurement_name_placeholder
-import stitchpad.composeapp.generated.resources.measurement_rename_cancel
-import stitchpad.composeapp.generated.resources.measurement_rename_dialog_title
-import stitchpad.composeapp.generated.resources.measurement_rename_save
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.style_closet_name_format
@@ -137,7 +124,7 @@ fun CustomerDetailRoot(
     onNavigateBack: () -> Unit,
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
-    onNavigateToEditMeasurement: (String, String) -> Unit,
+    onNavigateToViewMeasurement: (String, String) -> Unit,
     onNavigateToStyleGallery: (String) -> Unit,
     onNavigateToUpgrade: () -> Unit,
 ) {
@@ -155,7 +142,7 @@ fun CustomerDetailRoot(
             CustomerDetailEvent.NavigateBack -> onNavigateBack()
             is CustomerDetailEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
             is CustomerDetailEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
-            is CustomerDetailEvent.NavigateToEditMeasurement -> onNavigateToEditMeasurement(
+            is CustomerDetailEvent.NavigateToViewMeasurement -> onNavigateToViewMeasurement(
                 event.customerId,
                 event.measurementId,
             )
@@ -324,6 +311,7 @@ fun CustomerDetailScreen(
                                     measurement = measurement,
                                     customFieldLabels = state.customFieldLabels,
                                     position = position,
+                                    onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
                                 )
                             } else {
                                 SwipeableMeasurementItem(
@@ -331,8 +319,6 @@ fun CustomerDetailScreen(
                                     customFieldLabels = state.customFieldLabels,
                                     position = position,
                                     onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
-                                    onDelete = { onAction(CustomerDetailAction.OnDeleteMeasurementClick(measurement)) },
-                                    onRename = { onAction(CustomerDetailAction.OnRenameMeasurementClick(measurement)) },
                                 )
                             }
                             HorizontalDivider(
@@ -388,79 +374,6 @@ fun CustomerDetailScreen(
             onEditMeasurement = { onAction(CustomerDetailAction.OnMeasurementClick(it)) },
             onCreateNew = { onAction(CustomerDetailAction.OnCreateNewMeasurementClick) },
             onDismiss = { onAction(CustomerDetailAction.OnDismissAddMeasurementSheet) },
-        )
-    }
-
-    if (state.showDeleteDialog && state.measurementToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { onAction(CustomerDetailAction.OnDismissDeleteDialog) },
-            title = {
-                Text(
-                    text = stringResource(Res.string.measurement_delete_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(Res.string.measurement_delete_message),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { onAction(CustomerDetailAction.OnConfirmDelete) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(DesignTokens.radiusMd)
-                ) {
-                    Text(
-                        text = stringResource(Res.string.customer_delete_confirm),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { onAction(CustomerDetailAction.OnDismissDeleteDialog) }) {
-                    Text(
-                        text = stringResource(Res.string.customer_delete_cancel),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            shape = RoundedCornerShape(DesignTokens.radiusXl),
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    }
-
-    if (state.measurementToRename != null) {
-        AlertDialog(
-            onDismissRequest = { onAction(CustomerDetailAction.OnDismissRenameDialog) },
-            title = { Text(stringResource(Res.string.measurement_rename_dialog_title)) },
-            text = {
-                OutlinedTextField(
-                    value = state.renameDraft,
-                    onValueChange = { onAction(CustomerDetailAction.OnRenameDraftChange(it)) },
-                    label = { Text(stringResource(Res.string.measurement_name_label)) },
-                    placeholder = { Text(stringResource(Res.string.measurement_name_placeholder)) },
-                    singleLine = true,
-                    isError = state.renameDraft.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { onAction(CustomerDetailAction.OnConfirmRename) },
-                    enabled = state.renameDraft.isNotBlank(),
-                ) { Text(stringResource(Res.string.measurement_rename_save)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { onAction(CustomerDetailAction.OnDismissRenameDialog) }) {
-                    Text(stringResource(Res.string.measurement_rename_cancel))
-                }
-            },
         )
     }
 
@@ -775,8 +688,6 @@ private fun SwipeableMeasurementItem(
     customFieldLabels: Map<String, String>,
     position: Int,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
-    onRename: () -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -787,8 +698,6 @@ private fun SwipeableMeasurementItem(
             customFieldLabels = customFieldLabels,
             position = position,
             onClick = onClick,
-            onDelete = onDelete,
-            onRename = onRename,
         )
     }
 }
@@ -798,11 +707,13 @@ private fun ReadOnlyMeasurementItem(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
     position: Int,
+    onClick: () -> Unit,
 ) {
-    // Used when the customer is locked: no swipe-to-delete wrapper AND no click handler.
-    // Per V1.0 design spec decision #2, locked customers are fully visible read-only —
-    // every surface on the detail page is inert except the "Unlock with Pro" CTA.
-    // Muted to 50% alpha so the visual affordance matches the (lack of) behavior.
+    // Used when the customer is locked: no swipe-to-delete wrapper (write actions stay gated).
+    // Per V1.0 design spec decision #2, locked customers can still VIEW their measurements
+    // read-only — only write actions (edit/rename/delete, gated on the detail screen) remain
+    // locked. Muted to 50% alpha so the visual affordance matches the reduced (read-only)
+    // capability.
     Surface(
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
@@ -813,7 +724,7 @@ private fun ReadOnlyMeasurementItem(
             measurement = measurement,
             customFieldLabels = customFieldLabels,
             position = position,
-            onClick = null,
+            onClick = onClick,
         )
     }
 }
@@ -935,8 +846,6 @@ private fun MeasurementListItem(
     customFieldLabels: Map<String, String>,
     position: Int,
     onClick: (() -> Unit)?,
-    onDelete: (() -> Unit)? = null,
-    onRename: (() -> Unit)? = null,
 ) {
     val title = measurementDisplayName(measurement, position)
     val genderWord = stringResource(
@@ -1014,40 +923,6 @@ private fun MeasurementListItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
-            }
-        }
-
-        if (onDelete != null || onRename != null) {
-            var menuExpanded by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(Res.string.cd_measurement_overflow),
-                    )
-                }
-                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                    if (onRename != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.measurement_menu_rename)) },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onRename()
-                            },
-                        )
-                    }
-                    if (onDelete != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.measurement_menu_delete)) },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            },
-                        )
-                    }
                 }
             }
         }
