@@ -24,19 +24,21 @@ class MeasurementShareFormatterTest {
     private fun format(m: Measurement = measurement()) = MeasurementShareFormatter.format(
         measurement = m,
         customerName = "Chidinma Eze",
-        measurementName = "Wedding gown",
-        genderLabel = "Women's",
-        unitLabel = "Inches",
-        unitSuffix = "″",
-        dateFormatted = "12 Jun 2026",
-        businessName = "Zucker Styles",
-        customFieldLabels = emptyMap(),
-        sectionTitles = mapOf(
-            "section_upper_body" to "Upper Body",
-            "section_body_lengths" to "Body Lengths",
-            "section_trouser" to "Trouser",
+        labels = MeasurementShareLabels(
+            measurementName = "Wedding gown",
+            genderLabel = "Women's",
+            unitLabel = "Inches",
+            unitSuffix = "″",
+            dateFormatted = "12 Jun 2026",
+            businessName = "Zucker Styles",
+            sectionTitles = mapOf(
+                "section_upper_body" to "Upper Body",
+                "section_body_lengths" to "Body Lengths",
+                "section_trouser" to "Trouser",
+            ),
+            customSectionTitle = "Custom",
         ),
-        customSectionTitle = "Custom",
+        customFieldLabels = emptyMap(),
     )
 
     @Test
@@ -51,9 +53,13 @@ class MeasurementShareFormatterTest {
     fun `format falls back to raw titleKey when a localized title is missing`() {
         val data = MeasurementShareFormatter.format(
             measurement = measurement(),
-            customerName = "C", measurementName = "M", genderLabel = "G", unitLabel = "U",
-            unitSuffix = "″", dateFormatted = null, businessName = null,
-            customFieldLabels = emptyMap(), sectionTitles = emptyMap(), customSectionTitle = "Custom",
+            customerName = "C",
+            labels = MeasurementShareLabels(
+                measurementName = "M", genderLabel = "G", unitLabel = "U",
+                unitSuffix = "″", dateFormatted = null, businessName = null,
+                sectionTitles = emptyMap(), customSectionTitle = "Custom",
+            ),
+            customFieldLabels = emptyMap(),
         )
         assertEquals(listOf("section_upper_body", "section_trouser"), data.sections.map { it.title })
     }

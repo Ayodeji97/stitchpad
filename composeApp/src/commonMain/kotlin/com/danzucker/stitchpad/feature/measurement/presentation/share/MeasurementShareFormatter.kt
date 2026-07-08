@@ -10,6 +10,18 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+/** Pre-localized labels for [MeasurementShareFormatter.format] — resolved by the caller (ViewModel) so the formatter stays resource-free. */
+data class MeasurementShareLabels(
+    val measurementName: String,
+    val genderLabel: String,
+    val unitLabel: String,
+    val unitSuffix: String,
+    val dateFormatted: String?,
+    val businessName: String?,
+    val sectionTitles: Map<String, String>,
+    val customSectionTitle: String,
+)
+
 /**
  * Builds the share payload for a measurement. Pure: every label arrives
  * pre-localized (the ViewModel resolves string resources), so this object is
@@ -21,33 +33,26 @@ object MeasurementShareFormatter {
     fun format(
         measurement: Measurement,
         customerName: String,
-        measurementName: String,
-        genderLabel: String,
-        unitLabel: String,
-        unitSuffix: String,
-        dateFormatted: String?,
-        businessName: String?,
+        labels: MeasurementShareLabels,
         customFieldLabels: Map<String, String>,
-        sectionTitles: Map<String, String>,
-        customSectionTitle: String,
     ): MeasurementShareData {
         val sections = measurementDetailSections(measurement, customFieldLabels).map { section ->
             MeasurementShareSection(
                 title = when (section.titleKey) {
-                    null -> customSectionTitle
-                    else -> sectionTitles[section.titleKey] ?: section.titleKey
+                    null -> labels.customSectionTitle
+                    else -> labels.sectionTitles[section.titleKey] ?: section.titleKey
                 },
                 rows = section.rows.map { MeasurementShareRow(it.label, formatMeasurementValue(it.value)) },
             )
         }
         return MeasurementShareData(
             customerName = customerName,
-            measurementName = measurementName,
-            genderLabel = genderLabel,
-            unitLabel = unitLabel,
-            unitSuffix = unitSuffix,
-            dateFormatted = dateFormatted,
-            businessName = businessName,
+            measurementName = labels.measurementName,
+            genderLabel = labels.genderLabel,
+            unitLabel = labels.unitLabel,
+            unitSuffix = labels.unitSuffix,
+            dateFormatted = labels.dateFormatted,
+            businessName = labels.businessName,
             sections = sections,
             notes = measurement.notes?.takeIf { it.isNotBlank() },
         )
