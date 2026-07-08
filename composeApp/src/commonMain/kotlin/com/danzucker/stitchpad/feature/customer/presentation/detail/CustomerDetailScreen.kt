@@ -137,7 +137,7 @@ fun CustomerDetailRoot(
     onNavigateBack: () -> Unit,
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
-    onNavigateToEditMeasurement: (String, String) -> Unit,
+    onNavigateToViewMeasurement: (String, String) -> Unit,
     onNavigateToStyleGallery: (String) -> Unit,
     onNavigateToUpgrade: () -> Unit,
 ) {
@@ -155,7 +155,7 @@ fun CustomerDetailRoot(
             CustomerDetailEvent.NavigateBack -> onNavigateBack()
             is CustomerDetailEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
             is CustomerDetailEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
-            is CustomerDetailEvent.NavigateToEditMeasurement -> onNavigateToEditMeasurement(
+            is CustomerDetailEvent.NavigateToViewMeasurement -> onNavigateToViewMeasurement(
                 event.customerId,
                 event.measurementId,
             )
@@ -324,6 +324,7 @@ fun CustomerDetailScreen(
                                     measurement = measurement,
                                     customFieldLabels = state.customFieldLabels,
                                     position = position,
+                                    onClick = { onAction(CustomerDetailAction.OnMeasurementClick(measurement)) },
                                 )
                             } else {
                                 SwipeableMeasurementItem(
@@ -798,11 +799,13 @@ private fun ReadOnlyMeasurementItem(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
     position: Int,
+    onClick: () -> Unit,
 ) {
-    // Used when the customer is locked: no swipe-to-delete wrapper AND no click handler.
-    // Per V1.0 design spec decision #2, locked customers are fully visible read-only —
-    // every surface on the detail page is inert except the "Unlock with Pro" CTA.
-    // Muted to 50% alpha so the visual affordance matches the (lack of) behavior.
+    // Used when the customer is locked: no swipe-to-delete wrapper (write actions stay gated).
+    // Per V1.0 design spec decision #2, locked customers can still VIEW their measurements
+    // read-only — only write actions (edit/rename/delete, gated on the detail screen) remain
+    // locked. Muted to 50% alpha so the visual affordance matches the reduced (read-only)
+    // capability.
     Surface(
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
@@ -813,7 +816,7 @@ private fun ReadOnlyMeasurementItem(
             measurement = measurement,
             customFieldLabels = customFieldLabels,
             position = position,
-            onClick = null,
+            onClick = onClick,
         )
     }
 }

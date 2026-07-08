@@ -106,7 +106,7 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(showAddMeasurementSheet = false) }
                 withCustomerId {
                     viewModelScope.launch {
-                        _events.send(CustomerDetailEvent.NavigateToEditMeasurement(it, action.measurement.id))
+                        _events.send(CustomerDetailEvent.NavigateToViewMeasurement(it, action.measurement.id))
                     }
                 }
             }

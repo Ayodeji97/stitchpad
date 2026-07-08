@@ -239,13 +239,13 @@ class CustomerDetailViewModelTest {
     }
 
     @Test
-    fun onMeasurementClick_emitsNavigateToEditMeasurement_withCorrectIds() = runTest {
+    fun onMeasurementClick_emitsNavigateToViewMeasurement_withCorrectIds() = runTest {
         val vm = createViewModel()
         val measurement = fakeMeasurement(id = "meas-42")
         vm.onAction(CustomerDetailAction.OnMeasurementClick(measurement))
 
         val event = vm.events.first()
-        assertIs<CustomerDetailEvent.NavigateToEditMeasurement>(event)
+        assertIs<CustomerDetailEvent.NavigateToViewMeasurement>(event)
         assertEquals("customer-1", event.customerId)
         assertEquals("meas-42", event.measurementId)
     }

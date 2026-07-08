@@ -40,6 +40,8 @@ import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
 import com.danzucker.stitchpad.feature.gift.presentation.redeem.RedeemGiftRoot
 import com.danzucker.stitchpad.feature.gift.presentation.sharelink.ShareGiftLinkRoot
 import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
+import com.danzucker.stitchpad.feature.measurement.presentation.detail.MeasurementDetailRoot
+import com.danzucker.stitchpad.feature.measurement.presentation.detail.MeasurementDetailSource
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
@@ -72,6 +74,7 @@ import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.FoundersNoteRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.HelpTutorialsRoute
+import com.danzucker.stitchpad.navigation.MeasurementDetailRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
 import com.danzucker.stitchpad.navigation.NotificationsInboxRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
@@ -249,8 +252,14 @@ private fun MainNavGraph(
                 onNavigateToAddMeasurement = { customerId ->
                     navController.navigate(MeasurementFormRoute(customerId = customerId))
                 },
-                onNavigateToEditMeasurement = { customerId, measurementId ->
-                    navController.navigate(MeasurementFormRoute(customerId = customerId, measurementId = measurementId))
+                onNavigateToViewMeasurement = { customerId, measurementId ->
+                    navController.navigate(
+                        MeasurementDetailRoute(
+                            customerId = customerId,
+                            measurementId = measurementId,
+                            source = MeasurementDetailSource.CUSTOMER_DETAIL,
+                        ),
+                    )
                 },
                 onNavigateToStyleGallery = { customerId ->
                     navController.navigate(StyleFoldersRoute(customerId = customerId))
@@ -297,6 +306,17 @@ private fun MainNavGraph(
         composable<MeasurementFormRoute> {
             MeasurementFormRoot(
                 onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+            )
+        }
+        composable<MeasurementDetailRoute> {
+            MeasurementDetailRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToEdit = { customerId, measurementId ->
+                    navController.navigate(
+                        MeasurementFormRoute(customerId = customerId, measurementId = measurementId),
+                    )
+                },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
             )
         }
@@ -399,7 +419,11 @@ private fun MainNavGraph(
                 },
                 onNavigateToViewMeasurement = { customerId, measurementId ->
                     navController.navigate(
-                        MeasurementFormRoute(customerId = customerId, measurementId = measurementId),
+                        MeasurementDetailRoute(
+                            customerId = customerId,
+                            measurementId = measurementId,
+                            source = MeasurementDetailSource.ORDER_DETAIL,
+                        ),
                     )
                 },
                 onNavigateToDuplicateOrder = { sourceOrderId ->
