@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadScheduler
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ImageSharer
+import com.danzucker.stitchpad.core.sharing.IosMeasurementSharer
+import com.danzucker.stitchpad.core.sharing.MeasurementSharer
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.data.IosSsoCredentialProvider
@@ -68,6 +70,7 @@ actual val platformModule: Module = module {
     single { OfflineUploadScheduler() }
     single { OrderReceiptSharer() }
     single { ImageSharer() }
+    single<MeasurementSharer> { IosMeasurementSharer() }
     single { WhatsAppLauncher() }
     single { DialerLauncher() }
     single<PushPermissionController> { IosPushPermissionController() }
