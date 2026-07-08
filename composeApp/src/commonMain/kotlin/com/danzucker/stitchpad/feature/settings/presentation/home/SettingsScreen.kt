@@ -59,7 +59,6 @@ import com.danzucker.stitchpad.feature.settings.presentation.components.Settings
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsSectionCard
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
-import com.danzucker.stitchpad.util.Platform
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -108,6 +107,14 @@ import stitchpad.composeapp.generated.resources.signin_provider_apple
 import stitchpad.composeapp.generated.resources.signin_provider_email
 import stitchpad.composeapp.generated.resources.signin_provider_google
 import stitchpad.composeapp.generated.resources.signin_provider_unknown
+
+// Gifting (buy-a-gift + redeem-a-code) unlocks a paid plan outside the stores'
+// billing, so it stays hidden app-wide while we're not running any payment flow.
+// It was first hidden on iOS only (App Store Guideline 3.1.1 / 3.1.2 — App Review
+// rejected 1.0 for the redeem-code path); now it's off on Android and web too.
+// Flip this back on when payments resume — iOS gifting must then route through
+// Apple Offer Codes, not this flow. The /claim + /redeem deep links stay intact.
+private const val GIFTING_ENABLED = false
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -174,12 +181,9 @@ fun SettingsScreen(
                     onClick = { onAction(SettingsAction.OnInviteClick) },
                     trailing = { SettingsRowChevron() },
                 )
-                // Gifting (buy-a-gift + redeem-a-code) unlocks paid plans OUTSIDE
-                // Apple IAP, which App Store Guideline 3.1.1 / 3.1.2 forbid on iOS
-                // (App Review rejected 1.0 for the redeem-code path). Android keeps
-                // it — gifts there are settled via Paystack/web. If iOS gifting is
-                // ever wanted, it must go through Apple Offer Codes, not this flow.
-                if (!Platform.isIos) {
+                // Gifting entry points are hidden while payments are paused — see
+                // GIFTING_ENABLED at the top of this file.
+                if (GIFTING_ENABLED) {
                     SettingsRow(
                         icon = Icons.Outlined.CardGiftcard,
                         label = stringResource(Res.string.gift_share_settings_row),
