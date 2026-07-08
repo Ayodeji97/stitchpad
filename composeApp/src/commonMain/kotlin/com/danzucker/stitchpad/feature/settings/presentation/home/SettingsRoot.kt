@@ -18,6 +18,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Suppress("CyclomaticComplexMethod")
 @Composable
 fun SettingsRoot(
+    onNavigateBack: () -> Unit,
     onNavigateToEditProfile: () -> Unit,
     onNavigateToChangeEmail: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
@@ -38,6 +39,7 @@ fun SettingsRoot(
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
+            SettingsEvent.NavigateBack -> onNavigateBack()
             SettingsEvent.NavigateToEditProfile -> onNavigateToEditProfile()
             SettingsEvent.NavigateToChangeEmail -> onNavigateToChangeEmail()
             SettingsEvent.NavigateToChangePassword -> onNavigateToChangePassword()

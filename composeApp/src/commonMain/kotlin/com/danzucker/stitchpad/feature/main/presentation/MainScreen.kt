@@ -535,6 +535,7 @@ private fun MainNavGraph(
         }
         composable<SettingsRoute> {
             SettingsRoot(
+                onNavigateBack = { navController.navigateUp() },
                 onNavigateToEditProfile = { navController.navigate(EditProfileRoute) },
                 onNavigateToChangeEmail = { navController.navigate(ChangeEmailRoute) },
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
