@@ -2,13 +2,18 @@ package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitViewController
+import com.danzucker.stitchpad.core.logging.AppLogger
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import platform.AVFoundation.AVPlayer
+import platform.AVFoundation.AVPlayerItemStatusFailed
 import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
 import platform.AVFoundation.addPeriodicTimeObserverForInterval
 import platform.AVFoundation.currentItem
@@ -19,12 +24,17 @@ import platform.AVFoundation.removeTimeObserver
 import platform.AVKit.AVPlayerViewController
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSURL
+import kotlin.coroutines.coroutineContext
+
+private const val TAG = "TutorialVideoPlayer"
+private const val FAILURE_POLL_MS = 500L
 
 /**
  * iOS [TutorialVideoPlayer] backed by [AVPlayerViewController], which provides play/pause,
  * scrubber, mute, fullscreen, and caption controls for free. Plays once with sound. Reports
  * readiness via [onLoadingChanged] (false once the item is ready and playing) so the caller can
- * overlay a branded loading indicator during the first buffer.
+ * overlay a branded loading indicator during the first buffer, and unrecoverable item failures
+ * via [onPlaybackError].
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -32,8 +42,10 @@ actual fun TutorialVideoPlayer(
     uri: String,
     modifier: Modifier,
     onLoadingChanged: (Boolean) -> Unit,
+    onPlaybackError: () -> Unit,
 ) {
     val currentOnLoadingChanged by rememberUpdatedState(onLoadingChanged)
+    val currentOnPlaybackError by rememberUpdatedState(onPlaybackError)
     val playback = remember(uri) {
         TutorialPlayback(uri) { currentOnLoadingChanged(false) }
     }
@@ -41,6 +53,19 @@ actual fun TutorialVideoPlayer(
     DisposableEffect(playback) {
         playback.play()
         onDispose { playback.release() }
+    }
+
+    // The periodic time observer only ticks while time advances, so it can never see a load
+    // failure — poll the item status instead (KVO from Kotlin/Native isn't worth the ceremony).
+    LaunchedEffect(playback) {
+        while (coroutineContext.isActive) {
+            if (playback.hasFailed()) {
+                AppLogger.e(tag = TAG) { "playback failed uri=$uri" }
+                currentOnPlaybackError()
+                break
+            }
+            delay(FAILURE_POLL_MS)
+        }
     }
 
     UIKitViewController(
@@ -75,6 +100,8 @@ private class TutorialPlayback(uri: String, private val onReady: () -> Unit) {
             }
         }
     }
+
+    fun hasFailed(): Boolean = player.currentItem?.status == AVPlayerItemStatusFailed
 
     fun play() = player.play()
 

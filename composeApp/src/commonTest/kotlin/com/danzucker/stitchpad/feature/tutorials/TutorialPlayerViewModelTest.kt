@@ -83,4 +83,28 @@ class TutorialPlayerViewModelTest {
         advanceUntilIdle() // let the catalog-lookup timeout elapse in virtual time
         assertTrue(vm.state.value.hasError)
     }
+
+    @Test
+    fun playback_failure_surfaces_error_and_detaches_player() = runTest {
+        val vm = newVm()
+        runCurrent()
+        vm.onAction(TutorialPlayerAction.OnPlaybackFailed)
+        val state = vm.state.value
+        assertTrue(state.hasError)
+        // The player composable keys off playableUri; it must drop out so the error UI shows.
+        assertNull(state.playableUri)
+        assertFalse(state.isBuffering)
+    }
+
+    @Test
+    fun retry_after_playback_failure_resolves_again() = runTest {
+        val vm = newVm()
+        runCurrent()
+        vm.onAction(TutorialPlayerAction.OnPlaybackFailed)
+        vm.onAction(TutorialPlayerAction.OnRetry)
+        runCurrent()
+        val state = vm.state.value
+        assertFalse(state.hasError)
+        assertEquals("https://cdn/${TutorialTopic.AddCustomer.id}.mp4", state.playableUri)
+    }
 }

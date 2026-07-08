@@ -53,6 +53,7 @@ fun TutorialPlayerScreen(
                     uri = state.playableUri,
                     modifier = Modifier.fillMaxSize(),
                     onLoadingChanged = { onAction(TutorialPlayerAction.OnBufferingChanged(it)) },
+                    onPlaybackError = { onAction(TutorialPlayerAction.OnPlaybackFailed) },
                 )
                 if (state.isBuffering) {
                     LoadingDots(color = Color.White)

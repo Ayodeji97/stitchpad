@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    surface_type is inflation-only (no setter on PlayerView), hence this one-view layout.
+    texture_view instead of the default surface_view: SurfaceView hole-punching inside
+    Compose (nav-transition alpha layers) black-screens on some devices — the tutorial
+    clip's audio plays with no visuals. TextureView composites like a normal view.
+-->
+<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:surface_type="texture_view" />
