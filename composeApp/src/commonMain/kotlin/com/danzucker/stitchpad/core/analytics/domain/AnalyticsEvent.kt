@@ -38,6 +38,11 @@ sealed interface AnalyticsEvent {
         override val name = "measurement_added"
     }
 
+    data class MeasurementDetailViewed(val source: String) : AnalyticsEvent {
+        override val name = "measurement_detail_viewed"
+        override val params = mapOf("source" to source)
+    }
+
     data class OrderStatusAdvanced(val status: String) : AnalyticsEvent {
         override val name = "order_status_advanced"
         override val params = mapOf("status" to status)
