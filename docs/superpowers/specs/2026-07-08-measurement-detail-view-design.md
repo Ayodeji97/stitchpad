@@ -13,7 +13,7 @@ Tester feedback (WhatsApp): *"After saving the measurements… make it easier no
 3. **Row overflow on customer detail is removed** — measurement rows become purely tappable; all manage actions live on the detail screen.
 4. **Locked (over-cap free-tier) customers get the view too** (read-only-visible principle); Edit/Share/Delete gated behind upgrade.
 5. **Post-save:** Save navigates to the detail view (with "Measurement saved" snackbar), not straight back.
-6. **Quick access (single entry point):** Dashboard Quick-access row → customer picker sheet. *(Customer-list tape chips and search sub-results were mocked but cut on 2026-07-08 — ambiguous icon-only affordance, inconsistent rows, and the tape chips would have required a denormalized measurement count + backfill, all to save one tap each. The labeled dashboard entry point answers the discoverability feedback on its own.)*
+6. **Quick access (two entry points):** Dashboard Quick-access row → customer picker sheet; and a **"View measurements" action row in the existing `CustomerActionsSheet`** (the three-dots bottom sheet on customer list rows), placed next to the existing "New measurement" action. *(Customer-list tape chips and search sub-results were mocked but cut on 2026-07-08 — ambiguous icon-only affordance, inconsistent rows, and a denormalized measurement count + backfill requirement, all to save one tap each. Daniel proposed the actions-sheet row as the replacement: labeled, inside a familiar menu, zero row-layout change.)*
 7. **Sharing:** share as image, PDF, or WhatsApp plain text.
 
 ## Architecture
@@ -46,9 +46,12 @@ New feature package: `feature/measurement/presentation/detail/` following MVI + 
 - WhatsApp option uses existing `WhatsAppLauncher` with the customer's `whatsappNumber` when present, else generic share sheet with the text.
 - Share sheet composable mirrors `ShareReceiptBottomSheet` (3 options per mockup).
 
-### Entry point
+### Entry points
 
-- **Dashboard:** second row in existing `QuickAccessSection` (`DashboardScreen.kt`) — icon `Straighten`, "Measurements / Find a customer's numbers fast" → customer-picker `ModalBottomSheet` (search + customer rows with measurement counts; no-measurement rows offer "+ Add"). Picking → detail view if the customer has exactly one measurement, customer detail (measurements section) if more. Counts come from the picker's own on-demand queries when the sheet opens — no denormalized fields, no changes to the customer list or search.
+- **Dashboard:** second row in existing `QuickAccessSection` (`DashboardScreen.kt`) — icon `Straighten`, "Measurements / Find a customer's numbers fast" → customer-picker `ModalBottomSheet` (search + customer rows with measurement counts; no-measurement rows offer "+ Add"). Counts come from the picker's own on-demand queries when the sheet opens — no denormalized fields.
+- **Customer actions sheet:** new "View measurements" `ActionRow` in `CustomerActionsSheet` (`feature/customer/presentation/list/components/`), next to "New measurement". No upfront data needed — resolution happens on tap.
+
+**Shared routing rule** (one helper, used by both): resolve the customer's measurements on selection → exactly 1 → `MeasurementDetailRoute`; >1 → customer detail (measurements section); 0 → customer detail (empty state affords adding).
 
 ### Gating (locked customers)
 
@@ -60,13 +63,13 @@ Existing patterns: repository `Result<T, DataError>`; `toMeasurementUiText()` ma
 
 ## Analytics
 
-`MeasurementDetailViewed` (source: customer_detail | order_detail | post_save | dashboard), `MeasurementShared` (format: image | pdf | whatsapp_text) — added alongside existing `AnalyticsEvent.MeasurementAdded`.
+`MeasurementDetailViewed` (source: customer_detail | order_detail | post_save | dashboard | customer_actions_sheet), `MeasurementShared` (format: image | pdf | whatsapp_text) — added alongside existing `AnalyticsEvent.MeasurementAdded`.
 
 ## Slicing (independently shippable PRs)
 
 1. **PR 1 — core fix:** detail screen + route + rerouted taps + post-save landing + rename/delete relocation + locked-customer view. *(Fixes the tester complaint end-to-end.)*
 2. **PR 2 — sharing:** `MeasurementSharer`, formatter, share sheet, analytics.
-3. **PR 3 — entry point:** dashboard quick-access row + customer picker sheet.
+3. **PR 3 — entry points:** dashboard quick-access row + customer picker sheet; "View measurements" row in `CustomerActionsSheet` (shared routing helper).
 
 ## Testing
 
