@@ -12,10 +12,13 @@ import androidx.compose.ui.Modifier
  * @param uri playable video URI — a remote https URL or a local `file://` path.
  * @param onLoadingChanged reports buffering state — `true` while loading/buffering (no frame
  *   yet), `false` once playback is ready. The caller overlays a loading indicator on `true`.
+ * @param onPlaybackError reports an unrecoverable player failure (decoder init, bad stream).
+ *   The caller swaps to its error + retry UI; without this the surface just stays black.
  */
 @Composable
 expect fun TutorialVideoPlayer(
     uri: String,
     modifier: Modifier = Modifier,
     onLoadingChanged: (Boolean) -> Unit = {},
+    onPlaybackError: () -> Unit = {},
 )

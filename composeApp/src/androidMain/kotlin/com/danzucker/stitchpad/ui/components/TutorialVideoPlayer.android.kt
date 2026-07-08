@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.ui.components
 
+import android.view.LayoutInflater
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -12,24 +13,34 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.danzucker.stitchpad.R
+import com.danzucker.stitchpad.core.logging.AppLogger
+
+private const val TAG = "TutorialVideoPlayer"
+
+private fun String.sourceKind(): String = if (startsWith("file:")) "local" else "remote"
 
 /**
  * Android [TutorialVideoPlayer] backed by Media3 ExoPlayer with the default [PlayerView]
  * controller (play/pause, scrubber, mute, settings) enabled. Plays once with sound. Reports
  * buffering via [onLoadingChanged] so the caller can overlay a branded loading indicator; the
- * PlayerView's own buffering spinner is suppressed to avoid a double indicator.
+ * PlayerView's own buffering spinner is suppressed to avoid a double indicator. Renders to a
+ * TextureView (see tutorial_player_view.xml) and surfaces player errors via [onPlaybackError].
  */
 @Composable
 actual fun TutorialVideoPlayer(
     uri: String,
     modifier: Modifier,
     onLoadingChanged: (Boolean) -> Unit,
+    onPlaybackError: () -> Unit,
 ) {
     val context = LocalContext.current
     val currentOnLoadingChanged by rememberUpdatedState(onLoadingChanged)
+    val currentOnPlaybackError by rememberUpdatedState(onPlaybackError)
     val exoPlayer = remember(uri) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(uri))
@@ -44,6 +55,15 @@ actual fun TutorialVideoPlayer(
                 currentOnLoadingChanged(
                     playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_IDLE,
                 )
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                // Log the source kind, never the uri itself: remote uris are Firebase download
+                // URLs whose token= must not reach Crashlytics (see AppLogger's rules).
+                AppLogger.e(tag = TAG, throwable = error) {
+                    "playback failed code=${error.errorCodeName} src=${uri.sourceKind()}"
+                }
+                currentOnPlaybackError()
             }
         }
         exoPlayer.addListener(listener)
@@ -75,14 +95,19 @@ actual fun TutorialVideoPlayer(
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
+            val playerView = LayoutInflater.from(ctx)
+                .inflate(R.layout.tutorial_player_view, null, false) as PlayerView
+            playerView.apply {
                 useController = true
                 setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 setShowNextButton(false)
                 setShowPreviousButton(false)
             }
         },
+        // Rebind in update, not factory: factory runs once, but a uri change (retry after a
+        // stream error resolves to the cached copy) creates a fresh player — without this the
+        // view keeps rendering the old released player while the new one plays audio unseen.
+        update = { playerView -> playerView.player = exoPlayer },
         onRelease = { playerView -> playerView.player = null },
     )
 }

@@ -45,6 +45,13 @@ class TutorialPlayerViewModel(
             TutorialPlayerAction.OnRetry -> _state.value.tutorial?.let { resolve(it) } ?: load()
             is TutorialPlayerAction.OnBufferingChanged ->
                 _state.update { it.copy(isBuffering = action.isBuffering) }
+            // The platform player hit an unrecoverable error (decoder failure, bad stream).
+            // Drop the uri so the player detaches and the error + retry UI takes over —
+            // otherwise the screen stays on the (black) player surface forever.
+            TutorialPlayerAction.OnPlaybackFailed ->
+                _state.update {
+                    it.copy(playableUri = null, hasError = true, isBuffering = false)
+                }
         }
     }
 
