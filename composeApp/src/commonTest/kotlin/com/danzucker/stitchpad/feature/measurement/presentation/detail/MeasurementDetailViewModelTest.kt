@@ -208,4 +208,48 @@ class MeasurementDetailViewModelTest {
         vm.onAction(MeasurementDetailAction.OnSavedMessageShown)
         assertEquals(false, vm.state.value.showSavedMessage)
     }
+
+    @Test
+    fun `fromSave initial miss waits for the enqueued write instead of navigating back`() = runTest {
+        // The create is applied to the local cache asynchronously (OfflineWriteDispatcher),
+        // so the detail screen's first snapshot can predate the new document.
+        measurementRepository.measurementsList = emptyList()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel(fromSave = true, source = MeasurementDetailSource.POST_SAVE)
+        vm.events.test {
+            expectNoEvents()
+            measurementRepository.measurementsList = listOf(fakeMeasurement())
+            expectNoEvents()
+        }
+        assertEquals("Wedding gown", vm.state.value.measurement?.name)
+    }
+
+    @Test
+    fun `measurement deleted elsewhere after loading navigates back`() = runTest {
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        assertEquals("Wedding gown", vm.state.value.measurement?.name)
+        vm.events.test {
+            measurementRepository.measurementsList = emptyList()
+            assertIs<MeasurementDetailEvent.NavigateBack>(awaitItem())
+        }
+    }
+
+    @Test
+    fun `gated actions no-op while lock state is unknown`() = runTest {
+        // No customer doc emitted (observeCustomer returns NOT_FOUND) — isLocked stays null.
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+        customerRepository.customersList = emptyList()
+        val vm = createViewModel()
+        assertNull(vm.state.value.isLocked)
+        vm.events.test {
+            vm.onAction(MeasurementDetailAction.OnEditClick)
+            vm.onAction(MeasurementDetailAction.OnRenameClick)
+            vm.onAction(MeasurementDetailAction.OnDeleteClick)
+            expectNoEvents()
+        }
+        assertNull(vm.state.value.renameDraft)
+        assertEquals(false, vm.state.value.showDeleteDialog)
+    }
 }

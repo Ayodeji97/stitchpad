@@ -41,6 +41,13 @@ class MeasurementDetailViewModel(
     // the measurement observer doesn't double-fire NavigateBack.
     private var navigatedAway = false
 
+    // True once the observer has delivered the measurement at least once.
+    // Arriving from a save, the create/update is enqueued on the app-lifetime
+    // OfflineWriteDispatcher scope, so the first snapshot can predate the local
+    // cache applying it — an initial miss must be waited out, not read as
+    // "deleted elsewhere".
+    private var hasSeenMeasurement = false
+
     private val _state = MutableStateFlow(MeasurementDetailState(showSavedMessage = fromSave))
     private val _events = Channel<MeasurementDetailEvent>()
     val events = _events.receiveAsFlow()
@@ -103,12 +110,17 @@ class MeasurementDetailViewModel(
         _state.update { it.copy(showDeleteDialog = true) }
     }
 
-    /** Gated actions on a locked (over-cap) customer route to the upgrade screen instead. */
+    /**
+     * Gated actions on a locked (over-cap) customer route to the upgrade screen
+     * instead. While the lock state is still unknown (customer doc not yet
+     * emitted) taps are ignored — failing closed beats briefly letting a locked
+     * customer into the edit path or wrongly bouncing an active one to Upgrade.
+     */
     private inline fun requireUnlocked(block: () -> Unit) {
-        if (_state.value.isLocked) {
-            viewModelScope.launch { _events.send(MeasurementDetailEvent.NavigateToUpgrade) }
-        } else {
-            block()
+        when (_state.value.isLocked) {
+            null -> Unit
+            true -> viewModelScope.launch { _events.send(MeasurementDetailEvent.NavigateToUpgrade) }
+            false -> block()
         }
     }
 
@@ -119,12 +131,18 @@ class MeasurementDetailViewModel(
                 when (result) {
                     is Result.Success -> {
                         val measurement = result.data.find { it.id == measurementId }
-                        if (measurement != null) {
-                            _state.update { it.copy(measurement = measurement, isLoading = false) }
-                        } else if (!navigatedAway) {
-                            // Deleted elsewhere (another device / another screen) — leave.
-                            navigatedAway = true
-                            _events.send(MeasurementDetailEvent.NavigateBack)
+                        when {
+                            measurement != null -> {
+                                hasSeenMeasurement = true
+                                _state.update { it.copy(measurement = measurement, isLoading = false) }
+                            }
+                            !navigatedAway && (hasSeenMeasurement || !fromSave) -> {
+                                // Deleted elsewhere (another device / another screen) — leave.
+                                navigatedAway = true
+                                _events.send(MeasurementDetailEvent.NavigateBack)
+                            }
+                            // else: fromSave and never seen — the enqueued write hasn't
+                            // reached the local cache yet; wait for the next snapshot.
                         }
                     }
                     is Result.Error -> _state.update {
@@ -191,10 +209,18 @@ class MeasurementDetailViewModel(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             navigatedAway = true
-            // Fire-and-forget: GitLive deletes suspend until server ACK, but the
-            // local cache applies the mutation immediately — enqueue and leave.
-            // Customer detail's observer drops the row at once.
-            launch { measurementRepository.deleteMeasurement(userId, customerId, measurement.id) }
+            // deleteMeasurement only schedules the write on the app-lifetime
+            // OfflineWriteDispatcher scope and returns — it never awaits the
+            // server ACK. Awaiting it here is therefore offline-safe AND
+            // guarantees the delete is enqueued before navigation clears this
+            // ViewModel's scope.
+            val result = measurementRepository.deleteMeasurement(userId, customerId, measurement.id)
+            if (result is Result.Error) {
+                // Scheduling itself failed — nothing was enqueued; stay on screen.
+                navigatedAway = false
+                _state.update { it.copy(errorMessage = result.error.toMeasurementUiText()) }
+                return@launch
+            }
             _events.send(MeasurementDetailEvent.NavigateBack)
         }
     }
