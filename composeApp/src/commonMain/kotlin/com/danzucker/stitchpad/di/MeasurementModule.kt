@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.feature.measurement.data.FirebaseCustomMeasurementFieldRepository
 import com.danzucker.stitchpad.feature.measurement.data.FirebaseMeasurementRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.detail.MeasurementDetailViewModel
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormViewModel
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
@@ -18,6 +19,7 @@ val measurementDataModule = module {
 }
 
 val measurementPresentationModule = module {
+    singleOf(::MeasurementEntryResolver)
     viewModelOf(::MeasurementFormViewModel)
     // Explicit `viewModel { ... }` factory rather than viewModelOf(::MeasurementDetailViewModel)
     // because the VM takes a defaulted shareLabelsResolver param — viewModelOf can't skip

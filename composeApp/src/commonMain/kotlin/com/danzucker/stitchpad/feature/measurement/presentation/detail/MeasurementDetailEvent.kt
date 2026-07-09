@@ -16,4 +16,6 @@ object MeasurementDetailSource {
     const val CUSTOMER_DETAIL = "customer_detail"
     const val ORDER_DETAIL = "order_detail"
     const val POST_SAVE = "post_save"
+    const val DASHBOARD = "dashboard"
+    const val CUSTOMER_ACTIONS_SHEET = "customer_actions_sheet"
 }
