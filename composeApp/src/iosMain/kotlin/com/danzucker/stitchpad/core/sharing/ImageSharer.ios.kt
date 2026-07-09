@@ -20,18 +20,18 @@ import platform.UIKit.popoverPresentationController
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 actual class ImageSharer {
 
-    actual suspend fun shareImage(bytes: ByteArray, caption: String?) {
-        if (bytes.isEmpty()) return
+    actual suspend fun shareImage(bytes: ByteArray, caption: String?): Boolean {
+        if (bytes.isEmpty()) return false
         // Let any dismissing Compose ModalBottomSheet finish before presenting a
         // UIKit modal — UIKit silently refuses to present mid-transition.
         delay(SHARE_PRESENT_DELAY_MS)
-        withContext(Dispatchers.Main) {
-            val image = UIImage.imageWithData(bytes.toNSData()) ?: return@withContext
+        return withContext(Dispatchers.Main) {
+            val image = UIImage.imageWithData(bytes.toNSData()) ?: return@withContext false
             val items: List<Any> = buildList {
                 add(image)
                 if (!caption.isNullOrBlank()) add(caption)
             }
-            val rootVC = activeKeyWindow()?.rootViewController ?: return@withContext
+            val rootVC = activeKeyWindow()?.rootViewController ?: return@withContext false
             val presenter = topmostPresenter(rootVC)
             val activityVC = UIActivityViewController(activityItems = items, applicationActivities = null)
             // iPad: a popover source is required or the sheet fails to present.
@@ -47,6 +47,7 @@ actual class ImageSharer {
                 }
             }
             presenter.presentViewController(activityVC, animated = true, completion = null)
+            true
         }
     }
 

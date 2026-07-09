@@ -53,7 +53,7 @@ class ShareStyleTest {
         val fake = FakeSharer()
         val shareStyle = ShareStyle(
             loader = { model -> if (model == "/local/s1.jpg") byteArrayOf(1, 2, 3) else null },
-            share = { bytes, caption -> fake.callCount++; fake.sharedBytes = bytes; fake.sharedCaption = caption },
+            share = { bytes, caption -> fake.callCount++; fake.sharedBytes = bytes; fake.sharedCaption = caption; true },
             entitlements = entitlements(SubscriptionTier.FREE),
         )
 
@@ -69,7 +69,7 @@ class ShareStyleTest {
         var seenModel: String? = null
         val shareStyle = ShareStyle(
             loader = { model -> seenModel = model; byteArrayOf(9) },
-            share = { _, _ -> },
+            share = { _, _ -> true },
             entitlements = entitlements(SubscriptionTier.PRO),
         )
 
@@ -79,11 +79,28 @@ class ShareStyleTest {
     }
 
     @Test
+    fun returns_error_when_share_sheet_not_presented() = runTest {
+        // Bytes load fine, but the platform sharer can't present the sheet
+        // (e.g. iOS empty/undecodable image or no key window) → share returns
+        // false → ShareStyle must report Error so the ViewModel shows a snackbar.
+        val shareStyle = ShareStyle(
+            loader = { byteArrayOf(1, 2, 3) },
+            share = { _, _ -> false },
+            entitlements = entitlements(SubscriptionTier.FREE),
+        )
+
+        val result = shareStyle(style)
+
+        assertTrue(result is Result.Error)
+        assertEquals(DataError.Local.UNKNOWN, result.error)
+    }
+
+    @Test
     fun returns_error_and_does_not_share_when_bytes_null() = runTest {
         val fake = FakeSharer()
         val shareStyle = ShareStyle(
             loader = { null },
-            share = { bytes, caption -> fake.callCount++; fake.sharedBytes = bytes; fake.sharedCaption = caption },
+            share = { bytes, caption -> fake.callCount++; fake.sharedBytes = bytes; fake.sharedCaption = caption; true },
             entitlements = entitlements(SubscriptionTier.FREE),
         )
 

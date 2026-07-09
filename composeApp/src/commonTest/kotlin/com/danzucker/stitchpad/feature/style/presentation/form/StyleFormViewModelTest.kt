@@ -95,7 +95,7 @@ class StyleFormViewModelTest {
         shareStyle: ShareStyle = ShareStyle(
             loader = { null },
             entitlements = fakeEntitlements,
-            share = { _, _ -> },
+            share = { _, _ -> true },
         ),
     ): StyleFormViewModel {
         val args = buildMap {
@@ -247,7 +247,7 @@ class StyleFormViewModelTest {
             shareStyle = ShareStyle(
                 loader = { null },
                 entitlements = fakeEntitlements,
-                share = { _, _ -> },
+                share = { _, _ -> true },
             ),
             imageCompressor = FakeImageCompressor(),
         )
@@ -619,7 +619,7 @@ class StyleFormViewModelTest {
         val shareStyle = ShareStyle(
             loader = { byteArrayOf(1) },
             entitlements = FakeEntitlementsProvider(),
-            share = { _, _ -> shared = true },
+            share = { _, _ -> shared = true; true },
         )
         val vm = createViewModel(styleId = "style-7", shareStyle = shareStyle)
         assertNotNull(vm.state.value.existingStyle, "style must be loaded before sharing")
@@ -637,7 +637,7 @@ class StyleFormViewModelTest {
         val shareStyle = ShareStyle(
             loader = { byteArrayOf(1) },
             entitlements = FakeEntitlementsProvider(),
-            share = { _, _ -> shared = true },
+            share = { _, _ -> shared = true; true },
         )
         val vm = createViewModel(shareStyle = shareStyle)
 
@@ -653,7 +653,23 @@ class StyleFormViewModelTest {
         val shareStyle = ShareStyle(
             loader = { null },
             entitlements = FakeEntitlementsProvider(),
-            share = { _, _ -> },
+            share = { _, _ -> true },
+        )
+        val vm = createViewModel(styleId = "style-7", shareStyle = shareStyle)
+
+        vm.onAction(StyleFormAction.OnShareClick)
+
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun onShareClick_sheetNotPresented_setsErrorMessage() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "style-7", description = "Existing style"))
+        val shareStyle = ShareStyle(
+            loader = { byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> false },
         )
         val vm = createViewModel(styleId = "style-7", shareStyle = shareStyle)
 

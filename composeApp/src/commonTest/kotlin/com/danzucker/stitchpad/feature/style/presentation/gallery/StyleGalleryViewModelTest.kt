@@ -89,7 +89,7 @@ class StyleGalleryViewModelTest {
     ) = ShareStyle(
         loader = { byteArrayOf(1) },
         entitlements = entitlements,
-        share = { _, _ -> },
+        share = { _, _ -> true },
     )
 
     private fun TestScope.createViewModel(
@@ -607,7 +607,7 @@ class StyleGalleryViewModelTest {
         val recordingShare = ShareStyle(
             loader = { byteArrayOf(1) },
             entitlements = FakeEntitlementsProvider(),
-            share = { _, caption -> sharedCaption = caption },
+            share = { _, caption -> sharedCaption = caption; true },
         )
         val vm = createViewModel(shareStyle = recordingShare)
         val style = fakeStyle(id = "s1")
@@ -621,11 +621,29 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
-    fun onShareClick_whenShareFails_setsErrorMessage() = runTest {
+    fun onShareClick_whenBytesUnavailable_setsErrorMessage() = runTest {
         val failingShare = ShareStyle(
             loader = { null },
             entitlements = FakeEntitlementsProvider(),
-            share = { _, _ -> },
+            share = { _, _ -> true },
+        )
+        val vm = createViewModel(shareStyle = failingShare)
+        val style = fakeStyle(id = "s1")
+
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(style))
+        vm.onAction(StyleGalleryAction.OnShareClick(style))
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.actionSheetStyle)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun onShareClick_whenSheetNotPresented_setsErrorMessage() = runTest {
+        val failingShare = ShareStyle(
+            loader = { byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> false },
         )
         val vm = createViewModel(shareStyle = failingShare)
         val style = fakeStyle(id = "s1")
