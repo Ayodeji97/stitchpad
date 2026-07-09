@@ -117,6 +117,7 @@ fun CustomerListRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
+    onNavigateToMeasurementDetail: (String, String) -> Unit,
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToTutorial: (String) -> Unit,
 ) {
@@ -132,6 +133,8 @@ fun CustomerListRoot(
             is CustomerListEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
             is CustomerListEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
             is CustomerListEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
+            is CustomerListEvent.NavigateToMeasurementDetail ->
+                onNavigateToMeasurementDetail(event.customerId, event.measurementId)
             is CustomerListEvent.NavigateToOrderForm -> onNavigateToOrderForm(event.customerId)
             is CustomerListEvent.SwapSucceeded -> scope.launch {
                 snackbarHostState.showSnackbar(
@@ -333,6 +336,7 @@ fun CustomerListScreen(
                 onView = { id -> onAction(CustomerListAction.OnViewCustomerFromSheet(id)) },
                 onMessageWhatsApp = { c -> onAction(CustomerListAction.OnMessageWhatsApp(c)) },
                 onEdit = { id -> onAction(CustomerListAction.OnEditCustomerFromRow(id)) },
+                onViewMeasurements = { id -> onAction(CustomerListAction.OnViewMeasurementsFromRow(id)) },
                 onNewMeasurement = { id -> onAction(CustomerListAction.OnAddMeasurementFromRow(id)) },
                 onNewOrder = { id -> onAction(CustomerListAction.OnNewOrderFromRow(id)) },
                 onDelete = { c -> onAction(CustomerListAction.OnDeleteCustomerClick(c)) },

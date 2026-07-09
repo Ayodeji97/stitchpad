@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -46,6 +47,7 @@ import stitchpad.composeapp.generated.resources.customer_actions_edit
 import stitchpad.composeapp.generated.resources.customer_actions_message_whatsapp
 import stitchpad.composeapp.generated.resources.customer_actions_new_measurement
 import stitchpad.composeapp.generated.resources.customer_actions_new_order
+import stitchpad.composeapp.generated.resources.customer_actions_view_measurements
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +56,7 @@ fun CustomerActionsSheet(
     onView: (String) -> Unit,
     onMessageWhatsApp: (Customer) -> Unit,
     onEdit: (String) -> Unit,
+    onViewMeasurements: (String) -> Unit,
     onNewMeasurement: (String) -> Unit,
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
@@ -68,6 +71,7 @@ fun CustomerActionsSheet(
             onView = onView,
             onMessageWhatsApp = onMessageWhatsApp,
             onEdit = onEdit,
+            onViewMeasurements = onViewMeasurements,
             onNewMeasurement = onNewMeasurement,
             onNewOrder = onNewOrder,
             onDelete = onDelete,
@@ -85,6 +89,7 @@ private fun CustomerActionsSheetContent(
     onView: (String) -> Unit,
     onMessageWhatsApp: (Customer) -> Unit,
     onEdit: (String) -> Unit,
+    onViewMeasurements: (String) -> Unit,
     onNewMeasurement: (String) -> Unit,
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
@@ -116,6 +121,11 @@ private fun CustomerActionsSheetContent(
             icon = Icons.Default.Edit,
             label = stringResource(Res.string.customer_actions_edit),
             onClick = { onEdit(customer.id) },
+        )
+        ActionRow(
+            icon = Icons.Default.Visibility,
+            label = stringResource(Res.string.customer_actions_view_measurements),
+            onClick = { onViewMeasurements(customer.id) },
         )
         ActionRow(
             icon = Icons.Default.Straighten,
@@ -232,6 +242,7 @@ private fun CustomerActionsSheetContentPreview() {
             onView = {},
             onMessageWhatsApp = {},
             onEdit = {},
+            onViewMeasurements = {},
             onNewMeasurement = {},
             onNewOrder = {},
             onDelete = {},

@@ -13,6 +13,8 @@ import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +36,7 @@ class CustomerListViewModel(
     private val orderRepository: OrderRepository,
     private val authRepository: AuthRepository,
     private val freemiumRepository: FreemiumRepository,
+    private val measurementEntryResolver: MeasurementEntryResolver,
 ) : ViewModel() {
 
     /** Cached count of non-delivered orders per customer id, maintained by [observeOrders]. */
@@ -152,6 +155,7 @@ class CustomerListViewModel(
             is CustomerListAction.OnAddMeasurementFromRow -> {
                 navigateFromSheet { CustomerListEvent.NavigateToAddMeasurement(action.customerId) }
             }
+            is CustomerListAction.OnViewMeasurementsFromRow -> viewMeasurementsFromSheet(action.customerId)
             is CustomerListAction.OnNewOrderFromRow -> {
                 navigateFromSheet { CustomerListEvent.NavigateToOrderForm(action.customerId) }
             }
@@ -303,6 +307,27 @@ class CustomerListViewModel(
         viewModelScope.launch {
             delay(SHEET_DISMISS_DELAY_MS)
             _events.send(event())
+        }
+    }
+
+    /**
+     * "View measurements" from the actions sheet: resolve during the dismiss
+     * animation (exactly one measurement -> its detail; zero or several ->
+     * customer detail), then honor the same 450ms dismiss-delay contract as
+     * [navigateFromSheet] before emitting.
+     */
+    private fun viewMeasurementsFromSheet(customerId: String) {
+        _state.update { it.copy(actionsSheetForId = null) }
+        viewModelScope.launch {
+            val destination = measurementEntryResolver.resolve(customerId)
+            delay(SHEET_DISMISS_DELAY_MS)
+            val event = when (destination) {
+                is MeasurementEntryDestination.Detail ->
+                    CustomerListEvent.NavigateToMeasurementDetail(destination.customerId, destination.measurementId)
+                is MeasurementEntryDestination.CustomerDetail ->
+                    CustomerListEvent.NavigateToCustomerDetail(destination.customerId)
+            }
+            _events.send(event)
         }
     }
 }

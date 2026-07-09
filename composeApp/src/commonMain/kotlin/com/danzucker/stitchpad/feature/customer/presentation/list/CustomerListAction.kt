@@ -29,6 +29,13 @@ sealed interface CustomerListAction {
     /** Tapped "New measurement" in the actions sheet. Routes directly to the measurement form. */
     data class OnAddMeasurementFromRow(val customerId: String) : CustomerListAction
 
+    /**
+     * Tapped "View measurements" in the actions sheet. Resolves via
+     * [com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver] —
+     * exactly one measurement opens it directly, otherwise lands on customer detail.
+     */
+    data class OnViewMeasurementsFromRow(val customerId: String) : CustomerListAction
+
     /** Tapped "New order" in the actions sheet. Routes to the order form with customer pre-selected. */
     data class OnNewOrderFromRow(val customerId: String) : CustomerListAction
 

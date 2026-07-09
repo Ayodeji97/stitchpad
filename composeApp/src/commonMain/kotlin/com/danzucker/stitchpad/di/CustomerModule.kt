@@ -23,6 +23,7 @@ val customerPresentationModule = module {
             orderRepository = get(),
             authRepository = get(),
             freemiumRepository = get<FreemiumRepository>(),
+            measurementEntryResolver = get(),
         )
     }
     viewModelOf(::CustomerFormViewModel)

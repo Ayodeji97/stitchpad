@@ -213,6 +213,7 @@
     <string name="customer_detail_call_chip">Call</string>
     <!-- Shown when the dialer can't be opened from the customer detail screen -->
     <string name="dialer_launch_failed">Couldn&apos;t open the dialer.</string>
+    <string name="customer_actions_view_measurements">View measurements</string>
     <string name="customer_actions_new_measurement">New measurement</string>
     <string name="customer_actions_new_order">New order</string>
     <string name="customer_actions_delete">Delete</string>
