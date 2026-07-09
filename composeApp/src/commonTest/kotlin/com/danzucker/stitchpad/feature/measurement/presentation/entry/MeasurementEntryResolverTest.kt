@@ -2,11 +2,16 @@ package com.danzucker.stitchpad.feature.measurement.presentation.entry
 
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -82,6 +87,23 @@ class MeasurementEntryResolverTest {
         assertEquals(
             MeasurementEntryDestination.CustomerDetail("customer-1"),
             resolver.resolve("customer-1"),
+        )
+    }
+
+    @Test
+    fun `first snapshot never arriving times out to customer detail`() = runTest {
+        // Cold cache + no network: the Firestore flow can stay pending forever.
+        // runTest's virtual clock fires the resolver's 3s timeout instantly.
+        val neverEmitting = object : MeasurementRepository by measurementRepository {
+            override fun observeMeasurements(
+                userId: String,
+                customerId: String,
+            ): Flow<Result<List<Measurement>, DataError.Network>> = flow { awaitCancellation() }
+        }
+        val hangingResolver = MeasurementEntryResolver(neverEmitting, authRepository)
+        assertEquals(
+            MeasurementEntryDestination.CustomerDetail("customer-1"),
+            hangingResolver.resolve("customer-1"),
         )
     }
 }
