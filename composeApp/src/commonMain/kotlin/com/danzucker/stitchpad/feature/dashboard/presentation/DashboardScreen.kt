@@ -125,6 +125,7 @@ import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_inspiration_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_measurements_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_customer_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_order_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
@@ -600,6 +601,8 @@ fun DashboardScreen(
     val orderCd = stringResource(Res.string.dashboard_fab_new_order_cd)
     val inspirationLabel = stringResource(Res.string.dashboard_quick_action_inspiration)
     val inspirationCd = stringResource(Res.string.dashboard_fab_inspiration_cd)
+    val measurementsLabel = stringResource(Res.string.dashboard_measurements_card_title)
+    val measurementsCd = stringResource(Res.string.dashboard_fab_measurements_cd)
     val speedDialActions = listOf(
         SpeedDialAction(
             label = customerLabel,
@@ -626,6 +629,17 @@ fun DashboardScreen(
             onClick = {
                 collapseFab()
                 onAction(DashboardAction.OnInspirationClick)
+            },
+        ),
+        // Dual placement with the bottom Quick access row, same as Inspiration:
+        // the dial is the zero-scroll path, the section is the discoverable one.
+        SpeedDialAction(
+            label = measurementsLabel,
+            icon = Icons.Default.Straighten,
+            contentDescription = measurementsCd,
+            onClick = {
+                collapseFab()
+                onAction(DashboardAction.OnMeasurementsShortcutClick)
             },
         ),
     )

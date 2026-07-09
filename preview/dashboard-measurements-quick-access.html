@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StitchPad — Always-reachable Measurements on the Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet" />
+<style>
+:root{
+  --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo200:#9CB0DD; --indigo400:#5871B8; --indigo500:#2C3E7C; --indigo700:#1E2B5C; --indigo900:#121B3B;
+  --sienna500:#B85A30; --sienna300:#D9885F;
+  --paper:#FAF6EC; --white:#FFFFFF;
+  --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0; --n400:#A8A49D;
+  --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320; --n900:#14110E;
+  --suc:#2D9E6B;
+  --serif:'Fraunces',Georgia,serif; --body:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+body{background:#EDEAE0;font-family:var(--body);color:var(--n800);padding:40px 28px 90px;}
+.page-head{max-width:1400px;margin:0 auto 30px;}
+.page-head h1{font-family:var(--serif);font-weight:600;font-size:30px;color:var(--indigo900);letter-spacing:-.3px;}
+.page-head p{color:var(--n600);font-size:15px;margin-top:8px;max-width:900px;line-height:1.6;}
+.page-head p b{color:var(--n800);}
+.rowhead{max-width:1400px;margin:40px auto 14px;font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--n500);text-transform:uppercase;}
+.grid{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1400px;margin:0 auto;}
+.col{width:392px;}
+.col-tag{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+.col-tag b{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--indigo700);}
+.col-tag .k{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--n400);text-transform:uppercase;}
+.col-desc{font-size:12.5px;color:var(--n600);line-height:1.5;margin-bottom:14px;min-height:72px;}
+.col-desc em{color:var(--sienna500);font-style:normal;font-weight:700;}
+.ms{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;line-height:1;display:inline-block;}
+.ms.fill{font-variation-settings:'FILL' 1;}
+
+.phone{width:392px;border-radius:42px;background:#0f0e0d;padding:11px;box-shadow:0 28px 60px -24px rgba(18,17,16,.45),0 4px 14px rgba(18,17,16,.12);}
+.screen{border-radius:32px;overflow:hidden;height:850px;display:flex;flex-direction:column;position:relative;}
+.statusbar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13.5px;font-weight:700;flex:0 0 auto;}
+.statusbar .r{display:flex;gap:5px;} .statusbar .r .ms{font-size:16px;}
+.appbar{padding:4px 16px 8px;display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+.appbar .tcol{flex:1;min-width:0;}
+.appbar .ttl{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.appbar .sub{font-size:11.5px;font-weight:600;margin-top:1px;}
+.iconbtn{width:38px;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;position:relative;}
+.iconbtn .ms{font-size:22px;}
+.av{width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex:0 0 auto;}
+.body{flex:1;overflow:hidden;padding:4px 16px 12px;position:relative;}
+.card{border-radius:16px;padding:14px 15px;margin-bottom:12px;}
+.cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.cardhead .h{font-size:13.5px;font-weight:800;}
+.cardhead .more{font-size:11.5px;font-weight:700;}
+.goalbar{height:8px;border-radius:99px;overflow:hidden;margin-top:8px;}
+.goalbar i{display:block;height:100%;border-radius:99px;background:var(--suc);}
+.pipe{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.pipe+.pipe{border-top:1px solid var(--rowline);}
+.pipe .pn{font-size:13px;font-weight:700;flex:1;}
+.pipe .pd{font-size:11px;font-weight:700;}
+.nba{display:flex;gap:10px;align-items:center;}
+.nba .nic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.nba .nic .ms{font-size:20px;}
+.nba .nt{font-size:13px;font-weight:700;line-height:1.3;}
+.nba .nsub{font-size:11.5px;font-weight:600;margin-top:1px;}
+.fade{position:absolute;left:0;right:0;bottom:0;height:60px;pointer-events:none;}
+.navbar{flex:0 0 auto;display:flex;padding:8px 8px 20px;border-top:1px solid var(--rowline);}
+.nav{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:700;}
+.nav .ms{font-size:23px;}
+.nav .pill{padding:3px 16px;border-radius:99px;display:flex;}
+.newoutline{outline:2px dashed var(--sienna500);outline-offset:3px;}
+.newchip{position:absolute;top:-10px;right:-6px;background:var(--sienna500);color:#fff;font-size:9px;font-weight:800;letter-spacing:.1em;padding:3px 8px;border-radius:99px;z-index:9;}
+
+/* speed dial */
+.scrim{position:absolute;inset:0;background:rgba(10,9,8,.42);z-index:5;}
+.dial{position:absolute;right:18px;bottom:86px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:12px;}
+.dialrow{display:flex;align-items:center;gap:10px;position:relative;}
+.diallabel{font-size:13px;font-weight:800;padding:8px 14px;border-radius:12px;box-shadow:0 6px 18px -6px rgba(18,17,16,.35);}
+.minifab{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px -6px rgba(30,43,92,.5);}
+.minifab .ms{font-size:22px;}
+.mainfab{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -8px rgba(30,43,92,.55);margin-top:2px;}
+.mainfab .ms{font-size:26px;color:#fff;}
+.fabsolo{position:absolute;right:18px;bottom:86px;z-index:4;}
+
+/* chips strip */
+.chipstrip{display:flex;gap:8px;padding:2px 16px 10px;flex:0 0 auto;}
+.qchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:8px 13px;border-radius:999px;position:relative;}
+.qchip .ms{font-size:16px;}
+
+.note{max-width:1400px;margin:34px auto 0;background:var(--white);border:1px solid var(--n200);border-radius:14px;padding:20px 24px;font-size:13.5px;color:var(--n700);line-height:1.7;}
+.note b{color:var(--indigo700);}
+.note ul{margin:8px 0 0 20px;}
+.note li{margin-bottom:6px;}
+
+/* themes */
+.lt{--rowline:var(--n100);}
+.lt .screen{background:var(--paper);color:var(--n800);}
+.lt .statusbar,.lt .appbar .ttl{color:var(--n900);}
+.lt .appbar .sub{color:var(--n500);}
+.lt .iconbtn{color:var(--n700);}
+.lt .card{background:var(--white);border:1px solid var(--n200);box-shadow:0 1px 2px rgba(18,17,16,.04);}
+.lt .cardhead .h{color:var(--n800);} .lt .cardhead .more{color:var(--indigo500);}
+.lt .goalbar{background:var(--n100);}
+.lt .pipe .pn{color:var(--n800);} .lt .pipe .pd{color:var(--n500);}
+.lt .nba .nic{background:var(--indigo50);color:var(--indigo500);}
+.lt .nba .nt{color:var(--n800);} .lt .nba .nsub{color:var(--n500);}
+.lt .navbar{background:var(--paper);}
+.lt .nav{color:var(--n500);} .lt .nav.on{color:var(--indigo500);}
+.lt .nav.on .pill{background:var(--indigo50);}
+.lt .diallabel{background:var(--white);color:var(--n800);}
+.lt .minifab{background:var(--white);color:var(--indigo500);border:1px solid var(--indigo100);}
+.lt .mainfab{background:var(--indigo500);}
+.lt .chipstrip .qchip{background:var(--white);border:1px solid var(--n200);color:var(--indigo700);}
+.lt .fade{background:linear-gradient(180deg,rgba(250,246,236,0),var(--paper));}
+
+.dk{--rowline:var(--n700);}
+.dk .screen{background:var(--n900);color:var(--n100);}
+.dk .statusbar,.dk .appbar .ttl{color:var(--n50);}
+.dk .appbar .sub{color:var(--n400);}
+.dk .iconbtn{color:var(--n300);}
+.dk .card{background:var(--n800);border:1px solid var(--n700);}
+.dk .cardhead .h{color:var(--n100);} .dk .cardhead .more{color:var(--indigo200);}
+.dk .goalbar{background:var(--n700);}
+.dk .pipe .pn{color:var(--n100);} .dk .pipe .pd{color:var(--n400);}
+.dk .nba .nic{background:var(--indigo900);color:var(--indigo200);}
+.dk .nba .nt{color:var(--n100);} .dk .nba .nsub{color:var(--n400);}
+.dk .navbar{background:var(--n900);}
+.dk .nav{color:var(--n500);} .dk .nav.on{color:var(--indigo200);}
+.dk .nav.on .pill{background:var(--indigo900);}
+.dk .diallabel{background:var(--n800);color:var(--n100);border:1px solid var(--n700);}
+.dk .minifab{background:var(--n800);color:var(--indigo200);border:1px solid var(--indigo700);}
+.dk .mainfab{background:var(--indigo400);}
+.dk .chipstrip .qchip{background:var(--n800);border:1px solid var(--n700);color:var(--indigo200);}
+.dk .fade{background:linear-gradient(180deg,rgba(20,17,14,0),var(--n900));}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Always-reachable Measurements on the Dashboard</h1>
+  <p><b>Problem:</b> the Quick access section (with the new Measurements row) sits at the bottom of the dashboard scroll — deliberately below the revenue cards, but that means a scroll to reach it. <b>Three options</b> for zero-scroll access, shown on a populated dashboard. The dashboard already has a floating speed-dial (New customer · New order · Inspiration) — option A extends it.</p>
+</div>
+
+<div class="rowhead">Light</div>
+<div class="grid">
+
+  <!-- A: speed dial -->
+  <div class="col">
+    <div class="col-tag"><b>A — Speed-dial action</b><span class="k">Recommended</span></div>
+    <div class="col-desc">The existing floating dial gains a <em>labeled</em> "Measurements" action → opens the picker sheet. Always floating, zero layout change, same pattern users already know. Inspiration already lives in BOTH the dial and the bottom Quick access — Measurements gets the same dual placement.</div>
+    <div class="phone lt"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar">
+        <div class="tcol"><div class="ttl">Good afternoon, Daniel</div><div class="sub">Tue 9 Jul</div></div>
+        <div class="iconbtn"><span class="ms">collections_bookmark</span></div>
+        <div class="iconbtn"><span class="ms">notifications</span></div>
+        <div class="av" style="background:var(--indigo500);">D</div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="cardhead"><span class="h">Weekly goal</span><span class="more">Edit</span></div>
+          <div style="font-size:12.5px;color:var(--n500);font-weight:600;">₦68,000 of ₦100,000 collected</div>
+          <div class="goalbar"><i style="width:68%"></i></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Next best actions</span><span class="more">View all</span></div>
+          <div class="nba"><div class="nic"><span class="ms">payments</span></div><div><div class="nt">Collect ₦15,000 from Mrs Adebayo</div><div class="nsub">Aso-ebi delivered 3 days ago</div></div></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Work pipeline</span><span class="more">View all</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--sienna500);">content_cut</span><span class="pn">Mrs Adebayo — Aso-ebi</span><span class="pd">Due Fri</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--indigo400);">checkroom</span><span class="pn">Tunde — Kaftan</span><span class="pd">Fitting</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="dial">
+        <div class="dialrow"><span class="diallabel">New customer</span><div class="minifab"><span class="ms">person</span></div></div>
+        <div class="dialrow"><span class="diallabel">New order</span><div class="minifab"><span class="ms">add</span></div></div>
+        <div class="dialrow"><span class="diallabel">Inspiration</span><div class="minifab"><span class="ms">collections_bookmark</span></div></div>
+        <div class="dialrow newoutline"><span class="newchip">NEW</span><span class="diallabel">Measurements</span><div class="minifab"><span class="ms">straighten</span></div></div>
+        <div class="mainfab"><span class="ms">close</span></div>
+      </div>
+      <div class="navbar">
+        <div class="nav on"><span class="pill"><span class="ms fill">dashboard</span></span>Dashboard</div>
+        <div class="nav"><span class="pill"><span class="ms">group</span></span>Customers</div>
+        <div class="nav"><span class="pill"><span class="ms">shopping_bag</span></span>Orders</div>
+        <div class="nav"><span class="pill"><span class="ms">bar_chart</span></span>Reports</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- B: pinned chips -->
+  <div class="col">
+    <div class="col-tag"><b>B — Pinned chips strip</b></div>
+    <div class="col-desc">A slim always-visible chip row under the header. Zero taps to SEE it — but it spends ~44px of vertical space on every dashboard state forever, pushing the revenue cards down. <em>Competes with the revenue-first ordering</em> the dashboard was designed around.</div>
+    <div class="phone lt"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar">
+        <div class="tcol"><div class="ttl">Good afternoon, Daniel</div><div class="sub">Tue 9 Jul</div></div>
+        <div class="iconbtn"><span class="ms">notifications</span></div>
+        <div class="av" style="background:var(--indigo500);">D</div>
+      </div>
+      <div class="chipstrip">
+        <span class="qchip"><span class="ms">collections_bookmark</span>Inspiration</span>
+        <span class="qchip newoutline"><span class="newchip">NEW</span><span class="ms">straighten</span>Measurements</span>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="cardhead"><span class="h">Weekly goal</span><span class="more">Edit</span></div>
+          <div style="font-size:12.5px;color:var(--n500);font-weight:600;">₦68,000 of ₦100,000 collected</div>
+          <div class="goalbar"><i style="width:68%"></i></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Next best actions</span><span class="more">View all</span></div>
+          <div class="nba"><div class="nic"><span class="ms">payments</span></div><div><div class="nt">Collect ₦15,000 from Mrs Adebayo</div><div class="nsub">Aso-ebi delivered 3 days ago</div></div></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Work pipeline</span><span class="more">View all</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--sienna500);">content_cut</span><span class="pn">Mrs Adebayo — Aso-ebi</span><span class="pd">Due Fri</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--indigo400);">checkroom</span><span class="pn">Tunde — Kaftan</span><span class="pd">Fitting</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="fabsolo"><div class="mainfab"><span class="ms">add</span></div></div>
+      <div class="navbar">
+        <div class="nav on"><span class="pill"><span class="ms fill">dashboard</span></span>Dashboard</div>
+        <div class="nav"><span class="pill"><span class="ms">group</span></span>Customers</div>
+        <div class="nav"><span class="pill"><span class="ms">shopping_bag</span></span>Orders</div>
+        <div class="nav"><span class="pill"><span class="ms">bar_chart</span></span>Reports</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- C: header icon -->
+  <div class="col">
+    <div class="col-tag"><b>C — Header tape icon</b></div>
+    <div class="col-desc">A tape icon next to the bell. Free and always visible — but <em>icon-only</em> (the ambiguity you rejected for the customer-row chips), and the header corner now carries FOUR targets: Inspiration, tape, bell, avatar. Cramped.</div>
+    <div class="phone lt"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar">
+        <div class="tcol"><div class="ttl">Good afternoon, D…</div><div class="sub">Tue 9 Jul</div></div>
+        <div class="iconbtn"><span class="ms">collections_bookmark</span></div>
+        <div class="iconbtn newoutline"><span class="newchip">NEW</span><span class="ms">straighten</span></div>
+        <div class="iconbtn"><span class="ms">notifications</span></div>
+        <div class="av" style="background:var(--indigo500);">D</div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="cardhead"><span class="h">Weekly goal</span><span class="more">Edit</span></div>
+          <div style="font-size:12.5px;color:var(--n500);font-weight:600;">₦68,000 of ₦100,000 collected</div>
+          <div class="goalbar"><i style="width:68%"></i></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Next best actions</span><span class="more">View all</span></div>
+          <div class="nba"><div class="nic"><span class="ms">payments</span></div><div><div class="nt">Collect ₦15,000 from Mrs Adebayo</div><div class="nsub">Aso-ebi delivered 3 days ago</div></div></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Work pipeline</span><span class="more">View all</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--sienna500);">content_cut</span><span class="pn">Mrs Adebayo — Aso-ebi</span><span class="pd">Due Fri</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--indigo400);">checkroom</span><span class="pn">Tunde — Kaftan</span><span class="pd">Fitting</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="fabsolo"><div class="mainfab"><span class="ms">add</span></div></div>
+      <div class="navbar">
+        <div class="nav on"><span class="pill"><span class="ms fill">dashboard</span></span>Dashboard</div>
+        <div class="nav"><span class="pill"><span class="ms">group</span></span>Customers</div>
+        <div class="nav"><span class="pill"><span class="ms">shopping_bag</span></span>Orders</div>
+        <div class="nav"><span class="pill"><span class="ms">bar_chart</span></span>Reports</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="rowhead">Dark</div>
+<div class="grid">
+  <div class="col">
+    <div class="col-tag"><b>A — Speed-dial</b><span class="k">dark</span></div>
+    <div class="col-desc">Expanded dial on Ink Dark.</div>
+    <div class="phone dk"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar">
+        <div class="tcol"><div class="ttl">Good afternoon, Daniel</div><div class="sub">Tue 9 Jul</div></div>
+        <div class="iconbtn"><span class="ms">collections_bookmark</span></div>
+        <div class="iconbtn"><span class="ms">notifications</span></div>
+        <div class="av" style="background:var(--indigo400);">D</div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="cardhead"><span class="h">Weekly goal</span><span class="more">Edit</span></div>
+          <div style="font-size:12.5px;color:var(--n400);font-weight:600;">₦68,000 of ₦100,000 collected</div>
+          <div class="goalbar"><i style="width:68%"></i></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Work pipeline</span><span class="more">View all</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--sienna300);">content_cut</span><span class="pn">Mrs Adebayo — Aso-ebi</span><span class="pd">Due Fri</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="dial">
+        <div class="dialrow"><span class="diallabel">New customer</span><div class="minifab"><span class="ms">person</span></div></div>
+        <div class="dialrow"><span class="diallabel">New order</span><div class="minifab"><span class="ms">add</span></div></div>
+        <div class="dialrow"><span class="diallabel">Inspiration</span><div class="minifab"><span class="ms">collections_bookmark</span></div></div>
+        <div class="dialrow newoutline"><span class="newchip">NEW</span><span class="diallabel">Measurements</span><div class="minifab"><span class="ms">straighten</span></div></div>
+        <div class="mainfab"><span class="ms">close</span></div>
+      </div>
+      <div class="navbar">
+        <div class="nav on"><span class="pill"><span class="ms fill">dashboard</span></span>Dashboard</div>
+        <div class="nav"><span class="pill"><span class="ms">group</span></span>Customers</div>
+        <div class="nav"><span class="pill"><span class="ms">shopping_bag</span></span>Orders</div>
+        <div class="nav"><span class="pill"><span class="ms">bar_chart</span></span>Reports</div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col">
+    <div class="col-tag"><b>B — Pinned chips</b><span class="k">dark</span></div>
+    <div class="col-desc">Chips on Ink Dark.</div>
+    <div class="phone dk"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar">
+        <div class="tcol"><div class="ttl">Good afternoon, Daniel</div><div class="sub">Tue 9 Jul</div></div>
+        <div class="iconbtn"><span class="ms">notifications</span></div>
+        <div class="av" style="background:var(--indigo400);">D</div>
+      </div>
+      <div class="chipstrip">
+        <span class="qchip"><span class="ms">collections_bookmark</span>Inspiration</span>
+        <span class="qchip newoutline"><span class="newchip">NEW</span><span class="ms">straighten</span>Measurements</span>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="cardhead"><span class="h">Weekly goal</span><span class="more">Edit</span></div>
+          <div style="font-size:12.5px;color:var(--n400);font-weight:600;">₦68,000 of ₦100,000 collected</div>
+          <div class="goalbar"><i style="width:68%"></i></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Work pipeline</span><span class="more">View all</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--sienna300);">content_cut</span><span class="pn">Mrs Adebayo — Aso-ebi</span><span class="pd">Due Fri</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="fabsolo"><div class="mainfab"><span class="ms">add</span></div></div>
+      <div class="navbar">
+        <div class="nav on"><span class="pill"><span class="ms fill">dashboard</span></span>Dashboard</div>
+        <div class="nav"><span class="pill"><span class="ms">group</span></span>Customers</div>
+        <div class="nav"><span class="pill"><span class="ms">shopping_bag</span></span>Orders</div>
+        <div class="nav"><span class="pill"><span class="ms">bar_chart</span></span>Reports</div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col">
+    <div class="col-tag"><b>C — Header icon</b><span class="k">dark</span></div>
+    <div class="col-desc">Header on Ink Dark — note the crowding.</div>
+    <div class="phone dk"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+      <div class="appbar">
+        <div class="tcol"><div class="ttl">Good afternoon, D…</div><div class="sub">Tue 9 Jul</div></div>
+        <div class="iconbtn"><span class="ms">collections_bookmark</span></div>
+        <div class="iconbtn newoutline"><span class="newchip">NEW</span><span class="ms">straighten</span></div>
+        <div class="iconbtn"><span class="ms">notifications</span></div>
+        <div class="av" style="background:var(--indigo400);">D</div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="cardhead"><span class="h">Weekly goal</span><span class="more">Edit</span></div>
+          <div style="font-size:12.5px;color:var(--n400);font-weight:600;">₦68,000 of ₦100,000 collected</div>
+          <div class="goalbar"><i style="width:68%"></i></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><span class="h">Work pipeline</span><span class="more">View all</span></div>
+          <div class="pipe"><span class="ms" style="font-size:19px;color:var(--sienna300);">content_cut</span><span class="pn">Mrs Adebayo — Aso-ebi</span><span class="pd">Due Fri</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+      <div class="fabsolo"><div class="mainfab"><span class="ms">add</span></div></div>
+      <div class="navbar">
+        <div class="nav on"><span class="pill"><span class="ms fill">dashboard</span></span>Dashboard</div>
+        <div class="nav"><span class="pill"><span class="ms">group</span></span>Customers</div>
+        <div class="nav"><span class="pill"><span class="ms">shopping_bag</span></span>Orders</div>
+        <div class="nav"><span class="pill"><span class="ms">bar_chart</span></span>Reports</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Comparison:</b>
+  <ul>
+    <li><b>A — Speed-dial (recommended):</b> 2 taps (FAB → Measurements), labeled text, always reachable at any scroll position, zero layout change to the live dashboard, and it reuses the exact <code>SpeedDialAction</code> pattern + the picker sheet that already shipped. Precedent: Inspiration already has this dual placement (dial + bottom Quick access). Implementation ≈ one action entry + one string.</li>
+    <li><b>B — Pinned chips:</b> 1 tap and always visible, but permanently costs a row of vertical space on the revenue-first screen — every state pays, including users who came to check money. Also a brand-new UI pattern to maintain.</li>
+    <li><b>C — Header icon:</b> 1 tap, free space-wise, but icon-only (rejected twice for ambiguity) and the header corner becomes 4 targets. Truncates the greeting sooner on long names.</li>
+    <li>All three open the SAME customer-picker sheet from PR 3 — the options differ only in the entry affordance.</li>
+    <li>The bottom Quick access section stays in all options (discoverability for scrollers), mirroring Inspiration's existing dual placement.</li>
+  </ul>
+</div>
+
+</body>
+</html>

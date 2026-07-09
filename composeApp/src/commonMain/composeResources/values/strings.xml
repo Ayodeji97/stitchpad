@@ -849,6 +849,7 @@
     <string name="dashboard_fab_new_customer_cd">Add a new customer</string>
     <string name="dashboard_fab_new_order_cd">Add a new order</string>
     <string name="dashboard_fab_inspiration_cd">Open Inspiration gallery</string>
+    <string name="dashboard_fab_measurements_cd">Open measurements picker</string>
     <string name="dashboard_inspiration_card_title">Inspiration</string>
     <string name="dashboard_inspiration_card_subtitle">Looks you&apos;ve saved</string>
     <string name="dashboard_inspiration_cd">Open Inspiration</string>
