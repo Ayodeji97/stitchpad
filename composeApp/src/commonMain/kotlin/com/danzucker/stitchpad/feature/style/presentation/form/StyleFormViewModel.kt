@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.error.onFailure
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -19,6 +20,7 @@ import com.danzucker.stitchpad.feature.style.domain.StyleLockPolicy
 import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
+import com.danzucker.stitchpad.feature.style.presentation.share.ShareStyle
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
 import kotlinx.coroutines.Job
@@ -36,6 +38,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.style_action_verify_failed
+import stitchpad.composeapp.generated.resources.style_share_failed
 
 private const val MAX_PHOTO_SIZE_BYTES: Int = 5 * 1024 * 1024
 
@@ -45,6 +48,7 @@ class StyleFormViewModel(
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
     private val entitlements: EntitlementsProvider,
+    private val shareStyle: ShareStyle,
     private val imageCompressor: ImageCompressor,
 ) : ViewModel() {
 
@@ -107,6 +111,16 @@ class StyleFormViewModel(
             }
             StyleFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+            StyleFormAction.OnShareClick -> {
+                val current = _state.value.existingStyle ?: return
+                viewModelScope.launch {
+                    shareStyle(current).onFailure {
+                        _state.update {
+                            it.copy(errorMessage = UiText.StringResourceText(Res.string.style_share_failed))
+                        }
+                    }
+                }
             }
             StyleFormAction.OnDismissCapSheet -> _state.update { it.copy(capSheet = null) }
             StyleFormAction.OnUpgradeFromCap -> {

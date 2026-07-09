@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import com.danzucker.stitchpad.feature.style.presentation.share.ShareStyle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -91,6 +92,11 @@ class StyleFormViewModelTest {
         readOnly: Boolean = false,
         fakeEntitlements: FakeEntitlementsProvider = FakeEntitlementsProvider(tier),
         imageCompressor: ImageCompressor = FakeImageCompressor(),
+        shareStyle: ShareStyle = ShareStyle(
+            loader = { null },
+            entitlements = fakeEntitlements,
+            share = { _, _ -> },
+        ),
     ): StyleFormViewModel {
         val args = buildMap {
             put("customerId", customerId)
@@ -105,6 +111,7 @@ class StyleFormViewModelTest {
             authRepository = authRepository,
             orderRepository = orderRepository,
             entitlements = fakeEntitlements,
+            shareStyle = shareStyle,
             imageCompressor = imageCompressor,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -230,12 +237,18 @@ class StyleFormViewModelTest {
 
     @Test
     fun missingCustomerId_usesInspirationLocation_withoutNavigatingBack() = runTest {
+        val fakeEntitlements = FakeEntitlementsProvider(SubscriptionTier.FREE)
         val vm = StyleFormViewModel(
             savedStateHandle = SavedStateHandle(),
             styleRepository = styleRepository,
             authRepository = authRepository,
             orderRepository = orderRepository,
-            entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
+            entitlements = fakeEntitlements,
+            shareStyle = ShareStyle(
+                loader = { null },
+                entitlements = fakeEntitlements,
+                share = { _, _ -> },
+            ),
             imageCompressor = FakeImageCompressor(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -594,6 +607,59 @@ class StyleFormViewModelTest {
 
         // The form no longer collects description; the existing value must be passed through.
         assertEquals("Old description", styleRepository.lastUpdatedStyle?.description)
+    }
+
+    // --- Share ---
+
+    @Test
+    fun onShareClick_editMode_sharesLoadedStyle() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "style-7", description = "Existing style"))
+        var shared = false
+        val shareStyle = ShareStyle(
+            loader = { byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> shared = true },
+        )
+        val vm = createViewModel(styleId = "style-7", shareStyle = shareStyle)
+        assertNotNull(vm.state.value.existingStyle, "style must be loaded before sharing")
+
+        vm.onAction(StyleFormAction.OnShareClick)
+
+        assertTrue(shared, "ShareStyle's share lambda must fire for the loaded style")
+    }
+
+    @Test
+    fun onShareClick_addMode_noLoadedStyle_doesNotShare() = runTest {
+        // Add mode never has a loaded existingStyle, so OnShareClick must no-op
+        // rather than sharing a fabricated/empty style.
+        var shared = false
+        val shareStyle = ShareStyle(
+            loader = { byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> shared = true },
+        )
+        val vm = createViewModel(shareStyle = shareStyle)
+
+        vm.onAction(StyleFormAction.OnShareClick)
+
+        assertFalse(shared)
+    }
+
+    @Test
+    fun onShareClick_loaderReturnsNull_setsErrorMessage() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        styleRepository.stylesList = listOf(fakeStyle(id = "style-7", description = "Existing style"))
+        val shareStyle = ShareStyle(
+            loader = { null },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> },
+        )
+        val vm = createViewModel(styleId = "style-7", shareStyle = shareStyle)
+
+        vm.onAction(StyleFormAction.OnShareClick)
+
+        assertNotNull(vm.state.value.errorMessage)
     }
 
     // --- Navigation & error dismiss ---
