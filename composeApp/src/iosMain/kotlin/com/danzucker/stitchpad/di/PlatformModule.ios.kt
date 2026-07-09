@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.media.IosImageCompressor
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadScheduler
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
+import com.danzucker.stitchpad.core.sharing.ImageSharer
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.data.IosSsoCredentialProvider
@@ -66,6 +67,7 @@ actual val platformModule: Module = module {
     single<ImageCompressor> { IosImageCompressor() }
     single { OfflineUploadScheduler() }
     single { OrderReceiptSharer() }
+    single { ImageSharer() }
     single { WhatsAppLauncher() }
     single { DialerLauncher() }
     single<PushPermissionController> { IosPushPermissionController() }
