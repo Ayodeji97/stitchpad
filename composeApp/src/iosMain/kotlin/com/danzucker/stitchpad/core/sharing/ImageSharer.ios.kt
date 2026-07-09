@@ -47,7 +47,10 @@ actual class ImageSharer {
                 }
             }
             presenter.presentViewController(activityVC, animated = true, completion = null)
-            true
+            // UIKit sets presentedViewController synchronously when it accepts a
+            // presentation; it stays null if the presentation was refused (e.g.
+            // presenter mid-transition). Report that, not an assumed success.
+            presenter.presentedViewController != null
         }
     }
 

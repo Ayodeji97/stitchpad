@@ -79,6 +79,24 @@ class ShareStyleTest {
     }
 
     @Test
+    fun falls_back_to_photoUrl_when_local_path_fails_to_load() = runTest {
+        // Non-null local path that no longer resolves (pruned/deleted) must not
+        // block sharing when the remote URL is still fetchable.
+        val fake = FakeSharer()
+        val shareStyle = ShareStyle(
+            loader = { model -> if (model == "/local/s1.jpg") null else byteArrayOf(7) },
+            share = { bytes, _ -> fake.callCount++; fake.sharedBytes = bytes; true },
+            entitlements = entitlements(SubscriptionTier.PRO),
+        )
+
+        val result = shareStyle(style) // style has localPhotoPath = "/local/s1.jpg"
+
+        assertTrue(result is Result.Success)
+        assertEquals(1, fake.callCount)
+        assertEquals(7, fake.sharedBytes?.single())
+    }
+
+    @Test
     fun returns_error_when_share_sheet_not_presented() = runTest {
         // Bytes load fine, but the platform sharer can't present the sheet
         // (e.g. iOS empty/undecodable image or no key window) → share returns

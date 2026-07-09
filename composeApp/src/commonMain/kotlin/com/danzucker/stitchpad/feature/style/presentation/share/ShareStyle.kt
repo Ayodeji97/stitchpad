@@ -29,10 +29,28 @@ class ShareStyle(
     ) : this(loader, entitlements, share = { bytes, caption -> sharer.shareImage(bytes, caption) })
 
     suspend operator fun invoke(style: Style): EmptyResult<DataError> {
-        val model = style.localPhotoPath ?: style.photoUrl
-        val bytes = loader.load(model) ?: return Result.Error(DataError.Local.UNKNOWN)
+        val bytes = loadBytes(style) ?: return Result.Error(DataError.Local.UNKNOWN)
         val tier = entitlements.awaitHydrated().tier
         val presented = share(bytes, StyleShareFormatter.caption(style, tier))
         return if (presented) Result.Success(Unit) else Result.Error(DataError.Local.UNKNOWN)
+    }
+
+    /**
+     * Prefers the local file (works offline / pre-upload), but if the local
+     * path is stale — pruned after upload, deleted, or a stale form snapshot —
+     * falls back to the remote URL rather than failing when the image is still
+     * fetchable. Returns null only when neither source yields bytes.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun loadBytes(style: Style): ByteArray? {
+        val local = style.localPhotoPath
+        if (local != null) {
+            loader.load(local)?.let { return it }
+        }
+        val url = style.photoUrl
+        if (url.isNotBlank() && url != local) {
+            return loader.load(url)
+        }
+        return null
     }
 }
