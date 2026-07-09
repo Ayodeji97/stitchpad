@@ -236,6 +236,15 @@ private fun MainNavGraph(
                 onNavigateToAddMeasurement = { customerId ->
                     navController.navigate(MeasurementFormRoute(customerId = customerId))
                 },
+                onNavigateToMeasurementDetail = { customerId, measurementId ->
+                    navController.navigate(
+                        MeasurementDetailRoute(
+                            customerId = customerId,
+                            measurementId = measurementId,
+                            source = MeasurementDetailSource.CUSTOMER_ACTIONS_SHEET,
+                        ),
+                    )
+                },
                 onNavigateToOrderForm = { customerId ->
                     navController.navigate(OrderFormRoute(customerId = customerId))
                 },
@@ -524,6 +533,18 @@ private fun MainNavGraph(
                 },
                 onNavigateToTutorial = { tutorialId ->
                     navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
+                onNavigateToMeasurementDetail = { customerId, measurementId ->
+                    navController.navigate(
+                        MeasurementDetailRoute(
+                            customerId = customerId,
+                            measurementId = measurementId,
+                            source = MeasurementDetailSource.DASHBOARD,
+                        ),
+                    )
+                },
+                onNavigateToAddMeasurementForCustomer = { customerId ->
+                    navController.navigate(MeasurementFormRoute(customerId = customerId))
                 },
             )
         }

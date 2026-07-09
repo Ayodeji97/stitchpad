@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
@@ -29,19 +30,26 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerRead
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerUi
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -52,11 +60,17 @@ private const val MORNING_CUTOFF_HOUR = 12
 private const val AFTERNOON_CUTOFF_HOUR = 17
 private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 
+// iOS UIKit modal presentation fails if invoked right on the heels of a Compose
+// sheet dismiss — same rationale as CustomerListViewModel.SHEET_DISMISS_DELAY_MS.
+private const val PICKER_DISMISS_DELAY_MS = 450L
+private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
+
 @OptIn(ExperimentalTime::class)
 @Suppress("TooManyFunctions", "LongParameterList")
 class DashboardViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
+    private val measurementRepository: MeasurementRepository,
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     private val weeklyGoalRepository: WeeklyGoalRepository,
@@ -73,6 +87,11 @@ class DashboardViewModel(
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(DashboardState())
+
+    // Captured from loadData()'s combine collect — not stored in DashboardState
+    // because it's an implementation detail of the measurements picker, not
+    // something any screen renders directly.
+    private var latestCustomers: List<Customer> = emptyList()
 
     private val _events = Channel<DashboardEvent>()
     val events = _events.receiveAsFlow()
@@ -259,6 +278,12 @@ class DashboardViewModel(
                 dismissCommunityBanner()
             }
             DashboardAction.OnDismissCommunityBanner -> dismissCommunityBanner()
+            DashboardAction.OnMeasurementsShortcutClick -> openMeasurementsPicker()
+            is DashboardAction.OnMeasurementsPickerQueryChange -> _state.update { s ->
+                s.copy(measurementsPicker = s.measurementsPicker?.copy(query = action.query))
+            }
+            is DashboardAction.OnMeasurementsPickerRowClick -> onMeasurementsPickerRowClick(action.row)
+            DashboardAction.OnDismissMeasurementsPicker -> _state.update { it.copy(measurementsPicker = null) }
         }
     }
 
@@ -324,6 +349,82 @@ class DashboardViewModel(
         viewModelScope.launch { _events.send(event) }
     }
 
+    private fun openMeasurementsPicker() {
+        // No customers yet — same affordance as the "Measurement" tile: go create one.
+        if (latestCustomers.isEmpty()) {
+            onAction(DashboardAction.OnAddMeasurementClick)
+            return
+        }
+        _state.update { it.copy(measurementsPicker = MeasurementsPickerUi(isLoading = true)) }
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: run {
+                _state.update { it.copy(measurementsPicker = null) }
+                return@launch
+            }
+            // One cached read per customer; freemium caps keep N small (15-200).
+            // Each read is time-bounded: a cold Firestore cache with no network can
+            // leave a first snapshot pending forever, and one stuck customer must not
+            // hold the whole sheet in its loading state (codex, PR #261 — mirrors
+            // MeasurementEntryResolver's bound).
+            val rows = latestCustomers.map { customer ->
+                async {
+                    val result = withTimeoutOrNull(COUNT_FETCH_TIMEOUT_MS) {
+                        measurementRepository.observeMeasurements(userId, customer.id).first()
+                    }
+                    when (result) {
+                        is Result.Success -> MeasurementsPickerRow(
+                            customerId = customer.id,
+                            name = customer.name,
+                            measurementCount = result.data.size,
+                            singleMeasurementId = result.data.singleOrNull()?.id,
+                        )
+                        // Errors AND timeouts must not masquerade as "no measurements" —
+                        // that would show the destructive "+ Add" affordance and route
+                        // to the create form for a customer who may already have data.
+                        // Unknown count routes to customer detail instead (Bugbot, PR #261).
+                        else -> MeasurementsPickerRow(
+                            customerId = customer.id,
+                            name = customer.name,
+                            measurementCount = null,
+                            singleMeasurementId = null,
+                        )
+                    }
+                }
+            }.awaitAll()
+                .sortedWith(
+                    // Unknown-count rows (null) group with has-measurements rows since
+                    // the customer may well have data — only a confirmed zero sorts last.
+                    compareByDescending<MeasurementsPickerRow> { (it.measurementCount ?: 1) > 0 }
+                        .thenBy { it.name.lowercase() }
+                )
+            _state.update { current ->
+                // The user may have dismissed the sheet while counts were loading.
+                if (current.measurementsPicker == null) {
+                    current
+                } else {
+                    current.copy(measurementsPicker = current.measurementsPicker.copy(isLoading = false, rows = rows))
+                }
+            }
+        }
+    }
+
+    private fun onMeasurementsPickerRowClick(row: MeasurementsPickerRow) {
+        _state.update { it.copy(measurementsPicker = null) }
+        viewModelScope.launch {
+            delay(PICKER_DISMISS_DELAY_MS)
+            val event = when {
+                row.singleMeasurementId != null ->
+                    DashboardEvent.NavigateToMeasurementDetail(row.customerId, row.singleMeasurementId)
+                row.measurementCount == 0 -> DashboardEvent.NavigateToAddMeasurement(row.customerId)
+                // measurementCount == null (count fetch failed) falls through here
+                // deliberately — customer detail is the safe fallback, never the
+                // destructive create-flow a false "zero" would trigger.
+                else -> DashboardEvent.NavigateToCustomerDetail(row.customerId)
+            }
+            emitEvent(event)
+        }
+    }
+
     @Suppress("LongMethod")
     private fun loadData() {
         viewModelScope.launch {
@@ -372,6 +473,9 @@ class DashboardViewModel(
                 val workshopName = user.businessName?.takeIf { it.isNotBlank() }
                 val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
                 val customers = (customersResult as? Result.Success)?.data ?: emptyList()
+                // Keep the last successful snapshot: a transient customers fetch error must not
+                // make the Measurements shortcut think the account has no customers (Bugbot, PR #261).
+                if (customersResult is Result.Success) latestCustomers = customersResult.data
                 val goal = (goalResult as? Result.Success)?.data
                 val error = when {
                     ordersResult is Result.Error -> ordersResult.error.toDashboardUiText()

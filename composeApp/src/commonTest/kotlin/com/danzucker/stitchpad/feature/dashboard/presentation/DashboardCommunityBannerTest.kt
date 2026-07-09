@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
+import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
@@ -51,6 +52,7 @@ class DashboardCommunityBannerTest {
 
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
+    private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var userRepository: FakeUserRepository
     private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
@@ -69,6 +71,7 @@ class DashboardCommunityBannerTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
+        measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository()
         userRepository = FakeUserRepository()
         weeklyGoalRepository = FakeWeeklyGoalRepository()
@@ -92,6 +95,7 @@ class DashboardCommunityBannerTest {
         val vm = DashboardViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
+            measurementRepository = measurementRepository,
             authRepository = authRepository,
             userRepository = userRepository,
             weeklyGoalRepository = weeklyGoalRepository,

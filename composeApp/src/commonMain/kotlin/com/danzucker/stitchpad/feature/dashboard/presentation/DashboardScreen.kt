@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -75,6 +76,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyCa
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.MeasurementsPickerSheet
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OrderSetupActionCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
@@ -123,6 +125,7 @@ import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_inspiration_cd
+import stitchpad.composeapp.generated.resources.dashboard_fab_measurements_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_customer_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_new_order_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
@@ -133,6 +136,8 @@ import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_subti
 import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_title
 import stitchpad.composeapp.generated.resources.dashboard_inspiration_cd
 import stitchpad.composeapp.generated.resources.dashboard_loading_cd
+import stitchpad.composeapp.generated.resources.dashboard_measurements_card_subtitle
+import stitchpad.composeapp.generated.resources.dashboard_measurements_card_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_title
@@ -299,6 +304,8 @@ fun DashboardRoot(
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToTutorial: (String) -> Unit,
+    onNavigateToMeasurementDetail: (customerId: String, measurementId: String) -> Unit,
+    onNavigateToAddMeasurementForCustomer: (customerId: String) -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject(),
     pushPermissionController: PushPermissionController = koinInject(),
@@ -352,6 +359,8 @@ fun DashboardRoot(
             onNavigateToDraftMessage = onNavigateToDraftMessage,
             onNavigateToUpgrade = onNavigateToUpgrade,
             onNavigateToNotifications = onNavigateToNotifications,
+            onNavigateToMeasurementDetail = onNavigateToMeasurementDetail,
+            onNavigateToAddMeasurementForCustomer = onNavigateToAddMeasurementForCustomer,
         )
     }
 
@@ -369,6 +378,15 @@ fun DashboardRoot(
         onAction = viewModel::onAction,
         onNavigateToTutorial = onNavigateToTutorial,
     )
+
+    state.measurementsPicker?.let { picker ->
+        MeasurementsPickerSheet(
+            picker = picker,
+            onQueryChange = { viewModel.onAction(DashboardAction.OnMeasurementsPickerQueryChange(it)) },
+            onRowClick = { viewModel.onAction(DashboardAction.OnMeasurementsPickerRowClick(it)) },
+            onDismiss = { viewModel.onAction(DashboardAction.OnDismissMeasurementsPicker) },
+        )
+    }
 
     if (showPushPromptSheet) {
         ModalBottomSheet(
@@ -477,6 +495,8 @@ private fun handleDashboardEvent(
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToMeasurementDetail: (customerId: String, measurementId: String) -> Unit,
+    onNavigateToAddMeasurementForCustomer: (customerId: String) -> Unit,
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
@@ -508,6 +528,10 @@ private fun handleDashboardEvent(
         )
         // Handled inline in DashboardRoot (ObserveAsEvents) where LocalUriHandler is in scope.
         is DashboardEvent.OpenCommunityLink -> Unit
+        is DashboardEvent.NavigateToMeasurementDetail ->
+            onNavigateToMeasurementDetail(event.customerId, event.measurementId)
+        is DashboardEvent.NavigateToAddMeasurement ->
+            onNavigateToAddMeasurementForCustomer(event.customerId)
     }
 }
 
@@ -577,6 +601,8 @@ fun DashboardScreen(
     val orderCd = stringResource(Res.string.dashboard_fab_new_order_cd)
     val inspirationLabel = stringResource(Res.string.dashboard_quick_action_inspiration)
     val inspirationCd = stringResource(Res.string.dashboard_fab_inspiration_cd)
+    val measurementsLabel = stringResource(Res.string.dashboard_measurements_card_title)
+    val measurementsCd = stringResource(Res.string.dashboard_fab_measurements_cd)
     val speedDialActions = listOf(
         SpeedDialAction(
             label = customerLabel,
@@ -603,6 +629,17 @@ fun DashboardScreen(
             onClick = {
                 collapseFab()
                 onAction(DashboardAction.OnInspirationClick)
+            },
+        ),
+        // Dual placement with the bottom Quick access row, same as Inspiration:
+        // the dial is the zero-scroll path, the section is the discoverable one.
+        SpeedDialAction(
+            label = measurementsLabel,
+            icon = Icons.Default.Straighten,
+            contentDescription = measurementsCd,
+            onClick = {
+                collapseFab()
+                onAction(DashboardAction.OnMeasurementsShortcutClick)
             },
         ),
     )
@@ -968,24 +1005,27 @@ private fun DashboardContent(
             onViewAllClick = { onAction(DashboardAction.OnViewReconnectClick) },
         )
 
-        // 8. Quick access — Inspiration shortcut row. Visible in all populated
-        //    states (app-bar icon guarantees access in Loading/BrandNew too).
+        // 8. Quick access — Inspiration + Measurements shortcut rows. Visible
+        //    in all populated states (app-bar icon guarantees Inspiration
+        //    access in Loading/BrandNew too).
         if (state.uiState != DashboardUiState.Loading) {
             QuickAccessSection(
                 onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
+                onMeasurementsClick = { onAction(DashboardAction.OnMeasurementsShortcutClick) },
             )
         }
     }
 }
 
 /**
- * "Quick access" section header + Inspiration shortcut row. Placed at the
- * bottom of the scrollable content so it never competes with revenue cards
- * but is always reachable in every populated dashboard state.
+ * "Quick access" section header + shortcut rows (Inspiration, Measurements).
+ * Placed at the bottom of the scrollable content so it never competes with
+ * revenue cards but is always reachable in every populated dashboard state.
  */
 @Composable
 private fun QuickAccessSection(
     onInspirationClick: () -> Unit,
+    onMeasurementsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -998,12 +1038,26 @@ private fun QuickAccessSection(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        InspirationShortcutRow(onClick = onInspirationClick)
+        QuickAccessRow(
+            icon = Icons.Default.CollectionsBookmark,
+            title = stringResource(Res.string.dashboard_inspiration_card_title),
+            subtitle = stringResource(Res.string.dashboard_inspiration_card_subtitle),
+            onClick = onInspirationClick,
+        )
+        QuickAccessRow(
+            icon = Icons.Default.Straighten,
+            title = stringResource(Res.string.dashboard_measurements_card_title),
+            subtitle = stringResource(Res.string.dashboard_measurements_card_subtitle),
+            onClick = onMeasurementsClick,
+        )
     }
 }
 
 @Composable
-private fun InspirationShortcutRow(
+private fun QuickAccessRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1032,7 +1086,7 @@ private fun InspirationShortcutRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.CollectionsBookmark,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(23.dp),
@@ -1040,13 +1094,13 @@ private fun InspirationShortcutRow(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.dashboard_inspiration_card_title),
+                    text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = stringResource(Res.string.dashboard_inspiration_card_subtitle),
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
