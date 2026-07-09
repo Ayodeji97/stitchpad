@@ -854,6 +854,16 @@
     <string name="dashboard_inspiration_cd">Open Inspiration</string>
     <string name="dashboard_fab_close_cd">Close quick actions</string>
     <string name="dashboard_fab_quick_actions_cd">Open quick actions</string>
+    <!-- Dashboard measurements shortcut + picker -->
+    <string name="dashboard_measurements_card_title">Measurements</string>
+    <string name="dashboard_measurements_card_subtitle">Find a customer&apos;s numbers fast</string>
+    <string name="measurements_picker_title">Measurements</string>
+    <string name="measurements_picker_subtitle">Pick a customer to view their measurements</string>
+    <string name="measurements_picker_count_one">1 measurement</string>
+    <string name="measurements_picker_count_many">%1$d measurements</string>
+    <string name="measurements_picker_none">No measurements yet</string>
+    <string name="measurements_picker_add">+ Add</string>
+    <string name="measurements_picker_no_results">No customers match your search</string>
     <!-- Dashboard tile grid -->
     <string name="dashboard_tile_overdue">Overdue</string>
     <string name="dashboard_tile_due_today">Due today</string>
