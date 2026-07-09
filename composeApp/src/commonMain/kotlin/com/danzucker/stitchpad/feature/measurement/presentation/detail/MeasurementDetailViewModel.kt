@@ -283,16 +283,21 @@ class MeasurementDetailViewModel(
         val measurement = _state.value.measurement ?: return
         val customer = _state.value.customer ?: return
         _state.update { it.copy(showShareSheet = false) }
-        viewModelScope.launch {
-            try {
-                val data = buildShareData(measurement, customer)
-                dispatchShare(format, data, customer)
-                analytics.logEvent(AnalyticsEvent.MeasurementShared(format))
-            } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
-                // Same contract as receipt sharing: renderers throw on failure. Matches
-                // OrderDetailViewModel.shareReceipt's identical suppression pair.
-                _state.update {
-                    it.copy(errorMessage = UiText.StringResourceText(Res.string.measurement_share_error))
+        // Re-gate at action time, not just at sheet-open: the lock state is a live
+        // listener, so the customer can flip to LOCKED while the share sheet sits
+        // open — the stale sheet must not bypass the gate (Bugbot, PR #260).
+        requireUnlocked {
+            viewModelScope.launch {
+                try {
+                    val data = buildShareData(measurement, customer)
+                    dispatchShare(format, data, customer)
+                    analytics.logEvent(AnalyticsEvent.MeasurementShared(format))
+                } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+                    // Same contract as receipt sharing: renderers throw on failure. Matches
+                    // OrderDetailViewModel.shareReceipt's identical suppression pair.
+                    _state.update {
+                        it.copy(errorMessage = UiText.StringResourceText(Res.string.measurement_share_error))
+                    }
                 }
             }
         }

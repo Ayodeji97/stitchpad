@@ -348,4 +348,23 @@ class MeasurementDetailViewModelTest {
         }
         assertEquals(false, vm.state.value.showShareSheet)
     }
+
+    @Test
+    fun `lock flipping while share sheet is open re-gates the share action`() = runTest {
+        measurementRepository.measurementsList = listOf(fakeMeasurement())
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        vm.onAction(MeasurementDetailAction.OnShareClick)
+        assertTrue(vm.state.value.showShareSheet)
+        // Live customer listener flips the slot to LOCKED while the sheet sits open.
+        customerRepository.customersList = listOf(fakeCustomer(slotState = CustomerSlotState.LOCKED))
+        assertEquals(true, vm.state.value.isLocked)
+        vm.events.test {
+            vm.onAction(MeasurementDetailAction.OnShareAsImageClick)
+            assertIs<MeasurementDetailEvent.NavigateToUpgrade>(awaitItem())
+        }
+        assertNull(measurementSharer.lastImageData)
+        assertEquals(false, vm.state.value.showShareSheet)
+        assertTrue(analytics.events.filterIsInstance<AnalyticsEvent.MeasurementShared>().isEmpty())
+    }
 }
