@@ -290,7 +290,7 @@ class MeasurementDetailViewModel(
             viewModelScope.launch {
                 try {
                     val data = buildShareData(measurement, customer)
-                    dispatchShare(format, data, customer)
+                    dispatchShare(format, data)
                     analytics.logEvent(AnalyticsEvent.MeasurementShared(format))
                 } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                     // Same contract as receipt sharing: renderers throw on failure. Matches
@@ -305,15 +305,18 @@ class MeasurementDetailViewModel(
 
     // Folds the WhatsApp branch inline (rather than a separate shareWhatsApp() member)
     // to keep this class's function count under detekt's TooManyFunctions threshold.
-    private suspend fun dispatchShare(format: String, data: MeasurementShareData, customer: Customer) {
+    private suspend fun dispatchShare(format: String, data: MeasurementShareData) {
         when (format) {
             FORMAT_IMAGE -> measurementSharer.shareAsImage(data)
             FORMAT_PDF -> measurementSharer.shareAsPdf(data)
             FORMAT_WHATSAPP -> {
                 val text = MeasurementShareFormatter.buildWhatsAppText(data)
-                // No number on file — WhatsApp opens its own recipient picker with the
-                // text prefilled (buildWhatsAppUrl/the launcher handle a blank phone).
-                _events.send(MeasurementDetailEvent.LaunchWhatsApp(customer.phone, text))
+                // Deliberately NEVER deep-link to the customer's number: WhatsApp
+                // dead-ends on numbers it doesn't know ("not on WhatsApp"), and the
+                // tailor may want to send to someone else entirely. A blank phone
+                // makes buildWhatsAppUrl produce wa.me/?text=… — WhatsApp opens its
+                // own recipient picker with the message prefilled (QA decision, PR #260).
+                _events.send(MeasurementDetailEvent.LaunchWhatsApp(phone = "", message = text))
             }
         }
     }

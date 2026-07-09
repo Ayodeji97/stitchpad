@@ -297,14 +297,16 @@ class MeasurementDetailViewModelTest {
     }
 
     @Test
-    fun `whatsapp share emits LaunchWhatsApp with customer phone and bold text`() = runTest {
+    fun `whatsapp share always launches the recipient picker with bold text`() = runTest {
+        // Even when the customer HAS a number we never deep-link to it: WhatsApp
+        // dead-ends on unregistered numbers, and the tailor may want another recipient.
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         customerRepository.customersList = listOf(fakeCustomer())
         val vm = createViewModel()
         vm.events.test {
             vm.onAction(MeasurementDetailAction.OnShareWhatsAppClick)
             val event = assertIs<MeasurementDetailEvent.LaunchWhatsApp>(awaitItem())
-            assertEquals("0705 991 2340", event.phone)
+            assertEquals("", event.phone)
             assertTrue(event.message.contains("*Chidinma Eze — Wedding gown*"))
         }
         assertEquals(
