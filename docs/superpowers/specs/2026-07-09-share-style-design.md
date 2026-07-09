@@ -52,7 +52,7 @@ object StyleShareFormatter {
 ```
 
 - Returns `style.description` (trimmed) when present.
-- Appends a `Shared via StitchPad` attribution line **only for the Free tier** (exact wording finalized in the plan; reuse the receipt attribution convention).
+- Appends the exact attribution line `Shared via StitchPad · getstitchpad.com` **only for the Free tier** (Pro/Atelier omit it).
 - Blank description + paid tier → `null`.
 - Blank description + Free tier → attribution line only.
 
@@ -148,4 +148,4 @@ Tradeoff: `toPngBytes()` re-encodes a JPEG to PNG, inflating the shared file som
 
 - Share action label (gallery sheet + form top-bar content description).
 - Share failure message: "Couldn't prepare this photo to share."
-- Free-tier attribution line (finalize wording in plan).
+- Free-tier attribution line: "Shared via StitchPad · getstitchpad.com".
