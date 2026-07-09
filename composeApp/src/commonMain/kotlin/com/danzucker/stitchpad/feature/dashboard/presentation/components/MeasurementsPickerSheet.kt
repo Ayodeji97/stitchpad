@@ -144,15 +144,25 @@ private fun PickerRow(row: MeasurementsPickerRow, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = when {
-                    row.measurementCount == 0 -> stringResource(Res.string.measurements_picker_none)
-                    row.measurementCount == 1 -> stringResource(Res.string.measurements_picker_count_one)
-                    else -> stringResource(Res.string.measurements_picker_count_many, row.measurementCount)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // null (count-fetch failed) shows no subtitle at all — never a false "0".
+            when (row.measurementCount) {
+                0 -> Text(
+                    text = stringResource(Res.string.measurements_picker_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                1 -> Text(
+                    text = stringResource(Res.string.measurements_picker_count_one),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                null -> Unit
+                else -> Text(
+                    text = stringResource(Res.string.measurements_picker_count_many, row.measurementCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         if (row.measurementCount == 0) {
             Text(

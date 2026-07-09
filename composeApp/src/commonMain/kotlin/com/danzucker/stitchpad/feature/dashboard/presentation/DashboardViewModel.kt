@@ -362,20 +362,30 @@ class DashboardViewModel(
             // One cached read per customer; freemium caps keep N small (15-200).
             val rows = latestCustomers.map { customer ->
                 async {
-                    val measurements = (
-                        measurementRepository
-                            .observeMeasurements(userId, customer.id).first() as? Result.Success
-                        )?.data.orEmpty()
-                    MeasurementsPickerRow(
-                        customerId = customer.id,
-                        name = customer.name,
-                        measurementCount = measurements.size,
-                        singleMeasurementId = measurements.singleOrNull()?.id,
-                    )
+                    when (val result = measurementRepository.observeMeasurements(userId, customer.id).first()) {
+                        is Result.Success -> MeasurementsPickerRow(
+                            customerId = customer.id,
+                            name = customer.name,
+                            measurementCount = result.data.size,
+                            singleMeasurementId = result.data.singleOrNull()?.id,
+                        )
+                        // A count-fetch error must not masquerade as "no measurements" —
+                        // that would show the destructive "+ Add" affordance and route
+                        // to the create form for a customer who may already have data.
+                        // Unknown count routes to customer detail instead (Bugbot, PR #261).
+                        is Result.Error -> MeasurementsPickerRow(
+                            customerId = customer.id,
+                            name = customer.name,
+                            measurementCount = null,
+                            singleMeasurementId = null,
+                        )
+                    }
                 }
             }.awaitAll()
                 .sortedWith(
-                    compareByDescending<MeasurementsPickerRow> { it.measurementCount > 0 }
+                    // Unknown-count rows (null) group with has-measurements rows since
+                    // the customer may well have data — only a confirmed zero sorts last.
+                    compareByDescending<MeasurementsPickerRow> { (it.measurementCount ?: 1) > 0 }
                         .thenBy { it.name.lowercase() }
                 )
             _state.update { current ->
@@ -397,6 +407,9 @@ class DashboardViewModel(
                 row.singleMeasurementId != null ->
                     DashboardEvent.NavigateToMeasurementDetail(row.customerId, row.singleMeasurementId)
                 row.measurementCount == 0 -> DashboardEvent.NavigateToAddMeasurement(row.customerId)
+                // measurementCount == null (count fetch failed) falls through here
+                // deliberately — customer detail is the safe fallback, never the
+                // destructive create-flow a false "zero" would trigger.
                 else -> DashboardEvent.NavigateToCustomerDetail(row.customerId)
             }
             emitEvent(event)
@@ -451,7 +464,9 @@ class DashboardViewModel(
                 val workshopName = user.businessName?.takeIf { it.isNotBlank() }
                 val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
                 val customers = (customersResult as? Result.Success)?.data ?: emptyList()
-                latestCustomers = customers
+                // Keep the last successful snapshot: a transient customers fetch error must not
+                // make the Measurements shortcut think the account has no customers (Bugbot, PR #261).
+                if (customersResult is Result.Success) latestCustomers = customersResult.data
                 val goal = (goalResult as? Result.Success)?.data
                 val error = when {
                     ordersResult is Result.Error -> ordersResult.error.toDashboardUiText()

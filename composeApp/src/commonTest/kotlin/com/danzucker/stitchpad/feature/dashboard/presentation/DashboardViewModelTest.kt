@@ -1648,6 +1648,35 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `picker treats a single customer's count-fetch error as unknown, not zero`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "c-error", name = "Amara"),
+            fakeCustomer(id = "c-one", name = "Chidinma"),
+        )
+        measurementRepository.measurementsForCustomer["c-one"] =
+            listOf(fakeMeasurement(id = "meas-1", customerId = "c-one"))
+        measurementRepository.errorForCustomer["c-error"] = DataError.Network.NO_INTERNET
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+
+        val picker = vm.state.value.measurementsPicker
+        assertNotNull(picker)
+        val erroredRow = picker.rows.single { it.customerId == "c-error" }
+        assertEquals<Int?>(null, erroredRow.measurementCount)
+        assertNull(erroredRow.singleMeasurementId)
+
+        vm.events.test {
+            vm.onAction(DashboardAction.OnMeasurementsPickerRowClick(erroredRow))
+            advanceTimeBy(451)
+            runCurrent()
+            val event = assertIs<DashboardEvent.NavigateToCustomerDetail>(awaitItem())
+            assertEquals("c-error", event.customerId)
+        }
+    }
+
+    @Test
     fun `picker row with one measurement navigates to detail and closes picker`() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())

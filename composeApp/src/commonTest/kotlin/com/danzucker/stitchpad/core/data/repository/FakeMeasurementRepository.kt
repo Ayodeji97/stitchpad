@@ -32,11 +32,20 @@ class FakeMeasurementRepository : MeasurementRepository {
      */
     val measurementsForCustomer: MutableMap<String, List<Measurement>> = mutableMapOf()
 
+    /**
+     * Optional per-customer error override, checked before [observeError] and
+     * [measurementsForCustomer]. Lets a test fail a single customer's fetch
+     * (e.g. the Dashboard measurements picker) without affecting every other
+     * customer's flow.
+     */
+    val errorForCustomer: MutableMap<String, DataError.Network> = mutableMapOf()
+
     override fun observeMeasurements(
         userId: String,
         customerId: String,
     ): Flow<Result<List<Measurement>, DataError.Network>> =
         measurementsFlow.map { list ->
+            errorForCustomer[customerId]?.let { return@map Result.Error(it) }
             observeError?.let { return@map Result.Error(it) }
             val effectiveList = measurementsForCustomer[customerId] ?: list
             Result.Success(effectiveList)
