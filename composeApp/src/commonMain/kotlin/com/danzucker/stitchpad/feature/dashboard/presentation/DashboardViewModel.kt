@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -62,6 +63,7 @@ private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 // iOS UIKit modal presentation fails if invoked right on the heels of a Compose
 // sheet dismiss — same rationale as CustomerListViewModel.SHEET_DISMISS_DELAY_MS.
 private const val PICKER_DISMISS_DELAY_MS = 450L
+private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
 
 @OptIn(ExperimentalTime::class)
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -360,20 +362,27 @@ class DashboardViewModel(
                 return@launch
             }
             // One cached read per customer; freemium caps keep N small (15-200).
+            // Each read is time-bounded: a cold Firestore cache with no network can
+            // leave a first snapshot pending forever, and one stuck customer must not
+            // hold the whole sheet in its loading state (codex, PR #261 — mirrors
+            // MeasurementEntryResolver's bound).
             val rows = latestCustomers.map { customer ->
                 async {
-                    when (val result = measurementRepository.observeMeasurements(userId, customer.id).first()) {
+                    val result = withTimeoutOrNull(COUNT_FETCH_TIMEOUT_MS) {
+                        measurementRepository.observeMeasurements(userId, customer.id).first()
+                    }
+                    when (result) {
                         is Result.Success -> MeasurementsPickerRow(
                             customerId = customer.id,
                             name = customer.name,
                             measurementCount = result.data.size,
                             singleMeasurementId = result.data.singleOrNull()?.id,
                         )
-                        // A count-fetch error must not masquerade as "no measurements" —
+                        // Errors AND timeouts must not masquerade as "no measurements" —
                         // that would show the destructive "+ Add" affordance and route
                         // to the create form for a customer who may already have data.
                         // Unknown count routes to customer detail instead (Bugbot, PR #261).
-                        is Result.Error -> MeasurementsPickerRow(
+                        else -> MeasurementsPickerRow(
                             customerId = customer.id,
                             name = customer.name,
                             measurementCount = null,

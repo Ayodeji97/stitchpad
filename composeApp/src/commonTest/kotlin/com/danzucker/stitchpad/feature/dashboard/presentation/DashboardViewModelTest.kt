@@ -1803,4 +1803,42 @@ class DashboardViewModelTest {
             emitAll(delegate.observeMeasurements(userId, customerId))
         }
     }
+
+    @Test
+    fun `one customer count fetch never emitting times out to unknown instead of hanging the picker`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "c-hang", name = "Amara"),
+            fakeCustomer(id = "c-ok", name = "Bola"),
+        )
+        measurementRepository.measurementsForCustomer["c-ok"] =
+            listOf(fakeMeasurement(id = "meas-1", customerId = "c-ok"))
+        // c-hang's flow never completes its gate — the per-customer timeout
+        // (virtual time under runTest) must convert it to an unknown count.
+        val neverCompleting = CompletableDeferred<Unit>()
+        val hangingForOne = object : MeasurementRepository by measurementRepository {
+            override fun observeMeasurements(
+                userId: String,
+                customerId: String,
+            ): Flow<Result<List<Measurement>, DataError.Network>> =
+                if (customerId == "c-hang") {
+                    flow { neverCompleting.await() }
+                } else {
+                    measurementRepository.observeMeasurements(userId, customerId)
+                }
+        }
+        val vm = createViewModel(measurementRepository = hangingForOne)
+
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+        advanceTimeBy(3_001)
+        runCurrent()
+
+        val picker = vm.state.value.measurementsPicker
+        assertNotNull(picker)
+        assertEquals(false, picker.isLoading)
+        val hung = picker.rows.single { it.customerId == "c-hang" }
+        assertNull(hung.measurementCount)
+        assertNull(hung.singleMeasurementId)
+        assertEquals(1, picker.rows.single { it.customerId == "c-ok" }.measurementCount)
+    }
 }
