@@ -92,7 +92,7 @@ class MeasurementDetailViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
-                if (customerId == null || measurementId == null) {
+                if (customerId == null) {
                     _events.send(MeasurementDetailEvent.NavigateBack)
                     return@onStart
                 }
@@ -138,6 +138,10 @@ class MeasurementDetailViewModel(
             MeasurementDetailAction.OnShareAsImageClick -> shareMeasurement(FORMAT_IMAGE)
             MeasurementDetailAction.OnShareAsPdfClick -> shareMeasurement(FORMAT_PDF)
             MeasurementDetailAction.OnShareWhatsAppClick -> shareMeasurement(FORMAT_WHATSAPP)
+            MeasurementDetailAction.OnAddMeasurementClick -> requireUnlocked {
+                val id = customerId ?: return@requireUnlocked
+                viewModelScope.launch { _events.send(MeasurementDetailEvent.NavigateToAdd(id)) }
+            }
         }
     }
 
@@ -147,7 +151,7 @@ class MeasurementDetailViewModel(
 
     private fun onEditClick() = requireUnlocked {
         val customerId = customerId ?: return@requireUnlocked
-        val measurementId = measurementId ?: return@requireUnlocked
+        val measurementId = _state.value.measurement?.id ?: return@requireUnlocked
         viewModelScope.launch {
             _events.send(MeasurementDetailEvent.NavigateToEdit(customerId, measurementId))
         }
@@ -175,18 +179,29 @@ class MeasurementDetailViewModel(
         }
     }
 
-    private fun observeMeasurement(customerId: String, measurementId: String) {
+    private fun observeMeasurement(customerId: String, measurementId: String?) {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             measurementRepository.observeMeasurements(userId, customerId).collect { result ->
                 when (result) {
                     is Result.Success -> {
-                        val measurement = result.data.find { it.id == measurementId }
+                        val measurement = if (measurementId != null) {
+                            result.data.find { it.id == measurementId }
+                        } else {
+                            // Empty mode: adopt whatever exists (synced in from another
+                            // device, or created via the CTA and returned to) — most
+                            // recent wins.
+                            result.data.maxByOrNull { it.createdAt }
+                        }
                         when {
                             measurement != null -> {
                                 hasSeenMeasurement = true
-                                _state.update { it.copy(measurement = measurement, isLoading = false) }
+                                _state.update {
+                                    it.copy(measurement = measurement, isLoading = false, isEmptyState = false)
+                                }
                             }
+                            measurementId == null ->
+                                _state.update { it.copy(isLoading = false, isEmptyState = true) }
                             !navigatedAway && (hasSeenMeasurement || !fromSave) -> {
                                 // Deleted elsewhere (another device / another screen) — leave.
                                 navigatedAway = true

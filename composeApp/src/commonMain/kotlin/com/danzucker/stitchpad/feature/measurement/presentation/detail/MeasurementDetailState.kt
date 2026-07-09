@@ -13,6 +13,8 @@ data class MeasurementDetailState(
     /** Customer slot lock state; null until the customer doc emits — gated actions fail closed while unknown. */
     val isLocked: Boolean? = null,
     val isLoading: Boolean = true,
+    /** Empty mode (null-measurementId route) with a confirmed-empty list — render the add-first hero. */
+    val isEmptyState: Boolean = false,
     val showDeleteDialog: Boolean = false,
     /** Non-null = rename dialog open with this draft text. */
     val renameDraft: String? = null,

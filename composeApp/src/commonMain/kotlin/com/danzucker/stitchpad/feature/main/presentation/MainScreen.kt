@@ -327,10 +327,11 @@ private fun MainNavGraph(
                             fromSave = true,
                         ),
                     ) {
-                        // Edit mode was opened from a MeasurementDetailRoute — replace that
-                        // stale detail entry too, so Back returns to customer detail. Create
-                        // mode has no detail beneath; just replace the form.
-                        if (formRoute.measurementId != null) {
+                        // Opened from a detail entry — edit mode, or create from the
+                        // empty-state CTA — replace that stale detail entry too, so Back
+                        // returns to wherever the detail was launched from. Other create
+                        // modes have no detail beneath; just replace the form.
+                        if (formRoute.measurementId != null || formRoute.fromEmptyDetail) {
                             popUpTo<MeasurementDetailRoute> { inclusive = true }
                         } else {
                             popUpTo<MeasurementFormRoute> { inclusive = true }
@@ -348,6 +349,11 @@ private fun MainNavGraph(
                     )
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToAdd = { customerId ->
+                    navController.navigate(
+                        MeasurementFormRoute(customerId = customerId, fromEmptyDetail = true),
+                    )
+                },
             )
         }
         composable<StyleFoldersRoute> {

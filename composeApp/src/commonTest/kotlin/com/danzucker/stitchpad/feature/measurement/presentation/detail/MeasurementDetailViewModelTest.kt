@@ -112,7 +112,7 @@ class MeasurementDetailViewModelTest {
     )
 
     private fun TestScope.createViewModel(
-        measurementId: String = "meas-1",
+        measurementId: String? = "meas-1",
         source: String = MeasurementDetailSource.CUSTOMER_DETAIL,
         fromSave: Boolean = false,
     ): MeasurementDetailViewModel {
@@ -369,5 +369,68 @@ class MeasurementDetailViewModelTest {
         assertNull(measurementSharer.lastImageData)
         assertEquals(false, vm.state.value.showShareSheet)
         assertTrue(analytics.events.filterIsInstance<AnalyticsEvent.MeasurementShared>().isEmpty())
+    }
+
+    @Test
+    fun `empty mode shows empty state when customer has no measurements`() = runTest {
+        measurementRepository.measurementsList = emptyList()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel(measurementId = null)
+
+        val state = vm.state.value
+        assertTrue(state.isEmptyState)
+        assertNull(state.measurement)
+        assertEquals(false, state.isLoading)
+    }
+
+    @Test
+    fun `empty mode adopts the most recent measurement when the list is not empty`() = runTest {
+        measurementRepository.measurementsList = listOf(
+            fakeMeasurement(id = "older").copy(createdAt = 1L),
+            fakeMeasurement(id = "newer", name = "Newest").copy(createdAt = 2L),
+        )
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel(measurementId = null)
+
+        val state = vm.state.value
+        assertEquals("newer", state.measurement?.id)
+        assertEquals(false, state.isEmptyState)
+        assertEquals(false, state.isLoading)
+    }
+
+    @Test
+    fun `empty mode does not navigate back`() = runTest {
+        measurementRepository.measurementsList = emptyList()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel(measurementId = null)
+
+        vm.events.test {
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `empty mode add CTA emits NavigateToAdd for unlocked customer`() = runTest {
+        measurementRepository.measurementsList = emptyList()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel(measurementId = null)
+
+        vm.events.test {
+            vm.onAction(MeasurementDetailAction.OnAddMeasurementClick)
+            val event = assertIs<MeasurementDetailEvent.NavigateToAdd>(awaitItem())
+            assertEquals("customer-1", event.customerId)
+        }
+    }
+
+    @Test
+    fun `empty mode add CTA routes locked customer to upgrade`() = runTest {
+        measurementRepository.measurementsList = emptyList()
+        customerRepository.customersList = listOf(fakeCustomer(slotState = CustomerSlotState.LOCKED))
+        val vm = createViewModel(measurementId = null)
+
+        vm.events.test {
+            vm.onAction(MeasurementDetailAction.OnAddMeasurementClick)
+            assertIs<MeasurementDetailEvent.NavigateToUpgrade>(awaitItem())
+        }
     }
 }

@@ -116,6 +116,7 @@ fun MeasurementDetailRoot(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (String, String) -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToAdd: (String) -> Unit,
 ) {
     val viewModel: MeasurementDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -135,6 +136,7 @@ fun MeasurementDetailRoot(
                     snackbarHostState.showSnackbar(whatsAppFailed)
                 }
             }
+            is MeasurementDetailEvent.NavigateToAdd -> onNavigateToAdd(event.customerId)
         }
     }
 

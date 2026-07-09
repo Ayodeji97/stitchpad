@@ -4,11 +4,14 @@ sealed interface MeasurementDetailEvent {
     data object NavigateBack : MeasurementDetailEvent
     data class NavigateToEdit(val customerId: String, val measurementId: String) : MeasurementDetailEvent
 
-    /** Locked (over-cap) customer tapped a gated action — Edit, Rename, or Delete. */
+    /** Locked (over-cap) customer tapped a gated action — Edit, Rename, Delete, or the empty-state Add CTA. */
     data object NavigateToUpgrade : MeasurementDetailEvent
 
     /** WhatsApp share chosen and the customer has a phone on file — Root launches the WhatsApp intent/URL. */
     data class LaunchWhatsApp(val phone: String, val message: String) : MeasurementDetailEvent
+
+    /** Empty-state CTA — open the create form for this customer. */
+    data class NavigateToAdd(val customerId: String) : MeasurementDetailEvent
 }
 
 /** GA4 `source` values for [com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent.MeasurementDetailViewed]. */

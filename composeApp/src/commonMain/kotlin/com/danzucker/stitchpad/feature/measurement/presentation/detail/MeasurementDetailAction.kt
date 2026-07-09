@@ -17,4 +17,7 @@ sealed interface MeasurementDetailAction {
     data object OnShareAsPdfClick : MeasurementDetailAction
     data object OnShareWhatsAppClick : MeasurementDetailAction
     data object OnDismissShareSheet : MeasurementDetailAction
+
+    /** Empty-state hero CTA. */
+    data object OnAddMeasurementClick : MeasurementDetailAction
 }

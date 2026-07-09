@@ -50,12 +50,15 @@ data class MeasurementFormRoute(
     val measurementId: String? = null,
     val linkToOrderId: String? = null,
     val fromCustomerCreation: Boolean = false,
+    /** Launched from the detail screen's empty-state CTA — post-save must pop that detail entry too. */
+    val fromEmptyDetail: Boolean = false,
 )
 
 @Serializable
 data class MeasurementDetailRoute(
     val customerId: String,
-    val measurementId: String,
+    /** null = empty mode: the customer is confirmed to have zero measurements; the screen shows the add-first hero. */
+    val measurementId: String?,
     val source: String,
     val fromSave: Boolean = false,
 )
