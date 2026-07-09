@@ -3,4 +3,5 @@
     <cache-path name="shared_receipts" path="receipts/" />
     <cache-path name="camera_captures" path="camera/" />
     <cache-path name="shared_images" path="shared_images/" />
+    <cache-path name="shared_measurements" path="measurements/" />
 </paths>

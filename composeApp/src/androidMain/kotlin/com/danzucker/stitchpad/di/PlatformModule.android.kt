@@ -9,8 +9,10 @@ import com.danzucker.stitchpad.core.media.AndroidImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadScheduler
+import com.danzucker.stitchpad.core.sharing.AndroidMeasurementSharer
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ImageSharer
+import com.danzucker.stitchpad.core.sharing.MeasurementSharer
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.data.AndroidSsoCredentialProvider
@@ -45,6 +47,7 @@ actual val platformModule: Module = module {
     single { OfflineUploadScheduler(androidContext()) }
     single { OrderReceiptSharer(androidContext()) }
     single { ImageSharer(androidContext()) }
+    single<MeasurementSharer> { AndroidMeasurementSharer(androidContext()) }
     single { WhatsAppLauncher(androidContext()) }
     single { DialerLauncher(androidContext()) }
     single { CurrentActivityHolder() }

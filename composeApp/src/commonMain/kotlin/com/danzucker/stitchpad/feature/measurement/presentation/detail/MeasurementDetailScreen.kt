@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -46,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,20 +63,24 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_measurement_detail_back
 import stitchpad.composeapp.generated.resources.cd_measurement_detail_overflow
+import stitchpad.composeapp.generated.resources.cd_measurement_share
 import stitchpad.composeapp.generated.resources.custom_field_section_title
 import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
@@ -101,6 +109,7 @@ import stitchpad.composeapp.generated.resources.section_neck_shoulders
 import stitchpad.composeapp.generated.resources.section_trouser
 import stitchpad.composeapp.generated.resources.section_upper_body
 import stitchpad.composeapp.generated.resources.section_waist_hip
+import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 @Composable
 fun MeasurementDetailRoot(
@@ -111,6 +120,9 @@ fun MeasurementDetailRoot(
     val viewModel: MeasurementDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val whatsAppLauncher: WhatsAppLauncher = koinInject()
+    val whatsAppFailed = stringResource(Res.string.whatsapp_launch_failed)
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -118,6 +130,11 @@ fun MeasurementDetailRoot(
             is MeasurementDetailEvent.NavigateToEdit ->
                 onNavigateToEdit(event.customerId, event.measurementId)
             MeasurementDetailEvent.NavigateToUpgrade -> onNavigateToUpgrade()
+            is MeasurementDetailEvent.LaunchWhatsApp -> scope.launch {
+                if (!whatsAppLauncher.launch(event.phone, event.message)) {
+                    snackbarHostState.showSnackbar(whatsAppFailed)
+                }
+            }
         }
     }
 
@@ -180,10 +197,9 @@ fun MeasurementDetailScreen(
         bottomBar = {
             if (measurement != null) {
                 Surface {
-                    StitchPadButton(
-                        text = stringResource(Res.string.measurement_detail_edit_button),
-                        onClick = { onAction(MeasurementDetailAction.OnEditClick) },
-                        leadingIcon = Icons.Default.Edit,
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(
@@ -192,7 +208,26 @@ fun MeasurementDetailScreen(
                                 top = DesignTokens.space3,
                                 bottom = DesignTokens.space4,
                             ),
-                    )
+                    ) {
+                        StitchPadButton(
+                            text = stringResource(Res.string.measurement_detail_edit_button),
+                            onClick = { onAction(MeasurementDetailAction.OnEditClick) },
+                            leadingIcon = Icons.Default.Edit,
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedIconButton(
+                            onClick = { onAction(MeasurementDetailAction.OnShareClick) },
+                            shape = RoundedCornerShape(DesignTokens.radiusLg),
+                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.size(52.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(Res.string.cd_measurement_share),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                 }
             }
         },
@@ -282,6 +317,17 @@ fun MeasurementDetailScreen(
                     Text(stringResource(Res.string.measurement_rename_cancel))
                 }
             },
+        )
+    }
+
+    if (state.showShareSheet && measurement != null) {
+        ShareMeasurementSheet(
+            measurementName = measurement.name.ifBlank { stringResource(Res.string.measurement_detail_title) },
+            customerName = state.customer?.name.orEmpty(),
+            onShareAsImage = { onAction(MeasurementDetailAction.OnShareAsImageClick) },
+            onShareAsPdf = { onAction(MeasurementDetailAction.OnShareAsPdfClick) },
+            onShareWhatsApp = { onAction(MeasurementDetailAction.OnShareWhatsAppClick) },
+            onDismiss = { onAction(MeasurementDetailAction.OnDismissShareSheet) },
         )
     }
 }
