@@ -117,7 +117,7 @@ fun CustomerListRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToEditCustomer: (String) -> Unit,
     onNavigateToAddMeasurement: (String) -> Unit,
-    onNavigateToMeasurementDetail: (String, String) -> Unit,
+    onNavigateToMeasurementDetail: (String, String?) -> Unit,
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToTutorial: (String) -> Unit,
 ) {

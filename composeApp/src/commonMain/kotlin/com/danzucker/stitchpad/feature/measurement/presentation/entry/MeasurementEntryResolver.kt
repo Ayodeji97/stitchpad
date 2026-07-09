@@ -9,15 +9,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Where a "view measurements" entry point should land for a customer. */
 sealed interface MeasurementEntryDestination {
-    data class Detail(val customerId: String, val measurementId: String) : MeasurementEntryDestination
+    /** null [measurementId] = the detail screen's empty mode (customer confirmed to have zero measurements). */
+    data class Detail(val customerId: String, val measurementId: String?) : MeasurementEntryDestination
     data class CustomerDetail(val customerId: String) : MeasurementEntryDestination
 }
 
 /**
- * The shared routing rule for measurement entry points (spec): exactly one
- * measurement opens it directly; zero or several land on customer detail
- * (whose measurements section handles both). Errors and signed-out fall back
- * to customer detail — never a dead end.
+ * Fetches the measurement snapshot for the actions-sheet entry point and applies
+ * the shared [destinationFor] routing rule. Callers that already know the count
+ * (the dashboard picker) call [destinationFor] directly instead.
  */
 class MeasurementEntryResolver(
     private val measurementRepository: MeasurementRepository,
@@ -25,19 +25,20 @@ class MeasurementEntryResolver(
 ) {
     suspend fun resolve(customerId: String): MeasurementEntryDestination {
         val measurements = firstSnapshotOrNull(customerId)
-        return if (measurements?.size == 1) {
-            MeasurementEntryDestination.Detail(customerId, measurements.single().id)
-        } else {
-            // 0, several, error, timeout, or signed-out — customer detail handles all.
-            MeasurementEntryDestination.CustomerDetail(customerId)
-        }
+        return destinationFor(
+            customerId = customerId,
+            measurementCount = measurements?.size,
+            singleMeasurementId = measurements?.singleOrNull()?.id,
+        )
     }
 
     /**
-     * First measurement snapshot, or null when it can't be had: signed-out, or the
-     * snapshot never arrives (cold cache with no network can leave the Firestore
-     * flow pending indefinitely — the wait is bounded so the tap never silently
-     * dies; the sheet that triggered it is already dismissed).
+     * First measurement snapshot, or null when it can't be had: signed-out, a repo
+     * error, or the snapshot never arrives (cold cache with no network can leave the
+     * Firestore flow pending indefinitely — the wait is bounded so the tap never
+     * silently dies; the sheet that triggered it is already dismissed). Null means
+     * UNKNOWN — it must never read as "confirmed zero", which would show the empty
+     * state for a customer who may well have measurements.
      */
     private suspend fun firstSnapshotOrNull(customerId: String): List<Measurement>? {
         val userId = authRepository.getCurrentUser()?.id ?: return null
@@ -46,12 +47,31 @@ class MeasurementEntryResolver(
         }
         return when (result) {
             is Result.Success -> result.data
-            is Result.Error -> emptyList()
+            is Result.Error -> null
             null -> null
         }
     }
 
-    private companion object {
-        const val FIRST_SNAPSHOT_TIMEOUT_MS = 3_000L
+    companion object {
+        /**
+         * The shared routing rule for measurement entry points (spec): exactly one
+         * measurement opens its detail; a confirmed zero opens the detail screen's
+         * empty state; several land on customer detail (whose measurements section
+         * is the list). Unknown count (error, timeout, signed-out) falls back to
+         * customer detail — never a dead end, never a false empty state.
+         */
+        fun destinationFor(
+            customerId: String,
+            measurementCount: Int?,
+            singleMeasurementId: String?,
+        ): MeasurementEntryDestination = when {
+            singleMeasurementId != null ->
+                MeasurementEntryDestination.Detail(customerId, singleMeasurementId)
+            measurementCount == 0 ->
+                MeasurementEntryDestination.Detail(customerId, measurementId = null)
+            else -> MeasurementEntryDestination.CustomerDetail(customerId)
+        }
+
+        private const val FIRST_SNAPSHOT_TIMEOUT_MS = 3_000L
     }
 }

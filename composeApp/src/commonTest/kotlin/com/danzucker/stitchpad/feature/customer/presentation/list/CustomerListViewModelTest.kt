@@ -129,7 +129,7 @@ class CustomerListViewModelTest {
     }
 
     @Test
-    fun `view measurements from sheet with none navigates to customer detail`() = runTest {
+    fun `view measurements from sheet with none navigates to empty-mode detail`() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = emptyList()
@@ -139,7 +139,9 @@ class CustomerListViewModelTest {
             vm.onAction(CustomerListAction.OnViewMeasurementsFromRow("customer-1"))
             advanceTimeBy(451)
             runCurrent()
-            assertIs<CustomerListEvent.NavigateToCustomerDetail>(awaitItem())
+            val event = assertIs<CustomerListEvent.NavigateToMeasurementDetail>(awaitItem())
+            assertEquals("customer-1", event.customerId)
+            assertNull(event.measurementId)
         }
     }
 
