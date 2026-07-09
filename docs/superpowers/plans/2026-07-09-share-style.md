@@ -631,14 +631,14 @@ val styleDataModule = module {
 }
 
 val stylePresentationModule = module {
-    factoryOf(::ShareStyle)
+    factory { ShareStyle(get(), get(), get<ImageSharer>()) }
     viewModelOf(::StyleFoldersViewModel)
     viewModelOf(::StyleGalleryViewModel)
     viewModelOf(::StyleFormViewModel)
 }
 ```
 
-> `factoryOf(::ShareStyle)` resolves the **secondary** `(loader, entitlements, sharer)` constructor — Koin's constructor-ref picks the constructor whose params it can satisfy from the graph. `CoilStyleImageBytesLoader`'s `(imageLoader, platformContext)` resolve from the existing `ImageLoader` + `PlatformContext` singles in the platform modules.
+> `factoryOf(::ShareStyle)` does **not** compile here: `ShareStyle` has two 3-arg constructors, so the `::ShareStyle` reference is ambiguous at Kotlin compile time (before Koin's graph resolution runs). Use the explicit lambda `factory { ShareStyle(get(), get(), get<ImageSharer>()) }` — `get<ImageSharer>()` forces the secondary `(loader, entitlements, sharer)` constructor. Add `import com.danzucker.stitchpad.core.sharing.ImageSharer` and `org.koin.dsl.module`'s `factory`; keep `singleOf` for the loader bind. `CoilStyleImageBytesLoader`'s `(imageLoader, platformContext)` resolve from the existing `ImageLoader` + `PlatformContext` singles in the platform modules.
 
 - [ ] **Step 4: Verify both platforms compile**
 
