@@ -300,24 +300,38 @@ class IosMeasurementSharer : MeasurementSharer {
     /** Greedily wraps [text] into lines that fit within [maxWidth] under [font]'s metrics. */
     private fun wrapText(text: String, font: UIFont, maxWidth: Double): List<String> {
         val attrs = mapOf<Any?, Any?>(NSFontAttributeName to font)
-        val words = text.split(" ")
+        val words = text.split(" ").flatMap { hardBreak(it, attrs, maxWidth) }
         val lines = mutableListOf<String>()
-        var current = StringBuilder()
         for (word in words) {
-            val candidate = if (current.isEmpty()) word else "$current $word"
-            val candidateWidth = NSString.create(string = candidate)
-                .sizeWithAttributes(attrs)
-                .useContents { width }
-            if (candidateWidth > maxWidth && current.isNotEmpty()) {
-                lines.add(current.toString())
-                current = StringBuilder(word)
+            val candidate = if (lines.isEmpty()) word else "${lines.last()} $word"
+            if (lines.isNotEmpty() && measuredWidth(candidate, attrs) <= maxWidth) {
+                lines[lines.lastIndex] = candidate
             } else {
-                current = StringBuilder(candidate)
+                lines.add(word)
             }
         }
-        if (current.isNotEmpty()) lines.add(current.toString())
         return lines
     }
+
+    // A single unbroken run wider than the card content (a URL, a keyboard mash)
+    // would otherwise draw past the card edge — split it character-wise.
+    private fun hardBreak(word: String, attrs: Map<Any?, Any?>, maxWidth: Double): List<String> {
+        if (measuredWidth(word, attrs) <= maxWidth) return listOf(word)
+        val pieces = mutableListOf<String>()
+        var piece = StringBuilder()
+        for (ch in word) {
+            if (piece.isNotEmpty() && measuredWidth("$piece$ch", attrs) > maxWidth) {
+                pieces.add(piece.toString())
+                piece = StringBuilder()
+            }
+            piece.append(ch)
+        }
+        if (piece.isNotEmpty()) pieces.add(piece.toString())
+        return pieces
+    }
+
+    private fun measuredWidth(text: String, attrs: Map<Any?, Any?>): Double =
+        NSString.create(string = text).sizeWithAttributes(attrs).useContents { width }
 
     // endregion
 

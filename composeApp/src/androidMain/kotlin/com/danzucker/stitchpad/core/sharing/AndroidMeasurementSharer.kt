@@ -299,20 +299,34 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
 
     /** Greedily wraps [text] into lines that fit within [maxWidth] under [paint]'s metrics. */
     private fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
-        val words = text.split(" ")
+        val words = text.split(" ").flatMap { hardBreak(it, paint, maxWidth) }
         val lines = mutableListOf<String>()
-        var current = StringBuilder()
         for (word in words) {
-            val candidate = if (current.isEmpty()) word else "$current $word"
-            if (paint.measureText(candidate) > maxWidth && current.isNotEmpty()) {
-                lines.add(current.toString())
-                current = StringBuilder(word)
+            val candidate = if (lines.isEmpty()) word else "${lines.last()} $word"
+            if (lines.isNotEmpty() && paint.measureText(candidate) <= maxWidth) {
+                lines[lines.lastIndex] = candidate
             } else {
-                current = StringBuilder(candidate)
+                lines.add(word)
             }
         }
-        if (current.isNotEmpty()) lines.add(current.toString())
         return lines
+    }
+
+    // A single unbroken run wider than the card content (a URL, a keyboard mash)
+    // would otherwise draw past the card edge — split it character-wise.
+    private fun hardBreak(word: String, paint: Paint, maxWidth: Float): List<String> {
+        if (paint.measureText(word) <= maxWidth) return listOf(word)
+        val pieces = mutableListOf<String>()
+        var piece = StringBuilder()
+        for (ch in word) {
+            if (piece.isNotEmpty() && paint.measureText("$piece$ch") > maxWidth) {
+                pieces.add(piece.toString())
+                piece = StringBuilder()
+            }
+            piece.append(ch)
+        }
+        if (piece.isNotEmpty()) pieces.add(piece.toString())
+        return pieces
     }
 
     private fun saveBitmapToCache(bitmap: Bitmap, prefix: String): File {
