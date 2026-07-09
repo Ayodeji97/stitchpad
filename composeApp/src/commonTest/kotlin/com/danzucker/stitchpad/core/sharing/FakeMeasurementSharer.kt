@@ -4,7 +4,6 @@ package com.danzucker.stitchpad.core.sharing
 class FakeMeasurementSharer : MeasurementSharer {
     var lastImageData: MeasurementShareData? = null
     var lastPdfData: MeasurementShareData? = null
-    var lastSharedText: String? = null
     var throwOnShare: Boolean = false
 
     override suspend fun shareAsImage(data: MeasurementShareData) {
@@ -15,10 +14,5 @@ class FakeMeasurementSharer : MeasurementSharer {
     override suspend fun shareAsPdf(data: MeasurementShareData) {
         if (throwOnShare) error("boom")
         lastPdfData = data
-    }
-
-    override suspend fun shareAsText(text: String) {
-        if (throwOnShare) error("boom")
-        lastSharedText = text
     }
 }

@@ -36,19 +36,6 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         shareFile(file, "application/pdf")
     }
 
-    override suspend fun shareAsText(text: String) {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, text)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(
-            Intent.createChooser(intent, null).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-        )
-    }
-
     // region Card Bitmap Rendering (paper light)
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -98,7 +85,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         val wrappedNotes = data.notes?.let { wrapText(it, notesPaint, width - 2 * padding) }.orEmpty()
 
         // Estimate height generously — Android crops to actual content height below.
-        var estimatedHeight = 200f // header + customer + meta
+        var estimatedHeight = 228f // header + customer + meta (incl. wider header-divider gaps)
         data.sections.forEach { section ->
             estimatedHeight += 56f + 44f * section.rows.size
         }
@@ -115,9 +102,9 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         var y = padding + 26f
         canvas.drawText("StitchPad", padding, y, wordmarkPaint)
         canvas.drawText("MEASUREMENT CARD", width - padding, y - 6f, cardLabelPaint)
-        y += 24f
+        y += 36f // header-to-divider gap (was 24f)
         canvas.drawLine(padding, y, width - padding, y, dividerPaint)
-        y += 30f
+        y += 46f // divider-to-customer gap (was 30f)
 
         // Customer name
         canvas.drawText(data.customerName, padding, y, customerNamePaint)
@@ -221,8 +208,8 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         // Compute an exact page height by summing the same y-advances the draw code
         // below uses — a PDF page can't be cropped after the fact like the bitmap.
         var estimatedHeight = padding
-        estimatedHeight += 13f + 12f // header gap + header-to-divider gap
-        estimatedHeight += 15f // divider-to-customer gap
+        estimatedHeight += 13f + 18f // header gap + header-to-divider gap (was 12f)
+        estimatedHeight += 23f // divider-to-customer gap (was 15f)
         estimatedHeight += 17f // customer-to-meta gap
         data.sections.forEach { section ->
             estimatedHeight += 14f + 14f + 22f * section.rows.size
@@ -244,9 +231,9 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         var y = padding + 13f
         canvas.drawText("StitchPad", padding, y, wordmarkPaint)
         canvas.drawText("MEASUREMENT CARD", pageWidth - padding, y - 3f, cardLabelPaint)
-        y += 12f
+        y += 18f // header-to-divider gap (was 12f)
         canvas.drawLine(padding, y, pageWidth - padding, y, dividerPaint)
-        y += 15f
+        y += 23f // divider-to-customer gap (was 15f)
 
         canvas.drawText(data.customerName, padding, y, customerNamePaint)
         y += 17f

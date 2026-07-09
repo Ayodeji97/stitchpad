@@ -314,15 +314,16 @@ class MeasurementDetailViewModelTest {
     }
 
     @Test
-    fun `whatsapp share with blank phone falls back to text share`() = runTest {
+    fun `whatsapp share with blank phone launches whatsapp picker`() = runTest {
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         customerRepository.customersList = listOf(fakeCustomer().copy(phone = ""))
         val vm = createViewModel()
         vm.events.test {
             vm.onAction(MeasurementDetailAction.OnShareWhatsAppClick)
-            expectNoEvents()
+            val event = assertIs<MeasurementDetailEvent.LaunchWhatsApp>(awaitItem())
+            assertEquals("", event.phone)
+            assertTrue(event.message.contains("*Chidinma Eze — Wedding gown*"))
         }
-        assertTrue(measurementSharer.lastSharedText.orEmpty().contains("*Chidinma Eze — Wedding gown*"))
         val event = analytics.events.filterIsInstance<AnalyticsEvent.MeasurementShared>().single()
         assertEquals("whatsapp_text", event.format)
     }

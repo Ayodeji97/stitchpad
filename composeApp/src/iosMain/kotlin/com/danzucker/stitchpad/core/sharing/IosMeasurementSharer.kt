@@ -66,32 +66,6 @@ class IosMeasurementSharer : MeasurementSharer {
         shareUrl(fileUrl)
     }
 
-    override suspend fun shareAsText(text: String) {
-        // Give the Compose ModalBottomSheet time to finish its dismiss animation before we
-        // present a UIKit modal on top — same rationale as shareUrl below.
-        delay(SHARE_PRESENT_DELAY_MS)
-        withContext(Dispatchers.Main) {
-            val rootVC = activeKeyWindow()?.rootViewController ?: return@withContext
-            val presenter = topmostPresenter(rootVC)
-            val activityVC = UIActivityViewController(
-                activityItems = listOf(text),
-                applicationActivities = null
-            )
-            activityVC.popoverPresentationController?.apply {
-                sourceView = presenter.view
-                presenter.view.bounds.useContents {
-                    sourceRect = CGRectMake(
-                        origin.x + size.width / 2.0,
-                        origin.y + size.height / 2.0,
-                        0.0,
-                        0.0
-                    )
-                }
-            }
-            presenter.presentViewController(activityVC, animated = true, completion = null)
-        }
-    }
-
     // region Card Image Rendering (paper light)
 
     /**
@@ -103,8 +77,8 @@ class IosMeasurementSharer : MeasurementSharer {
         val width = 800.0
         val padding = 40.0
         var y = padding + 26.0 // header baseline
-        y += 24.0 // header-to-divider
-        y += 30.0 // divider-to-customer
+        y += 36.0 // header-to-divider (was 24.0)
+        y += 46.0 // divider-to-customer (was 30.0)
         y += 34.0 // customer-to-meta
         data.sections.forEach { section ->
             y += 28.0 + 28.0 + 44.0 * section.rows.size
@@ -144,9 +118,9 @@ class IosMeasurementSharer : MeasurementSharer {
                 cardColor("#7D7970"),
                 kern = 18.0 * HEADER_LABEL_KERN_EM
             )
-            y += 24.0
+            y += 36.0 // header-to-divider gap (was 24.0)
             drawDivider(padding, y, width - padding, cardColor("#E5E3DF"))
-            y += 30.0
+            y += 46.0 // divider-to-customer gap (was 30.0)
 
             drawText(data.customerName, padding, y, boldFont(44.0), cardColor("#14110E"))
             y += 34.0
@@ -208,8 +182,8 @@ class IosMeasurementSharer : MeasurementSharer {
         val pageWidth = 420.0
         val padding = 30.0
         var y = padding + 13.0
-        y += 12.0
-        y += 15.0
+        y += 18.0 // header-to-divider (was 12.0)
+        y += 23.0 // divider-to-customer (was 15.0)
         y += 17.0
         data.sections.forEach { section ->
             y += 14.0 + 14.0 + 22.0 * section.rows.size
@@ -251,9 +225,9 @@ class IosMeasurementSharer : MeasurementSharer {
                 cardColor("#7D7970"),
                 kern = 9.0 * HEADER_LABEL_KERN_EM
             )
-            y += 12.0
+            y += 18.0 // header-to-divider gap (was 12.0)
             drawDivider(padding, y, pageWidth - padding, cardColor("#E5E3DF"))
-            y += 15.0
+            y += 23.0 // divider-to-customer gap (was 15.0)
 
             drawText(data.customerName, padding, y, boldFont(22.0), cardColor("#14110E"))
             y += 17.0

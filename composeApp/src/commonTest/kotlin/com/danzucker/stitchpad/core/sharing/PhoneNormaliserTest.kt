@@ -95,6 +95,14 @@ class PhoneNormaliserTest {
         assertTrue(url.endsWith("?text=%F0%9F%92%8D"), "got=$url")
     }
 
+    @Test
+    fun buildWhatsAppUrl_blankPhoneOpensWhatsAppsOwnPicker() {
+        // No number on file — omit the digits entirely so WhatsApp opens its own
+        // recipient picker with the text prefilled, instead of a dead wa.me link.
+        val url = buildWhatsAppUrl(phone = "", message = "Hi Ade")
+        assertEquals("https://wa.me/?text=Hi%20Ade", url)
+    }
+
     // --- validateNigerianMobileE164 ---
 
     @Test

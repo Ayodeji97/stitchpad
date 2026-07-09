@@ -52,8 +52,11 @@ fun applyImpliedNigerianCountryCode(raw: String): String {
  * browser-based WhatsApp page when the app isn't installed.
  */
 fun buildWhatsAppUrl(phone: String, message: String): String {
-    val normalised = normaliseNigerianPhone(phone)
     val encoded = urlEncode(message)
+    val normalised = normaliseNigerianPhone(phone)
+    // No usable number — open WhatsApp's own recipient picker with the text
+    // prefilled (wa.me without digits) instead of a dead link.
+    if (normalised.isBlank()) return "https://wa.me/?text=$encoded"
     return "https://wa.me/$normalised?text=$encoded"
 }
 

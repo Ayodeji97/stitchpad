@@ -311,12 +311,9 @@ class MeasurementDetailViewModel(
             FORMAT_PDF -> measurementSharer.shareAsPdf(data)
             FORMAT_WHATSAPP -> {
                 val text = MeasurementShareFormatter.buildWhatsAppText(data)
-                if (customer.phone.isBlank()) {
-                    // No number on file — fall back to the generic share sheet.
-                    measurementSharer.shareAsText(text)
-                } else {
-                    _events.send(MeasurementDetailEvent.LaunchWhatsApp(customer.phone, text))
-                }
+                // No number on file — WhatsApp opens its own recipient picker with the
+                // text prefilled (buildWhatsAppUrl/the launcher handle a blank phone).
+                _events.send(MeasurementDetailEvent.LaunchWhatsApp(customer.phone, text))
             }
         }
     }

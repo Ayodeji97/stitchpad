@@ -1130,7 +1130,7 @@
     <string name="measurement_detail_title">Customer measurement</string>
     <string name="measurement_share_error">Could not share measurement. Please try again.</string>
     <string name="measurement_share_sheet_title">Share measurement</string>
-    <string name="measurement_share_whatsapp_title">Send text on WhatsApp</string>
+    <string name="measurement_share_whatsapp_title">Send as text on WhatsApp</string>
     <string name="measurement_share_whatsapp_description">Plain text — readable on any phone</string>
     <string name="cd_measurement_share">Share measurement</string>
     <string name="measurement_detail_view_full">View full measurement</string>
