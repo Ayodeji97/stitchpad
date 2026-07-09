@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
@@ -36,6 +38,7 @@ class CustomerFormViewModel(
     private val emailValidator: PatternValidator,
     private val entitlements: EntitlementsProvider,
     private val analytics: Analytics,
+    private val celebrations: CelebrationController,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -158,6 +161,10 @@ class CustomerFormViewModel(
                 is Result.Success -> {
                     if (customerId == null) {
                         analytics.logEvent(AnalyticsEvent.CustomerCreated)
+                        celebrations.trigger(
+                            userId = userId,
+                            milestone = Milestone.FirstCustomer(customer.name.substringBefore(' ')),
+                        )
                     }
                     _events.send(postSaveEvent(s, newId))
                 }
