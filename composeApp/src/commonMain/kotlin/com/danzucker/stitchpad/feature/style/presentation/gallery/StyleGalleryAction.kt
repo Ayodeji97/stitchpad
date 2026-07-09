@@ -13,6 +13,9 @@ sealed interface StyleGalleryAction {
     data class OnDestinationFolderSelected(val folderId: String?) : StyleGalleryAction
     data object OnDismissTransfer : StyleGalleryAction
     data class OnDeleteClick(val style: Style) : StyleGalleryAction
+
+    /** Share tapped in the long-press action sheet — dismisses the sheet and fires ShareStyle. */
+    data class OnShareClick(val style: Style) : StyleGalleryAction
     data object OnConfirmDelete : StyleGalleryAction
     data object OnDismissDeleteDialog : StyleGalleryAction
     data object OnNavigateBack : StyleGalleryAction

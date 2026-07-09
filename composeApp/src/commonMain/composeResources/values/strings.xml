@@ -491,6 +491,8 @@
     <string name="style_action_copy">Copy to another customer</string>
     <string name="style_action_move">Move to another customer</string>
     <string name="style_action_delete">Delete style</string>
+    <string name="style_action_share">Share style</string>
+    <string name="style_share_failed">Couldn&apos;t prepare this photo to share.</string>
     <string name="style_transfer_copy_title">Copy to</string>
     <string name="style_transfer_move_title">Move to</string>
     <string name="style_transfer_empty">No other customers to send this to yet.</string>

@@ -14,6 +14,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
+import com.danzucker.stitchpad.feature.style.presentation.share.ShareStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -82,11 +84,20 @@ class StyleGalleryViewModelTest {
         }
     }
 
+    private fun fakeShareStyle(
+        entitlements: EntitlementsProvider = FakeEntitlementsProvider(),
+    ) = ShareStyle(
+        loader = { byteArrayOf(1) },
+        entitlements = entitlements,
+        share = { _, _ -> },
+    )
+
     private fun TestScope.createViewModel(
         customerId: String? = "customer-1",
         folderId: String? = null,
         tier: SubscriptionTier = SubscriptionTier.FREE,
         fakeEntitlements: FakeEntitlementsProvider = FakeEntitlementsProvider(tier),
+        shareStyle: ShareStyle = fakeShareStyle(fakeEntitlements),
     ): StyleGalleryViewModel {
         val args = buildMap {
             if (customerId != null) put("customerId", customerId)
@@ -98,6 +109,7 @@ class StyleGalleryViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             entitlements = fakeEntitlements,
+            shareStyle = shareStyle,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -141,6 +153,7 @@ class StyleGalleryViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
+            shareStyle = fakeShareStyle(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
 
@@ -586,6 +599,45 @@ class StyleGalleryViewModelTest {
         assertEquals(style, vm.state.value.styleToDelete)
     }
 
+    // --- Share (Task 6) ---
+
+    @Test
+    fun onShareClick_invokes_shareStyle_and_dismisses_sheet() = runTest {
+        var sharedCaption: String? = null
+        val recordingShare = ShareStyle(
+            loader = { byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, caption -> sharedCaption = caption },
+        )
+        val vm = createViewModel(shareStyle = recordingShare)
+        val style = fakeStyle(id = "s1")
+
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(style))
+        vm.onAction(StyleGalleryAction.OnShareClick(style))
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.actionSheetStyle)
+        assertNotNull(sharedCaption)
+    }
+
+    @Test
+    fun onShareClick_whenShareFails_setsErrorMessage() = runTest {
+        val failingShare = ShareStyle(
+            loader = { null },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> },
+        )
+        val vm = createViewModel(shareStyle = failingShare)
+        val style = fakeStyle(id = "s1")
+
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(style))
+        vm.onAction(StyleGalleryAction.OnShareClick(style))
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.actionSheetStyle)
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
     // --- isInspirationGallery flag ---
 
     @Test
@@ -604,6 +656,7 @@ class StyleGalleryViewModelTest {
             customerRepository = customerRepository,
             authRepository = authRepository,
             entitlements = FakeEntitlementsProvider(SubscriptionTier.FREE),
+            shareStyle = fakeShareStyle(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         assertTrue(vm.state.value.isInspirationGallery)

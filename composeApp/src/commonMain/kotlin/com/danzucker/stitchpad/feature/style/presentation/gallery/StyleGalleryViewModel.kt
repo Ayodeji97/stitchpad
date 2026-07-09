@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.error.onFailure
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -18,6 +19,7 @@ import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
+import com.danzucker.stitchpad.feature.style.presentation.share.ShareStyle
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.style_action_verify_failed
+import stitchpad.composeapp.generated.resources.style_share_failed
 
 class StyleGalleryViewModel(
     savedStateHandle: SavedStateHandle,
@@ -41,6 +44,7 @@ class StyleGalleryViewModel(
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
     private val entitlements: EntitlementsProvider,
+    private val shareStyle: ShareStyle,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -134,6 +138,16 @@ class StyleGalleryViewModel(
             is StyleGalleryAction.OnDeleteClick -> {
                 _state.update {
                     it.copy(actionSheetStyle = null, showDeleteDialog = true, styleToDelete = action.style)
+                }
+            }
+            is StyleGalleryAction.OnShareClick -> {
+                _state.update { it.copy(actionSheetStyle = null) }
+                viewModelScope.launch {
+                    shareStyle(action.style).onFailure {
+                        _state.update {
+                            it.copy(errorMessage = UiText.StringResourceText(Res.string.style_share_failed))
+                        }
+                    }
                 }
             }
             StyleGalleryAction.OnConfirmDelete -> deleteStyle()
