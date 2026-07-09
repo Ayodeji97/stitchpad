@@ -23,13 +23,23 @@ class FakeMeasurementRepository : MeasurementRepository {
         get() = measurementsFlow.value
         set(value) { measurementsFlow.value = value }
 
+    /**
+     * Optional per-customer override, backward-compatible with [measurementsList].
+     * When a test seeds `measurementsForCustomer[customerId]`, [observeMeasurements]
+     * returns that list for the matching customer; otherwise it falls back to the
+     * single flat [measurementsList] (existing tests that never touch this map
+     * keep observing the same thing they always did).
+     */
+    val measurementsForCustomer: MutableMap<String, List<Measurement>> = mutableMapOf()
+
     override fun observeMeasurements(
         userId: String,
         customerId: String,
     ): Flow<Result<List<Measurement>, DataError.Network>> =
         measurementsFlow.map { list ->
             observeError?.let { return@map Result.Error(it) }
-            Result.Success(list)
+            val effectiveList = measurementsForCustomer[customerId] ?: list
+            Result.Success(effectiveList)
         }
 
     override suspend fun createMeasurement(

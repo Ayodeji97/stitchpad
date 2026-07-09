@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 
@@ -79,4 +80,16 @@ sealed interface DashboardAction {
 
     /** Community banner ✕ tapped → hide it for good (local flag). */
     data object OnDismissCommunityBanner : DashboardAction
+
+    /** "Measurement" dashboard tile tapped → open the customer picker sheet. */
+    data object OnMeasurementsShortcutClick : DashboardAction
+
+    /** Search field inside the measurements picker sheet changed. */
+    data class OnMeasurementsPickerQueryChange(val query: String) : DashboardAction
+
+    /** A customer row in the measurements picker was tapped. */
+    data class OnMeasurementsPickerRowClick(val row: MeasurementsPickerRow) : DashboardAction
+
+    /** Measurements picker sheet dismissed (scrim tap, swipe, back). */
+    data object OnDismissMeasurementsPicker : DashboardAction
 }

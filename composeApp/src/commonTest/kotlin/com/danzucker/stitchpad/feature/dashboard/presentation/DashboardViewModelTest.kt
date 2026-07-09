@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
+import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
@@ -9,6 +11,9 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerGender
+import com.danzucker.stitchpad.core.domain.model.Measurement
+import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.GarmentType
@@ -20,28 +25,35 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
@@ -87,6 +99,7 @@ class DashboardViewModelTest {
 
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
+    private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var userRepository: FakeUserRepository
     private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
@@ -101,6 +114,7 @@ class DashboardViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
+        measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository()
         userRepository = FakeUserRepository()
         weeklyGoalRepository = FakeWeeklyGoalRepository()
@@ -119,10 +133,12 @@ class DashboardViewModelTest {
     private fun TestScope.createViewModel(
         nowMillis: () -> Long = { millisAt(today, hour = 9) },
         entitlements: EntitlementsProvider = FakeEntitlementsProvider(),
+        measurementRepository: MeasurementRepository = this@DashboardViewModelTest.measurementRepository,
     ): DashboardViewModel {
         val vm = DashboardViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
+            measurementRepository = measurementRepository,
             authRepository = authRepository,
             userRepository = userRepository,
             weeklyGoalRepository = weeklyGoalRepository,
@@ -233,6 +249,17 @@ class DashboardViewModelTest {
 
     private fun fakeCustomer(id: String = "c1", name: String = "Ada Lovelace") =
         Customer(id = id, userId = "test-uid", name = name, phone = "+2348012345678")
+
+    private fun fakeMeasurement(id: String, customerId: String) = Measurement(
+        id = id,
+        customerId = customerId,
+        gender = CustomerGender.FEMALE,
+        fields = emptyMap(),
+        unit = MeasurementUnit.INCHES,
+        notes = null,
+        dateTaken = 0L,
+        createdAt = 0L,
+    )
 
     private suspend fun signIn(businessName: String? = "Ade's Fashions") {
         authRepository.signUpWithEmail("t@t.com", "pass", "Ade Bello")
@@ -1596,4 +1623,150 @@ class DashboardViewModelTest {
         assertIs<DashboardEvent.NavigateToNotifications>(vm.events.first())
     }
 
+    // --- Measurements picker ---
+
+    @Test
+    fun `measurements shortcut opens picker with counts sorted has-measurements first`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "c-empty", name = "Bola"),
+            fakeCustomer(id = "c-one", name = "Chidinma"),
+        )
+        measurementRepository.measurementsForCustomer["c-one"] =
+            listOf(fakeMeasurement(id = "meas-1", customerId = "c-one"))
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+
+        val picker = vm.state.value.measurementsPicker
+        assertNotNull(picker)
+        assertEquals(false, picker.isLoading)
+        assertEquals(listOf("Chidinma", "Bola"), picker.rows.map { it.name })
+        assertEquals(1, picker.rows[0].measurementCount)
+        assertEquals("meas-1", picker.rows[0].singleMeasurementId)
+        assertEquals(0, picker.rows[1].measurementCount)
+    }
+
+    @Test
+    fun `picker row with one measurement navigates to detail and closes picker`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+
+        vm.events.test {
+            vm.onAction(
+                DashboardAction.OnMeasurementsPickerRowClick(
+                    MeasurementsPickerRow("c1", "Chidinma", measurementCount = 1, singleMeasurementId = "meas-1"),
+                ),
+            )
+            advanceTimeBy(451)
+            runCurrent()
+            val event = assertIs<DashboardEvent.NavigateToMeasurementDetail>(awaitItem())
+            assertEquals("c1" to "meas-1", event.customerId to event.measurementId)
+        }
+        assertNull(vm.state.value.measurementsPicker)
+    }
+
+    @Test
+    fun `picker row with several measurements navigates to customer detail`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+
+        vm.events.test {
+            vm.onAction(
+                DashboardAction.OnMeasurementsPickerRowClick(
+                    MeasurementsPickerRow("c1", "Chidinma", measurementCount = 3, singleMeasurementId = null),
+                ),
+            )
+            advanceTimeBy(451)
+            runCurrent()
+            assertIs<DashboardEvent.NavigateToCustomerDetail>(awaitItem())
+        }
+    }
+
+    @Test
+    fun `picker row with zero measurements navigates to add measurement`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+
+        vm.events.test {
+            vm.onAction(
+                DashboardAction.OnMeasurementsPickerRowClick(
+                    MeasurementsPickerRow("c1", "Chidinma", measurementCount = 0, singleMeasurementId = null),
+                ),
+            )
+            advanceTimeBy(451)
+            runCurrent()
+            val event = assertIs<DashboardEvent.NavigateToAddMeasurement>(awaitItem())
+            assertEquals("c1", event.customerId)
+        }
+    }
+
+    @Test
+    fun `picker query filters rows case-insensitively`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+
+        vm.onAction(DashboardAction.OnMeasurementsPickerQueryChange("chi"))
+
+        assertEquals("chi", vm.state.value.measurementsPicker?.query)
+    }
+
+    @Test
+    fun `measurements shortcut with zero customers routes like add-measurement tile`() = runTest {
+        signIn()
+        // No customers seeded — customerRepository.customersList stays emptyList(),
+        // so uiState resolves BrandNew, same as the existing OnAddMeasurementClick tile.
+        val vm = createViewModel()
+
+        vm.events.test {
+            vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+            assertIs<DashboardEvent.NavigateToAddCustomerFirst>(awaitItem())
+        }
+        assertNull(vm.state.value.measurementsPicker)
+    }
+
+    @Test
+    fun `dismissing picker while counts are loading does not resurrect it`() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val gate = CompletableDeferred<Unit>()
+        val delayedRepository = DelayedMeasurementRepository(measurementRepository, gate)
+        val vm = createViewModel(measurementRepository = delayedRepository)
+
+        vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
+        // Sheet opens immediately in the loading state — the async count fetch is
+        // parked on the gate, simulating a slow read that outlives a dismiss tap.
+        assertNotNull(vm.state.value.measurementsPicker)
+        assertTrue(vm.state.value.measurementsPicker?.isLoading == true)
+
+        vm.onAction(DashboardAction.OnDismissMeasurementsPicker)
+        assertNull(vm.state.value.measurementsPicker)
+
+        gate.complete(Unit)
+        runCurrent()
+
+        assertNull(vm.state.value.measurementsPicker)
+    }
+
+    /** Wraps [delegate] so [observeMeasurements] blocks on [gate] — lets a test hold a fetch open mid-flight. */
+    private class DelayedMeasurementRepository(
+        private val delegate: FakeMeasurementRepository,
+        private val gate: CompletableDeferred<Unit>,
+    ) : MeasurementRepository by delegate {
+        override fun observeMeasurements(
+            userId: String,
+            customerId: String,
+        ): Flow<Result<List<Measurement>, DataError.Network>> = flow {
+            gate.await()
+            emitAll(delegate.observeMeasurements(userId, customerId))
+        }
+    }
 }

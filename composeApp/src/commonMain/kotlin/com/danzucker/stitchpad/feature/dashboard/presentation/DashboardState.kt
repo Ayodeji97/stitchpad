@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerRead
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
@@ -68,5 +69,7 @@ data class DashboardState(
     val showCommunityBanner: Boolean = false,
     // Live unread notification count — drives the bell badge in the dashboard header.
     val unreadNotificationCount: Int = 0,
+    // Measurements shortcut's customer picker sheet — null means closed.
+    val measurementsPicker: MeasurementsPickerUi? = null,
     val errorMessage: UiText? = null
 )

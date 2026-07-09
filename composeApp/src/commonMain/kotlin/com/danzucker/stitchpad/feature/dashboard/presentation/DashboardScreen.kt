@@ -508,6 +508,9 @@ private fun handleDashboardEvent(
         )
         // Handled inline in DashboardRoot (ObserveAsEvents) where LocalUriHandler is in scope.
         is DashboardEvent.OpenCommunityLink -> Unit
+        // Measurements picker routing — sheet UI + nav wiring lands in Task 4.
+        is DashboardEvent.NavigateToMeasurementDetail -> Unit
+        is DashboardEvent.NavigateToAddMeasurement -> Unit
     }
 }
 
