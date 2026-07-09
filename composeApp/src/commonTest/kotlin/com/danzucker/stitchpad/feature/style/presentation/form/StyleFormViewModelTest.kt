@@ -678,6 +678,39 @@ class StyleFormViewModelTest {
         assertNotNull(vm.state.value.errorMessage)
     }
 
+    @Test
+    fun onShareClick_refetchesLatestStyle_afterBackgroundUpload() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        // Loaded while the image is still pending upload: no remote URL, local file only.
+        styleRepository.stylesList = listOf(
+            fakeStyle(id = "style-7", description = "S").copy(
+                photoUrl = "",
+                localPhotoPath = "/local/stale.jpg",
+            )
+        )
+        var seenModel: String? = null
+        val shareStyle = ShareStyle(
+            loader = { model -> seenModel = model; byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> true },
+        )
+        val vm = createViewModel(styleId = "style-7", shareStyle = shareStyle)
+        assertNotNull(vm.state.value.existingStyle)
+
+        // Background sync completes: remote URL set, local file cleared.
+        styleRepository.stylesList = listOf(
+            fakeStyle(id = "style-7", description = "S").copy(
+                photoUrl = "https://cdn/style-7.jpg",
+                localPhotoPath = null,
+            )
+        )
+
+        vm.onAction(StyleFormAction.OnShareClick)
+
+        // Shares the freshly-synced URL, not the now-stale local path from the snapshot.
+        assertEquals("https://cdn/style-7.jpg", seenModel)
+    }
+
     // --- Navigation & error dismiss ---
 
     @Test
