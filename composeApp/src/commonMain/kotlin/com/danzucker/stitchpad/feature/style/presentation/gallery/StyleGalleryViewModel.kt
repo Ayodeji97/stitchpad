@@ -142,8 +142,12 @@ class StyleGalleryViewModel(
             }
             is StyleGalleryAction.OnShareClick -> {
                 _state.update { it.copy(actionSheetStyle = null) }
+                // Resolve from the live (flow-backed) list — the long-press
+                // snapshot in action.style can go stale if a background upload
+                // updates photoUrl/localPhotoPath before the user taps Share.
+                val current = _state.value.styles.find { it.id == action.style.id } ?: action.style
                 viewModelScope.launch {
-                    shareStyle(action.style).onFailure {
+                    shareStyle(current).onFailure {
                         _state.update {
                             it.copy(errorMessage = UiText.StringResourceText(Res.string.style_share_failed))
                         }

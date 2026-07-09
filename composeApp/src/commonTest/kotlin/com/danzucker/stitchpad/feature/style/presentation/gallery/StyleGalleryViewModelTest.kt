@@ -639,6 +639,30 @@ class StyleGalleryViewModelTest {
     }
 
     @Test
+    fun onShareClick_resolvesCurrentStyleFromState_notStaleSnapshot() = runTest {
+        authRepository.signUpWithEmail("t@t.com", "pass123", "T")
+        // Live list has the freshly-synced style (remote URL, no local file).
+        styleRepository.stylesList = listOf(
+            fakeStyle(id = "s1").copy(photoUrl = "https://cdn/fresh.jpg", localPhotoPath = null),
+        )
+        var seenModel: String? = null
+        val recordingShare = ShareStyle(
+            loader = { model -> seenModel = model; byteArrayOf(1) },
+            entitlements = FakeEntitlementsProvider(),
+            share = { _, _ -> true },
+        )
+        val vm = createViewModel(shareStyle = recordingShare)
+        // Snapshot captured at long-press, before the upload finished.
+        val stale = fakeStyle(id = "s1").copy(photoUrl = "", localPhotoPath = "/local/stale.jpg")
+
+        vm.onAction(StyleGalleryAction.OnStyleLongPress(stale))
+        vm.onAction(StyleGalleryAction.OnShareClick(stale))
+        advanceUntilIdle()
+
+        assertEquals("https://cdn/fresh.jpg", seenModel)
+    }
+
+    @Test
     fun onShareClick_whenSheetNotPresented_setsErrorMessage() = runTest {
         val failingShare = ShareStyle(
             loader = { byteArrayOf(1) },
