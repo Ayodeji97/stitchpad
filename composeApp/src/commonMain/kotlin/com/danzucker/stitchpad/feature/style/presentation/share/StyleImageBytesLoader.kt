@@ -25,6 +25,10 @@ class CoilStyleImageBytesLoader(
     private val platformContext: PlatformContext,
 ) : StyleImageBytesLoader {
 
+    // Three guard-style early returns (blank model / non-success / decode
+    // failure) read clearer than nesting; same pattern OrderDetailViewModel
+    // .fetchLogoBytes suppresses for.
+    @Suppress("ReturnCount")
     override suspend fun load(model: String): ByteArray? {
         if (model.isBlank()) return null
         val request = ImageRequest.Builder(platformContext).data(model).build()

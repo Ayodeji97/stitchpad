@@ -90,7 +90,7 @@ class ShareStyleTest {
         val result = shareStyle(style)
 
         assertTrue(result is Result.Error)
-        assertEquals(DataError.Local.UNKNOWN, (result as Result.Error).error)
+        assertEquals(DataError.Local.UNKNOWN, result.error)
         assertEquals(0, fake.callCount)
         assertNull(fake.sharedBytes)
     }
