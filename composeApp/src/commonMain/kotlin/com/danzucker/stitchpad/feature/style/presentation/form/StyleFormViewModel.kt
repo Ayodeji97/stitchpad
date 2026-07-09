@@ -113,6 +113,8 @@ class StyleFormViewModel(
                 _state.update { it.copy(errorMessage = null) }
             }
             StyleFormAction.OnShareClick -> {
+                // Shares the persisted style (its saved photo), not any unsaved
+                // photo the user may have just picked in edit mode — Save first.
                 val current = _state.value.existingStyle ?: return
                 viewModelScope.launch {
                     shareStyle(current).onFailure {
