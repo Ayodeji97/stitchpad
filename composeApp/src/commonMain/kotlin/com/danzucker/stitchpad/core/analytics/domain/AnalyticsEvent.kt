@@ -69,4 +69,9 @@ sealed interface AnalyticsEvent {
         override val name = "whatsapp_message_sent"
         override val params = mapOf("context" to context)
     }
+
+    data class CelebrationShown(val milestone: String) : AnalyticsEvent {
+        override val name = "celebration_shown"
+        override val params = mapOf("milestone" to milestone)
+    }
 }
