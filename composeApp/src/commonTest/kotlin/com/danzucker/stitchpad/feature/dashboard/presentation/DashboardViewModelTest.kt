@@ -1710,13 +1710,18 @@ class DashboardViewModelTest {
     @Test
     fun `picker query filters rows case-insensitively`() = runTest {
         signIn()
-        customerRepository.customersList = listOf(fakeCustomer())
+        customerRepository.customersList = listOf(
+            fakeCustomer(id = "c-chi", name = "Chidinma"),
+            fakeCustomer(id = "c-bola", name = "Bola"),
+        )
         val vm = createViewModel()
         vm.onAction(DashboardAction.OnMeasurementsShortcutClick)
 
-        vm.onAction(DashboardAction.OnMeasurementsPickerQueryChange("chi"))
+        vm.onAction(DashboardAction.OnMeasurementsPickerQueryChange("CHI"))
 
-        assertEquals("chi", vm.state.value.measurementsPicker?.query)
+        val picker = vm.state.value.measurementsPicker
+        assertEquals("CHI", picker?.query)
+        assertEquals(listOf("Chidinma"), picker?.filteredRows?.map { it.name })
     }
 
     @Test
