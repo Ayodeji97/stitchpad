@@ -88,6 +88,7 @@ class MeasurementShareFormatterTest {
     @Test
     fun `formatShareDate returns null for legacy zero epoch`() {
         assertNull(MeasurementShareFormatter.formatShareDate(0L))
-        assertEquals("12 Jun 2026", MeasurementShareFormatter.formatShareDate(1_781_222_400_000L))
+        // noon UTC — date is stable across UTC-12..+12 system timezones
+        assertEquals("12 Jun 2026", MeasurementShareFormatter.formatShareDate(1_781_265_600_000L))
     }
 }

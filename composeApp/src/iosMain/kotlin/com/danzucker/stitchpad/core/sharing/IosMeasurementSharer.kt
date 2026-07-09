@@ -358,12 +358,16 @@ class IosMeasurementSharer : MeasurementSharer {
         return attrs
     }
 
+    // y is a BASELINE (Android Canvas.drawText semantics) so both platforms share
+    // one layout table; NSString.drawAtPoint is top-origin, hence the ascender shift.
     private fun drawText(text: String, x: Double, y: Double, font: UIFont, color: UIColor, kern: Double? = null) {
         val nsText = NSString.create(string = text)
         val attrs = buildAttrs(font, color, kern)
-        nsText.drawAtPoint(CGPointMake(x, y), withAttributes = attrs)
+        nsText.drawAtPoint(CGPointMake(x, y - font.ascender), withAttributes = attrs)
     }
 
+    // y is a BASELINE (Android Canvas.drawText semantics) so both platforms share
+    // one layout table; NSString.drawAtPoint is top-origin, hence the ascender shift.
     private fun drawTextRight(
         text: String,
         rightX: Double,
@@ -376,16 +380,18 @@ class IosMeasurementSharer : MeasurementSharer {
         val attrs = buildAttrs(font, color, kern)
         val size = nsText.sizeWithAttributes(attrs)
         size.useContents {
-            nsText.drawAtPoint(CGPointMake(rightX - this.width, y), withAttributes = attrs)
+            nsText.drawAtPoint(CGPointMake(rightX - this.width, y - font.ascender), withAttributes = attrs)
         }
     }
 
+    // y is a BASELINE (Android Canvas.drawText semantics) so both platforms share
+    // one layout table; NSString.drawAtPoint is top-origin, hence the ascender shift.
     private fun drawCentered(text: String, y: Double, width: Double, font: UIFont, color: UIColor) {
         val nsText = NSString.create(string = text)
         val attrs = buildAttrs(font, color, kern = null)
         val size = nsText.sizeWithAttributes(attrs)
         size.useContents {
-            nsText.drawAtPoint(CGPointMake((width - this.width) / 2.0, y), withAttributes = attrs)
+            nsText.drawAtPoint(CGPointMake((width - this.width) / 2.0, y - font.ascender), withAttributes = attrs)
         }
     }
 

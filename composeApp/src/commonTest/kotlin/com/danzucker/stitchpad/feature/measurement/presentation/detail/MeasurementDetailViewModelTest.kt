@@ -323,6 +323,8 @@ class MeasurementDetailViewModelTest {
             expectNoEvents()
         }
         assertTrue(measurementSharer.lastSharedText.orEmpty().contains("*Chidinma Eze — Wedding gown*"))
+        val event = analytics.events.filterIsInstance<AnalyticsEvent.MeasurementShared>().single()
+        assertEquals("whatsapp_text", event.format)
     }
 
     @Test
