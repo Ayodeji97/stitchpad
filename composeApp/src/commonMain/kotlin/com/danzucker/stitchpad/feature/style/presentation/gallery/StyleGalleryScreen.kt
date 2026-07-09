@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
@@ -98,6 +99,7 @@ import stitchpad.composeapp.generated.resources.fab_add_style
 import stitchpad.composeapp.generated.resources.style_action_copy
 import stitchpad.composeapp.generated.resources.style_action_delete
 import stitchpad.composeapp.generated.resources.style_action_move
+import stitchpad.composeapp.generated.resources.style_action_share
 import stitchpad.composeapp.generated.resources.style_add_title_cta
 import stitchpad.composeapp.generated.resources.style_copied_snackbar
 import stitchpad.composeapp.generated.resources.style_delete_cancel
@@ -331,6 +333,7 @@ fun StyleGalleryScreen(
 
     state.actionSheetStyle?.let { style ->
         StyleActionsSheet(
+            onShare = { onAction(StyleGalleryAction.OnShareClick(style)) },
             onCopy = { onAction(StyleGalleryAction.OnCopyClick) },
             onMove = { onAction(StyleGalleryAction.OnMoveClick) },
             onDelete = { onAction(StyleGalleryAction.OnDeleteClick(style)) },
@@ -441,6 +444,7 @@ private fun StyleTitleSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StyleActionsSheet(
+    onShare: () -> Unit,
     onCopy: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
@@ -451,6 +455,11 @@ private fun StyleActionsSheet(
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(modifier = Modifier.padding(bottom = DesignTokens.space6)) {
+            SheetActionRow(
+                icon = Icons.Default.Share,
+                label = stringResource(Res.string.style_action_share),
+                onClick = onShare
+            )
             SheetActionRow(
                 icon = Icons.Default.ContentCopy,
                 label = stringResource(Res.string.style_action_copy),

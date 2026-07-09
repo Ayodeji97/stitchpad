@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.error.onFailure
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -19,6 +20,7 @@ import com.danzucker.stitchpad.feature.style.domain.StyleLockPolicy
 import com.danzucker.stitchpad.feature.style.domain.countStylesAcrossFolders
 import com.danzucker.stitchpad.feature.style.presentation.cap.StyleCapKind
 import com.danzucker.stitchpad.feature.style.presentation.cap.styleCapInfo
+import com.danzucker.stitchpad.feature.style.presentation.share.ShareStyle
 import com.danzucker.stitchpad.feature.style.presentation.toStyleUiText
 import com.danzucker.stitchpad.feature.style.presentation.toUiText
 import kotlinx.coroutines.Job
@@ -36,6 +38,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.style_action_verify_failed
+import stitchpad.composeapp.generated.resources.style_share_failed
 
 private const val MAX_PHOTO_SIZE_BYTES: Int = 5 * 1024 * 1024
 
@@ -45,6 +48,7 @@ class StyleFormViewModel(
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
     private val entitlements: EntitlementsProvider,
+    private val shareStyle: ShareStyle,
     private val imageCompressor: ImageCompressor,
 ) : ViewModel() {
 
@@ -107,6 +111,23 @@ class StyleFormViewModel(
             }
             StyleFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+            StyleFormAction.OnShareClick -> {
+                val id = _state.value.existingStyle?.id ?: return
+                viewModelScope.launch {
+                    // Re-fetch the style at share time: the existingStyle snapshot
+                    // from loadStyle is one-shot and can go stale after a background
+                    // upload sets photoUrl and clears localPhotoPath, which would
+                    // otherwise fail to load. Fall back to the snapshot when the
+                    // read fails (e.g. offline). Shares the persisted photo, not an
+                    // unsaved just-picked one — Save first.
+                    val current = latestStyle(id) ?: _state.value.existingStyle ?: return@launch
+                    shareStyle(current).onFailure {
+                        _state.update {
+                            it.copy(errorMessage = UiText.StringResourceText(Res.string.style_share_failed))
+                        }
+                    }
+                }
             }
             StyleFormAction.OnDismissCapSheet -> _state.update { it.copy(capSheet = null) }
             StyleFormAction.OnUpgradeFromCap -> {
@@ -227,6 +248,20 @@ class StyleFormViewModel(
             }
         }
         return rootStyles + namedStyles
+    }
+
+    /**
+     * Reads the current persisted style by id from the repository flow — the
+     * same up-to-date source the gallery shares from — so a post-upload
+     * photoUrl/localPhotoPath change is reflected. Returns null on no auth or a
+     * read error; callers fall back to the loaded snapshot.
+     */
+    private suspend fun latestStyle(id: String): Style? {
+        val userId = authRepository.getCurrentUser()?.id ?: return null
+        return when (val result = styleRepository.observeStyles(userId, location).first()) {
+            is Result.Success -> result.data.find { it.id == id }
+            is Result.Error -> null
+        }
     }
 
     private fun loadStyle(id: String) {

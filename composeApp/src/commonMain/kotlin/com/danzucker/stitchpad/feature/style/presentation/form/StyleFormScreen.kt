@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,6 +77,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.style_action_share
 import stitchpad.composeapp.generated.resources.style_add_more_photos
 import stitchpad.composeapp.generated.resources.style_add_title
 import stitchpad.composeapp.generated.resources.style_change_photo
@@ -183,6 +185,19 @@ fun StyleFormScreen(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurface
                         )
+                    }
+                },
+                actions = {
+                    // Only a persisted style has anything to share — the add flow (no
+                    // loaded style yet) hides the icon rather than firing on empty state.
+                    if (state.existingStyle != null) {
+                        IconButton(onClick = { onAction(StyleFormAction.OnShareClick) }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(Res.string.style_action_share),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

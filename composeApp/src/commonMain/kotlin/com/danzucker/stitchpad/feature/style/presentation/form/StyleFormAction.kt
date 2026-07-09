@@ -7,6 +7,9 @@ sealed interface StyleFormAction {
     data object OnNavigateBack : StyleFormAction
     data object OnErrorDismiss : StyleFormAction
 
+    /** Share tapped on the top bar — fires ShareStyle for the currently loaded style. */
+    data object OnShareClick : StyleFormAction
+
     /** Dismiss the cap-reached sheet without upgrading. */
     data object OnDismissCapSheet : StyleFormAction
 
