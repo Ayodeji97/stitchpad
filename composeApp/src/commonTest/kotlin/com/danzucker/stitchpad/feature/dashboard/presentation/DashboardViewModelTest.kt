@@ -1648,7 +1648,7 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `picker treats a single customer's count-fetch error as unknown, not zero`() = runTest {
+    fun `picker treats a single customer count-fetch error as unknown rather than zero`() = runTest {
         signIn()
         customerRepository.customersList = listOf(
             fakeCustomer(id = "c-error", name = "Amara"),
