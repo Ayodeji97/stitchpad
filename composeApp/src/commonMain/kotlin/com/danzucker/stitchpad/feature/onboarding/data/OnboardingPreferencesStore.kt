@@ -65,6 +65,18 @@ interface OnboardingPreferencesStore {
     suspend fun setTutorialSeen(topicId: String)
 
     /**
+     * One-shot "this milestone's celebration has been shown" flag, per user per
+     * milestone. Set at trigger time (not dismissal) so a crash mid-celebration
+     * can never cause a re-show. [milestoneKey] is a
+     * [Milestone.key][com.danzucker.stitchpad.core.presentation.celebration.Milestone].
+     */
+    suspend fun hasCelebrated(userId: String, milestoneKey: String): Boolean
+    suspend fun setCelebrated(userId: String, milestoneKey: String)
+
+    /** Debug-menu only: clears every celebration flag for every user. Idempotent. */
+    suspend fun clearCelebrationsForDebug()
+
+    /**
      * Resets all onboarding flags to false. Debug-menu use only — production
      * code should not call this. Idempotent.
      */

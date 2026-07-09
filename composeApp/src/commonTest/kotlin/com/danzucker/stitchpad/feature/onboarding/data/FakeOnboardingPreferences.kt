@@ -32,6 +32,15 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
 
     override suspend fun hasSeenTutorial(topicId: String): Boolean = seenTutorials.contains(topicId)
     override suspend fun setTutorialSeen(topicId: String) { seenTutorials.add(topicId) }
+    val celebrated = mutableSetOf<String>()
+
+    override suspend fun hasCelebrated(userId: String, milestoneKey: String) =
+        celebrated.contains("$userId:$milestoneKey")
+    override suspend fun setCelebrated(userId: String, milestoneKey: String) {
+        celebrated.add("$userId:$milestoneKey")
+    }
+    override suspend fun clearCelebrationsForDebug() { celebrated.clear() }
+
     override suspend fun resetForDebug() {
         onboardingSeen = false
         completedWorkshopSetups.clear()
@@ -39,5 +48,6 @@ class FakeOnboardingPreferences : OnboardingPreferencesStore {
         emailVerificationBypassed = false
         askedPushPermission = false
         seenTutorials.clear()
+        celebrated.clear()
     }
 }
