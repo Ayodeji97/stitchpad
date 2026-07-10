@@ -414,17 +414,21 @@ class DashboardViewModel(
         _state.update { it.copy(measurementsPicker = null) }
         viewModelScope.launch {
             delay(PICKER_DISMISS_DELAY_MS)
-            // Same rule as the customer actions sheet — including that an unknown
-            // count (fetch failed/timed out) must not masquerade as "no measurements"
-            // and show a false empty state (Bugbot, PR #261).
+            // Same decision rule as the customer actions sheet — including that an
+            // unknown count (fetch failed/timed out) must not masquerade as "no
+            // measurements" and trigger the create flow (Bugbot, PR #261). One
+            // deliberate divergence: a confirmed zero goes straight to the create
+            // form, not the detail empty state — the "+ Add" row already told the
+            // user this customer is empty (product decision, PR #263).
             val destination = MeasurementEntryResolver.destinationFor(
                 customerId = row.customerId,
                 measurementCount = row.measurementCount,
                 singleMeasurementId = row.singleMeasurementId,
             )
             val event = when (destination) {
-                is MeasurementEntryDestination.Detail ->
-                    DashboardEvent.NavigateToMeasurementDetail(destination.customerId, destination.measurementId)
+                is MeasurementEntryDestination.Detail -> destination.measurementId?.let { measurementId ->
+                    DashboardEvent.NavigateToMeasurementDetail(destination.customerId, measurementId)
+                } ?: DashboardEvent.NavigateToAddMeasurement(destination.customerId)
                 is MeasurementEntryDestination.CustomerDetail ->
                     DashboardEvent.NavigateToCustomerDetail(destination.customerId)
             }

@@ -16,20 +16,20 @@ Neither lands where the user asked to go. The two paths also disagree with each 
 
 "View Measurements" always lands on the Measurement Detail screen when the measurement situation is known. For a customer with zero measurements, the detail screen renders an **empty state** with an "Add measurement" CTA that opens the create form. The rule is unified across all entry points.
 
-## Routing rule (unified)
+## Routing rule
 
 One pure decision function on `MeasurementEntryResolver`, e.g. `destinationFor(count: Int?, singleMeasurementId: String?)`:
 
-| Situation | Destination |
-|---|---|
-| Exactly one measurement | Measurement Detail with that ID (unchanged) |
-| Confirmed zero | **Measurement Detail in empty mode** (`measurementId = null`) — new |
-| Several | Customer Detail (unchanged, out of scope) |
-| Unknown count (fetch error, timeout, signed out) | Customer Detail (safe fallback, unchanged) |
+| Situation | Actions sheet | Dashboard picker |
+|---|---|---|
+| Exactly one measurement | Measurement Detail with that ID (unchanged) | same |
+| Confirmed zero | **Measurement Detail in empty mode** (`measurementId = null`) — new | **Add Measurement form** (see below) |
+| Several | Customer Detail (unchanged, out of scope) | same |
+| Unknown count (fetch error, timeout, signed out) | Customer Detail (safe fallback, unchanged) | same |
 
 - The actions-sheet path keeps fetching a first snapshot in the resolver, then applies the shared decision function. An **empty snapshot list means confirmed zero**; a `null` snapshot (error/timeout/signed-out) means unknown.
 - The dashboard picker already fetches per-row counts (`DashboardViewModel.kt:369-393`); it applies the same decision function to its existing data instead of duplicating the `when` block. No double-fetching.
-- `DashboardEvent.NavigateToAddMeasurement` for the zero case is removed; the zero case emits `NavigateToMeasurementDetail(customerId, measurementId = null)`. (The event type stays if other callers use it.)
+- **Dashboard divergence (decision 2026-07-10, revised during PR #263 review):** the picker's zero-count rows visibly advertise "+ Add", so a confirmed zero maps the empty-mode destination to `DashboardEvent.NavigateToAddMeasurement` (straight to the create form) instead of the detail empty state — an empty-state stop is redundant when the row already told the user the customer is empty. The empty-mode detail remains the zero destination for the actions sheet, which shows no count. The unknown-≠-zero rule applies identically on both paths.
 
 ## Route and ViewModel changes
 
@@ -84,7 +84,7 @@ Platform checks before done: iOS compile (KMP), detekt, full `testDebugUnitTest`
 Manual smoke test steps for the PR (Daniel is QA):
 
 1. Customer with zero measurements → actions sheet → View Measurements → empty state shown, correct name in top bar, no share/edit/delete actions.
-2. Same via dashboard measurements picker.
+2. Dashboard measurements picker, zero-count ("+ Add") row → straight to the Add Measurement form (no empty-state stop).
 3. Tap Add measurement → form → save → detail shows new measurement; back returns to the originating screen (not the empty state, not the form).
 4. Customer with exactly one measurement → unchanged (straight to detail).
 5. Customer with several → unchanged (Customer Detail).
