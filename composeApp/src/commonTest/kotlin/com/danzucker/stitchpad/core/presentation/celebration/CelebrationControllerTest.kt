@@ -47,7 +47,7 @@ class CelebrationControllerTest {
     @Test
     fun secondTriggerOfSameMilestoneIsNoOp() = runTest {
         controller.trigger("u1", Milestone.FirstCustomer("Adaeze"))
-        controller.dismiss()
+        controller.dismiss(Milestone.FirstCustomer("Adaeze"))
         controller.trigger("u1", Milestone.FirstCustomer("Bola"))
         assertNull(controller.current.value)
         assertEquals(1, analytics.events.size)
@@ -56,7 +56,7 @@ class CelebrationControllerTest {
     @Test
     fun differentUsersCelebrateIndependently() = runTest {
         controller.trigger("u1", Milestone.WorkshopReady)
-        controller.dismiss()
+        controller.dismiss(Milestone.WorkshopReady)
         controller.trigger("u2", Milestone.WorkshopReady)
         assertEquals(Milestone.WorkshopReady, controller.current.value)
     }
@@ -66,9 +66,9 @@ class CelebrationControllerTest {
         controller.trigger("u1", Milestone.FirstCustomer("Adaeze"))
         controller.trigger("u1", Milestone.FirstOrder("Adaeze"))
         assertEquals(Milestone.FirstCustomer("Adaeze"), controller.current.value)
-        controller.dismiss()
+        controller.dismiss(Milestone.FirstCustomer("Adaeze"))
         assertEquals(Milestone.FirstOrder("Adaeze"), controller.current.value)
-        controller.dismiss()
+        controller.dismiss(Milestone.FirstOrder("Adaeze"))
         assertNull(controller.current.value)
     }
 
@@ -80,7 +80,17 @@ class CelebrationControllerTest {
         controller.current.test {
             assertNull(awaitItem())
         }
-        controller.dismiss() // must NOT resurrect the queued item
+        controller.dismiss(Milestone.FirstCustomer("Adaeze")) // must NOT resurrect the queued item
         assertNull(controller.current.value)
+    }
+
+    @Test
+    fun doubleDismissDoesNotDropQueuedCelebration() = runTest {
+        controller.trigger("u1", Milestone.FirstCustomer("Adaeze"))
+        controller.trigger("u1", Milestone.FirstOrder("Adaeze"))
+        val first = Milestone.FirstCustomer("Adaeze")
+        controller.dismiss(first)
+        controller.dismiss(first) // stale second dismissal must be a no-op
+        assertEquals(Milestone.FirstOrder("Adaeze"), controller.current.value)
     }
 }

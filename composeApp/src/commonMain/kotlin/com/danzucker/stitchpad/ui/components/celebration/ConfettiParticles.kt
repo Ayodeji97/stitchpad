@@ -31,7 +31,6 @@ private const val SAFFRON_EVERY = 12
 private const val FABRIC_WEIGHT = 0.45f
 private const val BUTTON_WEIGHT = 0.30f
 
-@Suppress("MagicNumber")
 fun generateConfetti(
     random: Random,
     palette: List<Color>,

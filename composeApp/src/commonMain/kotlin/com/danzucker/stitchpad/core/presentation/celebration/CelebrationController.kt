@@ -20,7 +20,10 @@ import kotlinx.coroutines.sync.withLock
  * mid-confetti can never re-show, and "first" never re-fires even if the user
  * later deletes everything. Back-to-back milestones queue FIFO. Any auth-user
  * change clears both the visible celebration and the queue so confetti never
- * plays over the login screen or leaks across accounts.
+ * plays over the login screen or leaks across accounts. [dismiss] only pops
+ * the queue when the dismissed milestone is still current, so a stale second
+ * dismissal (double-tap Continue, or scrim+button) is a no-op instead of
+ * silently dropping the next queued celebration.
  */
 class CelebrationController(
     private val preferences: OnboardingPreferencesStore,
@@ -58,9 +61,13 @@ class CelebrationController(
         }
     }
 
-    fun dismiss() {
+    fun dismiss(dismissed: Milestone) {
         scope.launch {
-            mutex.withLock { _current.value = queue.removeFirstOrNull() }
+            mutex.withLock {
+                if (_current.value == dismissed) {
+                    _current.value = queue.removeFirstOrNull()
+                }
+            }
         }
     }
 }

@@ -107,7 +107,7 @@ class CustomerFormViewModelCelebrationTest {
         vm1.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
         vm1.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         vm1.onAction(CustomerFormAction.OnSaveClick)
-        celebrations.dismiss()
+        celebrations.dismiss(Milestone.FirstCustomer("Adaeze"))
 
         val vm2 = createViewModel()
         vm2.onAction(CustomerFormAction.OnNameChange("Bola Ade"))

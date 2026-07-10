@@ -69,7 +69,8 @@ import stitchpad.composeapp.generated.resources.celebration_workshop_title
 import kotlin.random.Random
 
 private const val SCRIM_FADE_MS = 200
-private const val CONFETTI_DURATION_MS = 2_500
+private const val MS_PER_SECOND = 1_000
+private val CONFETTI_DURATION_MS = (CONFETTI_DURATION_SECONDS * MS_PER_SECOND).toInt()
 private const val CARD_DELAY_MS = 150L
 private const val EMBLEM_DELAY_MS = 120L
 private const val SCRIM_ALPHA_LIGHT = 0.45f
@@ -87,7 +88,7 @@ fun CelebrationOverlayHost(modifier: Modifier = Modifier) {
     val current = milestone ?: return
     CelebrationOverlay(
         milestone = current,
-        onDismiss = controller::dismiss,
+        onDismiss = { controller.dismiss(current) },
         modifier = modifier,
     )
 }
