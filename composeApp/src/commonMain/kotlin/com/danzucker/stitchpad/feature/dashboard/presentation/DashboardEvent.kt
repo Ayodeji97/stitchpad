@@ -46,6 +46,9 @@ sealed interface DashboardEvent {
     /** Open the WhatsApp community invite (chat.whatsapp.com) directly. */
     data class OpenCommunityLink(val url: String) : DashboardEvent
 
-    /** Measurements picker row with exactly one measurement → open it directly. */
+    /**
+     * Picker row routing: exactly one measurement → open it directly; confirmed
+     * zero → the detail screen's empty mode (null measurementId).
+     */
     data class NavigateToMeasurementDetail(val customerId: String, val measurementId: String?) : DashboardEvent
 }

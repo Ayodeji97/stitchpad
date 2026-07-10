@@ -399,6 +399,24 @@ class MeasurementDetailViewModelTest {
     }
 
     @Test
+    fun `empty mode clears adopted measurement when it is deleted elsewhere`() = runTest {
+        measurementRepository.measurementsList = listOf(fakeMeasurement(id = "adopted"))
+        customerRepository.customersList = listOf(fakeCustomer())
+        val vm = createViewModel(measurementId = null)
+        assertEquals("adopted", vm.state.value.measurement?.id)
+
+        // Second snapshot: the adopted measurement was deleted on another device.
+        // FakeMeasurementRepository is StateFlow-backed (see `measurement deleted
+        // elsewhere after loading navigates back` above), so re-assigning the list
+        // re-emits to the already-collecting ViewModel.
+        measurementRepository.measurementsList = emptyList()
+
+        val state = vm.state.value
+        assertNull(state.measurement)
+        assertTrue(state.isEmptyState)
+    }
+
+    @Test
     fun `empty mode does not navigate back`() = runTest {
         measurementRepository.measurementsList = emptyList()
         customerRepository.customersList = listOf(fakeCustomer())

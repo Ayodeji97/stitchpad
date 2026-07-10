@@ -191,7 +191,8 @@ fun MeasurementDetailScreen(
                     Text(
                         text = when {
                             state.isEmptyState ->
-                                state.customer?.name ?: stringResource(Res.string.measurement_detail_title)
+                                state.customer?.name?.ifBlank { null }
+                                    ?: stringResource(Res.string.measurement_detail_title)
                             else -> measurement?.name?.ifBlank { null }
                                 ?: stringResource(Res.string.measurement_detail_title)
                         },

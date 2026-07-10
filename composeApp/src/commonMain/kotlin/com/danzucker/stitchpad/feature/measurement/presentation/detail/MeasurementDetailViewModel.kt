@@ -201,7 +201,9 @@ class MeasurementDetailViewModel(
                                 }
                             }
                             measurementId == null ->
-                                _state.update { it.copy(isLoading = false, isEmptyState = true) }
+                                _state.update {
+                                    it.copy(measurement = null, isLoading = false, isEmptyState = true)
+                                }
                             !navigatedAway && (hasSeenMeasurement || !fromSave) -> {
                                 // Deleted elsewhere (another device / another screen) — leave.
                                 navigatedAway = true

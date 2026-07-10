@@ -58,7 +58,9 @@ class MeasurementEntryResolver(
          * measurement opens its detail; a confirmed zero opens the detail screen's
          * empty state; several land on customer detail (whose measurements section
          * is the list). Unknown count (error, timeout, signed-out) falls back to
-         * customer detail — never a dead end, never a false empty state.
+         * customer detail — never a dead end, never a false empty state. Inconsistent
+         * inputs (e.g. `measurementCount == 1` with a null `singleMeasurementId`) also
+         * fall through to the customer-detail fallback.
          */
         fun destinationFor(
             customerId: String,
