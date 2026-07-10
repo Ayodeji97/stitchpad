@@ -6,12 +6,15 @@ import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -64,6 +67,12 @@ class WorkshopSetupViewModelLogoTest {
             // testing image decoding here — just the VM's compress→upload wiring.
             compressLogo = { it },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
     }
 
@@ -165,6 +174,12 @@ class WorkshopSetupViewModelLogoTest {
             onboardingPreferences = FakeOnboardingPreferences(),
             compressLogo = { gate.await(); it },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
 
         vm.onAction(WorkshopSetupAction.OnBusinessNameChange("Esther"))

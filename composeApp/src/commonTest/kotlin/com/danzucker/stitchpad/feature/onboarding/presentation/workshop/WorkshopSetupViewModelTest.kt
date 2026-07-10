@@ -5,10 +5,13 @@ import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -47,6 +50,12 @@ class WorkshopSetupViewModelTest {
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
     }
 
@@ -99,6 +108,12 @@ class WorkshopSetupViewModelTest {
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
@@ -128,6 +143,12 @@ class WorkshopSetupViewModelTest {
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
@@ -146,6 +167,12 @@ class WorkshopSetupViewModelTest {
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
@@ -165,6 +192,12 @@ class WorkshopSetupViewModelTest {
             fakeUserRepository, fakeAuth, onboardingPreferences,
             confirmCodeGenerator = { "1234" },
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))

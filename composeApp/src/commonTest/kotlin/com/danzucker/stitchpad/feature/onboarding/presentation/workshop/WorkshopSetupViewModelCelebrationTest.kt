@@ -1,10 +1,10 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
-import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CoroutineScope
@@ -19,17 +19,17 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class WorkshopSetupViewModelAnalyticsTest {
+class WorkshopSetupViewModelCelebrationTest {
 
     private lateinit var viewModel: WorkshopSetupViewModel
     private lateinit var fakeUserRepository: FakeUserRepository
     private lateinit var fakeAuth: FakeAuthRepository
     private lateinit var onboardingPreferences: FakeOnboardingPreferences
     private lateinit var fakeAnalytics: FakeAnalytics
+    private lateinit var celebrations: CelebrationController
 
     @BeforeTest
     fun setup() {
@@ -48,15 +48,16 @@ class WorkshopSetupViewModelAnalyticsTest {
         }
         onboardingPreferences = FakeOnboardingPreferences()
         fakeAnalytics = FakeAnalytics()
+        celebrations = CelebrationController(
+            preferences = FakeOnboardingPreferences(),
+            analytics = FakeAnalytics(),
+            authUserIds = emptyFlow(),
+            scope = CoroutineScope(UnconfinedTestDispatcher()),
+        )
         viewModel = WorkshopSetupViewModel(
             fakeUserRepository, fakeAuth, onboardingPreferences,
             analytics = fakeAnalytics,
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
+            celebrations = celebrations,
         )
     }
 
@@ -66,27 +67,19 @@ class WorkshopSetupViewModelAnalyticsTest {
     }
 
     @Test
-    fun `successful save logs WorkshopSetupCompleted`() = runTest {
+    fun `successful continue triggers WorkshopReady`() = runTest {
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
-
         viewModel.events.first() // await NavigateToHome
 
-        assertTrue(
-            fakeAnalytics.events.contains(AnalyticsEvent.WorkshopSetupCompleted),
-            "Expected WorkshopSetupCompleted in analytics events but got: ${fakeAnalytics.events}",
-        )
+        assertEquals(Milestone.WorkshopReady, celebrations.current.value)
     }
 
     @Test
-    fun `skip does NOT log WorkshopSetupCompleted`() = runTest {
+    fun `skip ALSO triggers WorkshopReady`() = runTest {
         viewModel.onAction(WorkshopSetupAction.OnSkipClick)
-
         viewModel.events.first() // await NavigateToHome
 
-        assertFalse(
-            fakeAnalytics.events.contains(AnalyticsEvent.WorkshopSetupCompleted),
-            "Expected WorkshopSetupCompleted NOT to be logged on skip but it was",
-        )
+        assertEquals(Milestone.WorkshopReady, celebrations.current.value)
     }
 }
