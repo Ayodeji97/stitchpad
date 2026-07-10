@@ -80,6 +80,10 @@ class DebugMenuViewModel(
                 sessionActions.clearCommunityBannerDismissed()
                 emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Community banner reset")))
             }
+            DebugMenuAction.OnResetCelebrationsClick -> runJob {
+                sessionActions.resetCelebrations()
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Celebrations reset")))
+            }
             DebugMenuAction.OnSignOutClick -> runSignOut()
             DebugMenuAction.OnSwitchToFolaClick -> runJob {
                 handleSwitch(

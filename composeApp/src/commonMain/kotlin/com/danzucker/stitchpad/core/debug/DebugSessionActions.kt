@@ -28,6 +28,10 @@ class DebugSessionActions(
         communityBannerDismissal.reset()
     }
 
+    suspend fun resetCelebrations() {
+        onboardingPreferences.clearCelebrationsForDebug()
+    }
+
     suspend fun signOut(): SessionActionResult = when (val r = signOutUseCase()) {
         is Result.Success -> SessionActionResult.Success
         is Result.Error -> SessionActionResult.Failure(r.error.toString())
