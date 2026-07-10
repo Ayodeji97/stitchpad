@@ -26,11 +26,15 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -108,6 +112,12 @@ class OrderFormViewModelTest {
             customGarmentTypeRepository = customGarmentTypeRepository,
             imageCompressor = imageCompressor,
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

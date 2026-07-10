@@ -26,6 +26,8 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -63,6 +65,7 @@ class OrderFormViewModel(
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
     private val imageCompressor: ImageCompressor,
     private val analytics: Analytics,
+    private val celebrations: CelebrationController,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -890,7 +893,13 @@ class OrderFormViewModel(
             }
             when (result) {
                 is Result.Success -> {
-                    if (!isEdit) analytics.logEvent(AnalyticsEvent.OrderCreated)
+                    if (!isEdit) {
+                        analytics.logEvent(AnalyticsEvent.OrderCreated)
+                        celebrations.trigger(
+                            userId = uid,
+                            milestone = Milestone.FirstOrder(customer.name.substringBefore(' ')),
+                        )
+                    }
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
                     _events.send(

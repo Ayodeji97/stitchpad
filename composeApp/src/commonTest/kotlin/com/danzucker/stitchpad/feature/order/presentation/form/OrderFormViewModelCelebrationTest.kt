@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
-import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.data.repository.FakeCustomGarmentTypeRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
@@ -18,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CoroutineScope
@@ -33,11 +33,11 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertNull
+import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class OrderFormViewModelAnalyticsTest {
+class OrderFormViewModelCelebrationTest {
 
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
@@ -45,7 +45,8 @@ class OrderFormViewModelAnalyticsTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
     private lateinit var customGarmentTypeRepository: FakeCustomGarmentTypeRepository
-    private lateinit var fakeAnalytics: FakeAnalytics
+    private lateinit var celebrationPrefs: FakeOnboardingPreferences
+    private lateinit var celebrations: CelebrationController
 
     private val testCustomer = Customer(
         id = "cust-1",
@@ -73,8 +74,14 @@ class OrderFormViewModelAnalyticsTest {
         measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository().apply { currentUser = testUser }
         customGarmentTypeRepository = FakeCustomGarmentTypeRepository()
-        fakeAnalytics = FakeAnalytics()
         customerRepository.customersList = listOf(testCustomer)
+        celebrationPrefs = FakeOnboardingPreferences()
+        celebrations = CelebrationController(
+            preferences = celebrationPrefs,
+            analytics = FakeAnalytics(),
+            authUserIds = emptyFlow(),
+            scope = CoroutineScope(UnconfinedTestDispatcher()),
+        )
     }
 
     @AfterTest
@@ -95,13 +102,8 @@ class OrderFormViewModelAnalyticsTest {
             authRepository = authRepository,
             customGarmentTypeRepository = customGarmentTypeRepository,
             imageCompressor = FakeImageCompressor(),
-            analytics = fakeAnalytics,
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
+            analytics = FakeAnalytics(),
+            celebrations = celebrations,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -136,32 +138,24 @@ class OrderFormViewModelAnalyticsTest {
     }
 
     @Test
-    fun `successful create logs OrderCreated`() = runTest {
-        val vm = createViewModel(orderId = null) // no orderId → create path (isEdit = false)
-
+    fun `first create triggers FirstOrder celebration with first name`() = runTest {
+        val vm = createViewModel(orderId = null)
         vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
         val firstItemId = vm.state.value.items.first().id
         vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
         vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
         vm.onAction(OrderFormAction.OnSave)
 
-        assertTrue(
-            fakeAnalytics.events.contains(AnalyticsEvent.OrderCreated),
-            "Expected OrderCreated in analytics events but got: ${fakeAnalytics.events}",
-        )
+        assertEquals(Milestone.FirstOrder("Test"), celebrations.current.value)
     }
 
     @Test
-    fun `successful edit does NOT log OrderCreated`() = runTest {
+    fun `edit does NOT trigger celebration`() = runTest {
         seedOrder()
-        val vm = createViewModel(orderId = "order-1") // orderId present → edit path (isEdit = true)
-
+        val vm = createViewModel(orderId = "order-1")
         vm.onAction(OrderFormAction.OnPriorityChange(OrderPriority.RUSH))
         vm.onAction(OrderFormAction.OnSave)
 
-        assertFalse(
-            fakeAnalytics.events.contains(AnalyticsEvent.OrderCreated),
-            "Expected OrderCreated NOT to be logged on edit but it was",
-        )
+        assertNull(celebrations.current.value)
     }
 }
