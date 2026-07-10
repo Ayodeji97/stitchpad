@@ -47,8 +47,5 @@ sealed interface DashboardEvent {
     data class OpenCommunityLink(val url: String) : DashboardEvent
 
     /** Measurements picker row with exactly one measurement → open it directly. */
-    data class NavigateToMeasurementDetail(val customerId: String, val measurementId: String) : DashboardEvent
-
-    /** Measurements picker row with zero measurements → open the add-measurement form. */
-    data class NavigateToAddMeasurement(val customerId: String) : DashboardEvent
+    data class NavigateToMeasurementDetail(val customerId: String, val measurementId: String?) : DashboardEvent
 }

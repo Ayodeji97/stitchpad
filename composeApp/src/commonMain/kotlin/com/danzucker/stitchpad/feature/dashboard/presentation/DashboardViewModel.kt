@@ -34,6 +34,8 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.Measurements
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerUi
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -412,14 +414,19 @@ class DashboardViewModel(
         _state.update { it.copy(measurementsPicker = null) }
         viewModelScope.launch {
             delay(PICKER_DISMISS_DELAY_MS)
-            val event = when {
-                row.singleMeasurementId != null ->
-                    DashboardEvent.NavigateToMeasurementDetail(row.customerId, row.singleMeasurementId)
-                row.measurementCount == 0 -> DashboardEvent.NavigateToAddMeasurement(row.customerId)
-                // measurementCount == null (count fetch failed) falls through here
-                // deliberately — customer detail is the safe fallback, never the
-                // destructive create-flow a false "zero" would trigger.
-                else -> DashboardEvent.NavigateToCustomerDetail(row.customerId)
+            // Same rule as the customer actions sheet — including that an unknown
+            // count (fetch failed/timed out) must not masquerade as "no measurements"
+            // and show a false empty state (Bugbot, PR #261).
+            val destination = MeasurementEntryResolver.destinationFor(
+                customerId = row.customerId,
+                measurementCount = row.measurementCount,
+                singleMeasurementId = row.singleMeasurementId,
+            )
+            val event = when (destination) {
+                is MeasurementEntryDestination.Detail ->
+                    DashboardEvent.NavigateToMeasurementDetail(destination.customerId, destination.measurementId)
+                is MeasurementEntryDestination.CustomerDetail ->
+                    DashboardEvent.NavigateToCustomerDetail(destination.customerId)
             }
             emitEvent(event)
         }

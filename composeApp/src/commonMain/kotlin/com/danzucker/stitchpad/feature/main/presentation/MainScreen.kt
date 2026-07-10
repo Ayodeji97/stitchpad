@@ -549,9 +549,6 @@ private fun MainNavGraph(
                         ),
                     )
                 },
-                onNavigateToAddMeasurementForCustomer = { customerId ->
-                    navController.navigate(MeasurementFormRoute(customerId = customerId))
-                },
             )
         }
         composable<AddCustomerFirstRoute> {

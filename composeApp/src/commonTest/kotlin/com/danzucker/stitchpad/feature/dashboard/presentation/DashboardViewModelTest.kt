@@ -1717,7 +1717,7 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `picker row with zero measurements navigates to add measurement`() = runTest {
+    fun `picker row with zero measurements navigates to empty-mode detail`() = runTest {
         signIn()
         customerRepository.customersList = listOf(fakeCustomer())
         val vm = createViewModel()
@@ -1731,8 +1731,9 @@ class DashboardViewModelTest {
             )
             advanceTimeBy(451)
             runCurrent()
-            val event = assertIs<DashboardEvent.NavigateToAddMeasurement>(awaitItem())
+            val event = assertIs<DashboardEvent.NavigateToMeasurementDetail>(awaitItem())
             assertEquals("c1", event.customerId)
+            assertNull(event.measurementId)
         }
     }
 

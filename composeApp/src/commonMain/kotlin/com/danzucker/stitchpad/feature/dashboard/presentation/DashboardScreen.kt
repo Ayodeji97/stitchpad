@@ -304,8 +304,7 @@ fun DashboardRoot(
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToTutorial: (String) -> Unit,
-    onNavigateToMeasurementDetail: (customerId: String, measurementId: String) -> Unit,
-    onNavigateToAddMeasurementForCustomer: (customerId: String) -> Unit,
+    onNavigateToMeasurementDetail: (customerId: String, measurementId: String?) -> Unit,
     viewModel: DashboardViewModel = koinViewModel(),
     whatsAppLauncher: WhatsAppLauncher = koinInject(),
     pushPermissionController: PushPermissionController = koinInject(),
@@ -360,7 +359,6 @@ fun DashboardRoot(
             onNavigateToUpgrade = onNavigateToUpgrade,
             onNavigateToNotifications = onNavigateToNotifications,
             onNavigateToMeasurementDetail = onNavigateToMeasurementDetail,
-            onNavigateToAddMeasurementForCustomer = onNavigateToAddMeasurementForCustomer,
         )
     }
 
@@ -495,8 +493,7 @@ private fun handleDashboardEvent(
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
-    onNavigateToMeasurementDetail: (customerId: String, measurementId: String) -> Unit,
-    onNavigateToAddMeasurementForCustomer: (customerId: String) -> Unit,
+    onNavigateToMeasurementDetail: (customerId: String, measurementId: String?) -> Unit,
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
@@ -530,8 +527,6 @@ private fun handleDashboardEvent(
         is DashboardEvent.OpenCommunityLink -> Unit
         is DashboardEvent.NavigateToMeasurementDetail ->
             onNavigateToMeasurementDetail(event.customerId, event.measurementId)
-        is DashboardEvent.NavigateToAddMeasurement ->
-            onNavigateToAddMeasurementForCustomer(event.customerId)
     }
 }
 
