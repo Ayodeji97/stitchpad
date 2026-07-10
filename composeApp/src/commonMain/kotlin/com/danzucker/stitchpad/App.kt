@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,6 +14,7 @@ import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.feature.freemium.presentation.reconcile.ReconcileCoordinator
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.navigation.StitchPadNavHost
+import com.danzucker.stitchpad.ui.components.celebration.CelebrationOverlayHost
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.koin.compose.koinInject
 
@@ -43,10 +45,13 @@ fun App() {
         AppGateRoot {
             val navController = rememberNavController()
             val onboardingPreferences: OnboardingPreferences = koinInject()
-            StitchPadNavHost(
-                navController = navController,
-                onboardingPreferences = onboardingPreferences
-            )
+            Box {
+                StitchPadNavHost(
+                    navController = navController,
+                    onboardingPreferences = onboardingPreferences
+                )
+                CelebrationOverlayHost()
+            }
         }
     }
 }

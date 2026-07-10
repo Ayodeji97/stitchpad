@@ -1720,4 +1720,14 @@
     <string name="app_gate_update_button">Update StitchPad</string>
     <string name="app_gate_maintenance_title">We&apos;ll be right back</string>
     <string name="app_gate_maintenance_body">StitchPad is briefly down for maintenance. Please check back in a few minutes.</string>
+
+    <!-- Milestone celebrations -->
+    <string name="celebration_workshop_title">Your workshop is open!</string>
+    <string name="celebration_workshop_body">Everything you need to run your tailoring business is right here.</string>
+    <string name="celebration_workshop_button">Let’s go</string>
+    <string name="celebration_first_customer_title">Your first customer!</string>
+    <string name="celebration_first_customer_body">%1$s is in your workshop. Every great atelier starts with one.</string>
+    <string name="celebration_first_order_title">First order in the books!</string>
+    <string name="celebration_first_order_body">You’re officially in business. Let’s get %1$s’s outfit made.</string>
+    <string name="celebration_continue">Continue</string>
 </resources>
