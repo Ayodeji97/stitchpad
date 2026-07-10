@@ -143,7 +143,10 @@ private fun CelebrationOverlay(
             .fillMaxSize()
             .graphicsLayer { alpha = overlayAlpha.value }
             .background(Color.Black.copy(alpha = scrimAlpha))
-            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
+            // Keyed on milestone: when a queued celebration promotes in place,
+            // the tap handler restarts with the fresh onDismiss closure —
+            // pointerInput(Unit) would keep dismissing the stale milestone.
+            .pointerInput(milestone) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
         if (!reduceMotion) {
