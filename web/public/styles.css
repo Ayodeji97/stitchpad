@@ -398,6 +398,22 @@ footer a:hover {
 .admin-table .badge.ok { background: #E6F4EA; color: #1E7A3D; }
 .admin-table .badge.off { background: #F1E6E0; color: #8A4A2A; }
 
+.admin-table .mark-paid {
+  padding: 6px 12px;
+  border: 1px solid var(--indigo);
+  border-radius: 8px;
+  background: var(--indigo);
+  color: #FFFFFF;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-table .mark-paid:hover { background: var(--indigo-hover); }
+.admin-table .mark-paid:disabled { opacity: 0.6; cursor: default; }
+
 @media (max-width: 640px) {
   main {
     padding: 32px 20px 64px;

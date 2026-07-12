@@ -85,5 +85,6 @@ export { reconcileReferrals, debugReconcileReferrals } from './referral/reconcil
 export { confirmReferralPayouts, debugConfirmReferralPayouts } from './referral/confirmReferralPayouts';
 export { sweepDeletedReferralUsers, debugSweepDeletedReferralUsers } from './referral/sweepDeletedReferralUsers';
 export { getReferralDashboard } from './referral/referralDashboard';
+export { markReferralPaid } from './referral/markReferralPaid';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
 export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
