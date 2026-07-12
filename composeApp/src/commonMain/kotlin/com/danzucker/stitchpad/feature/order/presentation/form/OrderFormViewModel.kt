@@ -7,7 +7,6 @@ import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
@@ -888,6 +887,12 @@ class OrderFormViewModel(
                 updatedAt = 0L,
             )
 
+            // Snapshot BEFORE the create: createOrder enqueues its Firestore
+            // write via OfflineWriteDispatcher and returns immediately, so a
+            // post-create read races the background set(). Reading the (cached)
+            // snapshot first is deterministic with respect to our own write.
+            val isFirstOrderCandidate = !isEdit && isOrderListKnownEmpty(uid)
+
             val result = if (isEdit) {
                 orderRepository.updateOrder(uid, order)
             } else {
@@ -897,7 +902,12 @@ class OrderFormViewModel(
                 is Result.Success -> {
                     if (!isEdit) {
                         analytics.logEvent(AnalyticsEvent.OrderCreated)
-                        maybeCelebrateFirstOrder(uid, customer)
+                        if (isFirstOrderCandidate) {
+                            celebrations.trigger(
+                                userId = uid,
+                                milestone = Milestone.FirstOrder(customer.name.substringBefore(' ')),
+                            )
+                        }
                     }
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
@@ -917,19 +927,14 @@ class OrderFormViewModel(
     }
 
     /**
-     * See CustomerFormViewModel.maybeCelebrateFirstCustomer — the flag alone
-     * would wrongly celebrate existing users' next order after updating to
-     * this release. observeOrders excludes archived orders; a user whose
-     * every order is archived would still celebrate — accepted edge case.
+     * See CustomerFormViewModel.isCustomerListKnownEmpty — checked BEFORE the
+     * create because createOrder's write is enqueued in the background.
+     * observeOrders excludes archived orders; a user whose every order is
+     * archived would still celebrate — accepted edge case.
      */
-    private suspend fun maybeCelebrateFirstOrder(userId: String, customer: Customer) {
+    private suspend fun isOrderListKnownEmpty(userId: String): Boolean {
         val orders = orderRepository.observeOrders(userId).first()
-        if (orders is Result.Success && orders.data.size == 1) {
-            celebrations.trigger(
-                userId = userId,
-                milestone = Milestone.FirstOrder(customer.name.substringBefore(' ')),
-            )
-        }
+        return orders is Result.Success && orders.data.isEmpty()
     }
 
     /**

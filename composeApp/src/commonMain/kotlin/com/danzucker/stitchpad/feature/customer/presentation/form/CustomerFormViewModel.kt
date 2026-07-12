@@ -122,7 +122,7 @@ class CustomerFormViewModel(
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     @OptIn(ExperimentalUuidApi::class)
     private fun save() {
         // Re-entrancy guard: SaveButton's enabled=!isLoading propagates through
@@ -141,6 +141,11 @@ class CustomerFormViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
+            // Snapshot BEFORE the create: createCustomer enqueues its Firestore
+            // write via OfflineWriteDispatcher and returns immediately, so a
+            // post-create read races the background set(). Reading the (cached)
+            // snapshot first is deterministic with respect to our own write.
+            val isFirstCustomerCandidate = customerId == null && isCustomerListKnownEmpty(userId)
             val s = _state.value
             val newId = customerId ?: Uuid.random().toString()
             val customer = Customer(
@@ -162,7 +167,12 @@ class CustomerFormViewModel(
                 is Result.Success -> {
                     if (customerId == null) {
                         analytics.logEvent(AnalyticsEvent.CustomerCreated)
-                        maybeCelebrateFirstCustomer(userId, customer)
+                        if (isFirstCustomerCandidate) {
+                            celebrations.trigger(
+                                userId = userId,
+                                milestone = Milestone.FirstCustomer(customer.name.substringBefore(' ')),
+                            )
+                        }
                     }
                     _events.send(postSaveEvent(s, newId))
                 }
@@ -192,18 +202,13 @@ class CustomerFormViewModel(
     /**
      * The one-shot flag alone can't distinguish a genuinely first customer
      * from an existing user's next create after updating to this release
-     * (the flag never existed before this version), so also require that the
-     * just-created customer is the only one. The flag still prevents
-     * re-fires if the list later empties out.
+     * (the flag never existed before this version), so also require the list
+     * to be empty going into the create. Read errors return false — better
+     * to skip a celebration than to congratulate a veteran on their "first".
      */
-    private suspend fun maybeCelebrateFirstCustomer(userId: String, customer: Customer) {
+    private suspend fun isCustomerListKnownEmpty(userId: String): Boolean {
         val customers = customerRepository.observeCustomers(userId).first()
-        if (customers is Result.Success && customers.data.size == 1) {
-            celebrations.trigger(
-                userId = userId,
-                milestone = Milestone.FirstCustomer(customer.name.substringBefore(' ')),
-            )
-        }
+        return customers is Result.Success && customers.data.isEmpty()
     }
 
     /**
