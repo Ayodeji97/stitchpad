@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION, REFERRALS, MARKETERS } from './referralConstants';
 import type { PayoutState } from './referralConstants';
+import { subtractKobo, addKobo } from './marketerBalance';
 
 // markReferralPaid — the final step of the payout lifecycle, and the only WRITE
 // on the admin dashboard. After the admin sends a marketer their confirmed total
@@ -15,11 +16,6 @@ import type { PayoutState } from './referralConstants';
 // transactional (re-reads the racy payoutState), so a double-click or a retry
 // never moves the money twice. `paid` is terminal — nothing (not even clawback)
 // reverses it, since the funds have physically left.
-
-// NOTE: the clamped-subtract / add helpers duplicated inline here also live in
-// marketerBalance.ts on the confirm/clawback branch — DRY once both merge.
-const subKobo = (current: unknown, amount: number): number => Math.max(0, ((current as number) ?? 0) - amount);
-const addKobo = (current: unknown, amount: number): number => ((current as number) ?? 0) + amount;
 
 // marketerId is interpolated into a doc path, so constrain it to the id charset
 // createMarketer mints (`mkt_<ts>_<hex>`) — never let a '/' or empty value through.
@@ -77,7 +73,7 @@ export async function markReferralPaidHandler(
 
       tx.set(doc.ref, { payoutState: 'paid', paidAt: nowTs, updatedAt: nowTs }, { merge: true });
       tx.set(marketerRef, {
-        confirmedAmount: subKobo(m.confirmedAmount, amount),
+        confirmedAmount: subtractKobo(m.confirmedAmount, amount),
         paidAmount: addKobo(m.paidAmount, amount),
         updatedAt: nowTs,
       }, { merge: true });

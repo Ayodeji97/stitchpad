@@ -67,21 +67,18 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
+  <!--
+    Firebase web config is served automatically by Firebase Hosting at the
+    reserved /__/firebase/init.js URL (it calls firebase.initializeApp() with
+    this project's Web App config). This means NO apiKey/appId is committed to
+    the repo, and the config can never drift from the console. It only resolves
+    when this page is served from Firebase Hosting (stitchpad-30607.web.app or a
+    connected domain) — opening the file directly leaves firebase uninitialised,
+    which the CONFIGURED gate below reports.
+  -->
+  <script src="/__/firebase/init.js"></script>
   <script>
-    // ── Firebase web config ────────────────────────────────────────────────────
-    // OPS PREREQUISITE: register a Web App for project stitchpad-30607 in the
-    // Firebase console (Project settings → Your apps → Web) and paste its apiKey +
-    // appId below. projectId/authDomain/bucket are already correct. The Android key
-    // in google-services.json is NOT the web key — register a proper Web App.
-    var firebaseConfig = {
-      apiKey: 'PASTE_WEB_API_KEY',
-      authDomain: 'stitchpad-30607.firebaseapp.com',
-      projectId: 'stitchpad-30607',
-      storageBucket: 'stitchpad-30607.firebasestorage.app',
-      appId: 'PASTE_WEB_APP_ID',
-    };
-
-    var CONFIGURED = firebaseConfig.apiKey.indexOf('PASTE_') !== 0;
+    var CONFIGURED = !!(firebase.apps && firebase.apps.length);
 
     var el = function (id) { return document.getElementById(id); };
     var show = function (id, on) { el(id).hidden = !on; };
@@ -92,10 +89,9 @@
     if (!CONFIGURED) {
       show('loading', false);
       show('loginView', true);
-      el('loginError').textContent = 'Not configured: paste the Firebase web apiKey/appId into admin.html (see the OPS PREREQUISITE comment).';
+      el('loginError').textContent = 'Not configured: open this page from Firebase Hosting (stitchpad-30607.web.app/admin.html) so the auto-served Firebase config loads.';
       el('loginBtn').disabled = true;
     } else {
-      firebase.initializeApp(firebaseConfig);
       var auth = firebase.auth();
       var fns = firebase.app().functions('europe-west1');
 
