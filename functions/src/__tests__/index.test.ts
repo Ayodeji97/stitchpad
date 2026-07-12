@@ -7,10 +7,18 @@ jest.mock('../cleanup/firestore', () => ({
 jest.mock('../cleanup/storage', () => ({
   deleteUserStorageData: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../referral/clawback', () => ({
+  // Pull through the real constants (REJECT_ACCOUNT_DELETED etc.) so this mock
+  // can't drift, and only stub the async branch that would otherwise make a
+  // real Firestore call and hang the test.
+  ...jest.requireActual('../referral/clawback'),
+  clawbackReferralOnDelete: jest.fn().mockResolvedValue('none'),
+}));
 
 import firebaseFunctionsTest from 'firebase-functions-test';
 import { deleteUserFirestoreData } from '../cleanup/firestore';
 import { deleteUserStorageData } from '../cleanup/storage';
+import { clawbackReferralOnDelete } from '../referral/clawback';
 
 const testEnv = firebaseFunctionsTest();
 
@@ -32,11 +40,16 @@ describe('onAuthUserDeleted', () => {
       'fake-uid-xyz',
       expect.anything(),
     );
+    expect(clawbackReferralOnDelete).toHaveBeenCalledWith(
+      'fake-uid-xyz',
+      expect.anything(),
+    );
   });
 
   it('still resolves AND runs the other branch when one cleanup rejects (Promise.allSettled semantics)', async () => {
     (deleteUserFirestoreData as jest.Mock).mockClear();
     (deleteUserStorageData as jest.Mock).mockClear();
+    (clawbackReferralOnDelete as jest.Mock).mockClear();
     (deleteUserFirestoreData as jest.Mock).mockRejectedValueOnce(new Error('boom'));
     const { onAuthUserDeleted } = await import('../index');
     const wrapped = testEnv.wrap(onAuthUserDeleted);
