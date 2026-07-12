@@ -39,9 +39,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowDivider
@@ -407,6 +414,16 @@ private fun ReferralAttributeDialog(
     state: ReferralAttributeDialogState,
     onAction: (DebugMenuAction) -> Unit,
 ) {
+    // Local TextFieldValue keeps the cursor position stable across recompositions
+    // when the VM-owned codeInput updates on every keystroke. Bind text only to the VM.
+    var codeFieldValue by remember {
+        mutableStateOf(TextFieldValue(state.codeInput, TextRange(state.codeInput.length)))
+    }
+    LaunchedEffect(state.codeInput) {
+        if (codeFieldValue.text != state.codeInput) {
+            codeFieldValue = TextFieldValue(state.codeInput, TextRange(state.codeInput.length))
+        }
+    }
     AlertDialog(
         onDismissRequest = { onAction(DebugMenuAction.OnReferralAttributeDismiss) },
         title = {
@@ -423,8 +440,13 @@ private fun ReferralAttributeDialog(
                 )
                 Spacer(Modifier.height(DesignTokens.space2))
                 OutlinedTextField(
-                    value = state.codeInput,
-                    onValueChange = { onAction(DebugMenuAction.OnReferralAttributeCodeChange(it)) },
+                    value = codeFieldValue,
+                    onValueChange = { newValue ->
+                        codeFieldValue = newValue
+                        if (newValue.text != state.codeInput) {
+                            onAction(DebugMenuAction.OnReferralAttributeCodeChange(newValue.text))
+                        }
+                    },
                     label = { Text("Referral code") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
