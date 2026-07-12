@@ -312,9 +312,10 @@ class CustomerListViewModel(
 
     /**
      * "View measurements" from the actions sheet: resolve during the dismiss
-     * animation (exactly one measurement -> its detail; zero or several ->
-     * customer detail), then honor the same 450ms dismiss-delay contract as
-     * [navigateFromSheet] before emitting.
+     * animation (exactly one measurement -> its detail; confirmed zero -> the
+     * detail empty state; several or unknown -> customer detail), then honor
+     * the same 450ms dismiss-delay contract as [navigateFromSheet] before
+     * emitting.
      */
     private fun viewMeasurementsFromSheet(customerId: String) {
         _state.update { it.copy(actionsSheetForId = null) }

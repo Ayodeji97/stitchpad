@@ -55,10 +55,10 @@ class MeasurementEntryResolverTest {
     }
 
     @Test
-    fun `zero measurements resolve to customer detail`() = runTest {
+    fun `zero measurements resolve to empty-mode detail`() = runTest {
         measurementRepository.measurementsList = emptyList()
         assertEquals(
-            MeasurementEntryDestination.CustomerDetail("customer-1"),
+            MeasurementEntryDestination.Detail("customer-1", measurementId = null),
             resolver.resolve("customer-1"),
         )
     }
@@ -104,6 +104,38 @@ class MeasurementEntryResolverTest {
         assertEquals(
             MeasurementEntryDestination.CustomerDetail("customer-1"),
             hangingResolver.resolve("customer-1"),
+        )
+    }
+
+    @Test
+    fun `destinationFor single measurement routes to its detail`() {
+        assertEquals(
+            MeasurementEntryDestination.Detail("c1", "m1"),
+            MeasurementEntryResolver.destinationFor("c1", measurementCount = 1, singleMeasurementId = "m1"),
+        )
+    }
+
+    @Test
+    fun `destinationFor confirmed zero routes to empty-mode detail`() {
+        assertEquals(
+            MeasurementEntryDestination.Detail("c1", measurementId = null),
+            MeasurementEntryResolver.destinationFor("c1", measurementCount = 0, singleMeasurementId = null),
+        )
+    }
+
+    @Test
+    fun `destinationFor several measurements routes to customer detail`() {
+        assertEquals(
+            MeasurementEntryDestination.CustomerDetail("c1"),
+            MeasurementEntryResolver.destinationFor("c1", measurementCount = 3, singleMeasurementId = null),
+        )
+    }
+
+    @Test
+    fun `destinationFor unknown count routes to customer detail`() {
+        assertEquals(
+            MeasurementEntryDestination.CustomerDetail("c1"),
+            MeasurementEntryResolver.destinationFor("c1", measurementCount = null, singleMeasurementId = null),
         )
     }
 }

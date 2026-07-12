@@ -46,9 +46,14 @@ sealed interface DashboardEvent {
     /** Open the WhatsApp community invite (chat.whatsapp.com) directly. */
     data class OpenCommunityLink(val url: String) : DashboardEvent
 
-    /** Measurements picker row with exactly one measurement → open it directly. */
+    /** Picker row with exactly one measurement → open it directly. */
     data class NavigateToMeasurementDetail(val customerId: String, val measurementId: String) : DashboardEvent
 
-    /** Measurements picker row with zero measurements → open the add-measurement form. */
+    /**
+     * Picker row with a confirmed-zero count → straight to the create form. The
+     * picker row already told the user the customer is empty ("+ Add"), so the
+     * detail screen's empty state would be a redundant stop here — unlike the
+     * customer actions sheet, which routes zero to the empty-mode detail.
+     */
     data class NavigateToAddMeasurement(val customerId: String) : DashboardEvent
 }

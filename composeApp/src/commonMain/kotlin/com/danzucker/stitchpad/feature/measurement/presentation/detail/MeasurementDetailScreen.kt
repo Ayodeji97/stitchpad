@@ -6,13 +6,16 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.detail
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,10 +23,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,11 +61,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
@@ -91,6 +99,10 @@ import stitchpad.composeapp.generated.resources.measurement_detail_notes_title
 import stitchpad.composeapp.generated.resources.measurement_detail_saved_snackbar
 import stitchpad.composeapp.generated.resources.measurement_detail_taken
 import stitchpad.composeapp.generated.resources.measurement_detail_title
+import stitchpad.composeapp.generated.resources.measurement_empty_add_button
+import stitchpad.composeapp.generated.resources.measurement_empty_supporting
+import stitchpad.composeapp.generated.resources.measurement_empty_supporting_generic
+import stitchpad.composeapp.generated.resources.measurement_empty_title
 import stitchpad.composeapp.generated.resources.measurement_gender_men
 import stitchpad.composeapp.generated.resources.measurement_gender_women
 import stitchpad.composeapp.generated.resources.measurement_menu_delete
@@ -116,6 +128,7 @@ fun MeasurementDetailRoot(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (String, String) -> Unit,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToAdd: (String) -> Unit,
 ) {
     val viewModel: MeasurementDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -135,6 +148,7 @@ fun MeasurementDetailRoot(
                     snackbarHostState.showSnackbar(whatsAppFailed)
                 }
             }
+            is MeasurementDetailEvent.NavigateToAdd -> onNavigateToAdd(event.customerId)
         }
     }
 
@@ -175,8 +189,13 @@ fun MeasurementDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = measurement?.name?.ifBlank { null }
-                            ?: stringResource(Res.string.measurement_detail_title),
+                        text = when {
+                            state.isEmptyState ->
+                                state.customer?.name?.ifBlank { null }
+                                    ?: stringResource(Res.string.measurement_detail_title)
+                            else -> measurement?.name?.ifBlank { null }
+                                ?: stringResource(Res.string.measurement_detail_title)
+                        },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -191,7 +210,7 @@ fun MeasurementDetailScreen(
                         )
                     }
                 },
-                actions = { DetailOverflowMenu(onAction) },
+                actions = { if (!state.isEmptyState) DetailOverflowMenu(onAction) },
             )
         },
         bottomBar = {
@@ -237,6 +256,13 @@ fun MeasurementDetailScreen(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
+
+            state.isEmptyState -> MeasurementEmptyContent(
+                customerFirstName = state.customer?.name?.trim()
+                    ?.substringBefore(' ')?.takeIf { it.isNotBlank() },
+                onAddClick = { onAction(MeasurementDetailAction.OnAddMeasurementClick) },
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
 
             measurement != null -> MeasurementDetailContent(
                 measurement = measurement,
@@ -356,6 +382,62 @@ private fun MeasurementDetailContent(
         if (!notes.isNullOrBlank()) {
             item { NotesCard(notes) }
         }
+    }
+}
+
+@Composable
+private fun MeasurementEmptyContent(
+    customerFirstName: String?,
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier.padding(horizontal = DesignTokens.space4),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(64.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(DesignTokens.radiusXl),
+                ),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Straighten,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        Spacer(Modifier.height(DesignTokens.space4))
+        Text(
+            text = stringResource(Res.string.measurement_empty_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(DesignTokens.space2))
+        Text(
+            text = if (customerFirstName != null) {
+                stringResource(Res.string.measurement_empty_supporting, customerFirstName)
+            } else {
+                stringResource(Res.string.measurement_empty_supporting_generic)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(DesignTokens.space4))
+        StitchPadButton(
+            text = stringResource(Res.string.measurement_empty_add_button),
+            onClick = onAddClick,
+            leadingIcon = Icons.Default.Add,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -606,6 +688,50 @@ private fun MeasurementDetailScreenDarkPreview() {
                     dateTaken = 1_750_000_000_000L,
                     createdAt = 1_750_000_000_000L,
                 ),
+                isLoading = false,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun MeasurementDetailEmptyPreview() {
+    StitchPadTheme {
+        MeasurementDetailScreen(
+            state = MeasurementDetailState(
+                customer = Customer(
+                    id = "c1",
+                    userId = "u1",
+                    name = "Fola Adeyemi",
+                    phone = "0705 991 2340",
+                    slotState = CustomerSlotState.ACTIVE,
+                ),
+                isEmptyState = true,
+                isLoading = false,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun MeasurementDetailEmptyDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        MeasurementDetailScreen(
+            state = MeasurementDetailState(
+                customer = Customer(
+                    id = "c1",
+                    userId = "u1",
+                    name = "Fola Adeyemi",
+                    phone = "0705 991 2340",
+                    slotState = CustomerSlotState.ACTIVE,
+                ),
+                isEmptyState = true,
                 isLoading = false,
             ),
             onAction = {},

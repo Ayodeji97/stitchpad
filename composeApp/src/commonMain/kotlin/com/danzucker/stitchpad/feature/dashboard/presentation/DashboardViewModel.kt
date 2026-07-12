@@ -34,6 +34,8 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.Measurements
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerUi
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
+import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -412,14 +414,23 @@ class DashboardViewModel(
         _state.update { it.copy(measurementsPicker = null) }
         viewModelScope.launch {
             delay(PICKER_DISMISS_DELAY_MS)
-            val event = when {
-                row.singleMeasurementId != null ->
-                    DashboardEvent.NavigateToMeasurementDetail(row.customerId, row.singleMeasurementId)
-                row.measurementCount == 0 -> DashboardEvent.NavigateToAddMeasurement(row.customerId)
-                // measurementCount == null (count fetch failed) falls through here
-                // deliberately — customer detail is the safe fallback, never the
-                // destructive create-flow a false "zero" would trigger.
-                else -> DashboardEvent.NavigateToCustomerDetail(row.customerId)
+            // Same decision rule as the customer actions sheet — including that an
+            // unknown count (fetch failed/timed out) must not masquerade as "no
+            // measurements" and trigger the create flow (Bugbot, PR #261). One
+            // deliberate divergence: a confirmed zero goes straight to the create
+            // form, not the detail empty state — the "+ Add" row already told the
+            // user this customer is empty (product decision, PR #263).
+            val destination = MeasurementEntryResolver.destinationFor(
+                customerId = row.customerId,
+                measurementCount = row.measurementCount,
+                singleMeasurementId = row.singleMeasurementId,
+            )
+            val event = when (destination) {
+                is MeasurementEntryDestination.Detail -> destination.measurementId?.let { measurementId ->
+                    DashboardEvent.NavigateToMeasurementDetail(destination.customerId, measurementId)
+                } ?: DashboardEvent.NavigateToAddMeasurement(destination.customerId)
+                is MeasurementEntryDestination.CustomerDetail ->
+                    DashboardEvent.NavigateToCustomerDetail(destination.customerId)
             }
             emitEvent(event)
         }

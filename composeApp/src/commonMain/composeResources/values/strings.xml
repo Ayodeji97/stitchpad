@@ -1140,6 +1140,10 @@
     <string name="measurement_picker_taken_date">Taken %1$s</string>
     <string name="measurement_picker_create_new">Create new measurement</string>
     <string name="measurement_detail_title">Customer measurement</string>
+    <string name="measurement_empty_title">No measurements yet</string>
+    <string name="measurement_empty_supporting">Record %1$s&apos;s measurements once and reuse them on every order.</string>
+    <string name="measurement_empty_supporting_generic">Record measurements once and reuse them on every order.</string>
+    <string name="measurement_empty_add_button">Add measurement</string>
     <string name="measurement_share_error">Could not share measurement. Please try again.</string>
     <string name="measurement_share_sheet_title">Share measurement</string>
     <string name="measurement_share_whatsapp_title">Send as text on WhatsApp</string>
