@@ -30,6 +30,7 @@ val referralModule = module {
             referralRepository = get(),
             preferences = get(),
             installReferrerReader = get(),
+            clipboardReferralReader = get(),
             pendingDeepLink = get(),
             scope = get(qualifier = named("referralAppScope")),
             uidFlow = auth.authStateChanged.map { it?.uid },

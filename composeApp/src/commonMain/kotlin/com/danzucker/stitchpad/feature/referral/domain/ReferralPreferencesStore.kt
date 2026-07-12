@@ -27,6 +27,15 @@ interface ReferralPreferencesStore {
 
     suspend fun setReferrerChecked()
 
-    /** Debug menu: clear the attributed + referrer-checked flags (device id stays stable). */
+    /**
+     * True once we've read the iOS clipboard for a referral link and found none.
+     * Bounds the clipboard read (and its "pasted from" banner) to once per install;
+     * left false while a genuine clipboard code fails to submit so it retries.
+     */
+    suspend fun hasCheckedClipboard(): Boolean
+
+    suspend fun setClipboardChecked()
+
+    /** Debug menu: clear the attributed + checked flags (device id stays stable). */
     suspend fun resetForDebug()
 }

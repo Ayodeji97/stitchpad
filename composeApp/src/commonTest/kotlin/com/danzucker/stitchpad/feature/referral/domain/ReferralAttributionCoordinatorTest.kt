@@ -34,6 +34,7 @@ private class FakeReferralRepository(
 private class FakeReferralPreferences(
     private var attributed: Boolean = false,
     private var checkedReferrer: Boolean = false,
+    private var checkedClipboard: Boolean = false,
     private val deviceId: String = "device-uuid",
 ) : ReferralPreferencesStore {
     override suspend fun getOrCreateDeviceId(): String = deviceId
@@ -41,15 +42,25 @@ private class FakeReferralPreferences(
     override suspend fun setAttributed() { attributed = true }
     override suspend fun hasCheckedReferrer(): Boolean = checkedReferrer
     override suspend fun setReferrerChecked() { checkedReferrer = true }
-    override suspend fun resetForDebug() { attributed = false; checkedReferrer = false }
+    override suspend fun hasCheckedClipboard(): Boolean = checkedClipboard
+    override suspend fun setClipboardChecked() { checkedClipboard = true }
+    override suspend fun resetForDebug() {
+        attributed = false; checkedReferrer = false; checkedClipboard = false
+    }
 
     fun attributedNow() = attributed
     fun checkedNow() = checkedReferrer
+    fun clipboardCheckedNow() = checkedClipboard
 }
 
 private class FakeInstallReferrerReader(private val referrer: String?) : InstallReferrerReader {
     var reads = 0
     override suspend fun readReferrer(): String? { reads++; return referrer }
+}
+
+private class FakeClipboardReferralReader(private val clip: String?) : ClipboardReferralReader {
+    var reads = 0
+    override suspend fun readClipboard(): String? { reads++; return clip }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -60,9 +71,13 @@ class ReferralAttributionCoordinatorTest {
         repo: FakeReferralRepository = FakeReferralRepository(),
         prefs: FakeReferralPreferences = FakeReferralPreferences(),
         reader: FakeInstallReferrerReader = FakeInstallReferrerReader(null),
+        clipboard: FakeClipboardReferralReader = FakeClipboardReferralReader(null),
         holder: PendingDeepLinkHolder = PendingDeepLinkHolder(),
         uidFlow: Flow<String?> = flowOf(null),
-    ) = ReferralAttributionCoordinator(repo, prefs, reader, holder, scope, uidFlow)
+        clipboardEnabled: Boolean = true,
+    ) = ReferralAttributionCoordinator(
+        repo, prefs, reader, clipboard, holder, scope, uidFlow, clipboardEnabled,
+    )
 
     // ── attributeOnce: code resolution priority ──────────────────────────────
 
@@ -160,6 +175,95 @@ class ReferralAttributionCoordinatorTest {
 
         assertEquals(0, reader.reads)
         assertTrue(repo.calls.isEmpty())
+    }
+
+    // ── attributeOnce: clipboard (iOS deferred capture) ──────────────────────
+
+    @Test
+    fun clipboard_usedWhenNoManualPendingOrInstall_tagsClipboard() = runTest {
+        val repo = FakeReferralRepository()
+        val prefs = FakeReferralPreferences()
+        val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/ABCD1234")
+        val c = coordinator(this, repo = repo, prefs = prefs, clipboard = clip)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(1, repo.calls.size)
+        assertEquals("ABCD1234", repo.calls[0].code)
+        assertEquals(ReferralSource.CLIPBOARD, repo.calls[0].source)
+        assertTrue(prefs.attributedNow())
+    }
+
+    @Test
+    fun clipboard_bareCodeWithoutReferralUrl_isIgnored() = runTest {
+        val repo = FakeReferralRepository()
+        val prefs = FakeReferralPreferences()
+        // A bare uppercase string is NOT a referral URL — must not be captured.
+        val clip = FakeClipboardReferralReader("ABCD1234")
+        val c = coordinator(this, repo = repo, prefs = prefs, clipboard = clip)
+
+        c.attributeOnce(manualCode = null)
+
+        assertTrue(repo.calls.isEmpty())
+        // Nothing for us on the clipboard → stop re-reading (and re-banner-ing).
+        assertTrue(prefs.clipboardCheckedNow())
+    }
+
+    @Test
+    fun clipboard_disabledByDefault_isNotRead() = runTest {
+        // Production default: clipboard capture stays dormant until the /r/ landing page.
+        val repo = FakeReferralRepository()
+        val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/ABCD1234")
+        val c = coordinator(this, repo = repo, clipboard = clip, clipboardEnabled = false)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(0, clip.reads)
+        assertTrue(repo.calls.isEmpty())
+    }
+
+    @Test
+    fun clipboard_notReReadOnceChecked() = runTest {
+        val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/ABCD1234")
+        val prefs = FakeReferralPreferences(checkedClipboard = true)
+        val repo = FakeReferralRepository()
+        val c = coordinator(this, repo = repo, prefs = prefs, clipboard = clip)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(0, clip.reads)
+        assertTrue(repo.calls.isEmpty())
+    }
+
+    @Test
+    fun installReferrer_winsOverClipboard() = runTest {
+        val repo = FakeReferralRepository()
+        val reader = FakeInstallReferrerReader("ref=INSTALL01")
+        val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/CLIP0001")
+        val c = coordinator(this, repo = repo, reader = reader, clipboard = clip)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(1, repo.calls.size)
+        assertEquals("INSTALL01", repo.calls[0].code)
+        assertEquals(0, clip.reads) // clipboard not even read when install referrer hits
+    }
+
+    @Test
+    fun clipboardFailure_marksCheckedAndReStashesForRetry() = runTest {
+        val repo = FakeReferralRepository(result = Result.Error(ReferralError.NETWORK))
+        val prefs = FakeReferralPreferences()
+        val holder = PendingDeepLinkHolder()
+        val clip = FakeClipboardReferralReader("https://link.getstitchpad.com/r/ABCD1234")
+        val c = coordinator(this, repo = repo, prefs = prefs, clipboard = clip, holder = holder)
+
+        c.attributeOnce(manualCode = null)
+
+        assertFalse(prefs.attributedNow())
+        // Banner-once: the clipboard is marked checked even on failure (one read = one
+        // banner), and the code is re-stashed so a retry doesn't re-read the pasteboard.
+        assertTrue(prefs.clipboardCheckedNow())
+        assertEquals("ABCD1234", holder.consumeReferralCode())
     }
 
     // ── attributeOnce: guards + retry semantics ──────────────────────────────

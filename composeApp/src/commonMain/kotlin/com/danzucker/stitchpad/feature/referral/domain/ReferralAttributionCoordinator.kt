@@ -28,9 +28,9 @@ interface ReferralAttribution {
 
 /**
  * Owns the client half of referral attribution: resolve a code (a manually typed one,
- * a captured /r/ App Link, or the Play Install Referrer) and report it once the user
- * is authenticated. Everything is best-effort and fire-and-forget — a signup must
- * never block or fail on attribution.
+ * a captured /r/ App Link, the Play Install Referrer on Android, or the clipboard on
+ * iOS) and report it once the user is authenticated. Everything is best-effort and
+ * fire-and-forget — a signup must never block or fail on attribution.
  *
  * Two triggers, both funnelling into [attributeOnce]:
  *  - SignUp email/SSO success (via [submitPendingAttribution]) for immediacy + the
@@ -46,14 +46,21 @@ class ReferralAttributionCoordinator(
     private val referralRepository: ReferralRepository,
     private val preferences: ReferralPreferencesStore,
     private val installReferrerReader: InstallReferrerReader,
+    private val clipboardReferralReader: ClipboardReferralReader,
     private val pendingDeepLink: PendingDeepLinkHolder,
     private val scope: CoroutineScope,
     private val uidFlow: Flow<String?>,
+    // Clipboard capture stays OFF until the /r/ web landing page ships. That page is
+    // what puts our referral URL on the clipboard AND will carry a fresh provenance
+    // token; until it exists a clipboard read could only ever fire on a stray URL a
+    // user copied for their own reasons (false attribution). The reader is fully wired
+    // + tested so activation is a one-line flip in the DI factory then. Default OFF so
+    // production stays dormant; tests pass true to exercise the logic.
+    private val clipboardCaptureEnabled: Boolean = false,
 ) : ReferralAttribution {
 
-    // Serializes attributeOnce so the two triggers (auth-state collector +
-    // submitPendingAttribution) can never run concurrently — otherwise they could
-    // double-consume a captured code or double-submit before the first completes.
+    // Serializes attributeOnce so the signup-success and auth-observer triggers don't
+    // both pass the hasAttributed() guard, double-read the clipboard, or double-submit.
     private val submitMutex = Mutex()
 
     // A manually-typed code, stashed synchronously the instant it's submitted, so it
@@ -85,9 +92,11 @@ class ReferralAttributionCoordinator(
     }
 
     /**
-     * The testable core. Resolves the code by priority — manual field, then a captured
-     * deep-link code, then the Play Install Referrer (read at most once per install) —
-     * and submits it. No-ops when already attributed or no code is available.
+     * The testable core. Resolves the code by priority — manual field, captured
+     * deep-link code, Play Install Referrer (Android), then clipboard (iOS) — and
+     * submits it. No-ops when already attributed or no code is available. Serialized
+     * by [submitMutex] so the signup-success and auth-observer triggers can't both
+     * read the clipboard / submit in the same session.
      */
     @Suppress("ReturnCount") // staged guards (already-attributed, no-code) read clearer than nesting
     suspend fun attributeOnce(manualCode: String?): Unit = submitMutex.withLock {
@@ -96,27 +105,11 @@ class ReferralAttributionCoordinator(
         // Prefer an explicitly-passed code, then a code stashed by submitPendingAttribution,
         // so a manual code wins even when this is the collector's attributeOnce(null).
         val manual = DeepLinkParser.normalizeReferralCode(manualCode) ?: manualOverride
-        // Only consume the captured code when there's no manual code to prefer; a
-        // deep-link code we do consume is re-stashed below if the submit fails.
+        // Only consume the captured code when there's no manual code to prefer; the
+        // resolved code is re-stashed below if the submit fails.
         val pending = if (manual == null) pendingDeepLink.consumeReferralCode() else null
 
-        val code: String
-        val source: ReferralSource
-        when {
-            manual != null -> {
-                code = manual
-                source = ReferralSource.MANUAL
-            }
-            pending != null -> {
-                code = pending
-                source = ReferralSource.INSTALL_REFERRER
-            }
-            else -> {
-                val fromInstall = readInstallReferrerCode() ?: return@withLock
-                code = fromInstall
-                source = ReferralSource.INSTALL_REFERRER
-            }
-        }
+        val (code, source) = resolveCode(manual, pending) ?: return@withLock
 
         val deviceHash = preferences.getOrCreateDeviceId()
         when (val result = referralRepository.recordAttribution(code, deviceHash, source)) {
@@ -128,13 +121,31 @@ class ReferralAttributionCoordinator(
                 }
             }
             is Result.Error -> {
-                // Leave unattributed so a later authenticated launch retries. Re-stash a
-                // consumed deep-link code (in-memory only); the Install Referrer is
-                // re-readable next launch because its checked flag stays unset on failure.
-                if (pending != null) pendingDeepLink.setReferralCode(pending)
+                // Leave unattributed so a later authenticated launch retries. Re-stash the
+                // captured code (in-memory) so a within-session retry doesn't re-read the
+                // source — important for the clipboard, whose read is one-shot (see
+                // readClipboardReferralCode) to avoid re-showing the iOS paste banner. A
+                // MANUAL code isn't re-stashed here: it survives in manualOverride, so
+                // re-stashing would mislabel it INSTALL_REFERRER on the retry.
+                if (source != ReferralSource.MANUAL) pendingDeepLink.setReferralCode(code)
                 AppLogger.w(tag = TAG) { "attribution failed: ${result.error}" }
             }
         }
+    }
+
+    /**
+     * Resolves the code + source by priority: manual field, then a captured deep-link
+     * code, then the Play Install Referrer (Android), then the clipboard (iOS). The two
+     * platform readers no-op on the other platform, so they never collide.
+     */
+    private suspend fun resolveCode(
+        manual: String?,
+        pending: String?,
+    ): Pair<String, ReferralSource>? = when {
+        manual != null -> manual to ReferralSource.MANUAL
+        pending != null -> pending to ReferralSource.INSTALL_REFERRER
+        else -> readInstallReferrerCode()?.let { it to ReferralSource.INSTALL_REFERRER }
+            ?: readClipboardReferralCode()?.let { it to ReferralSource.CLIPBOARD }
     }
 
     /**
@@ -148,5 +159,20 @@ class ReferralAttributionCoordinator(
         val code = DeepLinkParser.parseInstallReferrerCode(referrer)
         if (code == null) preferences.setReferrerChecked()
         return code
+    }
+
+    /**
+     * Reads the clipboard exactly once per install (iOS deferred capture). Unlike the
+     * silent Install Referrer read, touching the pasteboard shows the iOS "pasted
+     * from…" banner, so we mark it checked after a SINGLE read regardless of outcome —
+     * a genuine-but-unsubmitted code is retried from the in-memory re-stash, never by
+     * re-reading (which would re-banner). Requires a full /r/ referral URL — a bare
+     * pasted string is NOT accepted, so we never grab unrelated clipboard content.
+     */
+    private suspend fun readClipboardReferralCode(): String? {
+        if (!clipboardCaptureEnabled || preferences.hasCheckedClipboard()) return null
+        val clip = clipboardReferralReader.readClipboard()
+        preferences.setClipboardChecked()
+        return DeepLinkParser.parseReferral(clip)
     }
 }
