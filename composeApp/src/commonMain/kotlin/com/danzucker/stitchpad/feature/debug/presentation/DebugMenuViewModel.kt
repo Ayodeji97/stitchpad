@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.debug.DebugTestAccounts
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.ReferralAdminDebugActions
+import com.danzucker.stitchpad.core.debug.ReferralDebugActions
 import com.danzucker.stitchpad.core.debug.ReminderDebugActions
 import com.danzucker.stitchpad.core.debug.ReminderSendResult
 import com.danzucker.stitchpad.core.debug.SeedResult
@@ -26,7 +28,7 @@ import kotlinx.coroutines.launch
 
 // A cohesive debug-only menu VM: one runX() per debug action. Splitting it would
 // just scatter trivial one-liner handlers across files for no readability gain.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class DebugMenuViewModel(
     private val seeder: DebugSeeder,
     private val sessionActions: DebugSessionActions,
@@ -34,6 +36,8 @@ class DebugMenuViewModel(
     private val digestActions: DigestDebugActions,
     private val reminderActions: ReminderDebugActions,
     private val analyticsActions: AnalyticsDebugActions,
+    private val referralActions: ReferralDebugActions,
+    private val referralAdminActions: ReferralAdminDebugActions,
     private val now: () -> Long,
     private val testAccountsConfigured: Boolean = DebugTestAccounts.isConfigured,
 ) : ViewModel() {
@@ -49,6 +53,7 @@ class DebugMenuViewModel(
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: DebugMenuAction) {
         if (handleFreemiumAction(action)) return
+        if (handleReferralAction(action)) return
         when (action) {
             DebugMenuAction.OnBackClick -> emit(DebugMenuEvent.NavigateBack)
             DebugMenuAction.OnSeedBrandNewClick -> runSeed(DebugScenario.BrandNew) { seeder.seedBrandNew() }
@@ -294,7 +299,48 @@ class DebugMenuViewModel(
         return true
     }
 
-    private fun runFreemium(successMessage: String, block: suspend () -> DebugActionResult) =
+    private fun handleReferralAction(action: DebugMenuAction): Boolean {
+        when (action) {
+            DebugMenuAction.OnReferralAttributeClick -> _state.update {
+                it.copy(referralAttribute = ReferralAttributeDialogState())
+            }
+            DebugMenuAction.OnReferralAttributeDismiss -> _state.update {
+                it.copy(referralAttribute = null)
+            }
+            is DebugMenuAction.OnReferralAttributeCodeChange -> _state.update {
+                it.copy(referralAttribute = it.referralAttribute?.copy(codeInput = action.value))
+            }
+            DebugMenuAction.OnReferralAttributeConfirm -> runAttributeReferral()
+            DebugMenuAction.OnReferralSeedQualificationClick -> runResultAction(
+                "Seeded workshop + 4 days — now run the grader (or wait for the nightly run)"
+            ) { referralActions.seedQualification(now()) }
+            DebugMenuAction.OnReferralResetCaptureClick -> runResultAction("Referral capture state reset") {
+                referralActions.resetCaptureState()
+            }
+            DebugMenuAction.OnReferralRunGraderClick -> runResultAction("Grader ran — check the referral doc") {
+                referralAdminActions.runGrader()
+            }
+            DebugMenuAction.OnReferralRunConfirmClick -> runResultAction("Confirm payouts ran") {
+                referralAdminActions.runConfirmPayouts()
+            }
+            DebugMenuAction.OnReferralRunSweepClick -> runResultAction("Deleted-user sweep ran") {
+                referralAdminActions.runSweep()
+            }
+            else -> return false
+        }
+        return true
+    }
+
+    @Suppress("ReturnCount")
+    private fun runAttributeReferral() {
+        val dialog = _state.value.referralAttribute ?: return
+        if (!dialog.isValid) return
+        val code = dialog.code
+        _state.update { it.copy(referralAttribute = null) }
+        runResultAction("Attributed with code $code") { referralActions.attributeWithCode(code) }
+    }
+
+    private fun runResultAction(successMessage: String, block: suspend () -> DebugActionResult) =
         runJob {
             val message = when (val r = block()) {
                 DebugActionResult.Success -> UiText.DynamicString(successMessage)
@@ -302,6 +348,9 @@ class DebugMenuViewModel(
             }
             emit(DebugMenuEvent.ShowSnackbar(message))
         }
+
+    private fun runFreemium(successMessage: String, block: suspend () -> DebugActionResult) =
+        runResultAction(successMessage, block)
 
     private fun runSeed(scenario: DebugScenario, block: suspend () -> SeedResult) = runJob {
         val r = block()

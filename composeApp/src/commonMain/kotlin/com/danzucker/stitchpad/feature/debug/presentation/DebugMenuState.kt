@@ -15,6 +15,7 @@ data class DebugMenuState(
     val bulkSeed: BulkSeedDialogState? = null,
     val smartUsage: SmartUsageDialogState? = null,
     val welcomeDaysLeft: WelcomeDaysLeftDialogState? = null,
+    val referralAttribute: ReferralAttributeDialogState? = null,
     // Optimistic / session-scoped: the GitLive SDK persists the real value internally
     // but exposes no getter, so we default to true (enabled) on every cold launch and
     // track what the user toggled this session. SDK persistence governs actual behavior.
@@ -46,6 +47,14 @@ data class SmartUsageDialogState(
             val b = bonusUsed ?: return false
             return c >= 0 && b >= 0
         }
+}
+
+data class ReferralAttributeDialogState(
+    val codeInput: String = "",
+) {
+    /** Normalized to the server's charset (uppercase, no spaces/hyphens). */
+    val code: String get() = codeInput.replace(Regex("[\\s-]"), "").uppercase()
+    val isValid: Boolean get() = code.isNotBlank()
 }
 
 data class BulkSeedDialogState(

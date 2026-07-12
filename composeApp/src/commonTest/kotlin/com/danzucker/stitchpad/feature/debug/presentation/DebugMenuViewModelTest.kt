@@ -7,6 +7,8 @@ import com.danzucker.stitchpad.core.debug.DebugSessionActions
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.DigestSendResult
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.ReferralAdminDebugActions
+import com.danzucker.stitchpad.core.debug.ReferralDebugActions
 import com.danzucker.stitchpad.core.debug.ReminderDebugActions
 import com.danzucker.stitchpad.core.debug.ReminderSendResult
 import com.danzucker.stitchpad.core.debug.SeedResult
@@ -97,6 +99,8 @@ class DebugMenuViewModelTest {
             digestActions = digestActions,
             reminderActions = reminderActions,
             analyticsActions = analyticsActions,
+            referralActions = NoopReferralDebugActions,
+            referralAdminActions = NoopReferralAdminDebugActions,
             now = { 0L },
             testAccountsConfigured = testAccountsConfigured,
         )
@@ -142,6 +146,18 @@ class DebugMenuViewModelTest {
             nowMs: Long,
         ): DebugActionResult = DebugActionResult.Success
         override suspend fun reconcileSlots(): DebugActionResult = DebugActionResult.Success
+    }
+
+    private object NoopReferralDebugActions : ReferralDebugActions {
+        override suspend fun attributeWithCode(code: String): DebugActionResult = DebugActionResult.Success
+        override suspend fun seedQualification(nowMs: Long): DebugActionResult = DebugActionResult.Success
+        override suspend fun resetCaptureState(): DebugActionResult = DebugActionResult.Success
+    }
+
+    private object NoopReferralAdminDebugActions : ReferralAdminDebugActions {
+        override suspend fun runGrader(): DebugActionResult = DebugActionResult.Success
+        override suspend fun runConfirmPayouts(): DebugActionResult = DebugActionResult.Success
+        override suspend fun runSweep(): DebugActionResult = DebugActionResult.Success
     }
 
     @Test
