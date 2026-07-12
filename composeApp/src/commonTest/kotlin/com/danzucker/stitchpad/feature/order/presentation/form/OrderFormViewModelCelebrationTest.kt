@@ -150,7 +150,7 @@ class OrderFormViewModelCelebrationTest {
     }
 
     @Test
-    fun `create with pre-existing orders does NOT trigger (upgrade path)`() = runTest {
+    fun `upgrade path - create with pre-existing orders does NOT trigger`() = runTest {
         seedOrder()
         val vm = createViewModel(orderId = null)
         vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))

@@ -90,7 +90,7 @@ class CustomerFormViewModelCelebrationTest {
     }
 
     @Test
-    fun `plain create (measurements next OFF) triggers FirstCustomer`() = runTest {
+    fun `plain create with measurements next OFF triggers FirstCustomer`() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
@@ -105,7 +105,7 @@ class CustomerFormViewModelCelebrationTest {
     }
 
     @Test
-    fun `default create (measurements next ON) carries addingMeasurementsNext`() = runTest {
+    fun `default create with measurements next ON carries addingMeasurementsNext`() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
@@ -136,7 +136,7 @@ class CustomerFormViewModelCelebrationTest {
     }
 
     @Test
-    fun `create with pre-existing customers does NOT trigger (upgrade path)`() = runTest {
+    fun `upgrade path - create with pre-existing customers does NOT trigger`() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(
             Customer(id = "existing-1", userId = "test-uid", name = "Old Client", phone = "+2340000000001"),
