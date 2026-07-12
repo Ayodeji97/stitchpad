@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.referral.domain
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -51,6 +52,7 @@ private class FakeInstallReferrerReader(private val referrer: String?) : Install
     override suspend fun readReferrer(): String? { reads++; return referrer }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReferralAttributionCoordinatorTest {
 
     private fun coordinator(
@@ -99,6 +101,25 @@ class ReferralAttributionCoordinatorTest {
         assertEquals("PENDING1", repo.calls[0].code)
         assertEquals(ReferralSource.INSTALL_REFERRER, repo.calls[0].source)
         assertEquals("device-uuid", repo.calls[0].deviceHash)
+    }
+
+    @Test
+    fun concurrentTriggers_serialize_andManualAlwaysWins() = runTest {
+        // Both triggers fire — the auth-state collector AND a signup submit — while a
+        // captured code sits in the holder. The Mutex must serialize them to a single
+        // attribution, and the manually-typed code must win regardless of which runs first.
+        val repo = FakeReferralRepository()
+        val holder = PendingDeepLinkHolder().apply { setReferralCode("PENDING1") }
+        val c = coordinator(this, repo = repo, holder = holder, uidFlow = flowOf("uid-1"))
+
+        c.submitPendingAttribution(" manual-01 ") // stashes the manual code synchronously
+        c.start() // auth-state collector → attributeOnce(null)
+        advanceUntilIdle()
+
+        assertEquals(1, repo.calls.size) // serialized: exactly one submit
+        assertEquals("MANUAL01", repo.calls[0].code) // manual won over the captured code
+        assertEquals(ReferralSource.MANUAL, repo.calls[0].source)
+        assertEquals("PENDING1", holder.consumeReferralCode()) // captured code never consumed
     }
 
     @Test

@@ -7,6 +7,9 @@ import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.concurrent.Volatile
 
 private const val TAG = "ReferralAttribution"
 
@@ -48,6 +51,19 @@ class ReferralAttributionCoordinator(
     private val uidFlow: Flow<String?>,
 ) : ReferralAttribution {
 
+    // Serializes attributeOnce so the two triggers (auth-state collector +
+    // submitPendingAttribution) can never run concurrently — otherwise they could
+    // double-consume a captured code or double-submit before the first completes.
+    private val submitMutex = Mutex()
+
+    // A manually-typed code, stashed synchronously the instant it's submitted, so it
+    // deterministically wins over any captured code even when the collector's
+    // attributeOnce(null) is the coroutine that acquires the lock first. (Residual:
+    // only if the collector reads this before submitPendingAttribution is even called
+    // could a captured code win — and the server is idempotent, so no double-attribution.)
+    @Volatile
+    private var manualOverride: String? = null
+
     /**
      * Begin observing auth state: whenever a user is signed in, attempt attribution.
      * Idempotent downstream ([attributeOnce] guards on hasAttributed), so this safely
@@ -62,6 +78,9 @@ class ReferralAttributionCoordinator(
     }
 
     override fun submitPendingAttribution(manualCode: String?) {
+        // Stash the manual code BEFORE launching, so whichever attributeOnce wins the
+        // Mutex (this one or the collector's) sees it and prefers it — manual always wins.
+        DeepLinkParser.normalizeReferralCode(manualCode)?.let { manualOverride = it }
         scope.launch { attributeOnce(manualCode) }
     }
 
@@ -70,10 +89,13 @@ class ReferralAttributionCoordinator(
      * deep-link code, then the Play Install Referrer (read at most once per install) —
      * and submits it. No-ops when already attributed or no code is available.
      */
-    suspend fun attributeOnce(manualCode: String?) {
-        if (preferences.hasAttributed()) return
+    @Suppress("ReturnCount") // staged guards (already-attributed, no-code) read clearer than nesting
+    suspend fun attributeOnce(manualCode: String?): Unit = submitMutex.withLock {
+        if (preferences.hasAttributed()) return@withLock
 
-        val manual = DeepLinkParser.normalizeReferralCode(manualCode)
+        // Prefer an explicitly-passed code, then a code stashed by submitPendingAttribution,
+        // so a manual code wins even when this is the collector's attributeOnce(null).
+        val manual = DeepLinkParser.normalizeReferralCode(manualCode) ?: manualOverride
         // Only consume the captured code when there's no manual code to prefer; a
         // deep-link code we do consume is re-stashed below if the submit fails.
         val pending = if (manual == null) pendingDeepLink.consumeReferralCode() else null
@@ -90,7 +112,7 @@ class ReferralAttributionCoordinator(
                 source = ReferralSource.INSTALL_REFERRER
             }
             else -> {
-                val fromInstall = readInstallReferrerCode() ?: return
+                val fromInstall = readInstallReferrerCode() ?: return@withLock
                 code = fromInstall
                 source = ReferralSource.INSTALL_REFERRER
             }
@@ -100,6 +122,7 @@ class ReferralAttributionCoordinator(
         when (val result = referralRepository.recordAttribution(code, deviceHash, source)) {
             is Result.Success -> {
                 preferences.setAttributed()
+                manualOverride = null
                 AppLogger.d(tag = TAG) {
                     "attributed (source=${source.wire}, already=${result.data.alreadyAttributed})"
                 }
