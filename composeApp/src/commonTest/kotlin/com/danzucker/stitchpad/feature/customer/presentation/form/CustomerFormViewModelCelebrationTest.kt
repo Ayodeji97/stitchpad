@@ -118,6 +118,20 @@ class CustomerFormViewModelCelebrationTest {
     }
 
     @Test
+    fun `create with pre-existing customers does NOT trigger (upgrade path)`() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        customerRepository.customersList = listOf(
+            Customer(id = "existing-1", userId = "test-uid", name = "Old Client", phone = "+2340000000001"),
+        )
+        val vm = createViewModel()
+        vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
+        vm.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        vm.onAction(CustomerFormAction.OnSaveClick)
+
+        assertNull(celebrations.current.value)
+    }
+
+    @Test
     fun `edit does NOT trigger celebration`() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.storedCustomer = Customer(

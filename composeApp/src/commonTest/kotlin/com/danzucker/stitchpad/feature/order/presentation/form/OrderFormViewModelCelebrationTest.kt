@@ -150,6 +150,19 @@ class OrderFormViewModelCelebrationTest {
     }
 
     @Test
+    fun `create with pre-existing orders does NOT trigger (upgrade path)`() = runTest {
+        seedOrder()
+        val vm = createViewModel(orderId = null)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val firstItemId = vm.state.value.items.first().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNull(celebrations.current.value)
+    }
+
+    @Test
     fun `edit does NOT trigger celebration`() = runTest {
         seedOrder()
         val vm = createViewModel(orderId = "order-1")

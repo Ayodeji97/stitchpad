@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
@@ -36,6 +37,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -895,10 +897,7 @@ class OrderFormViewModel(
                 is Result.Success -> {
                     if (!isEdit) {
                         analytics.logEvent(AnalyticsEvent.OrderCreated)
-                        celebrations.trigger(
-                            userId = uid,
-                            milestone = Milestone.FirstOrder(customer.name.substringBefore(' ')),
-                        )
+                        maybeCelebrateFirstOrder(uid, customer)
                     }
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
@@ -915,6 +914,22 @@ class OrderFormViewModel(
 
     private fun setError(resource: org.jetbrains.compose.resources.StringResource) {
         _state.update { it.copy(errorMessage = UiText.StringResourceText(resource)) }
+    }
+
+    /**
+     * See CustomerFormViewModel.maybeCelebrateFirstCustomer — the flag alone
+     * would wrongly celebrate existing users' next order after updating to
+     * this release. observeOrders excludes archived orders; a user whose
+     * every order is archived would still celebrate — accepted edge case.
+     */
+    private suspend fun maybeCelebrateFirstOrder(userId: String, customer: Customer) {
+        val orders = orderRepository.observeOrders(userId).first()
+        if (orders is Result.Success && orders.data.size == 1) {
+            celebrations.trigger(
+                userId = userId,
+                milestone = Milestone.FirstOrder(customer.name.substringBefore(' ')),
+            )
+        }
     }
 
     /**

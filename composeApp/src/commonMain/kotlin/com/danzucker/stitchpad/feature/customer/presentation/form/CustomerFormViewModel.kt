@@ -19,6 +19,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -161,10 +162,7 @@ class CustomerFormViewModel(
                 is Result.Success -> {
                     if (customerId == null) {
                         analytics.logEvent(AnalyticsEvent.CustomerCreated)
-                        celebrations.trigger(
-                            userId = userId,
-                            milestone = Milestone.FirstCustomer(customer.name.substringBefore(' ')),
-                        )
+                        maybeCelebrateFirstCustomer(userId, customer)
                     }
                     _events.send(postSaveEvent(s, newId))
                 }
@@ -188,6 +186,23 @@ class CustomerFormViewModel(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * The one-shot flag alone can't distinguish a genuinely first customer
+     * from an existing user's next create after updating to this release
+     * (the flag never existed before this version), so also require that the
+     * just-created customer is the only one. The flag still prevents
+     * re-fires if the list later empties out.
+     */
+    private suspend fun maybeCelebrateFirstCustomer(userId: String, customer: Customer) {
+        val customers = customerRepository.observeCustomers(userId).first()
+        if (customers is Result.Success && customers.data.size == 1) {
+            celebrations.trigger(
+                userId = userId,
+                milestone = Milestone.FirstCustomer(customer.name.substringBefore(' ')),
+            )
         }
     }
 
