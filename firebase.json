@@ -32,12 +32,6 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "rewrites": [
-      {
-        "source": "/r/**",
-        "destination": "/r.html"
-      }
-    ],
     "headers": [
       {
         "source": "**/*.@(html|css|svg)",
