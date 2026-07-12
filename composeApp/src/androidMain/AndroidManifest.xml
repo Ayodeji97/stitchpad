@@ -53,6 +53,15 @@
                     android:scheme="https"
                     android:host="link.getstitchpad.com"
                     android:path="/claim" />
+                <data
+                    android:scheme="https"
+                    android:host="link.getstitchpad.com"
+                    android:pathPrefix="/r/" />
+                <!-- Bare /r?ref=CODE query form the parser also accepts. -->
+                <data
+                    android:scheme="https"
+                    android:host="link.getstitchpad.com"
+                    android:path="/r" />
             </intent-filter>
             <!-- Legacy custom scheme: Apple-Mail-equivalent / manual taps on Android. -->
             <intent-filter>
@@ -63,6 +72,7 @@
 
                 <data android:scheme="stitchpad" android:host="upgrade" />
                 <data android:scheme="stitchpad" android:host="claim" />
+                <data android:scheme="stitchpad" android:host="r" />
             </intent-filter>
         </activity>
         <provider

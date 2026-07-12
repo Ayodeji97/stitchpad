@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
+import com.danzucker.stitchpad.feature.referral.domain.ReferralAttribution
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,7 @@ class SignUpViewModel(
     private val authRepository: AuthRepository,
     private val emailValidator: PatternValidator,
     private val analytics: Analytics,
+    private val referralAttribution: ReferralAttribution,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SignUpState())
@@ -53,6 +55,9 @@ class SignUpViewModel(
             }
             is SignUpAction.OnConfirmPasswordChange -> {
                 _state.update { it.copy(confirmPassword = action.confirmPassword, confirmPasswordError = null) }
+            }
+            is SignUpAction.OnReferralCodeChange -> {
+                _state.update { it.copy(referralCode = action.code) }
             }
             SignUpAction.OnTogglePasswordVisibility -> {
                 _state.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
@@ -97,7 +102,12 @@ class SignUpViewModel(
             _state.update { it.copy(isSsoLoading = true) }
             try {
                 when (val result = authRepository.signInWithGoogle()) {
-                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Success -> {
+                        // The referral field lives on the same screen as the SSO buttons,
+                        // so a code typed before tapping Google must still be attributed.
+                        referralAttribution.submitPendingAttribution(_state.value.referralCode)
+                        _events.send(SignUpEvent.NavigateToHome)
+                    }
                     is Result.Error -> {
                         if (result.error != AuthError.SSO_CANCELLED) {
                             _events.send(SignUpEvent.ShowError(result.error.toUiText()))
@@ -115,7 +125,10 @@ class SignUpViewModel(
             _state.update { it.copy(isSsoLoading = true) }
             try {
                 when (val result = authRepository.signInWithApple()) {
-                    is Result.Success -> _events.send(SignUpEvent.NavigateToHome)
+                    is Result.Success -> {
+                        referralAttribution.submitPendingAttribution(_state.value.referralCode)
+                        _events.send(SignUpEvent.NavigateToHome)
+                    }
                     is Result.Error -> {
                         if (result.error != AuthError.SSO_CANCELLED) {
                             _events.send(SignUpEvent.ShowError(result.error.toUiText()))
@@ -201,6 +214,10 @@ class SignUpViewModel(
                     // so the same path serves signup, login and splash re-entry.
                     is Result.Success -> {
                         analytics.logEvent(AnalyticsEvent.SignUp)
+                        // Fire-and-forget: attribute the referral (manual field wins over a
+                        // captured Install Referrer code). Runs on the coordinator's app scope
+                        // so it survives this screen being torn down by navigation.
+                        referralAttribution.submitPendingAttribution(_state.value.referralCode)
                         _events.send(SignUpEvent.NavigateToEmailVerification)
                     }
                     is Result.Error -> _events.send(SignUpEvent.ShowError(result.error.toUiText()))

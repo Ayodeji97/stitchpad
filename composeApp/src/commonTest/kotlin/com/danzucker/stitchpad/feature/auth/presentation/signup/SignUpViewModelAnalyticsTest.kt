@@ -31,7 +31,7 @@ class SignUpViewModelAnalyticsTest {
         analytics = FakeAnalytics()
         authRepository = FakeAuthRepository()
         emailValidator = FakePatternValidator(shouldMatch = true)
-        viewModel = SignUpViewModel(authRepository, emailValidator, analytics)
+        viewModel = SignUpViewModel(authRepository, emailValidator, analytics, FakeReferralAttribution())
     }
 
     @AfterTest

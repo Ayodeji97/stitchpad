@@ -5,6 +5,7 @@ sealed interface SignUpAction {
     data class OnEmailChange(val email: String) : SignUpAction
     data class OnPasswordChange(val password: String) : SignUpAction
     data class OnConfirmPasswordChange(val confirmPassword: String) : SignUpAction
+    data class OnReferralCodeChange(val code: String) : SignUpAction
     data object OnTogglePasswordVisibility : SignUpAction
     data object OnToggleConfirmPasswordVisibility : SignUpAction
     data object OnDisplayNameBlur : SignUpAction

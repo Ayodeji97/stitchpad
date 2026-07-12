@@ -79,5 +79,17 @@ class MainActivity : ComponentActivity() {
             intent.data = null
             setIntent(intent)
         }
+        // Referral App Link (https://link.getstitchpad.com/r/&lt;code&gt;, also stitchpad://r).
+        // Silent capture — no navigation target; the coordinator submits after signup.
+        val referralCode = if (intent.action == Intent.ACTION_VIEW) {
+            DeepLinkParser.parseReferral(intent.dataString)
+        } else {
+            null
+        }
+        if (referralCode != null) {
+            pendingDeepLink.setReferralCode(referralCode)
+            intent.data = null
+            setIntent(intent)
+        }
     }
 }

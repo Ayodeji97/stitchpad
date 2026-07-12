@@ -25,6 +25,10 @@ import com.danzucker.stitchpad.feature.notification.push.AndroidPushPermissionCo
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
+import com.danzucker.stitchpad.feature.referral.data.AndroidInstallReferrerReader
+import com.danzucker.stitchpad.feature.referral.data.ReferralPreferences
+import com.danzucker.stitchpad.feature.referral.domain.InstallReferrerReader
+import com.danzucker.stitchpad.feature.referral.domain.ReferralPreferencesStore
 import com.danzucker.stitchpad.feature.tutorials.data.TutorialVideoCache
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -39,6 +43,8 @@ actual val platformModule: Module = module {
     // in StitchPadApplication — registering it again here would recurse infinitely.
     single { androidContext().imageLoader }
     single { OnboardingPreferences(androidContext()) } bind OnboardingPreferencesStore::class
+    single { ReferralPreferences(androidContext()) } bind ReferralPreferencesStore::class
+    single<InstallReferrerReader> { AndroidInstallReferrerReader(androidContext()) }
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class
     single { OfflinePhotoStore(androidContext()) }
