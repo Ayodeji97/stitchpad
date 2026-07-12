@@ -83,5 +83,6 @@ export { createMarketer } from './referral/marketerAdmin';
 export { recordReferralAttribution } from './referral/recordAttribution';
 export { reconcileReferrals, debugReconcileReferrals } from './referral/reconcileReferrals';
 export { confirmReferralPayouts, debugConfirmReferralPayouts } from './referral/confirmReferralPayouts';
+export { sweepDeletedReferralUsers, debugSweepDeletedReferralUsers } from './referral/sweepDeletedReferralUsers';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
 export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
