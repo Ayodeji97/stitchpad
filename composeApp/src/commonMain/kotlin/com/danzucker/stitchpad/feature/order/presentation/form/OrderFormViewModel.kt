@@ -26,6 +26,8 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
@@ -34,6 +36,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -63,6 +66,7 @@ class OrderFormViewModel(
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
     private val imageCompressor: ImageCompressor,
     private val analytics: Analytics,
+    private val celebrations: CelebrationController,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -883,6 +887,12 @@ class OrderFormViewModel(
                 updatedAt = 0L,
             )
 
+            // Snapshot BEFORE the create: createOrder enqueues its Firestore
+            // write via OfflineWriteDispatcher and returns immediately, so a
+            // post-create read races the background set(). Reading the (cached)
+            // snapshot first is deterministic with respect to our own write.
+            val isFirstOrderCandidate = !isEdit && isOrderListKnownEmpty(uid)
+
             val result = if (isEdit) {
                 orderRepository.updateOrder(uid, order)
             } else {
@@ -890,7 +900,15 @@ class OrderFormViewModel(
             }
             when (result) {
                 is Result.Success -> {
-                    if (!isEdit) analytics.logEvent(AnalyticsEvent.OrderCreated)
+                    if (!isEdit) {
+                        analytics.logEvent(AnalyticsEvent.OrderCreated)
+                        if (isFirstOrderCandidate) {
+                            celebrations.trigger(
+                                userId = uid,
+                                milestone = Milestone.FirstOrder(customer.name.substringBefore(' ')),
+                            )
+                        }
+                    }
                     cleanUpPendingStorageDeletions(formItems)
                     _state.update { it.copy(isSaving = false) }
                     _events.send(
@@ -906,6 +924,17 @@ class OrderFormViewModel(
 
     private fun setError(resource: org.jetbrains.compose.resources.StringResource) {
         _state.update { it.copy(errorMessage = UiText.StringResourceText(resource)) }
+    }
+
+    /**
+     * See CustomerFormViewModel.isCustomerListKnownEmpty — checked BEFORE the
+     * create because createOrder's write is enqueued in the background.
+     * observeOrders excludes archived orders; a user whose every order is
+     * archived would still celebrate — accepted edge case.
+     */
+    private suspend fun isOrderListKnownEmpty(userId: String): Boolean {
+        val orders = orderRepository.observeOrders(userId).first()
+        return orders is Result.Success && orders.data.isEmpty()
     }
 
     /**

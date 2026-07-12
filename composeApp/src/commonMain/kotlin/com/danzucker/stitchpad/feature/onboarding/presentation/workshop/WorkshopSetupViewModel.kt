@@ -8,6 +8,8 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
 import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
 import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
@@ -50,6 +52,7 @@ class WorkshopSetupViewModel(
     private val compressLogo: suspend (ByteArray) -> ByteArray? = ::defaultCompressLogo,
     private val confirmCodeGenerator: () -> String = ::defaultWhatsAppConfirmCode,
     private val analytics: Analytics,
+    private val celebrations: CelebrationController,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkshopSetupState())
@@ -258,6 +261,7 @@ class WorkshopSetupViewModel(
             // this device. The user is signed in during setup, so id is present.
             authRepository.getCurrentUser()?.id?.let {
                 onboardingPreferences.setWorkshopSetupCompleted(it)
+                celebrations.trigger(it, Milestone.WorkshopReady)
             }
             _events.send(WorkshopSetupEvent.NavigateToHome)
         }
@@ -423,6 +427,7 @@ class WorkshopSetupViewModel(
 
                 onboardingPreferences.setWorkshopSetupCompleted(user.id)
                 analytics.logEvent(AnalyticsEvent.WorkshopSetupCompleted)
+                celebrations.trigger(user.id, Milestone.WorkshopReady)
                 _events.send(WorkshopSetupEvent.NavigateToHome)
             } finally {
                 _state.update { it.copy(isLoading = false, isAwaitingLogo = false) }

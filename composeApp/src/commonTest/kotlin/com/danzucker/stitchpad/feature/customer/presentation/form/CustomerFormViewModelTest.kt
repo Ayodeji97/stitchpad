@@ -8,13 +8,17 @@ import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
+import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -61,6 +65,12 @@ class CustomerFormViewModelTest {
             emailValidator = emailValidator,
             entitlements = FakeEntitlementsProvider(),
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -78,6 +88,12 @@ class CustomerFormViewModelTest {
             emailValidator = validator,
             entitlements = FakeEntitlementsProvider(),
             analytics = FakeAnalytics(),
+            celebrations = CelebrationController(
+                preferences = FakeOnboardingPreferences(),
+                analytics = FakeAnalytics(),
+                authUserIds = emptyFlow(),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+            ),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

@@ -11,12 +11,15 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -36,6 +39,7 @@ class CustomerFormViewModel(
     private val emailValidator: PatternValidator,
     private val entitlements: EntitlementsProvider,
     private val analytics: Analytics,
+    private val celebrations: CelebrationController,
 ) : ViewModel() {
 
     private val customerId: String? = savedStateHandle["customerId"]
@@ -118,7 +122,7 @@ class CustomerFormViewModel(
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     @OptIn(ExperimentalUuidApi::class)
     private fun save() {
         // Re-entrancy guard: SaveButton's enabled=!isLoading propagates through
@@ -137,6 +141,11 @@ class CustomerFormViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
+            // Snapshot BEFORE the create: createCustomer enqueues its Firestore
+            // write via OfflineWriteDispatcher and returns immediately, so a
+            // post-create read races the background set(). Reading the (cached)
+            // snapshot first is deterministic with respect to our own write.
+            val isFirstCustomerCandidate = customerId == null && isCustomerListKnownEmpty(userId)
             val s = _state.value
             val newId = customerId ?: Uuid.random().toString()
             val customer = Customer(
@@ -158,6 +167,15 @@ class CustomerFormViewModel(
                 is Result.Success -> {
                     if (customerId == null) {
                         analytics.logEvent(AnalyticsEvent.CustomerCreated)
+                        if (isFirstCustomerCandidate) {
+                            celebrations.trigger(
+                                userId = userId,
+                                milestone = Milestone.FirstCustomer(
+                                    customerFirstName = customer.name.substringBefore(' '),
+                                    addingMeasurementsNext = s.addMeasurementsNext,
+                                ),
+                            )
+                        }
                     }
                     _events.send(postSaveEvent(s, newId))
                 }
@@ -182,6 +200,18 @@ class CustomerFormViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * The one-shot flag alone can't distinguish a genuinely first customer
+     * from an existing user's next create after updating to this release
+     * (the flag never existed before this version), so also require the list
+     * to be empty going into the create. Read errors return false — better
+     * to skip a celebration than to congratulate a veteran on their "first".
+     */
+    private suspend fun isCustomerListKnownEmpty(userId: String): Boolean {
+        val customers = customerRepository.observeCustomers(userId).first()
+        return customers is Result.Success && customers.data.isEmpty()
     }
 
     /**

@@ -67,6 +67,21 @@ actual class OnboardingPreferences : OnboardingPreferencesStore {
         defaults.setBool(true, forKey = tutorialSeenKey(topicId))
     }
 
+    override suspend fun hasCelebrated(userId: String, milestoneKey: String): Boolean {
+        return defaults.boolForKey(celebratedKey(userId, milestoneKey))
+    }
+
+    override suspend fun setCelebrated(userId: String, milestoneKey: String) {
+        defaults.setBool(true, forKey = celebratedKey(userId, milestoneKey))
+    }
+
+    override suspend fun clearCelebrationsForDebug() {
+        defaults.dictionaryRepresentation().keys
+            .filterIsInstance<String>()
+            .filter { it.startsWith(KEY_CELEBRATED_PREFIX) }
+            .forEach { defaults.removeObjectForKey(it) }
+    }
+
     override suspend fun resetForDebug() {
         defaults.setBool(false, forKey = KEY_HAS_SEEN_ONBOARDING)
         defaults.setBool(false, forKey = KEY_BYPASSED_EMAIL_VERIFICATION)
@@ -78,7 +93,8 @@ actual class OnboardingPreferences : OnboardingPreferencesStore {
             .filter {
                 it.startsWith(KEY_COMPLETED_WORKSHOP_PREFIX) ||
                     it.startsWith(KEY_CONFIRMED_WORKSHOP_PREFIX) ||
-                    it.startsWith(KEY_TUTORIAL_SEEN_PREFIX)
+                    it.startsWith(KEY_TUTORIAL_SEEN_PREFIX) ||
+                    it.startsWith(KEY_CELEBRATED_PREFIX)
             }
             .forEach { defaults.removeObjectForKey(it) }
     }
@@ -92,6 +108,9 @@ actual class OnboardingPreferences : OnboardingPreferencesStore {
     private fun tutorialSeenKey(topicId: String): String =
         "$KEY_TUTORIAL_SEEN_PREFIX$topicId"
 
+    private fun celebratedKey(userId: String, milestoneKey: String): String =
+        "$KEY_CELEBRATED_PREFIX${milestoneKey}_$userId"
+
     companion object {
         private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
         private const val KEY_COMPLETED_WORKSHOP_PREFIX = "completed_workshop_setup_"
@@ -100,5 +119,6 @@ actual class OnboardingPreferences : OnboardingPreferencesStore {
         private const val KEY_HAS_ASKED_PUSH_PERMISSION = "has_asked_push_permission"
         private const val KEY_DISMISSED_COMMUNITY_BANNER = "dismissed_community_banner"
         private const val KEY_TUTORIAL_SEEN_PREFIX = "tutorial_seen_"
+        private const val KEY_CELEBRATED_PREFIX = "celebrated_"
     }
 }

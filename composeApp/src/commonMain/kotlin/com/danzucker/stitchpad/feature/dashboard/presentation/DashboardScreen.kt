@@ -263,19 +263,21 @@ private val PIPELINE_EMPTY_HIDDEN_STATES = setOf(
 /**
  * Builds the 4-row "Order setup" checklist from the live first-order state.
  * Customer is always Done by the time this is rendered (the checklist is
- * gated on having at least one customer). The first non-done step becomes
- * Active, the rest stay Pending — only the Active row is tappable.
+ * gated on having at least one customer). A satisfied step shows Done no
+ * matter where it sits in the sequence (a deposit recorded before the due
+ * date must not display as pending); among the unsatisfied steps, the first
+ * becomes Active — only the Active row is tappable — and the rest Pending.
  */
-private fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep> {
+internal fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep> {
     val orderStatus = if (setup.hasOrder) SetupStepStatus.Done else SetupStepStatus.Active
     val dueStatus = when {
-        !setup.hasOrder -> SetupStepStatus.Pending
         setup.hasDueDate -> SetupStepStatus.Done
+        !setup.hasOrder -> SetupStepStatus.Pending
         else -> SetupStepStatus.Active
     }
     val depositStatus = when {
-        !setup.hasOrder || !setup.hasDueDate -> SetupStepStatus.Pending
         setup.hasDeposit -> SetupStepStatus.Done
+        !setup.hasOrder || !setup.hasDueDate -> SetupStepStatus.Pending
         else -> SetupStepStatus.Active
     }
     return listOf(

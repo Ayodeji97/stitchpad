@@ -13,6 +13,7 @@ import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.feature.freemium.presentation.reconcile.ReconcileCoordinator
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
 import com.danzucker.stitchpad.navigation.StitchPadNavHost
+import com.danzucker.stitchpad.ui.components.celebration.CelebrationOverlayHost
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.koin.compose.koinInject
 
@@ -43,10 +44,12 @@ fun App() {
         AppGateRoot {
             val navController = rememberNavController()
             val onboardingPreferences: OnboardingPreferences = koinInject()
-            StitchPadNavHost(
-                navController = navController,
-                onboardingPreferences = onboardingPreferences
-            )
+            CelebrationOverlayHost {
+                StitchPadNavHost(
+                    navController = navController,
+                    onboardingPreferences = onboardingPreferences
+                )
+            }
         }
     }
 }

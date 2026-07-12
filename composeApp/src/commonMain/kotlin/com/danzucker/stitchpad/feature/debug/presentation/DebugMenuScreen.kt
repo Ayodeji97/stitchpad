@@ -148,6 +148,12 @@ fun DebugMenuScreen(
                 )
                 SettingsRowDivider()
                 SettingsRow(
+                    icon = Icons.Outlined.Refresh,
+                    label = "Reset celebrations",
+                    onClick = { onAction(DebugMenuAction.OnResetCelebrationsClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
                     icon = Icons.AutoMirrored.Outlined.Logout,
                     label = "Sign out",
                     onClick = { onAction(DebugMenuAction.OnSignOutClick) },
