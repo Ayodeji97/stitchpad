@@ -37,10 +37,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.dialog
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,6 +53,7 @@ import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.StitchPadMark
 import com.danzucker.stitchpad.ui.theme.DesignTokens
+import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.BackHandler
@@ -78,19 +82,33 @@ private const val SCRIM_ALPHA_DARK = 0.60f
 private const val CARD_START_SCALE = 0.6f
 
 /**
- * App-root host: layered over the NavHost in App.kt so celebrations play over
- * whatever screen the milestone's own navigation lands on — no flow is delayed.
+ * App-root host: wraps the app content so celebrations play over whatever
+ * screen the milestone's own navigation lands on — no flow is delayed.
+ * While a celebration shows, the wrapped content is also removed from the
+ * accessibility tree: the scrim's pointerInput blocks touch but
+ * TalkBack/VoiceOver traversal would otherwise still reach and activate
+ * controls beneath (spec requires dialog semantics).
  */
 @Composable
-fun CelebrationOverlayHost(modifier: Modifier = Modifier) {
+fun CelebrationOverlayHost(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
     val controller = koinInject<CelebrationController>()
     val milestone by controller.current.collectAsState()
-    val current = milestone ?: return
-    CelebrationOverlay(
-        milestone = current,
-        onDismiss = { controller.dismiss(current) },
-        modifier = modifier,
-    )
+    Box(modifier = modifier) {
+        Box(
+            modifier = if (milestone != null) Modifier.clearAndSetSemantics { } else Modifier,
+        ) {
+            content()
+        }
+        milestone?.let { current ->
+            CelebrationOverlay(
+                milestone = current,
+                onDismiss = { controller.dismiss(current) },
+            )
+        }
+    }
 }
 
 @Composable
@@ -101,9 +119,13 @@ private fun CelebrationOverlay(
 ) {
     val reduceMotion = rememberReduceMotionEnabled()
     val haptics = LocalHapticFeedback.current
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val isDark = LocalIsDarkTheme.current
 
-    val overlayAlpha = remember(milestone) { Animatable(0f) }
+    // Not keyed on milestone: when a queued celebration promotes in place the
+    // scrim must stay up (a milestone-keyed reset would flash the screen
+    // beneath). The overlay leaves composition entirely when current becomes
+    // null, so a fresh show still starts from 0f.
+    val overlayAlpha = remember { Animatable(0f) }
     val confettiProgress = remember(milestone) { Animatable(0f) }
     val cardScale = remember(milestone) { Animatable(if (reduceMotion) 1f else CARD_START_SCALE) }
     val emblemScale = remember(milestone) { Animatable(if (reduceMotion) 1f else 0f) }
@@ -146,7 +168,8 @@ private fun CelebrationOverlay(
             // Keyed on milestone: when a queued celebration promotes in place,
             // the tap handler restarts with the fresh onDismiss closure —
             // pointerInput(Unit) would keep dismissing the stale milestone.
-            .pointerInput(milestone) { detectTapGestures { onDismiss() } },
+            .pointerInput(milestone) { detectTapGestures { onDismiss() } }
+            .semantics { dialog() },
         contentAlignment = Alignment.Center,
     ) {
         if (!reduceMotion) {
@@ -250,7 +273,7 @@ private fun CelebrationCard(
             .fillMaxWidth(fraction = 0.85f)
             // Consume taps so a tap on the card doesn't fall through to the scrim.
             .pointerInput(Unit) { detectTapGestures { } }
-            .semantics(mergeDescendants = true) { },
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         shape = RoundedCornerShape(DesignTokens.radiusXl),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = DesignTokens.elevation3,

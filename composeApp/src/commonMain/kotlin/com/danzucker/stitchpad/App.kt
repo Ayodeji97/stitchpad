@@ -1,7 +1,6 @@
 package com.danzucker.stitchpad
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,12 +44,11 @@ fun App() {
         AppGateRoot {
             val navController = rememberNavController()
             val onboardingPreferences: OnboardingPreferences = koinInject()
-            Box {
+            CelebrationOverlayHost {
                 StitchPadNavHost(
                     navController = navController,
                     onboardingPreferences = onboardingPreferences
                 )
-                CelebrationOverlayHost()
             }
         }
     }
