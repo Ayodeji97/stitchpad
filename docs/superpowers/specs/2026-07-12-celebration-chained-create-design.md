@@ -51,9 +51,15 @@ flags, analytics.
 
 ## Testing
 
-- Existing celebration tests pass unchanged (default `false` preserves equality
-  assertions; controller tests use the default).
-- New VM test: toggle `OnToggleAddMeasurementsNext` before save → milestone equals
+Note: `CustomerFormState.addMeasurementsNext` defaults to **true** in production
+(PR #78), so the chained card is the DEFAULT first-customer experience. Tests set
+the toggle explicitly rather than relying on defaults:
+
+- Chained (no toggle action, production default) → milestone equals
   `FirstCustomer("Adaeze", addingMeasurementsNext = true)`.
+- Plain (one `OnToggleAddMeasurementsNext` action turns it off) → milestone equals
+  `FirstCustomer("Adaeze", addingMeasurementsNext = false)`.
+- Tests that dismiss pass the actual current milestone value.
+- Controller tests are unaffected (the Milestone constructor default covers them).
 - Manual: create first customer with toggle ON → card over measurement screen reads
   "Let's capture their measurements" / "Add measurements"; dismiss → form usable.
