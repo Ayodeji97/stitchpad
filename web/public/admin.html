@@ -51,7 +51,7 @@
               <th>Marketer</th><th>Code</th><th>Status</th>
               <th class="num">Installs</th><th class="num">Activated</th><th class="num">Qualified</th>
               <th class="num">Pending ₦</th><th class="num">Confirmed ₦</th><th class="num">Paid ₦</th>
-              <th>Bank</th>
+              <th>Bank</th><th></th>
             </tr>
           </thead>
           <tbody id="marketersBody"></tbody>
@@ -117,6 +117,26 @@
 
       el('signOutBtn').addEventListener('click', function () { auth.signOut(); });
       el('csvBtn').addEventListener('click', downloadCsv);
+
+      // "Mark paid" — records that the marketer's confirmed total was paid out by
+      // bank transfer (confirmed → paid). Delegated so it survives re-renders.
+      el('marketersBody').addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.mark-paid') : null;
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        var name = btn.getAttribute('data-name');
+        var amt = naira(Number(btn.getAttribute('data-amt')));
+        if (!window.confirm('Mark ' + amt + ' as PAID to ' + name + '?\n\nOnly do this after the bank transfer is complete — paid payouts cannot be reversed.')) return;
+        btn.disabled = true;
+        btn.textContent = 'Marking…';
+        fns.httpsCallable('markReferralPaid')({ marketerId: id })
+          .then(function () { loadDashboard(); })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Mark paid';
+            el('dashError').textContent = 'Mark paid failed: ' + (err && err.message ? err.message : 'unknown error');
+          });
+      });
     }
 
     function loadDashboard() {
@@ -166,9 +186,13 @@
           num(m.installs) + num(m.activated) + num(m.qualified) +
           num(naira(m.pendingAmount)) + num('<strong>' + naira(m.confirmedAmount) + '</strong>') + num(naira(m.paidAmount)) +
           td('<span class="muted">' + bank + '</span>') +
+          td(m.confirmedAmount > 0
+            ? '<button class="mark-paid" data-id="' + esc(m.id) + '" data-name="' + esc(m.name) +
+              '" data-amt="' + m.confirmedAmount + '">Mark paid</button>'
+            : '') +
           '</tr>';
       }).join('');
-      el('marketersBody').innerHTML = rows || '<tr><td colspan="10" class="muted">No marketers yet.</td></tr>';
+      el('marketersBody').innerHTML = rows || '<tr><td colspan="11" class="muted">No marketers yet.</td></tr>';
     }
 
     function card(label, value) { return '<div class="admin-card"><div class="admin-card-label">' + label + '</div><div class="admin-card-value">' + value + '</div></div>'; }
