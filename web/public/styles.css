@@ -253,6 +253,151 @@ footer a:hover {
   min-height: 20px;
 }
 
+/* Referral admin dashboard (admin.html) */
+.admin {
+  max-width: 1040px;
+}
+
+.admin-note {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 20px;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 320px;
+}
+
+.admin-form input {
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.admin-error {
+  color: var(--sienna, #B85A30);
+  font-size: 14px;
+  margin: 16px 0 0;
+  min-height: 20px;
+}
+
+.admin-loading {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.admin-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-bar .cta {
+  width: auto;
+  padding: 10px 16px;
+  font-size: 14px;
+  margin: 0;
+}
+
+.admin-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.admin-card {
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #FFFDF7;
+}
+
+.admin-card-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.admin-card-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #FBFBF8;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table .muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-table code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.admin-table .badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-table .badge.ok { background: #E6F4EA; color: #1E7A3D; }
+.admin-table .badge.off { background: #F1E6E0; color: #8A4A2A; }
+
 @media (max-width: 640px) {
   main {
     padding: 32px 20px 64px;
