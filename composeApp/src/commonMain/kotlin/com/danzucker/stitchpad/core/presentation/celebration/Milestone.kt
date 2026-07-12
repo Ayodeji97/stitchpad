@@ -13,7 +13,15 @@ sealed interface Milestone {
         override val key: String = "workshop_ready"
     }
 
-    data class FirstCustomer(val customerFirstName: String) : Milestone {
+    data class FirstCustomer(
+        val customerFirstName: String,
+        /**
+         * True when the create chains straight into Add Measurements — the
+         * card's body/CTA then hand the user into that task instead of a
+         * generic "Continue". Presentation-only: key/flag/analytics ignore it.
+         */
+        val addingMeasurementsNext: Boolean = false,
+    ) : Milestone {
         override val key: String = "first_customer"
     }
 

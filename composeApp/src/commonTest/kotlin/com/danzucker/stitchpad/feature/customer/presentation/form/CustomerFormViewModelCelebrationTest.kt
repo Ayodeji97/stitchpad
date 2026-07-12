@@ -90,14 +90,32 @@ class CustomerFormViewModelCelebrationTest {
     }
 
     @Test
-    fun `first create triggers FirstCustomer celebration with first name`() = runTest {
+    fun `plain create (measurements next OFF) triggers FirstCustomer`() = runTest {
+        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
+        val vm = createViewModel()
+        vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
+        vm.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
+        vm.onAction(CustomerFormAction.OnToggleAddMeasurementsNext)
+        vm.onAction(CustomerFormAction.OnSaveClick)
+
+        assertEquals(
+            Milestone.FirstCustomer("Adaeze", addingMeasurementsNext = false),
+            celebrations.current.value,
+        )
+    }
+
+    @Test
+    fun `default create (measurements next ON) carries addingMeasurementsNext`() = runTest {
         authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
         vm.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         vm.onAction(CustomerFormAction.OnSaveClick)
 
-        assertEquals(Milestone.FirstCustomer("Adaeze"), celebrations.current.value)
+        assertEquals(
+            Milestone.FirstCustomer("Adaeze", addingMeasurementsNext = true),
+            celebrations.current.value,
+        )
     }
 
     @Test
@@ -107,7 +125,7 @@ class CustomerFormViewModelCelebrationTest {
         vm1.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
         vm1.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
         vm1.onAction(CustomerFormAction.OnSaveClick)
-        celebrations.dismiss(Milestone.FirstCustomer("Adaeze"))
+        celebrations.current.value?.let { celebrations.dismiss(it) }
 
         val vm2 = createViewModel()
         vm2.onAction(CustomerFormAction.OnNameChange("Bola Ade"))

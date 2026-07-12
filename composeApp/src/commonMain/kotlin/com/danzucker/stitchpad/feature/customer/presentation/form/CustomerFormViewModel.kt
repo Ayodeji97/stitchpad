@@ -170,7 +170,10 @@ class CustomerFormViewModel(
                         if (isFirstCustomerCandidate) {
                             celebrations.trigger(
                                 userId = userId,
-                                milestone = Milestone.FirstCustomer(customer.name.substringBefore(' ')),
+                                milestone = Milestone.FirstCustomer(
+                                    customerFirstName = customer.name.substringBefore(' '),
+                                    addingMeasurementsNext = s.addMeasurementsNext,
+                                ),
                             )
                         }
                     }

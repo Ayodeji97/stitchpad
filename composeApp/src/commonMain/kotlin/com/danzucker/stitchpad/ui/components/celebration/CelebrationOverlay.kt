@@ -62,8 +62,10 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.celebration_add_measurements
 import stitchpad.composeapp.generated.resources.celebration_continue
 import stitchpad.composeapp.generated.resources.celebration_first_customer_body
+import stitchpad.composeapp.generated.resources.celebration_first_customer_body_measurements
 import stitchpad.composeapp.generated.resources.celebration_first_customer_title
 import stitchpad.composeapp.generated.resources.celebration_first_order_body
 import stitchpad.composeapp.generated.resources.celebration_first_order_title
@@ -343,8 +345,11 @@ private fun Milestone.title(): String = when (this) {
 @Composable
 private fun Milestone.body(): String = when (this) {
     is Milestone.WorkshopReady -> stringResource(Res.string.celebration_workshop_body)
-    is Milestone.FirstCustomer ->
+    is Milestone.FirstCustomer -> if (addingMeasurementsNext) {
+        stringResource(Res.string.celebration_first_customer_body_measurements, customerFirstName)
+    } else {
         stringResource(Res.string.celebration_first_customer_body, customerFirstName)
+    }
     is Milestone.FirstOrder ->
         stringResource(Res.string.celebration_first_order_body, customerFirstName)
 }
@@ -352,7 +357,12 @@ private fun Milestone.body(): String = when (this) {
 @Composable
 private fun Milestone.buttonLabel(): String = when (this) {
     is Milestone.WorkshopReady -> stringResource(Res.string.celebration_workshop_button)
-    else -> stringResource(Res.string.celebration_continue)
+    is Milestone.FirstCustomer -> if (addingMeasurementsNext) {
+        stringResource(Res.string.celebration_add_measurements)
+    } else {
+        stringResource(Res.string.celebration_continue)
+    }
+    is Milestone.FirstOrder -> stringResource(Res.string.celebration_continue)
 }
 
 @Suppress("UnusedPrivateMember")
