@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, REFERRALS, MARKETERS } from './referralConstants';
+import { REGION, REFERRALS, MARKETERS, hasBlockingFlag } from './referralConstants';
 import type { PayoutState, ReferralFlag } from './referralConstants';
 import { REJECT_ACCOUNT_DELETED } from './clawback';
 import { subtractKobo, addKobo } from './marketerBalance';
@@ -111,7 +111,7 @@ export async function confirmReferralPayoutsHandler(
         // a clawback was (or should have been) applied. Don't release the bounty.
         const userExists = (await tx.get(db.doc(`users/${doc.id}`))).exists;
 
-        const release = decideHoldRelease(f.payoutState, (f.flags?.length ?? 0) > 0, userExists);
+        const release = decideHoldRelease(f.payoutState, hasBlockingFlag(f.flags), userExists);
         if (!release) return null;
 
         const amount = f.payoutAmount ?? 0;

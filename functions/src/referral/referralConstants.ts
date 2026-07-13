@@ -58,8 +58,25 @@ export type MarketerStatus = 'active' | 'disabled';
 export type ReferralMilestone = 'attributed' | 'activated' | 'qualified';
 export type PayoutState = 'none' | 'pending' | 'confirmed' | 'paid' | 'rejected';
 
-// Fraud flags recorded on a referral; any present flag makes it non-payable.
-export type ReferralFlag = 'self_referral' | 'device_reuse' | 'velocity';
+// Fraud flags recorded on a referral. BLOCKING flags withhold the payout (the
+// milestone still advances, but no money is ever queued/released). ADVISORY flags
+// are surfaced for review without punishing the referral — `missing_device_hash`
+// is advisory: a missing/malformed device hash disables device-reuse detection,
+// but the referral may be perfectly legitimate, so we record the fact rather than
+// silently skipping it or blocking a real payout.
+export type ReferralFlag = 'self_referral' | 'device_reuse' | 'velocity' | 'missing_device_hash';
+
+// Flags that withhold a payout. Everything NOT listed here is advisory-only.
+const BLOCKING_FLAGS: ReadonlySet<ReferralFlag> = new Set<ReferralFlag>([
+  'self_referral',
+  'device_reuse',
+  'velocity',
+]);
+
+/** True if any flag present should withhold the payout (advisory flags don't). */
+export function hasBlockingFlag(flags: ReferralFlag[] | undefined): boolean {
+  return (flags ?? []).some((f) => BLOCKING_FLAGS.has(f));
+}
 
 // Server error markers embedded in HttpsError messages so the GitLive iOS
 // wrapper can recover intent when FunctionsExceptionCode is lost.

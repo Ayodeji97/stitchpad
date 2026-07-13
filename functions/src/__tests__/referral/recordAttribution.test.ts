@@ -75,7 +75,9 @@ describe('recordReferralAttributionHandler — guards', () => {
     );
     expect(res.status).toBe('attributed');
     expect(store.get('referrals/bob').deviceHash).toBeNull();
-    expect(store.get('referrals/bob').flags).toEqual([]);
+    // A missing/malformed hash disables device-reuse detection, so we surface it
+    // as an ADVISORY flag (not blocking) rather than skipping silently.
+    expect(store.get('referrals/bob').flags).toEqual(['missing_device_hash']);
   });
 
   it('rejects an unknown code', async () => {
@@ -150,14 +152,31 @@ describe('recordReferralAttributionHandler — happy path', () => {
       .toBe(NOW.getTime() + QUALIFY_WINDOW_DAYS * DAY_MS);
   });
 
-  it('anchors the window on the SERVER auth creation time, ignoring client-editable createdAt', async () => {
-    const signup = Date.parse('2026-06-20T00:00:00Z');
-    // Client plants a bogus far-future createdAt to try to extend the window.
+  it('anchors the qualification window on server attribution time, not signup', async () => {
+    const signup = Date.parse('2026-06-20T00:00:00Z'); // 12 days before NOW
+    // Client also plants a bogus far-future createdAt — must be ignored either way.
     const { store, db } = seeded({ 'users/bob': { createdAt: 9_999_999_999_999 } });
-    await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db, signup));
-    expect(store.get('referrals/bob').signupAt.toMillis()).toBe(signup);
-    expect(store.get('referrals/bob').qualificationWindowEndsAt.toMillis())
-      .toBe(signup + QUALIFY_WINDOW_DAYS * DAY_MS);
+    await recordReferralAttributionHandler({ code: 'ABCD1234', deviceHash: 'd' }, ctx('bob'), deps(db, signup));
+    const ref = store.get('referrals/bob');
+    // signupAt still records the real auth-creation instant (audit only).
+    expect(ref.signupAt.toMillis()).toBe(signup);
+    // The window runs from attribution time (server now()), NOT signup. This fixes
+    // late code entry (>14d after signup) and is inherently un-gameable — now() is
+    // server-set, so there is no client-editable field to extend the window with.
+    expect(ref.qualificationWindowStartsAt.toMillis()).toBe(NOW.getTime());
+    expect(ref.qualificationWindowEndsAt.toMillis()).toBe(NOW.getTime() + QUALIFY_WINDOW_DAYS * DAY_MS);
+  });
+
+  it('lets a late-referred user still qualify (window opens at attribution, not signup)', async () => {
+    // User signed up 30 days ago, then entered a code today — under signup-anchoring
+    // the window closed 16 days ago and they could NEVER qualify. Attribution-anchoring
+    // gives them a fresh 14-day window from now.
+    const signup = NOW.getTime() - 30 * DAY_MS;
+    const { store, db } = seeded({ 'users/bob': { createdAt: signup } });
+    await recordReferralAttributionHandler({ code: 'ABCD1234', deviceHash: 'd', source: 'manual' }, ctx('bob'), deps(db, signup));
+    const ref = store.get('referrals/bob');
+    expect(ref.qualificationWindowEndsAt.toMillis()).toBe(NOW.getTime() + QUALIFY_WINDOW_DAYS * DAY_MS);
+    expect(ref.qualificationWindowEndsAt.toMillis()).toBeGreaterThan(NOW.getTime());
   });
 });
 
@@ -207,6 +226,25 @@ describe('recordReferralAttributionHandler — fraud flags', () => {
     expect(res).toEqual({ status: 'attributed', marketerId: 'm1' });
     expect(store.get('referrals/bob').flags).toContain('self_referral');
     expect(store.get('referrals/bob').referredEmailHash).toEqual(expect.any(String));
+  });
+
+  it('flags a missing device hash as ADVISORY — surfaced but still payable', async () => {
+    const { store, db } = seeded();
+    // No deviceHash at all → device-reuse detection can't run for this install.
+    const res = await recordReferralAttributionHandler({ code: 'ABCD1234' }, ctx('bob'), deps(db));
+    expect(res).toEqual({ status: 'attributed', marketerId: 'm1' });
+    const ref = store.get('referrals/bob');
+    expect(ref.deviceHash).toBeNull();
+    expect(ref.flags).toEqual(['missing_device_hash']);
+    // Advisory only — attribution is not blocked and the milestone still records.
+    expect(ref.payoutState).toBe('none');
+    expect(ref.milestone).toBe('attributed');
+  });
+
+  it('does NOT add missing_device_hash when a valid hash is provided', async () => {
+    const { store, db } = seeded();
+    await recordReferralAttributionHandler({ code: 'ABCD1234', deviceHash: 'devhash9' }, ctx('bob'), deps(db));
+    expect(store.get('referrals/bob').flags).toEqual([]);
   });
 
   it('flags device reuse and does not re-claim the device', async () => {

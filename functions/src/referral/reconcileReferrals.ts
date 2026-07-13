@@ -10,14 +10,15 @@ import {
   HOLD_WINDOW_DAYS,
   DAY_MS,
 } from './referralConstants';
+import { hasBlockingFlag } from './referralConstants';
 import type { ReferralMilestone, PayoutState, ReferralFlag } from './referralConstants';
 
 // reconcileReferrals — the nightly grader that walks referred users through the
 // payable milestones and opens their payout.
 //
 //   attributed ──(businessName set AND >=1 customer/order)──▶ activated
-//              ──(>=QUALIFY_DISTINCT_DAYS distinct Africa/Lagos write-days,
-//                 within QUALIFY_WINDOW_DAYS of signup)──────▶ qualified → payout pending
+//              ──(>=QUALIFY_DISTINCT_DAYS distinct Africa/Lagos write-days, within
+//                 QUALIFY_WINDOW_DAYS of attribution)──────▶ qualified → payout pending
 //
 // "Meaningful write" = a customer, order, or measurement doc (never an app-open).
 // Qualification REQUIRES activation first (a genuinely-engaged tailor sets a
@@ -26,9 +27,10 @@ import type { ReferralMilestone, PayoutState, ReferralFlag } from './referralCon
 // the locked "Activated → Qualified" progression. All thresholds are the
 // server-only constants in referralConstants.ts; the client never computes this.
 //
-// A referral carrying any fraud flag still advances milestone (the milestone
-// reflects real engagement) but its payout is withheld — payoutState stays
-// `none`, so no money is ever queued for a flagged install. Grading is idempotent
+// A referral carrying any BLOCKING fraud flag still advances milestone (the
+// milestone reflects real engagement) but its payout is withheld — payoutState
+// stays `none`, so no money is ever queued for it. Advisory flags (e.g.
+// missing_device_hash) do NOT withhold — see hasBlockingFlag. Grading is idempotent
 // and re-checks the racy milestone/payoutState fields inside a per-referral
 // transaction, so a re-run (or the debug callable) never double-counts.
 
@@ -79,7 +81,7 @@ export interface ReferralGradeInput {
   activated: boolean;
   /** distinct in-window write-days reached QUALIFY_DISTINCT_DAYS. */
   qualifiesByActivity: boolean;
-  /** any fraud flag present → payout withheld (milestone still advances). */
+  /** any BLOCKING flag present → payout withheld (milestone still advances). */
   hasFlags: boolean;
   /** one-time bounty (kobo) from the marketer doc; only used on qualify. */
   payoutRatePerUser: number;
@@ -237,10 +239,15 @@ export async function reconcileReferralsHandler(
   for (const doc of snap.docs) {
     const uid = doc.id;
     const data = doc.data();
-    const signupMs: number = data.signupAt?.toMillis?.() ?? nowMs;
-    const windowEndMs: number = data.qualificationWindowEndsAt?.toMillis?.() ?? (signupMs + QUALIFY_WINDOW_DAYS * DAY_MS);
+    // Active-day counting is bounded by the qualification window. New referrals
+    // anchor the window on attribution time (qualificationWindowStartsAt); older
+    // referrals predate that field, so fall back to signupAt to preserve their
+    // original bounds. Only in-window writes count either way.
+    const windowStartMs: number =
+      data.qualificationWindowStartsAt?.toMillis?.() ?? data.signupAt?.toMillis?.() ?? nowMs;
+    const windowEndMs: number = data.qualificationWindowEndsAt?.toMillis?.() ?? (windowStartMs + QUALIFY_WINDOW_DAYS * DAY_MS);
 
-    const signals = await gatherSignals(db, uid, signupMs, windowEndMs);
+    const signals = await gatherSignals(db, uid, windowStartMs, windowEndMs);
     const qualifiesByActivity = signals.activeDayKeys.length >= QUALIFY_DISTINCT_DAYS;
 
     // Re-read the racy fields (milestone/payoutState/flags) inside the transaction
@@ -266,7 +273,7 @@ export async function reconcileReferralsHandler(
         payoutState: f.payoutState,
         activated: signals.activated,
         qualifiesByActivity,
-        hasFlags: (f.flags?.length ?? 0) > 0,
+        hasFlags: hasBlockingFlag(f.flags),
         payoutRatePerUser: (m.payoutRatePerUser as number) ?? 0,
         nowMs,
       });

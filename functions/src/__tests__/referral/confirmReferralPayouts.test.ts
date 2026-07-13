@@ -124,6 +124,15 @@ describe('confirmReferralPayoutsHandler', () => {
     expect(store.get('marketers/m1')).toMatchObject({ pendingAmount: 0, confirmedAmount: 0 });
   });
 
+  it('confirms a payout flagged only with the advisory missing_device_hash', async () => {
+    const { store, db } = seed({ flags: ['missing_device_hash'] });
+    const res = await confirmReferralPayoutsHandler(deps(db));
+    // Advisory flag is not a "flagged during hold" rejection — the money releases.
+    expect(res).toEqual({ scanned: 1, confirmed: 1, rejected: 0, failed: 0 });
+    expect(store.get('referrals/u1').payoutState).toBe('confirmed');
+    expect(store.get('marketers/m1')).toMatchObject({ pendingAmount: 0, confirmedAmount: 500_000 });
+  });
+
   it('backstops a missed clawback — rejects when the referred user is gone', async () => {
     const { store, db } = seed({}, {}, false); // no users/u1
     const res = await confirmReferralPayoutsHandler(deps(db));

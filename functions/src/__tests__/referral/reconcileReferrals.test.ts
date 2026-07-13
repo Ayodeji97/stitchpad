@@ -243,6 +243,16 @@ describe('reconcileReferralsHandler', () => {
     expect(store.get('marketers/m1').pendingAmount).toBe(0);
   });
 
+  it('pays out a referral flagged only with the advisory missing_device_hash', async () => {
+    const { store, db } = seed(customersOnDays(4), { flags: ['missing_device_hash'] });
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res.qualified).toBe(1);
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+    // Advisory flag does NOT withhold — the payout opens as pending.
+    expect(store.get('referrals/u1').payoutState).toBe('pending');
+    expect(store.get('marketers/m1').pendingAmount).toBe(500_000);
+  });
+
   it('refreshes the cached day-count even when the milestone does not change', async () => {
     // Already activated, stale stored day-count of 2, now genuinely 3 (still < 4).
     const { store, db } = seed(customersOnDays(3), {
