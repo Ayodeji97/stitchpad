@@ -4,8 +4,9 @@ import { REGION, MARKETERS } from './referralConstants';
 import type { ReferrerType, PayoutKind, MarketerStatus } from './referralConstants';
 
 // getReferralDashboard — admin-only read of the marketer payout book for the
-// web dashboard (web/public/admin.html). The marketers/ + referrals/ collections
-// are Admin-SDK-only in firestore.rules, so the browser can never read them
+// web dashboard (getstitchpad.com/admin, in the stitchpad-web repo). The
+// marketers/ + referrals/ collections are Admin-SDK-only in firestore.rules,
+// so the browser can never read them
 // directly; this callable is the only door, gated by the Firebase Auth
 // `admin: true` custom claim (set via scripts/setAdminClaim.js). All amounts are
 // integer kobo — the client divides by 100 for ₦ display.
