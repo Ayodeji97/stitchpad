@@ -39,9 +39,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRowDivider
@@ -312,6 +319,8 @@ fun DebugMenuScreen(
                 )
             }
 
+            ReferralDebugSections(state = state, onAction = onAction)
+
             SettingsSectionCard(label = "Danger zone") {
                 SettingsRow(
                     icon = Icons.Outlined.Delete,
@@ -322,25 +331,142 @@ fun DebugMenuScreen(
             }
         }
 
-        state.bulkSeed?.let { dialog ->
-            BulkSeedDialog(
-                state = dialog,
-                onAction = onAction,
-            )
-        }
-        state.smartUsage?.let { dialog ->
-            SmartUsageDialog(
-                state = dialog,
-                onAction = onAction,
-            )
-        }
-        state.welcomeDaysLeft?.let { dialog ->
-            WelcomeDaysLeftDialog(
-                state = dialog,
-                onAction = onAction,
-            )
+        DebugMenuDialogs(state = state, onAction = onAction)
+    }
+}
+
+@Composable
+private fun DebugMenuDialogs(
+    state: DebugMenuState,
+    onAction: (DebugMenuAction) -> Unit,
+) {
+    state.bulkSeed?.let { dialog ->
+        BulkSeedDialog(state = dialog, onAction = onAction)
+    }
+    state.smartUsage?.let { dialog ->
+        SmartUsageDialog(state = dialog, onAction = onAction)
+    }
+    state.welcomeDaysLeft?.let { dialog ->
+        WelcomeDaysLeftDialog(state = dialog, onAction = onAction)
+    }
+    state.referralAttribute?.let { dialog ->
+        ReferralAttributeDialog(state = dialog, onAction = onAction)
+    }
+}
+
+@Composable
+private fun ReferralDebugSections(
+    state: DebugMenuState,
+    onAction: (DebugMenuAction) -> Unit,
+) {
+    SettingsSectionCard(label = "Referral") {
+        SettingsRow(
+            icon = Icons.Outlined.Group,
+            label = "Attribute with code…",
+            subtitle = "Runs recordReferralAttribution as this account",
+            onClick = { onAction(DebugMenuAction.OnReferralAttributeClick) },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.BugReport,
+            label = "Seed qualification (workshop + 4 days)",
+            subtitle = "Then run the grader below (or wait for the nightly run)",
+            onClick = { onAction(DebugMenuAction.OnReferralSeedQualificationClick) },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Refresh,
+            label = "Reset capture state",
+            onClick = { onAction(DebugMenuAction.OnReferralResetCaptureClick) },
+        )
+    }
+
+    SettingsSectionCard(label = "Referral · admin (needs admin:true)") {
+        val onGraderClick: (() -> Unit)? =
+            if (state.isWorking) null else { { onAction(DebugMenuAction.OnReferralRunGraderClick) } }
+        val onConfirmClick: (() -> Unit)? =
+            if (state.isWorking) null else { { onAction(DebugMenuAction.OnReferralRunConfirmClick) } }
+        val onSweepClick: (() -> Unit)? =
+            if (state.isWorking) null else { { onAction(DebugMenuAction.OnReferralRunSweepClick) } }
+        SettingsRow(
+            icon = Icons.Outlined.Sync,
+            label = "Run grader (qualify → pending)",
+            onClick = onGraderClick,
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.MonetizationOn,
+            label = "Run confirm payouts",
+            subtitle = "Only releases payouts whose 7-day hold has expired",
+            onClick = onConfirmClick,
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Refresh,
+            label = "Run deleted-user sweep",
+            onClick = onSweepClick,
+        )
+    }
+}
+
+@Composable
+private fun ReferralAttributeDialog(
+    state: ReferralAttributeDialogState,
+    onAction: (DebugMenuAction) -> Unit,
+) {
+    // Local TextFieldValue keeps the cursor position stable across recompositions
+    // when the VM-owned codeInput updates on every keystroke. Bind text only to the VM.
+    var codeFieldValue by remember {
+        mutableStateOf(TextFieldValue(state.codeInput, TextRange(state.codeInput.length)))
+    }
+    LaunchedEffect(state.codeInput) {
+        if (codeFieldValue.text != state.codeInput) {
+            codeFieldValue = TextFieldValue(state.codeInput, TextRange(state.codeInput.length))
         }
     }
+    AlertDialog(
+        onDismissRequest = { onAction(DebugMenuAction.OnReferralAttributeDismiss) },
+        title = {
+            Text(text = "Attribute with code", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Calls recordReferralAttribution for the signed-in account, " +
+                        "as if this user arrived via the code. Normalized to the server's " +
+                        "charset (uppercase, no spaces/hyphens).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(DesignTokens.space2))
+                OutlinedTextField(
+                    value = codeFieldValue,
+                    onValueChange = { newValue ->
+                        codeFieldValue = newValue
+                        if (newValue.text != state.codeInput) {
+                            onAction(DebugMenuAction.OnReferralAttributeCodeChange(newValue.text))
+                        }
+                    },
+                    label = { Text("Referral code") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onAction(DebugMenuAction.OnReferralAttributeConfirm) },
+                enabled = state.isValid,
+            ) {
+                Text(text = "Attribute", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAction(DebugMenuAction.OnReferralAttributeDismiss) }) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

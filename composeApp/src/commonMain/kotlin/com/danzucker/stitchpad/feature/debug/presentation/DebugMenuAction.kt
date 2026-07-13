@@ -40,6 +40,19 @@ sealed interface DebugMenuAction {
     data object OnResetCommunityBannerClick : DebugMenuAction
     data object OnResetCelebrationsClick : DebugMenuAction
 
+    // Referral (client)
+    data object OnReferralAttributeClick : DebugMenuAction
+    data object OnReferralAttributeDismiss : DebugMenuAction
+    data class OnReferralAttributeCodeChange(val value: String) : DebugMenuAction
+    data object OnReferralAttributeConfirm : DebugMenuAction
+    data object OnReferralSeedQualificationClick : DebugMenuAction
+    data object OnReferralResetCaptureClick : DebugMenuAction
+
+    // Referral (admin only — deployed debug callables)
+    data object OnReferralRunGraderClick : DebugMenuAction
+    data object OnReferralRunConfirmClick : DebugMenuAction
+    data object OnReferralRunSweepClick : DebugMenuAction
+
     data object OnSendDailyDigestClick : DebugMenuAction
     data object OnSendTestPushClick : DebugMenuAction
     data object OnSendRenewalReminderClick : DebugMenuAction

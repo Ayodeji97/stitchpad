@@ -7,9 +7,13 @@ import com.danzucker.stitchpad.core.debug.DefaultAnalyticsDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultDebugSeeder
 import com.danzucker.stitchpad.core.debug.DefaultDigestDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultFreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.DefaultReferralAdminDebugActions
+import com.danzucker.stitchpad.core.debug.DefaultReferralDebugActions
 import com.danzucker.stitchpad.core.debug.DefaultReminderDebugActions
 import com.danzucker.stitchpad.core.debug.DigestDebugActions
 import com.danzucker.stitchpad.core.debug.FreemiumDebugActions
+import com.danzucker.stitchpad.core.debug.ReferralAdminDebugActions
+import com.danzucker.stitchpad.core.debug.ReferralDebugActions
 import com.danzucker.stitchpad.core.debug.ReminderDebugActions
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuViewModel
 import org.koin.core.module.dsl.viewModel
@@ -49,6 +53,16 @@ val debugModule = module {
     single<DigestDebugActions> { DefaultDigestDebugActions(functions = get()) }
     single<ReminderDebugActions> { DefaultReminderDebugActions(functions = get()) }
     single<AnalyticsDebugActions> { DefaultAnalyticsDebugActions() }
+    single<ReferralDebugActions> {
+        DefaultReferralDebugActions(
+            referralRepository = get(),
+            preferences = get(),
+            customerRepository = get(),
+            userRepository = get(),
+            authRepository = get(),
+        )
+    }
+    single<ReferralAdminDebugActions> { DefaultReferralAdminDebugActions(functions = get()) }
     // Explicit `viewModel { ... }` factory rather than viewModelOf(::DebugMenuViewModel) because
     // the VM takes a defaulted Boolean param (testAccountsConfigured) — viewModelOf can't skip
     // defaulted params (see feedback_ios_clock_injection memory).
@@ -60,6 +74,8 @@ val debugModule = module {
             digestActions = get(),
             reminderActions = get(),
             analyticsActions = get(),
+            referralActions = get(),
+            referralAdminActions = get(),
             now = ::nowEpochMs,
         )
     }
