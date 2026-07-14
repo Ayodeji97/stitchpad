@@ -104,20 +104,28 @@ export async function recordReferralAttributionHandler(
   }
 
   const deviceHash = asDeviceHash(data.deviceHash);
+  // A missing/malformed device hash means device-reuse detection cannot run for
+  // this install. Surface it as an ADVISORY flag (not blocking) so an omitted hash
+  // is visible for review/velocity analysis instead of silently evading dedupe —
+  // without dropping a referral that may be perfectly legitimate.
+  if (!deviceHash) flags.push('missing_device_hash');
 
-  // Honest qualification window: measure from the user's real signup instant
-  // when we can read it, else attribution time.
   const nowDate = deps.now();
   const nowTs = admin.firestore.Timestamp.fromDate(nowDate);
   const userRef = deps.db.doc(`users/${uid}`);
-  // Server-authoritative signup instant: the Firebase Auth account creation time
-  // (immutable, not client-writable). users/{uid}.createdAt is client-editable, so
-  // trusting it would let a referred user extend their own real-money
-  // qualification window. Fall back to attribution time if unavailable.
+  // Qualification window is anchored on ATTRIBUTION time (server now()), not
+  // signup. This fixes late code entry — an iOS user who types a code >14 days
+  // after signup would otherwise land in an already-closed window and could never
+  // qualify, costing the marketer a legitimate payout. Anchoring on now() also
+  // makes the window inherently un-gameable: there is no client-editable field to
+  // extend it with (contrast users/{uid}.createdAt, which is client-writable).
+  // signupAt still records the real Firebase Auth creation instant for audit.
   const authCreatedMs = await deps.userCreationTimeMs(uid);
   const signupMs = authCreatedMs ?? nowDate.getTime();
   const signupTs = admin.firestore.Timestamp.fromMillis(signupMs);
-  const windowEndsTs = admin.firestore.Timestamp.fromMillis(signupMs + QUALIFY_WINDOW_DAYS * DAY_MS);
+  const windowStartMs = nowDate.getTime();
+  const windowStartsTs = admin.firestore.Timestamp.fromMillis(windowStartMs);
+  const windowEndsTs = admin.firestore.Timestamp.fromMillis(windowStartMs + QUALIFY_WINDOW_DAYS * DAY_MS);
   const referrerType: ReferrerType = marketer?.type === 'user' ? 'user' : 'affiliate';
 
   // The device read + claim MUST happen inside the transaction: two concurrent
@@ -178,6 +186,7 @@ export async function recordReferralAttributionHandler(
       referredEmailHash,
       attributionSource: asSource(data.source),
       signupAt: signupTs,
+      qualificationWindowStartsAt: windowStartsTs,
       qualificationWindowEndsAt: windowEndsTs,
       activeDays: 0,
       activeDayKeys: [],
