@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,10 +21,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import com.danzucker.stitchpad.util.clearFocusOnTap
+import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
+import com.danzucker.stitchpad.util.dismissNativeKeyboard
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.referral_code_apply
@@ -50,10 +56,16 @@ fun ReferralCodeScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { inner ->
+        val focusManager = LocalFocusManager.current
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(inner)
+                // Tap on a blank area or drag to scroll dismisses the keyboard,
+                // so a mistyped code's error message isn't hidden behind it.
+                .clearFocusOnTap()
+                .dismissKeyboardOnScroll()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -67,7 +79,13 @@ fun ReferralCodeScreen(
             )
             StitchPadButton(
                 text = stringResource(Res.string.referral_code_apply),
-                onClick = { onAction(ReferralCodeAction.OnApplyClick) },
+                // The button intercepts the tap before clearFocusOnTap can see
+                // it, so dismiss the keyboard explicitly on Apply.
+                onClick = {
+                    focusManager.clearFocus()
+                    dismissNativeKeyboard()
+                    onAction(ReferralCodeAction.OnApplyClick)
+                },
                 enabled = state.canSubmit,
                 isLoading = state.isSubmitting,
                 modifier = Modifier.fillMaxWidth(),
