@@ -1318,6 +1318,16 @@
     <string name="settings_section_support">Support</string>
     <string name="settings_row_invite">Invite a tailor</string>
     <string name="settings_row_invite_subtitle">Grow your network</string>
+    <string name="referral_code_settings_row">Have a referral code?</string>
+    <string name="referral_code_settings_subtitle">Enter a code from whoever referred you</string>
+    <string name="referral_code_title">Referral code</string>
+    <string name="referral_code_field_label">Referral code</string>
+    <string name="referral_code_field_placeholder">e.g. ABCD1234</string>
+    <string name="referral_code_apply">Apply code</string>
+    <string name="referral_code_applied">Referral code applied</string>
+    <string name="referral_code_not_recognized">That code wasn&apos;t recognized. Check it and try again.</string>
+    <string name="referral_code_network_error">No connection. Check your internet and try again.</string>
+    <string name="referral_code_generic_error">Something went wrong. Please try again.</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
     <string name="settings_row_community">Join our community</string>
