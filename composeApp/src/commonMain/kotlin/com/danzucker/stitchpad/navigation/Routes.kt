@@ -123,6 +123,9 @@ data object ChangeEmailRoute
 data object ChangePasswordRoute
 
 @Serializable
+data object ReferralCodeRoute
+
+@Serializable
 data object DeleteAccountRoute
 
 @Serializable

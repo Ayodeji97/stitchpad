@@ -105,6 +105,7 @@ class SettingsViewModel(
             SettingsAction.OnAppearanceClick -> cycleTheme()
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
+            SettingsAction.OnReferralCodeClick -> emit(SettingsEvent.NavigateToReferralCode)
             SettingsAction.OnSignOutRowClick -> uiState.update { it.copy(showSignOutDialog = true) }
             SettingsAction.OnSignOutDismiss -> uiState.update { it.copy(showSignOutDialog = false) }
             SettingsAction.OnSignOutConfirm -> signOut()

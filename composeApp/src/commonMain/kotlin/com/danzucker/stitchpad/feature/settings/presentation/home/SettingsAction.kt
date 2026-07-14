@@ -7,6 +7,7 @@ sealed interface SettingsAction {
     data object OnAppearanceClick : SettingsAction
     data object OnEmailRowClick : SettingsAction
     data object OnChangePasswordClick : SettingsAction
+    data object OnReferralCodeClick : SettingsAction
     data object OnSignOutRowClick : SettingsAction
     data object OnSignOutConfirm : SettingsAction
     data object OnSignOutDismiss : SettingsAction

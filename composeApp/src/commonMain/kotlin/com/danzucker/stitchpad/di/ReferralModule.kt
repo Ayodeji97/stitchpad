@@ -4,11 +4,13 @@ import com.danzucker.stitchpad.feature.referral.data.CloudFunctionsReferralRepos
 import com.danzucker.stitchpad.feature.referral.domain.ReferralAttribution
 import com.danzucker.stitchpad.feature.referral.domain.ReferralAttributionCoordinator
 import com.danzucker.stitchpad.feature.referral.domain.ReferralRepository
+import com.danzucker.stitchpad.feature.referral.presentation.entry.ReferralCodeViewModel
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -36,4 +38,5 @@ val referralModule = module {
             uidFlow = auth.authStateChanged.map { it?.uid },
         ).also { it.start() }
     }
+    viewModelOf(::ReferralCodeViewModel)
 }

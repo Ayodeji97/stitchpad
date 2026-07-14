@@ -22,6 +22,7 @@ fun SettingsRoot(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToChangeEmail: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
+    onNavigateToReferralCode: () -> Unit,
     onNavigateToDeleteAccount: () -> Unit,
     onSignedOut: () -> Unit,
     onNavigateToDebugMenu: () -> Unit,
@@ -43,6 +44,7 @@ fun SettingsRoot(
             SettingsEvent.NavigateToEditProfile -> onNavigateToEditProfile()
             SettingsEvent.NavigateToChangeEmail -> onNavigateToChangeEmail()
             SettingsEvent.NavigateToChangePassword -> onNavigateToChangePassword()
+            SettingsEvent.NavigateToReferralCode -> onNavigateToReferralCode()
             SettingsEvent.NavigateToDeleteAccount -> onNavigateToDeleteAccount()
             SettingsEvent.NavigateToLoginAfterSignOut -> onSignedOut()
             SettingsEvent.NavigateToDebugMenu -> onNavigateToDebugMenu()
