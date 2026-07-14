@@ -48,6 +48,7 @@ import com.danzucker.stitchpad.feature.notification.presentation.inbox.Notificat
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
+import com.danzucker.stitchpad.feature.referral.presentation.entry.ReferralCodeRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeEmailRoot
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
@@ -83,6 +84,7 @@ import com.danzucker.stitchpad.navigation.OrderFormRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.RedeemGiftRoute
+import com.danzucker.stitchpad.navigation.ReferralCodeRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
@@ -611,6 +613,7 @@ private fun MainNavGraph(
                 onNavigateToEditProfile = { navController.navigate(EditProfileRoute) },
                 onNavigateToChangeEmail = { navController.navigate(ChangeEmailRoute) },
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
+                onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
                 onNavigateToDeleteAccount = { navController.navigate(DeleteAccountRoute) },
                 onSignedOut = onSignedOut,
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
@@ -649,6 +652,9 @@ private fun MainNavGraph(
         }
         composable<ChangePasswordRoute> {
             ChangePasswordRoot(onNavigateBack = { navController.navigateUp() })
+        }
+        composable<ReferralCodeRoute> {
+            ReferralCodeRoot(onNavigateBack = { navController.navigateUp() })
         }
         composable<DeleteAccountRoute> {
             DeleteAccountRoot(

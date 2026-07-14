@@ -69,6 +69,8 @@ import stitchpad.composeapp.generated.resources.gift_redeem_settings_subtitle
 import stitchpad.composeapp.generated.resources.gift_redeem_title
 import stitchpad.composeapp.generated.resources.gift_share_settings_row
 import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
+import stitchpad.composeapp.generated.resources.referral_code_settings_row
+import stitchpad.composeapp.generated.resources.referral_code_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_back_cd
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
@@ -191,6 +193,13 @@ fun SettingsScreen(
                     label = stringResource(Res.string.settings_row_invite),
                     subtitle = stringResource(Res.string.settings_row_invite_subtitle),
                     onClick = { onAction(SettingsAction.OnInviteClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRow(
+                    icon = Icons.Outlined.Redeem,
+                    label = stringResource(Res.string.referral_code_settings_row),
+                    subtitle = stringResource(Res.string.referral_code_settings_subtitle),
+                    onClick = { onAction(SettingsAction.OnReferralCodeClick) },
                     trailing = { SettingsRowChevron() },
                 )
                 // Gifting entry points are hidden while payments are paused — see

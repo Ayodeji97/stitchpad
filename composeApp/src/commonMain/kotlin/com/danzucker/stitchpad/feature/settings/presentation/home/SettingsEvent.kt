@@ -8,6 +8,7 @@ sealed interface SettingsEvent {
     data object NavigateToEditProfile : SettingsEvent
     data object NavigateToChangeEmail : SettingsEvent
     data object NavigateToChangePassword : SettingsEvent
+    data object NavigateToReferralCode : SettingsEvent
     data object NavigateToDeleteAccount : SettingsEvent
     data object NavigateToLoginAfterSignOut : SettingsEvent
     data object NavigateToDebugMenu : SettingsEvent
