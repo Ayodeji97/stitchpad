@@ -88,3 +88,16 @@ private fun ReferralCodeScreenPreview() {
         )
     }
 }
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun ReferralCodeScreenDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        ReferralCodeScreen(
+            state = ReferralCodeState(codeInput = "ABCD1234"),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+        )
+    }
+}

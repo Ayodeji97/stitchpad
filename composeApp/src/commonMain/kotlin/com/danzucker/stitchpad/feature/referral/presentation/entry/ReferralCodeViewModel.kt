@@ -53,8 +53,7 @@ class ReferralCodeViewModel(
                     // Keep local capture state consistent so the auto-capture
                     // coordinator doesn't re-attempt on next launch.
                     preferences.setAttributed()
-                    emit(ReferralCodeEvent.ShowMessage(UiText.StringResourceText(Res.string.referral_code_applied)))
-                    emit(ReferralCodeEvent.NavigateBack)
+                    emit(ReferralCodeEvent.ApplySucceeded(UiText.StringResourceText(Res.string.referral_code_applied)))
                 }
                 is Result.Error -> emit(ReferralCodeEvent.ShowMessage(result.error.toUiText()))
             }

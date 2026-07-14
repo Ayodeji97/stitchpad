@@ -27,6 +27,12 @@ fun ReferralCodeRoot(
             is ReferralCodeEvent.ShowMessage -> {
                 scope.launch { snackbarHostState.showSnackbar(resolve(event.message)) }
             }
+            is ReferralCodeEvent.ApplySucceeded -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(resolve(event.message))
+                    onNavigateBack()
+                }
+            }
         }
     }
 

@@ -50,8 +50,7 @@ class ReferralCodeViewModelTest {
         vm.onAction(ReferralCodeAction.OnCodeChange("ABCD1234"))
         vm.events.test {
             vm.onAction(ReferralCodeAction.OnApplyClick)
-            assertTrue(awaitItem() is ReferralCodeEvent.ShowMessage)
-            assertEquals(ReferralCodeEvent.NavigateBack, awaitItem())
+            assertTrue(awaitItem() is ReferralCodeEvent.ApplySucceeded)
             cancelAndIgnoreRemainingEvents()
         }
         assertTrue(prefs.attributed)
@@ -64,10 +63,10 @@ class ReferralCodeViewModelTest {
         vm.onAction(ReferralCodeAction.OnCodeChange("ABCD1234"))
         vm.events.test {
             vm.onAction(ReferralCodeAction.OnApplyClick)
-            assertTrue(awaitItem() is ReferralCodeEvent.ShowMessage)
-            assertEquals(ReferralCodeEvent.NavigateBack, awaitItem())
+            assertTrue(awaitItem() is ReferralCodeEvent.ApplySucceeded)
             cancelAndIgnoreRemainingEvents()
         }
+        assertTrue(prefs.attributed)
     }
 
     @Test
