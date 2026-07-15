@@ -36,6 +36,7 @@ val referralModule = module {
             pendingDeepLink = get(),
             scope = get(qualifier = named("referralAppScope")),
             uidFlow = auth.authStateChanged.map { it?.uid },
+            analytics = get(),
         ).also { it.start() }
     }
     viewModelOf(::ReferralCodeViewModel)
