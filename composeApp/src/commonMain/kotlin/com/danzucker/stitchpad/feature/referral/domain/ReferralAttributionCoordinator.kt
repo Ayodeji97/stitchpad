@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.referral.domain
 
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.navigation.DeepLinkParser
@@ -50,6 +52,7 @@ class ReferralAttributionCoordinator(
     private val pendingDeepLink: PendingDeepLinkHolder,
     private val scope: CoroutineScope,
     private val uidFlow: Flow<String?>,
+    private val analytics: Analytics,
     // Clipboard capture stays OFF until the /r/ web landing page ships. That page is
     // what puts our referral URL on the clipboard AND will carry a fresh provenance
     // token; until it exists a clipboard read could only ever fire on a stray URL a
@@ -116,6 +119,11 @@ class ReferralAttributionCoordinator(
             is Result.Success -> {
                 preferences.setAttributed()
                 manualOverride = null
+                if (!result.data.alreadyAttributed) {
+                    analytics.logEvent(
+                        AnalyticsEvent.ReferralCodeApplied(source = source.wire, surface = "signup")
+                    )
+                }
                 AppLogger.d(tag = TAG) {
                     "attributed (source=${source.wire}, already=${result.data.alreadyAttributed})"
                 }

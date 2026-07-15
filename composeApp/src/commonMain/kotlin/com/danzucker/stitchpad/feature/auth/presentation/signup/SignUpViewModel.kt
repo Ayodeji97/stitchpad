@@ -103,6 +103,13 @@ class SignUpViewModel(
             try {
                 when (val result = authRepository.signInWithGoogle()) {
                     is Result.Success -> {
+                        analytics.logEvent(
+                            if (result.data.isNewUser) {
+                                AnalyticsEvent.SignUp(method = "google")
+                            } else {
+                                AnalyticsEvent.Login(method = "google")
+                            }
+                        )
                         // The referral field lives on the same screen as the SSO buttons,
                         // so a code typed before tapping Google must still be attributed.
                         referralAttribution.submitPendingAttribution(_state.value.referralCode)
@@ -126,6 +133,13 @@ class SignUpViewModel(
             try {
                 when (val result = authRepository.signInWithApple()) {
                     is Result.Success -> {
+                        analytics.logEvent(
+                            if (result.data.isNewUser) {
+                                AnalyticsEvent.SignUp(method = "apple")
+                            } else {
+                                AnalyticsEvent.Login(method = "apple")
+                            }
+                        )
                         referralAttribution.submitPendingAttribution(_state.value.referralCode)
                         _events.send(SignUpEvent.NavigateToHome)
                     }
@@ -213,7 +227,7 @@ class SignUpViewModel(
                     // The verify screen sends the verification email on entry,
                     // so the same path serves signup, login and splash re-entry.
                     is Result.Success -> {
-                        analytics.logEvent(AnalyticsEvent.SignUp)
+                        analytics.logEvent(AnalyticsEvent.SignUp(method = "email"))
                         // Fire-and-forget: attribute the referral (manual field wins over a
                         // captured Install Referrer code). Runs on the coordinator's app scope
                         // so it survives this screen being torn down by navigation.

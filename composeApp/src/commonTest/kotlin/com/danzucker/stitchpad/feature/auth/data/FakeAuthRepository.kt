@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.auth.domain.SsoSignIn
 
 class FakeAuthRepository : AuthRepository {
     var shouldReturnError: AuthError? = null
@@ -18,6 +19,7 @@ class FakeAuthRepository : AuthRepository {
     var lastUpdatedEmail: String? = null
     var lastUpdatedPassword: String? = null
     var deleteAccountCalled: Boolean = false
+    var ssoIsNewUser = false
 
     // --- Email verification controls ---
     var emailVerificationSentCount = 0
@@ -66,7 +68,7 @@ class FakeAuthRepository : AuthRepository {
         return Result.Success(user)
     }
 
-    override suspend fun signInWithGoogle(): Result<User, AuthError> {
+    override suspend fun signInWithGoogle(): Result<SsoSignIn, AuthError> {
         shouldReturnError?.let { return Result.Error(it) }
         val user = currentUser ?: User(
             id = "test-google-uid",
@@ -78,10 +80,10 @@ class FakeAuthRepository : AuthRepository {
             avatarColorIndex = 0
         )
         currentUser = user
-        return Result.Success(user)
+        return Result.Success(SsoSignIn(user = user, isNewUser = ssoIsNewUser))
     }
 
-    override suspend fun signInWithApple(): Result<User, AuthError> {
+    override suspend fun signInWithApple(): Result<SsoSignIn, AuthError> {
         shouldReturnError?.let { return Result.Error(it) }
         val user = currentUser ?: User(
             id = "test-apple-uid",
@@ -93,7 +95,7 @@ class FakeAuthRepository : AuthRepository {
             avatarColorIndex = 0
         )
         currentUser = user
-        return Result.Success(user)
+        return Result.Success(SsoSignIn(user = user, isNewUser = ssoIsNewUser))
     }
 
     override suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError> {

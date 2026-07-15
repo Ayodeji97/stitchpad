@@ -8,8 +8,8 @@ import com.danzucker.stitchpad.core.domain.model.User
 interface AuthRepository {
     suspend fun signUpWithEmail(email: String, password: String, displayName: String): Result<User, AuthError>
     suspend fun signInWithEmail(email: String, password: String): Result<User, AuthError>
-    suspend fun signInWithGoogle(): Result<User, AuthError>
-    suspend fun signInWithApple(): Result<User, AuthError>
+    suspend fun signInWithGoogle(): Result<SsoSignIn, AuthError>
+    suspend fun signInWithApple(): Result<SsoSignIn, AuthError>
     suspend fun sendPasswordResetEmail(email: String): EmptyResult<AuthError>
 
     /** Sends a verification link to the signed-in user's email address. */

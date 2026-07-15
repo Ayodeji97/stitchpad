@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.referral.presentation.entry
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.feature.referral.data.FakeReferralPreferencesStore
 import com.danzucker.stitchpad.feature.referral.data.FakeReferralRepository
@@ -23,8 +25,9 @@ class ReferralCodeViewModelTest {
 
     private val repo = FakeReferralRepository()
     private val prefs = FakeReferralPreferencesStore()
+    private val analytics = FakeAnalytics()
 
-    private fun viewModel() = ReferralCodeViewModel(repo, prefs)
+    private fun viewModel() = ReferralCodeViewModel(repo, prefs, analytics)
 
     @BeforeTest
     fun setUp() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
@@ -89,5 +92,38 @@ class ReferralCodeViewModelTest {
         vm.onAction(ReferralCodeAction.OnCodeChange("   "))
         vm.onAction(ReferralCodeAction.OnApplyClick)
         assertEquals(0, repo.callCount)
+    }
+
+    @Test
+    fun `apply success logs referral code applied with settings surface`() = runTest {
+        repo.result = Result.Success(AttributionOutcome(alreadyAttributed = false, marketerId = "m1"))
+        val vm = viewModel()
+        vm.onAction(ReferralCodeAction.OnCodeChange("ABCD1234"))
+        vm.onAction(ReferralCodeAction.OnApplyClick)
+
+        assertEquals(
+            listOf<AnalyticsEvent>(AnalyticsEvent.ReferralCodeApplied(source = "manual", surface = "settings")),
+            analytics.events,
+        )
+    }
+
+    @Test
+    fun `already attributed replay does not log event`() = runTest {
+        repo.result = Result.Success(AttributionOutcome(alreadyAttributed = true, marketerId = "m1"))
+        val vm = viewModel()
+        vm.onAction(ReferralCodeAction.OnCodeChange("ABCD1234"))
+        vm.onAction(ReferralCodeAction.OnApplyClick)
+
+        assertTrue(analytics.events.isEmpty())
+    }
+
+    @Test
+    fun `apply failure does not log event`() = runTest {
+        repo.result = Result.Error(ReferralError.UNKNOWN)
+        val vm = viewModel()
+        vm.onAction(ReferralCodeAction.OnCodeChange("ABCD1234"))
+        vm.onAction(ReferralCodeAction.OnApplyClick)
+
+        assertTrue(analytics.events.isEmpty())
     }
 }

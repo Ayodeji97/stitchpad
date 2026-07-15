@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.referral.domain
 
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.CoroutineScope
@@ -74,9 +76,10 @@ class ReferralAttributionCoordinatorTest {
         clipboard: FakeClipboardReferralReader = FakeClipboardReferralReader(null),
         holder: PendingDeepLinkHolder = PendingDeepLinkHolder(),
         uidFlow: Flow<String?> = flowOf(null),
+        analytics: FakeAnalytics = FakeAnalytics(),
         clipboardEnabled: Boolean = true,
     ) = ReferralAttributionCoordinator(
-        repo, prefs, reader, clipboard, holder, scope, uidFlow, clipboardEnabled,
+        repo, prefs, reader, clipboard, holder, scope, uidFlow, analytics, clipboardEnabled,
     )
 
     // ── attributeOnce: code resolution priority ──────────────────────────────
@@ -349,5 +352,58 @@ class ReferralAttributionCoordinatorTest {
         advanceUntilIdle()
 
         assertTrue(repo.calls.isEmpty())
+    }
+
+    // ── attributeOnce: referral_code_applied analytics (signup surface) ──────
+
+    @Test
+    fun freshAttribution_logsReferralCodeApplied_signupSurface() = runTest {
+        val analytics = FakeAnalytics()
+        val c = coordinator(this, analytics = analytics)
+
+        c.attributeOnce(manualCode = "MANUAL01")
+
+        assertEquals(
+            listOf<AnalyticsEvent>(AnalyticsEvent.ReferralCodeApplied(source = "manual", surface = "signup")),
+            analytics.events,
+        )
+    }
+
+    @Test
+    fun alreadyAttributedReplay_doesNotLogEvent() = runTest {
+        val repo = FakeReferralRepository(
+            result = Result.Success(AttributionOutcome(alreadyAttributed = true, marketerId = "m1")),
+        )
+        val analytics = FakeAnalytics()
+        val c = coordinator(this, repo = repo, analytics = analytics)
+
+        c.attributeOnce(manualCode = "MANUAL01")
+
+        assertTrue(analytics.events.isEmpty())
+    }
+
+    @Test
+    fun failedAttribution_doesNotLogEvent() = runTest {
+        val repo = FakeReferralRepository(result = Result.Error(ReferralError.UNKNOWN))
+        val analytics = FakeAnalytics()
+        val c = coordinator(this, repo = repo, analytics = analytics)
+
+        c.attributeOnce(manualCode = "MANUAL01")
+
+        assertTrue(analytics.events.isEmpty())
+    }
+
+    @Test
+    fun pendingCode_logsInstallReferrerSource() = runTest {
+        val analytics = FakeAnalytics()
+        val holder = PendingDeepLinkHolder().apply { setReferralCode("PENDING1") }
+        val c = coordinator(this, holder = holder, analytics = analytics)
+
+        c.attributeOnce(manualCode = null)
+
+        assertEquals(
+            listOf<AnalyticsEvent>(AnalyticsEvent.ReferralCodeApplied(source = "install_referrer", surface = "signup")),
+            analytics.events,
+        )
     }
 }

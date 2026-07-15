@@ -44,7 +44,7 @@ class SignUpViewModelAnalyticsTest {
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
-        assertTrue(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertTrue(analytics.events.contains(AnalyticsEvent.SignUp(method = "email")))
     }
 
     @Test
@@ -53,21 +53,49 @@ class SignUpViewModelAnalyticsTest {
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
-        assertFalse(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertFalse(analytics.events.any { it is AnalyticsEvent.SignUp })
     }
 
     @Test
-    fun googleSignInSuccessDoesNotLogSignUpEvent() = runTest {
+    fun googleSignInNewUserLogsSignUpWithGoogleMethod() = runTest {
+        authRepository.ssoIsNewUser = true
         viewModel.onAction(SignUpAction.OnGoogleSignInClick)
 
-        assertFalse(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertTrue(analytics.events.contains(AnalyticsEvent.SignUp(method = "google")))
+        assertFalse(analytics.events.any { it is AnalyticsEvent.Login })
     }
 
     @Test
-    fun appleSignInSuccessDoesNotLogSignUpEvent() = runTest {
+    fun googleSignInReturningUserLogsLoginWithGoogleMethod() = runTest {
+        authRepository.ssoIsNewUser = false
+        viewModel.onAction(SignUpAction.OnGoogleSignInClick)
+
+        assertTrue(analytics.events.contains(AnalyticsEvent.Login(method = "google")))
+        assertFalse(analytics.events.any { it is AnalyticsEvent.SignUp })
+    }
+
+    @Test
+    fun appleSignInNewUserLogsSignUpWithAppleMethod() = runTest {
+        authRepository.ssoIsNewUser = true
         viewModel.onAction(SignUpAction.OnAppleSignInClick)
 
-        assertFalse(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertTrue(analytics.events.contains(AnalyticsEvent.SignUp(method = "apple")))
+    }
+
+    @Test
+    fun appleSignInReturningUserLogsLoginWithAppleMethod() = runTest {
+        authRepository.ssoIsNewUser = false
+        viewModel.onAction(SignUpAction.OnAppleSignInClick)
+
+        assertTrue(analytics.events.contains(AnalyticsEvent.Login(method = "apple")))
+    }
+
+    @Test
+    fun googleSignInFailureLogsNothing() = runTest {
+        authRepository.shouldReturnError = AuthError.UNKNOWN
+        viewModel.onAction(SignUpAction.OnGoogleSignInClick)
+
+        assertTrue(analytics.events.isEmpty())
     }
 
     // --- Helper ---

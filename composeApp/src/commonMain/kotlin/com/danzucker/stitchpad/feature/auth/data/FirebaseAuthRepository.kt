@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
+import com.danzucker.stitchpad.feature.auth.domain.SsoSignIn
 import dev.gitlive.firebase.auth.EmailAuthProvider
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -91,20 +92,27 @@ class FirebaseAuthRepository(
         }
     }
 
-    override suspend fun signInWithGoogle(): Result<User, AuthError> {
+    override suspend fun signInWithGoogle(): Result<SsoSignIn, AuthError> {
         return when (val credResult = ssoCredentialProvider.getGoogleCredential()) {
             is Result.Error -> Result.Error(credResult.error.toAuthError())
             is Result.Success -> exchangeGoogleCredential(credResult.data)
         }
     }
 
-    private suspend fun exchangeGoogleCredential(cred: GoogleCredential): Result<User, AuthError> {
+    private suspend fun exchangeGoogleCredential(cred: GoogleCredential): Result<SsoSignIn, AuthError> {
         return try {
             val credential = GoogleAuthProvider.credential(cred.idToken, cred.accessToken)
             val authResult = firebaseAuth.signInWithCredential(credential)
             val firebaseUser = authResult.user
                 ?: return Result.Error(AuthError.UNKNOWN)
-            Result.Success(firebaseUser.toDomainUser())
+            Result.Success(
+                SsoSignIn(
+                    user = firebaseUser.toDomainUser(),
+                    // Absent additionalUserInfo counts as returning — undercounting
+                    // sign_up is safer than overcounting it.
+                    isNewUser = authResult.additionalUserInfo?.isNewUser ?: false,
+                )
+            )
         } catch (e: FirebaseAuthUserCollisionException) {
             AppLogger.e(tag = TAG, throwable = e) { "Google sign-in collision" }
             Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
@@ -116,14 +124,14 @@ class FirebaseAuthRepository(
         }
     }
 
-    override suspend fun signInWithApple(): Result<User, AuthError> {
+    override suspend fun signInWithApple(): Result<SsoSignIn, AuthError> {
         return when (val credResult = ssoCredentialProvider.getAppleCredential()) {
             is Result.Error -> Result.Error(credResult.error.toAuthError())
             is Result.Success -> exchangeAppleCredential(credResult.data)
         }
     }
 
-    private suspend fun exchangeAppleCredential(cred: AppleCredential): Result<User, AuthError> {
+    private suspend fun exchangeAppleCredential(cred: AppleCredential): Result<SsoSignIn, AuthError> {
         return try {
             val firebaseCredential = OAuthProvider.credential(
                 providerId = "apple.com",
@@ -139,7 +147,14 @@ class FirebaseAuthRepository(
                     .onFailure { AppLogger.e(tag = TAG, throwable = it) { "Apple displayName update failed" } }
             }
 
-            Result.Success(firebaseUser.toDomainUser())
+            Result.Success(
+                SsoSignIn(
+                    user = firebaseUser.toDomainUser(),
+                    // Absent additionalUserInfo counts as returning — undercounting
+                    // sign_up is safer than overcounting it.
+                    isNewUser = authResult.additionalUserInfo?.isNewUser ?: false,
+                )
+            )
         } catch (e: FirebaseAuthUserCollisionException) {
             AppLogger.e(tag = TAG, throwable = e) { "Apple sign-in collision" }
             Result.Error(AuthError.EMAIL_REGISTERED_WITH_OTHER_PROVIDER)
