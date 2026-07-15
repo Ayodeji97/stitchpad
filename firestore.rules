@@ -328,6 +328,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── /tutorials/{tutorialId} — remote tutorial catalog, read-only ───────
+    // The in-app Help library and contextual hint cards listen to this
+    // collection (FirebaseTutorialsRepository); docs hold nothing sensitive
+    // (topicId, storagePath, durationSec, sortOrder, enabled). Without this
+    // rule the listener fails PERMISSION_DENIED on every client and the app
+    // silently falls back to the bundled catalog — which means remote
+    // enable/disable and cache-busting doc-id rotations never reach devices.
+    // Writes stay console/admin-only.
+    match /tutorials/{tutorialId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────
     // FirestoreDeletionFeedbackRepository writes anonymous-shaped feedback
     // (reason, additionalNotes, plan, daysActive, platform, appVersion,
