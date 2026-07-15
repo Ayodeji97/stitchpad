@@ -104,8 +104,11 @@ class SignUpViewModel(
                 when (val result = authRepository.signInWithGoogle()) {
                     is Result.Success -> {
                         analytics.logEvent(
-                            if (result.data.isNewUser) AnalyticsEvent.SignUp(method = "google")
-                            else AnalyticsEvent.Login(method = "google")
+                            if (result.data.isNewUser) {
+                                AnalyticsEvent.SignUp(method = "google")
+                            } else {
+                                AnalyticsEvent.Login(method = "google")
+                            }
                         )
                         // The referral field lives on the same screen as the SSO buttons,
                         // so a code typed before tapping Google must still be attributed.
@@ -131,8 +134,11 @@ class SignUpViewModel(
                 when (val result = authRepository.signInWithApple()) {
                     is Result.Success -> {
                         analytics.logEvent(
-                            if (result.data.isNewUser) AnalyticsEvent.SignUp(method = "apple")
-                            else AnalyticsEvent.Login(method = "apple")
+                            if (result.data.isNewUser) {
+                                AnalyticsEvent.SignUp(method = "apple")
+                            } else {
+                                AnalyticsEvent.Login(method = "apple")
+                            }
                         )
                         referralAttribution.submitPendingAttribution(_state.value.referralCode)
                         _events.send(SignUpEvent.NavigateToHome)

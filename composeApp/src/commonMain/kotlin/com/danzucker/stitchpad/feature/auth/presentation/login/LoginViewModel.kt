@@ -73,8 +73,11 @@ class LoginViewModel(
                 when (val result = authRepository.signInWithGoogle()) {
                     is Result.Success -> {
                         analytics.logEvent(
-                            if (result.data.isNewUser) AnalyticsEvent.SignUp(method = "google")
-                            else AnalyticsEvent.Login(method = "google")
+                            if (result.data.isNewUser) {
+                                AnalyticsEvent.SignUp(method = "google")
+                            } else {
+                                AnalyticsEvent.Login(method = "google")
+                            }
                         )
                         _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
                     }
@@ -97,8 +100,11 @@ class LoginViewModel(
                 when (val result = authRepository.signInWithApple()) {
                     is Result.Success -> {
                         analytics.logEvent(
-                            if (result.data.isNewUser) AnalyticsEvent.SignUp(method = "apple")
-                            else AnalyticsEvent.Login(method = "apple")
+                            if (result.data.isNewUser) {
+                                AnalyticsEvent.SignUp(method = "apple")
+                            } else {
+                                AnalyticsEvent.Login(method = "apple")
+                            }
                         )
                         _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
                     }
