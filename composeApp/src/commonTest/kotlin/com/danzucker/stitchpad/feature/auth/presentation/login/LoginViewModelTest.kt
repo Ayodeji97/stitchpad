@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.auth.presentation.login
 
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
@@ -31,7 +32,7 @@ class LoginViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         authRepository = FakeAuthRepository()
         emailValidator = FakePatternValidator(shouldMatch = true)
-        viewModel = LoginViewModel(authRepository, emailValidator)
+        viewModel = LoginViewModel(authRepository, emailValidator, FakeAnalytics())
     }
 
     @AfterTest
@@ -70,7 +71,7 @@ class LoginViewModelTest {
     @Test
     fun loginWithInvalidEmailShowsError() {
         emailValidator = FakePatternValidator(shouldMatch = false)
-        viewModel = LoginViewModel(authRepository, emailValidator)
+        viewModel = LoginViewModel(authRepository, emailValidator, FakeAnalytics())
 
         viewModel.onAction(LoginAction.OnEmailChange("bad"))
         viewModel.onAction(LoginAction.OnPasswordChange("pass123"))

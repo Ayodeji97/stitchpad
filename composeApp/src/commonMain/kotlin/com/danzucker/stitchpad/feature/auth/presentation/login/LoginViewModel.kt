@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.auth.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
@@ -20,7 +22,8 @@ import stitchpad.composeapp.generated.resources.error_password_too_short
 
 class LoginViewModel(
     private val authRepository: AuthRepository,
-    private val emailValidator: PatternValidator
+    private val emailValidator: PatternValidator,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -68,7 +71,13 @@ class LoginViewModel(
             _state.update { it.copy(isSsoLoading = true) }
             try {
                 when (val result = authRepository.signInWithGoogle()) {
-                    is Result.Success -> _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
+                    is Result.Success -> {
+                        analytics.logEvent(
+                            if (result.data.isNewUser) AnalyticsEvent.SignUp(method = "google")
+                            else AnalyticsEvent.Login(method = "google")
+                        )
+                        _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
+                    }
                     is Result.Error -> {
                         if (result.error != AuthError.SSO_CANCELLED) {
                             _events.send(LoginEvent.ShowError(result.error.toUiText()))
@@ -86,7 +95,13 @@ class LoginViewModel(
             _state.update { it.copy(isSsoLoading = true) }
             try {
                 when (val result = authRepository.signInWithApple()) {
-                    is Result.Success -> _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
+                    is Result.Success -> {
+                        analytics.logEvent(
+                            if (result.data.isNewUser) AnalyticsEvent.SignUp(method = "apple")
+                            else AnalyticsEvent.Login(method = "apple")
+                        )
+                        _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = false))
+                    }
                     is Result.Error -> {
                         if (result.error != AuthError.SSO_CANCELLED) {
                             _events.send(LoginEvent.ShowError(result.error.toUiText()))
@@ -129,7 +144,10 @@ class LoginViewModel(
             try {
                 val result = authRepository.signInWithEmail(_state.value.email, _state.value.password)
                 when (result) {
-                    is Result.Success -> _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = true))
+                    is Result.Success -> {
+                        analytics.logEvent(AnalyticsEvent.Login(method = "email"))
+                        _events.send(LoginEvent.NavigateToHome(fromPasswordLogin = true))
+                    }
                     is Result.Error -> _events.send(LoginEvent.ShowError(result.error.toUiText()))
                 }
             } finally {
