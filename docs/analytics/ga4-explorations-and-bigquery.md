@@ -56,9 +56,13 @@ so the params appear as selectable dimensions in explorations (Part 1):
 | AI feature | Event | `feature` |
 | Upgrade tier | Event | `tier` |
 | Subscription tier | **User** | `subscription_tier` |
-| Auth method | Event | `method` |
-| Referral source | Event | `source` |
-| Referral surface | Event | `surface` |
+| Auth method † | Event | `method` |
+| Referral source † | Event | `source` |
+| Referral surface † | Event | `surface` |
+
+† Added with the 1.1.0 events (`sign_up`/`login` `method`, `referral_code_applied`) — **NOT yet
+registered**; register at the 1.1.0 rollout, then delete this note. Until registered they are
+queryable in BigQuery but show `(not set)` as console dimensions.
 
 (Note: GA4's built-in "Screen name" dimension reads the SDK's auto `firebase_screen`, not our
 clean `screen_name` param — that's why `screen_name` is registered separately. Raw params are
