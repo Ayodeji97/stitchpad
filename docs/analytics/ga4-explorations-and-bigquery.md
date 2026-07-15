@@ -8,7 +8,9 @@ click together once, and SQL you run once BigQuery export is on.
 
 | Event | Params | Meaning |
 |---|---|---|
-| `sign_up` | — | email/password account created |
+| `sign_up` | `method` (`email`/`google`/`apple`) | account created (email or SSO new-user) |
+| `login` | `method` (`email`/`google`/`apple`) | existing account signed in |
+| `referral_code_applied` | `source` (`manual`/`install_referrer`/`clipboard`), `surface` (`signup`/`settings`) | referral attributed (fresh, replays excluded) |
 | `workshop_setup_completed` | — | workshop saved (not skipped) |
 | `customer_created` | — | a customer was created (not edited) |
 | `order_created` | — | an order was created (not edited) |
@@ -54,6 +56,9 @@ so the params appear as selectable dimensions in explorations (Part 1):
 | AI feature | Event | `feature` |
 | Upgrade tier | Event | `tier` |
 | Subscription tier | **User** | `subscription_tier` |
+| Auth method | Event | `method` |
+| Referral source | Event | `source` |
+| Referral surface | Event | `surface` |
 
 (Note: GA4's built-in "Screen name" dimension reads the SDK's auto `firebase_screen`, not our
 clean `screen_name` param — that's why `screen_name` is registered separately. Raw params are
@@ -350,9 +355,10 @@ ORDER BY s.cohort_week, weeks_since_signup;
 - **Latency:** `events_` tables land ~daily; use `events_intraday_*` (or the streaming
   export) for near-real-time. Querying `events_*` includes both shapes only if you union
   them — for fresh data query `events_intraday_YYYYMMDD` explicitly.
-- **`sign_up` is email-only by design** — SSO sign-ups aren't logged yet (backlog: add via
-  `additionalUserInfo.isNewUser`). So signup counts undercount SSO; cross-check with the
-  Firebase Auth dashboard until that ships.
+- **`sign_up` completeness boundary:** before v1.1.0 only email signups were logged
+  (SSO missed — undercounted ~50%). From 1.1.0 all methods log with a `method` param.
+  Funnels spanning the boundary should treat pre-1.1.0 `sign_up` as email-only and
+  cross-check totals against the Firebase Auth dashboard.
 - **`upgrade_completed` cold-start caveat** (backlog B1): until fixed, a returning Pro user
   opening the upgrade screen on a cold start can emit a spurious `upgrade_completed`. When
   trusting upgrade counts, dedupe to first-ever per user: `MIN(event_timestamp)` per
