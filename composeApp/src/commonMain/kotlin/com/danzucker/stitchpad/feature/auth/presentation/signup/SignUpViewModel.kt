@@ -213,7 +213,7 @@ class SignUpViewModel(
                     // The verify screen sends the verification email on entry,
                     // so the same path serves signup, login and splash re-entry.
                     is Result.Success -> {
-                        analytics.logEvent(AnalyticsEvent.SignUp)
+                        analytics.logEvent(AnalyticsEvent.SignUp(method = "email"))
                         // Fire-and-forget: attribute the referral (manual field wins over a
                         // captured Install Referrer code). Runs on the coordinator's app scope
                         // so it survives this screen being torn down by navigation.

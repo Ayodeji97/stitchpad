@@ -8,8 +8,16 @@ sealed interface AnalyticsEvent {
     val name: String
     val params: Map<String, Any> get() = emptyMap()
 
-    data object SignUp : AnalyticsEvent {
+    /** [method] ∈ email|google|apple — which auth method created the account. */
+    data class SignUp(val method: String) : AnalyticsEvent {
         override val name = "sign_up"
+        override val params = mapOf("method" to method)
+    }
+
+    /** An existing account signed in. [method] ∈ email|google|apple. */
+    data class Login(val method: String) : AnalyticsEvent {
+        override val name = "login"
+        override val params = mapOf("method" to method)
     }
 
     data object WorkshopSetupCompleted : AnalyticsEvent {
@@ -73,5 +81,15 @@ sealed interface AnalyticsEvent {
     data class CelebrationShown(val milestone: String) : AnalyticsEvent {
         override val name = "celebration_shown"
         override val params = mapOf("milestone" to milestone)
+    }
+
+    /**
+     * A referral code attributed successfully (fresh, not an idempotent replay).
+     * [source] must be a [com.danzucker.stitchpad.feature.referral.domain.ReferralSource.wire]
+     * value; [surface] ∈ signup|settings.
+     */
+    data class ReferralCodeApplied(val source: String, val surface: String) : AnalyticsEvent {
+        override val name = "referral_code_applied"
+        override val params = mapOf("source" to source, "surface" to surface)
     }
 }

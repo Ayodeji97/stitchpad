@@ -25,9 +25,9 @@ class FirebaseAnalyticsTrackerTest {
     fun logEventForwardsNameAndParams_nullWhenEmpty() {
         val sink = RecordingSink()
         val tracker = FirebaseAnalyticsTracker(sink)
-        tracker.logEvent(AnalyticsEvent.SignUp)
+        tracker.logEvent(AnalyticsEvent.SignUp(method = "email"))
         tracker.logEvent(AnalyticsEvent.AiFeatureUsed(feature = "draft_message"))
-        assertEquals("sign_up" to null, sink.logged[0])
+        assertEquals("sign_up" to mapOf("method" to "email"), sink.logged[0])
         assertEquals("ai_feature_used" to mapOf("feature" to "draft_message"), sink.logged[1])
     }
 

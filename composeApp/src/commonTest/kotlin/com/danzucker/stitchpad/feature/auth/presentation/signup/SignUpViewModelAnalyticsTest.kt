@@ -44,7 +44,7 @@ class SignUpViewModelAnalyticsTest {
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
-        assertTrue(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertTrue(analytics.events.contains(AnalyticsEvent.SignUp(method = "email")))
     }
 
     @Test
@@ -53,21 +53,21 @@ class SignUpViewModelAnalyticsTest {
         fillValidForm()
         viewModel.onAction(SignUpAction.OnSignUpClick)
 
-        assertFalse(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertFalse(analytics.events.any { it is AnalyticsEvent.SignUp })
     }
 
     @Test
     fun googleSignInSuccessDoesNotLogSignUpEvent() = runTest {
         viewModel.onAction(SignUpAction.OnGoogleSignInClick)
 
-        assertFalse(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertFalse(analytics.events.any { it is AnalyticsEvent.SignUp })
     }
 
     @Test
     fun appleSignInSuccessDoesNotLogSignUpEvent() = runTest {
         viewModel.onAction(SignUpAction.OnAppleSignInClick)
 
-        assertFalse(analytics.events.contains(AnalyticsEvent.SignUp))
+        assertFalse(analytics.events.any { it is AnalyticsEvent.SignUp })
     }
 
     // --- Helper ---

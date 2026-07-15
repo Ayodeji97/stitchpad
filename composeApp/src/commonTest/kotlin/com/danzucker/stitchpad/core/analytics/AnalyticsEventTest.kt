@@ -9,11 +9,31 @@ class AnalyticsEventTest {
 
     @Test
     fun parameterlessEventsUseSnakeCaseNamesAndNoParams() {
-        assertEquals("sign_up", AnalyticsEvent.SignUp.name)
         assertEquals("workshop_setup_completed", AnalyticsEvent.WorkshopSetupCompleted.name)
         assertEquals("customer_created", AnalyticsEvent.CustomerCreated.name)
         assertEquals("order_created", AnalyticsEvent.OrderCreated.name)
-        assertTrue(AnalyticsEvent.SignUp.params.isEmpty())
+        assertTrue(AnalyticsEvent.WorkshopSetupCompleted.params.isEmpty())
+    }
+
+    @Test
+    fun signUpCarriesMethodParam() {
+        val event = AnalyticsEvent.SignUp(method = "google")
+        assertEquals("sign_up", event.name)
+        assertEquals(mapOf("method" to "google"), event.params)
+    }
+
+    @Test
+    fun loginCarriesMethodParam() {
+        val event = AnalyticsEvent.Login(method = "email")
+        assertEquals("login", event.name)
+        assertEquals(mapOf("method" to "email"), event.params)
+    }
+
+    @Test
+    fun referralCodeAppliedCarriesSourceAndSurface() {
+        val event = AnalyticsEvent.ReferralCodeApplied(source = "manual", surface = "settings")
+        assertEquals("referral_code_applied", event.name)
+        assertEquals(mapOf("source" to "manual", "surface" to "settings"), event.params)
     }
 
     @Test
