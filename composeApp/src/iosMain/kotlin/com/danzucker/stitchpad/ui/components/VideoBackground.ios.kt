@@ -14,13 +14,10 @@ import platform.AVFoundation.AVQueuePlayer
 import platform.AVFoundation.muted
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
-import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
-import platform.QuartzCore.CATransaction
 import platform.UIKit.UIApplicationDidEnterBackgroundNotification
 import platform.UIKit.UIApplicationWillEnterForegroundNotification
-import platform.UIKit.UIView
 
 /**
  * iOS [VideoBackground] backed by [AVQueuePlayer] + [AVPlayerLooper] for seamless,
@@ -58,7 +55,7 @@ actual fun VideoBackground(uri: String, modifier: Modifier) {
             val playerLayer = AVPlayerLayer.playerLayerWithPlayer(playback.player).apply {
                 videoGravity = AVLayerVideoGravityResizeAspectFill
             }
-            VideoContainerView(playerLayer)
+            PlayerLayerContainerView(playerLayer)
         },
         modifier = modifier,
     )
@@ -87,28 +84,5 @@ private class VideoPlayback(uri: String) {
         looper.disableLooping()
         player.pause()
         player.removeAllItems()
-    }
-}
-
-/**
- * Hosts the [AVPlayerLayer] and keeps it sized to the view's bounds. Layer frames don't
- * auto-follow their host view, so we resync on every layout pass (actions disabled to
- * avoid an implicit resize animation).
- */
-@OptIn(ExperimentalForeignApi::class)
-private class VideoContainerView(
-    private val playerLayer: AVPlayerLayer,
-) : UIView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
-
-    init {
-        layer.addSublayer(playerLayer)
-    }
-
-    override fun layoutSubviews() {
-        super.layoutSubviews()
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        playerLayer.setFrame(bounds)
-        CATransaction.commit()
     }
 }
