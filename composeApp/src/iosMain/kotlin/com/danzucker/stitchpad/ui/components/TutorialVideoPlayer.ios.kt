@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import com.danzucker.stitchpad.core.logging.AppLogger
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -82,7 +83,8 @@ actual fun TutorialVideoPlayer(
     DisposableEffect(playback) {
         playback.play()
         // System-initiated pauses (backgrounding, calls, Siri) drop the rate silently; with no
-        // native controls the foreground hook is the automatic resume path (tap is the manual one).
+        // native controls the foreground hook is the automatic resume path (the overlay's play
+        // button is the manual one).
         val onForeground = NSNotificationCenter.defaultCenter.addObserverForName(
             name = UIApplicationWillEnterForegroundNotification,
             `object` = null,
@@ -124,6 +126,7 @@ actual fun TutorialVideoPlayer(
             UIKitView(
                 factory = { PlayerLayerContainerView(playback.playerLayer) },
                 modifier = Modifier.fillMaxSize(),
+                properties = UIKitInteropProperties(isInteractive = false, isNativeAccessibilityEnabled = false),
             )
             TutorialPlayerControls(
                 isPlaying = snapshot.isPlaying,
@@ -134,7 +137,9 @@ actual fun TutorialVideoPlayer(
                     snapshot = snapshot.copy(isPlaying = playback.isPlaying())
                 },
                 onSeekBy = { delta ->
-                    snapshot = snapshot.copy(positionSeconds = playback.seekBy(delta))
+                    snapshot = snapshot.copy(
+                        positionSeconds = playback.seekTo(snapshot.positionSeconds + delta),
+                    )
                 },
                 onSeekTo = { seconds ->
                     snapshot = snapshot.copy(positionSeconds = playback.seekTo(seconds))
@@ -196,8 +201,6 @@ private class TutorialPlayback(uri: String) {
         player.seekToTime(CMTimeMakeWithSeconds(clamped, preferredTimescale = 600))
         return clamped
     }
-
-    fun seekBy(deltaSeconds: Double): Double = seekTo(positionSeconds() + deltaSeconds)
 
     fun play() = player.play()
 

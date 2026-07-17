@@ -1718,6 +1718,7 @@
     <string name="tutorials_player_pause">Pause</string>
     <string name="tutorials_player_back_10">Back 10 seconds</string>
     <string name="tutorials_player_forward_10">Forward 10 seconds</string>
+    <string name="tutorials_player_toggle_controls">Show or hide playback controls</string>
     <string name="tutorials_hint_watch">Watch how it works</string>
     <string name="tutorials_hint_dismiss">Dismiss</string>
     <string name="tutorials_thumbnail_cd">Play tutorial</string>

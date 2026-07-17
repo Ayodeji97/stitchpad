@@ -47,6 +47,7 @@ import stitchpad.composeapp.generated.resources.tutorials_player_back_10
 import stitchpad.composeapp.generated.resources.tutorials_player_forward_10
 import stitchpad.composeapp.generated.resources.tutorials_player_pause
 import stitchpad.composeapp.generated.resources.tutorials_player_play
+import stitchpad.composeapp.generated.resources.tutorials_player_toggle_controls
 
 private const val AUTO_HIDE_DELAY_MS = 3_000L
 private const val SKIP_SECONDS = 10.0
@@ -92,6 +93,7 @@ fun TutorialPlayerControls(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                onClickLabel = stringResource(Res.string.tutorials_player_toggle_controls),
             ) { controlsVisible = !controlsVisible },
     ) {
         AnimatedVisibility(
