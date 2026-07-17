@@ -46,4 +46,34 @@ class PlaybackTimeFormatTest {
     fun negativeSeconds_showsPlaceholder() {
         assertEquals("--:--", formatPlaybackTime(-1.0))
     }
+
+    @Test
+    fun sanitizeDuration_keepsValidDuration() {
+        assertEquals(195.0, sanitizeDuration(195.0))
+    }
+
+    @Test
+    fun sanitizeDuration_nullStaysNull() {
+        assertEquals(null, sanitizeDuration(null))
+    }
+
+    @Test
+    fun sanitizeDuration_nanCollapsesToNull() {
+        assertEquals(null, sanitizeDuration(Double.NaN))
+    }
+
+    @Test
+    fun sanitizeDuration_infiniteCollapsesToNull() {
+        assertEquals(null, sanitizeDuration(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun sanitizeDuration_negativeCollapsesToNull() {
+        assertEquals(null, sanitizeDuration(-1.0))
+    }
+
+    @Test
+    fun sanitizeDuration_zeroCollapsesToNull() {
+        assertEquals(null, sanitizeDuration(0.0))
+    }
 }

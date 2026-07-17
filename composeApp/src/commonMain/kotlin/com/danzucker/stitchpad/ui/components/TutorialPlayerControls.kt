@@ -73,6 +73,7 @@ fun TutorialPlayerControls(
     onSeekTo: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val safeDurationSeconds = sanitizeDuration(durationSeconds)
     var controlsVisible by remember { mutableStateOf(true) }
     var dragSeconds by remember { mutableStateOf<Double?>(null) }
     var interactionNonce by remember { mutableIntStateOf(0) }
@@ -102,7 +103,7 @@ fun TutorialPlayerControls(
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))) {
                 TransportButtons(
                     isPlaying = isPlaying,
-                    seekEnabled = durationSeconds != null,
+                    seekEnabled = safeDurationSeconds != null,
                     onPlayPause = {
                         onPlayPause()
                         interactionNonce++
@@ -119,7 +120,7 @@ fun TutorialPlayerControls(
                 )
                 ScrubberRow(
                     positionSeconds = dragSeconds ?: positionSeconds,
-                    durationSeconds = durationSeconds,
+                    durationSeconds = safeDurationSeconds,
                     onDrag = { dragSeconds = it },
                     onDragFinished = {
                         dragSeconds?.let(onSeekTo)
@@ -207,6 +208,7 @@ private fun ScrubberRow(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
                 inactiveTrackColor = Color.White.copy(alpha = 0.38f),
+                disabledThumbColor = Color.White.copy(alpha = 0.24f),
                 disabledActiveTrackColor = Color.White.copy(alpha = 0.24f),
                 disabledInactiveTrackColor = Color.White.copy(alpha = 0.24f),
             ),
@@ -240,6 +242,15 @@ internal fun formatPlaybackTime(seconds: Double?): String {
     val paddedSecs = if (secs < 10) "0$secs" else secs.toString()
     return "$minutes:$paddedSecs"
 }
+
+/**
+ * Normalizes a player-reported duration for use as the scrubber's `valueRange` upper bound.
+ * A non-null but non-finite or non-positive value (a plausible transient from a native player)
+ * would otherwise flow straight into Material3's Slider and crash it; treat it the same as
+ * "duration not yet known" and collapse to null so the disabled-state UI covers it.
+ */
+internal fun sanitizeDuration(durationSeconds: Double?): Double? =
+    durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
 
 @Suppress("UnusedPrivateMember")
 @Preview
