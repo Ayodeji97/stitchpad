@@ -48,6 +48,7 @@ import stitchpad.composeapp.generated.resources.tutorials_player_forward_10
 import stitchpad.composeapp.generated.resources.tutorials_player_pause
 import stitchpad.composeapp.generated.resources.tutorials_player_play
 import stitchpad.composeapp.generated.resources.tutorials_player_toggle_controls
+import kotlin.math.abs
 
 private const val AUTO_HIDE_DELAY_MS = 3_000L
 private const val SKIP_SECONDS = 10.0
@@ -85,6 +86,12 @@ fun TutorialPlayerControls(
             delay(AUTO_HIDE_DELAY_MS)
             controlsVisible = false
         }
+    }
+
+    // Clip end and system-initiated pauses (calls, Siri) stop playback while the controls may
+    // be auto-hidden; reveal them so the replay/play affordance is never a hidden tap away.
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) controlsVisible = true
     }
 
     Box(
@@ -253,6 +260,21 @@ internal fun formatPlaybackTime(seconds: Double?): String {
  */
 internal fun sanitizeDuration(durationSeconds: Double?): Double? =
     durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
+
+private const val SEEK_SETTLE_TOLERANCE_SECONDS = 1.0
+private const val SEEK_SETTLE_MAX_POLL_TICKS = 6
+
+/**
+ * Whether an in-flight seek can hand position reporting back to the player. Seeks are async:
+ * until the player lands, it still reports the pre-seek position, and publishing that would
+ * snap the scrubber thumb back. The seek is settled once the player is within
+ * [SEEK_SETTLE_TOLERANCE_SECONDS] of the target — or after [SEEK_SETTLE_MAX_POLL_TICKS]
+ * status-poll ticks, so a seek that never converges (dead stream) can't pin the UI to the
+ * target forever.
+ */
+internal fun isSeekSettled(actualSeconds: Double, targetSeconds: Double, pollTicksElapsed: Int): Boolean =
+    abs(actualSeconds - targetSeconds) <= SEEK_SETTLE_TOLERANCE_SECONDS ||
+        pollTicksElapsed >= SEEK_SETTLE_MAX_POLL_TICKS
 
 @Suppress("UnusedPrivateMember")
 @Preview
