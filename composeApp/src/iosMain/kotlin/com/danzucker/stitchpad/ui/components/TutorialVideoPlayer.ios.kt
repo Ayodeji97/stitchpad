@@ -33,7 +33,6 @@ import platform.AVFoundation.rate
 import platform.AVFoundation.seekToTime
 import platform.AVFoundation.timeControlStatus
 import platform.CoreMedia.CMTimeGetSeconds
-import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
@@ -173,7 +172,10 @@ private class TutorialPlayback(uri: String) {
             name = AVPlayerItemDidPlayToEndTimeNotification,
             `object` = player.currentItem,
             queue = null,
-        ) { _ -> player.seekToTime(CMTimeMake(value = 0, timescale = 1)) }
+            // Through seekTo, not a raw seekToTime: the pending-seek bookkeeping must learn
+            // about the rewind, or a still-unsettled user seek near the end would keep the
+            // scrubber pinned there for up to the settle timeout after the clip restarts at 0.
+        ) { _ -> seekTo(0.0) }
     }
 
     fun hasFailed(): Boolean = player.currentItem?.status == AVPlayerItemStatusFailed

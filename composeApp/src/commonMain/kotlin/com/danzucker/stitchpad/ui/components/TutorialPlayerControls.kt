@@ -58,7 +58,9 @@ private const val SKIP_SECONDS = 10.0
  * bottom scrubber with elapsed/total time. Tap anywhere to toggle visibility; auto-hides after
  * [AUTO_HIDE_DELAY_MS] while playing (never while paused or mid-drag). While the scrubber is
  * dragged the thumb follows the finger and player position updates are ignored; [onSeekTo]
- * fires once on release. Until [durationSeconds] is known the scrubber and skips are disabled
+ * fires once on release. Whenever playback stops ([isPlaying] flips false — clip end, system
+ * pause) hidden controls reveal themselves so the replay/play affordance is always visible.
+ * Until [durationSeconds] is known the scrubber and skips are disabled
  * and time labels show a placeholder. Deliberately white-on-scrim in both color modes — the
  * video surface behind it is always black.
  *
