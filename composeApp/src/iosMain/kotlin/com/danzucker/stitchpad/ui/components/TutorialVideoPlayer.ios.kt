@@ -1,13 +1,18 @@
 package com.danzucker.stitchpad.ui.components
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import com.danzucker.stitchpad.core.logging.AppLogger
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -20,12 +25,16 @@ import platform.AVFoundation.AVPlayerItemStatusFailed
 import platform.AVFoundation.AVPlayerLayer
 import platform.AVFoundation.AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
 import platform.AVFoundation.currentItem
+import platform.AVFoundation.currentTime
+import platform.AVFoundation.duration
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
 import platform.AVFoundation.rate
 import platform.AVFoundation.seekToTime
 import platform.AVFoundation.timeControlStatus
+import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
+import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplicationWillEnterForegroundNotification
@@ -34,20 +43,29 @@ import kotlin.coroutines.coroutineContext
 private const val TAG = "TutorialVideoPlayer"
 private const val STATUS_POLL_MS = 500L
 
+/** UI-facing playback snapshot published by the status poll for the controls overlay. */
+private data class PlayerSnapshot(
+    val isPlaying: Boolean = false,
+    val positionSeconds: Double = 0.0,
+    val durationSeconds: Double? = null,
+)
+
 /**
  * iOS [TutorialVideoPlayer] backed by a bare [AVPlayerLayer] in a [UIKitView]-hosted
  * [PlayerLayerContainerView] — the same hosting pattern as [VideoBackground], the one
  * native-video path proven to render inside this app's Compose tree. Plays with sound;
- * tapping the video toggles play/pause; a finished clip rewinds to the start so a tap
- * replays it; returning from the background resumes playback. Reports buffering via
- * [onLoadingChanged] (true whenever the player is waiting to play, so stalls re-show the
- * caller's loading indicator) and unrecoverable item failures via [onPlaybackError].
+ * a [TutorialPlayerControls] overlay provides play/pause, ±10s skip, and a scrubber; a
+ * finished clip rewinds to the start (paused) so play replays it; returning from the
+ * background resumes playback. Reports buffering via [onLoadingChanged] (true whenever
+ * the player is waiting to play, so stalls re-show the caller's loading indicator) and
+ * unrecoverable item failures via [onPlaybackError].
  *
  * Deliberately NOT `AVPlayerViewController`: hosted through Compose interop its video surface
  * never renders (black screen, audio playing) — neither via `UIKitViewController` interop nor
  * with its view embedded in a `UIKitView`, likely because its internal player layer activates
- * on view-controller-containment lifecycle callbacks that interop never delivers. The cost is
- * no native scrubber/caption controls; custom Compose controls are the follow-up if needed.
+ * on view-controller-containment lifecycle callbacks that interop never delivers. Transport
+ * controls are the shared [TutorialPlayerControls] Compose overlay layered above the interop
+ * surface.
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -60,11 +78,13 @@ actual fun TutorialVideoPlayer(
     val currentOnLoadingChanged by rememberUpdatedState(onLoadingChanged)
     val currentOnPlaybackError by rememberUpdatedState(onPlaybackError)
     val playback = remember(uri) { TutorialPlayback(uri) }
+    var snapshot by remember(playback) { mutableStateOf(PlayerSnapshot()) }
 
     DisposableEffect(playback) {
         playback.play()
         // System-initiated pauses (backgrounding, calls, Siri) drop the rate silently; with no
-        // native controls the foreground hook is the automatic resume path (tap is the manual one).
+        // native controls the foreground hook is the automatic resume path (the overlay's play
+        // button is the manual one).
         val onForeground = NSNotificationCenter.defaultCenter.addObserverForName(
             name = UIApplicationWillEnterForegroundNotification,
             `object` = null,
@@ -90,6 +110,11 @@ actual fun TutorialVideoPlayer(
                 break
             }
             currentOnLoadingChanged(playback.isWaitingToPlay())
+            snapshot = PlayerSnapshot(
+                isPlaying = playback.isPlaying(),
+                positionSeconds = playback.positionSeconds(),
+                durationSeconds = playback.durationSeconds(),
+            )
             delay(STATUS_POLL_MS)
         }
     }
@@ -97,12 +122,31 @@ actual fun TutorialVideoPlayer(
     // key(playback): the interop factory runs once per node and captures the layer, so a new
     // uri (hence new playback) must rebuild the node or the old player would stay on screen.
     key(playback) {
-        UIKitView(
-            factory = {
-                PlayerLayerContainerView(playback.playerLayer) { playback.togglePlayPause() }
-            },
-            modifier = modifier,
-        )
+        Box(modifier = modifier) {
+            UIKitView(
+                factory = { PlayerLayerContainerView(playback.playerLayer) },
+                modifier = Modifier.fillMaxSize(),
+                properties = UIKitInteropProperties(isInteractive = false, isNativeAccessibilityEnabled = false),
+            )
+            TutorialPlayerControls(
+                isPlaying = snapshot.isPlaying,
+                positionSeconds = snapshot.positionSeconds,
+                durationSeconds = snapshot.durationSeconds,
+                onPlayPause = {
+                    playback.togglePlayPause()
+                    snapshot = snapshot.copy(isPlaying = playback.isPlaying())
+                },
+                onSeekBy = { delta ->
+                    snapshot = snapshot.copy(
+                        positionSeconds = playback.seekTo(snapshot.positionSeconds + delta),
+                    )
+                },
+                onSeekTo = { seconds ->
+                    snapshot = snapshot.copy(positionSeconds = playback.seekTo(seconds))
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
@@ -134,6 +178,29 @@ private class TutorialPlayback(uri: String) {
 
     fun isWaitingToPlay(): Boolean =
         player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
+
+    fun isPlaying(): Boolean = player.rate > 0f
+
+    fun positionSeconds(): Double = CMTimeGetSeconds(player.currentTime())
+
+    /** Item duration in seconds, or null while unknown (still resolving / indefinite). */
+    fun durationSeconds(): Double? {
+        val item = player.currentItem ?: return null
+        val seconds = CMTimeGetSeconds(item.duration)
+        return seconds.takeIf { it.isFinite() && it > 0.0 }
+    }
+
+    /** Seeks to [seconds] clamped to the playable range; returns the clamped target. */
+    fun seekTo(seconds: Double): Double {
+        val upperBound = durationSeconds()
+        val clamped = if (upperBound != null) {
+            seconds.coerceIn(0.0, upperBound)
+        } else {
+            seconds.coerceAtLeast(0.0)
+        }
+        player.seekToTime(CMTimeMakeWithSeconds(clamped, preferredTimescale = 600))
+        return clamped
+    }
 
     fun play() = player.play()
 
