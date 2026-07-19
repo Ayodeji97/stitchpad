@@ -16,10 +16,11 @@ data class DebugMenuState(
     val smartUsage: SmartUsageDialogState? = null,
     val welcomeDaysLeft: WelcomeDaysLeftDialogState? = null,
     val referralAttribute: ReferralAttributeDialogState? = null,
-    // Optimistic / session-scoped: the GitLive SDK persists the real value internally
-    // but exposes no getter, so we default to true (enabled) on every cold launch and
-    // track what the user toggled this session. SDK persistence governs actual behavior.
-    val analyticsCollectionEnabled: Boolean = true,
+    // Optimistic / session-scoped: the GitLive SDK exposes no getter, so this tracks
+    // what the user toggled this session. Debug builds disable collection at every
+    // app launch (StitchPadApplication / MainViewController), so the launch state
+    // is deterministically OFF and the display defaults to match.
+    val analyticsCollectionEnabled: Boolean = false,
 )
 
 data class WelcomeDaysLeftDialogState(

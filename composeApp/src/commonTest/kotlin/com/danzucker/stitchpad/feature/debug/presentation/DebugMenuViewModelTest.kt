@@ -575,8 +575,9 @@ class DebugMenuViewModelTest {
         val fakeAnalytics = FakeAnalyticsDebugActions()
         val vm = createViewModel(analyticsActions = fakeAnalytics)
 
-        // Default state: enabled
-        assertTrue(vm.state.first().analyticsCollectionEnabled)
+        // Default state: OFF — debug builds disable collection at app launch, and the
+        // menu's initial display must match that reality.
+        assertFalse(vm.state.first().analyticsCollectionEnabled)
 
         vm.onAction(DebugMenuAction.ToggleAnalyticsCollection(false))
 

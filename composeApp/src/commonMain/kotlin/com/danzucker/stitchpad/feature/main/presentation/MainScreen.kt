@@ -63,6 +63,7 @@ import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRo
 import com.danzucker.stitchpad.feature.tutorials.presentation.library.HelpTutorialsRoot
 import com.danzucker.stitchpad.feature.tutorials.presentation.player.TutorialPlayerRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
+import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
 import com.danzucker.stitchpad.navigation.ChangeEmailRoute
 import com.danzucker.stitchpad.navigation.ChangePasswordRoute
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
@@ -104,6 +105,10 @@ fun MainRoot(
     val innerNavController = rememberNavController()
     val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    // The inner tab host is its own back stack — the root NavHost's tracking effect
+    // never sees it, so without this hook everything past "Main" is invisible in GA4.
+    ScreenViewTrackingEffect(innerNavController)
 
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
     val deepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()

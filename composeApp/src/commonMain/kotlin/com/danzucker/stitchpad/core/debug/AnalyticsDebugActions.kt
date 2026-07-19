@@ -16,7 +16,9 @@ private const val TAG = "AnalyticsDebugActions"
  *  - Android: `adb shell setprop debug.firebase.analytics.app com.danzucker.stitchpad`
  *  - iOS: add `-FIRAnalyticsDebugEnabled` launch argument in the Xcode scheme.
  *
- * Release builds never expose this and always collect (Firebase default).
+ * Debug builds disable collection at every app launch (StitchPadApplication /
+ * MainViewController), so this toggle's job is to deliberately RE-ENABLE it for a
+ * DebugView session. Release builds never expose this and always collect.
  */
 interface AnalyticsDebugActions {
     fun setAnalyticsEnabled(enabled: Boolean)
