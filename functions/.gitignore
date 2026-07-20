@@ -4,5 +4,8 @@ lib/
 .firebase/
 .env
 .env.*
+# Committed template of the non-secret env vars (public callback URLs). Real
+# values and secrets stay in the ignored .env / Secret Manager.
+!.env.example
 .runtimeconfig.json
 *.key.json
