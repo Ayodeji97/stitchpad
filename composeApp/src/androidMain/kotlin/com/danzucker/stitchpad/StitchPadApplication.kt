@@ -18,12 +18,12 @@ class StitchPadApplication : Application() {
         // Disable Crashlytics' built-in uncaught-exception handler for debug builds so
         // local crashes don't pollute the production dashboard.
         FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = !isDebuggable
-        if (isDebuggable) {
-            // Same for GA4: debug/test devices must not pollute production funnels or
-            // BigQuery. Re-applied every launch (the SDK persists the flag); the debug
-            // menu's analytics toggle re-enables collection for a DebugView session.
-            FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(false)
-        }
+        // Same for GA4: debug/test devices must not pollute production funnels or
+        // BigQuery. Set explicitly BOTH ways every launch — the SDK persists this flag
+        // and debug/release share one applicationId, so a release build installed over
+        // debug data would otherwise inherit the disabled flag. The debug menu's
+        // analytics toggle re-enables collection for a DebugView session.
+        FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(!isDebuggable)
         val crashReporter = AndroidCrashReporter()
         AppLogger.init(
             crashReporter = if (isDebuggable) NoOpCrashReporter else crashReporter,

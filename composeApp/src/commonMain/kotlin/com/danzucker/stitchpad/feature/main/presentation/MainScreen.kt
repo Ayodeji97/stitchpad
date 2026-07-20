@@ -63,7 +63,6 @@ import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRo
 import com.danzucker.stitchpad.feature.tutorials.presentation.library.HelpTutorialsRoot
 import com.danzucker.stitchpad.feature.tutorials.presentation.player.TutorialPlayerRoot
 import com.danzucker.stitchpad.navigation.AddCustomerFirstRoute
-import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
 import com.danzucker.stitchpad.navigation.ChangeEmailRoute
 import com.danzucker.stitchpad.navigation.ChangePasswordRoute
 import com.danzucker.stitchpad.navigation.CustomerDetailRoute
@@ -87,6 +86,7 @@ import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.RedeemGiftRoute
 import com.danzucker.stitchpad.navigation.ReferralCodeRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
+import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
