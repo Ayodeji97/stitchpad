@@ -68,23 +68,57 @@ internal object SeedFixtures {
 
     // ── Measurement fixture ──────────────────────────────────────────────────
 
-    /** Measurement for the first four seeded customers (all female). */
-    fun measurementsFor(customer: Customer, now: Long): Measurement = Measurement(
-        id = "seed-measurement-${customer.id.substringAfterLast('-')}",
-        customerId = customer.id,
-        gender = CustomerGender.FEMALE,
-        fields = mapOf(
-            "Bust" to 36.0,
-            "Waist" to 28.0,
-            "Hip" to 38.0,
-            "Shoulder Width" to 15.0,
-            "Arm Length" to 22.5,
-        ),
-        unit = MeasurementUnit.INCHES,
-        notes = null,
-        dateTaken = now,
-        createdAt = now,
-    )
+    /**
+     * Measurement for the first four seeded customers (all female).
+     *
+     * Field keys MUST be [com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate]
+     * keys ("bust_circumference"), not display labels ("Bust") — the detail and
+     * preview screens look values up by key and silently drop anything that
+     * matches neither a template field nor a registered custom field. Every
+     * FEMALE template field is filled so all three sections render.
+     */
+    fun measurementsFor(customer: Customer, now: Long): Measurement {
+        val n = customer.id.substringAfterLast('-').toIntOrNull() ?: 1
+        // Nudge the girths per customer so seeded records aren't four identical
+        // copies; lengths stay fixed so the numbers still read as one body type.
+        val girth = (n - 1) * 0.5
+        return Measurement(
+            id = "seed-measurement-$n",
+            customerId = customer.id,
+            gender = CustomerGender.FEMALE,
+            name = "Owambe fitting",
+            fields = mapOf(
+                // section_upper_body
+                "shoulder_width" to 15.5,
+                "bust_circumference" to 38.0 + girth,
+                "bust_point" to 10.5,
+                "shoulder_to_underbust" to 12.0,
+                "bust_span" to 7.5,
+                "waist" to 30.0 + girth,
+                "neck_circumference" to 14.0,
+                "underbust_circumference" to 32.0 + girth,
+                // section_body_lengths
+                "shoulder_to_waist" to 16.0,
+                "hip_circumference" to 40.0 + girth,
+                "full_length_gown" to 58.0,
+                "sleeve_length" to 22.0,
+                "wrist_circumference" to 6.5,
+                "nape_to_waist" to 16.5,
+                "full_front_length" to 24.0,
+                "arm_length" to 23.0,
+                // section_trouser
+                "trouser_waist" to 30.0 + girth,
+                "trouser_length" to 40.0,
+                "trouser_hip" to 40.0 + girth,
+                "thigh_circumference" to 24.0 + girth,
+                "inseam" to 30.0,
+            ),
+            unit = MeasurementUnit.INCHES,
+            notes = "Prefers a slightly loose sleeve. Add 1in ease at the bust.",
+            dateTaken = now,
+            createdAt = now,
+        )
+    }
 
     // ── Order fixtures ───────────────────────────────────────────────────────
 
@@ -249,15 +283,24 @@ internal object SeedFixtures {
         }
     }
 
-    /** A simple FEMALE measurement attached to a bulk demo customer. */
+    /**
+     * A simple FEMALE measurement attached to a bulk demo customer. Only the
+     * essential upper-body/length fields are filled — bulk seeding exists to
+     * exercise list volume, not to showcase a full body profile. Keys are
+     * BodyProfileTemplate keys; see [measurementsFor] for why that matters.
+     */
     fun bulkMeasurementFor(customer: Customer, now: Long): Measurement = Measurement(
         id = "seed-bulk-measurement-${customer.id.substringAfterLast('-')}",
         customerId = customer.id,
         gender = CustomerGender.FEMALE,
+        name = "Everyday fit",
         fields = mapOf(
-            "Bust" to 34.0,
-            "Waist" to 26.0,
-            "Hip" to 36.0,
+            "shoulder_width" to 14.5,
+            "bust_circumference" to 34.0,
+            "waist" to 26.0,
+            "hip_circumference" to 36.0,
+            "full_length_gown" to 55.0,
+            "sleeve_length" to 21.0,
         ),
         unit = MeasurementUnit.INCHES,
         notes = null,
