@@ -264,6 +264,14 @@ ORDER BY upgrades DESC;
 
 ### 2.6 Top screens + screen flow
 
+**Which param:** the app logs `screen_view` with a `screen_name` param
+(`FirebaseAnalyticsTracker`), but Firebase promotes that reserved param into
+**`firebase_screen`** in the export — so query `firebase_screen`, NOT `screen_name`
+(the latter is always NULL in BigQuery; verified against production). Firebase also
+auto-collects its OWN nameless `screen_view` events (one per Activity/UIViewController,
+so `firebase_screen` is NULL and `firebase_screen_class` is `MainActivity` /
+`ComposeHostingViewController`) — always filter `screen IS NOT NULL` to drop those.
+
 ```sql
 -- Most-viewed screens
 SELECT
@@ -274,6 +282,7 @@ FROM `PROJECT.analytics_PROPERTYID.events_*`
 WHERE _TABLE_SUFFIX BETWEEN '20260601' AND '20260630'
   AND event_name = 'screen_view'
 GROUP BY screen
+HAVING screen IS NOT NULL   -- drop Firebase's auto-collected nameless screen_views
 ORDER BY views DESC;
 ```
 
@@ -287,6 +296,7 @@ WITH views AS (
   FROM `PROJECT.analytics_PROPERTYID.events_*`
   WHERE _TABLE_SUFFIX BETWEEN '20260601' AND '20260630'
     AND event_name = 'screen_view'
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'firebase_screen') IS NOT NULL
 ),
 seq AS (
   SELECT
