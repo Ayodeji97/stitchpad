@@ -16,7 +16,7 @@ click together once, and SQL you run once BigQuery export is on.
 | `order_created` | — | an order was created (not edited) |
 | `ai_feature_used` | `feature` | an AI feature ran (e.g. `draft_message`) |
 | `upgrade_completed` | `tier` | tier rose to `pro` / `atelier` |
-| `screen_view` | `screen_name` | every destination (auto-logged) |
+| `screen_view` | `firebase_screen` (standard) | every destination incl. in-app tabs (from 1.2) |
 
 User properties (on every event, for segmentation): `subscription_tier` (`free`/`pro`/`atelier`),
 plus GA4's built-in `platform` (`ANDROID`/`IOS`).
@@ -31,8 +31,12 @@ Identity: `user_id` = Firebase uid (set on login); `user_pseudo_id` = per-instal
 **GA linked:** Google Analytics is enabled on the Firebase project `stitchpad-30607`
 (Project settings → Integrations → Google Analytics). No re-download of the Android
 `google-services.json` was needed; the iOS `GoogleService-Info.plist` was refreshed.
-(The iOS `IS_ANALYTICS_ENABLED=false` key is legacy/ignored — not a blocker; collection
-defaults on and is gated by the in-app debug toggle.)
+(The iOS `IS_ANALYTICS_ENABLED=false` key is legacy/ignored — not a blocker.
+Since the analytics-hygiene change: DEBUG builds disable collection at every launch
+on both platforms; the debug menu's analytics toggle re-enables it for a DebugView
+session. Release builds always collect. A "Developer traffic" data filter is also
+Active in GA4 (registered 2026-07-19), excluding debug-mode events from console
+reports — BigQuery still receives them.)
 
 **BigQuery export linking recipe** (Project settings → Integrations → BigQuery → Link):
 - **Region: `europe-west1`** — matches Firestore for EU data residency. This is the one
@@ -52,7 +56,6 @@ so the params appear as selectable dimensions in explorations (Part 1):
 
 | Dimension name | Scope | Source param/property |
 |---|---|---|
-| Screen name | Event | `screen_name` |
 | AI feature | Event | `feature` |
 | Upgrade tier | Event | `tier` |
 | Subscription tier | **User** | `subscription_tier` |
@@ -60,12 +63,17 @@ so the params appear as selectable dimensions in explorations (Part 1):
 | Referral source † | Event | `source` |
 | Referral surface † | Event | `surface` |
 
-† Added with the 1.1.0 events (`sign_up`/`login` `method`, `referral_code_applied`) — **NOT yet
-registered**; register at the 1.1.0 rollout, then delete this note. Until registered they are
-queryable in BigQuery but show `(not set)` as console dimensions.
+† Added with the 1.1.0 events (`sign_up`/`login` `method`, `referral_code_applied`) —
+registered in the console 2026-07-19. (`surface` may lag: GA4's parameter picker only
+lists params it has received, and no `referral_code_applied` event had fired yet;
+register it once the first one lands.) Dimensions populate from registration onward;
+BigQuery has the raw params regardless.
 
-(Note: GA4's built-in "Screen name" dimension reads the SDK's auto `firebase_screen`, not our
-clean `screen_name` param — that's why `screen_name` is registered separately. Raw params are
+(CORRECTION 2026-07-19: screens land in the SDK-standard `firebase_screen` param — the
+custom `screen_name` param never shipped, so use GA4's BUILT-IN "Screen name" dimension
+(no custom registration needed; delete the stale one if present). Also: before the
+1.2 analytics-hygiene change, only auth/onboarding screens + "Main" were tracked — the
+inner tab host was invisible. Raw params are
 in Explorations + BigQuery regardless of registration; this just makes them UI-selectable.)
 
 ---
@@ -105,7 +113,7 @@ Duplicate 1.1. In **Segments → +New segment → User segment**, add condition
 
 **Explore → Path exploration.** Technique: *Path exploration*.
 - **Starting point → Event name → `session_start`** (or pick a specific `screen_view`).
-- **Node type → `screen_name`** (Event-scoped custom dimension — see "Register custom
+- **Node type → Screen name** (built-in dimension, reads `firebase_screen` — see "Register custom
   dimensions" below; until registered, use the param via BigQuery).
 - Expand nodes to see "after screen X, where do users go." Good for discovering unexpected
   exits (e.g. most users leave right after `WorkshopSetup`).
@@ -120,7 +128,6 @@ Duplicate 1.1. In **Segments → +New segment → User segment**, add condition
 ### 1.5 Register custom dimensions (one-time, needed for 1.3 in console)
 
 **Admin → Custom definitions → Create custom dimensions:**
-- `screen_name` — scope Event, event parameter `screen_name`
 - `feature` — scope Event, event parameter `feature`
 - `tier` — scope Event, event parameter `tier`
 - `subscription_tier` — scope User, user property `subscription_tier`
@@ -257,16 +264,25 @@ ORDER BY upgrades DESC;
 
 ### 2.6 Top screens + screen flow
 
+**Which param:** the app logs `screen_view` with a `screen_name` param
+(`FirebaseAnalyticsTracker`), but Firebase promotes that reserved param into
+**`firebase_screen`** in the export — so query `firebase_screen`, NOT `screen_name`
+(the latter is always NULL in BigQuery; verified against production). Firebase also
+auto-collects its OWN nameless `screen_view` events (one per Activity/UIViewController,
+so `firebase_screen` is NULL and `firebase_screen_class` is `MainActivity` /
+`ComposeHostingViewController`) — always filter `screen IS NOT NULL` to drop those.
+
 ```sql
 -- Most-viewed screens
 SELECT
-  (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'screen_name') AS screen,
+  (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'firebase_screen') AS screen,
   COUNT(*)                       AS views,
   COUNT(DISTINCT user_pseudo_id) AS users
 FROM `PROJECT.analytics_PROPERTYID.events_*`
 WHERE _TABLE_SUFFIX BETWEEN '20260601' AND '20260630'
   AND event_name = 'screen_view'
 GROUP BY screen
+HAVING screen IS NOT NULL   -- drop Firebase's auto-collected nameless screen_views
 ORDER BY views DESC;
 ```
 
@@ -276,10 +292,11 @@ WITH views AS (
   SELECT
     user_pseudo_id,
     event_timestamp,
-    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'screen_name') AS screen
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'firebase_screen') AS screen
   FROM `PROJECT.analytics_PROPERTYID.events_*`
   WHERE _TABLE_SUFFIX BETWEEN '20260601' AND '20260630'
     AND event_name = 'screen_view'
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'firebase_screen') IS NOT NULL
 ),
 seq AS (
   SELECT

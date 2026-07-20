@@ -111,9 +111,13 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
  * Logs a screen_view for every destination the user lands on. One hook covers every
  * route — no per-screen code. Keys on the route string so re-landing the same screen
  * (e.g. tab reselects to the same destination) does not spam duplicates.
+ *
+ * Attach to EVERY NavController that owns destinations: the root host below AND
+ * MainScreen's inner tab host — the inner controller is a separate back stack the
+ * root observer never sees (pre-1.2 the app was analytically blind past "Main").
  */
 @Composable
-private fun ScreenViewTrackingEffect(navController: NavHostController) {
+internal fun ScreenViewTrackingEffect(navController: NavHostController) {
     val analytics: Analytics = koinInject()
     val currentEntry by navController.currentBackStackEntryAsState()
     val route = currentEntry?.destination?.route
