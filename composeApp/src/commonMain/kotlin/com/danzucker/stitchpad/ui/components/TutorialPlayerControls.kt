@@ -48,6 +48,7 @@ import stitchpad.composeapp.generated.resources.tutorials_player_forward_10
 import stitchpad.composeapp.generated.resources.tutorials_player_pause
 import stitchpad.composeapp.generated.resources.tutorials_player_play
 import stitchpad.composeapp.generated.resources.tutorials_player_toggle_controls
+import kotlin.math.abs
 
 private const val AUTO_HIDE_DELAY_MS = 3_000L
 private const val SKIP_SECONDS = 10.0
@@ -57,7 +58,9 @@ private const val SKIP_SECONDS = 10.0
  * bottom scrubber with elapsed/total time. Tap anywhere to toggle visibility; auto-hides after
  * [AUTO_HIDE_DELAY_MS] while playing (never while paused or mid-drag). While the scrubber is
  * dragged the thumb follows the finger and player position updates are ignored; [onSeekTo]
- * fires once on release. Until [durationSeconds] is known the scrubber and skips are disabled
+ * fires once on release. Whenever playback stops ([isPlaying] flips false — clip end, system
+ * pause) hidden controls reveal themselves so the replay/play affordance is always visible.
+ * Until [durationSeconds] is known the scrubber and skips are disabled
  * and time labels show a placeholder. Deliberately white-on-scrim in both color modes — the
  * video surface behind it is always black.
  *
@@ -85,6 +88,12 @@ fun TutorialPlayerControls(
             delay(AUTO_HIDE_DELAY_MS)
             controlsVisible = false
         }
+    }
+
+    // Clip end and system-initiated pauses (calls, Siri) stop playback while the controls may
+    // be auto-hidden; reveal them so the replay/play affordance is never a hidden tap away.
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) controlsVisible = true
     }
 
     Box(
@@ -253,6 +262,21 @@ internal fun formatPlaybackTime(seconds: Double?): String {
  */
 internal fun sanitizeDuration(durationSeconds: Double?): Double? =
     durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
+
+private const val SEEK_SETTLE_TOLERANCE_SECONDS = 1.0
+private const val SEEK_SETTLE_MAX_POLL_TICKS = 6
+
+/**
+ * Whether an in-flight seek can hand position reporting back to the player. Seeks are async:
+ * until the player lands, it still reports the pre-seek position, and publishing that would
+ * snap the scrubber thumb back. The seek is settled once the player is within
+ * [SEEK_SETTLE_TOLERANCE_SECONDS] of the target — or after [SEEK_SETTLE_MAX_POLL_TICKS]
+ * status-poll ticks, so a seek that never converges (dead stream) can't pin the UI to the
+ * target forever.
+ */
+internal fun isSeekSettled(actualSeconds: Double, targetSeconds: Double, pollTicksElapsed: Int): Boolean =
+    abs(actualSeconds - targetSeconds) <= SEEK_SETTLE_TOLERANCE_SECONDS ||
+        pollTicksElapsed >= SEEK_SETTLE_MAX_POLL_TICKS
 
 @Suppress("UnusedPrivateMember")
 @Preview

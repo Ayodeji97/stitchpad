@@ -33,7 +33,6 @@ import platform.AVFoundation.rate
 import platform.AVFoundation.seekToTime
 import platform.AVFoundation.timeControlStatus
 import platform.CoreMedia.CMTimeGetSeconds
-import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
@@ -112,7 +111,7 @@ actual fun TutorialVideoPlayer(
             currentOnLoadingChanged(playback.isWaitingToPlay())
             snapshot = PlayerSnapshot(
                 isPlaying = playback.isPlaying(),
-                positionSeconds = playback.positionSeconds(),
+                positionSeconds = playback.uiPositionSeconds(),
                 durationSeconds = playback.durationSeconds(),
             )
             delay(STATUS_POLL_MS)
@@ -160,6 +159,8 @@ private class TutorialPlayback(uri: String) {
     val player: AVPlayer
     val playerLayer: AVPlayerLayer
     private var endObserver: Any? = null
+    private var pendingSeekTargetSeconds: Double? = null
+    private var pendingSeekPollTicks = 0
 
     init {
         val url = NSURL.URLWithString(uri) ?: NSURL.fileURLWithPath(uri.removePrefix("file://"))
@@ -171,7 +172,10 @@ private class TutorialPlayback(uri: String) {
             name = AVPlayerItemDidPlayToEndTimeNotification,
             `object` = player.currentItem,
             queue = null,
-        ) { _ -> player.seekToTime(CMTimeMake(value = 0, timescale = 1)) }
+            // Through seekTo, not a raw seekToTime: the pending-seek bookkeeping must learn
+            // about the rewind, or a still-unsettled user seek near the end would keep the
+            // scrubber pinned there for up to the settle timeout after the clip restarts at 0.
+        ) { _ -> seekTo(0.0) }
     }
 
     fun hasFailed(): Boolean = player.currentItem?.status == AVPlayerItemStatusFailed
@@ -198,8 +202,28 @@ private class TutorialPlayback(uri: String) {
         } else {
             seconds.coerceAtLeast(0.0)
         }
+        pendingSeekTargetSeconds = clamped
+        pendingSeekPollTicks = 0
         player.seekToTime(CMTimeMakeWithSeconds(clamped, preferredTimescale = 600))
         return clamped
+    }
+
+    /**
+     * Position for the UI snapshot. While a seek is in flight the async player still reports
+     * the pre-seek position, and publishing that would snap the scrubber thumb back; keep
+     * answering with the seek target until [isSeekSettled] hands reporting back to the player.
+     * Call once per status-poll tick — it advances the settle-timeout counter.
+     */
+    fun uiPositionSeconds(): Double {
+        val target = pendingSeekTargetSeconds ?: return positionSeconds()
+        val actual = positionSeconds()
+        pendingSeekPollTicks++
+        return if (isSeekSettled(actual, target, pendingSeekPollTicks)) {
+            pendingSeekTargetSeconds = null
+            actual
+        } else {
+            target
+        }
     }
 
     fun play() = player.play()
