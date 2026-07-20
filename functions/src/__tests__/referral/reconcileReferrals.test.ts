@@ -3,6 +3,7 @@ import {
   reconcileReferralsHandler,
   gradeReferral,
   computeActiveDayKeys,
+  ratchetObservedDayKeys,
 } from '../../referral/reconcileReferrals';
 import { HOLD_WINDOW_DAYS, DAY_MS } from '../../referral/referralConstants';
 
@@ -132,6 +133,130 @@ describe('computeActiveDayKeys', () => {
 
   it('ignores non-finite timestamps', () => {
     expect(computeActiveDayKeys([NaN, undefined as any, SIGNUP + DAY_MS], SIGNUP, WINDOW_END)).toHaveLength(1);
+  });
+});
+
+// ── ratchetObservedDayKeys ───────────────────────────────────────────────────
+
+describe('ratchetObservedDayKeys', () => {
+  // Convenience: every field explicit, so each test overrides only what it exercises.
+  const call = (over: Partial<Parameters<typeof ratchetObservedDayKeys>[0]> = {}) =>
+    ratchetObservedDayKeys({
+      rawKeys: [],
+      observedKeys: [],
+      priorActiveKeys: [],
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-02',
+      windowStartDateKey: '2026-07-01',
+      ...over,
+    });
+
+  it('credits one completed day per run for an honest user', () => {
+    // Run on 07-02 sees 07-01 activity.
+    const r1 = call({ rawKeys: ['2026-07-01'], observedKeys: [], lastRunDateKey: '2026-07-01', runDateKey: '2026-07-02' });
+    expect(r1.observedDayKeys).toEqual(['2026-07-01']);
+    expect(r1.newlyCredited).toEqual(['2026-07-01']);
+
+    // Run on 07-03 sees 07-02 activity; 07-01 already observed.
+    const r2 = call({
+      rawKeys: ['2026-07-01', '2026-07-02'],
+      observedKeys: r1.observedDayKeys,
+      lastRunDateKey: '2026-07-02',
+      runDateKey: '2026-07-03',
+    });
+    expect(r2.observedDayKeys).toEqual(['2026-07-01', '2026-07-02']);
+    expect(r2.newlyCredited).toEqual(['2026-07-02']);
+  });
+
+  it('credits nothing on the first run for a burst of future-dated keys', () => {
+    // The attack: one session writing createdAt = +0/+1/+2/+3 days.
+    const r = call({
+      rawKeys: ['2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05'],
+      observedKeys: [],
+      lastRunDateKey: '2026-07-02',
+      runDateKey: '2026-07-02',
+    });
+    expect(r.observedDayKeys).toEqual([]);
+    expect(r.newlyCredited).toEqual([]);
+    expect(r.futureDated).toBe(true);
+  });
+
+  it('flags future-dated keys on every run where they are present', () => {
+    const r = call({ rawKeys: ['2026-07-09'], runDateKey: '2026-07-03' });
+    expect(r.futureDated).toBe(true);
+    expect(r.newlyCredited).toEqual([]);
+  });
+
+  it('does not credit a backdated key older than the last run', () => {
+    // 06-28 should have been seen by the 07-01 run. Appearing now means backdating.
+    const r = call({
+      rawKeys: ['2026-06-28'],
+      observedKeys: [],
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-02',
+    });
+    expect(r.observedDayKeys).toEqual([]);
+    expect(r.newlyCredited).toEqual([]);
+    expect(r.futureDated).toBe(false);
+  });
+
+  it('defers a key equal to the run date to the next run', () => {
+    const r1 = call({ rawKeys: ['2026-07-02'], lastRunDateKey: '2026-07-01', runDateKey: '2026-07-02' });
+    expect(r1.newlyCredited).toEqual([]);
+
+    const r2 = call({
+      rawKeys: ['2026-07-02'],
+      observedKeys: r1.observedDayKeys,
+      lastRunDateKey: '2026-07-02',
+      runDateKey: '2026-07-03',
+    });
+    expect(r2.newlyCredited).toEqual(['2026-07-02']);
+  });
+
+  it('credits every completed day in the gap after a grader outage', () => {
+    // Last run 07-01, next run 07-05: 07-02..07-04 are all completed and unseen.
+    const r = call({
+      rawKeys: ['2026-07-02', '2026-07-03', '2026-07-04'],
+      observedKeys: [],
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-05',
+    });
+    expect(r.observedDayKeys).toEqual(['2026-07-02', '2026-07-03', '2026-07-04']);
+  });
+
+  it('falls back to the window start when there is no prior run', () => {
+    const r = call({
+      rawKeys: ['2026-07-01'],
+      observedKeys: [],
+      lastRunDateKey: undefined,
+      runDateKey: '2026-07-02',
+      windowStartDateKey: '2026-07-01',
+    });
+    expect(r.observedDayKeys).toEqual(['2026-07-01']);
+  });
+
+  it('seeds from activeDayKeys for an in-flight referral instead of zeroing it', () => {
+    // Migration: graded before the ratchet shipped, so observedKeys is absent.
+    const r = call({
+      rawKeys: ['2026-07-01', '2026-07-02'],
+      observedKeys: undefined,
+      priorActiveKeys: ['2026-07-01', '2026-07-02'],
+      lastRunDateKey: undefined,
+      runDateKey: '2026-07-03',
+    });
+    expect(r.observedDayKeys).toEqual(['2026-07-01', '2026-07-02']);
+    expect(r.newlyCredited).toEqual([]);
+  });
+
+  it('never shrinks the observed set', () => {
+    // Raw keys vanish (e.g. the user deleted the customers) — observed stands.
+    const r = call({
+      rawKeys: [],
+      observedKeys: ['2026-07-01', '2026-07-02'],
+      lastRunDateKey: '2026-07-02',
+      runDateKey: '2026-07-03',
+    });
+    expect(r.observedDayKeys).toEqual(['2026-07-01', '2026-07-02']);
   });
 });
 

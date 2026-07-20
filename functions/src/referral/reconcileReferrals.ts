@@ -72,6 +72,78 @@ export function computeActiveDayKeys(
   return Array.from(keys).sort();
 }
 
+// ── Pure: server-observed day ratchet ────────────────────────────────────────
+
+export interface RatchetInput {
+  /** Window-bounded day-keys recomputed this run (from computeActiveDayKeys). */
+  rawKeys: string[];
+  /** Prior observedDayKeys; undefined for a referral graded before the ratchet shipped. */
+  observedKeys: string[] | undefined;
+  /** Prior activeDayKeys; used only to seed the migration case. */
+  priorActiveKeys: string[] | undefined;
+  /** Lagos date-key of the previous grader run; undefined on the first run. */
+  lastRunDateKey: string | undefined;
+  /** Lagos date-key of THIS grader run. */
+  runDateKey: string;
+  /** Lagos date-key of the qualification window start (attribution date). */
+  windowStartDateKey: string;
+}
+
+export interface RatchetResult {
+  /** Monotonic union of previously-observed and newly-credited keys, sorted. */
+  observedDayKeys: string[];
+  /** Keys credited by THIS run (empty on a migration seed). */
+  newlyCredited: string[];
+  /** A raw key dated after the run date — impossible for a correct client. */
+  futureDated: boolean;
+}
+
+/**
+ * Credits a day-key only when this run could legitimately have observed it: the
+ * day is already over, and it is not older than the run that should have caught
+ * it. The nightly cadence is the unforgeable clock — a burst of future-dated
+ * writes yields at most one credited day per run, so reaching
+ * QUALIFY_DISTINCT_DAYS takes as many nights as an honest user needs.
+ *
+ * Day-keys are 'YYYY-MM-DD', so string comparison is chronological.
+ */
+export function ratchetObservedDayKeys(input: RatchetInput): RatchetResult {
+  const { rawKeys, observedKeys, priorActiveKeys, lastRunDateKey, runDateKey, windowStartDateKey } = input;
+
+  const futureDated = rawKeys.some((k) => k > runDateKey);
+
+  // Migration: graded before the ratchet existed. Seed from the accrued raw set
+  // so a legitimate in-flight referral doesn't lose its days and become unable to
+  // qualify before its window closes. Credit nothing else this run — from the
+  // next run on, the normal rules apply.
+  if (observedKeys === undefined && priorActiveKeys !== undefined) {
+    return {
+      observedDayKeys: Array.from(new Set(priorActiveKeys)).sort(),
+      newlyCredited: [],
+      futureDated,
+    };
+  }
+
+  const observed = new Set(observedKeys ?? []);
+  // No prior run means no run has yet had a chance to observe anything; the
+  // attribution date is the earliest defensible floor.
+  const floor = lastRunDateKey ?? windowStartDateKey;
+
+  const newlyCredited = rawKeys
+    .filter((k) => k < runDateKey)   // completed days only
+    .filter((k) => k >= floor)       // not older than the run that should have seen it
+    .filter((k) => !observed.has(k));
+
+  const deduped = Array.from(new Set(newlyCredited)).sort();
+  for (const k of deduped) observed.add(k);
+
+  return {
+    observedDayKeys: Array.from(observed).sort(),
+    newlyCredited: deduped,
+    futureDated,
+  };
+}
+
 // ── Pure: grade one referral ─────────────────────────────────────────────────
 
 export interface ReferralGradeInput {
