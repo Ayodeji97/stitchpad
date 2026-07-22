@@ -96,9 +96,18 @@ for review the moment it appears.
   14-day window). This is strictly safer than the honest-user-favoring alternative and the
   correct trade for fraud-prevention code.
 - **Referrals already in flight** when this deploys (`observedDayKeys` absent but
-  `activeDayKeys` present): seed `observedDayKeys` from `activeDayKeys` and set
+  `activeDayKeys` **non-empty**): seed `observedDayKeys` from `activeDayKeys` and set
   `lastObservedRunDateKey = runDateKey`. Without this, every legitimate in-flight referral
   loses its accrued days and can no longer qualify before its window closes.
+  **The migration test must require a NON-EMPTY `activeDayKeys`, not merely a defined one**
+  (found in codex review, 2026-07-22): `recordAttribution` initializes every new referral
+  with `activeDayKeys: []` (`recordAttribution.ts:192`), so `activeDayKeys !== undefined` is
+  true even for brand-new referrals. A `!== undefined`-only test misclassifies a fresh
+  referral as a migration, seeds `observedDayKeys` from `[]`, stamps `lastObservedRunDateKey`,
+  and permanently strands its signup-day activity below the next floor — an honest user
+  active on exactly 4 days loses day 1 and never qualifies. Gate the branch on
+  `priorActiveKeys.length > 0`. An empty `activeDayKeys` correctly falls through to the
+  normal path (a brand-new or zero-activity referral has no accrued days to preserve).
   **Accepted consequence:** any days already forged by an in-flight referral are
   grandfathered in. This is bounded (a ~14-day window, one known marketer), and every
   payout still passes the 7-day hold plus the manual `markReferralPaid` gate.

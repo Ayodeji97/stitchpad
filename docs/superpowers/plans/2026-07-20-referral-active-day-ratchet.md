@@ -133,6 +133,20 @@ describe('ratchetObservedDayKeys', () => {
     expect(r.newlyCredited).toEqual(['2026-07-01']);
   });
 
+  it('treats undefined-observed + EMPTY activeDayKeys as a normal new referral', () => {
+    // The REAL production shape of a brand-new referral: recordAttribution writes
+    // activeDayKeys: [], and observedDayKeys is absent. Migration must NOT fire on
+    // an empty prior set — otherwise the signup-day activity is stranded forever.
+    const r = call({
+      rawKeys: ['2026-07-01'],
+      observedKeys: undefined,
+      priorActiveKeys: [],           // <- empty, as recordAttribution initializes it
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-02',
+    });
+    expect(r.newlyCredited).toEqual(['2026-07-01']); // credited, NOT dropped as a migration
+  });
+
   it('does not treat observedKeys:[] + priorActiveKeys present as a migration', () => {
     // A referral already on the ratchet (observedKeys defined, even if empty) must
     // take the normal path, never the migration seed.
@@ -323,7 +337,16 @@ export function ratchetObservedDayKeys(input: RatchetInput): RatchetResult {
   // so a legitimate in-flight referral doesn't lose its days and become unable to
   // qualify before its window closes. Credit nothing else this run — from the
   // next run on, the normal rules apply.
-  if (observedKeys === undefined && priorActiveKeys !== undefined) {
+  //
+  // The `length > 0` guard is REQUIRED, not defensive: recordAttribution.ts:192
+  // initializes every new referral with `activeDayKeys: []`, so `!== undefined`
+  // alone is true for brand-new referrals too. Without the length check a fresh
+  // referral is misclassified as a migration, seeds observedDayKeys from [], stamps
+  // lastObservedRunDateKey, and permanently strands its signup-day activity below
+  // the next floor — an honest 4-day user loses day 1 and never qualifies. An empty
+  // priorActiveKeys has no accrued days to preserve, so it correctly falls through
+  // to the normal path.
+  if (observedKeys === undefined && priorActiveKeys !== undefined && priorActiveKeys.length > 0) {
     return {
       observedDayKeys: Array.from(new Set(priorActiveKeys)).sort(),
       newlyCredited: [],
@@ -600,6 +623,24 @@ import { lagosDateKey } from '../notifications/lagosTime';
 
 Each of the six broke because it compressed multiple nightly runs into one call. Under the ratchet, a single call cannot retroactively credit already-elapsed days. Migrate them to the ratchet's reality, keeping each test's ORIGINAL subject and assertions — change only the seed so qualification is reachable.
 
+**First fix the default `seed()` fixture so it mirrors production** (codex review, 2026-07-22). `recordAttribution.ts:192` creates every referral with `activeDays: 0, activeDayKeys: []`, but the test `seed()` helper omits them — which masked the migration-misclassification P1 (a bare `seed()` referral had `activeDayKeys: undefined`, taking the both-undefined normal path, while a real referral has `[]` and hit the migration branch). Add both fields to the default `referrals/u1` doc in `seed()`:
+
+```typescript
+    'referrals/u1': {
+      milestone: 'attributed',
+      payoutState: 'none',
+      flags: [],
+      marketerId: 'm1',
+      signupAt: ts(SIGNUP),
+      qualificationWindowEndsAt: ts(WINDOW_END),
+      activeDays: 0,
+      activeDayKeys: [],          // <- mirror recordAttribution; exercises the real migration guard
+      ...referral,
+    },
+```
+
+With this fixture change, the new accumulation test (and any bare-`seed()` test) genuinely exercises the brand-new production shape — and would FAIL against the un-guarded migration condition, which is what makes it a real regression test for the P1.
+
 **Add this helper** near the other test helpers (after `customersOnDays`, ~line 107):
 
 ```typescript
@@ -655,6 +696,19 @@ Apply that same seed swap to:
     expect(qualified).toBe(1);
     expect(store.get('referrals/u1').milestone).toBe('qualified');
     expect(store.get('referrals/u1').observedDayKeys.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('does not strand a brand-new referral’s first active day (empty activeDayKeys)', async () => {
+    // Regression for the migration-misclassification P1 (codex review). A referral
+    // in its real production shape (activeDayKeys: [], no observedDayKeys) active on
+    // day 0 must have that day credited on the run that observes it — the migration
+    // branch must NOT fire on the empty array and swallow it.
+    const { store, db } = seed(); // default fixture now carries activeDayKeys: []
+    // Night 1 (day-0 activity present), then night 2 observes the completed day 0.
+    store.set('users/u1/customers/c0', { createdAt: SIGNUP + 0.5 * DAY_MS }); // '2026-07-01'
+    await reconcileReferralsHandler(deps(db, SIGNUP + 1.1 * DAY_MS)); // run '2026-07-02'
+    await reconcileReferralsHandler(deps(db, SIGNUP + 2.1 * DAY_MS)); // run '2026-07-03'
+    expect(store.get('referrals/u1').observedDayKeys).toContain('2026-07-01');
   });
 ```
 
