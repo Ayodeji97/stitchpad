@@ -281,18 +281,22 @@ describe('ratchetObservedDayKeys', () => {
     expect(r.observedDayKeys).toEqual(['2026-07-01']);
   });
 
-  it('window start restricts first-run crediting below yesterday', () => {
-    // windowStart is LATER than yesterday, so it wins the max() and a pre-window
-    // key is excluded — pins the restrictive role of windowStartDateKey (a '' floor
-    // would wrongly admit it).
+  it('window start restricts first-run crediting when it is later than yesterday', () => {
+    // windowStart must STRICTLY exceed prevDay(run) to bind the max() — here
+    // attribution is "today" (2026-07-10), one day later than yesterday
+    // (2026-07-09), so windowStart wins and excludes the pre-window key. A
+    // refactor that dropped windowStartDateKey entirely (floor =
+    // lastRunDateKey ?? prevDayKey(runDateKey)) would wrongly admit '2026-07-09'
+    // and fail this test.
     const r = call({
-      rawKeys: ['2026-07-03'],
+      rawKeys: ['2026-07-09'],
       observedKeys: [],
       lastRunDateKey: undefined,
       runDateKey: '2026-07-10',
-      windowStartDateKey: '2026-07-05',
+      windowStartDateKey: '2026-07-10',
     });
-    // Floor = max('2026-07-05', '2026-07-09') = '2026-07-09'; '2026-07-03' < floor.
+    // Floor = max('2026-07-10', prevDay('2026-07-10')='2026-07-09') = '2026-07-10';
+    // '2026-07-09' < floor, so nothing credits.
     expect(r.newlyCredited).toEqual([]);
   });
 
