@@ -93,6 +93,8 @@ function seed(extra: Record<string, any> = {}, referral: Record<string, any> = {
       marketerId: 'm1',
       signupAt: ts(SIGNUP),
       qualificationWindowEndsAt: ts(WINDOW_END),
+      activeDays: 0,
+      activeDayKeys: [],          // <- mirror recordAttribution; exercises the real migration guard
       ...referral,
     },
     ...extra,
@@ -217,6 +219,20 @@ describe('ratchetObservedDayKeys', () => {
       runDateKey: '2026-07-02',
     });
     expect(r.newlyCredited).toEqual(['2026-07-01']);
+  });
+
+  it('treats undefined-observed + EMPTY activeDayKeys as a normal new referral', () => {
+    // The REAL production shape of a brand-new referral: recordAttribution writes
+    // activeDayKeys: [], and observedDayKeys is absent. Migration must NOT fire on
+    // an empty prior set — otherwise the signup-day activity is stranded forever.
+    const r = call({
+      rawKeys: ['2026-07-01'],
+      observedKeys: undefined,
+      priorActiveKeys: [],           // <- empty, as recordAttribution initializes it
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-02',
+    });
+    expect(r.newlyCredited).toEqual(['2026-07-01']); // credited, NOT dropped as a migration
   });
 
   it('does not treat observedKeys:[] + priorActiveKeys present as a migration', () => {
@@ -622,5 +638,18 @@ describe('reconcileReferralsHandler', () => {
     expect(qualified).toBe(1);
     expect(store.get('referrals/u1').milestone).toBe('qualified');
     expect(store.get('referrals/u1').observedDayKeys.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('does not strand a brand-new referral’s first active day (empty activeDayKeys)', async () => {
+    // Regression for the migration-misclassification P1 (codex review). A referral
+    // in its real production shape (activeDayKeys: [], no observedDayKeys) active on
+    // day 0 must have that day credited on the run that observes it — the migration
+    // branch must NOT fire on the empty array and swallow it.
+    const { store, db } = seed(); // default fixture now carries activeDayKeys: []
+    // Night 1 (day-0 activity present), then night 2 observes the completed day 0.
+    store.set('users/u1/customers/c0', { createdAt: SIGNUP + 0.5 * DAY_MS }); // '2026-07-01'
+    await reconcileReferralsHandler(deps(db, SIGNUP + 1.1 * DAY_MS)); // run '2026-07-02'
+    await reconcileReferralsHandler(deps(db, SIGNUP + 2.1 * DAY_MS)); // run '2026-07-03'
+    expect(store.get('referrals/u1').observedDayKeys).toContain('2026-07-01');
   });
 });

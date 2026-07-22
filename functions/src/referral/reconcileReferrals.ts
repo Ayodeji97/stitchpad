@@ -132,7 +132,16 @@ export function ratchetObservedDayKeys(input: RatchetInput): RatchetResult {
   // so a legitimate in-flight referral doesn't lose its days and become unable to
   // qualify before its window closes. Credit nothing else this run — from the
   // next run on, the normal rules apply.
-  if (observedKeys === undefined && priorActiveKeys !== undefined) {
+  //
+  // The `length > 0` guard is REQUIRED, not defensive: recordAttribution.ts:192
+  // initializes every new referral with `activeDayKeys: []`, so `!== undefined`
+  // alone is true for brand-new referrals too. Without the length check a fresh
+  // referral is misclassified as a migration, seeds observedDayKeys from [], stamps
+  // lastObservedRunDateKey, and permanently strands its signup-day activity below
+  // the next floor — an honest 4-day user loses day 1 and never qualifies. An empty
+  // priorActiveKeys has no accrued days to preserve, so it correctly falls through
+  // to the normal path.
+  if (observedKeys === undefined && priorActiveKeys !== undefined && priorActiveKeys.length > 0) {
     return {
       observedDayKeys: Array.from(new Set(priorActiveKeys)).sort(),
       newlyCredited: [],
