@@ -714,6 +714,73 @@ Apply that same seed swap to:
 
 If any exact day-key does not line up (Lagos offset pushes a boundary), run the focused suite and adjust the `SIGNUP + N.5 * DAY_MS` offsets until the intended day-keys result — do NOT change the ratchet or the floor to force a pass.
 
+- [ ] **Step 4.6: Fix the measurement-scan gate for ratcheted eligibility (codex P2)**
+
+`gatherSignals` (`reconcileReferrals.ts:283`) skips the per-customer measurement subcollection reads once customers/orders alone yield `QUALIFY_DISTINCT_DAYS` RAW distinct days (`if (dayKeys.length < QUALIFY_DISTINCT_DAYS)`, ~line 307). That was correct before the ratchet — 4 raw days *meant* qualified. Now qualification rides the ratcheted `observedDayKeys`, so 4 raw customer/order days that are already-observed, backdated below the floor, or future-dated no longer guarantee qualification — yet they still suppress the measurement scan. If the genuine 4th eligible day is a measurement-only day, the ratchet never sees it and a legitimate referral silently fails to qualify (fails safe — under-credits, never over-credits).
+
+**Fix: gate the measurement scan on the already-OBSERVED count, not the raw count.** Measurements can only add days to the raw set; the only time they truly can't change the outcome is when the referral is already qualified (`observedDayKeys.length >= QUALIFY_DISTINCT_DAYS`). A not-yet-qualified referral must always scan, because a measurement might supply the newly-eligible day.
+
+**4.6a.** Add an `alreadyObservedCount` parameter to `gatherSignals`:
+
+```typescript
+async function gatherSignals(
+  db: admin.firestore.Firestore,
+  uid: string,
+  signupMs: number,
+  windowEndMs: number,
+  alreadyObservedCount: number,
+): Promise<CandidateSignals> {
+```
+
+**4.6b.** Change the measurement-scan gate from the raw count to the observed count:
+
+```typescript
+  // Only pay for the (potentially many) per-customer measurement reads if the
+  // referral is not already qualified. Post-ratchet the RAW day-count no longer
+  // implies qualification (raw days may be already-observed / below-floor /
+  // future-dated), so a not-yet-qualified referral must scan measurements — a
+  // measurement-only day could be its genuine newly-eligible day. A qualified
+  // referral (observed >= bar) can gain nothing, so it still skips.
+  if (alreadyObservedCount < QUALIFY_DISTINCT_DAYS) {
+```
+
+**4.6c.** At the call site (`reconcileReferrals.ts:358`), pass the non-transactional observed count from the outer query snapshot (`data` is the doc read before the transaction; its `observedDayKeys` is a safe hint — the optimization does not need transactional accuracy, and it fails toward scanning-more, never toward skipping):
+
+```typescript
+    const signals = await gatherSignals(
+      db, uid, windowStartMs, windowEndMs, (data.observedDayKeys?.length ?? 0),
+    );
+```
+
+**4.6d.** Add a handler test proving a measurement supplies the qualifying 4th day even when customers/orders already have 4 raw (but ineligible) days:
+
+```typescript
+  it('scans measurements for the qualifying day even when raw customer days already number four', async () => {
+    // observed=3 (days 07-01..07-03). Four customer raw days exist but are all
+    // ineligible this run: three are already observed, one is future-dated. The
+    // genuine 4th eligible day (07-04, completed, in [floor, run)) is a
+    // MEASUREMENT-only day. The raw-count optimization would have skipped it.
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c0': { createdAt: SIGNUP + 0.5 * DAY_MS }, // '2026-07-01' (observed)
+        'users/u1/customers/c1': { createdAt: SIGNUP + 1.5 * DAY_MS }, // '2026-07-02' (observed)
+        'users/u1/customers/c2': { createdAt: SIGNUP + 2.5 * DAY_MS }, // '2026-07-03' (observed)
+        'users/u1/customers/c3': { createdAt: SIGNUP + 8.5 * DAY_MS }, // '2026-07-09' future vs run '2026-07-06'
+        'users/u1/customers/c0/measurements/mm1': { createdAt: SIGNUP + 3.5 * DAY_MS }, // '2026-07-04' — the real 4th day
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-04'),
+    );
+    // Run '2026-07-06' (NOW): floor = lastObservedRunDateKey '2026-07-04'; '2026-07-04'
+    // measurement day is completed and >= floor → credited → observed reaches 4.
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res.qualified).toBe(1);
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+    expect(store.get('referrals/u1').observedDayKeys).toContain('2026-07-04');
+  });
+```
+
+Run the focused suite and confirm it FAILS against the raw-count gate (measurement skipped → observed stays 3 → not qualified) and PASSES after the gate change. Adjust `SIGNUP + N.5 * DAY_MS` offsets if a Lagos boundary shifts a key; do not change the ratchet.
+
 - [ ] **Step 5: Run the full referral test suite**
 
 ```bash

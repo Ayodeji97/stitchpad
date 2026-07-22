@@ -138,7 +138,7 @@ all the protection comes from the ratchet arithmetic — so this gap does not we
 | File | Change |
 |---|---|
 | `functions/src/referral/referralConstants.ts` | add `future_dated_activity` to `ReferralFlag`; leave `BLOCKING_FLAGS` unchanged |
-| `functions/src/referral/reconcileReferrals.ts` | new exported pure `ratchetObservedDayKeys()`; `gatherSignals` returns raw keys; handler applies ratchet + persists `observedDayKeys` / `lastObservedRunDateKey`; grade on observed length |
+| `functions/src/referral/reconcileReferrals.ts` | new exported pure `ratchetObservedDayKeys()`; `gatherSignals` returns raw keys and gates its measurement scan on the already-OBSERVED count (not the raw count — codex P2, else a measurement-only qualifying day is hidden); handler applies ratchet + persists `observedDayKeys` / `lastObservedRunDateKey`; grade on observed length |
 | `functions/src/__tests__/referral/reconcileReferrals.test.ts` | new cases (below) |
 
 `referralDashboard.ts` is deliberately **not** touched: it returns marketer-level
