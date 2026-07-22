@@ -79,10 +79,22 @@ for review the moment it appears.
 
 ### First observation and in-flight referrals
 
-- **First run for a referral** (`lastObservedRunDateKey` absent): default it to
-  `lagosDateKey(windowStartMs)`, the attribution date. Under nightly cadence a referral is
-  first graded within ~24h of attribution, so at most one completed day is creditable —
-  well under the bar of 4.
+- **First run for a referral** (`lastObservedRunDateKey` absent): the floor is
+  `max(lagosDateKey(windowStartMs), prevDayKey(runDateKey))` — the *later* of the
+  attribution date and the day before this run. **Revised from the original
+  `lagosDateKey(windowStartMs)`** (Task 1 review, 2026-07-22): the attribution-date floor
+  assumed a first run always lands within ~24h of attribution, but the grader **skips the
+  write entirely when nothing changed** (`reconcileReferrals.ts:352-359`), so a *dormant*
+  in-flight referral — attributed with no activity — persists neither `activeDayKeys` nor
+  `observedDayKeys`. The migration branch cannot fire (no `priorActiveKeys`), `lastRunDateKey`
+  is absent, and the attribution-date floor would then credit **every** backdated day in the
+  window at once: 4 records written in one session across days 1-9 qualify on the next run —
+  the exact bypass this design closes, live on ship night for every dormant referral. The
+  `prevDayKey` clamp caps a first run to the single day it could legitimately have observed.
+  **Accepted cost:** a multi-day grader outage spanning a *new* referral's first run loses
+  the pre-yesterday completed days permanently (the user can still earn more inside the
+  14-day window). This is strictly safer than the honest-user-favoring alternative and the
+  correct trade for fraud-prevention code.
 - **Referrals already in flight** when this deploys (`observedDayKeys` absent but
   `activeDayKeys` present): seed `observedDayKeys` from `activeDayKeys` and set
   `lastObservedRunDateKey = runDateKey`. Without this, every legitimate in-flight referral
