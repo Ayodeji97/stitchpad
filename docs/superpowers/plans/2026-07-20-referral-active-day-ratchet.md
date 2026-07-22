@@ -508,7 +508,9 @@ Add these to the existing `describe('reconcileReferralsHandler', ...)` block:
 cd functions && npx jest src/__tests__/referral/reconcileReferrals.test.ts -t reconcileReferralsHandler
 ```
 
-Expected: FAIL. The new assertions fail because `observedDayKeys` is never written and `future_dated_activity` is never set. **Pre-existing tests in this block must still pass** — if one breaks, stop and re-read the failure before changing it; the ratchet is designed not to alter honest-user outcomes.
+Expected: FAIL. The new assertions fail because `observedDayKeys` is never written and `future_dated_activity` is never set.
+
+**⚠️ Six pre-existing handler tests WILL break after wiring — this is expected, and Step 4.5 migrates them.** They `seed(customersOnDays(4))` (or 3 + a measurement) and call the handler ONCE, several days post-signup, expecting 4 already-elapsed days to credit in that single call. Task 1's first-run floor now correctly forbids that — a never-before-graded referral credits at most one day per run, because the ratchet cannot tell a genuinely-dormant referral's first look from a backdated fraud burst. In real nightly cadence an honest user still qualifies (the `observedChanged === (f.observedDayKeys === undefined)` guard forces a seeding write on the very first grading night even with zero activity, so `lastObservedRunDateKey` is set by night 1 and days accrue one per night thereafter). The six affected tests: `qualifies a set-up user active on 4 distinct days`, `counts a measurement as a meaningful write`, `withholds the payout for a flagged referral`, `pays out a referral flagged only with the advisory missing_device_hash`, `is idempotent`, and the grace-period qualification test. Do NOT loosen the ratchet floor to make them pass — that reopens the bypass. Migrate them per Step 4.5.
 
 - [ ] **Step 4: Wire the handler**
 
@@ -594,13 +596,77 @@ import { lagosDateKey } from '../notifications/lagosTime';
         hasFlags: hasBlockingFlag(flags),
 ```
 
+- [ ] **Step 4.5: Migrate the six collided pre-existing tests**
+
+Each of the six broke because it compressed multiple nightly runs into one call. Under the ratchet, a single call cannot retroactively credit already-elapsed days. Migrate them to the ratchet's reality, keeping each test's ORIGINAL subject and assertions — change only the seed so qualification is reachable.
+
+**Add this helper** near the other test helpers (after `customersOnDays`, ~line 107):
+
+```typescript
+// Seed a referral as if prior nightly runs already observed `priorKeys`, with the
+// last run on `lastRunDateKey`. A single handler call then credits only the days in
+// [lastRunDateKey, runDateKey) — the ratchet's real per-run behaviour — so a test
+// that wants to reach the 4-day bar in one call must supply 3 prior observed days
+// plus fresh activity on the day the current run will credit.
+function priorNights(priorKeys: string[], lastRunDateKey: string) {
+  return { observedDayKeys: priorKeys, lastObservedRunDateKey: lastRunDateKey };
+}
+```
+
+**The pattern for a single-call qualification** (used by tests 1-4 below): pre-seed 3 completed observed days, set `lastObservedRunDateKey` to the day before `runDateKey` (`lagosDateKey(NOW)`), and ensure one customer's `createdAt` lands on that same day-before so the current run credits the 4th day and tips qualification. `NOW = SIGNUP + 5*DAY_MS` → `runDateKey = '2026-07-06'`, so `prevDay = '2026-07-05'`; a customer at `SIGNUP + 4.5*DAY_MS` is `'2026-07-05'`. Concretely, replace `seed(customersOnDays(4))` with:
+
+```typescript
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+```
+
+Apply that same seed swap to:
+1. `qualifies a set-up user active on 4 distinct days + opens the payout` — assertions unchanged (`qualified: 1`, `payoutAmount 500_000`, `holdEndsAt`, marketer rollup); note `activeDays` now reflects the raw recomputed set (1 customer ⇒ `activeDays: 1`), so change that one assertion from `4` to `1` (the RAW day-count is cosmetic; qualification rides `observedDayKeys.length` = 4).
+2. `withholds the payout for a flagged referral but still advances it` — add `flags: ['self_referral']` to the second `seed()` arg alongside `priorNights(...)`; assertions unchanged.
+3. `pays out a referral flagged only with the advisory missing_device_hash` — add `flags: ['missing_device_hash']`; assertions unchanged.
+4. `counts a measurement as a meaningful write toward a distinct day` — put the tipping write on a measurement instead of a customer: seed `'users/u1/customers/c0/measurements/mm1': { createdAt: SIGNUP + 4.5 * DAY_MS }` plus a customer for activation (`'users/u1/customers/c0': { createdAt: SIGNUP + 0.5 * DAY_MS }`), with `priorNights(['2026-07-01','2026-07-02','2026-07-03'], '2026-07-05')`; assert `qualified: 1`.
+5. `is idempotent — a second run makes no further change` — this runs the handler twice. After migration the FIRST call qualifies (as in test 1); assert the second call returns `{ scanned: 1, activated: 0, qualified: 0 }` and leaves `observedDayKeys` / milestone unchanged. Seed as in test 1.
+6. The grace-period qualification test (`credits final-window-day activity within the reconcile grace`, already in the plan's new tests) uses `lastObservedRunDateKey: '2026-07-14'` — verify it still passes as written; it already models prior nights correctly.
+
+**Add one new test** proving genuine multi-night accumulation from zero (the honest-user property, at the handler level):
+
+```typescript
+  it('accrues one observed day per nightly run until an honest user qualifies', async () => {
+    const { store, db } = seed(); // no activity yet
+    // Four nightly runs; each night the tailor adds a customer that day, and the
+    // NEXT run (day now complete) credits it. Day-keys 07-01..07-04.
+    const nights = [
+      { activityMs: SIGNUP + 0.5 * DAY_MS, runMs: SIGNUP + 1.1 * DAY_MS },
+      { activityMs: SIGNUP + 1.5 * DAY_MS, runMs: SIGNUP + 2.1 * DAY_MS },
+      { activityMs: SIGNUP + 2.5 * DAY_MS, runMs: SIGNUP + 3.1 * DAY_MS },
+      { activityMs: SIGNUP + 3.5 * DAY_MS, runMs: SIGNUP + 4.1 * DAY_MS },
+    ];
+    let qualified = 0;
+    for (let i = 0; i < nights.length; i += 1) {
+      store.set(`users/u1/customers/c${i}`, { createdAt: nights[i].activityMs });
+      const res = await reconcileReferralsHandler(deps(db, nights[i].runMs));
+      qualified = res.qualified;
+    }
+    // Qualifies on the final run, not before — proves no single call short-circuits.
+    expect(qualified).toBe(1);
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+    expect(store.get('referrals/u1').observedDayKeys.length).toBeGreaterThanOrEqual(4);
+  });
+```
+
+If any exact day-key does not line up (Lagos offset pushes a boundary), run the focused suite and adjust the `SIGNUP + N.5 * DAY_MS` offsets until the intended day-keys result — do NOT change the ratchet or the floor to force a pass.
+
 - [ ] **Step 5: Run the full referral test suite**
 
 ```bash
 cd functions && npx jest src/__tests__/referral/reconcileReferrals.test.ts
 ```
 
-Expected: PASS, all tests including the pre-existing ones.
+Expected: PASS — the 5 new ratchet-wiring tests, the 6 migrated tests, the new accumulation test, and every untouched test.
 
 - [ ] **Step 6: Run the whole functions suite + lint**
 
@@ -619,7 +685,12 @@ git commit -m "feat(referral): qualify on server-observed days, not client creat
 Qualification now reads the ratcheted observedDayKeys instead of the raw
 recomputed set, so future-dated createdAt writes buy at most one credited day
 per nightly run. Adds the advisory future_dated_activity flag. In-flight
-referrals seed observedDayKeys from activeDayKeys so they keep accrued days."
+referrals seed observedDayKeys from activeDayKeys so they keep accrued days.
+
+Migrates six pre-existing handler tests that assumed a single call credits
+multiple already-elapsed days (impossible under the ratchet's first-run floor)
+to seed prior-night observed state, and adds a multi-run accumulation test
+proving an honest user still qualifies over four nightly runs."
 ```
 
 ---
