@@ -75,6 +75,13 @@ export function computeActiveDayKeys(
 // ── Pure: server-observed day ratchet ────────────────────────────────────────
 
 export interface RatchetInput {
+  // CONTRACT: observedKeys and priorActiveKeys must be passed as the RAW stored
+  // field values — do NOT default them with `?? []` at the call site. The
+  // `observedKeys === undefined && priorActiveKeys !== undefined` migration test
+  // is load-bearing: `?? []` on either one silently mis-routes every in-flight or
+  // brand-new referral. Task 2 passes `data.observedDayKeys` / `data.activeDayKeys`
+  // directly for exactly this reason.
+
   /** Window-bounded day-keys recomputed this run (from computeActiveDayKeys). */
   rawKeys: string[];
   /** Prior observedDayKeys; undefined for a referral graded before the ratchet shipped. */
@@ -96,6 +103,15 @@ export interface RatchetResult {
   newlyCredited: string[];
   /** A raw key dated after the run date — impossible for a correct client. */
   futureDated: boolean;
+}
+
+/** The Lagos date-key one calendar day before `key` ('2026-07-05' -> '2026-07-04'). */
+function prevDayKey(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  // UTC math on a date-only key never crosses a DST/offset boundary, so this is a
+  // clean -1 day. lagosDateKey already folds the Lagos offset into the key.
+  const prev = new Date(Date.UTC(y, m - 1, d) - 86_400_000);
+  return prev.toISOString().slice(0, 10);
 }
 
 /**
@@ -125,9 +141,15 @@ export function ratchetObservedDayKeys(input: RatchetInput): RatchetResult {
   }
 
   const observed = new Set(observedKeys ?? []);
-  // No prior run means no run has yet had a chance to observe anything; the
-  // attribution date is the earliest defensible floor.
-  const floor = lastRunDateKey ?? windowStartDateKey;
+  // Floor = the earlier bound on creditable days.
+  //  - With a prior run: keys >= that run's date; earlier days were its job.
+  //  - First run (no prior run): clamp to YESTERDAY, not the attribution date. A
+  //    dormant in-flight referral persists no activeDayKeys (the grader skips the
+  //    write when nothing changed), so the migration branch can't fire and the
+  //    attribution-date floor would credit every backdated window-day at once —
+  //    the exact bypass this ratchet closes. `max(windowStart, prevDay(run))`
+  //    caps a first run to the one day it could legitimately have observed.
+  const floor = lastRunDateKey ?? maxKey(windowStartDateKey, prevDayKey(runDateKey));
 
   const newlyCredited = rawKeys
     .filter((k) => k < runDateKey)   // completed days only
@@ -142,6 +164,11 @@ export function ratchetObservedDayKeys(input: RatchetInput): RatchetResult {
     newlyCredited: deduped,
     futureDated,
   };
+}
+
+/** The chronologically later of two 'YYYY-MM-DD' keys (lexicographic == chronological). */
+function maxKey(a: string, b: string): string {
+  return a >= b ? a : b;
 }
 
 // ── Pure: grade one referral ─────────────────────────────────────────────────

@@ -181,6 +181,48 @@ describe('ratchetObservedDayKeys', () => {
     expect(r.futureDated).toBe(true);
   });
 
+  it('caps a genuine first run (no prior run, dormant referral) to a single day', () => {
+    // The dormant-referral bypass: no observedKeys, no priorActiveKeys, no
+    // lastRunDateKey. A backdated burst across the whole window must NOT all
+    // credit at once — the yesterday-clamp allows only the single completed day.
+    const r = call({
+      rawKeys: ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'],
+      observedKeys: [],
+      priorActiveKeys: undefined,
+      lastRunDateKey: undefined,
+      runDateKey: '2026-07-05',
+      windowStartDateKey: '2026-07-01',
+    });
+    // Floor = max('2026-07-01', prevDay('2026-07-05')='2026-07-04') = '2026-07-04'.
+    expect(r.newlyCredited).toEqual(['2026-07-04']);
+  });
+
+  it('treats both-undefined as a normal new referral, not a migration', () => {
+    // observedKeys AND priorActiveKeys undefined = a fresh referral with no prior
+    // ratchet state. Migration must NOT fire; normal crediting applies.
+    const r = call({
+      rawKeys: ['2026-07-01'],
+      observedKeys: undefined,
+      priorActiveKeys: undefined,
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-02',
+    });
+    expect(r.newlyCredited).toEqual(['2026-07-01']);
+  });
+
+  it('does not treat observedKeys:[] + priorActiveKeys present as a migration', () => {
+    // A referral already on the ratchet (observedKeys defined, even if empty) must
+    // take the normal path, never the migration seed.
+    const r = call({
+      rawKeys: ['2026-07-01'],
+      observedKeys: [],
+      priorActiveKeys: ['2026-06-01', '2026-06-02'],
+      lastRunDateKey: '2026-07-01',
+      runDateKey: '2026-07-02',
+    });
+    expect(r.observedDayKeys).toEqual(['2026-07-01']); // NOT the June priorActiveKeys
+  });
+
   it('flags future-dated keys on every run where they are present', () => {
     const r = call({ rawKeys: ['2026-07-09'], runDateKey: '2026-07-03' });
     expect(r.futureDated).toBe(true);
@@ -203,6 +245,9 @@ describe('ratchetObservedDayKeys', () => {
   it('defers a key equal to the run date to the next run', () => {
     const r1 = call({ rawKeys: ['2026-07-02'], lastRunDateKey: '2026-07-01', runDateKey: '2026-07-02' });
     expect(r1.newlyCredited).toEqual([]);
+    // A key ON the run date is a day still in progress, not fraud — must not flag.
+    // (Pins futureDated at the k===runDateKey boundary: `>` must not become `>=`.)
+    expect(r1.futureDated).toBe(false);
 
     const r2 = call({
       rawKeys: ['2026-07-02'],
@@ -232,7 +277,23 @@ describe('ratchetObservedDayKeys', () => {
       runDateKey: '2026-07-02',
       windowStartDateKey: '2026-07-01',
     });
+    // Floor = max('2026-07-01', prevDay('2026-07-02')='2026-07-01') = '2026-07-01'.
     expect(r.observedDayKeys).toEqual(['2026-07-01']);
+  });
+
+  it('window start restricts first-run crediting below yesterday', () => {
+    // windowStart is LATER than yesterday, so it wins the max() and a pre-window
+    // key is excluded — pins the restrictive role of windowStartDateKey (a '' floor
+    // would wrongly admit it).
+    const r = call({
+      rawKeys: ['2026-07-03'],
+      observedKeys: [],
+      lastRunDateKey: undefined,
+      runDateKey: '2026-07-10',
+      windowStartDateKey: '2026-07-05',
+    });
+    // Floor = max('2026-07-05', '2026-07-09') = '2026-07-09'; '2026-07-03' < floor.
+    expect(r.newlyCredited).toEqual([]);
   });
 
   it('seeds from activeDayKeys for an in-flight referral instead of zeroing it', () => {
