@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { buildVerificationEmailHtml } from './verificationEmailTemplate';
+import { rewriteActionLinkHost } from './actionLinkHost';
 import { sendResendEmail } from '../email/resendClient';
 
 const REGION = 'europe-west1';
@@ -60,7 +61,7 @@ export async function sendVerificationEmailHandler(
   }
 
   try {
-    const verifyLink = await io.generateLink(user.email);
+    const verifyLink = rewriteActionLinkHost(await io.generateLink(user.email));
     await io.sendEmail({ to: user.email, displayName: user.displayName, verifyLink });
   } catch (err) {
     // Release the reservation so a genuine delivery failure doesn't lock the

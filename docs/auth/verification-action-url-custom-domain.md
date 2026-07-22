@@ -1,6 +1,32 @@
 # Email action links — move off `firebaseapp.com` onto our own domain
 
-Status: proposed (2026-07-22). Ops + one config change; no app release required.
+Status: implemented (2026-07-22). `auth.getstitchpad.com` is attached to Firebase
+Hosting and authorized; the host is rewritten in the functions that send the
+emails. No app release required.
+
+## The project-wide setting could not be used
+
+Firebase's own "Customize action URL" — the clean, documented fix — is rejected
+server-side, from both the console and the Identity Toolkit admin API:
+
+```
+400 EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED (INVALID_ARGUMENT)
+```
+
+Not a console bug and not specific to this project: there is a Google support
+thread with the same title from June 2026, so it reads as a recent Google-side
+restriction. Steps 1-4 below still ran (the domain is live and authorized);
+step 5 is the one that fails.
+
+So the host is rewritten in our own send path instead —
+`functions/src/auth/actionLinkHost.ts`, applied in `sendVerificationEmail` and
+`processPasswordResetEmail`. Firebase Hosting serves a byte-identical
+`/__/auth/action` handler on every domain attached to the site, and the link
+carries its own `apiKey` and `oobCode`, so only the host differs.
+
+**If Google lifts the restriction:** set the action URL project-wide (step 5),
+then delete `actionLinkHost.ts` and its two call sites. The rewrite is a
+workaround, not the intended design.
 
 ## Problem
 
@@ -37,8 +63,7 @@ in metrics, indistinguishable from ordinary signup drop-off.
 
 Serve the action handler from a domain we control. Firebase Hosting serves
 `/__/auth/action` automatically on *any* domain attached to the project's
-hosting site, so this needs no new code — only a hosting custom domain plus a
-one-line Auth config change.
+hosting site.
 
 `getstitchpad.com` and `link.getstitchpad.com` are on Vercel (both 404 on
 `/__/auth/action`), so this must be a **new subdomain on Firebase Hosting**, not
@@ -46,27 +71,40 @@ a repoint of an existing one.
 
 ### Steps
 
-1. **Attach the domain to Firebase Hosting.**
-   Firebase Console → Hosting → site `stitchpad-30607` → Add custom domain →
-   `auth.getstitchpad.com`. Add the A/TXT records Firebase gives you at the DNS
-   provider, then wait for the cert to provision (minutes to ~24h).
+Steps 1-4 are done. Step 5 is blocked by Google (see above); the code rewrite
+stands in for it.
 
-2. **Verify the handler is live before switching anything.** Must be 200:
+1. **Attach the domain to Firebase Hosting.** ✅ done 2026-07-22
+   Firebase Console → Hosting → site `stitchpad-30607` → Add custom domain →
+   `auth.getstitchpad.com`. Quick setup offers a single CNAME
+   (`auth` → `stitchpad-30607.web.app`). DNS is Cloudflare: set the record to
+   **DNS only** (grey cloud) — a proxied record breaks the cert challenge with
+   no useful error. Cert minted in ~40 minutes.
+
+2. **Verify the handler is live before switching anything.** ✅ Must be 200:
 
    ```bash
    curl -sI https://auth.getstitchpad.com/__/auth/action | head -1
    ```
 
-3. **Add it to Auth's authorized domains.**
+3. **Add it to Auth's authorized domains.** ✅ done 2026-07-22
    Console → Authentication → Settings → Authorized domains → add
    `auth.getstitchpad.com`. **Keep `stitchpad-30607.firebaseapp.com`** — links
    already sitting in users' inboxes point at it, and Google Sign-In uses it.
+   Required: without it the rewritten links would be rejected as an
+   unauthorized domain.
 
-4. **Point the action URL at it.**
+4. **Rewrite the host in our send path.** ✅ done — `actionLinkHost.ts`,
+   applied in `sendVerificationEmail` and `processPasswordResetEmail`. Covers
+   every email we actually send, since both go out through Resend rather than
+   Firebase's built-in sender.
+
+5. **Point the action URL at it.** ❌ blocked — `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`.
    Console → Authentication → Templates → Email address verification → edit →
    "Customize action URL" → `https://auth.getstitchpad.com/__/auth/action`.
-   This is project-wide: it applies to password reset and email-change links
-   too, no per-template change needed.
+   This is project-wide: it would apply to password reset and email-change links
+   too. `scripts/set-auth-action-url.sh` performs the same update via the admin
+   API — retry it occasionally to see whether Google has lifted the restriction.
 
    Verify:
 
@@ -77,17 +115,24 @@ a repoint of an existing one.
      | grep callbackUri
    ```
 
-5. **Smoke test end to end.** Sign up with a throwaway address, open the email,
+6. **Smoke test end to end.** Sign up with a throwaway address, open the email,
    confirm the link host is `auth.getstitchpad.com` and that tapping it verifies
-   the account. Do this on a Nigerian mobile data connection if you can — that's
-   the network that surfaced the bug.
+   the account. Then do the same for password reset. On a Nigerian mobile data
+   connection if you can — that's the network that surfaced the bug.
 
 ### Rollback
 
-Set the action URL back to `https://stitchpad-30607.firebaseapp.com/__/auth/action`
-in the Templates screen. Links already sent from the custom domain keep working
-as long as the hosting domain stays attached, so don't detach it for ~24h after
-a rollback (links live ~1h by default, but be generous).
+Revert the `actionLinkHost` call in the two handlers and redeploy those
+functions; links go back to `firebaseapp.com` immediately. Links already sent on
+the custom domain keep working as long as the hosting domain stays attached, so
+don't detach it for ~24h after a rollback (codes live ~1h, but be generous).
+
+Scoped deploy:
+
+```bash
+cd functions && npm run build && cd ..
+firebase deploy --only functions:sendVerificationEmail,functions:processPasswordResetEmail
+```
 
 ## Unblocking an individual user meanwhile
 

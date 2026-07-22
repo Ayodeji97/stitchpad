@@ -34,6 +34,24 @@ describe('processPasswordResetEmailHandler (worker)', () => {
     });
   });
 
+  it('sends the link on our own domain, not the blocklisted firebaseapp.com host', async () => {
+    const { io, sendEmail } = makeIO({
+      link:
+        'https://stitchpad-30607.firebaseapp.com/__/auth/action' +
+        '?mode=resetPassword&oobCode=ABC123&apiKey=AIzaSyKEY&lang=en',
+    });
+
+    await processPasswordResetEmailHandler({ email: 'tunde@example.com' }, io);
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resetLink:
+          'https://auth.getstitchpad.com/__/auth/action' +
+          '?mode=resetPassword&oobCode=ABC123&apiKey=AIzaSyKEY&lang=en',
+      }),
+    );
+  });
+
   it('normalizes the email from the task payload', async () => {
     const { io, generateLink } = makeIO();
     await processPasswordResetEmailHandler({ email: '  Tunde@Example.com ' }, io);
