@@ -652,4 +652,27 @@ describe('reconcileReferralsHandler', () => {
     await reconcileReferralsHandler(deps(db, SIGNUP + 2.1 * DAY_MS)); // run '2026-07-03'
     expect(store.get('referrals/u1').observedDayKeys).toContain('2026-07-01');
   });
+
+  it('scans measurements for the qualifying day even when raw customer days already number four', async () => {
+    // observed=3 (days 07-01..07-03). Four customer raw days exist but are all
+    // ineligible this run: three are already observed, one is future-dated. The
+    // genuine 4th eligible day (07-04, completed, in [floor, run)) is a
+    // MEASUREMENT-only day. The raw-count optimization would have skipped it.
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c0': { createdAt: SIGNUP + 0.5 * DAY_MS }, // '2026-07-01' (observed)
+        'users/u1/customers/c1': { createdAt: SIGNUP + 1.5 * DAY_MS }, // '2026-07-02' (observed)
+        'users/u1/customers/c2': { createdAt: SIGNUP + 2.5 * DAY_MS }, // '2026-07-03' (observed)
+        'users/u1/customers/c3': { createdAt: SIGNUP + 8.5 * DAY_MS }, // '2026-07-09' future vs run '2026-07-06'
+        'users/u1/customers/c0/measurements/mm1': { createdAt: SIGNUP + 3.5 * DAY_MS }, // '2026-07-04' — the real 4th day
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-04'),
+    );
+    // Run '2026-07-06' (NOW): floor = lastObservedRunDateKey '2026-07-04'; '2026-07-04'
+    // measurement day is completed and >= floor → credited → observed reaches 4.
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res.qualified).toBe(1);
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+    expect(store.get('referrals/u1').observedDayKeys).toContain('2026-07-04');
+  });
 });

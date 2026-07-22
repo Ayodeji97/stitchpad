@@ -285,6 +285,7 @@ async function gatherSignals(
   uid: string,
   signupMs: number,
   windowEndMs: number,
+  alreadyObservedCount: number,
 ): Promise<CandidateSignals> {
   const userSnap = await db.doc(`users/${uid}`).get();
   const businessName = (userSnap.data()?.businessName ?? '') as string;
@@ -302,9 +303,13 @@ async function gatherSignals(
 
   let dayKeys = computeActiveDayKeys(activityMs, signupMs, windowEndMs);
 
-  // Only pay for the (potentially many) per-customer measurement reads if we
-  // still need more distinct days to qualify — and fetch them concurrently.
-  if (dayKeys.length < QUALIFY_DISTINCT_DAYS) {
+  // Only pay for the (potentially many) per-customer measurement reads if the
+  // referral is not already qualified. Post-ratchet the RAW day-count no longer
+  // implies qualification (raw days may be already-observed / below-floor /
+  // future-dated), so a not-yet-qualified referral must scan measurements — a
+  // measurement-only day could be its genuine newly-eligible day. A qualified
+  // referral (observed >= bar) can gain nothing, so it still skips.
+  if (alreadyObservedCount < QUALIFY_DISTINCT_DAYS) {
     const measurementSnaps = await Promise.all(
       customersSnap.docs.map((c) => db.collection(`users/${uid}/customers/${c.id}/measurements`).get()),
     );
@@ -355,7 +360,9 @@ export async function reconcileReferralsHandler(
       data.qualificationWindowStartsAt?.toMillis?.() ?? data.signupAt?.toMillis?.() ?? nowMs;
     const windowEndMs: number = data.qualificationWindowEndsAt?.toMillis?.() ?? (windowStartMs + QUALIFY_WINDOW_DAYS * DAY_MS);
 
-    const signals = await gatherSignals(db, uid, windowStartMs, windowEndMs);
+    const signals = await gatherSignals(
+      db, uid, windowStartMs, windowEndMs, (data.observedDayKeys?.length ?? 0),
+    );
 
     // Re-read the racy fields (milestone/payoutState/flags) inside the transaction
     // so a concurrent run or a manual debug invocation can't double-count.
