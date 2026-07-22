@@ -347,7 +347,6 @@ export async function reconcileReferralsHandler(
     const windowEndMs: number = data.qualificationWindowEndsAt?.toMillis?.() ?? (windowStartMs + QUALIFY_WINDOW_DAYS * DAY_MS);
 
     const signals = await gatherSignals(db, uid, windowStartMs, windowEndMs);
-    const qualifiesByActivity = signals.activeDayKeys.length >= QUALIFY_DISTINCT_DAYS;
 
     // Re-read the racy fields (milestone/payoutState/flags) inside the transaction
     // so a concurrent run or a manual debug invocation can't double-count.
@@ -363,16 +362,33 @@ export async function reconcileReferralsHandler(
         flags?: ReferralFlag[];
         marketerId: string;
         activeDayKeys?: string[];
+        observedDayKeys?: string[];
+        lastObservedRunDateKey?: string;
       };
       const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);
       const m = (await tx.get(marketerRef)).data() ?? {};
+
+      const runDateKey = lagosDateKey(nowMs);
+      const ratchet = ratchetObservedDayKeys({
+        rawKeys: signals.activeDayKeys,
+        observedKeys: f.observedDayKeys,
+        priorActiveKeys: f.activeDayKeys,
+        lastRunDateKey: f.lastObservedRunDateKey,
+        runDateKey,
+        windowStartDateKey: lagosDateKey(windowStartMs),
+      });
+      // Qualification is driven by the ratcheted set, NOT the raw recomputed one.
+      const qualifiesByActivity = ratchet.observedDayKeys.length >= QUALIFY_DISTINCT_DAYS;
+      const flags: ReferralFlag[] = ratchet.futureDated && !(f.flags ?? []).includes('future_dated_activity')
+        ? [...(f.flags ?? []), 'future_dated_activity']
+        : (f.flags ?? []);
 
       const grade = gradeReferral({
         milestone: f.milestone,
         payoutState: f.payoutState,
         activated: signals.activated,
         qualifiesByActivity,
-        hasFlags: hasBlockingFlag(f.flags),
+        hasFlags: hasBlockingFlag(flags),
         payoutRatePerUser: (m.payoutRatePerUser as number) ?? 0,
         nowMs,
       });
@@ -384,11 +400,20 @@ export async function reconcileReferralsHandler(
       const daysChanged =
         prevKeys.length !== signals.activeDayKeys.length ||
         prevKeys.some((k, i) => k !== signals.activeDayKeys[i]);
-      if (!grade && !daysChanged) return null;
+      const prevObserved = f.observedDayKeys ?? [];
+      const observedChanged =
+        f.observedDayKeys === undefined ||
+        prevObserved.length !== ratchet.observedDayKeys.length ||
+        f.lastObservedRunDateKey !== runDateKey;
+      const flagsChanged = flags.length !== (f.flags ?? []).length;
+      if (!grade && !daysChanged && !observedChanged && !flagsChanged) return null;
 
       const update: Record<string, unknown> = {
         activeDays: signals.activeDayKeys.length,
         activeDayKeys: signals.activeDayKeys,
+        observedDayKeys: ratchet.observedDayKeys,
+        lastObservedRunDateKey: runDateKey,
+        flags,
         updatedAt: nowTs,
       };
       if (grade) {

@@ -107,6 +107,15 @@ function customersOnDays(n: number): Record<string, any> {
   return out;
 }
 
+// Seed a referral as if prior nightly runs already observed `priorKeys`, with the
+// last run on `lastRunDateKey`. A single handler call then credits only the days in
+// [lastRunDateKey, runDateKey) — the ratchet's real per-run behaviour — so a test
+// that wants to reach the 4-day bar in one call must supply 3 prior observed days
+// plus fresh activity on the day the current run will credit.
+function priorNights(priorKeys: string[], lastRunDateKey: string) {
+  return { observedDayKeys: priorKeys, lastObservedRunDateKey: lastRunDateKey };
+}
+
 // ── computeActiveDayKeys ─────────────────────────────────────────────────────
 
 describe('computeActiveDayKeys', () => {
@@ -381,7 +390,12 @@ describe('gradeReferral', () => {
 
 describe('reconcileReferralsHandler', () => {
   it('qualifies a set-up user active on 4 distinct days + opens the payout', async () => {
-    const { store, db } = seed(customersOnDays(4));
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
     const res = await reconcileReferralsHandler(deps(db));
     expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
 
@@ -389,7 +403,9 @@ describe('reconcileReferralsHandler', () => {
     expect(ref.milestone).toBe('qualified');
     expect(ref.payoutState).toBe('pending');
     expect(ref.payoutAmount).toBe(500_000);
-    expect(ref.activeDays).toBe(4);
+    // RAW day-count is cosmetic (1 customer this run); qualification rides
+    // observedDayKeys.length (= 4), not activeDays.
+    expect(ref.activeDays).toBe(1);
     expect(ref.holdEndsAt.toMillis()).toBe(NOW + HOLD_WINDOW_DAYS * DAY_MS);
 
     const m = store.get('marketers/m1');
@@ -413,18 +429,26 @@ describe('reconcileReferralsHandler', () => {
   });
 
   it('counts a measurement as a meaningful write toward a distinct day', async () => {
-    // 3 customer-days + a measurement on a distinct 4th day = qualified.
-    const { store, db } = seed({
-      ...customersOnDays(3),
-      'users/u1/customers/c0/measurements/mm1': { createdAt: SIGNUP + 3.5 * DAY_MS },
-    });
+    // 3 prior observed days + a measurement on the day this run credits = qualified.
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c0': { createdAt: SIGNUP + 0.5 * DAY_MS }, // activation
+        'users/u1/customers/c0/measurements/mm1': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05'
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
     const res = await reconcileReferralsHandler(deps(db));
     expect(res.qualified).toBe(1);
     expect(store.get('referrals/u1').milestone).toBe('qualified');
   });
 
   it('withholds the payout for a flagged referral but still advances it', async () => {
-    const { store, db } = seed(customersOnDays(4), { flags: ['self_referral'] });
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      { flags: ['self_referral'], ...priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05') },
+    );
     const res = await reconcileReferralsHandler(deps(db));
     expect(res.qualified).toBe(1);
     expect(store.get('referrals/u1').milestone).toBe('qualified');
@@ -434,7 +458,12 @@ describe('reconcileReferralsHandler', () => {
   });
 
   it('pays out a referral flagged only with the advisory missing_device_hash', async () => {
-    const { store, db } = seed(customersOnDays(4), { flags: ['missing_device_hash'] });
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      { flags: ['missing_device_hash'], ...priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05') },
+    );
     const res = await reconcileReferralsHandler(deps(db));
     expect(res.qualified).toBe(1);
     expect(store.get('referrals/u1').milestone).toBe('qualified');
@@ -457,7 +486,12 @@ describe('reconcileReferralsHandler', () => {
   });
 
   it('is idempotent — a second run makes no further change', async () => {
-    const { store, db } = seed(customersOnDays(4));
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
     await reconcileReferralsHandler(deps(db));
     const res2 = await reconcileReferralsHandler(deps(db));
     // The now-qualified referral is out of the candidate set entirely.
@@ -468,7 +502,12 @@ describe('reconcileReferralsHandler', () => {
   it('still qualifies final-window-day activity graded within the grace period', async () => {
     // Window closed 1 day ago (< grace) — the user finished their 4th distinct
     // in-window day after the last in-window run, so tonight must still catch it.
-    const { store, db } = seed(customersOnDays(4));
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: WINDOW_END - 0.4 * DAY_MS }, // '2026-07-15' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-15'),
+    );
     const res = await reconcileReferralsHandler(deps(db, WINDOW_END + DAY_MS));
     expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
     expect(store.get('referrals/u1').milestone).toBe('qualified');
@@ -480,5 +519,108 @@ describe('reconcileReferralsHandler', () => {
     const res = await reconcileReferralsHandler(deps(db, WINDOW_END + 3 * DAY_MS)); // beyond grace
     expect(res.scanned).toBe(0);
     expect(store.get('referrals/u1').milestone).toBe('attributed');
+  });
+
+  it('does not qualify a burst of future-dated writes', async () => {
+    // The attack: 4 customers in one session, dated today..+3 days.
+    const runDay = NOW;
+    const burst: Record<string, any> = {};
+    for (let i = 0; i < 4; i += 1) {
+      burst[`users/u1/customers/c${i}`] = { createdAt: runDay + i * DAY_MS };
+    }
+    const { store, db } = seed(burst);
+
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res.qualified).toBe(0);
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).not.toBe('qualified');
+    expect(ref.payoutState).toBe('none');
+    expect(ref.observedDayKeys).toEqual([]);
+    expect(ref.flags).toContain('future_dated_activity');
+  });
+
+  it('keeps future_dated_activity advisory so the milestone still advances', async () => {
+    // Activation (businessName + >=1 customer) must not be blocked by the flag.
+    const { store, db } = seed({ 'users/u1/customers/c0': { createdAt: NOW + 3 * DAY_MS } });
+
+    await reconcileReferralsHandler(deps(db));
+
+    const ref = store.get('referrals/u1');
+    expect(ref.flags).toContain('future_dated_activity');
+    expect(ref.milestone).toBe('activated');
+  });
+
+  it('seeds observedDayKeys from activeDayKeys for an in-flight referral', async () => {
+    // Graded before the ratchet shipped: activeDayKeys present, observedDayKeys absent.
+    const { store, db } = seed(customersOnDays(4), {
+      activeDayKeys: ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'],
+      activeDays: 4,
+    });
+
+    await reconcileReferralsHandler(deps(db));
+
+    const ref = store.get('referrals/u1');
+    expect(ref.observedDayKeys).toEqual(['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04']);
+    expect(ref.lastObservedRunDateKey).toBeDefined();
+  });
+
+  it('credits final-window-day activity within the reconcile grace', async () => {
+    // Activity on the last window day, graded on the following run — the one place
+    // "completed days only" could silently cost a legitimate payout.
+    const lastDay = WINDOW_END - 0.5 * DAY_MS;
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c0': { createdAt: SIGNUP + 0.5 * DAY_MS },
+        'users/u1/customers/c1': { createdAt: SIGNUP + 1.5 * DAY_MS },
+        'users/u1/customers/c2': { createdAt: SIGNUP + 2.5 * DAY_MS },
+        'users/u1/customers/c3': { createdAt: lastDay },
+      },
+      {
+        observedDayKeys: ['2026-07-01', '2026-07-02', '2026-07-03'],
+        lastObservedRunDateKey: '2026-07-14',
+      },
+    );
+
+    // Run the day AFTER the window closed, still inside RECONCILE_GRACE_DAYS.
+    const res = await reconcileReferralsHandler(deps(db, WINDOW_END + 0.5 * DAY_MS));
+
+    expect(res.qualified).toBe(1);
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+  });
+
+  it('never shrinks observedDayKeys across runs', async () => {
+    const { store, db } = seed(customersOnDays(2), {
+      observedDayKeys: ['2026-07-01', '2026-07-02'],
+      lastObservedRunDateKey: '2026-07-03',
+    });
+
+    await reconcileReferralsHandler(deps(db));
+
+    expect(store.get('referrals/u1').observedDayKeys).toEqual(
+      expect.arrayContaining(['2026-07-01', '2026-07-02']),
+    );
+  });
+
+  it('accrues one observed day per nightly run until an honest user qualifies', async () => {
+    const { store, db } = seed(); // no activity yet
+    // Four nightly runs; each night the tailor adds a customer that day, and the
+    // NEXT run (day now complete) credits it. Day-keys 07-01..07-04.
+    const nights = [
+      { activityMs: SIGNUP + 0.5 * DAY_MS, runMs: SIGNUP + 1.1 * DAY_MS },
+      { activityMs: SIGNUP + 1.5 * DAY_MS, runMs: SIGNUP + 2.1 * DAY_MS },
+      { activityMs: SIGNUP + 2.5 * DAY_MS, runMs: SIGNUP + 3.1 * DAY_MS },
+      { activityMs: SIGNUP + 3.5 * DAY_MS, runMs: SIGNUP + 4.1 * DAY_MS },
+    ];
+    let qualified = 0;
+    for (let i = 0; i < nights.length; i += 1) {
+      store.set(`users/u1/customers/c${i}`, { createdAt: nights[i].activityMs });
+      const res = await reconcileReferralsHandler(deps(db, nights[i].runMs));
+      qualified = res.qualified;
+    }
+    // Qualifies on the final run, not before — proves no single call short-circuits.
+    expect(qualified).toBe(1);
+    expect(store.get('referrals/u1').milestone).toBe('qualified');
+    expect(store.get('referrals/u1').observedDayKeys.length).toBeGreaterThanOrEqual(4);
   });
 });

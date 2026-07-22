@@ -64,7 +64,7 @@ export type PayoutState = 'none' | 'pending' | 'confirmed' | 'paid' | 'rejected'
 // is advisory: a missing/malformed device hash disables device-reuse detection,
 // but the referral may be perfectly legitimate, so we record the fact rather than
 // silently skipping it or blocking a real payout.
-export type ReferralFlag = 'self_referral' | 'device_reuse' | 'velocity' | 'missing_device_hash';
+export type ReferralFlag = 'self_referral' | 'device_reuse' | 'velocity' | 'missing_device_hash' | 'future_dated_activity';
 
 // Flags that withhold a payout. Everything NOT listed here is advisory-only.
 const BLOCKING_FLAGS: ReadonlySet<ReferralFlag> = new Set<ReferralFlag>([
