@@ -391,3 +391,63 @@ describe('server-owned field hardening', () => {
     });
   });
 });
+
+describe('activity docs — serverCreatedAt / createdAt', () => {
+  const now = Date.now();
+  it('allows create with serverCreatedAt == request.time and past createdAt', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1'), {
+        createdAt: now - 60_000,
+        serverCreatedAt: serverTimestamp(),
+      }),
+    );
+  });
+  it('rejects create with a client-literal serverCreatedAt', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c2'), {
+        createdAt: now,
+        serverCreatedAt: Timestamp.fromMillis(now),
+      }),
+    );
+  });
+  it('rejects create with a future createdAt beyond skew', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c3'), {
+        createdAt: now + 3_600_000, // 1h ahead > 5m skew
+        serverCreatedAt: serverTimestamp(),
+      }),
+    );
+  });
+  it('allows a create with no serverCreatedAt (old binary) and past createdAt', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c4'), { createdAt: now - 60_000 }),
+    );
+  });
+  it('allows an edit that leaves serverCreatedAt unchanged', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c5'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c5'), { name: 'Ada' }, { merge: true }),
+    );
+  });
+  it('rejects an update that rewrites serverCreatedAt to a forged value', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c6'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c6'),
+        { serverCreatedAt: Timestamp.fromMillis(now - 5 * 86_400_000) }, { merge: true }),
+    );
+  });
+  it('applies the same rules to orders and measurements', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o1'),
+        { createdAt: now - 60_000, serverCreatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m1'),
+        { createdAt: now, serverCreatedAt: Timestamp.fromMillis(now) }),
+    );
+  });
+});

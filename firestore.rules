@@ -67,6 +67,27 @@ service cloud.firestore {
 
     // ── /users/{uid} ───────────────────────────────────────────────────────
     match /users/{uid} {
+      // ── Lane B: activity docs (customers/orders/measurements) ────────────────
+      // serverCreatedAt is the server-stamped anti-backdating anchor. On create it
+      // must equal request.time if present (old binaries omit it → allowed, graded
+      // by the Lane A ratchet). On update it is immutable, except a create that
+      // omitted it may be stamped exactly once (the two-write client path). This
+      // lets edit flows through while making the field unforgeable.
+      function activityCreateOk() {
+        return isOwner(uid)
+          && (!('serverCreatedAt' in request.resource.data)
+              || request.resource.data.serverCreatedAt == request.time)
+          && (!('createdAt' in request.resource.data)
+              || request.resource.data.createdAt <= request.time.toMillis() + 300000);
+      }
+      function serverCreatedAtProtectedOnUpdate() {
+        return !('serverCreatedAt' in request.resource.data)
+          ? true
+          : (('serverCreatedAt' in resource.data)
+             ? request.resource.data.serverCreatedAt == resource.data.serverCreatedAt
+             : request.resource.data.serverCreatedAt == request.time);
+      }
+
       allow read: if isOwner(uid);
 
       // Client-side delete is denied to prevent welcome-window replay.
@@ -162,10 +183,16 @@ service cloud.firestore {
       // slotState/lockedAt stay client-writable in V1.0 because the SwapSheet
       // mutates them directly via Firestore batch. See top-level comment.
       match /customers/{customerId} {
-        allow read, create, update, delete: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow create: if activityCreateOk();
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate();
+        allow delete: if isOwner(uid);
 
         match /measurements/{measurementId} {
-          allow read, write: if isOwner(uid);
+          allow read: if isOwner(uid);
+          allow create: if activityCreateOk();
+          allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate();
+          allow delete: if isOwner(uid);
         }
 
         match /styles/{styleId} {
@@ -185,7 +212,10 @@ service cloud.firestore {
 
       // ── Orders subcollection ─────────────────────────────────────────────
       match /orders/{orderId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow create: if activityCreateOk();
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate();
+        allow delete: if isOwner(uid);
       }
 
       // ── Inspiration style gallery ───────────────────────────────────────
