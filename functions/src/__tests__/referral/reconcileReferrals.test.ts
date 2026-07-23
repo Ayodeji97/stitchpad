@@ -702,4 +702,96 @@ describe('reconcileReferralsHandler', () => {
     expect(store.get('referrals/u1').milestone).toBe('qualified');
     expect(store.get('referrals/u1').observedDayKeys).toContain('2026-07-04');
   });
+
+  // ── Lane B: serverCreatedAt freshness gate ─────────────────────────────────
+
+  it('counts a fresh server-stamped day (serverCreatedAt ≈ createdAt)', async () => {
+    // Identical fixture to "qualifies a set-up user active on 4 distinct days",
+    // but c3 now also carries a serverCreatedAt equal to its createdAt — the
+    // server saw the write instantly. Must still credit the day and qualify.
+    const c3CreatedAt = SIGNUP + 4.5 * DAY_MS; // '2026-07-05' — credited this run
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: c3CreatedAt, serverCreatedAt: ts(c3CreatedAt) },
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.payoutState).toBe('pending');
+    expect(ref.observedDayKeys).toContain('2026-07-05');
+  });
+
+  it('drops a stale-stamped day (createdAt day1, serverCreatedAt day6, freshness 3)', async () => {
+    // Same fixture again, but c3's serverCreatedAt lags its claimed createdAt by
+    // more than ACTIVITY_FRESHNESS_DAYS (3) — the server only saw the write days
+    // after the claimed day. The day must NOT be counted this run, so the
+    // referral stays below the 4-distinct-day bar (activated, not qualified).
+    const c3CreatedAt = SIGNUP + 4.5 * DAY_MS; // claimed '2026-07-05'
+    const staleServerStamp = SIGNUP + 8 * DAY_MS; // server saw it ~3.5 days later — stale
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: c3CreatedAt, serverCreatedAt: ts(staleServerStamp) },
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 0 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('activated');
+    expect(ref.payoutState).toBe('none');
+    expect(ref.observedDayKeys).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
+  });
+
+  it('falls back to the Lane A ratchet for a doc with no serverCreatedAt', async () => {
+    // REGRESSION PIN: identical fixture and assertions to "qualifies a set-up
+    // user active on 4 distinct days + opens the payout" — no doc here carries
+    // serverCreatedAt at all, so grading must be byte-for-byte unchanged from
+    // pre-Lane-B behavior (purely the Lane A ratchet).
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.payoutState).toBe('pending');
+    expect(ref.payoutAmount).toBe(500_000);
+    expect(ref.activeDays).toBe(1);
+    expect(ref.holdEndsAt.toMillis()).toBe(NOW + HOLD_WINDOW_DAYS * DAY_MS);
+
+    const m = store.get('marketers/m1');
+    expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 500_000 });
+  });
+
+  it('counts fresh customer + legacy measurement days together', async () => {
+    // Mixed set: c1 is fresh-stamped (serverCreatedAt == createdAt) on '2026-07-04';
+    // the measurement under c0 carries no serverCreatedAt at all (legacy). With 2
+    // prior observed days ('2026-07-01', '2026-07-02'), both new days must be
+    // credited this run to cross the 4-distinct-day bar.
+    const freshDay = SIGNUP + 3.5 * DAY_MS; // '2026-07-04'
+    const legacyDay = SIGNUP + 4.5 * DAY_MS; // '2026-07-05'
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c0': { createdAt: SIGNUP + 0.5 * DAY_MS }, // activation, legacy
+        'users/u1/customers/c1': { createdAt: freshDay, serverCreatedAt: ts(freshDay) },
+        'users/u1/customers/c0/measurements/mm1': { createdAt: legacyDay }, // no serverCreatedAt
+      },
+      priorNights(['2026-07-01', '2026-07-02'], '2026-07-03'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res.qualified).toBe(1);
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.observedDayKeys).toEqual(expect.arrayContaining(['2026-07-04', '2026-07-05']));
+  });
 });
