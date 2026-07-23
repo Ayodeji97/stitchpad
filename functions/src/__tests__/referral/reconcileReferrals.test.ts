@@ -158,8 +158,9 @@ describe('isServerFresh', () => {
   it('credits a stamp exactly freshnessDays later (inclusive)', () => {
     expect(isServerFresh(D0, D0 + 3 * DAY_MS, 3)).toBe(true);
   });
-  it('rejects a stamp one day past the window', () => {
-    expect(isServerFresh(D0, D0 + 4 * DAY_MS, 3)).toBe(false);
+  it('rejects a stamp one ms past the window (exact upper boundary)', () => {
+    expect(isServerFresh(D0, D0 + 3 * DAY_MS, 3)).toBe(true);       // inclusive end
+    expect(isServerFresh(D0, D0 + 3 * DAY_MS + 1, 3)).toBe(false);  // +1ms rejected
   });
   it('tolerates a stamp up to a day before the claimed instant (clock skew)', () => {
     expect(isServerFresh(D0, D0 - DAY_MS, 3)).toBe(true);
