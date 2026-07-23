@@ -80,6 +80,24 @@ describe('sendVerificationEmailHandler', () => {
     });
   });
 
+  it('sends the link on our own domain, not the blocklisted firebaseapp.com host', async () => {
+    const { io, sendEmail } = makeIO({
+      link:
+        'https://stitchpad-30607.firebaseapp.com/__/auth/action' +
+        '?mode=verifyEmail&oobCode=ABC123&apiKey=AIzaSyKEY&lang=en',
+    });
+
+    await sendVerificationEmailHandler(authedContext, io);
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verifyLink:
+          'https://auth.getstitchpad.com/__/auth/action' +
+          '?mode=verifyEmail&oobCode=ABC123&apiKey=AIzaSyKEY&lang=en',
+      }),
+    );
+  });
+
   it('throttles when a send was reserved too recently', async () => {
     const { io, sendEmail } = makeIO({ reserveSend: jest.fn().mockResolvedValue(false) });
     await expect(sendVerificationEmailHandler(authedContext, io)).rejects.toMatchObject({

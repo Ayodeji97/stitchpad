@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { normalizeEmail } from './passwordResetShared';
 import { buildPasswordResetEmail } from './passwordResetEmailTemplate';
+import { rewriteActionLinkHost } from './actionLinkHost';
 import { sendResendEmail } from '../email/resendClient';
 
 const REGION = 'europe-west1';
@@ -43,7 +44,7 @@ export async function processPasswordResetEmailHandler(
     return;
   }
 
-  const resetLink = await io.generateLink(email);
+  const resetLink = rewriteActionLinkHost(await io.generateLink(email));
   await io.sendEmail({ to: email, displayName: user.displayName, resetLink });
 }
 
