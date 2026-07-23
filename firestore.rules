@@ -80,12 +80,23 @@ service cloud.firestore {
           && (!('createdAt' in request.resource.data)
               || request.resource.data.createdAt <= request.time.toMillis() + 300000);
       }
+      // Keys off resource.data (the BEFORE state) first. If serverCreatedAt already
+      // existed, it is fully immutable: the post-write doc must still contain it AND
+      // equal the prior value (blocks both change and delete-then-restamp). If it did
+      // NOT exist before, the write may leave it absent (a normal edit of an
+      // old-binary doc) or stamp it once to request.time.
+      //
+      // NOTE: the earlier version of this function keyed off request.resource.data
+      // (the AFTER state) first, which meant `updateDoc({serverCreatedAt:
+      // deleteField()})` dropped the field from request.resource.data and was
+      // ALLOWED — reopening the door to a follow-up `updateDoc({serverCreatedAt:
+      // serverTimestamp()})` "first stamp" that rewrote an already-stamped value.
       function serverCreatedAtProtectedOnUpdate() {
-        return !('serverCreatedAt' in request.resource.data)
-          ? true
-          : (('serverCreatedAt' in resource.data)
-             ? request.resource.data.serverCreatedAt == resource.data.serverCreatedAt
-             : request.resource.data.serverCreatedAt == request.time);
+        return ('serverCreatedAt' in resource.data)
+          ? (('serverCreatedAt' in request.resource.data)
+             && request.resource.data.serverCreatedAt == resource.data.serverCreatedAt)
+          : (!('serverCreatedAt' in request.resource.data)
+             || request.resource.data.serverCreatedAt == request.time);
       }
 
       allow read: if isOwner(uid);

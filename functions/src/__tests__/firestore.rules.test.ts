@@ -451,3 +451,77 @@ describe('activity docs — serverCreatedAt / createdAt', () => {
     );
   });
 });
+
+describe('activity docs — serverCreatedAt immutability (C1 fix)', () => {
+  const now = Date.now();
+
+  // Regression for the Critical bypass: the old rule keyed off
+  // request.resource.data (AFTER state), so `updateDoc({serverCreatedAt:
+  // deleteField()})` dropped the field from the AFTER state and was ALLOWED —
+  // opening the door to a follow-up serverTimestamp() "first stamp" that
+  // rewrote an already-stamped value. The fixed rule keys off resource.data
+  // (BEFORE state) first, so once stamped, the field must stay present AND
+  // unchanged — a delete is a removal, which fails both conjuncts.
+  it('C1 regression: denies delete-then-restamp bypass on an already-stamped doc (customers)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c7'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c7'), { serverCreatedAt: deleteField() }),
+    );
+  });
+
+  it('C1 regression: denies delete-then-restamp bypass on an already-stamped doc (orders)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o2'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/orders/o2'), { serverCreatedAt: deleteField() }),
+    );
+  });
+
+  it('C1 regression: denies delete-then-restamp bypass on an already-stamped doc (measurements)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m2'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m2'), { serverCreatedAt: deleteField() }),
+    );
+  });
+
+  it('denies directly overwriting an existing serverCreatedAt on orders (I1 coverage)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o3'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/orders/o3'), {
+        serverCreatedAt: Timestamp.fromMillis(now - 5 * 86_400_000),
+      }),
+    );
+  });
+
+  it('denies directly overwriting an existing serverCreatedAt on measurements (I1 coverage)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m3'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m3'), {
+        serverCreatedAt: Timestamp.fromMillis(now - 5 * 86_400_000),
+      }),
+    );
+  });
+
+  it('M2: allows the legitimate first-stamp via update on a doc created with no serverCreatedAt', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c8'), { createdAt: now - 60_000 });
+    await assertSucceeds(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c8'), { serverCreatedAt: serverTimestamp() }),
+    );
+  });
+
+  it('M2: allows a normal field edit (no serverCreatedAt in the write) on a still-unstamped doc', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c9'), { createdAt: now - 60_000 });
+    await assertSucceeds(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c9'), { name: 'Ada' }),
+    );
+  });
+});
