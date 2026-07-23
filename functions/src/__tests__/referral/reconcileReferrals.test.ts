@@ -4,6 +4,7 @@ import {
   gradeReferral,
   computeActiveDayKeys,
   ratchetObservedDayKeys,
+  isServerFresh,
 } from '../../referral/reconcileReferrals';
 import { HOLD_WINDOW_DAYS, DAY_MS } from '../../referral/referralConstants';
 
@@ -144,6 +145,31 @@ describe('computeActiveDayKeys', () => {
 
   it('ignores non-finite timestamps', () => {
     expect(computeActiveDayKeys([NaN, undefined as any, SIGNUP + DAY_MS], SIGNUP, WINDOW_END)).toHaveLength(1);
+  });
+});
+
+// ── isServerFresh ────────────────────────────────────────────────────────────
+
+describe('isServerFresh', () => {
+  const D0 = 1_700_000_000_000; // arbitrary fixed base ms
+  it('credits a same-instant server stamp', () => {
+    expect(isServerFresh(D0, D0, 3)).toBe(true);
+  });
+  it('credits a stamp exactly freshnessDays later (inclusive)', () => {
+    expect(isServerFresh(D0, D0 + 3 * DAY_MS, 3)).toBe(true);
+  });
+  it('rejects a stamp one day past the window', () => {
+    expect(isServerFresh(D0, D0 + 4 * DAY_MS, 3)).toBe(false);
+  });
+  it('tolerates a stamp up to a day before the claimed instant (clock skew)', () => {
+    expect(isServerFresh(D0, D0 - DAY_MS, 3)).toBe(true);
+    expect(isServerFresh(D0, D0 - DAY_MS - 1, 3)).toBe(false);
+  });
+  it('treats a missing server stamp as not-fresh (caller handles legacy)', () => {
+    expect(isServerFresh(D0, undefined, 3)).toBe(false);
+  });
+  it('treats a non-finite server stamp as not-fresh', () => {
+    expect(isServerFresh(D0, NaN, 3)).toBe(false);
   });
 });
 

@@ -29,6 +29,13 @@ export const QUALIFY_WINDOW_DAYS = 14;
 // confirmed, giving fraud checks + account-deletion clawback time to fire.
 export const HOLD_WINDOW_DAYS = 7;
 
+// Lane B: a client `createdAt` day only counts toward qualification when the
+// doc's server-stamped `serverCreatedAt` lands within this many Lagos-days of it.
+// Larger = kinder to tailors who sync infrequently offline; smaller = stronger
+// anti-backdating. Docs with no serverCreatedAt (old binaries) bypass this and
+// fall through to the Lane A ratchet. See reconcileReferrals.isServerFresh.
+export const ACTIVITY_FRESHNESS_DAYS = 3;
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Day-boundary timezone for distinct-active-day counting. MUST match the

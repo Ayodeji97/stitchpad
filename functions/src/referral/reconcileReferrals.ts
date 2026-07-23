@@ -72,6 +72,31 @@ export function computeActiveDayKeys(
   return Array.from(keys).sort();
 }
 
+// ── Pure: server-freshness of a single activity doc's claimed day ─────────────
+
+/**
+ * A client `createdAt` day is trustworthy for payout only if the doc's
+ * server-stamped `serverCreatedAt` corroborates it: the server saw the write
+ * within `freshnessDays` of the claimed creation day. A burst of week-old
+ * backdated `createdAt` values all carry a much-later `serverCreatedAt`, so they
+ * fall outside the window and do not count. A small negative tolerance (one day)
+ * absorbs the 5-minute future-date rule skew crossing a Lagos midnight.
+ *
+ * Returns false when `serverCreatedAtMs` is undefined/non-finite — the doc is
+ * from a pre-Lane-B binary; the CALLER decides to fall back to the Lane A
+ * ratchet for such docs (never treat "not fresh" as "excluded" at the call site
+ * without first checking presence).
+ */
+export function isServerFresh(
+  createdAtMs: number,
+  serverCreatedAtMs: number | undefined,
+  freshnessDays: number,
+): boolean {
+  if (typeof serverCreatedAtMs !== 'number' || !Number.isFinite(serverCreatedAtMs)) return false;
+  const delta = serverCreatedAtMs - createdAtMs;
+  return delta >= -DAY_MS && delta <= freshnessDays * DAY_MS;
+}
+
 // ── Pure: server-observed day ratchet ────────────────────────────────────────
 
 export interface RatchetInput {
