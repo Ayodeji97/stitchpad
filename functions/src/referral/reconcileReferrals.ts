@@ -72,6 +72,114 @@ export function computeActiveDayKeys(
   return Array.from(keys).sort();
 }
 
+// ── Pure: server-observed day ratchet ────────────────────────────────────────
+
+export interface RatchetInput {
+  // CONTRACT: observedKeys and priorActiveKeys must be passed as the RAW stored
+  // field values — do NOT default them with `?? []` at the call site. The
+  // `observedKeys === undefined && priorActiveKeys !== undefined` migration test
+  // is load-bearing: `?? []` on either one silently mis-routes every in-flight or
+  // brand-new referral. Task 2 passes `data.observedDayKeys` / `data.activeDayKeys`
+  // directly for exactly this reason.
+
+  /** Window-bounded day-keys recomputed this run (from computeActiveDayKeys). */
+  rawKeys: string[];
+  /** Prior observedDayKeys; undefined for a referral graded before the ratchet shipped. */
+  observedKeys: string[] | undefined;
+  /** Prior activeDayKeys; used only to seed the migration case. */
+  priorActiveKeys: string[] | undefined;
+  /** Lagos date-key of the previous grader run; undefined on the first run. */
+  lastRunDateKey: string | undefined;
+  /** Lagos date-key of THIS grader run. */
+  runDateKey: string;
+  /** Lagos date-key of the qualification window start (attribution date). */
+  windowStartDateKey: string;
+}
+
+export interface RatchetResult {
+  /** Monotonic union of previously-observed and newly-credited keys, sorted. */
+  observedDayKeys: string[];
+  /** Keys credited by THIS run (empty on a migration seed). */
+  newlyCredited: string[];
+  /** A raw key dated after the run date — impossible for a correct client. */
+  futureDated: boolean;
+}
+
+/** The Lagos date-key one calendar day before `key` ('2026-07-05' -> '2026-07-04'). */
+function prevDayKey(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  // UTC math on a date-only key never crosses a DST/offset boundary, so this is a
+  // clean -1 day. lagosDateKey already folds the Lagos offset into the key.
+  const prev = new Date(Date.UTC(y, m - 1, d) - 86_400_000);
+  return prev.toISOString().slice(0, 10);
+}
+
+/**
+ * Credits a day-key only when this run could legitimately have observed it: the
+ * day is already over, and it is not older than the run that should have caught
+ * it. The nightly cadence is the unforgeable clock — a burst of future-dated
+ * writes yields at most one credited day per run, so reaching
+ * QUALIFY_DISTINCT_DAYS takes as many nights as an honest user needs.
+ *
+ * Day-keys are 'YYYY-MM-DD', so string comparison is chronological.
+ */
+export function ratchetObservedDayKeys(input: RatchetInput): RatchetResult {
+  const { rawKeys, observedKeys, priorActiveKeys, lastRunDateKey, runDateKey, windowStartDateKey } = input;
+
+  const futureDated = rawKeys.some((k) => k > runDateKey);
+
+  // Migration: graded before the ratchet existed. Seed from the accrued raw set
+  // so a legitimate in-flight referral doesn't lose its days and become unable to
+  // qualify before its window closes. Credit nothing else this run — from the
+  // next run on, the normal rules apply.
+  //
+  // The `length > 0` guard is REQUIRED, not defensive: recordAttribution.ts:192
+  // initializes every new referral with `activeDayKeys: []`, so `!== undefined`
+  // alone is true for brand-new referrals too. Without the length check a fresh
+  // referral is misclassified as a migration, seeds observedDayKeys from [], stamps
+  // lastObservedRunDateKey, and permanently strands its signup-day activity below
+  // the next floor — an honest 4-day user loses day 1 and never qualifies. An empty
+  // priorActiveKeys has no accrued days to preserve, so it correctly falls through
+  // to the normal path.
+  if (observedKeys === undefined && priorActiveKeys !== undefined && priorActiveKeys.length > 0) {
+    return {
+      observedDayKeys: Array.from(new Set(priorActiveKeys)).sort(),
+      newlyCredited: [],
+      futureDated,
+    };
+  }
+
+  const observed = new Set(observedKeys ?? []);
+  // Floor = the earlier bound on creditable days.
+  //  - With a prior run: keys >= that run's date; earlier days were its job.
+  //  - First run (no prior run): clamp to YESTERDAY, not the attribution date. A
+  //    dormant in-flight referral persists no activeDayKeys (the grader skips the
+  //    write when nothing changed), so the migration branch can't fire and the
+  //    attribution-date floor would credit every backdated window-day at once —
+  //    the exact bypass this ratchet closes. `max(windowStart, prevDay(run))`
+  //    caps a first run to the one day it could legitimately have observed.
+  const floor = lastRunDateKey ?? maxKey(windowStartDateKey, prevDayKey(runDateKey));
+
+  const newlyCredited = rawKeys
+    .filter((k) => k < runDateKey)   // completed days only
+    .filter((k) => k >= floor)       // not older than the run that should have seen it
+    .filter((k) => !observed.has(k));
+
+  const deduped = Array.from(new Set(newlyCredited)).sort();
+  for (const k of deduped) observed.add(k);
+
+  return {
+    observedDayKeys: Array.from(observed).sort(),
+    newlyCredited: deduped,
+    futureDated,
+  };
+}
+
+/** The chronologically later of two 'YYYY-MM-DD' keys (lexicographic == chronological). */
+function maxKey(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
 // ── Pure: grade one referral ─────────────────────────────────────────────────
 
 export interface ReferralGradeInput {
@@ -177,6 +285,7 @@ async function gatherSignals(
   uid: string,
   signupMs: number,
   windowEndMs: number,
+  alreadyObservedCount: number,
 ): Promise<CandidateSignals> {
   const userSnap = await db.doc(`users/${uid}`).get();
   const businessName = (userSnap.data()?.businessName ?? '') as string;
@@ -194,9 +303,13 @@ async function gatherSignals(
 
   let dayKeys = computeActiveDayKeys(activityMs, signupMs, windowEndMs);
 
-  // Only pay for the (potentially many) per-customer measurement reads if we
-  // still need more distinct days to qualify — and fetch them concurrently.
-  if (dayKeys.length < QUALIFY_DISTINCT_DAYS) {
+  // Only pay for the (potentially many) per-customer measurement reads if the
+  // referral is not already qualified. Post-ratchet the RAW day-count no longer
+  // implies qualification (raw days may be already-observed / below-floor /
+  // future-dated), so a not-yet-qualified referral must scan measurements — a
+  // measurement-only day could be its genuine newly-eligible day. A qualified
+  // referral (observed >= bar) can gain nothing, so it still skips.
+  if (alreadyObservedCount < QUALIFY_DISTINCT_DAYS) {
     const measurementSnaps = await Promise.all(
       customersSnap.docs.map((c) => db.collection(`users/${uid}/customers/${c.id}/measurements`).get()),
     );
@@ -247,8 +360,9 @@ export async function reconcileReferralsHandler(
       data.qualificationWindowStartsAt?.toMillis?.() ?? data.signupAt?.toMillis?.() ?? nowMs;
     const windowEndMs: number = data.qualificationWindowEndsAt?.toMillis?.() ?? (windowStartMs + QUALIFY_WINDOW_DAYS * DAY_MS);
 
-    const signals = await gatherSignals(db, uid, windowStartMs, windowEndMs);
-    const qualifiesByActivity = signals.activeDayKeys.length >= QUALIFY_DISTINCT_DAYS;
+    const signals = await gatherSignals(
+      db, uid, windowStartMs, windowEndMs, (data.observedDayKeys?.length ?? 0),
+    );
 
     // Re-read the racy fields (milestone/payoutState/flags) inside the transaction
     // so a concurrent run or a manual debug invocation can't double-count.
@@ -264,16 +378,33 @@ export async function reconcileReferralsHandler(
         flags?: ReferralFlag[];
         marketerId: string;
         activeDayKeys?: string[];
+        observedDayKeys?: string[];
+        lastObservedRunDateKey?: string;
       };
       const marketerRef = db.doc(`${MARKETERS}/${f.marketerId}`);
       const m = (await tx.get(marketerRef)).data() ?? {};
+
+      const runDateKey = lagosDateKey(nowMs);
+      const ratchet = ratchetObservedDayKeys({
+        rawKeys: signals.activeDayKeys,
+        observedKeys: f.observedDayKeys,
+        priorActiveKeys: f.activeDayKeys,
+        lastRunDateKey: f.lastObservedRunDateKey,
+        runDateKey,
+        windowStartDateKey: lagosDateKey(windowStartMs),
+      });
+      // Qualification is driven by the ratcheted set, NOT the raw recomputed one.
+      const qualifiesByActivity = ratchet.observedDayKeys.length >= QUALIFY_DISTINCT_DAYS;
+      const flags: ReferralFlag[] = ratchet.futureDated && !(f.flags ?? []).includes('future_dated_activity')
+        ? [...(f.flags ?? []), 'future_dated_activity']
+        : (f.flags ?? []);
 
       const grade = gradeReferral({
         milestone: f.milestone,
         payoutState: f.payoutState,
         activated: signals.activated,
         qualifiesByActivity,
-        hasFlags: hasBlockingFlag(f.flags),
+        hasFlags: hasBlockingFlag(flags),
         payoutRatePerUser: (m.payoutRatePerUser as number) ?? 0,
         nowMs,
       });
@@ -285,11 +416,20 @@ export async function reconcileReferralsHandler(
       const daysChanged =
         prevKeys.length !== signals.activeDayKeys.length ||
         prevKeys.some((k, i) => k !== signals.activeDayKeys[i]);
-      if (!grade && !daysChanged) return null;
+      const prevObserved = f.observedDayKeys ?? [];
+      const observedChanged =
+        f.observedDayKeys === undefined ||
+        prevObserved.length !== ratchet.observedDayKeys.length ||
+        f.lastObservedRunDateKey !== runDateKey;
+      const flagsChanged = flags.length !== (f.flags ?? []).length;
+      if (!grade && !daysChanged && !observedChanged && !flagsChanged) return null;
 
       const update: Record<string, unknown> = {
         activeDays: signals.activeDayKeys.length,
         activeDayKeys: signals.activeDayKeys,
+        observedDayKeys: ratchet.observedDayKeys,
+        lastObservedRunDateKey: runDateKey,
+        flags,
         updatedAt: nowTs,
       };
       if (grade) {
