@@ -253,6 +253,7 @@ class FirebaseOrderRepository(
         val dto = order.withCompletedUploadPatches().toOrderDto().copy(id = docRef.id)
         val accepted = offlineWrites.enqueue("createOrder orderId=${docRef.id}") {
             docRef.set(dto)
+            docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
