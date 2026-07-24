@@ -7,11 +7,13 @@ import com.danzucker.stitchpad.core.data.repository.FakeCustomGarmentTypeReposit
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -127,6 +129,7 @@ class OrderFormViewModelTest {
         id: String = "order-1",
         payments: List<Payment> = emptyList(),
         priority: OrderPriority = OrderPriority.NORMAL,
+        costs: List<OrderCost> = emptyList(),
     ): Order {
         val order = Order(
             id = id,
@@ -150,6 +153,7 @@ class OrderFormViewModelTest {
             notes = null,
             createdAt = 0L,
             updatedAt = 0L,
+            costs = costs,
         )
         orderRepository.ordersList = listOf(order)
         return order
@@ -280,6 +284,48 @@ class OrderFormViewModelTest {
         // Payments are preserved because deposit didn't change.
         assertEquals(500.0, updated.payments.single { it.type == PaymentType.DEPOSIT }.amount)
         assertEquals(200.0, updated.payments.single { it.type == PaymentType.PROGRESS }.amount)
+    }
+
+    // Regression: OrderFormViewModel builds a fresh Order(...) on every save and never
+    // surfaces cost lines in the form UI (those are edited exclusively via the dedicated
+    // cost editor / updateCosts()). Without re-threading the loaded costs through, saving
+    // an edit here would default costs to emptyList() and updateOrder()'s merge-write would
+    // silently erase the tailor's previously recorded costs on the very next unrelated edit
+    // (e.g. changing notes). See FirebaseOrderRepository.updateCosts and Order.costs KDoc.
+    @Test
+    fun save_inEditMode_editingUnrelatedField_preservesExistingCosts() = runTest {
+        val costs = listOf(
+            OrderCost(category = CostCategory.FABRIC, amount = 3_000.0, note = null),
+            OrderCost(category = CostCategory.LABOUR, amount = 1_500.0, note = "tailoring"),
+        )
+        seedOrder(costs = costs)
+        val vm = createViewModel(orderId = "order-1")
+
+        // Edit something the form UI actually surfaces — costs aren't part of it.
+        vm.onAction(OrderFormAction.OnNotesChange("Rush this one"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        val updated = orderRepository.lastUpdatedOrder
+        assertNotNull(updated)
+        assertEquals("Rush this one", updated.notes)
+        assertEquals(costs, updated.costs)
+    }
+
+    @Test
+    fun save_inCreateMode_neverInventsCosts() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(
+            OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"),
+        )
+        vm.onAction(OrderFormAction.OnSave)
+
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertEquals(emptyList(), created.costs)
     }
 
     @Test

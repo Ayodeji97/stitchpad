@@ -19,12 +19,22 @@ data class Kpi(
 }
 
 /**
- * Aggregate of the four KPI tiles shown on Reports V2 (Revenue, Collected,
- * Outstanding, Orders). Computed in a single pass over orders by [KpiCalculator].
+ * Aggregate of the KPI tiles shown on Reports V2 (Revenue, Collected,
+ * Outstanding, Orders, Profit). Computed in a single pass over orders by [KpiCalculator].
+ *
+ * @property ordersWithCosts Count of current-window orders that have at least one recorded
+ *                            cost line (i.e. [com.danzucker.stitchpad.core.domain.model.Order.hasCosts]).
+ * @property ordersInWindow  Count of ALL current-window orders, costed or not — the coverage denominator.
+ * @property profitMarginPercent [profit]'s current value as a % of the payableTotal of costed
+ *                                orders only; `null` when [ordersWithCosts] is 0 (no meaningful %).
  */
 data class KpiSummary(
     val revenue: Kpi,
     val collected: Kpi,
     val outstanding: Kpi,
-    val orders: Kpi
+    val orders: Kpi,
+    val profit: Kpi,
+    val ordersWithCosts: Int,
+    val ordersInWindow: Int,
+    val profitMarginPercent: Double?
 )

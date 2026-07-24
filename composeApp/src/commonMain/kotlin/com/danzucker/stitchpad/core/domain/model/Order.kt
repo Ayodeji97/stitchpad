@@ -73,6 +73,25 @@ data class StatusChange(
     val changedAt: Long
 )
 
+enum class CostCategory {
+    FABRIC,
+    MATERIALS_TRIMS,
+    EMBELLISHMENT,
+    LABOUR,
+    LOGISTICS,
+    OTHER,
+}
+
+/**
+ * One recorded cost line on an [Order]. At most one per [CostCategory]
+ * (the editor enforces this); modelled as a list for stable serialization.
+ */
+data class OrderCost(
+    val category: CostCategory,
+    val amount: Double,
+    val note: String? = null,
+)
+
 data class Order(
     val id: String,
     val userId: String,
@@ -87,6 +106,7 @@ data class Order(
     val discount: Double = 0.0,
     val discountReason: String? = null,
     val payments: List<Payment> = emptyList(),
+    val costs: List<OrderCost> = emptyList(),
     val deadline: Long?,
     val notes: String?,
     val archivedAt: Long? = null,
@@ -101,6 +121,18 @@ data class Order(
 
     /** Outstanding balance. Recomputed from [payableTotal] and [payments]. */
     val balanceRemaining: Double get() = (payableTotal - depositPaid).coerceAtLeast(0.0)
+
+    /** Sum of all recorded cost lines. Private business data — never on receipts. */
+    val totalCost: Double get() = costs.sumOf { it.amount }
+
+    /** Real profit on the full order value: [payableTotal] minus [totalCost]. Can be negative (a loss). */
+    val profit: Double get() = payableTotal - totalCost
+
+    /** [profit] as a fraction of [payableTotal]; null when payableTotal is 0 (no meaningful %). */
+    val profitMargin: Double? get() = if (payableTotal > 0.0) profit / payableTotal else null
+
+    /** True when at least one cost line is recorded. */
+    val hasCosts: Boolean get() = costs.isNotEmpty()
 }
 
 fun Order.ownedStoragePaths(): List<String> =

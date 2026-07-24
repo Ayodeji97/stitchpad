@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.feature.reports.domain
 
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -43,7 +45,8 @@ class KpiCalculatorTest {
         updatedAt: Long,
         totalPrice: Double = 0.0,
         balanceRemaining: Double = 0.0,
-        status: OrderStatus = OrderStatus.PENDING
+        status: OrderStatus = OrderStatus.PENDING,
+        costs: List<OrderCost> = emptyList()
     ): Order {
         val depositAmount = (totalPrice - balanceRemaining).coerceAtLeast(0.0)
         return Order(
@@ -59,6 +62,7 @@ class KpiCalculatorTest {
             statusHistory = emptyList(),
             totalPrice = totalPrice,
             payments = if (depositAmount > 0.0) listOf(depositPayment(depositAmount)) else emptyList(),
+            costs = costs,
             deadline = null,
             notes = null,
             createdAt = updatedAt,
@@ -183,5 +187,47 @@ class KpiCalculatorTest {
         assertEquals(8_000.0, summary.revenue.current)
         assertEquals(2_000.0, summary.collected.current)
         assertEquals(6_000.0, summary.outstanding.current)
+    }
+
+    @Test
+    fun `profit sums only orders with costs in window`() {
+        val orders = listOf(
+            // 50k order, 44k fabric cost → profit 6k. Costed.
+            order(
+                id = "a",
+                updatedAt = millisAt(today),
+                totalPrice = 50_000.0,
+                balanceRemaining = 0.0,
+                costs = listOf(OrderCost(CostCategory.FABRIC, 44_000.0))
+            ),
+            // 30k order, no costs recorded. Excluded from profit + coverage numerator.
+            order(
+                id = "b",
+                updatedAt = millisAt(today),
+                totalPrice = 30_000.0,
+                balanceRemaining = 0.0
+            )
+        )
+        val summary = KpiCalculator.computeSummary(orders, ReportsPeriod.MONTH, today, tz)
+        assertEquals(6_000.0, summary.profit.current)
+        assertEquals(1, summary.ordersWithCosts)
+        assertEquals(2, summary.ordersInWindow)
+        assertEquals(6_000.0 / 50_000.0 * 100.0, summary.profitMarginPercent)
+    }
+
+    @Test
+    fun `profit margin is null when no costed orders in window`() {
+        val orders = listOf(
+            order(
+                id = "a",
+                updatedAt = millisAt(today),
+                totalPrice = 30_000.0,
+                balanceRemaining = 0.0
+            )
+        )
+        val summary = KpiCalculator.computeSummary(orders, ReportsPeriod.MONTH, today, tz)
+        assertEquals(0.0, summary.profit.current)
+        assertEquals(0, summary.ordersWithCosts)
+        assertNull(summary.profitMarginPercent)
     }
 }

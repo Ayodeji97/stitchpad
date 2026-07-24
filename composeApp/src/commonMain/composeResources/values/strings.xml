@@ -1753,4 +1753,32 @@
     <string name="celebration_first_order_body">You’re officially in business. Let’s get %1$s’s outfit made.</string>
     <string name="celebration_continue">Continue</string>
     <string name="celebration_add_measurements">Add measurements</string>
+
+    <!-- Order costing + profit -->
+    <string name="order_costs_section">Costs &amp; Profit</string>
+    <string name="order_costs_total">Total cost</string>
+    <string name="order_costs_profit">Profit</string>
+    <string name="order_costs_loss">Loss</string>
+    <string name="order_costs_add_cost">Add cost</string>
+    <string name="order_costs_add_button">Add costs</string>
+    <string name="order_costs_empty_body">Add what this order cost you — fabric, trims, labour — to see your real profit.</string>
+    <string name="order_costs_private_caption">Private — never shown on receipts</string>
+    <string name="costs_editor_title">Record costs</string>
+    <string name="costs_editor_subtitle">What did this order cost you? Leave blank what does not apply.</string>
+    <string name="costs_editor_save">Save costs</string>
+    <string name="costs_saved_message">Costs saved</string>
+    <string name="cost_category_fabric">Fabric</string>
+    <string name="cost_category_materials_trims">Materials &amp; trims</string>
+    <string name="cost_category_embellishment">Embellishment</string>
+    <string name="cost_category_labour">Labour</string>
+    <string name="cost_category_logistics">Logistics</string>
+    <string name="cost_category_other">Other</string>
+    <string name="cost_hint_materials_trims">thread, lining, zips, buttons</string>
+    <string name="cost_hint_embellishment">embroidery, beading, stoning, print</string>
+    <string name="cost_hint_labour">sewing / handwork</string>
+    <string name="cost_hint_logistics">transport, delivery, market runs</string>
+    <string name="cost_hint_other">packaging, POS fees, anything else</string>
+    <string name="reports_kpi_profit">Profit</string>
+    <string name="reports_profit_coverage">On %1$d of %2$d orders with costs recorded</string>
+    <string name="reports_profit_empty">Add costs to an order to see profit</string>
 </resources>
