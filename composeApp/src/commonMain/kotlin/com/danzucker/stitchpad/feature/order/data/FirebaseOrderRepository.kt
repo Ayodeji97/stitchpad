@@ -107,6 +107,16 @@ internal fun OrderCostDto.toFirestoreMap(): Map<String, Any?> = mapOf(
     "note" to note,
 )
 
+/**
+ * Write payload for [FirebaseOrderRepository.updateCosts] — costs only, deliberately
+ * never `updatedAt`. Extracted as a pure helper so the "no updatedAt" invariant can be
+ * asserted in commonTest without a Firestore fake (see [FirebaseOrderRepository.updateCosts]
+ * KDoc for why bumping updatedAt here would be wrong).
+ */
+internal fun orderCostsWriteFields(costs: List<OrderCost>): Map<String, Any?> = mapOf(
+    "costs" to costs.map { it.toOrderCostDto().toFirestoreMap() },
+)
+
 @Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
     private val firestore: FirebaseFirestore,
@@ -374,18 +384,26 @@ class FirebaseOrderRepository(
         return Result.Success(Unit)
     }
 
+    /**
+     * Updates an order's cost lines only.
+     *
+     * Deliberately does NOT bump `updatedAt` (unlike [recordPayment]/[updateNotes]/
+     * [updateSubStatus]). Costs are private analytics data the tailor may backfill onto an
+     * old, already-delivered order long after the fact. Reports buckets every order into its
+     * reporting window by `updatedAt` ([com.danzucker.stitchpad.feature.reports.domain.KpiCalculator]),
+     * so bumping it here would yank that old order into the CURRENT window and inflate this
+     * period's Revenue/Collected/Outstanding/Orders/Profit — editing a private field would
+     * corrupt a public report. See [orderCostsWriteFields] for the write payload this
+     * invariant is guarded by in commonTest.
+     */
     override suspend fun updateCosts(
         userId: String,
         orderId: String,
         costs: List<OrderCost>,
     ): EmptyResult<DataError.Network> {
-        val now = Clock.System.now().toEpochMilliseconds()
         val costMaps = costs.map { it.toOrderCostDto().toFirestoreMap() }
         val accepted = offlineWrites.enqueue("updateCosts orderId=$orderId") {
-            ordersCollection(userId).document(orderId).update(
-                "costs" to costMaps,
-                "updatedAt" to now,
-            )
+            ordersCollection(userId).document(orderId).update("costs" to costMaps)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

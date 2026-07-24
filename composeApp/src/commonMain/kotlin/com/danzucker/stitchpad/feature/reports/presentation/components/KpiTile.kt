@@ -158,6 +158,58 @@ private fun deltaColor(positive: Boolean): Color =
     if (positive) DesignTokens.success500 else DesignTokens.error500
 
 /**
+ * Direction of the Profit tile's trend chip, decided from the SIGNED amount change
+ * ([Kpi.deltaAmount]) rather than [Kpi.deltaPercent].
+ *
+ * [Kpi.deltaPercent] is `(current - previous) / previous * 100`, which silently assumes a
+ * non-negative baseline. That's fine for Revenue/Collected/Outstanding/Orders (never
+ * negative), but Profit CAN be negative (a loss period). Against a negative baseline the
+ * ratio inverts: -5000 -> -10000 (the loss doubled — worse) yields +100%, and
+ * -5000 -> -2000 (the loss shrank — better) yields a negative %. The percentage-driven
+ * arrow points backwards in exactly the periods a tailor most needs to trust it.
+ * The signed amount change has no such blind spot: it is simply "did profit go up or down",
+ * regardless of what side of zero it started on.
+ */
+internal enum class ProfitTrend { UP, DOWN, FLAT }
+
+internal fun profitTrend(deltaAmount: Double): ProfitTrend = when {
+    deltaAmount > 0.0 -> ProfitTrend.UP
+    deltaAmount < 0.0 -> ProfitTrend.DOWN
+    else -> ProfitTrend.FLAT
+}
+
+/**
+ * Profit-only trend chip. Mirrors [DeltaChip]'s "no prior period" empty state (shown when
+ * [Kpi.deltaPercent] is `null`, i.e. [Kpi.previous] == 0.0) but otherwise renders a signed
+ * ₦ amount driven by [profitTrend] instead of a percentage — see [profitTrend] for why.
+ */
+@Composable
+private fun ProfitDeltaChip(kpi: Kpi, suffix: String, periodLabel: String) {
+    if (kpi.deltaPercent == null) {
+        Text(
+            text = periodLabel,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        return
+    }
+    val trend = profitTrend(kpi.deltaAmount)
+    val (arrow, color) = when (trend) {
+        ProfitTrend.UP -> "▲" to deltaColor(positive = true)
+        ProfitTrend.DOWN -> "▼" to deltaColor(positive = false)
+        ProfitTrend.FLAT -> "—" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val amountText = "₦${formatPrice(abs(kpi.deltaAmount))}"
+    Text(
+        text = "$arrow $amountText  $suffix",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = color
+    )
+}
+
+/**
  * Full-width Profit tile. Kept separate from [KpiTile] rather than bolting more optional
  * params onto it: Profit needs a coverage caption that always renders (not just on hover
  * of a tooltip) and an honest empty state that replaces the money value entirely — two
@@ -249,11 +301,10 @@ fun ProfitKpiTile(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                DeltaChip(
+                ProfitDeltaChip(
                     kpi = kpi,
                     suffix = deltaSuffix,
-                    periodLabel = periodLabel,
-                    invertSign = false
+                    periodLabel = periodLabel
                 )
                 if (kpi.sparkline.isNotEmpty()) {
                     Spacer(Modifier.width(DesignTokens.space2))
@@ -353,4 +404,46 @@ private fun ProfitKpiTileEmptyLightPreview() {
 @Composable
 private fun ProfitKpiTileEmptyDarkPreview() {
     ProfitKpiTilePreview(darkTheme = true, isCoverageEmpty = true)
+}
+
+// Loss-period regression preview: previous window was already a loss (-5000) and it got
+// worse (-10000). The old percent-driven chip showed a lying "▲ +100%" here; the
+// deltaAmount-driven ProfitDeltaChip must show "▼ ₦5,000" instead.
+private val previewWorseningLossProfitKpi = Kpi(
+    current = -10_000.0,
+    previous = -5_000.0,
+    deltaPercent = 100.0,
+    sparkline = listOf(-2_000.0, -3_500.0, -4_200.0, -4_800.0, -5_000.0, -6_500.0, -8_200.0, -10_000.0)
+)
+
+@Composable
+private fun ProfitKpiTileWorseningLossPreview(darkTheme: Boolean) {
+    StitchPadTheme(darkTheme = darkTheme) {
+        ProfitKpiTile(
+            label = "Profit",
+            icon = Icons.Filled.Payments,
+            iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+            iconBackground = MaterialTheme.colorScheme.primaryContainer,
+            kpi = previewWorseningLossProfitKpi,
+            isCoverageEmpty = false,
+            coverageCaption = "On 9 of 12 orders with costs recorded",
+            emptyStateText = "Add costs to an order to see profit",
+            deltaSuffix = "vs last week",
+            periodLabel = "This week"
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ProfitKpiTileWorseningLossLightPreview() {
+    ProfitKpiTileWorseningLossPreview(darkTheme = false)
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun ProfitKpiTileWorseningLossDarkPreview() {
+    ProfitKpiTileWorseningLossPreview(darkTheme = true)
 }
