@@ -4,7 +4,17 @@ import androidx.compose.runtime.Composable
 import com.danzucker.stitchpad.core.domain.model.CostCategory
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.*
+import stitchpad.composeapp.generated.resources.cost_category_embellishment
+import stitchpad.composeapp.generated.resources.cost_category_fabric
+import stitchpad.composeapp.generated.resources.cost_category_labour
+import stitchpad.composeapp.generated.resources.cost_category_logistics
+import stitchpad.composeapp.generated.resources.cost_category_materials_trims
+import stitchpad.composeapp.generated.resources.cost_category_other
+import stitchpad.composeapp.generated.resources.cost_hint_embellishment
+import stitchpad.composeapp.generated.resources.cost_hint_labour
+import stitchpad.composeapp.generated.resources.cost_hint_logistics
+import stitchpad.composeapp.generated.resources.cost_hint_materials_trims
+import stitchpad.composeapp.generated.resources.cost_hint_other
 
 val costCategoryOrder: List<CostCategory> = listOf(
     CostCategory.FABRIC,
