@@ -895,7 +895,7 @@
     <string name="dashboard_workshop_summary_title">In the workshop</string>
     <string name="dashboard_workshop_summary_in_progress">%1$d in progress</string>
     <string name="dashboard_workshop_summary_not_started">%1$d not started</string>
-    <string name="dashboard_workshop_summary_cd">In the workshop: %1$d in progress, %2$d not started. Opens all orders.</string>
+    <string name="dashboard_workshop_summary_cd">In the workshop: %1$s. Opens all orders.</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
     <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
     <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$d days past deadline</string>

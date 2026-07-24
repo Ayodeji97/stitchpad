@@ -71,17 +71,19 @@ fun PipelineSummaryRow(
     // called from inside the (non-composable) joinToString transform lambda below.
     val inProgressLabel = stringResource(Res.string.dashboard_workshop_summary_in_progress, inProgressTotal)
     val notStartedLabel = stringResource(Res.string.dashboard_workshop_summary_not_started, notStartedTotal)
-    val subtitle = pipelineSummarySegments(inProgressTotal, notStartedTotal)
-        .joinToString(" · ") { segment ->
-            when (segment) {
-                PipelineSummarySegment.InProgress -> inProgressLabel
-                PipelineSummarySegment.NotStarted -> notStartedLabel
-            }
+    // One label per VISIBLE segment (zero-count buckets omitted), reused for both
+    // the subtitle and the a11y label so assistive tech never announces a bucket
+    // the row doesn't show.
+    val visibleLabels = pipelineSummarySegments(inProgressTotal, notStartedTotal).map { segment ->
+        when (segment) {
+            PipelineSummarySegment.InProgress -> inProgressLabel
+            PipelineSummarySegment.NotStarted -> notStartedLabel
         }
+    }
+    val subtitle = visibleLabels.joinToString(" · ")
     val cd = stringResource(
         Res.string.dashboard_workshop_summary_cd,
-        inProgressTotal,
-        notStartedTotal,
+        visibleLabels.joinToString(", "),
     )
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
