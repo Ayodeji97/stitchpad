@@ -236,7 +236,6 @@ fun ProfitKpiTile(
     deltaSuffix: String,
     periodLabel: String,
     modifier: Modifier = Modifier,
-    valueColor: Color = profitValueColor(),
     sparklineColor: Color = DesignTokens.success500
 ) {
     val mono = JetBrainsMonoFamily()
@@ -289,12 +288,12 @@ fun ProfitKpiTile(
             )
         } else {
             Text(
-                text = "₦${formatPrice(kpi.current)}",
+                text = formatProfitAmount(kpi.current),
                 fontFamily = mono,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
                 letterSpacing = (-0.5).sp,
-                color = valueColor
+                color = profitValueColor(isLoss = kpi.current < 0.0)
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -327,9 +326,35 @@ fun ProfitKpiTile(
     }
 }
 
+/**
+ * The Profit value's color: a loss period must read as loss (error/red), not as a false
+ * positive success (green) — mirrors [com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCostsCard]'s
+ * per-order `ProfitBand` light/dark loss coloring so the Reports tile and the order-level
+ * card agree on what a loss looks like.
+ */
 @Composable
-private fun profitValueColor(): Color =
-    if (isSystemInDarkTheme()) DesignTokens.successDarkText else DesignTokens.success500
+private fun profitValueColor(isLoss: Boolean): Color {
+    val dark = isSystemInDarkTheme()
+    return when {
+        isLoss && dark -> DesignTokens.errorDarkText
+        isLoss -> DesignTokens.error500
+        dark -> DesignTokens.successDarkText
+        else -> DesignTokens.success500
+    }
+}
+
+/**
+ * Formats the Profit tile's headline amount, sign-aware: a loss renders as `"−₦8,000"`
+ * (leading minus, magnitude only) rather than `"₦-8,000"`, which reads like a positive
+ * figure at a glance. Mirrors [com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCostsCard]'s
+ * `ProfitBand` amount formatting (minus the profit-margin suffix, which the Reports tile
+ * doesn't show inline). Pure and unit-tested — see `ProfitAmountFormatTest`.
+ */
+internal fun formatProfitAmount(profit: Double): String = buildString {
+    if (profit < 0.0) append('−')
+    append('₦')
+    append(formatPrice(abs(profit)))
+}
 
 private val previewProfitSpark = listOf(
     800_000.0,
