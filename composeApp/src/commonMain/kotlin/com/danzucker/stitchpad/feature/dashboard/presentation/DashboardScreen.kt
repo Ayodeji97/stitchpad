@@ -1095,7 +1095,11 @@ private fun NextBestActionsSection(
         NextBestActionsHeader()
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-            contentPadding = PaddingValues(horizontal = DesignTokens.space4),
+            // Only a trailing inset — the parent column already supplies the
+            // leading margin, so the first card left-aligns with the header
+            // (and every other dashboard card) while the trailing space keeps
+            // the next card's "peek" hint for horizontal swipe.
+            contentPadding = PaddingValues(end = DesignTokens.space4),
         ) {
             items(actions, key = { it.id }) { action ->
                 NbaCard(
@@ -1117,7 +1121,10 @@ private fun NextBestActionsHeader() {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        modifier = Modifier.padding(horizontal = DesignTokens.space4),
+        // Flush to the parent column's margin — matches ReconnectHeader and
+        // every other section header. (Previously double-padded, which inset
+        // the whole NBA section ~16dp further than the rest of the dashboard.)
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Box(
             modifier = Modifier
