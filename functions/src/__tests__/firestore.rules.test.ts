@@ -602,3 +602,77 @@ describe('activity docs — replacement vs merge edits (app update path)', () =>
     expect(after).toEqual(before);
   });
 });
+
+// createdAt is the day-anchor isServerFresh trusts. On a STAMPED doc it must be
+// frozen: otherwise one stamped doc, re-dated to a fresh in-window day each
+// nightly run, manufactures multiple distinct active days and dodges the
+// customer cap. UNSTAMPED (legacy/old-binary) docs keep createdAt mutable —
+// they are graded by the Lane A ratchet, and may carry createdAt == 0 (missing
+// field) that the client remaps to now on the next write.
+describe('activity docs — createdAt frozen once stamped', () => {
+  const now = Date.now();
+
+  it('rejects moving createdAt on a stamped order (the re-date attack)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_cad_attack'), {
+      createdAt: now - 5 * 86_400_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_cad_attack'),
+        { createdAt: now }, { merge: true }),
+    );
+  });
+
+  it('rejects moving createdAt on a stamped measurement', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m_cad_attack'), {
+      createdAt: now - 5 * 86_400_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m_cad_attack'),
+        { createdAt: now }, { merge: true }),
+    );
+  });
+
+  it('rejects a replacement-set that re-dates createdAt while re-sending the stamp', async () => {
+    // Even a full write that faithfully re-sends serverCreatedAt must not move createdAt.
+    const ref = doc(db('alice'), 'users/alice/orders/o_cad_repl');
+    await setDoc(ref, { createdAt: now - 5 * 86_400_000, serverCreatedAt: serverTimestamp() });
+    const sca = (await getDoc(ref)).data()?.serverCreatedAt;
+    await assertFails(
+      setDoc(ref, { createdAt: now, serverCreatedAt: sca }, { merge: true }),
+    );
+  });
+
+  it('allows an edit that keeps createdAt unchanged on a stamped doc (honest edit)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_cad_ok'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_cad_ok'),
+        { createdAt: now - 60_000, status: 'IN_PROGRESS' }, { merge: true }),
+    );
+  });
+
+  it('allows an edit that omits createdAt entirely on a stamped doc (field-level update)', async () => {
+    // The app's .update("status", ...) style writes never resend createdAt; the
+    // merged post-write doc keeps the stored value, so this must pass.
+    const ref = doc(db('alice'), 'users/alice/orders/o_cad_omit');
+    await setDoc(ref, { createdAt: now - 60_000, serverCreatedAt: serverTimestamp() });
+    await assertSucceeds(updateDoc(ref, { status: 'DONE' }));
+  });
+
+  it('allows re-dating createdAt on an UNSTAMPED legacy doc (graded by the ratchet)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_cad_legacy'), { createdAt: now - 5 * 86_400_000 });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_cad_legacy'),
+        { createdAt: now }, { merge: true }),
+    );
+  });
+
+  it('allows an unstamped doc with createdAt == 0 to be edited (client remaps to now)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_cad_zero'), { createdAt: 0 });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_cad_zero'),
+        { createdAt: now, status: 'IN_PROGRESS' }, { merge: true }),
+    );
+  });
+});

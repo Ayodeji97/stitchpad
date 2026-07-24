@@ -38,7 +38,7 @@ private const val ICON_BG_ALPHA = 0.10f
  * render as bare whitespace. Whole card is tappable; the inline arrow on
  * [ctaLabel] is the only tap-to-act signal.
  *
- * Used by `NextBestActionsSection` and `PipelineSection` when their underlying
+ * Used by `NextBestActionsSection` when its underlying
  * data is empty — keeping the dashboard consistently scannable across all states.
  */
 @Composable

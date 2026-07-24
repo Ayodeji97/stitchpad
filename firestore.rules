@@ -98,6 +98,25 @@ service cloud.firestore {
           : (!('serverCreatedAt' in request.resource.data)
              || request.resource.data.serverCreatedAt == request.time);
       }
+      // Once a doc is server-stamped, its createdAt is the day-anchor the payout
+      // grader trusts for freshness (isServerFresh: serverCreatedAt - createdAt
+      // within the window). Freeze createdAt on a stamped doc so a single doc
+      // can't be re-dated across nightly runs to manufacture multiple distinct
+      // active days — the customer cap is meant to make each active day scarce.
+      // Only stamped docs are graded by this freshness path; unstamped
+      // (old-binary/legacy) docs keep createdAt mutable, both because they are
+      // graded by the Lane A ratchet instead and because they can legitimately
+      // carry createdAt == 0 (missing field) which the client remaps to `now` on
+      // the next write — freezing those would reject every edit (the same
+      // permission-denied class as the replacement-write bug). A stamped doc
+      // always has a non-zero createdAt (the write mappers substitute `now` for 0
+      // before the create), so this equality never locks an honest edit out.
+      function activityCreatedAtStableOnUpdate() {
+        return ('serverCreatedAt' in resource.data) && ('createdAt' in resource.data)
+          ? (('createdAt' in request.resource.data)
+             && request.resource.data.createdAt == resource.data.createdAt)
+          : true;
+      }
 
       allow read: if isOwner(uid);
 
@@ -196,13 +215,13 @@ service cloud.firestore {
       match /customers/{customerId} {
         allow read: if isOwner(uid);
         allow create: if activityCreateOk();
-        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate();
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
         allow delete: if isOwner(uid);
 
         match /measurements/{measurementId} {
           allow read: if isOwner(uid);
           allow create: if activityCreateOk();
-          allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate();
+          allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
           allow delete: if isOwner(uid);
         }
 
@@ -225,7 +244,7 @@ service cloud.firestore {
       match /orders/{orderId} {
         allow read: if isOwner(uid);
         allow create: if activityCreateOk();
-        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate();
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
         allow delete: if isOwner(uid);
       }
 
