@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.feature.order.data
 
+import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
+import com.danzucker.stitchpad.core.data.mapper.toOrderCostDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -10,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -95,6 +98,12 @@ internal fun PaymentDto.toFirestoreMap(): Map<String, Any?> = mapOf(
     "method" to method,
     "type" to type,
     "recordedAt" to recordedAt,
+    "note" to note,
+)
+
+internal fun OrderCostDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "category" to category,
+    "amount" to amount,
     "note" to note,
 )
 
@@ -356,6 +365,25 @@ class FirebaseOrderRepository(
         val accepted = offlineWrites.enqueue("updateNotes orderId=$orderId") {
             ordersCollection(userId).document(orderId).update(
                 "notes" to (notes ?: FieldValue.delete),
+                "updatedAt" to now,
+            )
+        }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun updateCosts(
+        userId: String,
+        orderId: String,
+        costs: List<OrderCost>,
+    ): EmptyResult<DataError.Network> {
+        val now = Clock.System.now().toEpochMilliseconds()
+        val costMaps = costs.map { it.toOrderCostDto().toFirestoreMap() }
+        val accepted = offlineWrites.enqueue("updateCosts orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                "costs" to costMaps,
                 "updatedAt" to now,
             )
         }

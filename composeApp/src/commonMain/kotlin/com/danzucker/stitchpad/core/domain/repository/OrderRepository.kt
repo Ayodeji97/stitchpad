@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -47,6 +48,12 @@ interface OrderRepository {
         userId: String,
         orderId: String,
         notes: String?,
+    ): EmptyResult<DataError.Network>
+
+    suspend fun updateCosts(
+        userId: String,
+        orderId: String,
+        costs: List<OrderCost>,
     ): EmptyResult<DataError.Network>
 
     suspend fun archiveOrder(
