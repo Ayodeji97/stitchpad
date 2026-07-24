@@ -2,7 +2,6 @@
 
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CollectionsBookmark
@@ -44,7 +42,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,7 +76,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.Illustr
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.MeasurementsPickerSheet
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OrderSetupActionCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSummaryRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectHeroSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupChecklistCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStep
@@ -132,11 +129,8 @@ import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
-import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_subtitle
-import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_title
 import stitchpad.composeapp.generated.resources.dashboard_inspiration_cd
 import stitchpad.composeapp.generated.resources.dashboard_loading_cd
-import stitchpad.composeapp.generated.resources.dashboard_measurements_card_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_measurements_card_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
@@ -236,21 +230,6 @@ private val PROMOTED_NBA_STATES = setOf(
  */
 private val EMPTY_NBA_CARD_STATES = setOf(
     DashboardUiState.PipelineSteady,
-)
-
-/**
- * Dashboard states where an *empty* Work Pipeline section is silenced
- * because some other surface on the screen already covers the same intent.
- * On BusyDay / ReadyForPickup the active orders are routed into triage
- * buckets so the empty hero would lie ("Nothing in progress yet"); on
- * QuietDay the focus hero's "Add a new order →" CTA + the FAB already
- * surface the same affordance, and the empty hero's "Add first order"
- * copy is wrong for a user who has delivered orders before.
- */
-private val PIPELINE_EMPTY_HIDDEN_STATES = setOf(
-    DashboardUiState.BusyDay,
-    DashboardUiState.ReadyForPickup,
-    DashboardUiState.QuietDay,
 )
 
 /**
@@ -969,32 +948,18 @@ private fun DashboardContent(
             )
         }
 
-        // 6. Work pipeline — self-handles empty + populated states. Hidden
-        //    during first-order onboarding because the OrderSetupActionCard
-        //    above already surfaces that single order; the empty hero would
-        //    just repeat "Add first order" which the focus card and Setup
-        //    Checklist are already saying. Pipeline returns once
-        //    `firstOrderSetup` flips to null (setup complete or 2+ orders).
-        //
-        //    Also hidden on BusyDay / ReadyForPickup / QuietDay when the
-        //    pipeline is empty:
-        //     - BusyDay / ReadyForPickup: every active order is already
-        //       surfaced in Today's Work + the urgent NBA card; the empty
-        //       hero would falsely claim "Nothing in progress yet".
-        //     - QuietDay: hero already says "Add a new order →" and the
-        //       FAB does the same; a third "Add first order" CTA is noise,
-        //       and the "first" copy is wrong for users who have already
-        //       delivered orders.
-        val pipelineEmpty = state.pipelineInProgressTotal + state.pipelinePendingTotal == 0
-        val hidePipelineWhenEmpty = pipelineEmpty && state.uiState in PIPELINE_EMPTY_HIDDEN_STATES
-        if (firstOrderSetup == null && !hidePipelineWhenEmpty) {
-            PipelineSection(
-                inProgress = state.pipelineInProgress,
+        // 6. Workshop summary — one-line count of active in-progress /
+        //    not-started orders, opening the Orders tab (the full, grouped
+        //    order book). Counts only, so it never double-renders an order
+        //    already shown in an NBA card. Hidden during first-order
+        //    onboarding (the setup card covers that single order) and when
+        //    there is no active workshop work.
+        val workshopTotal = state.pipelineInProgressTotal + state.pipelinePendingTotal
+        if (firstOrderSetup == null && workshopTotal > 0) {
+            PipelineSummaryRow(
                 inProgressTotal = state.pipelineInProgressTotal,
-                notStarted = state.pipelinePending,
                 notStartedTotal = state.pipelinePendingTotal,
-                onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
-                onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
+                onClick = { onAction(DashboardAction.OnViewAllOrdersClick) },
             )
         }
 
@@ -1006,114 +971,6 @@ private fun DashboardContent(
             onMessageClick = { id -> onAction(DashboardAction.OnReconnectClick(id)) },
             onViewAllClick = { onAction(DashboardAction.OnViewReconnectClick) },
         )
-
-        // 8. Quick access — Inspiration + Measurements shortcut rows. Visible
-        //    in all populated states (app-bar icon guarantees Inspiration
-        //    access in Loading/BrandNew too).
-        if (state.uiState != DashboardUiState.Loading) {
-            QuickAccessSection(
-                onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
-                onMeasurementsClick = { onAction(DashboardAction.OnMeasurementsShortcutClick) },
-            )
-        }
-    }
-}
-
-/**
- * "Quick access" section header + shortcut rows (Inspiration, Measurements).
- * Placed at the bottom of the scrollable content so it never competes with
- * revenue cards but is always reachable in every populated dashboard state.
- */
-@Composable
-private fun QuickAccessSection(
-    onInspirationClick: () -> Unit,
-    onMeasurementsClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-    ) {
-        Text(
-            text = "Quick access",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        QuickAccessRow(
-            icon = Icons.Default.CollectionsBookmark,
-            title = stringResource(Res.string.dashboard_inspiration_card_title),
-            subtitle = stringResource(Res.string.dashboard_inspiration_card_subtitle),
-            onClick = onInspirationClick,
-        )
-        QuickAccessRow(
-            icon = Icons.Default.Straighten,
-            title = stringResource(Res.string.dashboard_measurements_card_title),
-            subtitle = stringResource(Res.string.dashboard_measurements_card_subtitle),
-            onClick = onMeasurementsClick,
-        )
-    }
-}
-
-@Composable
-private fun QuickAccessRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space3),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        ) {
-            // Indigo icon chip — matches brand primaryContainer treatment.
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(23.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-        }
     }
 }
 
