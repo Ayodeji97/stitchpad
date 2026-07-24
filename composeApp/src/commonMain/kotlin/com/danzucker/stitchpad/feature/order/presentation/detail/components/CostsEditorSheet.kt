@@ -3,9 +3,12 @@ package com.danzucker.stitchpad.feature.order.presentation.detail.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -68,6 +71,12 @@ private fun CostsEditorSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // Scrollable + IME-aware: on small phones (or whenever the numeric keyboard is
+            // open) the 6 amount fields + hints + Save button can exceed the viewport.
+            // verticalScroll lets the lower categories scroll into view; imePadding keeps
+            // the Save button clear of the keyboard instead of letting it get covered.
+            .verticalScroll(rememberScrollState())
+            .imePadding()
             .padding(horizontal = DesignTokens.space4)
             .padding(bottom = DesignTokens.space4),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
