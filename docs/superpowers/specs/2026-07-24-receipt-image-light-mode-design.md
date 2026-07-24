@@ -4,6 +4,8 @@
 **Branch:** `feat/receipt-image-light-mode`
 **Status:** Design — approved, pending spec review
 
+> **Superseded by the implementation plan** (`docs/superpowers/plans/2026-07-24-receipt-image-light-mode.md`) in two details discovered while grounding the plan in code: (1) the Settings control is a **tap-to-toggle row** mirroring the existing measurement-unit/theme pattern, **not** a bottom sheet (§6 below); (2) `ReceiptPalette` **drops `labelHex`** (label `#7D7970` is identical in both modes, so it stays hardcoded) and **adds `footerHex` + `watermarkInkHex`** so the Free-tier watermark and footer stay legible on white. The plan's palette table and Settings section are the built design.
+
 ## Problem
 
 Tailors share the receipt/invoice with their clients in two formats. The **PDF**
