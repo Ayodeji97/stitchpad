@@ -2,7 +2,6 @@
 
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CollectionsBookmark
@@ -44,7 +42,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -132,11 +129,8 @@ import stitchpad.composeapp.generated.resources.dashboard_fab_quick_actions_cd
 import stitchpad.composeapp.generated.resources.dashboard_greeting_afternoon
 import stitchpad.composeapp.generated.resources.dashboard_greeting_evening
 import stitchpad.composeapp.generated.resources.dashboard_greeting_morning
-import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_subtitle
-import stitchpad.composeapp.generated.resources.dashboard_inspiration_card_title
 import stitchpad.composeapp.generated.resources.dashboard_inspiration_cd
 import stitchpad.composeapp.generated.resources.dashboard_loading_cd
-import stitchpad.composeapp.generated.resources.dashboard_measurements_card_subtitle
 import stitchpad.composeapp.generated.resources.dashboard_measurements_card_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_card_cd
 import stitchpad.composeapp.generated.resources.dashboard_nba_collect_deposit_sub
@@ -1006,114 +1000,6 @@ private fun DashboardContent(
             onMessageClick = { id -> onAction(DashboardAction.OnReconnectClick(id)) },
             onViewAllClick = { onAction(DashboardAction.OnViewReconnectClick) },
         )
-
-        // 8. Quick access — Inspiration + Measurements shortcut rows. Visible
-        //    in all populated states (app-bar icon guarantees Inspiration
-        //    access in Loading/BrandNew too).
-        if (state.uiState != DashboardUiState.Loading) {
-            QuickAccessSection(
-                onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
-                onMeasurementsClick = { onAction(DashboardAction.OnMeasurementsShortcutClick) },
-            )
-        }
-    }
-}
-
-/**
- * "Quick access" section header + shortcut rows (Inspiration, Measurements).
- * Placed at the bottom of the scrollable content so it never competes with
- * revenue cards but is always reachable in every populated dashboard state.
- */
-@Composable
-private fun QuickAccessSection(
-    onInspirationClick: () -> Unit,
-    onMeasurementsClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-    ) {
-        Text(
-            text = "Quick access",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        QuickAccessRow(
-            icon = Icons.Default.CollectionsBookmark,
-            title = stringResource(Res.string.dashboard_inspiration_card_title),
-            subtitle = stringResource(Res.string.dashboard_inspiration_card_subtitle),
-            onClick = onInspirationClick,
-        )
-        QuickAccessRow(
-            icon = Icons.Default.Straighten,
-            title = stringResource(Res.string.dashboard_measurements_card_title),
-            subtitle = stringResource(Res.string.dashboard_measurements_card_subtitle),
-            onClick = onMeasurementsClick,
-        )
-    }
-}
-
-@Composable
-private fun QuickAccessRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space3),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        ) {
-            // Indigo icon chip — matches brand primaryContainer treatment.
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(DesignTokens.radiusMd),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(23.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-        }
     }
 }
 
