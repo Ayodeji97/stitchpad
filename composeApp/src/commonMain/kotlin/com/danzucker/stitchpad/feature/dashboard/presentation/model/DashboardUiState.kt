@@ -46,15 +46,15 @@ sealed interface DashboardUiState {
     /**
      * Pipeline has work-in-flight (PENDING or IN_PROGRESS orders) but nothing is
      * urgent and nothing qualifies for an NBA suggestion. Tailor is on track.
-     * Renders [IllustratedFocusCard] (Steady variant) + PipelineSection (in-progress +
-     * not-started subsections) + collapsed reconnect strip.
+     * Renders [IllustratedFocusCard] (Steady variant) + pipeline summary row (in-progress +
+     * not-started counts) + collapsed reconnect strip.
      */
     data object PipelineSteady : DashboardUiState
 
     /**
      * Revenue-driving NBA suggestions exist (e.g. CollectDeposit, StartSoon) but
      * triage is empty. The "earn opportunity" state — encourages action.
-     * Renders [IllustratedFocusCard] (Earn variant) + NBA carousel + PipelineSection.
+     * Renders [IllustratedFocusCard] (Earn variant) + NBA carousel + pipeline summary row.
      */
     data object NbaActive : DashboardUiState
 
@@ -63,7 +63,7 @@ sealed interface DashboardUiState {
      * high-energy state when the workshop is busy. Ready-for-pickup-only days
      * resolve to [ReadyForPickup] instead so we don't paint good news red.
      * Renders [IllustratedFocusCard] (Focus variant, red accent) + [TodayWorkCard]
-     * + NBA carousel + PipelineSection.
+     * + NBA carousel + pipeline summary row.
      */
     data object BusyDay : DashboardUiState
 
@@ -72,8 +72,8 @@ sealed interface DashboardUiState {
      * waiting for the customer to collect. Calmer than [BusyDay] — a ready
      * order is future revenue + a satisfied customer pickup, not a fire.
      * Renders [IllustratedFocusCard] (Pickup variant, green accent) + NBA carousel
-     * + PipelineSection. [TodayWorkCard] is intentionally suppressed here since
-     * the focus card already pins the top ready customer and the pipeline section
+     * + pipeline summary row. [TodayWorkCard] is intentionally suppressed here since
+     * the focus card already pins the top ready customer and the pipeline summary row
      * covers the rest — avoids surfacing the same one-or-two orders three
      * times within the visible viewport.
      */

@@ -76,7 +76,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.Illustr
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.MeasurementsPickerSheet
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OrderSetupActionCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSection
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSummaryRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.ReconnectHeroSection
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupChecklistCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStep
@@ -230,21 +230,6 @@ private val PROMOTED_NBA_STATES = setOf(
  */
 private val EMPTY_NBA_CARD_STATES = setOf(
     DashboardUiState.PipelineSteady,
-)
-
-/**
- * Dashboard states where an *empty* Work Pipeline section is silenced
- * because some other surface on the screen already covers the same intent.
- * On BusyDay / ReadyForPickup the active orders are routed into triage
- * buckets so the empty hero would lie ("Nothing in progress yet"); on
- * QuietDay the focus hero's "Add a new order →" CTA + the FAB already
- * surface the same affordance, and the empty hero's "Add first order"
- * copy is wrong for a user who has delivered orders before.
- */
-private val PIPELINE_EMPTY_HIDDEN_STATES = setOf(
-    DashboardUiState.BusyDay,
-    DashboardUiState.ReadyForPickup,
-    DashboardUiState.QuietDay,
 )
 
 /**
@@ -963,32 +948,18 @@ private fun DashboardContent(
             )
         }
 
-        // 6. Work pipeline — self-handles empty + populated states. Hidden
-        //    during first-order onboarding because the OrderSetupActionCard
-        //    above already surfaces that single order; the empty hero would
-        //    just repeat "Add first order" which the focus card and Setup
-        //    Checklist are already saying. Pipeline returns once
-        //    `firstOrderSetup` flips to null (setup complete or 2+ orders).
-        //
-        //    Also hidden on BusyDay / ReadyForPickup / QuietDay when the
-        //    pipeline is empty:
-        //     - BusyDay / ReadyForPickup: every active order is already
-        //       surfaced in Today's Work + the urgent NBA card; the empty
-        //       hero would falsely claim "Nothing in progress yet".
-        //     - QuietDay: hero already says "Add a new order →" and the
-        //       FAB does the same; a third "Add first order" CTA is noise,
-        //       and the "first" copy is wrong for users who have already
-        //       delivered orders.
-        val pipelineEmpty = state.pipelineInProgressTotal + state.pipelinePendingTotal == 0
-        val hidePipelineWhenEmpty = pipelineEmpty && state.uiState in PIPELINE_EMPTY_HIDDEN_STATES
-        if (firstOrderSetup == null && !hidePipelineWhenEmpty) {
-            PipelineSection(
-                inProgress = state.pipelineInProgress,
+        // 6. Workshop summary — one-line count of active in-progress /
+        //    not-started orders, opening the Orders tab (the full, grouped
+        //    order book). Counts only, so it never double-renders an order
+        //    already shown in an NBA card. Hidden during first-order
+        //    onboarding (the setup card covers that single order) and when
+        //    there is no active workshop work.
+        val workshopTotal = state.pipelineInProgressTotal + state.pipelinePendingTotal
+        if (firstOrderSetup == null && workshopTotal > 0) {
+            PipelineSummaryRow(
                 inProgressTotal = state.pipelineInProgressTotal,
-                notStarted = state.pipelinePending,
                 notStartedTotal = state.pipelinePendingTotal,
-                onRowClick = { id -> onAction(DashboardAction.OnOrderClick(id)) },
-                onCreateOrderClick = { onAction(DashboardAction.OnCreateOrderClick) },
+                onClick = { onAction(DashboardAction.OnViewAllOrdersClick) },
             )
         }
 
