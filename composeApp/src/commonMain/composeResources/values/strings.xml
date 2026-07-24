@@ -890,6 +890,12 @@
     <string name="dashboard_pipeline_deposit_due">Deposit due</string>
     <string name="dashboard_pipeline_deposit_paid">Deposit paid</string>
     <string name="dashboard_pipeline_paid">Paid</string>
+    <!-- Workshop summary row — collapsed single-line replacement for the
+         two-bucket Work Pipeline section -->
+    <string name="dashboard_workshop_summary_title">In the workshop</string>
+    <string name="dashboard_workshop_summary_in_progress">%1$d in progress</string>
+    <string name="dashboard_workshop_summary_not_started">%1$d not started</string>
+    <string name="dashboard_workshop_summary_cd">In the workshop: %1$s. Opens all orders.</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
     <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
     <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$d days past deadline</string>
@@ -992,10 +998,6 @@
     <string name="focus_pickup_cta">Open %1$s's order</string>
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
-    <string name="dashboard_pipeline_empty_section">Empty pipeline</string>
-    <string name="dashboard_pipeline_empty_title">Nothing in progress yet</string>
-    <string name="dashboard_pipeline_empty_supporting">Start your first order to unlock cutting, sewing, fitting, and delivery stages.</string>
-    <string name="dashboard_pipeline_empty_cta">Add first order</string>
     <string name="dashboard_nba_empty_title">No suggested moves</string>
     <string name="dashboard_nba_empty_supporting">Show up when balances or deadlines need follow-up.</string>
     <string name="dashboard_nba_quiet_title">Nothing urgent right now</string>
@@ -1566,12 +1568,9 @@
 
     <!-- Smart Suggestions -->
     <string name="smart_section_title">Smart Suggestions</string>
-    <string name="smart_section_subtitle">Help with messages, pricing, and more</string>
+    <string name="smart_section_subtitle">Draft customer messages in seconds</string>
     <string name="smart_intent_draft_message_title">Draft a Message</string>
     <string name="smart_intent_draft_message_subtitle">Draft a WhatsApp message to a customer</string>
-    <string name="smart_intent_price_this_title">Help Me Price This</string>
-    <string name="smart_intent_reply_helper_title">Customer Reply Helper</string>
-    <string name="smart_intent_coming_soon_label">Coming soon</string>
     <string name="smart_free_quota_remaining">%1$d of 5 free drafts left this month</string>
 
     <!-- Draft Message screen -->
