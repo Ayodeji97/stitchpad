@@ -12,13 +12,17 @@ private const val SPARKLINE_WEEK_BUCKETS = 8
 private const val SPARKLINE_MONTH_BUCKETS = 6
 
 /**
- * Computes the four-tile KPI grid for Reports V2 in one pass per window.
+ * Computes the KPI grid for Reports V2 in one pass per window.
  *
  * Definitions:
  *  - Revenue:     Σ payableTotal (net of discount)  (work earned, including unpaid)
  *  - Collected:   Σ depositPaid (cash paid)
  *  - Outstanding: Σ balanceRemaining.coerceAtLeast(0.0)                  (debt)
  *  - Orders:      count
+ *  - Profit:      Σ profit for orders with recorded costs only (uncosted orders are
+ *                 excluded from both the numerator and [KpiSummary.profitMarginPercent]'s
+ *                 denominator; [KpiSummary.ordersWithCosts] / [KpiSummary.ordersInWindow]
+ *                 expose the coverage so the UI can show "N of M orders costed").
  *
  * Orders are bucketed by `updatedAt` — same approximation Dashboard and the V1.1
  * RevenueCalculator use. Sparkline lengths match V1.1 (8 weeks / 6 months);
@@ -39,59 +43,102 @@ object KpiCalculator {
             ReportsPeriod.CUSTOM -> 0
         }
 
-        // Per-bucket aggregates (oldest-to-newest); last entry = current when non-empty.
+        val sparklines = computeSparklines(orders, period, today, timeZone, bucketCount, customRange)
+
+        val (currentStart, currentEnd) = reportsWindow(period, today, timeZone, 0, customRange)
+        val (previousStart, previousEnd) = reportsWindow(period, today, timeZone, 1, customRange)
+        val current = accumulateWindow(orders, currentStart, currentEnd)
+        val previous = accumulateWindow(orders, previousStart, previousEnd)
+
+        val profitMarginPercent = if (current.costedRevenue > 0.0) {
+            current.profit / current.costedRevenue * 100.0
+        } else {
+            null
+        }
+
+        return KpiSummary(
+            revenue = kpi(current.revenue, previous.revenue, sparklines.revenue),
+            collected = kpi(current.collected, previous.collected, sparklines.collected),
+            outstanding = kpi(current.outstanding, previous.outstanding, sparklines.outstanding),
+            orders = kpi(current.orders, previous.orders, sparklines.orders),
+            profit = kpi(current.profit, previous.profit, sparklines.profit),
+            ordersWithCosts = current.ordersWithCosts,
+            ordersInWindow = current.orders.toInt(),
+            profitMarginPercent = profitMarginPercent
+        )
+    }
+
+    /** Per-bucket aggregates (oldest-to-newest); last entry = current window's total when non-empty. */
+    private data class BucketTotals(
+        val revenue: List<Double>,
+        val collected: List<Double>,
+        val outstanding: List<Double>,
+        val orders: List<Double>,
+        val profit: List<Double>
+    )
+
+    /** Totals for a single window, shared by both the sparkline pass and the current/previous pass. */
+    private data class WindowTotals(
+        val revenue: Double,
+        val collected: Double,
+        val outstanding: Double,
+        val orders: Double,
+        val profit: Double,
+        val ordersWithCosts: Int,
+        val costedRevenue: Double
+    )
+
+    private fun computeSparklines(
+        orders: List<Order>,
+        period: ReportsPeriod,
+        today: LocalDate,
+        timeZone: TimeZone,
+        bucketCount: Int,
+        customRange: CustomRange?
+    ): BucketTotals {
         val revenueSpark = MutableList(bucketCount) { 0.0 }
         val collectedSpark = MutableList(bucketCount) { 0.0 }
         val outstandingSpark = MutableList(bucketCount) { 0.0 }
         val ordersSpark = MutableList(bucketCount) { 0.0 }
+        val profitSpark = MutableList(bucketCount) { 0.0 }
 
         for (i in 0 until bucketCount) {
             val periodsBack = bucketCount - 1 - i
             val (start, end) = reportsWindow(period, today, timeZone, periodsBack, customRange)
-            for (order in orders) {
-                if (order.updatedAt !in start until end) continue
-                revenueSpark[i] += order.payableTotal
-                collectedSpark[i] += order.depositPaid
-                outstandingSpark[i] += order.balanceRemaining.coerceAtLeast(0.0)
-                ordersSpark[i] += 1.0
-            }
+            val totals = accumulateWindow(orders, start, end)
+            revenueSpark[i] = totals.revenue
+            collectedSpark[i] = totals.collected
+            outstandingSpark[i] = totals.outstanding
+            ordersSpark[i] = totals.orders
+            profitSpark[i] = totals.profit
         }
 
-        val (currentStart, currentEnd) = reportsWindow(period, today, timeZone, 0, customRange)
-        val (previousStart, previousEnd) = reportsWindow(period, today, timeZone, 1, customRange)
+        return BucketTotals(revenueSpark, collectedSpark, outstandingSpark, ordersSpark, profitSpark)
+    }
 
-        var currentRevenue = 0.0
-        var previousRevenue = 0.0
-        var currentCollected = 0.0
-        var previousCollected = 0.0
-        var currentOutstanding = 0.0
-        var previousOutstanding = 0.0
-        var currentOrders = 0.0
-        var previousOrders = 0.0
+    private fun accumulateWindow(orders: List<Order>, start: Long, end: Long): WindowTotals {
+        var revenue = 0.0
+        var collected = 0.0
+        var outstanding = 0.0
+        var count = 0.0
+        var profit = 0.0
+        var ordersWithCosts = 0
+        var costedRevenue = 0.0
 
         for (order in orders) {
-            val collected = order.depositPaid
-            val outstanding = order.balanceRemaining.coerceAtLeast(0.0)
-            if (order.updatedAt in currentStart until currentEnd) {
-                currentRevenue += order.payableTotal
-                currentCollected += collected
-                currentOutstanding += outstanding
-                currentOrders += 1.0
-            }
-            if (order.updatedAt in previousStart until previousEnd) {
-                previousRevenue += order.payableTotal
-                previousCollected += collected
-                previousOutstanding += outstanding
-                previousOrders += 1.0
+            if (order.updatedAt !in start until end) continue
+            revenue += order.payableTotal
+            collected += order.depositPaid
+            outstanding += order.balanceRemaining.coerceAtLeast(0.0)
+            count += 1.0
+            if (order.hasCosts) {
+                profit += order.profit
+                ordersWithCosts += 1
+                costedRevenue += order.payableTotal
             }
         }
 
-        return KpiSummary(
-            revenue = kpi(currentRevenue, previousRevenue, revenueSpark),
-            collected = kpi(currentCollected, previousCollected, collectedSpark),
-            outstanding = kpi(currentOutstanding, previousOutstanding, outstandingSpark),
-            orders = kpi(currentOrders, previousOrders, ordersSpark)
-        )
+        return WindowTotals(revenue, collected, outstanding, count, profit, ordersWithCosts, costedRevenue)
     }
 
     private fun kpi(current: Double, previous: Double, sparkline: List<Double>): Kpi = Kpi(
