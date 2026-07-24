@@ -347,30 +347,45 @@ private fun ReferenceColumn(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(13.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(DesignTokens.space2))
-
-        when {
-            urls.isEmpty() -> ReferencePlaceholder(
-                icon = icon,
-                onClick = if (canAdd) onAddClick else null,
-            )
-            else -> MultiReferenceStrip(
+        if (urls.isEmpty()) {
+            // Collapsed empty state. When the column has a CTA (Style always; the first
+            // fabric-needing item), show ONLY that button — no header label, no large
+            // placeholder tile — so an order without photos stays compact. When there is
+            // no CTA (e.g. a later item's fabric in a multi-item order), keep the tappable
+            // placeholder so its "add photo" path is still reachable from this card.
+            if (ctaLabel != null) {
+                TextButton(onClick = onCtaClick, contentPadding = PaddingValues(0.dp)) {
+                    Text(
+                        text = stringResource(ctaLabel),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else {
+                ReferencePlaceholder(
+                    icon = icon,
+                    onClick = if (canAdd) onAddClick else null,
+                )
+            }
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(13.dp),
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(DesignTokens.space2))
+            MultiReferenceStrip(
                 urls = urls,
                 canAdd = canAdd,
                 contentDescription = label,
@@ -378,16 +393,18 @@ private fun ReferenceColumn(
                 onRemove = onRemove,
                 onImageClick = onImageClick,
             )
-        }
-
-        if (ctaLabel != null) {
-            Spacer(Modifier.height(DesignTokens.space1))
-            TextButton(onClick = onCtaClick, contentPadding = PaddingValues(0.dp)) {
-                Text(
-                    text = stringResource(ctaLabel),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            // A CTA can still apply when photos exist (e.g. "Add fabric name" when the
+            // fabric has a photo but no name) — the collapse only drops the empty
+            // placeholder box, never a CTA that belongs below the strip.
+            if (ctaLabel != null) {
+                Spacer(Modifier.height(DesignTokens.space1))
+                TextButton(onClick = onCtaClick, contentPadding = PaddingValues(0.dp)) {
+                    Text(
+                        text = stringResource(ctaLabel),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
