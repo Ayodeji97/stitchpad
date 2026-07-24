@@ -391,3 +391,214 @@ describe('server-owned field hardening', () => {
     });
   });
 });
+
+describe('activity docs — serverCreatedAt / createdAt', () => {
+  const now = Date.now();
+  it('allows create with serverCreatedAt == request.time and past createdAt', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1'), {
+        createdAt: now - 60_000,
+        serverCreatedAt: serverTimestamp(),
+      }),
+    );
+  });
+  it('rejects create with a client-literal serverCreatedAt', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c2'), {
+        createdAt: now,
+        serverCreatedAt: Timestamp.fromMillis(now),
+      }),
+    );
+  });
+  it('rejects create with a future createdAt beyond skew', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c3'), {
+        createdAt: now + 3_600_000, // 1h ahead > 5m skew
+        serverCreatedAt: serverTimestamp(),
+      }),
+    );
+  });
+  it('allows a create with no serverCreatedAt (old binary) and past createdAt', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c4'), { createdAt: now - 60_000 }),
+    );
+  });
+  it('allows an edit that leaves serverCreatedAt unchanged', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c5'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c5'), { name: 'Ada' }, { merge: true }),
+    );
+  });
+  it('rejects an update that rewrites serverCreatedAt to a forged value', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c6'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c6'),
+        { serverCreatedAt: Timestamp.fromMillis(now - 5 * 86_400_000) }, { merge: true }),
+    );
+  });
+  it('applies the same rules to orders and measurements', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o1'),
+        { createdAt: now - 60_000, serverCreatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m1'),
+        { createdAt: now, serverCreatedAt: Timestamp.fromMillis(now) }),
+    );
+  });
+});
+
+describe('activity docs — serverCreatedAt immutability (C1 fix)', () => {
+  const now = Date.now();
+
+  // Regression for the Critical bypass: the old rule keyed off
+  // request.resource.data (AFTER state), so `updateDoc({serverCreatedAt:
+  // deleteField()})` dropped the field from the AFTER state and was ALLOWED —
+  // opening the door to a follow-up serverTimestamp() "first stamp" that
+  // rewrote an already-stamped value. The fixed rule keys off resource.data
+  // (BEFORE state) first, so once stamped, the field must stay present AND
+  // unchanged — a delete is a removal, which fails both conjuncts.
+  it('C1 regression: denies delete-then-restamp bypass on an already-stamped doc (customers)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c7'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c7'), { serverCreatedAt: deleteField() }),
+    );
+  });
+
+  it('C1 regression: denies delete-then-restamp bypass on an already-stamped doc (orders)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o2'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/orders/o2'), { serverCreatedAt: deleteField() }),
+    );
+  });
+
+  it('C1 regression: denies delete-then-restamp bypass on an already-stamped doc (measurements)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m2'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m2'), { serverCreatedAt: deleteField() }),
+    );
+  });
+
+  it('denies directly overwriting an existing serverCreatedAt on orders (I1 coverage)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o3'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/orders/o3'), {
+        serverCreatedAt: Timestamp.fromMillis(now - 5 * 86_400_000),
+      }),
+    );
+  });
+
+  it('denies directly overwriting an existing serverCreatedAt on measurements (I1 coverage)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m3'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m3'), {
+        serverCreatedAt: Timestamp.fromMillis(now - 5 * 86_400_000),
+      }),
+    );
+  });
+
+  it('M2: allows the legitimate first-stamp via update on a doc created with no serverCreatedAt', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c8'), { createdAt: now - 60_000 });
+    await assertSucceeds(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c8'), { serverCreatedAt: serverTimestamp() }),
+    );
+  });
+
+  it('M2: allows a normal field edit (no serverCreatedAt in the write) on a still-unstamped doc', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c9'), { createdAt: now - 60_000 });
+    await assertSucceeds(
+      updateDoc(doc(db('alice'), 'users/alice/customers/c9'), { name: 'Ada' }),
+    );
+  });
+});
+
+// The rest of this suite only ever edits via updateDoc()/merge writes, which
+// masked a shipping bug: FirebaseOrderRepository.updateOrder and
+// FirebaseMeasurementRepository.updateMeasurement used full-document REPLACEMENT
+// writes (`docRef.set(dto)`, no merge). A replacement drops every field absent
+// from the DTO, and the DTOs have no `serverCreatedAt`, so every edit to a
+// new-binary doc was rejected with permission-denied.
+//
+// The rule is right and stays: allowing a replacement to drop the stamp would
+// reopen the C1 recycling attack (drop stamp + reset `createdAt` to today +
+// re-stamp = a fresh "activity day" from an old doc, dodging the customer cap).
+// The CLIENT was fixed to use `merge = true` instead. These pin both halves so
+// nobody "fixes" the permission-denied by loosening the rule.
+describe('activity docs — replacement vs merge edits (app update path)', () => {
+  const now = Date.now();
+
+  it('allows a replacement-set edit of an order created WITHOUT serverCreatedAt (old binary)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_repl_legacy'), { createdAt: now - 60_000 });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_repl_legacy'),
+        { createdAt: now - 60_000, status: 'IN_PROGRESS' }),
+    );
+  });
+
+  it('DENIES a replacement-set edit that drops the stamp on an order (why the client uses merge)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_repl_stamped'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_repl_stamped'),
+        { createdAt: now - 60_000, status: 'IN_PROGRESS' }),
+    );
+  });
+
+  it('DENIES a replacement-set edit that drops the stamp on a measurement', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m_repl'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m_repl'),
+        { createdAt: now - 60_000, chest: 42 }),
+    );
+  });
+
+  // The fixed client path: set(dto, merge = true). GitLive encodes defaults, so
+  // the DTO's full field set is still written (clearing still works) while
+  // serverCreatedAt — absent from the DTO — survives untouched.
+  it('allows a MERGE-set edit of a stamped order (fixed updateOrder path)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/orders/o_merge_stamped'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_merge_stamped'),
+        { createdAt: now - 60_000, status: 'IN_PROGRESS', notes: null },
+        { merge: true }),
+    );
+  });
+
+  it('allows a MERGE-set edit of a stamped measurement (fixed updateMeasurement path)', async () => {
+    await setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m_merge'), {
+      createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c1/measurements/m_merge'),
+        { createdAt: now - 60_000, chest: 42 }, { merge: true }),
+    );
+  });
+
+  it('a merge edit leaves serverCreatedAt byte-identical', async () => {
+    const ref = doc(db('alice'), 'users/alice/orders/o_merge_stable');
+    await setDoc(ref, { createdAt: now - 60_000, serverCreatedAt: serverTimestamp() });
+    const before = (await getDoc(ref)).data()?.serverCreatedAt;
+    await assertSucceeds(setDoc(ref, { status: 'DONE' }, { merge: true }));
+    const after = (await getDoc(ref)).data()?.serverCreatedAt;
+    expect(after).toEqual(before);
+  });
+});

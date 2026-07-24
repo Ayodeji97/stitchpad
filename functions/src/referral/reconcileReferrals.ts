@@ -9,6 +9,7 @@ import {
   QUALIFY_WINDOW_DAYS,
   HOLD_WINDOW_DAYS,
   DAY_MS,
+  ACTIVITY_FRESHNESS_DAYS,
 } from './referralConstants';
 import { hasBlockingFlag } from './referralConstants';
 import type { ReferralMilestone, PayoutState, ReferralFlag } from './referralConstants';
@@ -70,6 +71,31 @@ export function computeActiveDayKeys(
     keys.add(lagosDateKey(ms));
   }
   return Array.from(keys).sort();
+}
+
+// ── Pure: server-freshness of a single activity doc's claimed day ─────────────
+
+/**
+ * A client `createdAt` day is trustworthy for payout only if the doc's
+ * server-stamped `serverCreatedAt` corroborates it: the server saw the write
+ * within `freshnessDays` of the claimed creation day. A burst of week-old
+ * backdated `createdAt` values all carry a much-later `serverCreatedAt`, so they
+ * fall outside the window and do not count. A small negative tolerance (one day)
+ * absorbs the 5-minute future-date rule skew crossing a Lagos midnight.
+ *
+ * Returns false when `serverCreatedAtMs` is undefined/non-finite — the doc is
+ * from a pre-Lane-B binary; the CALLER decides to fall back to the Lane A
+ * ratchet for such docs (never treat "not fresh" as "excluded" at the call site
+ * without first checking presence).
+ */
+export function isServerFresh(
+  createdAtMs: number,
+  serverCreatedAtMs: number | undefined,
+  freshnessDays: number,
+): boolean {
+  if (typeof serverCreatedAtMs !== 'number' || !Number.isFinite(serverCreatedAtMs)) return false;
+  const delta = serverCreatedAtMs - createdAtMs;
+  return delta >= -DAY_MS && delta <= freshnessDays * DAY_MS;
 }
 
 // ── Pure: server-observed day ratchet ────────────────────────────────────────
@@ -279,6 +305,12 @@ interface CandidateSignals {
  * than range-query. Measurements are nested under each customer and are only
  * scanned when customers+orders alone haven't already cleared the distinct-day
  * bar — bounding the extra subcollection reads to the referrals that need them.
+ *
+ * Each doc's `createdAt` enters the day-key computation only when the doc is
+ * legacy (no `serverCreatedAt` — a pre-Lane-B binary, graded purely by the Lane
+ * A ratchet) or server-fresh (`isServerFresh` within ACTIVITY_FRESHNESS_DAYS).
+ * A stale-stamped doc — the server saw the write long after its claimed day —
+ * is dropped entirely, never feeding the ratchet at all.
  */
 async function gatherSignals(
   db: admin.firestore.Firestore,
@@ -298,8 +330,20 @@ async function gatherSignals(
   const activated = businessNameSet && (customersSnap.size > 0 || ordersSnap.size > 0);
 
   const activityMs: number[] = [];
-  for (const d of customersSnap.docs) activityMs.push(d.data()?.createdAt as number);
-  for (const d of ordersSnap.docs) activityMs.push(d.data()?.createdAt as number);
+  const pushFreshOrLegacy = (d: admin.firestore.QueryDocumentSnapshot): void => {
+    const createdAt = d.data()?.createdAt as number;
+    if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return;
+    const sca = d.data()?.serverCreatedAt as admin.firestore.Timestamp | undefined;
+    // No server stamp → pre-Lane-B doc → let the Lane A ratchet grade it.
+    // Stamped → count the day only if the server saw it within the window.
+    if (sca === undefined || sca === null) {
+      activityMs.push(createdAt);
+    } else if (isServerFresh(createdAt, sca.toMillis(), ACTIVITY_FRESHNESS_DAYS)) {
+      activityMs.push(createdAt);
+    }
+  };
+  for (const d of customersSnap.docs) pushFreshOrLegacy(d);
+  for (const d of ordersSnap.docs) pushFreshOrLegacy(d);
 
   let dayKeys = computeActiveDayKeys(activityMs, signupMs, windowEndMs);
 
@@ -314,7 +358,7 @@ async function gatherSignals(
       customersSnap.docs.map((c) => db.collection(`users/${uid}/customers/${c.id}/measurements`).get()),
     );
     for (const mSnap of measurementSnaps) {
-      for (const m of mSnap.docs) activityMs.push(m.data()?.createdAt as number);
+      for (const m of mSnap.docs) pushFreshOrLegacy(m);
     }
     dayKeys = computeActiveDayKeys(activityMs, signupMs, windowEndMs);
   }

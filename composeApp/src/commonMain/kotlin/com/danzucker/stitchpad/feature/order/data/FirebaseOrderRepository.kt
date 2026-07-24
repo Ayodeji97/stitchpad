@@ -253,6 +253,7 @@ class FirebaseOrderRepository(
         val dto = order.withCompletedUploadPatches().toOrderDto().copy(id = docRef.id)
         val accepted = offlineWrites.enqueue("createOrder orderId=${docRef.id}") {
             docRef.set(dto)
+            docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -265,7 +266,14 @@ class FirebaseOrderRepository(
         order: Order
     ): EmptyResult<DataError.Network> {
         val accepted = offlineWrites.enqueue("updateOrder orderId=${order.id}") {
-            ordersCollection(userId).document(order.id).set(order.withCompletedUploadPatches().toOrderDto())
+            // merge = true so the server-stamped `serverCreatedAt` survives the edit.
+            // A replacement write drops every field absent from the DTO, and the
+            // rules require an already-stamped doc to keep its stamp — so a
+            // replacement here is rejected with permission-denied. GitLive encodes
+            // defaults, so every DTO field (nulls and zeros included) is still
+            // written and field-clearing behaves exactly as before.
+            ordersCollection(userId).document(order.id)
+                .set(order.withCompletedUploadPatches().toOrderDto(), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

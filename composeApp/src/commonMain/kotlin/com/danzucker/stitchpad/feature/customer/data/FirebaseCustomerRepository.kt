@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
+import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,6 +146,7 @@ class FirebaseCustomerRepository(
         }
         val accepted = offlineWrites.enqueue("createCustomer customerId=${docRef.id}") {
             docRef.set(dto)
+            docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

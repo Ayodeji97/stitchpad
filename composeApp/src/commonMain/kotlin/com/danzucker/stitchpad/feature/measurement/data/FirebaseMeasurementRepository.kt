@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
+import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -61,6 +62,7 @@ class FirebaseMeasurementRepository(
         val dto = measurement.toMeasurementDto().copy(id = docRef.id)
         val accepted = offlineWrites.enqueue("createMeasurement measurementId=${docRef.id}") {
             docRef.set(dto)
+            docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -74,9 +76,11 @@ class FirebaseMeasurementRepository(
         measurement: Measurement
     ): EmptyResult<DataError.Network> {
         val accepted = offlineWrites.enqueue("updateMeasurement measurementId=${measurement.id}") {
+            // merge = true so the server-stamped `serverCreatedAt` survives the edit
+            // (see FirebaseOrderRepository.updateOrder for the full rationale).
             measurementsCollection(userId, customerId)
                 .document(measurement.id)
-                .set(measurement.toMeasurementDto())
+                .set(measurement.toMeasurementDto(), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
