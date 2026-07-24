@@ -1566,7 +1566,7 @@
 
     <!-- Smart Suggestions -->
     <string name="smart_section_title">Smart Suggestions</string>
-    <string name="smart_section_subtitle">Help with messages, pricing, and more</string>
+    <string name="smart_section_subtitle">Draft customer messages in seconds</string>
     <string name="smart_intent_draft_message_title">Draft a Message</string>
     <string name="smart_intent_draft_message_subtitle">Draft a WhatsApp message to a customer</string>
     <string name="smart_free_quota_remaining">%1$d of 5 free drafts left this month</string>
