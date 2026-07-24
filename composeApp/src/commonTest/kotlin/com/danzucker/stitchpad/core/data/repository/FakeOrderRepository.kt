@@ -35,7 +35,6 @@ class FakeOrderRepository : OrderRepository {
     var lastKnownPayments: List<Payment> = emptyList()
     var lastSubStatusUpdate: Pair<String, OrderSubStatus?>? = null
     var lastNotesUpdate: Pair<String, String?>? = null
-    var lastCostsUpdate: Pair<String, List<OrderCost>>? = null
     var lastArchivedOrderId: String? = null
     var lastUnarchivedOrderId: String? = null
     private var nextIdSuffix = 0
@@ -171,7 +170,6 @@ class FakeOrderRepository : OrderRepository {
         costs: List<OrderCost>,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
-        lastCostsUpdate = orderId to costs
         ordersFlow.value = ordersFlow.value.map { existing ->
             if (existing.id == orderId) existing.copy(costs = costs) else existing
         }

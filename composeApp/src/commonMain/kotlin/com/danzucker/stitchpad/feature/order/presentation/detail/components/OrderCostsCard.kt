@@ -254,7 +254,9 @@ private fun ProfitBand(profit: Double, profitMargin: Double?) {
         append(formatPrice(abs(profit)))
         profitMargin?.let { margin ->
             append(" · ")
-            append((margin * 100).roundToInt())
+            // abs() so the loss case doesn't double up on a minus sign — the
+            // amount's leading '−' and the "Loss" label already convey it.
+            append(abs(margin * 100).roundToInt())
             append('%')
         }
     }
