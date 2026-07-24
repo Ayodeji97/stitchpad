@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.domain.SubscriptionStatus
@@ -43,6 +44,7 @@ data class SettingsState(
     val welcomeDaysLeft: Int? = null,
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val receiptImageStyle: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
     val dailyDigestEmailEnabled: Boolean = true,
     val dailyPushEnabled: Boolean = true,
     val pushReminderSupported: Boolean = true,

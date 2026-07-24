@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Logout
@@ -50,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
@@ -72,6 +74,8 @@ import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
 import stitchpad.composeapp.generated.resources.referral_code_settings_row
 import stitchpad.composeapp.generated.resources.referral_code_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_back_cd
+import stitchpad.composeapp.generated.resources.settings_receipt_image_dark
+import stitchpad.composeapp.generated.resources.settings_receipt_image_light
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_community
@@ -91,6 +95,7 @@ import stitchpad.composeapp.generated.resources.settings_row_measurement_units
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_centimeters
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_inches
 import stitchpad.composeapp.generated.resources.settings_row_privacy
+import stitchpad.composeapp.generated.resources.settings_row_receipt_image
 import stitchpad.composeapp.generated.resources.settings_row_sign_out
 import stitchpad.composeapp.generated.resources.settings_row_signin_method
 import stitchpad.composeapp.generated.resources.settings_row_terms
@@ -259,6 +264,15 @@ fun SettingsScreen(
                 )
                 SettingsRowDivider()
                 SettingsRow(
+                    icon = Icons.Outlined.Image,
+                    label = stringResource(Res.string.settings_row_receipt_image),
+                    onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
+                    trailing = {
+                        SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
+                    },
+                )
+                SettingsRowDivider()
+                SettingsRow(
                     icon = Icons.Outlined.Notifications,
                     label = stringResource(Res.string.settings_row_daily_digest),
                     onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
@@ -409,6 +423,15 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun receiptImageStyleLabel(style: ReceiptImageStyle): String {
+    val labelRes: StringResource = when (style) {
+        ReceiptImageStyle.LIGHT -> Res.string.settings_receipt_image_light
+        ReceiptImageStyle.DARK -> Res.string.settings_receipt_image_dark
+    }
+    return stringResource(labelRes)
 }
 
 @Composable

@@ -1350,6 +1350,9 @@
     <string name="settings_row_reminders">Reminders</string>
     <string name="settings_row_reminders_subtitle">Order due dates &amp; pickups</string>
     <string name="settings_row_appearance">Appearance</string>
+    <string name="settings_row_receipt_image">Receipt image style</string>
+    <string name="settings_receipt_image_light">Light</string>
+    <string name="settings_receipt_image_dark">Dark</string>
     <string name="settings_row_daily_digest">Daily summary email</string>
     <string name="settings_row_daily_push">Daily push reminder</string>
     <string name="settings_theme_system">System default</string>
