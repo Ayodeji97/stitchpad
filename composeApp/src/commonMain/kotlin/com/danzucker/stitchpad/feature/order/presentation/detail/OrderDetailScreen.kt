@@ -244,6 +244,9 @@ fun OrderDetailRoot(
             OrderDetailEvent.NotesSaved -> {
                 snackbarScope.launch { snackbarHostState.showSnackbar(notesSavedMessage) }
             }
+            // TODO(Task 5): show a costs-saved snackbar here (mirrors NotesSaved above)
+            // once the dedicated string resource lands.
+            OrderDetailEvent.CostsSaved -> Unit
             is OrderDetailEvent.LaunchWhatsApp -> {
                 snackbarScope.launch {
                     val launched = whatsAppLauncher.launch(event.phone, event.message)

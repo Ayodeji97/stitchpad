@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -82,6 +83,10 @@ data class OrderDetailState(
     // Notes editor
     val isEditingNotes: Boolean = false,
     val notesDraft: String = "",
+
+    // Costs editor
+    val costsEditorVisible: Boolean = false,
+    val costsDraft: Map<CostCategory, String> = emptyMap(),
 
     // Status sheet
     val selectedNewStatus: OrderStatus? = null,

@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
@@ -62,6 +63,12 @@ sealed interface OrderDetailAction {
     data class OnNotesDraftChange(val text: String) : OrderDetailAction
     data object OnNotesSaveClick : OrderDetailAction
     data object OnNotesCancelClick : OrderDetailAction
+
+    // Costs
+    data object OnEditCostsClick : OrderDetailAction
+    data class OnCostDraftChange(val category: CostCategory, val digits: String) : OrderDetailAction
+    data object OnSaveCosts : OrderDetailAction
+    data object OnDismissCostsEditor : OrderDetailAction
 
     // Customer reach-out
     data object OnWhatsAppClick : OrderDetailAction

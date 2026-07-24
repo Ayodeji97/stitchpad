@@ -288,6 +288,20 @@ class OrderDetailViewModel(
             OrderDetailAction.OnNotesCancelClick ->
                 _state.update { it.copy(isEditingNotes = false, notesDraft = "") }
 
+            // Costs
+            OrderDetailAction.OnEditCostsClick -> {
+                val existing = _state.value.order?.costs.orEmpty()
+                    .associate { it.category to it.amount.toLong().toString() }
+                _state.update { it.copy(costsEditorVisible = true, costsDraft = existing) }
+            }
+            is OrderDetailAction.OnCostDraftChange ->
+                _state.update {
+                    it.copy(costsDraft = it.costsDraft + (action.category to action.digits.filter(Char::isDigit)))
+                }
+            OrderDetailAction.OnSaveCosts -> saveCosts()
+            OrderDetailAction.OnDismissCostsEditor ->
+                _state.update { it.copy(costsEditorVisible = false) }
+
             // Customer reach-out
             OrderDetailAction.OnWhatsAppClick -> launchWhatsApp()
             OrderDetailAction.OnCallClick -> launchDialer()
@@ -986,6 +1000,22 @@ class OrderDetailViewModel(
                 is Result.Success -> {
                     _state.update { it.copy(isEditingNotes = false, notesDraft = "") }
                     _events.send(OrderDetailEvent.NotesSaved)
+                }
+                is Result.Error ->
+                    _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    private fun saveCosts() {
+        val orderId = orderId ?: return
+        val costs = orderCostsFromDraft(_state.value.costsDraft)
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            when (val res = orderRepository.updateCosts(userId, orderId, costs)) {
+                is Result.Success -> {
+                    _state.update { it.copy(costsEditorVisible = false) }
+                    _events.send(OrderDetailEvent.CostsSaved)
                 }
                 is Result.Error ->
                     _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
