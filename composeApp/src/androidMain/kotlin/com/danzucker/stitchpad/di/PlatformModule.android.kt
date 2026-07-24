@@ -2,8 +2,10 @@ package com.danzucker.stitchpad.di
 
 import coil3.imageLoader
 import com.danzucker.stitchpad.BuildConfig
+import com.danzucker.stitchpad.core.data.preferences.ReceiptImagePreferences
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.media.AndroidImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
@@ -50,6 +52,7 @@ actual val platformModule: Module = module {
     single<ClipboardReferralReader> { AndroidClipboardReferralReader() }
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class
+    single { ReceiptImagePreferences(androidContext()) } bind ReceiptImagePreferencesStore::class
     single { OfflinePhotoStore(androidContext()) }
     single { TutorialVideoCache(androidContext()) }
     single<ImageCompressor> { AndroidImageCompressor() }

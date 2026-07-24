@@ -2,8 +2,10 @@ package com.danzucker.stitchpad.di
 
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import com.danzucker.stitchpad.core.data.preferences.ReceiptImagePreferences
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.media.IosImageCompressor
@@ -73,6 +75,7 @@ actual val platformModule: Module = module {
     single<ClipboardReferralReader> { IosClipboardReferralReader() }
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { ThemePreferences() } bind ThemePreferencesStore::class
+    single { ReceiptImagePreferences() } bind ReceiptImagePreferencesStore::class
     single { OfflinePhotoStore() }
     single { TutorialVideoCache() }
     single<ImageCompressor> { IosImageCompressor() }
