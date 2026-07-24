@@ -18,6 +18,7 @@ data class OrderDto(
     /** Legacy field kept for backward-compat when reading old Firestore docs. */
     val balanceRemaining: Double = 0.0,
     val payments: List<PaymentDto> = emptyList(),
+    val costs: List<OrderCostDto> = emptyList(),
     val deadline: Long? = null,
     val notes: String? = null,
     val archivedAt: Long? = null,
@@ -25,6 +26,13 @@ data class OrderDto(
     val statusHistory: List<StatusChangeDto> = emptyList(),
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
+)
+
+@Serializable
+data class OrderCostDto(
+    val category: String = "OTHER",
+    val amount: Double = 0.0,
+    val note: String? = null,
 )
 
 @Serializable

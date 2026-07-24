@@ -1,11 +1,17 @@
 package com.danzucker.stitchpad.core.data.mapper
 
+import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderItemDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderItem
+import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
@@ -507,5 +513,39 @@ class OrderMapperTest {
         val order = OrderDto(id = "o1", totalPrice = 10_000.0).toOrder(userId = "u1")
         assertEquals(0.0, order.discount)
         assertEquals(null, order.discountReason)
+    }
+
+    private fun sampleOrder() = Order(
+        id = "o1", userId = "u1", customerId = "c1", customerName = "Amaka",
+        items = emptyList(), status = OrderStatus.PENDING, priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(), totalPrice = 50_000.0, deadline = null, notes = null,
+        createdAt = 0L, updatedAt = 0L,
+    )
+
+    @Test
+    fun `costs round-trip through dto and back`() {
+        val order = sampleOrder().copy(
+            costs = listOf(
+                OrderCost(CostCategory.FABRIC, 25_000.0),
+                OrderCost(CostCategory.EMBELLISHMENT, 4_000.0, note = "beading — outsourced"),
+            ),
+        )
+        val restored = order.toOrderDto().toOrder(userId = "u1")
+        assertEquals(order.costs, restored.costs)
+    }
+
+    @Test
+    fun `legacy order with no costs field maps to empty list`() {
+        val dto = OrderDto(id = "o1", totalPrice = 50_000.0) // no costs
+        assertEquals(emptyList(), dto.toOrder(userId = "u1").costs)
+    }
+
+    @Test
+    fun `unknown cost category string falls back to OTHER`() {
+        val dto = OrderDto(
+            id = "o1",
+            costs = listOf(OrderCostDto(category = "MYSTERY", amount = 10.0)),
+        )
+        assertEquals(CostCategory.OTHER, dto.toOrder(userId = "u1").costs.single().category)
     }
 }
