@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.presentation.UiText
 data class OrderListState(
     val orders: List<Order> = emptyList(),
     val statusFilter: OrderStatus? = null,
+    val showProfit: Boolean = false,
     /** When true, [orders] holds archived orders (Restore affordance) instead of the active list. */
     val showArchived: Boolean = false,
     val isLoading: Boolean = true,

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -109,11 +112,13 @@ import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
 import stitchpad.composeapp.generated.resources.order_filter_all
 import stitchpad.composeapp.generated.resources.order_filter_archived
+import stitchpad.composeapp.generated.resources.order_hide_profit
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
 import stitchpad.composeapp.generated.resources.order_restore_cta
 import stitchpad.composeapp.generated.resources.order_restored_snackbar
+import stitchpad.composeapp.generated.resources.order_show_profit
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -188,7 +193,13 @@ fun OrderListScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                ),
+                actions = {
+                    ProfitToggleAction(
+                        showProfit = state.showProfit,
+                        onToggle = { onAction(OrderListAction.OnToggleShowProfit) },
+                    )
+                },
             )
         },
         floatingActionButton = {
@@ -284,6 +295,7 @@ fun OrderListScreen(
                                     SwipeableOrderItem(
                                         order = order,
                                         now = now,
+                                        showProfit = state.showProfit,
                                         onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                         onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
                                     )
@@ -298,6 +310,7 @@ fun OrderListScreen(
                                 SwipeableOrderItem(
                                     order = order,
                                     now = now,
+                                    showProfit = state.showProfit,
                                     onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                     onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
                                 )
@@ -605,11 +618,35 @@ private fun OrderEmptyState(
     }
 }
 
+@Composable
+private fun ProfitToggleAction(showProfit: Boolean, onToggle: () -> Unit) {
+    val label = stringResource(
+        if (showProfit) Res.string.order_hide_profit else Res.string.order_show_profit,
+    )
+    TextButton(
+        onClick = onToggle,
+        contentPadding = PaddingValues(horizontal = DesignTokens.space3),
+    ) {
+        Icon(
+            imageVector = if (showProfit) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(DesignTokens.space1))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableOrderItem(
     order: Order,
     now: Long,
+    showProfit: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -655,13 +692,13 @@ private fun SwipeableOrderItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            OrderListItem(order = order, now = now, onClick = onClick)
+            OrderListItem(order = order, now = now, showProfit = showProfit, onClick = onClick)
         }
     }
 }
 
 @Composable
-private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
+private fun OrderListItem(order: Order, now: Long, showProfit: Boolean, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
@@ -717,7 +754,7 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(2.dp))
             PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
-            if (order.hasCosts) {
+            if (showProfit && order.hasCosts) {
                 Spacer(Modifier.height(2.dp))
                 OrderRowProfit(profit = order.profit)
             }
