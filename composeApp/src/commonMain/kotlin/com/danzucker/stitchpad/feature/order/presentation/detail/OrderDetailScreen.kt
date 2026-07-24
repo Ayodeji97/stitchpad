@@ -66,8 +66,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -85,9 +87,11 @@ import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.components.StylePickerSheet
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.CostsEditorSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementDetailSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCostsCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCustomerCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderDetailOverflowMenu
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderFooterCaption
@@ -126,6 +130,7 @@ import stitchpad.composeapp.generated.resources.balance_warning_ready_title
 import stitchpad.composeapp.generated.resources.balance_warning_record_payment
 import stitchpad.composeapp.generated.resources.cd_edit_order
 import stitchpad.composeapp.generated.resources.common_cancel
+import stitchpad.composeapp.generated.resources.costs_saved_message
 import stitchpad.composeapp.generated.resources.order_archived_snackbar
 import stitchpad.composeapp.generated.resources.order_delete_active_intro
 import stitchpad.composeapp.generated.resources.order_delete_cancel
@@ -216,6 +221,7 @@ fun OrderDetailRoot(
     val paymentRecordedShareAction = stringResource(Res.string.order_record_payment_snackbar_share_action)
     val orderArchivedMessage = stringResource(Res.string.order_archived_snackbar)
     val notesSavedMessage = stringResource(Res.string.order_detail_notes_saved_toast)
+    val costsSavedMessage = stringResource(Res.string.costs_saved_message)
     val whatsAppFailedMessage = stringResource(Res.string.order_detail_whatsapp_launch_failed)
     val dialerFailedMessage = stringResource(Res.string.order_detail_dialer_launch_failed)
 
@@ -244,9 +250,9 @@ fun OrderDetailRoot(
             OrderDetailEvent.NotesSaved -> {
                 snackbarScope.launch { snackbarHostState.showSnackbar(notesSavedMessage) }
             }
-            // TODO(Task 5): show a costs-saved snackbar here (mirrors NotesSaved above)
-            // once the dedicated string resource lands.
-            OrderDetailEvent.CostsSaved -> Unit
+            OrderDetailEvent.CostsSaved -> {
+                snackbarScope.launch { snackbarHostState.showSnackbar(costsSavedMessage) }
+            }
             is OrderDetailEvent.LaunchWhatsApp -> {
                 snackbarScope.launch {
                     val launched = whatsAppLauncher.launch(event.phone, event.message)
@@ -591,6 +597,18 @@ fun OrderDetailScreen(
             onMarkPaidInFull = { onAction(OrderDetailAction.OnMarkPaidInFull) },
             onConfirm = { onAction(OrderDetailAction.OnConfirmRecordPayment) },
             onDismiss = { onAction(OrderDetailAction.OnDismissRecordPayment) },
+        )
+    }
+
+    // Costs editor sheet — records per-category order costs behind the profit card
+    if (state.costsEditorVisible) {
+        CostsEditorSheet(
+            draft = state.costsDraft,
+            onAmountChange = { category, digits ->
+                onAction(OrderDetailAction.OnCostDraftChange(category, digits))
+            },
+            onSave = { onAction(OrderDetailAction.OnSaveCosts) },
+            onDismiss = { onAction(OrderDetailAction.OnDismissCostsEditor) },
         )
     }
 
@@ -1181,6 +1199,15 @@ private fun OrderDetailContent(
             )
         }
         item {
+            OrderCostsCard(
+                costs = order.costs,
+                totalCost = order.totalCost,
+                profit = order.profit,
+                profitMargin = order.profitMargin,
+                onEditClick = { onAction(OrderDetailAction.OnEditCostsClick) },
+            )
+        }
+        item {
             OrderProductionTimeline(
                 currentStatus = order.status,
                 currentSubStatus = order.subStatus,
@@ -1504,6 +1531,10 @@ private fun OrderDetailScreenFilledPreview() {
                     ),
                     deadline = now + 86_400_000 * 3,
                     notes = "Needs to be ready by Friday for the wedding.",
+                    costs = listOf(
+                        OrderCost(category = CostCategory.FABRIC, amount = 18_000.0, note = null),
+                        OrderCost(category = CostCategory.LABOUR, amount = 12_000.0, note = null),
+                    ),
                     createdAt = now - 86_400_000,
                     updatedAt = now
                 )
