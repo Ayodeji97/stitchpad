@@ -182,12 +182,30 @@ actual class OrderReceiptSharer {
                 if (item.quantity == 1) {
                     // Single row: garment name (left) + line total (right, bold). No subtitle.
                     drawText(item.garmentName, padding, y, boldFont(14.0), darkColor(palette.bodyTextHex))
-                    drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor(palette.bodyTextHex))
+                    drawTextRight(
+                        item.formattedPrice,
+                        width - padding,
+                        y,
+                        boldFont(14.0),
+                        darkColor(palette.bodyTextHex)
+                    )
                     y += 30.0
                 } else {
                     // Row 1: "<name> ×N" (left, bold) + line total (right, bold).
-                    drawText("${item.garmentName} ×${item.quantity}", padding, y, boldFont(14.0), darkColor(palette.bodyTextHex))
-                    drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor(palette.bodyTextHex))
+                    drawText(
+                        "${item.garmentName} ×${item.quantity}",
+                        padding,
+                        y,
+                        boldFont(14.0),
+                        darkColor(palette.bodyTextHex)
+                    )
+                    drawTextRight(
+                        item.formattedPrice,
+                        width - padding,
+                        y,
+                        boldFont(14.0),
+                        darkColor(palette.bodyTextHex)
+                    )
                     y += 22.0
                     // Row 2 (caption): "<unit price> each", muted, no right-column figure.
                     drawText("${item.formattedUnitPrice} each", padding, y, regularFont(12.0), darkColor("#7D7970"))
@@ -202,7 +220,13 @@ actual class OrderReceiptSharer {
             // Payment
             data.discountFormatted?.let { discount ->
                 drawText("Subtotal", padding, y, regularFont(13.0), darkColor("#7D7970"))
-                drawTextRight(data.subtotalFormatted, width - padding, y, regularFont(13.0), darkColor(palette.bodyTextHex))
+                drawTextRight(
+                    data.subtotalFormatted,
+                    width - padding,
+                    y,
+                    regularFont(13.0),
+                    darkColor(palette.bodyTextHex)
+                )
                 y += 22.0
                 drawText("Discount", padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawTextRight(discount, width - padding, y, boldFont(13.0), darkColor("#2D9E6B"))
@@ -224,7 +248,13 @@ actual class OrderReceiptSharer {
             if (data.isFullyPaid) {
                 drawTextRight("✓ PAID IN FULL", width - padding, y, boldFont(14.0), darkColor("#2D9E6B"))
             } else {
-                drawTextRight("${data.balanceFormatted} DUE", width - padding, y, boldFont(14.0), darkColor(palette.accentHex))
+                drawTextRight(
+                    "${data.balanceFormatted} DUE",
+                    width - padding,
+                    y,
+                    boldFont(14.0),
+                    darkColor(palette.accentHex)
+                )
             }
             y += 26.0
 
