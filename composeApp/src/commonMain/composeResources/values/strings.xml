@@ -1569,9 +1569,6 @@
     <string name="smart_section_subtitle">Help with messages, pricing, and more</string>
     <string name="smart_intent_draft_message_title">Draft a Message</string>
     <string name="smart_intent_draft_message_subtitle">Draft a WhatsApp message to a customer</string>
-    <string name="smart_intent_price_this_title">Help Me Price This</string>
-    <string name="smart_intent_reply_helper_title">Customer Reply Helper</string>
-    <string name="smart_intent_coming_soon_label">Coming soon</string>
     <string name="smart_free_quota_remaining">%1$d of 5 free drafts left this month</string>
 
     <!-- Draft Message screen -->
