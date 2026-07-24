@@ -69,6 +69,7 @@ sealed interface OrderDetailAction {
     data class OnCostDraftChange(val category: CostCategory, val digits: String) : OrderDetailAction
     data object OnSaveCosts : OrderDetailAction
     data object OnDismissCostsEditor : OrderDetailAction
+    data object OnCostsExpandToggle : OrderDetailAction
 
     // Customer reach-out
     data object OnWhatsAppClick : OrderDetailAction

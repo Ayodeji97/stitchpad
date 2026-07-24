@@ -1162,6 +1162,17 @@ private fun OrderDetailContent(
             )
         }
         item {
+            OrderCostsCard(
+                costs = order.costs,
+                totalCost = order.totalCost,
+                profit = order.profit,
+                profitMargin = order.profitMargin,
+                isExpanded = state.isCostsExpanded,
+                onToggleExpanded = { onAction(OrderDetailAction.OnCostsExpandToggle) },
+                onEditClick = { onAction(OrderDetailAction.OnEditCostsClick) },
+            )
+        }
+        item {
             OrderGarmentDetailsCard(
                 items = order.items,
                 priority = order.priority,
@@ -1196,15 +1207,6 @@ private fun OrderDetailContent(
                 isExpanded = state.isPaymentHistoryExpanded,
                 onToggleExpanded = { onAction(OrderDetailAction.OnPaymentHistoryToggle) },
                 onRecordPaymentClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
-            )
-        }
-        item {
-            OrderCostsCard(
-                costs = order.costs,
-                totalCost = order.totalCost,
-                profit = order.profit,
-                profitMargin = order.profitMargin,
-                onEditClick = { onAction(OrderDetailAction.OnEditCostsClick) },
             )
         }
         item {

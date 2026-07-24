@@ -301,6 +301,8 @@ class OrderDetailViewModel(
             OrderDetailAction.OnSaveCosts -> saveCosts()
             OrderDetailAction.OnDismissCostsEditor ->
                 _state.update { it.copy(costsEditorVisible = false) }
+            OrderDetailAction.OnCostsExpandToggle ->
+                _state.update { it.copy(isCostsExpanded = !it.isCostsExpanded) }
 
             // Customer reach-out
             OrderDetailAction.OnWhatsAppClick -> launchWhatsApp()

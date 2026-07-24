@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,9 +46,9 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_costs_add_button
 import stitchpad.composeapp.generated.resources.order_costs_add_cost
+import stitchpad.composeapp.generated.resources.order_costs_edit
 import stitchpad.composeapp.generated.resources.order_costs_empty_body
 import stitchpad.composeapp.generated.resources.order_costs_loss
-import stitchpad.composeapp.generated.resources.order_costs_private_caption
 import stitchpad.composeapp.generated.resources.order_costs_profit
 import stitchpad.composeapp.generated.resources.order_costs_section
 import stitchpad.composeapp.generated.resources.order_costs_total
@@ -61,9 +63,12 @@ fun OrderCostsCard(
     totalCost: Double,
     profit: Double,
     profitMargin: Double?,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val hasCosts = costs.isNotEmpty()
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
@@ -71,8 +76,11 @@ fun OrderCostsCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(DesignTokens.space4)) {
-            // ── Header ──────────────────────────────────────────────────────
+            // ── Header (tap to expand/collapse when there are costs) ─────────
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (hasCosts) Modifier.clickable(onClick = onToggleExpanded) else Modifier),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
             ) {
@@ -84,21 +92,42 @@ fun OrderCostsCard(
                     text = stringResource(Res.string.order_costs_section),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
+                if (hasCosts) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(Res.string.order_costs_edit),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable(onClick = onEditClick)
+                            .padding(DesignTokens.space1),
+                    )
+                    Icon(
+                        imageVector = if (isExpanded) {
+                            Icons.Default.ExpandLess
+                        } else {
+                            Icons.Default.ExpandMore
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Spacer(Modifier.height(DesignTokens.space3))
 
-            if (costs.isEmpty()) {
-                OrderCostsEmptyState(onEditClick = onEditClick)
-            } else {
-                OrderCostsFilledContent(
+            when {
+                !hasCosts -> OrderCostsEmptyState(onEditClick = onEditClick)
+                isExpanded -> OrderCostsFilledContent(
                     costs = costs,
                     totalCost = totalCost,
                     profit = profit,
                     profitMargin = profitMargin,
                     onEditClick = onEditClick,
                 )
+                // Collapsed: just the profit headline to save space; tap header to expand.
+                else -> ProfitBand(profit = profit, profitMargin = profitMargin)
             }
         }
     }
@@ -125,7 +154,6 @@ private fun OrderCostsEmptyState(onEditClick: () -> Unit) {
                 )
             }
         }
-        PrivateCaption()
     }
 }
 
@@ -146,7 +174,7 @@ private fun OrderCostsFilledContent(
         costCategoryOrder.forEach { category ->
             val cost = costsByCategory[category]
             if (cost != null) {
-                CostRow(category = category, cost = cost)
+                CostRow(category = category, cost = cost, onClick = onEditClick)
             }
         }
     }
@@ -197,16 +225,15 @@ private fun OrderCostsFilledContent(
     Spacer(Modifier.height(DesignTokens.space2))
 
     ProfitBand(profit = profit, profitMargin = profitMargin)
-
-    Spacer(Modifier.height(DesignTokens.space3))
-
-    PrivateCaption()
 }
 
 @Composable
-private fun CostRow(category: CostCategory, cost: OrderCost) {
+private fun CostRow(category: CostCategory, cost: OrderCost, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = DesignTokens.space1),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
@@ -295,26 +322,6 @@ private fun ProfitBand(profit: Double, profitMargin: Double?) {
 }
 
 @Composable
-private fun PrivateCaption() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
-    ) {
-        Icon(
-            imageVector = Icons.Default.Lock,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(DesignTokens.iconInline),
-        )
-        Text(
-            text = stringResource(Res.string.order_costs_private_caption),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun CostsSectionIconTile(
     imageVector: ImageVector,
     contentDescription: String?,
@@ -362,6 +369,8 @@ private fun OrderCostsCardFilledProfitLightPreview() {
             totalCost = PREVIEW_COSTS_PROFIT.sumOf { it.amount },
             profit = 45_500.0,
             profitMargin = 0.325,
+            isExpanded = true,
+            onToggleExpanded = {},
             onEditClick = {},
         )
     }
@@ -377,6 +386,8 @@ private fun OrderCostsCardFilledProfitDarkPreview() {
             totalCost = PREVIEW_COSTS_PROFIT.sumOf { it.amount },
             profit = 45_500.0,
             profitMargin = 0.325,
+            isExpanded = true,
+            onToggleExpanded = {},
             onEditClick = {},
         )
     }
@@ -392,6 +403,8 @@ private fun OrderCostsCardLossLightPreview() {
             totalCost = PREVIEW_COSTS_LOSS.sumOf { it.amount },
             profit = -10_000.0,
             profitMargin = -0.1136,
+            isExpanded = true,
+            onToggleExpanded = {},
             onEditClick = {},
         )
     }
@@ -407,6 +420,8 @@ private fun OrderCostsCardLossDarkPreview() {
             totalCost = PREVIEW_COSTS_LOSS.sumOf { it.amount },
             profit = -10_000.0,
             profitMargin = -0.1136,
+            isExpanded = true,
+            onToggleExpanded = {},
             onEditClick = {},
         )
     }
@@ -422,6 +437,8 @@ private fun OrderCostsCardEmptyLightPreview() {
             totalCost = 0.0,
             profit = 88_000.0,
             profitMargin = 1.0,
+            isExpanded = true,
+            onToggleExpanded = {},
             onEditClick = {},
         )
     }
@@ -437,6 +454,8 @@ private fun OrderCostsCardEmptyDarkPreview() {
             totalCost = 0.0,
             profit = 88_000.0,
             profitMargin = 1.0,
+            isExpanded = true,
+            onToggleExpanded = {},
             onEditClick = {},
         )
     }

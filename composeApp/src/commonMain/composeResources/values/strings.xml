@@ -1759,8 +1759,9 @@
     <string name="order_costs_profit">Profit</string>
     <string name="order_costs_loss">Loss</string>
     <string name="order_costs_add_cost">Add cost</string>
+    <string name="order_costs_edit">Edit costs</string>
     <string name="order_costs_add_button">Add costs</string>
-    <string name="order_costs_empty_body">Add what this order cost you — fabric, trims, labour — to see your real profit.</string>
+    <string name="order_costs_empty_body">Add what this order cost you to see your real profit.</string>
     <string name="order_costs_private_caption">Private — never shown on receipts</string>
     <string name="costs_editor_title">Record costs</string>
     <string name="costs_editor_subtitle">What did this order cost you? Leave blank what does not apply.</string>

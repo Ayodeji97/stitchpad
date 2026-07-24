@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,6 +78,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
@@ -88,6 +91,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.order_costs_loss
+import stitchpad.composeapp.generated.resources.order_costs_profit
 import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
 import stitchpad.composeapp.generated.resources.order_delete_message
@@ -114,6 +119,7 @@ import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
 import stitchpad.composeapp.generated.resources.order_summary_custom_format
+import kotlin.math.abs
 import kotlin.time.Clock
 
 @Composable
@@ -711,7 +717,41 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(2.dp))
             PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
+            if (order.hasCosts) {
+                Spacer(Modifier.height(2.dp))
+                OrderRowProfit(profit = order.profit)
+            }
         }
+    }
+}
+
+@Composable
+private fun OrderRowProfit(profit: Double) {
+    val isLoss = profit < 0.0
+    val color = if (isLoss) {
+        if (isSystemInDarkTheme()) DesignTokens.errorDarkText else DesignTokens.error500
+    } else {
+        if (isSystemInDarkTheme()) DesignTokens.successDarkText else DesignTokens.success500
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+    ) {
+        Text(
+            text = stringResource(
+                if (isLoss) Res.string.order_costs_loss else Res.string.order_costs_profit,
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
+        Text(
+            text = "${if (isLoss) "−" else ""}₦${formatPrice(abs(profit))}",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Monospace,
+            color = color,
+        )
     }
 }
 

@@ -87,6 +87,7 @@ data class OrderDetailState(
     // Costs editor
     val costsEditorVisible: Boolean = false,
     val costsDraft: Map<CostCategory, String> = emptyMap(),
+    val isCostsExpanded: Boolean = false,
 
     // Status sheet
     val selectedNewStatus: OrderStatus? = null,
