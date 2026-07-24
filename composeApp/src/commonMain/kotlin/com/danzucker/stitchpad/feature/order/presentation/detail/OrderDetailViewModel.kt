@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -225,7 +226,7 @@ class OrderDetailViewModel(
                 _state.update { it.copy(showShareSheet = true) }
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt(format = "image") { receiptSharer.shareReceiptAsImage(it) }
+                shareReceipt(format = "image") { receiptSharer.shareReceiptAsImage(it, ReceiptImageStyle.LIGHT) }
                 _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {
