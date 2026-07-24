@@ -998,10 +998,6 @@
     <string name="focus_pickup_cta">Open %1$s's order</string>
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
-    <string name="dashboard_pipeline_empty_section">Empty pipeline</string>
-    <string name="dashboard_pipeline_empty_title">Nothing in progress yet</string>
-    <string name="dashboard_pipeline_empty_supporting">Start your first order to unlock cutting, sewing, fitting, and delivery stages.</string>
-    <string name="dashboard_pipeline_empty_cta">Add first order</string>
     <string name="dashboard_nba_empty_title">No suggested moves</string>
     <string name="dashboard_nba_empty_supporting">Show up when balances or deadlines need follow-up.</string>
     <string name="dashboard_nba_quiet_title">Nothing urgent right now</string>

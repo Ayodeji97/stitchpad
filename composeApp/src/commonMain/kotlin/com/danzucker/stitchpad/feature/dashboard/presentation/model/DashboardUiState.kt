@@ -39,7 +39,7 @@ sealed interface DashboardUiState {
      * actions, no pipeline movement. Common state for established tailors on a
      * slow morning.
      * Renders [IllustratedFocusCard] (Quiet variant) with reconnect-prompt CTA +
-     * [ReconnectChipStrip] + empty affordances for NBA/Pipeline.
+     * [ReconnectChipStrip] + empty affordance for NBA.
      */
     data object QuietDay : DashboardUiState
 

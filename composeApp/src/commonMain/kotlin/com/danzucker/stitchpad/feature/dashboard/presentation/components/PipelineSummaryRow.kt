@@ -153,3 +153,12 @@ private fun PipelineSummaryRowInProgressOnlyPreview() {
         PipelineSummaryRow(inProgressTotal = 4, notStartedTotal = 0, onClick = {})
     }
 }
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun PipelineSummaryRowDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        PipelineSummaryRow(inProgressTotal = 3, notStartedTotal = 2, onClick = {})
+    }
+}
