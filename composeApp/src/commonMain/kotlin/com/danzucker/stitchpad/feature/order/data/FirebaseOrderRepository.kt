@@ -396,14 +396,17 @@ class FirebaseOrderRepository(
      * corrupt a public report. See [orderCostsWriteFields] for the write payload this
      * invariant is guarded by in commonTest.
      */
+    @Suppress("SpreadOperator") // GitLive's update() only accepts vararg Pair<String, Any?>;
+    // spreading orderCostsWriteFields' map keeps the tested helper as the actual write path.
     override suspend fun updateCosts(
         userId: String,
         orderId: String,
         costs: List<OrderCost>,
     ): EmptyResult<DataError.Network> {
-        val costMaps = costs.map { it.toOrderCostDto().toFirestoreMap() }
         val accepted = offlineWrites.enqueue("updateCosts orderId=$orderId") {
-            ordersCollection(userId).document(orderId).update("costs" to costMaps)
+            ordersCollection(userId).document(orderId).update(
+                *orderCostsWriteFields(costs).entries.map { it.key to it.value }.toTypedArray(),
+            )
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
