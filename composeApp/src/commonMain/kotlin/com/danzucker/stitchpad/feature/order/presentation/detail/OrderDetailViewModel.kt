@@ -1009,7 +1009,10 @@ class OrderDetailViewModel(
 
     private fun saveCosts() {
         val orderId = orderId ?: return
-        val costs = orderCostsFromDraft(_state.value.costsDraft)
+        // The costs editor only drafts amounts — carry forward each category's existing
+        // note so a plain amount edit doesn't silently wipe it. See orderCostsFromDraft KDoc.
+        val existingNotes = _state.value.order?.costs.orEmpty().associate { it.category to it.note }
+        val costs = orderCostsFromDraft(_state.value.costsDraft, existingNotes)
         viewModelScope.launch {
             val userId = authRepository.getCurrentUser()?.id ?: return@launch
             when (val res = orderRepository.updateCosts(userId, orderId, costs)) {

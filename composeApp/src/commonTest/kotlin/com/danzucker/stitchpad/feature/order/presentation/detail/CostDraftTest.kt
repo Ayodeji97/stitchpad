@@ -56,4 +56,30 @@ class CostDraftTest {
         val result = orderCostsFromDraft(emptyMap())
         assertTrue(result.isEmpty())
     }
+
+    // Regression: the costs editor only drafts amounts (no note input), so saving must
+    // carry forward each category's existing note rather than defaulting it to null and
+    // silently wiping it. See orderCostsFromDraft KDoc / OrderDetailViewModel.saveCosts().
+    @Test
+    fun existingNoteIsPreservedForMatchingCategory() {
+        val draft = mapOf(CostCategory.FABRIC to "30000")
+        val existingNotes = mapOf(CostCategory.FABRIC to "Ankara from Balogun market")
+
+        val result = orderCostsFromDraft(draft, existingNotes)
+
+        assertEquals(
+            listOf(OrderCost(CostCategory.FABRIC, 30_000.0, note = "Ankara from Balogun market")),
+            result,
+        )
+    }
+
+    @Test
+    fun categoryWithNoExistingNoteStaysNull() {
+        val draft = mapOf(CostCategory.LABOUR to "7000")
+        val existingNotes = mapOf(CostCategory.FABRIC to "Ankara from Balogun market")
+
+        val result = orderCostsFromDraft(draft, existingNotes)
+
+        assertEquals(listOf(OrderCost(CostCategory.LABOUR, 7_000.0, note = null)), result)
+    }
 }
