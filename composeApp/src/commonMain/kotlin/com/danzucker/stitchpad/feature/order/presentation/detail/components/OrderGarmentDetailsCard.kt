@@ -129,7 +129,7 @@ fun OrderGarmentDetailsCard(
                     item = item,
                     priority = if (index == 0) priority else OrderPriority.NORMAL,
                 )
-                Spacer(Modifier.height(DesignTokens.space3))
+                Spacer(Modifier.height(DesignTokens.space2))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
                     StyleColumn(
@@ -198,32 +198,21 @@ private fun GarmentTextBlock(
             PriorityPill(priority = priority)
         }
     }
-    if (!item.fabricName.isNullOrBlank()) {
-        Spacer(Modifier.height(DesignTokens.space2))
-        Text(
-            text = item.fabricName,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-    Spacer(Modifier.height(DesignTokens.space2))
+    // Qty, fabric name and description folded into one muted meta line — e.g.
+    // "Qty 1 · Navy ankara asoebi" — to keep the card compact. Blank parts drop out.
+    val metaLine = listOfNotNull(
+        stringResource(Res.string.order_detail_quantity, item.quantity),
+        item.fabricName?.takeIf { it.isNotBlank() },
+        item.description.takeIf { it.isNotBlank() },
+    ).joinToString(" · ")
+    Spacer(Modifier.height(DesignTokens.space1))
     Text(
-        text = stringResource(Res.string.order_detail_quantity, item.quantity),
+        text = metaLine,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
     )
-    if (item.description.isNotBlank()) {
-        Spacer(Modifier.height(DesignTokens.space2))
-        Text(
-            text = item.description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
 }
 
 @Composable
