@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.feature.order.data
 
+import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -17,6 +19,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class OrderOfflineWriteRegressionTest {
@@ -79,6 +82,29 @@ class OrderOfflineWriteRegressionTest {
             map,
         )
         assertAllValuesAreFirestorePrimitives(map)
+    }
+
+    // Regression: updateCosts must never bump updatedAt. Costs are private analytics data —
+    // backfilling costs onto an old order must not re-bucket it into the current Reports
+    // window (KpiCalculator buckets by updatedAt). See FirebaseOrderRepository.updateCosts KDoc.
+    @Test
+    fun orderCostsWriteFields_containsCostsOnly_neverUpdatedAt() {
+        val costs = listOf(
+            OrderCost(category = CostCategory.FABRIC, amount = 3_000.0, note = null),
+            OrderCost(category = CostCategory.LABOUR, amount = 2_000.0, note = "tailoring"),
+        )
+
+        val fields = orderCostsWriteFields(costs)
+
+        assertTrue(fields.containsKey("costs"))
+        assertFalse(fields.containsKey("updatedAt"))
+        assertEquals(
+            listOf(
+                mapOf<String, Any?>("category" to "FABRIC", "amount" to 3_000.0, "note" to null),
+                mapOf<String, Any?>("category" to "LABOUR", "amount" to 2_000.0, "note" to "tailoring"),
+            ),
+            fields["costs"],
+        )
     }
 
     private fun assertAllValuesAreFirestorePrimitives(map: Map<String, Any?>) {

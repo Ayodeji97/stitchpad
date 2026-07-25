@@ -89,6 +89,8 @@ class OrderListViewModel(
             OrderListAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, orderToDelete = null) }
             }
+            OrderListAction.OnToggleShowProfit ->
+                _state.update { it.copy(showProfit = !it.showProfit) }
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }

@@ -388,6 +388,16 @@ private val outstandingSpark = listOf(
     1_850_000.0
 )
 private val ordersSpark = listOf(5.0, 12.0, 8.0, 14.0, 10.0, 15.0, 16.0, 18.0)
+private val profitSpark = listOf(
+    800_000.0,
+    1_300_000.0,
+    1_050_000.0,
+    1_600_000.0,
+    1_450_000.0,
+    1_750_000.0,
+    1_900_000.0,
+    2_010_000.0
+)
 
 private val previewKpis = KpiSummary(
     revenue = Kpi(
@@ -413,7 +423,16 @@ private val previewKpis = KpiSummary(
         previous = 15.0,
         deltaPercent = 20.0,
         sparkline = ordersSpark
-    )
+    ),
+    profit = Kpi(
+        current = 2_010_000.0,
+        previous = 1_900_000.0,
+        deltaPercent = 5.8,
+        sparkline = profitSpark
+    ),
+    ordersWithCosts = 14,
+    ordersInWindow = 18,
+    profitMarginPercent = 37.5
 )
 
 private val previewProduction = ProductionCounts(

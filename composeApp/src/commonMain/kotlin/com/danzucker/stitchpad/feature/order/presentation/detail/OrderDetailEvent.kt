@@ -19,4 +19,8 @@ sealed interface OrderDetailEvent {
     data object OrderArchived : OrderDetailEvent
     data object PaymentRecorded : OrderDetailEvent
     data object NotesSaved : OrderDetailEvent
+
+    // TODO(Task 5): wire a costsSaved snackbar message in OrderDetailScreen.kt
+    // (mirrors NotesSaved / order_detail_notes_saved_toast).
+    data object CostsSaved : OrderDetailEvent
 }

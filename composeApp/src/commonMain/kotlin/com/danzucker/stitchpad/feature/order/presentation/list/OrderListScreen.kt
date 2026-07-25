@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -62,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,6 +81,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
@@ -88,6 +94,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.order_costs_loss
+import stitchpad.composeapp.generated.resources.order_costs_profit
 import stitchpad.composeapp.generated.resources.order_delete_cancel
 import stitchpad.composeapp.generated.resources.order_delete_confirm
 import stitchpad.composeapp.generated.resources.order_delete_message
@@ -104,16 +112,19 @@ import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
 import stitchpad.composeapp.generated.resources.order_filter_all
 import stitchpad.composeapp.generated.resources.order_filter_archived
+import stitchpad.composeapp.generated.resources.order_hide_profit
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
 import stitchpad.composeapp.generated.resources.order_restore_cta
 import stitchpad.composeapp.generated.resources.order_restored_snackbar
+import stitchpad.composeapp.generated.resources.order_show_profit
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
 import stitchpad.composeapp.generated.resources.order_summary_custom_format
+import kotlin.math.abs
 import kotlin.time.Clock
 
 @Composable
@@ -182,7 +193,13 @@ fun OrderListScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                ),
+                actions = {
+                    ProfitToggleAction(
+                        showProfit = state.showProfit,
+                        onToggle = { onAction(OrderListAction.OnToggleShowProfit) },
+                    )
+                },
             )
         },
         floatingActionButton = {
@@ -278,6 +295,7 @@ fun OrderListScreen(
                                     SwipeableOrderItem(
                                         order = order,
                                         now = now,
+                                        showProfit = state.showProfit,
                                         onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                         onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
                                     )
@@ -292,6 +310,7 @@ fun OrderListScreen(
                                 SwipeableOrderItem(
                                     order = order,
                                     now = now,
+                                    showProfit = state.showProfit,
                                     onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                     onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
                                 )
@@ -599,11 +618,35 @@ private fun OrderEmptyState(
     }
 }
 
+@Composable
+private fun ProfitToggleAction(showProfit: Boolean, onToggle: () -> Unit) {
+    val label = stringResource(
+        if (showProfit) Res.string.order_hide_profit else Res.string.order_show_profit,
+    )
+    TextButton(
+        onClick = onToggle,
+        contentPadding = PaddingValues(horizontal = DesignTokens.space3),
+    ) {
+        Icon(
+            imageVector = if (showProfit) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(DesignTokens.space1))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableOrderItem(
     order: Order,
     now: Long,
+    showProfit: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -649,13 +692,13 @@ private fun SwipeableOrderItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            OrderListItem(order = order, now = now, onClick = onClick)
+            OrderListItem(order = order, now = now, showProfit = showProfit, onClick = onClick)
         }
     }
 }
 
 @Composable
-private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
+private fun OrderListItem(order: Order, now: Long, showProfit: Boolean, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
@@ -711,7 +754,41 @@ private fun OrderListItem(order: Order, now: Long, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(2.dp))
             PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
+            if (showProfit && order.hasCosts) {
+                Spacer(Modifier.height(2.dp))
+                OrderRowProfit(profit = order.profit)
+            }
         }
+    }
+}
+
+@Composable
+private fun OrderRowProfit(profit: Double) {
+    val isLoss = profit < 0.0
+    val color = if (isLoss) {
+        if (isSystemInDarkTheme()) DesignTokens.errorDarkText else DesignTokens.error500
+    } else {
+        if (isSystemInDarkTheme()) DesignTokens.successDarkText else DesignTokens.success500
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+    ) {
+        Text(
+            text = stringResource(
+                if (isLoss) Res.string.order_costs_loss else Res.string.order_costs_profit,
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
+        Text(
+            text = "${if (isLoss) "−" else ""}₦${formatPrice(abs(profit))}",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Monospace,
+            color = color,
+        )
     }
 }
 

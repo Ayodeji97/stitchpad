@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -79,6 +80,14 @@ class OrderFormViewModel(
     private var loadedStatus: OrderStatus = OrderStatus.PENDING
     private var loadedStatusHistory: List<StatusChange> = emptyList()
     private var loadedPayments: List<Payment> = emptyList()
+
+    // Costs are edited exclusively via updateCosts() (the dedicated cost editor), never
+    // through this form — but the form still WRITES a full Order on every save. Without
+    // capturing the loaded value here and re-threading it into the save-time Order(...)
+    // below, a plain edit (e.g. changing notes) would build costs = emptyList() by
+    // default and merge-write that over any previously recorded cost lines, silently
+    // wiping the tailor's costing data. Mirrors loadedPayments/loadedStatusHistory.
+    private var loadedCosts: List<OrderCost> = emptyList()
 
     // On edit (orderId != null), loadOrder may finish before observeCustomers emits.
     // On create-with-pre-selected-customer (initialCustomerId != null, from
@@ -523,6 +532,7 @@ class OrderFormViewModel(
                     loadedStatus = order.status
                     loadedStatusHistory = order.statusHistory
                     loadedPayments = order.payments
+                    loadedCosts = order.costs
                     pendingCustomerId = order.customerId
                     _state.update {
                         it.copy(
@@ -884,6 +894,11 @@ class OrderFormViewModel(
                 // orphaned reason string when the typed discount clamps to 0.
                 discountReason = if (discount > 0.0) s.discountReason.trim().ifBlank { null } else null,
                 createdAt = if (isEdit) loadedCreatedAt else 0L,
+                // Data-loss guard: this form never edits costs (that's updateCosts()'s job),
+                // but updateOrder() writes the whole Order via a merge-set — leaving this at
+                // the OrderCost default (emptyList()) would silently erase any previously
+                // recorded cost lines on every plain edit. See loadedCosts KDoc.
+                costs = if (isEdit) loadedCosts else emptyList(),
                 updatedAt = 0L,
             )
 

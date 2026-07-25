@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.feature.order.data
 
+import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
+import com.danzucker.stitchpad.core.data.mapper.toOrderCostDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -10,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderCost
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -96,6 +99,22 @@ internal fun PaymentDto.toFirestoreMap(): Map<String, Any?> = mapOf(
     "type" to type,
     "recordedAt" to recordedAt,
     "note" to note,
+)
+
+internal fun OrderCostDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "category" to category,
+    "amount" to amount,
+    "note" to note,
+)
+
+/**
+ * Write payload for [FirebaseOrderRepository.updateCosts] — costs only, deliberately
+ * never `updatedAt`. Extracted as a pure helper so the "no updatedAt" invariant can be
+ * asserted in commonTest without a Firestore fake (see [FirebaseOrderRepository.updateCosts]
+ * KDoc for why bumping updatedAt here would be wrong).
+ */
+internal fun orderCostsWriteFields(costs: List<OrderCost>): Map<String, Any?> = mapOf(
+    "costs" to costs.map { it.toOrderCostDto().toFirestoreMap() },
 )
 
 @Suppress("TooManyFunctions")
@@ -357,6 +376,36 @@ class FirebaseOrderRepository(
             ordersCollection(userId).document(orderId).update(
                 "notes" to (notes ?: FieldValue.delete),
                 "updatedAt" to now,
+            )
+        }
+        if (!accepted) {
+            return Result.Error(DataError.Network.UNKNOWN)
+        }
+        return Result.Success(Unit)
+    }
+
+    /**
+     * Updates an order's cost lines only.
+     *
+     * Deliberately does NOT bump `updatedAt` (unlike [recordPayment]/[updateNotes]/
+     * [updateSubStatus]). Costs are private analytics data the tailor may backfill onto an
+     * old, already-delivered order long after the fact. Reports buckets every order into its
+     * reporting window by `updatedAt` ([com.danzucker.stitchpad.feature.reports.domain.KpiCalculator]),
+     * so bumping it here would yank that old order into the CURRENT window and inflate this
+     * period's Revenue/Collected/Outstanding/Orders/Profit — editing a private field would
+     * corrupt a public report. See [orderCostsWriteFields] for the write payload this
+     * invariant is guarded by in commonTest.
+     */
+    @Suppress("SpreadOperator") // GitLive's update() only accepts vararg Pair<String, Any?>;
+    // spreading orderCostsWriteFields' map keeps the tested helper as the actual write path.
+    override suspend fun updateCosts(
+        userId: String,
+        orderId: String,
+        costs: List<OrderCost>,
+    ): EmptyResult<DataError.Network> {
+        val accepted = offlineWrites.enqueue("updateCosts orderId=$orderId") {
+            ordersCollection(userId).document(orderId).update(
+                *orderCostsWriteFields(costs).entries.map { it.key to it.value }.toTypedArray(),
             )
         }
         if (!accepted) {
