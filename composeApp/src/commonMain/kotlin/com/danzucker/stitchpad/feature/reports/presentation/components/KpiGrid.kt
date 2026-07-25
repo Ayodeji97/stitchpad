@@ -26,7 +26,9 @@ import stitchpad.composeapp.generated.resources.reports_kpi_orders
 import stitchpad.composeapp.generated.resources.reports_kpi_outstanding
 import stitchpad.composeapp.generated.resources.reports_kpi_profit
 import stitchpad.composeapp.generated.resources.reports_kpi_revenue
-import stitchpad.composeapp.generated.resources.reports_profit_coverage
+import stitchpad.composeapp.generated.resources.reports_profit_coverage_all
+import stitchpad.composeapp.generated.resources.reports_profit_coverage_remaining
+import stitchpad.composeapp.generated.resources.reports_profit_coverage_short
 import stitchpad.composeapp.generated.resources.reports_profit_empty
 import kotlin.math.roundToInt
 
@@ -108,6 +110,12 @@ fun KpiGrid(
         // Profit spans the full grid width — it carries a coverage caption the
         // fixed-shape tiles above never need, so it doesn't share their 2-up row.
         val profitMarginSuffix = summary.profitMarginPercent?.let { " · margin ${it.roundToInt()}%" }.orEmpty()
+        val remaining = summary.ordersInWindow - summary.ordersWithCosts
+        val remainingCaption = when {
+            summary.ordersWithCosts == 0 -> null
+            remaining > 0 -> stringResource(Res.string.reports_profit_coverage_remaining, remaining)
+            else -> stringResource(Res.string.reports_profit_coverage_all, summary.ordersInWindow)
+        }
         ProfitKpiTile(
             modifier = Modifier.fillMaxWidth(),
             label = stringResource(Res.string.reports_kpi_profit) + profitMarginSuffix,
@@ -117,10 +125,16 @@ fun KpiGrid(
             kpi = summary.profit,
             isCoverageEmpty = summary.ordersWithCosts == 0,
             coverageCaption = stringResource(
-                Res.string.reports_profit_coverage,
+                Res.string.reports_profit_coverage_short,
                 summary.ordersWithCosts,
                 summary.ordersInWindow
             ),
+            coverageFraction = if (summary.ordersInWindow > 0) {
+                summary.ordersWithCosts.toFloat() / summary.ordersInWindow
+            } else {
+                0f
+            },
+            remainingCaption = remainingCaption,
             emptyStateText = stringResource(Res.string.reports_profit_empty),
             deltaSuffix = deltaSuffix,
             periodLabel = periodLabel,

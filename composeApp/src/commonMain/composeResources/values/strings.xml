@@ -1780,7 +1780,9 @@
     <string name="cost_hint_labour">sewing / handwork</string>
     <string name="cost_hint_logistics">transport, delivery, market runs</string>
     <string name="cost_hint_other">packaging, POS fees, anything else</string>
-    <string name="reports_kpi_profit">Profit</string>
-    <string name="reports_profit_coverage">On %1$d of %2$d orders with costs recorded</string>
+    <string name="reports_kpi_profit">Profit so far</string>
+    <string name="reports_profit_coverage_short">on %1$d of %2$d orders costed</string>
+    <string name="reports_profit_coverage_remaining">Add costs to %1$d more to see your full profit</string>
+    <string name="reports_profit_coverage_all">All %1$d orders costed — this is your full profit</string>
     <string name="reports_profit_empty">Add costs to an order to see profit</string>
 </resources>
