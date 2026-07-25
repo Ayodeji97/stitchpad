@@ -232,6 +232,8 @@ fun ProfitKpiTile(
     kpi: Kpi,
     isCoverageEmpty: Boolean,
     coverageCaption: String,
+    coverageFraction: Float,
+    remainingCaption: String?,
     emptyStateText: String,
     deltaSuffix: String,
     periodLabel: String,
@@ -318,11 +320,47 @@ fun ProfitKpiTile(
                 }
             }
         }
+        CoverageBar(fraction = coverageFraction)
         Text(
             text = coverageCaption,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (remainingCaption != null) {
+            Text(
+                text = remainingCaption,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+/**
+ * Thin progress track showing what share of the window's orders have costs recorded.
+ * The Profit value only covers those orders, so the bar makes "1 of 4" instantly legible —
+ * a filled sliver signals "this is a partial picture; add costs to the rest".
+ */
+@Composable
+private fun CoverageBar(fraction: Float) {
+    val clamped = fraction.coerceIn(0f, 1f)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(RoundedCornerShape(DesignTokens.radiusFull))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        if (clamped > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(clamped)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(DesignTokens.radiusFull))
+                    .background(DesignTokens.success500)
+            )
+        }
     }
 }
 
@@ -392,10 +430,12 @@ private fun ProfitKpiTilePreview(darkTheme: Boolean, isCoverageEmpty: Boolean) {
             kpi = if (isCoverageEmpty) previewEmptyProfitKpi else previewProfitKpi,
             isCoverageEmpty = isCoverageEmpty,
             coverageCaption = if (isCoverageEmpty) {
-                "On 0 of 18 orders with costs recorded"
+                "on 0 of 18 orders costed"
             } else {
-                "On 14 of 18 orders with costs recorded"
+                "on 14 of 18 orders costed"
             },
+            coverageFraction = if (isCoverageEmpty) 0f else 14f / 18f,
+            remainingCaption = if (isCoverageEmpty) null else "Add costs to 4 more to see your full profit",
             emptyStateText = "Add costs to an order to see profit",
             deltaSuffix = "vs last week",
             periodLabel = "This week"
@@ -451,7 +491,9 @@ private fun ProfitKpiTileWorseningLossPreview(darkTheme: Boolean) {
             iconBackground = MaterialTheme.colorScheme.primaryContainer,
             kpi = previewWorseningLossProfitKpi,
             isCoverageEmpty = false,
-            coverageCaption = "On 9 of 12 orders with costs recorded",
+            coverageCaption = "on 9 of 12 orders costed",
+            coverageFraction = 9f / 12f,
+            remainingCaption = "Add costs to 3 more to see your full profit",
             emptyStateText = "Add costs to an order to see profit",
             deltaSuffix = "vs last week",
             periodLabel = "This week"
