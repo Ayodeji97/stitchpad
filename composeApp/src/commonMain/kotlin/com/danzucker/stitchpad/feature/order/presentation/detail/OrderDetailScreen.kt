@@ -92,7 +92,6 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Meas
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCostsCard
-import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCustomerCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderDetailOverflowMenu
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderFooterCaption
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderGarmentDetailsCard
@@ -1156,9 +1155,14 @@ private fun OrderDetailContent(
                 balanceRemaining = order.balanceRemaining,
                 discount = order.discount,
                 cta = cta,
+                phone = state.customer?.phone,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
                 onSetDeadlineClick = { onAction(OrderDetailAction.OnSetDeadlineClick) },
+                onWhatsAppClick = { onAction(OrderDetailAction.OnWhatsAppClick) },
+                onCallClick = { onAction(OrderDetailAction.OnCallClick) },
+                onAddPhoneClick = { onAction(OrderDetailAction.OnAddPhoneClick) },
+                onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }
         item {
@@ -1186,17 +1190,6 @@ private fun OrderDetailContent(
                     onAction(OrderDetailAction.OnRemoveFabricImage(itemId, index))
                 },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
-            )
-        }
-        item {
-            OrderCustomerCard(
-                customerName = order.customerName,
-                phone = state.customer?.phone,
-                customerCreatedAt = state.customer?.createdAt,
-                onWhatsAppClick = { onAction(OrderDetailAction.OnWhatsAppClick) },
-                onCallClick = { onAction(OrderDetailAction.OnCallClick) },
-                onAddPhoneClick = { onAction(OrderDetailAction.OnAddPhoneClick) },
-                onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }
         item {
