@@ -13,6 +13,8 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,6 +42,7 @@ class CustomerDetailViewModelTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var customFieldRepository: FakeCustomMeasurementFieldRepository
     private lateinit var orderRepository: FakeOrderRepository
 
@@ -49,6 +52,7 @@ class CustomerDetailViewModelTest {
         customerRepository = FakeCustomerRepository()
         measurementRepository = FakeMeasurementRepository()
         authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         customFieldRepository = FakeCustomMeasurementFieldRepository()
         orderRepository = FakeOrderRepository()
     }
@@ -65,7 +69,7 @@ class CustomerDetailViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("customerId" to customerId)),
             customerRepository = customerRepository,
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             customFieldRepository = customFieldRepository,
             orderRepository = orderRepository,
         )
@@ -101,7 +105,7 @@ class CustomerDetailViewModelTest {
             savedStateHandle = SavedStateHandle(),
             customerRepository = customerRepository,
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             customFieldRepository = customFieldRepository,
             orderRepository = orderRepository,
         )
@@ -347,9 +351,9 @@ class CustomerDetailViewModelTest {
         val vm = createViewModel()
         vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
 
-        // Auth lost after the orders loaded but before confirm — delete must bail
+        // Session lost after the orders loaded but before confirm — delete must bail
         // and re-arm the observer (not leave isDeletingCustomer stuck), Bugbot #147.
-        authRepository.signOut()
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         vm.onAction(CustomerDetailAction.OnConfirmDeleteCustomer)
 
         assertTrue(customerRepository.customersList.any { it.id == "customer-1" })

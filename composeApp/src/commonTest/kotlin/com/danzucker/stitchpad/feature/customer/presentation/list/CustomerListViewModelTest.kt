@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
@@ -39,6 +40,7 @@ class CustomerListViewModelTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var freemiumRepository: FreemiumRepository
 
     @BeforeTest
@@ -48,6 +50,7 @@ class CustomerListViewModelTest {
         measurementRepository = FakeMeasurementRepository()
         orderRepository = FakeOrderRepository()
         authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         freemiumRepository = FakeFreemiumRepository()
     }
 
@@ -60,9 +63,9 @@ class CustomerListViewModelTest {
         val vm = CustomerListViewModel(
             customerRepository = customerRepository,
             orderRepository = orderRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             freemiumRepository = freemiumRepository,
-            measurementEntryResolver = MeasurementEntryResolver(measurementRepository, authRepository),
+            measurementEntryResolver = MeasurementEntryResolver(measurementRepository, activeWorkshopProvider),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

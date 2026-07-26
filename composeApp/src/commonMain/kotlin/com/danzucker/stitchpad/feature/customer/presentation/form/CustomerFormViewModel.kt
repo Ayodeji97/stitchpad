@@ -10,10 +10,11 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
@@ -35,7 +36,7 @@ import kotlin.uuid.Uuid
 class CustomerFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
-    private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val emailValidator: PatternValidator,
     private val entitlements: EntitlementsProvider,
     private val analytics: Analytics,
@@ -95,7 +96,7 @@ class CustomerFormViewModel(
     private fun loadCustomer(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -137,7 +138,7 @@ class CustomerFormViewModel(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }

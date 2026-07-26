@@ -6,9 +6,9 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
-import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -20,23 +20,14 @@ import kotlin.test.assertEquals
 class MeasurementEntryResolverTest {
 
     private lateinit var measurementRepository: FakeMeasurementRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var resolver: MeasurementEntryResolver
 
     @BeforeTest
     fun setUp() {
         measurementRepository = FakeMeasurementRepository()
-        authRepository = FakeAuthRepository()
-        authRepository.currentUser = User(
-            id = "user-1",
-            email = "tailor@example.com",
-            displayName = "Test Tailor",
-            businessName = null,
-            phoneNumber = null,
-            whatsappNumber = null,
-            avatarColorIndex = 0,
-        )
-        resolver = MeasurementEntryResolver(measurementRepository, authRepository)
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
+        resolver = MeasurementEntryResolver(measurementRepository, activeWorkshopProvider)
     }
 
     private fun measurement(id: String) = Measurement(
@@ -83,7 +74,7 @@ class MeasurementEntryResolverTest {
 
     @Test
     fun `signed-out user resolves to customer detail`() = runTest {
-        authRepository.currentUser = null
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         assertEquals(
             MeasurementEntryDestination.CustomerDetail("customer-1"),
             resolver.resolve("customer-1"),
@@ -100,7 +91,7 @@ class MeasurementEntryResolverTest {
                 customerId: String,
             ): Flow<Result<List<Measurement>, DataError.Network>> = flow { awaitCancellation() }
         }
-        val hangingResolver = MeasurementEntryResolver(neverEmitting, authRepository)
+        val hangingResolver = MeasurementEntryResolver(neverEmitting, activeWorkshopProvider)
         assertEquals(
             MeasurementEntryDestination.CustomerDetail("customer-1"),
             hangingResolver.resolve("customer-1"),

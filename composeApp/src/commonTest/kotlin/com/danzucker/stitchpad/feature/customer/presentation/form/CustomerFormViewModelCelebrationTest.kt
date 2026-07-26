@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
@@ -35,6 +36,7 @@ class CustomerFormViewModelCelebrationTest {
 
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var celebrationPrefs: FakeOnboardingPreferences
     private lateinit var celebrations: CelebrationController
 
@@ -43,6 +45,7 @@ class CustomerFormViewModelCelebrationTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         celebrationPrefs = FakeOnboardingPreferences()
         celebrations = CelebrationController(
             preferences = celebrationPrefs,
@@ -62,7 +65,7 @@ class CustomerFormViewModelCelebrationTest {
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             customerRepository = customerRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = FakePatternValidator(shouldMatch = true),
             entitlements = FakeEntitlementsProvider(),
             analytics = FakeAnalytics(),

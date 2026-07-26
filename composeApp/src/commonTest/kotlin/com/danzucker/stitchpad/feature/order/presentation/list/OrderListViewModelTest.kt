@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,6 +36,7 @@ class OrderListViewModelTest {
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
 
     @BeforeTest
     fun setUp() {
@@ -42,6 +44,7 @@ class OrderListViewModelTest {
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
     }
 
     @AfterTest
@@ -92,7 +95,7 @@ class OrderListViewModelTest {
         val vm = OrderListViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
         )
         // Subscribe so the state flow's onStart loads orders + customers.
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }

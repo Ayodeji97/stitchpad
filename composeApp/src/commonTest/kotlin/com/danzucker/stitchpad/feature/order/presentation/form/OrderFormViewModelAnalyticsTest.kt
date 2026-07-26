@@ -15,10 +15,9 @@ import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
-import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +42,7 @@ class OrderFormViewModelAnalyticsTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var styleRepository: FakeStyleRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var customGarmentTypeRepository: FakeCustomGarmentTypeRepository
     private lateinit var fakeAnalytics: FakeAnalytics
 
@@ -54,16 +53,6 @@ class OrderFormViewModelAnalyticsTest {
         phone = "08012345678",
     )
 
-    private val testUser = User(
-        id = "user-1",
-        email = "test@stitchpad.app",
-        displayName = "Test",
-        businessName = null,
-        phoneNumber = null,
-        whatsappNumber = null,
-        avatarColorIndex = 0,
-    )
-
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -71,7 +60,7 @@ class OrderFormViewModelAnalyticsTest {
         customerRepository = FakeCustomerRepository()
         styleRepository = FakeStyleRepository()
         measurementRepository = FakeMeasurementRepository()
-        authRepository = FakeAuthRepository().apply { currentUser = testUser }
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         customGarmentTypeRepository = FakeCustomGarmentTypeRepository()
         fakeAnalytics = FakeAnalytics()
         customerRepository.customersList = listOf(testCustomer)
@@ -92,7 +81,7 @@ class OrderFormViewModelAnalyticsTest {
             customerRepository = customerRepository,
             styleRepository = styleRepository,
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             customGarmentTypeRepository = customGarmentTypeRepository,
             imageCompressor = FakeImageCompressor(),
             analytics = fakeAnalytics,

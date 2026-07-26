@@ -8,9 +8,10 @@ import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
@@ -34,7 +35,7 @@ private const val SHEET_DISMISS_DELAY_MS = 450L
 class CustomerListViewModel(
     private val customerRepository: CustomerRepository,
     private val orderRepository: OrderRepository,
-    private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val freemiumRepository: FreemiumRepository,
     private val measurementEntryResolver: MeasurementEntryResolver,
 ) : ViewModel() {
@@ -178,7 +179,7 @@ class CustomerListViewModel(
 
     private fun observeCustomers() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -252,7 +253,7 @@ class CustomerListViewModel(
             )
         }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val result = customerRepository.deleteCustomer(userId, customer.id)
             if (result is Result.Error) {
                 _state.update { it.copy(errorMessage = result.error.toCustomerUiText()) }
@@ -262,7 +263,7 @@ class CustomerListViewModel(
 
     private fun observeOrders() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             orderRepository.observeOrders(userId).collect { result ->
                 when (result) {
                     is Result.Success -> {

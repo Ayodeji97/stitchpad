@@ -25,11 +25,12 @@ import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
@@ -63,7 +64,7 @@ class OrderFormViewModel(
     private val customerRepository: CustomerRepository,
     private val styleRepository: StyleRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val customGarmentTypeRepository: CustomGarmentTypeRepository,
     private val imageCompressor: ImageCompressor,
     private val analytics: Analytics,
@@ -430,7 +431,7 @@ class OrderFormViewModel(
 
     private fun loadInitialData() {
         viewModelScope.launch {
-            userId = authRepository.getCurrentUser()?.id ?: return@launch
+            userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             observeCustomers()
             observeCustomGarmentTypes()
             observeInspirationStyles()

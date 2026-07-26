@@ -33,3 +33,14 @@ interface ActiveWorkshopProvider {
      */
     suspend fun awaitHydrated(): WorkshopSession
 }
+
+/**
+ * The workshop tree id to read/write for the signed-in user, or `null` when
+ * signed out. Suspends until the session resolves (see [ActiveWorkshopProvider.awaitHydrated]).
+ *
+ * Drop-in replacement for the old `authRepository.getCurrentUser()?.id` at
+ * data-scoping call sites: for an owner it is their own uid; for active staff it
+ * is the owner's uid, so the same repository call now targets the right tree.
+ */
+suspend fun ActiveWorkshopProvider.workshopUidOrNull(): String? =
+    awaitHydrated().workshopUid.takeIf { it.isNotBlank() }

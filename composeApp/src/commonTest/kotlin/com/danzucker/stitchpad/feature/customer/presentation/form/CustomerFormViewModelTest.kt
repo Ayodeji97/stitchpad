@@ -8,6 +8,8 @@ import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
@@ -41,6 +43,7 @@ class CustomerFormViewModelTest {
 
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var emailValidator: FakePatternValidator
 
     @BeforeTest
@@ -48,6 +51,7 @@ class CustomerFormViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         emailValidator = FakePatternValidator(shouldMatch = true)
     }
 
@@ -61,7 +65,7 @@ class CustomerFormViewModelTest {
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             customerRepository = customerRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = emailValidator,
             entitlements = FakeEntitlementsProvider(),
             analytics = FakeAnalytics(),
@@ -84,7 +88,7 @@ class CustomerFormViewModelTest {
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             customerRepository = customerRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = validator,
             entitlements = FakeEntitlementsProvider(),
             analytics = FakeAnalytics(),
@@ -400,7 +404,8 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_withNoAuthUser_doesNotCallRepository() = runTest {
-        // authRepository has no current user (no signUpWithEmail called)
+        // No resolved workshop session (signed out) → no tree to write to.
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
