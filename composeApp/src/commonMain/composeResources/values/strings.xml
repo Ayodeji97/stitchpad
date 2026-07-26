@@ -1190,6 +1190,8 @@
 
     <!-- Hero card — balance row -->
     <string name="order_detail_balance_due">Balance due</string>
+    <string name="order_detail_paid_amount">Paid %1$s</string>
+    <string name="order_detail_paid_percent">%1$s</string>
 
     <!-- Hero card — priority pills -->
     <string name="order_priority_high_pill">High</string>
