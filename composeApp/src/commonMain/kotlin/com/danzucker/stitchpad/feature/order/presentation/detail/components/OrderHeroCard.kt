@@ -3,16 +3,18 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -60,6 +62,7 @@ import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.detail.CtaPair
 import com.danzucker.stitchpad.feature.order.presentation.detail.PrimaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.SecondaryCta
+import com.danzucker.stitchpad.feature.order.presentation.detail.paymentProgress
 import com.danzucker.stitchpad.feature.order.presentation.detail.resolvePrimaryCta
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -75,6 +78,8 @@ import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
 import stitchpad.composeapp.generated.resources.order_detail_overdue_banner
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_one
 import stitchpad.composeapp.generated.resources.order_detail_overdue_days_other
+import stitchpad.composeapp.generated.resources.order_detail_paid_amount
+import stitchpad.composeapp.generated.resources.order_detail_paid_percent
 import stitchpad.composeapp.generated.resources.order_detail_send_reminder
 import stitchpad.composeapp.generated.resources.order_detail_set_deadline
 import stitchpad.composeapp.generated.resources.order_detail_share_receipt
@@ -94,6 +99,9 @@ import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
 
 private val WHATSAPP_GREEN = Color(0xFF25D366)
+
+/** Minimum fill shown when nothing is paid, so the amber "collect a deposit" sliver is visible. */
+private const val ZERO_PAID_SLIVER = 0.04f
 
 @Suppress("LongParameterList", "LongMethod")
 @Composable
@@ -258,56 +266,128 @@ private fun HeroDetails(
             ReachOutChips(onWhatsAppClick = onWhatsAppClick, onCallClick = onCallClick)
         }
 
-        // Total row — single line, right-aligned. Gives the at-a-glance order
-        // size without inflating the right column of the Due/Balance row, which
-        // would create a gap above the single-line Due text on the left.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = DesignTokens.space2),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.order_detail_total_price),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.width(DesignTokens.space1))
-            StrikethroughPrice(
-                grossPrice = totalPrice,
-                netPrice = totalPrice - discount,
-                discount = discount,
-                netStyle = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace,
-                ),
-                netColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        // Unified payment block — folds the deadline, the balance, the order
+        // total and a paid-so-far progress bar into one grouped surface. Replaces
+        // the old split "Total" line + Due/Balance row, which showed the same
+        // figure twice on unpaid orders and never surfaced how much had been
+        // collected. When no deadline is set the left slot becomes a "Set
+        // deadline" CTA (the empty-state pattern used elsewhere in the redesign).
+        PaymentBlock(
+            dueLabel = dueLabel,
+            isOverdue = isOverdue,
+            status = status,
+            totalPrice = totalPrice,
+            balanceRemaining = balanceRemaining,
+            discount = discount,
+            onSetDeadlineClick = onSetDeadlineClick,
+        )
+    }
+}
 
-        // Due / balance row — top-aligned so the single-line Due hugs the top
-        // of the (taller) Balance section. When no deadline is set, the left
-        // slot becomes a "Set deadline" CTA instead of leaving the row
-        // lopsided — matches the empty-state CTA pattern (Add style, Link
-        // measurements) used elsewhere in the redesign.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
+@Composable
+private fun PaymentBlock(
+    dueLabel: UiText?,
+    isOverdue: Boolean,
+    status: OrderStatus,
+    totalPrice: Double,
+    balanceRemaining: Double,
+    discount: Double,
+    onSetDeadlineClick: () -> Unit,
+) {
+    val progress = paymentProgress(totalPrice, balanceRemaining, discount)
+    val fullyPaid = balanceRemaining <= 0.0 && progress.netTotal > 0.0
+
+    Surface(
+        shape = RoundedCornerShape(DesignTokens.radiusMd),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = DesignTokens.space1),
+    ) {
+        Column(
+            modifier = Modifier.padding(DesignTokens.space3),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
-            if (dueLabel != null) {
-                DueDateSection(
-                    dueLabel = dueLabel,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                if (dueLabel != null) {
+                    DueDateSection(
+                        dueLabel = dueLabel,
+                        isOverdue = isOverdue,
+                        status = status,
+                        onEditClick = onSetDeadlineClick,
+                    )
+                } else {
+                    SetDeadlineCta(onClick = onSetDeadlineClick)
+                }
+                BalanceSection(
+                    balanceRemaining = balanceRemaining,
+                    netTotal = progress.netTotal,
+                    grossTotal = totalPrice,
+                    discount = discount,
                     isOverdue = isOverdue,
-                    status = status,
-                    onEditClick = onSetDeadlineClick,
                 )
-            } else {
-                SetDeadlineCta(onClick = onSetDeadlineClick)
             }
-            BalanceSection(balanceRemaining = balanceRemaining, isOverdue = isOverdue)
+
+            PaymentTrack(fraction = progress.fraction, fullyPaid = fullyPaid)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.order_detail_paid_amount,
+                        "₦${formatPrice(progress.paid)}",
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    // Bake the "%" into the arg — Compose's resource formatter doesn't
+                    // collapse a literal "%%" in the string, so it renders "40%%".
+                    text = stringResource(
+                        Res.string.order_detail_paid_percent,
+                        "${(progress.fraction * 100).toInt()}%",
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun PaymentTrack(fraction: Float, fullyPaid: Boolean) {
+    // Progress fill tells the payment story at a glance: green when settled, indigo
+    // while partly paid, and a thin amber sliver at zero to nudge collecting a deposit.
+    val fillColor = when {
+        fullyPaid -> DesignTokens.success500
+        fraction > 0f -> MaterialTheme.colorScheme.primary
+        else -> DesignTokens.warning500
+    }
+    val fillFraction = if (fraction <= 0f) ZERO_PAID_SLIVER else fraction
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(RoundedCornerShape(DesignTokens.radiusFull))
+            .background(MaterialTheme.colorScheme.outline),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fillFraction)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(DesignTokens.radiusFull))
+                .background(fillColor),
+        )
     }
 }
 
@@ -489,6 +569,9 @@ private fun SetDeadlineCta(onClick: () -> Unit) {
 @Composable
 private fun BalanceSection(
     balanceRemaining: Double,
+    netTotal: Double,
+    grossTotal: Double,
+    discount: Double,
     isOverdue: Boolean,
 ) {
     val balanceColor = when {
@@ -510,6 +593,26 @@ private fun BalanceSection(
             fontFamily = FontFamily.Monospace,
             color = balanceColor,
         )
+        // Order total caption. StrikethroughPrice keeps the discount visible on the
+        // hero (struck gross next to the net) when one applies; with no discount it
+        // renders a single "Total ₦x".
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.order_detail_total_price),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            StrikethroughPrice(
+                grossPrice = grossTotal,
+                netPrice = netTotal,
+                discount = discount,
+                netStyle = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                netColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
