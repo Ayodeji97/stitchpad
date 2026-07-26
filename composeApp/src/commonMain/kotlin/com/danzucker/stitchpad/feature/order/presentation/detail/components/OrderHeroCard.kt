@@ -1,9 +1,12 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.order.presentation.detail.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,8 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
@@ -24,6 +30,8 @@ import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -31,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +66,9 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.action_call
+import stitchpad.composeapp.generated.resources.action_whatsapp
+import stitchpad.composeapp.generated.resources.order_detail_add_phone
 import stitchpad.composeapp.generated.resources.order_detail_balance_due
 import stitchpad.composeapp.generated.resources.order_detail_edit_deadline
 import stitchpad.composeapp.generated.resources.order_detail_mark_delivered
@@ -81,6 +93,8 @@ import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
 import stitchpad.composeapp.generated.resources.order_status_ready
 
+private val WHATSAPP_GREEN = Color(0xFF25D366)
+
 @Suppress("LongParameterList", "LongMethod")
 @Composable
 fun OrderHeroCard(
@@ -97,9 +111,14 @@ fun OrderHeroCard(
     balanceRemaining: Double,
     discount: Double,
     cta: CtaPair,
+    phone: String?,
     onPrimaryCta: () -> Unit,
     onSecondaryCta: () -> Unit,
     onSetDeadlineClick: () -> Unit,
+    onWhatsAppClick: () -> Unit,
+    onCallClick: () -> Unit,
+    onAddPhoneClick: () -> Unit,
+    onCustomerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val borderColor = if (isOverdue) {
@@ -130,7 +149,12 @@ fun OrderHeroCard(
                 totalPrice = totalPrice,
                 balanceRemaining = balanceRemaining,
                 discount = discount,
+                phone = phone,
                 onSetDeadlineClick = onSetDeadlineClick,
+                onWhatsAppClick = onWhatsAppClick,
+                onCallClick = onCallClick,
+                onAddPhoneClick = onAddPhoneClick,
+                onCustomerClick = onCustomerClick,
             )
 
             if (isOverdue) {
@@ -163,16 +187,39 @@ private fun HeroDetails(
     totalPrice: Double,
     balanceRemaining: Double,
     discount: Double,
+    phone: String?,
     onSetDeadlineClick: () -> Unit,
+    onWhatsAppClick: () -> Unit,
+    onCallClick: () -> Unit,
+    onAddPhoneClick: () -> Unit,
+    onCustomerClick: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = customerName,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // Customer identity — tappable to open the full customer profile
+        // (a trailing chevron makes that affordance discoverable). Replaces the
+        // separate Customer card, so the name isn't shown twice on this screen.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(DesignTokens.radiusSm))
+                .clickable(onClick = onCustomerClick, role = Role.Button),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = customerName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(DesignTokens.iconInline),
+            )
+        }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -202,6 +249,13 @@ private fun HeroDetails(
             if (priority != OrderPriority.NORMAL) {
                 PriorityPill(priority = priority)
             }
+        }
+
+        // Reach-out actions folded in from the old Customer card.
+        if (phone.isNullOrBlank()) {
+            AddPhoneCta(onClick = onAddPhoneClick)
+        } else {
+            ReachOutChips(onWhatsAppClick = onWhatsAppClick, onCallClick = onCallClick)
         }
 
         // Total row — single line, right-aligned. Gives the at-a-glance order
@@ -460,6 +514,62 @@ private fun BalanceSection(
 }
 
 @Composable
+private fun ReachOutChips(
+    onWhatsAppClick: () -> Unit,
+    onCallClick: () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+        AssistChip(
+            onClick = onWhatsAppClick,
+            label = {
+                Text(
+                    text = stringResource(Res.string.action_whatsapp),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null,
+                    modifier = Modifier.size(DesignTokens.iconInline),
+                )
+            },
+            colors = AssistChipDefaults.assistChipColors(
+                labelColor = WHATSAPP_GREEN,
+                leadingIconContentColor = WHATSAPP_GREEN,
+            ),
+        )
+        AssistChip(
+            onClick = onCallClick,
+            label = {
+                Text(
+                    text = stringResource(Res.string.action_call),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = null,
+                    modifier = Modifier.size(DesignTokens.iconInline),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun AddPhoneCta(onClick: () -> Unit) {
+    TextButton(onClick = onClick, contentPadding = PaddingValues(0.dp)) {
+        Text(
+            text = stringResource(Res.string.order_detail_add_phone),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
 private fun OverdueBanner(overdueDaysAgo: Int) {
     val daysText = if (overdueDaysAgo == 1) {
         stringResource(Res.string.order_detail_overdue_days_one)
@@ -642,9 +752,14 @@ private fun OrderHeroCardInProgressLightPreview() {
                 isOverdue = false,
                 balanceRemaining = 60000.0,
             ),
+            phone = "+2348012345678",
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
@@ -673,9 +788,14 @@ private fun OrderHeroCardDiscountedLightPreview() {
                 isOverdue = false,
                 balanceRemaining = 310_000.0,
             ),
+            phone = "+2348012345678",
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
@@ -704,9 +824,14 @@ private fun OrderHeroCardReadyLightPreview() {
                 isOverdue = false,
                 balanceRemaining = 25000.0,
             ),
+            phone = null,
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
@@ -735,9 +860,14 @@ private fun OrderHeroCardFittingLightPreview() {
                 isOverdue = false,
                 balanceRemaining = 40000.0,
             ),
+            phone = "+2348012345678",
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
@@ -766,9 +896,14 @@ private fun OrderHeroCardOverdueLightPreview() {
                 isOverdue = true,
                 balanceRemaining = 18000.0,
             ),
+            phone = "+2348012345678",
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
@@ -797,9 +932,14 @@ private fun OrderHeroCardDeliveredDarkPreview() {
                 isOverdue = false,
                 balanceRemaining = 0.0,
             ),
+            phone = "+2348012345678",
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
@@ -828,9 +968,14 @@ private fun OrderHeroCardNullSecondaryPreview() {
                 isOverdue = false,
                 balanceRemaining = 0.0,
             ),
+            phone = "+2348012345678",
             onPrimaryCta = {},
             onSecondaryCta = {},
             onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
         )
     }
 }
