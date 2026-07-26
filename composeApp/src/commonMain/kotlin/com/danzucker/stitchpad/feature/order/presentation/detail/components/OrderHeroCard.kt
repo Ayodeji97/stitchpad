@@ -295,7 +295,12 @@ private fun PaymentBlock(
     onSetDeadlineClick: () -> Unit,
 ) {
     val progress = paymentProgress(totalPrice, balanceRemaining, discount)
-    val fullyPaid = balanceRemaining <= 0.0 && progress.netTotal > 0.0
+    // Nothing owed reads as settled — including free / fully-discounted / unpriced
+    // (₦0 net) orders, where there is no deposit to collect. Matches the green ₦0
+    // balance figure below; without the netTotal guard those orders wrongly showed
+    // the amber "collect a deposit" sliver.
+    val fullyPaid = balanceRemaining <= 0.0
+    val percent = if (fullyPaid) 100 else (progress.fraction * 100).toInt()
 
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
@@ -352,7 +357,7 @@ private fun PaymentBlock(
                     // collapse a literal "%%" in the string, so it renders "40%%".
                     text = stringResource(
                         Res.string.order_detail_paid_percent,
-                        "${(progress.fraction * 100).toInt()}%",
+                        "$percent%",
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
@@ -372,7 +377,11 @@ private fun PaymentTrack(fraction: Float, fullyPaid: Boolean) {
         fraction > 0f -> MaterialTheme.colorScheme.primary
         else -> DesignTokens.warning500
     }
-    val fillFraction = if (fraction <= 0f) ZERO_PAID_SLIVER else fraction
+    val fillFraction = when {
+        fullyPaid -> 1f
+        fraction <= 0f -> ZERO_PAID_SLIVER
+        else -> fraction
+    }
 
     Box(
         modifier = Modifier
