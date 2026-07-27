@@ -27,8 +27,9 @@ fun Measurement.toMeasurementDto(): MeasurementDto {
         gender = gender.name,
         name = name,
         bodyShape = null,
-        // Write the string values; clear the legacy numeric map so a merged update
-        // doesn't leave stale doubles behind for the next read to disambiguate.
+        // Write the string values; leave the legacy numeric map empty (new records
+        // never use it). FirebaseMeasurementRepository.updateMeasurement replaces
+        // both maps wholesale so stale doubles / cleared keys don't survive a merge.
         fields = emptyMap(),
         fieldValues = fields,
         unit = unit.name,
