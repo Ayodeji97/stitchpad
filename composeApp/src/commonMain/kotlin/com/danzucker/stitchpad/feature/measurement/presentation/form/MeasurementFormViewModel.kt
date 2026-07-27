@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepo
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -363,12 +364,7 @@ class MeasurementFormViewModel(
                         // trips them cleanly, even if no definition exists).
                         val allKeys = templateKeys + customKeys + recordedKeys
                         val fieldsAsString = allKeys.associateWith { key ->
-                            val v = measurement.fields[key]
-                            if (v != null) {
-                                if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
-                            } else {
-                                ""
-                            }
+                            measurement.fields[key] ?: ""
                         }
                         _state.update {
                             it.copy(
@@ -427,8 +423,8 @@ class MeasurementFormViewModel(
             }
             val isCreate = measurementId == null
             val parsedFields = s.fields
-                .mapValues { it.value.toDoubleOrNull() ?: 0.0 }
-                .filter { it.value > 0.0 }
+                .mapValues { it.value.trim() }
+                .filter { isPersistableMeasurementValue(it.value) }
                 .filterKeys { key ->
                     !isCreate || s.canUseCustomMeasurements || !isCustomOrOrphanKey(key)
                 }

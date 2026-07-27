@@ -87,6 +87,8 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.AddCustomFieldSheet
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
+import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
+import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -280,7 +282,7 @@ fun MeasurementFormScreen(
                         // Mirror the dot "has data" rule: light the pill when any
                         // custom field holds a value that will actually persist.
                         customHasData = state.customFields.any { f ->
-                            (state.fields[f.id]?.toDoubleOrNull() ?: 0.0) > 0.0
+                            state.fields[f.id]?.let { isPersistableMeasurementValue(it) } == true
                         },
                         onJumpToSection = { index ->
                             onAction(MeasurementFormAction.OnSectionChange(index))
@@ -553,10 +555,10 @@ private fun SectionProgressRow(
             sections.forEachIndexed { index, section ->
                 val color = when {
                     index == currentIndex -> MaterialTheme.colorScheme.primary
-                    // Same parsable-positive predicate as MeasurementFormState.canSave
+                    // Same persistable predicate as MeasurementFormState.canSave
                     // so a dot only lights for values that will actually persist.
                     section.fields.any { f ->
-                        (fields[f.key]?.toDoubleOrNull() ?: 0.0) > 0.0
+                        fields[f.key]?.let { isPersistableMeasurementValue(it) } == true
                     } -> MaterialTheme.colorScheme.primary
                     // A soft tint of the brand primary so unvisited dots stay
                     // clearly visible on the light background without the muddy
@@ -679,16 +681,15 @@ private fun MeasurementFieldInput(
 ) {
     MeasurementTextField(
         value = value,
-        onValueChange = { newVal ->
-            val filtered = newVal.filter { it.isDigit() || it == '.' }
-            val dotCount = filtered.count { it == '.' }
-            if (dotCount <= 1) onValueChange(filtered)
-        },
+        // Allow digits, decimals, commas, and spaces so tailors can record
+        // segmented lengths ("40, 45, 56") and half sizes ("16.5"). Text keyboard
+        // (not Decimal) so the comma and space keys are actually reachable.
+        onValueChange = { newVal -> onValueChange(sanitizeMeasurementInput(newVal)) },
         label = field.label,
         placeholder = "0",
         suffix = unitSuffix,
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
     )
 }
 
@@ -1053,19 +1054,17 @@ private fun CustomFieldsSection(
                     }
                     MeasurementTextField(
                         value = fieldValues[field.id] ?: "",
-                        // Mirror MeasurementFieldInput's numeric-only filter so custom
-                        // fields can't accept paste / hardware-keyboard input that
-                        // silently parses to 0.0 and disappears on save.
+                        // Mirror MeasurementFieldInput's sanitizer so custom fields
+                        // accept the same segmented/decimal values and reject paste /
+                        // hardware-keyboard input that would disappear on save.
                         onValueChange = { newVal ->
-                            val filtered = newVal.filter { it.isDigit() || it == '.' }
-                            val dotCount = filtered.count { it == '.' }
-                            if (dotCount <= 1) onFieldValueChange(field.id, filtered)
+                            onFieldValueChange(field.id, sanitizeMeasurementInput(newVal))
                         },
                         label = "", // label rendered above by the long-pressable Text
                         placeholder = "0",
                         suffix = unitSuffix,
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     )
                 }
             }

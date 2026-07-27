@@ -5,12 +5,14 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class MeasurementPreviewTest {
 
     private fun measurement(
         gender: CustomerGender = CustomerGender.FEMALE,
-        fields: Map<String, Double>,
+        fields: Map<String, String>,
     ) = Measurement(
         id = "m1",
         customerId = "c1",
@@ -25,22 +27,22 @@ class MeasurementPreviewTest {
     @Test
     fun returnsOnlyFilledFields_notGarmentExpectedEmptyOnes() {
         // Only "waist" filled — preview is exactly that one field, nothing else.
-        val preview = measurement(fields = mapOf("waist" to 30.0))
+        val preview = measurement(fields = mapOf("waist" to "30"))
             .filledPreviewFields(customFieldLabels = emptyMap())
-        assertEquals(listOf(MeasurementPreviewField("Waist", 30.0)), preview)
+        assertEquals(listOf(MeasurementPreviewField("Waist", "30")), preview)
     }
 
     @Test
     fun templateFieldsComeBackInTemplateOrder_regardlessOfMapOrder() {
         val preview = measurement(
             // deliberately out of template order in the map
-            fields = mapOf("hip_circumference" to 40.0, "waist" to 30.0, "bust_circumference" to 36.0),
+            fields = mapOf("hip_circumference" to "40", "waist" to "30", "bust_circumference" to "36"),
         ).filledPreviewFields(customFieldLabels = emptyMap())
         assertEquals(
             listOf(
-                MeasurementPreviewField("Bust", 36.0),
-                MeasurementPreviewField("Waist", 30.0),
-                MeasurementPreviewField("Hip", 40.0),
+                MeasurementPreviewField("Bust", "36"),
+                MeasurementPreviewField("Waist", "30"),
+                MeasurementPreviewField("Hip", "40"),
             ),
             preview,
         )
@@ -49,40 +51,48 @@ class MeasurementPreviewTest {
     @Test
     fun customFieldsResolveLabelsAndComeAfterTemplate() {
         val preview = measurement(
-            fields = mapOf("waist" to 30.0, "custom-uuid-1" to 12.5),
+            fields = mapOf("waist" to "30", "custom-uuid-1" to "12.5"),
         ).filledPreviewFields(customFieldLabels = mapOf("custom-uuid-1" to "Sleeve flare"))
         assertEquals(
             listOf(
-                MeasurementPreviewField("Waist", 30.0),
-                MeasurementPreviewField("Sleeve flare", 12.5),
+                MeasurementPreviewField("Waist", "30"),
+                MeasurementPreviewField("Sleeve flare", "12.5"),
             ),
             preview,
         )
     }
 
     @Test
+    fun segmentedValuesArePreservedInPreview() {
+        // The core fix: a comma-separated segmented length previews verbatim.
+        val preview = measurement(fields = mapOf("full_length_gown" to "40, 45, 56"))
+            .filledPreviewFields(customFieldLabels = emptyMap())
+        assertEquals(listOf(MeasurementPreviewField("Full length of gown", "40, 45, 56")), preview)
+    }
+
+    @Test
     fun skipsZeroValuesAndUnknownCustomKeys() {
         val preview = measurement(
-            fields = mapOf("bust_circumference" to 0.0, "waist" to 30.0, "orphan-uuid" to 9.0),
+            fields = mapOf("bust_circumference" to "0", "waist" to "30", "orphan-uuid" to "9"),
         ).filledPreviewFields(customFieldLabels = emptyMap())
         // bust is 0 (excluded), orphan-uuid has no label (excluded) — only Waist remains.
-        assertEquals(listOf(MeasurementPreviewField("Waist", 30.0)), preview)
+        assertEquals(listOf(MeasurementPreviewField("Waist", "30")), preview)
     }
 
     @Test
     fun capsToMaxKeepingTemplateOrder() {
         val preview = measurement(
             fields = mapOf(
-                "bust_circumference" to 36.0,
-                "waist" to 30.0,
-                "hip_circumference" to 40.0,
-                "sleeve_length" to 22.0,
+                "bust_circumference" to "36",
+                "waist" to "30",
+                "hip_circumference" to "40",
+                "sleeve_length" to "22",
             ),
         ).filledPreviewFields(customFieldLabels = emptyMap(), max = 2)
         assertEquals(
             listOf(
-                MeasurementPreviewField("Bust", 36.0),
-                MeasurementPreviewField("Waist", 30.0),
+                MeasurementPreviewField("Bust", "36"),
+                MeasurementPreviewField("Waist", "30"),
             ),
             preview,
         )
@@ -91,21 +101,34 @@ class MeasurementPreviewTest {
     @Test
     fun customOnlyMeasurementStillPreviews() {
         val preview = measurement(
-            fields = mapOf("c-a" to 5.0, "c-b" to 7.0),
+            fields = mapOf("c-a" to "5", "c-b" to "7"),
         ).filledPreviewFields(customFieldLabels = mapOf("c-a" to "Ankle", "c-b" to "Bicep"))
         // Custom fields sorted alphabetically by label.
         assertEquals(
             listOf(
-                MeasurementPreviewField("Ankle", 5.0),
-                MeasurementPreviewField("Bicep", 7.0),
+                MeasurementPreviewField("Ankle", "5"),
+                MeasurementPreviewField("Bicep", "7"),
             ),
             preview,
         )
     }
 
     @Test
-    fun formatMeasurementValue_dropsTrailingZero() {
-        assertEquals("36", formatMeasurementValue(36.0))
-        assertEquals("36.5", formatMeasurementValue(36.5))
+    fun sanitizeMeasurementInput_keepsDigitsDotsCommasAndSpaces() {
+        assertEquals("40, 45, 56", sanitizeMeasurementInput("40, 45, 56"))
+        assertEquals("16.5", sanitizeMeasurementInput("16.5"))
+        // Letters and stray punctuation are stripped as the tailor types.
+        assertEquals("40, 45", sanitizeMeasurementInput("40a, 45!"))
+    }
+
+    @Test
+    fun isPersistableMeasurementValue_matchesTheOldPositiveNumberGate() {
+        assertTrue(isPersistableMeasurementValue("36"))
+        assertTrue(isPersistableMeasurementValue("0.5"))
+        assertTrue(isPersistableMeasurementValue("40, 45, 56"))
+        assertFalse(isPersistableMeasurementValue(""))
+        assertFalse(isPersistableMeasurementValue("."))
+        assertFalse(isPersistableMeasurementValue("0"))
+        assertFalse(isPersistableMeasurementValue("0.0"))
     }
 }

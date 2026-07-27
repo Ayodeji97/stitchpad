@@ -41,7 +41,7 @@ class MeasurementEntryResolverTest {
 
     private fun measurement(id: String) = Measurement(
         id = id, customerId = "customer-1", gender = CustomerGender.FEMALE, name = "M",
-        fields = mapOf("waist" to 31.0), unit = MeasurementUnit.INCHES, notes = null,
+        fields = mapOf("waist" to "31"), unit = MeasurementUnit.INCHES, notes = null,
         dateTaken = 1L, createdAt = 1L,
     )
 

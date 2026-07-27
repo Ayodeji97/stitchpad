@@ -11,7 +11,9 @@ fun MeasurementDto.toMeasurement(customerId: String): Measurement = Measurement(
     customerId = customerId,
     gender = parseGender(gender, garmentType),
     name = name,
-    fields = fields,
+    // Prefer the free-text values; fall back to legacy numeric fields for records
+    // written before the punctuation fix, formatting each to a string (36.0 -> "36").
+    fields = if (fieldValues.isNotEmpty()) fieldValues else fields.toStringValues(),
     unit = runCatching { MeasurementUnit.valueOf(unit) }.getOrDefault(MeasurementUnit.INCHES),
     notes = notes,
     dateTaken = dateTaken,
@@ -25,7 +27,10 @@ fun Measurement.toMeasurementDto(): MeasurementDto {
         gender = gender.name,
         name = name,
         bodyShape = null,
-        fields = fields,
+        // Write the string values; clear the legacy numeric map so a merged update
+        // doesn't leave stale doubles behind for the next read to disambiguate.
+        fields = emptyMap(),
+        fieldValues = fields,
         unit = unit.name,
         notes = notes,
         dateTaken = if (dateTaken == 0L) now else dateTaken,
@@ -33,6 +38,17 @@ fun Measurement.toMeasurementDto(): MeasurementDto {
         updatedAt = now
     )
 }
+
+/**
+ * Formats legacy numeric field values as strings, dropping a trailing ".0"
+ * (36.0 -> "36", 16.5 -> "16.5"). Zero / negative values are dropped — the save
+ * pipeline never persisted them, so they only appear as noise on old records.
+ */
+private fun Map<String, Double>.toStringValues(): Map<String, String> =
+    filterValues { it > 0.0 }
+        .mapValues { (_, value) ->
+            if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+        }
 
 /**
  * Parses gender from the stored value, falling back to inference from legacy garmentType

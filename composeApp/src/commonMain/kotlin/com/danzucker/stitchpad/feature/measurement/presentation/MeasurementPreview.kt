@@ -23,12 +23,14 @@ fun Measurement.filledPreviewFields(
 
     val templatePreview = templateFields.mapNotNull { field ->
         fields[field.key]
-            ?.takeIf { it > 0.0 }
+            ?.takeIf { isPersistableMeasurementValue(it) }
             ?.let { MeasurementPreviewField(field.label, it) }
     }
 
     val customPreview = fields
-        .filter { (key, value) -> key !in templateKeys && key in customFieldLabels && value > 0.0 }
+        .filter { (key, value) ->
+            key !in templateKeys && key in customFieldLabels && isPersistableMeasurementValue(value)
+        }
         .map { (key, value) -> MeasurementPreviewField(customFieldLabels.getValue(key), value) }
         .sortedBy { it.label.lowercase() }
 
@@ -36,6 +38,24 @@ fun Measurement.filledPreviewFields(
     return if (max != null) all.take(max) else all
 }
 
-/** Formats a measurement value, dropping a trailing ".0" (e.g. 36.0 -> "36", 36.5 -> "36.5"). */
-fun formatMeasurementValue(value: Double): String =
-    if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+/**
+ * Keeps only the characters valid in a measurement value: digits, decimal points,
+ * commas, and spaces. Tailors enter segmented lengths ("40, 45, 56") and half
+ * sizes ("16.5"), so commas and multiple decimal points must survive — everything
+ * else (letters, other punctuation) is stripped as the tailor types.
+ */
+fun sanitizeMeasurementInput(raw: String): String =
+    raw.filter { it.isDigit() || it == '.' || it == ',' || it == ' ' }
+
+/**
+ * True when a measurement value is worth persisting / showing. Mirrors the old
+ * "> 0.0" gate for plain numbers (drops "", ".", "0", "0.0", keeps "0.5", "36")
+ * while accepting free-form segmented values ("40, 45, 56") — anything that
+ * carries at least one meaningful digit.
+ */
+fun isPersistableMeasurementValue(value: String): Boolean {
+    val trimmed = value.trim()
+    if (trimmed.isEmpty()) return false
+    val asNumber = trimmed.toDoubleOrNull()
+    return if (asNumber != null) asNumber > 0.0 else trimmed.any { it.isDigit() }
+}

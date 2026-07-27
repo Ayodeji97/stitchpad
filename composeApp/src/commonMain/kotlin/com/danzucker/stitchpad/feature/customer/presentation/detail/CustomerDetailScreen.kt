@@ -73,7 +73,6 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.customer.presentation.detail.components.AddMeasurementSheet
-import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
@@ -898,7 +897,7 @@ private fun MeasurementListItem(
                 }
                 val templatePreview = previewKeys
                     .mapNotNull { (key, label) ->
-                        measurement.fields[key]?.let { "$label: ${formatMeasurementValue(it)}" }
+                        measurement.fields[key]?.let { "$label: $it" }
                     }
                     .joinToString("  ")
 
@@ -909,7 +908,7 @@ private fun MeasurementListItem(
                 val templateKeySet = previewKeys.map { it.first }.toSet()
                 val customPreview = measurement.fields
                     .filter { (key, _) -> key !in templateKeySet && key in customFieldLabels }
-                    .map { (key, value) -> "${customFieldLabels[key]}: ${formatMeasurementValue(value)}" }
+                    .map { (key, value) -> "${customFieldLabels[key]}: $value" }
                     .joinToString("  ")
 
                 val combined = listOf(templatePreview, customPreview)
@@ -1005,9 +1004,9 @@ private fun CustomerDetailScreenFilledPreview() {
                         customerId = "1",
                         gender = CustomerGender.FEMALE,
                         fields = mapOf(
-                            "bust_circumference" to 36.0,
-                            "waist" to 28.0,
-                            "hip_circumference" to 38.0
+                            "bust_circumference" to "36",
+                            "waist" to "28",
+                            "hip_circumference" to "38"
                         ),
                         unit = MeasurementUnit.INCHES,
                         notes = null,
@@ -1019,8 +1018,8 @@ private fun CustomerDetailScreenFilledPreview() {
                         customerId = "1",
                         gender = CustomerGender.MALE,
                         fields = mapOf(
-                            "chest" to 40.0,
-                            "trouser_waist" to 32.0
+                            "chest" to "40",
+                            "trouser_waist" to "32"
                         ),
                         unit = MeasurementUnit.INCHES,
                         notes = null,
