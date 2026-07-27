@@ -13,6 +13,8 @@ import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -146,11 +148,39 @@ class SettingsPushToggleTest {
     }
 }
 
+class SettingsReceiptImageStyleToggleTest {
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun toggling_receipt_image_style_from_light_flips_to_dark_and_persists() = runTest {
+        val receiptStore = FakeReceiptImagePreferencesStore(ReceiptImageStyle.LIGHT)
+        val (vm, _) = buildSettingsVmForDigest(receiptStore = receiptStore)
+        vm.state.test {
+            awaitItem() // drain the settled initial state
+            vm.onAction(SettingsAction.OnReceiptImageStyleClick)
+            val dark = awaitItem()
+            assertEquals(ReceiptImageStyle.DARK, dark.receiptImageStyle)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(ReceiptImageStyle.DARK, receiptStore.lastSet)
+    }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 private fun buildSettingsVmForDigest(
     initialEnabled: Boolean = true,
     pushPermissionController: PushPermissionController = NoOpPushPermissionController(),
+    receiptStore: FakeReceiptImagePreferencesStore = FakeReceiptImagePreferencesStore(),
 ): Pair<SettingsViewModel, FakeUserRepository> {
     val authRepo = FakeAuthRepository().apply {
         currentUser = User(
@@ -184,6 +214,7 @@ private fun buildSettingsVmForDigest(
         customerRepository = FakeCustomerRepository(),
         measurementPreferencesStore = FakeMeasurementPreferencesStore(),
         themePreferencesStore = FakeThemePreferencesStore(),
+        receiptImagePreferencesStore = receiptStore,
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
         signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
@@ -251,6 +282,21 @@ private class FakeThemePreferencesStore : ThemePreferencesStore {
     override fun observeTheme(): Flow<ThemePreference> = flowOf(ThemePreference.SYSTEM)
     override suspend fun getTheme(): ThemePreference = ThemePreference.SYSTEM
     override suspend fun setTheme(theme: ThemePreference) = Unit
+}
+
+/** Recording fake: captures the last style persisted via setStyle(). */
+private class FakeReceiptImagePreferencesStore(
+    initial: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
+) : ReceiptImagePreferencesStore {
+    private val _flow = MutableStateFlow(initial)
+    var lastSet: ReceiptImageStyle? = null
+        private set
+    override fun observeStyle(): Flow<ReceiptImageStyle> = _flow
+    override suspend fun getStyle(): ReceiptImageStyle = _flow.value
+    override suspend fun setStyle(style: ReceiptImageStyle) {
+        lastSet = style
+        _flow.value = style
+    }
 }
 
 private class FakeSmartUsageStore : SmartUsageStore {

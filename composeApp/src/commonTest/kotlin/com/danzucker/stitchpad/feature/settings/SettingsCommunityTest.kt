@@ -13,6 +13,8 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
@@ -144,6 +146,7 @@ class SettingsCommunityTest {
             customerRepository = FakeCustomerRepository(),
             measurementPreferencesStore = CommunityFakeMeasurementPreferencesStore(),
             themePreferencesStore = CommunityFakeThemePreferencesStore(),
+            receiptImagePreferencesStore = CommunityFakeReceiptImagePreferencesStore(),
             smartUsageStore = CommunityFakeSmartUsageStore(),
             smartUsageDocSource = CommunityFakeSmartUsageDocSource(),
             signOutUseCase = SignOutUseCase(authRepo, CommunityNoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
@@ -196,6 +199,12 @@ private class CommunityFakeThemePreferencesStore : ThemePreferencesStore {
     override fun observeTheme(): Flow<ThemePreference> = flowOf(ThemePreference.SYSTEM)
     override suspend fun getTheme(): ThemePreference = ThemePreference.SYSTEM
     override suspend fun setTheme(theme: ThemePreference) = Unit
+}
+
+private class CommunityFakeReceiptImagePreferencesStore : ReceiptImagePreferencesStore {
+    override fun observeStyle(): Flow<ReceiptImageStyle> = flowOf(ReceiptImageStyle.LIGHT)
+    override suspend fun getStyle(): ReceiptImageStyle = ReceiptImageStyle.LIGHT
+    override suspend fun setStyle(style: ReceiptImageStyle) = Unit
 }
 
 private class CommunityFakeSmartUsageStore : SmartUsageStore {

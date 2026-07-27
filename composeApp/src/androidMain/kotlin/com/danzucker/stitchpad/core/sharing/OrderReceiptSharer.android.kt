@@ -10,6 +10,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -20,9 +21,9 @@ private const val WATERMARK_TEXT_ALPHA = 18 // ~7% on a 0–255 scale
 @Suppress("LargeClass")
 actual class OrderReceiptSharer(private val context: Context) {
 
-    actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
+    actual suspend fun shareReceiptAsImage(receiptData: ReceiptData, style: ReceiptImageStyle) {
         val file = withContext(Dispatchers.Default) {
-            val bitmap = renderDarkBitmap(receiptData)
+            val bitmap = renderBitmap(receiptData, style.palette())
             saveBitmapToCache(bitmap, "img")
         }
         shareFile(file, "image/png")
@@ -38,18 +39,18 @@ actual class OrderReceiptSharer(private val context: Context) {
     // region Dark Theme Bitmap Rendering
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private fun renderDarkBitmap(data: ReceiptData): Bitmap {
+    private fun renderBitmap(data: ReceiptData, palette: ReceiptPalette): Bitmap {
         val width = 800
         val padding = 40f
 
         // Colors
-        val bgColor = Color.parseColor("#121110")
+        val bgColor = Color.parseColor(palette.backgroundHex)
         val headerBg = Color.parseColor("#2C3E7C") // indigo brand band (was saffron pre-rebrand)
         val headerText = Color.WHITE
-        val bodyText = Color.parseColor("#E5E3DF")
+        val bodyText = Color.parseColor(palette.bodyTextHex)
         val labelColor = Color.parseColor("#7D7970")
-        val dividerColor = Color.parseColor("#3A3731")
-        val saffron = Color.parseColor("#E8A800")
+        val dividerColor = Color.parseColor(palette.dividerHex)
+        val saffron = Color.parseColor(palette.accentHex)
         val green = Color.parseColor("#2D9E6B")
         val rushRed = Color.parseColor("#D93B3B")
 
@@ -65,7 +66,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         val depositPaint = makePaint(green, 18f).apply { textAlign = Paint.Align.RIGHT }
         val balancePaint = makePaint(saffron, 18f, bold = true)
         val statusPaint = makePaint(Color.parseColor(data.statusColorHex), 17f, bold = true)
-        val footerPaint = makePaint(dividerColor, 14f).apply { textAlign = Paint.Align.CENTER }
+        val footerPaint = makePaint(Color.parseColor(palette.footerHex), 14f).apply { textAlign = Paint.Align.CENTER }
         val linePaint = Paint().apply {
             color = dividerColor
             strokeWidth = 1f
@@ -136,7 +137,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             spec = data.watermark,
             canvasWidth = width.toFloat(),
             canvasHeight = height.toFloat(),
-            inkColor = Color.parseColor("#A8A49D"),
+            inkColor = Color.parseColor(palette.watermarkInkHex),
         )
 
         var y = 0f

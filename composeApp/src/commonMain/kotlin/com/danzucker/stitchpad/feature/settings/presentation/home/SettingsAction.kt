@@ -5,6 +5,7 @@ sealed interface SettingsAction {
     data object OnProfileClick : SettingsAction
     data object OnMeasurementUnitClick : SettingsAction
     data object OnAppearanceClick : SettingsAction
+    data object OnReceiptImageStyleClick : SettingsAction
     data object OnEmailRowClick : SettingsAction
     data object OnChangePasswordClick : SettingsAction
     data object OnReferralCodeClick : SettingsAction

@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -56,6 +58,7 @@ private const val TAG = "SettingsVM"
 private data class LocalUiState(
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val receiptImageStyle: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 )
@@ -68,6 +71,7 @@ class SettingsViewModel(
     private val customerRepository: CustomerRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val themePreferencesStore: ThemePreferencesStore,
+    private val receiptImagePreferencesStore: ReceiptImagePreferencesStore,
     private val smartUsageStore: SmartUsageStore,
     private val smartUsageDocSource: SmartUsageDocSource,
     private val signOutUseCase: SignOutUseCase,
@@ -103,6 +107,7 @@ class SettingsViewModel(
             SettingsAction.OnProfileClick -> emit(SettingsEvent.NavigateToEditProfile)
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
             SettingsAction.OnAppearanceClick -> cycleTheme()
+            SettingsAction.OnReceiptImageStyleClick -> toggleReceiptImageStyle()
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
             SettingsAction.OnReferralCodeClick -> emit(SettingsEvent.NavigateToReferralCode)
@@ -154,6 +159,7 @@ class SettingsViewModel(
             it.copy(
                 measurementUnit = measurementPreferencesStore.getUnit(),
                 themePreference = themePreferencesStore.getTheme(),
+                receiptImageStyle = receiptImagePreferencesStore.getStyle(),
             )
         }
 
@@ -249,6 +255,7 @@ class SettingsViewModel(
             welcomeDaysLeft = entitlements.welcomeDaysLeft,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
+            receiptImageStyle = ui.receiptImageStyle,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
             dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
             pushReminderSupported = true,
@@ -293,6 +300,24 @@ class SettingsViewModel(
                 current.copy(themePreference = nextTheme)
             }
             themePreferencesStore.setTheme(nextTheme)
+        }
+    }
+
+    private fun toggleReceiptImageStyle() {
+        viewModelScope.launch {
+            // Compute `next` inside the atomic `update` so rapid double-taps
+            // advance two steps instead of landing on the same value, mirroring
+            // toggleMeasurementUnit.
+            var next: ReceiptImageStyle = ReceiptImageStyle.LIGHT
+            uiState.update { current ->
+                next = if (current.receiptImageStyle == ReceiptImageStyle.LIGHT) {
+                    ReceiptImageStyle.DARK
+                } else {
+                    ReceiptImageStyle.LIGHT
+                }
+                current.copy(receiptImageStyle = next)
+            }
+            receiptImagePreferencesStore.setStyle(next)
         }
     }
 
