@@ -137,11 +137,21 @@ class CollectionCalculatorTest {
     @Test
     fun sortedFloatsOverdueThenAppliesSort() {
         val items = listOf(
-            item("newNotOverdue", owedSince = NOW - DAY, overdue = false),
-            item("oldOverdue", owedSince = NOW - 10 * DAY, overdue = true),
+            item("oldNotOverdue", owedSince = NOW - 20 * DAY, overdue = false),
+            item("newOverdue", owedSince = NOW - 2 * DAY, overdue = true),
         )
         val sorted = CollectionCalculator.sorted(items, CollectionSort.OLDEST_OWED)
-        assertEquals(listOf("oldOverdue", "newNotOverdue"), sorted.map { it.orderId })
+        assertEquals(listOf("newOverdue", "oldNotOverdue"), sorted.map { it.orderId })
+    }
+
+    @Test
+    fun sortedByNewestOwedFirst() {
+        val items = listOf(
+            item("old", owedSince = NOW - 10 * DAY),
+            item("new", owedSince = NOW - 1 * DAY),
+        )
+        val sorted = CollectionCalculator.sorted(items, CollectionSort.NEWEST)
+        assertEquals(listOf("new", "old"), sorted.map { it.orderId })
     }
 
     @Test
