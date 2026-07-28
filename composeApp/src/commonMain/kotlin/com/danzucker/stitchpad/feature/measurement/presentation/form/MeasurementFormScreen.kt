@@ -65,6 +65,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -98,6 +99,7 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import com.danzucker.stitchpad.util.dismissKeyboardOnScroll
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -160,19 +162,28 @@ fun MeasurementFormRoot(
         }
     }
 
+    // Clear each message from state BEFORE showing it, then show on the composition
+    // scope. If the message stayed in state for the snackbar's full display window, a
+    // config change (rotation) would re-run these effects with the same non-null key
+    // and re-show the snackbar. Dismissing first makes them one-shot; launching on
+    // `scope` (not this state-keyed effect) means clearing state can't cancel the
+    // in-flight snackbar. On rotation the scope is torn down, so a transient message
+    // simply ends rather than reappearing.
+    val scope = rememberCoroutineScope()
+
     val errorMessage = state.errorMessage?.asString()
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
-            snackbarHostState.showSnackbar(errorMessage)
             viewModel.onAction(MeasurementFormAction.OnErrorDismiss)
+            scope.launch { snackbarHostState.showSnackbar(errorMessage) }
         }
     }
 
     val confirmationMessage = state.confirmationMessage?.asString()
     LaunchedEffect(confirmationMessage) {
         if (confirmationMessage != null) {
-            snackbarHostState.showSnackbar(confirmationMessage)
             viewModel.onAction(MeasurementFormAction.OnConfirmationDismiss)
+            scope.launch { snackbarHostState.showSnackbar(confirmationMessage) }
         }
     }
 
