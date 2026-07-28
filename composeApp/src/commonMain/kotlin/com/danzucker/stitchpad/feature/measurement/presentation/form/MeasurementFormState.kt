@@ -21,6 +21,7 @@ data class MeasurementFormState(
     val isLoading: Boolean = false,
     val isEditMode: Boolean = false,
     val errorMessage: UiText? = null,
+    val confirmationMessage: UiText? = null,
     val originalCreatedAt: Long = 0L,
     val originalDateTaken: Long = 0L,
     // PTSP-12 additions

@@ -190,6 +190,9 @@ class MeasurementFormViewModel(
             MeasurementFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
+            MeasurementFormAction.OnConfirmationDismiss -> {
+                _state.update { it.copy(confirmationMessage = null) }
+            }
         }
     }
 
@@ -561,21 +564,10 @@ class MeasurementFormViewModel(
             }
             if (result is Result.Success) {
                 _state.update { current ->
-                    val valueToApply = initialValue.trim()
-                    val shouldSeedInitialValue = shouldSeedInitialCustomValue(
-                        isCreate = isCreate,
-                        value = valueToApply,
-                        currentGender = current.gender,
+                    current.withSavedCustomField(
                         field = field,
-                    )
-                    val updatedFields = if (shouldSeedInitialValue) {
-                        current.fields + (field.id to valueToApply)
-                    } else {
-                        current.fields
-                    }
-                    current.copy(
-                        fields = updatedFields,
-                        customFieldSheet = null,
+                        isCreate = isCreate,
+                        initialValue = initialValue,
                     )
                 }
             } else {
@@ -586,6 +578,44 @@ class MeasurementFormViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Folds a successfully saved custom field into state: seeds its initial value
+     * when appropriate, closes the sheet, and — on create only — surfaces the
+     * "field added" confirmation snackbar.
+     */
+    private fun MeasurementFormState.withSavedCustomField(
+        field: CustomMeasurementField,
+        isCreate: Boolean,
+        initialValue: String,
+    ): MeasurementFormState {
+        val valueToApply = initialValue.trim()
+        val shouldSeedInitialValue = shouldSeedInitialCustomValue(
+            isCreate = isCreate,
+            value = valueToApply,
+            currentGender = gender,
+            field = field,
+        )
+        val updatedFields = if (shouldSeedInitialValue) {
+            fields + (field.id to valueToApply)
+        } else {
+            fields
+        }
+        return copy(
+            fields = updatedFields,
+            customFieldSheet = null,
+            // Confirm only on create; edits just close the sheet.
+            confirmationMessage = if (isCreate) {
+                customFieldAddedMessage(
+                    label = field.label,
+                    currentGender = gender,
+                    genders = field.genders,
+                )
+            } else {
+                confirmationMessage
+            },
+        )
     }
 
     private fun shouldSeedInitialCustomValue(

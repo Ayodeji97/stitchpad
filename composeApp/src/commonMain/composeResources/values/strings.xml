@@ -362,6 +362,9 @@
     <string name="measurement_section_of">%1$d of %2$d</string>
     <string name="measurement_custom_step">Custom measurement</string>
     <string name="measurement_go_to_section">Go to section %1$d</string>
+    <string name="measurement_step_state_completed">completed</string>
+    <string name="measurement_step_state_current">current</string>
+    <string name="measurement_step_state_not_started">not started</string>
     <string name="measurement_previous">Previous</string>
     <string name="measurement_next">Next</string>
     <string name="measurement_add_note">Add a note (optional)</string>
@@ -435,6 +438,9 @@
     <string name="custom_field_sheet_save_with_value">Save field &amp; value</string>
     <string name="custom_field_sheet_save_changes">Save changes</string>
     <string name="custom_field_sheet_cancel">Cancel</string>
+    <string name="custom_field_added">‘%1$s’ added</string>
+    <string name="custom_field_added_female">‘%1$s’ added to your women’s measurements</string>
+    <string name="custom_field_added_male">‘%1$s’ added to your men’s measurements</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
     <string name="measurement_delete_content_description">Delete measurement</string>
     <string name="measurement_menu_rename">Rename</string>
