@@ -172,3 +172,16 @@ surface, so we avoid double-nudging the same debt.
   collection into the Focus hero.
 - Recording a payment that clears the balance removes it from both surfaces.
 - No new Firestore fields; existing orders populate the list without migration.
+
+## QA smoke test
+
+1. Mark an order Delivered with a remaining balance. It appears on the
+   dashboard "You're owed" card and in the To-collect list.
+2. Open the list. Default sort is oldest-owed, overdue rows sit on top with an
+   Overdue badge; try each sort option and each filter chip.
+3. Tap a row. It lands on the order detail (record payment there).
+4. Tap Chase. WhatsApp opens to that customer.
+5. Record a payment that clears the balance. The order leaves both the card
+   and the list.
+6. With an order delivered/ready for 7 or more days unpaid, the Focus hero
+   escalates to "Money to collect".
