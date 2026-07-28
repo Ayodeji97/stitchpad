@@ -207,7 +207,7 @@ class DashboardViewModel(
                 }
             )
             DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToToCollect)
             DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)

@@ -272,6 +272,7 @@ internal fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep>
 fun DashboardRoot(
     onNavigateToOrderDetail: (String) -> Unit,
     onNavigateToOrders: () -> Unit,
+    onNavigateToToCollect: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToEditOrder: (String) -> Unit,
     onNavigateToCustomerForm: () -> Unit,
@@ -328,6 +329,7 @@ fun DashboardRoot(
             whatsAppLauncher = whatsAppLauncher,
             onNavigateToOrderDetail = onNavigateToOrderDetail,
             onNavigateToOrders = onNavigateToOrders,
+            onNavigateToToCollect = onNavigateToToCollect,
             onNavigateToOrderForm = onNavigateToOrderForm,
             onNavigateToEditOrder = onNavigateToEditOrder,
             onNavigateToCustomerForm = onNavigateToCustomerForm,
@@ -468,6 +470,7 @@ private fun handleDashboardEvent(
     whatsAppLauncher: WhatsAppLauncher,
     onNavigateToOrderDetail: (String) -> Unit,
     onNavigateToOrders: () -> Unit,
+    onNavigateToToCollect: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToEditOrder: (String) -> Unit,
     onNavigateToCustomerForm: () -> Unit,
@@ -486,6 +489,7 @@ private fun handleDashboardEvent(
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
         DashboardEvent.NavigateToOrders -> onNavigateToOrders()
+        DashboardEvent.NavigateToToCollect -> onNavigateToToCollect()
         DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
         is DashboardEvent.NavigateToEditOrder -> onNavigateToEditOrder(event.orderId)
         DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()

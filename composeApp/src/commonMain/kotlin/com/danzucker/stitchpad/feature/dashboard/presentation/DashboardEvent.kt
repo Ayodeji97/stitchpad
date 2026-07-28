@@ -10,6 +10,9 @@ sealed interface DashboardEvent {
     data object NavigateToOrders : DashboardEvent
     data object NavigateToOrderForm : DashboardEvent
 
+    /** Outstanding-payments tap: open the dedicated To-Collect list instead of the full order book. */
+    data object NavigateToToCollect : DashboardEvent
+
     /**
      * Open the order edit form pre-populated for [orderId]. Used by the
      * Setup Checklist's SetDueDate / RecordDeposit step taps so the user
