@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.auth.data
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
@@ -127,6 +128,18 @@ class FakeAuthRepository : AuthRepository {
     }
 
     override suspend fun getCurrentUser(): User? = currentUser
+
+    /** Overridable in tests; defaults to owner-of-self (null claims) for a signed-in user. */
+    var workshopClaims: WorkshopClaims? = null
+    var forceRefreshInvocationCount = 0
+
+    override suspend fun getWorkshopClaims(): WorkshopClaims? =
+        currentUser?.let { workshopClaims ?: WorkshopClaims(authUid = it.id, workshopUid = null, role = null) }
+
+    override suspend fun forceRefreshIdToken(): EmptyResult<AuthError> {
+        forceRefreshInvocationCount += 1
+        return currentUser?.let { Result.Success(Unit) } ?: Result.Error(AuthError.USER_NOT_FOUND)
+    }
     override val isLoggedIn: Boolean get() = currentUser != null
 
     override suspend fun getSignInProvider(): SignInProvider = signInProvider

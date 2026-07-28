@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.core.data.session
 
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.WorkshopSessionResolver
 import kotlinx.coroutines.CoroutineScope
@@ -13,23 +14,24 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Watches Firebase Auth state and publishes the resolved [WorkshopSession].
+ * Watches the signed-in user's custom auth claims and publishes the resolved
+ * [WorkshopSession]. Fed a [WorkshopClaims] stream sourced from the ID token —
+ * because it keys off the token (not just auth-state), a claim change (e.g. an
+ * owner approving a staff member, once the token refreshes) re-resolves the
+ * session automatically.
  *
- * **Slice 0 scope:** custom claims and membership documents are not yet written
- * anywhere, so every signed-in user resolves to owner-of-self
- * ([WorkshopSession.ownerOfSelf]) — i.e. `workshopUid == authUid` — making this a
- * behaviour-neutral addition. A later slice extends the signed-in branch to read
- * the `workshopUid`/`role` custom claims (and the membership-doc fallback) and
- * feed them to [WorkshopSessionResolver]; the resolver, its precedence rules, and
- * the fail-safe default are already in place and unit-tested.
+ * An owner has no claims → [WorkshopSessionResolver] falls through to
+ * owner-of-self. A staff member's claims (role='staff', workshopUid=<owner>)
+ * resolve to an active-staff session on the owner's tree. The membership-doc
+ * fallback (for the pending window before the token refreshes) is wired by the
+ * staff-onboarding slice; here the claim is the source of truth.
  *
- * Resets to [WorkshopSession.signedOut] on sign-out so one user's session never
- * leaks into the next in the same process. Writes `_flow` before flipping
- * `_hydrated` so a racing [awaitHydrated] reads the real value, not the default —
- * mirroring [com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider].
+ * Resets to [WorkshopSession.signedOut] on sign-out. Writes `_flow` before
+ * flipping `_hydrated` so a racing [awaitHydrated] reads the real value, not the
+ * default — mirroring [com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider].
  */
 internal class FirebaseActiveWorkshopProvider(
-    authUserIds: Flow<String?>,
+    authClaims: Flow<WorkshopClaims?>,
     scope: CoroutineScope,
 ) : ActiveWorkshopProvider {
 
@@ -40,24 +42,21 @@ internal class FirebaseActiveWorkshopProvider(
 
     init {
         scope.launch {
-            authUserIds
+            authClaims
                 .distinctUntilChanged()
-                .collect { uid ->
-                    if (uid == null) {
-                        // Signed-out is a RESOLVED state, not "unknown" — mark hydrated
-                        // so awaitHydrated()/workshopUidOrNull() return the signed-out
-                        // session (→ null) immediately. If left unhydrated, any
-                        // data-scoping coroutine that runs during/after sign-out would
-                        // suspend forever instead of hitting its `?: return` guard the
-                        // way the old getCurrentUser()?.id did. Only the pre-first-emission
+                .collect { claims ->
+                    if (claims == null) {
+                        // Signed-out is a RESOLVED state — mark hydrated so
+                        // awaitHydrated()/workshopUidOrNull() return null immediately
+                        // instead of suspending forever. Only the pre-first-emission
                         // startup state stays unhydrated (initial `_hydrated = false`).
                         _flow.value = WorkshopSession.signedOut()
                         _hydrated.value = true
                     } else {
                         _flow.value = WorkshopSessionResolver.resolve(
-                            authUid = uid,
-                            claimWorkshopUid = null,
-                            claimRole = null,
+                            authUid = claims.authUid,
+                            claimWorkshopUid = claims.workshopUid,
+                            claimRole = claims.role,
                             membershipWorkshopUid = null,
                             membershipStatus = null,
                         )

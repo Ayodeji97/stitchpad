@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
@@ -240,6 +241,38 @@ class FirebaseAuthRepository(
 
     override suspend fun getCurrentUser(): User? {
         return firebaseAuth.currentUser?.toDomainUser()
+    }
+
+    override suspend fun getWorkshopClaims(): WorkshopClaims? {
+        val user = firebaseAuth.currentUser ?: return null
+        return try {
+            val result = user.getIdTokenResult(forceRefresh = false)
+            WorkshopClaims(
+                authUid = user.uid,
+                workshopUid = result.claims["workshopUid"] as? String,
+                role = result.claims["role"] as? String,
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            AppLogger.e(tag = TAG, throwable = e) { "getWorkshopClaims failed" }
+            // Fail-safe: unknown claims resolve to owner-of-self, never staff.
+            WorkshopClaims(authUid = user.uid, workshopUid = null, role = null)
+        }
+    }
+
+    override suspend fun forceRefreshIdToken(): EmptyResult<AuthError> {
+        val user = firebaseAuth.currentUser ?: return Result.Error(AuthError.USER_NOT_FOUND)
+        return try {
+            user.getIdToken(forceRefresh = true)
+            Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            val error = e.toAuthError()
+            AppLogger.e(tag = TAG, throwable = e) { "forceRefreshIdToken failed error=$error" }
+            Result.Error(error)
+        }
     }
 
     override val isLoggedIn: Boolean
