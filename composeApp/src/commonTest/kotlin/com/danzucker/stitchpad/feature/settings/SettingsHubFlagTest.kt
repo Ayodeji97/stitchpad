@@ -51,7 +51,12 @@ class SettingsHubFlagTest {
     fun settingsHubEnabled_false_byDefault() = runTest {
         val vm = buildSettingsVm(appConfig = FakeAppConfigRepository())
         vm.state.test {
-            assertFalse(awaitItem().settingsHubEnabled)
+            // Skip the stateIn(initialValue = SettingsState()) placeholder and
+            // assert on the repository-backed loaded state, so this verifies the
+            // flag is actually wired through buildState (not just the default).
+            var state = awaitItem()
+            while (state.isLoading) state = awaitItem()
+            assertFalse(state.settingsHubEnabled)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -61,7 +66,11 @@ class SettingsHubFlagTest {
         val config = FakeAppConfigRepository(AppConfig.Disabled.copy(settingsHubEnabled = true))
         val vm = buildSettingsVm(appConfig = config)
         vm.state.test {
-            assertTrue(awaitItem().settingsHubEnabled)
+            // Skip the stateIn placeholder (settingsHubEnabled = false) and assert
+            // on the loaded state, which reflects the remote flag from buildState.
+            var state = awaitItem()
+            while (state.isLoading) state = awaitItem()
+            assertTrue(state.settingsHubEnabled)
             cancelAndIgnoreRemainingEvents()
         }
     }
