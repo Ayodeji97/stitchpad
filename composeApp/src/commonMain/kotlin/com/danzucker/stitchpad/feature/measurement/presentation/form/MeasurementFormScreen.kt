@@ -87,6 +87,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.AddCustomFieldSheet
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
+import com.danzucker.stitchpad.feature.measurement.presentation.form.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
 import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -681,10 +682,11 @@ private fun MeasurementFieldInput(
 ) {
     MeasurementTextField(
         value = value,
-        // Allow digits, decimals, commas, and spaces so tailors can record
-        // segmented lengths ("40, 45, 56") and half sizes ("16.5"). Text keyboard
-        // (not Decimal) so the comma and space keys are actually reachable.
-        onValueChange = { newVal -> onValueChange(sanitizeMeasurementInput(newVal)) },
+        // Sanitization now lives inside MeasurementTextField so the caret is mapped
+        // as characters are stripped. Text keyboard (not Decimal) keeps comma/space
+        // keys reachable for segmented lengths ("40, 45, 56") and half sizes ("16.5").
+        onValueChange = onValueChange,
+        sanitize = ::sanitizeMeasurementInput,
         label = field.label,
         placeholder = "0",
         suffix = unitSuffix,
@@ -828,6 +830,7 @@ private fun MeasurementTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     suffix: String? = null,
+    sanitize: (String) -> String = { it },
     modifier: Modifier = Modifier
 ) {
     val colors = OutlinedTextFieldDefaults.colors(
@@ -839,6 +842,11 @@ private fun MeasurementTextField(
         unfocusedTextColor = MaterialTheme.colorScheme.onSurface
     )
     val interactionSource = remember { MutableInteractionSource() }
+    val (textFieldValue, onTextFieldChange) = rememberSanitizedTextFieldValue(
+        value = value,
+        sanitize = sanitize,
+        onValueChange = onValueChange,
+    )
 
     Column(modifier = modifier) {
         if (label.isNotBlank()) {
@@ -851,8 +859,8 @@ private fun MeasurementTextField(
             )
         }
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = textFieldValue,
+            onValueChange = onTextFieldChange,
             singleLine = singleLine,
             minLines = minLines,
             maxLines = maxLines,
@@ -865,7 +873,7 @@ private fun MeasurementTextField(
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { innerTextField ->
                 OutlinedTextFieldDefaults.DecorationBox(
-                    value = value,
+                    value = textFieldValue.text,
                     innerTextField = innerTextField,
                     enabled = true,
                     singleLine = singleLine,
@@ -1054,12 +1062,8 @@ private fun CustomFieldsSection(
                     }
                     MeasurementTextField(
                         value = fieldValues[field.id] ?: "",
-                        // Mirror MeasurementFieldInput's sanitizer so custom fields
-                        // accept the same segmented/decimal values and reject paste /
-                        // hardware-keyboard input that would disappear on save.
-                        onValueChange = { newVal ->
-                            onFieldValueChange(field.id, sanitizeMeasurementInput(newVal))
-                        },
+                        onValueChange = { newVal -> onFieldValueChange(field.id, newVal) },
+                        sanitize = ::sanitizeMeasurementInput,
                         label = "", // label rendered above by the long-pressable Text
                         placeholder = "0",
                         suffix = unitSuffix,
