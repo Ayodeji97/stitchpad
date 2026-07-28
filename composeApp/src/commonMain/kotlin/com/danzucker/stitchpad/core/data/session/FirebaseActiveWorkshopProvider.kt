@@ -3,14 +3,13 @@ package com.danzucker.stitchpad.core.data.session
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.WorkshopSessionResolver
-import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -30,7 +29,7 @@ import kotlinx.coroutines.launch
  * mirroring [com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider].
  */
 internal class FirebaseActiveWorkshopProvider(
-    auth: FirebaseAuth,
+    authUserIds: Flow<String?>,
     scope: CoroutineScope,
 ) : ActiveWorkshopProvider {
 
@@ -41,13 +40,19 @@ internal class FirebaseActiveWorkshopProvider(
 
     init {
         scope.launch {
-            auth.authStateChanged
-                .map { it?.uid }
+            authUserIds
                 .distinctUntilChanged()
                 .collect { uid ->
                     if (uid == null) {
+                        // Signed-out is a RESOLVED state, not "unknown" — mark hydrated
+                        // so awaitHydrated()/workshopUidOrNull() return the signed-out
+                        // session (→ null) immediately. If left unhydrated, any
+                        // data-scoping coroutine that runs during/after sign-out would
+                        // suspend forever instead of hitting its `?: return` guard the
+                        // way the old getCurrentUser()?.id did. Only the pre-first-emission
+                        // startup state stays unhydrated (initial `_hydrated = false`).
                         _flow.value = WorkshopSession.signedOut()
-                        _hydrated.value = false
+                        _hydrated.value = true
                     } else {
                         _flow.value = WorkshopSessionResolver.resolve(
                             authUid = uid,

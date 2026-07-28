@@ -59,7 +59,7 @@ val coreModule = module {
     }
     single<ActiveWorkshopProvider> {
         FirebaseActiveWorkshopProvider(
-            auth = get(),
+            authUserIds = get<FirebaseAuth>().authStateChanged.map { it?.uid },
             scope = get<CoroutineScope>(qualifier = named("workshopSessionAppScope")),
         )
     }
