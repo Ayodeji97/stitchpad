@@ -22,6 +22,7 @@ fun SettingsRoot(
     onNavigateToShareGiftLink: () -> Unit,
     onNavigateToRedeemGift: () -> Unit,
     onNavigateToHelpTutorials: () -> Unit,
+    onNavigateToAccountSecurity: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -43,6 +44,7 @@ fun SettingsRoot(
         onNavigateToShareGiftLink = onNavigateToShareGiftLink,
         onNavigateToRedeemGift = onNavigateToRedeemGift,
         onNavigateToHelpTutorials = onNavigateToHelpTutorials,
+        onNavigateToAccountSecurity = onNavigateToAccountSecurity,
     )
 
     SettingsScreen(

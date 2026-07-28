@@ -29,7 +29,6 @@ import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Redeem
 import androidx.compose.material.icons.outlined.Straighten
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +38,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,6 +52,8 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.settings.presentation.account.SignOutConfirmDialog
+import com.danzucker.stitchpad.feature.settings.presentation.account.providerSubtitle
 import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.ProfileHeroCard
 import com.danzucker.stitchpad.feature.settings.presentation.components.SettingsRow
@@ -110,14 +110,6 @@ import stitchpad.composeapp.generated.resources.settings_theme_dark
 import stitchpad.composeapp.generated.resources.settings_theme_light
 import stitchpad.composeapp.generated.resources.settings_theme_system
 import stitchpad.composeapp.generated.resources.settings_title
-import stitchpad.composeapp.generated.resources.sign_out_dialog_body
-import stitchpad.composeapp.generated.resources.sign_out_dialog_cancel
-import stitchpad.composeapp.generated.resources.sign_out_dialog_confirm
-import stitchpad.composeapp.generated.resources.sign_out_dialog_title
-import stitchpad.composeapp.generated.resources.signin_provider_apple
-import stitchpad.composeapp.generated.resources.signin_provider_email
-import stitchpad.composeapp.generated.resources.signin_provider_google
-import stitchpad.composeapp.generated.resources.signin_provider_unknown
 
 // Gifting (buy-a-gift + redeem-a-code) unlocks a paid plan outside the stores'
 // billing, so it stays hidden app-wide while we're not running any payment flow.
@@ -432,49 +424,6 @@ private fun receiptImageStyleLabel(style: ReceiptImageStyle): String {
         ReceiptImageStyle.DARK -> Res.string.settings_receipt_image_dark
     }
     return stringResource(labelRes)
-}
-
-@Composable
-private fun providerSubtitle(provider: SignInProvider, identifier: String): String {
-    val providerLabelRes: StringResource = when (provider) {
-        SignInProvider.EMAIL_PASSWORD -> Res.string.signin_provider_email
-        SignInProvider.APPLE -> Res.string.signin_provider_apple
-        SignInProvider.GOOGLE -> Res.string.signin_provider_google
-        SignInProvider.UNKNOWN -> Res.string.signin_provider_unknown
-    }
-    val label = stringResource(providerLabelRes)
-    return if (identifier.isBlank()) label else "$label • $identifier"
-}
-
-@Composable
-private fun SignOutConfirmDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.sign_out_dialog_title),
-                fontWeight = FontWeight.Bold,
-            )
-        },
-        text = { Text(stringResource(Res.string.sign_out_dialog_body)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    text = stringResource(Res.string.sign_out_dialog_confirm),
-                    color = MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.sign_out_dialog_cancel))
-            }
-        },
-    )
 }
 
 @Suppress("UnusedPrivateMember")
