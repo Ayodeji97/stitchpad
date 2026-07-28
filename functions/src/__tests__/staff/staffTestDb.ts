@@ -47,7 +47,26 @@ export function makeStaffDb(initial: Record<string, unknown> = {}) {
       return { docs, size: docs.length, empty: docs.length === 0 };
     },
   });
-  const db = { doc: docRef, collection: collectionRef } as unknown as import('firebase-admin').firestore.Firestore;
+  // Fake transaction: no real isolation (tests are single-threaded); just runs
+  // the callback with a tx that delegates reads/writes to the store. Verifies the
+  // handler's read-before-write structure and logic; real atomicity is Firestore's.
+  const runTransaction = async <T>(fn: (tx: {
+    get: (ref: { get: () => Promise<unknown> }) => Promise<unknown>;
+    set: (ref: { set: (d: Record<string, unknown>, o?: { merge?: boolean }) => Promise<void> }, d: Record<string, unknown>, o?: { merge?: boolean }) => void;
+    update: (ref: { update: (d: Record<string, unknown>) => Promise<void> }, d: Record<string, unknown>) => void;
+  }) => Promise<T>): Promise<T> => {
+    const tx = {
+      get: (ref: { get: () => Promise<unknown> }) => ref.get(),
+      set: (ref: { set: (d: Record<string, unknown>, o?: { merge?: boolean }) => Promise<void> }, d: Record<string, unknown>, o?: { merge?: boolean }) => {
+        void ref.set(d, o);
+      },
+      update: (ref: { update: (d: Record<string, unknown>) => Promise<void> }, d: Record<string, unknown>) => {
+        void ref.update(d);
+      },
+    };
+    return fn(tx);
+  };
+  const db = { doc: docRef, collection: collectionRef, runTransaction } as unknown as import('firebase-admin').firestore.Firestore;
   return { store, db };
 }
 

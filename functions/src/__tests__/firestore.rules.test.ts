@@ -723,6 +723,8 @@ describe('owner-only /private sub-docs (money + contact wall)', () => {
 describe('active staff member access', () => {
   beforeEach(async () => {
     await asAdmin(async (admin) => {
+      // Slice 4a: isActiveMember now also requires an ACTIVE membership doc.
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), { status: 'active' });
       await setDoc(doc(admin, 'users/alice/customers/c1'), { name: 'Ada' });
       await setDoc(doc(admin, 'users/alice/customers/c1/private/contact'), { phone: '+234' });
       await setDoc(doc(admin, 'users/alice/customers/c1/measurements/m1'), { gender: 'FEMALE' });
@@ -742,6 +744,15 @@ describe('active staff member access', () => {
       getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1/measurements/m1')),
     );
     await assertSucceeds(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1')));
+  });
+
+  it('loses access the instant the membership is revoked, even with a valid claim', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), { status: 'revoked' });
+    });
+    // Stale claim still says role=staff/workshopUid=alice, but the doc gate denies.
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1')));
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1')));
   });
 
   it('is denied a base doc that still carries sensitive fields (dual-write window)', async () => {

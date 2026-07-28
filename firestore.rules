@@ -45,7 +45,14 @@ service cloud.firestore {
     function isActiveMember(uid) {
       return request.auth != null
         && request.auth.token.get('role', '') == 'staff'
-        && request.auth.token.get('workshopUid', '') == uid;
+        && request.auth.token.get('workshopUid', '') == uid
+        // Also require the membership doc to be ACTIVE. The claim alone can't
+        // enforce revocation: a revoked member's already-minted token keeps the
+        // stale claim for up to an hour. Gating on the doc makes revokeStaffMember
+        // (status -> 'revoked') cut access immediately. The claim checks above are
+        // a cheap pre-filter so owners (no claim) never incur this get().
+        && exists(/databases/$(database)/documents/users/$(uid)/memberships/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(uid)/memberships/$(request.auth.uid)).data.status == 'active';
     }
 
     // Read access to a workshop's non-private data: the owner, or an active member.
