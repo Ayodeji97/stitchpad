@@ -1312,8 +1312,21 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_back_cd">Back</string>
+    <string name="settings_account_title">Account &amp; security</string>
+    <string name="settings_invite_rewards_title">Invite &amp; rewards</string>
+    <string name="settings_help_support_title">Help &amp; support</string>
+    <string name="settings_legal_about_title">Legal &amp; about</string>
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_section_account">Account</string>
+    <string name="settings_section_manage">Manage</string>
+    <string name="settings_row_account_security">Account &amp; security</string>
+    <string name="settings_row_account_security_subtitle">Email, password, sign-in method</string>
+    <string name="settings_row_invite_rewards">Invite &amp; rewards</string>
+    <string name="settings_row_invite_rewards_subtitle">Invite tailors, enter a referral code</string>
+    <string name="settings_row_help_support">Help &amp; support</string>
+    <string name="settings_row_help_support_subtitle">Tutorials, contact, community</string>
+    <string name="settings_row_legal_about">Legal &amp; about</string>
+    <string name="settings_row_legal_about_subtitle">Privacy, terms, founder’s note</string>
     <string name="settings_hero_plan_pro">Tailor Pro</string>
     <string name="settings_hero_plan_atelier">Tailor Atelier</string>
     <string name="settings_plan_renews_fmt">Renews %1$s</string>

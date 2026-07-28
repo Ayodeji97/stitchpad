@@ -150,6 +150,18 @@ data object ShareGiftLinkRoute
 data object FoundersNoteRoute
 
 @Serializable
+data object SettingsAccountRoute
+
+@Serializable
+data object SettingsInviteRewardsRoute
+
+@Serializable
+data object SettingsHelpSupportRoute
+
+@Serializable
+data object SettingsLegalAboutRoute
+
+@Serializable
 data object NotificationsInboxRoute
 
 @Serializable

@@ -50,12 +50,16 @@ import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListRoot
 import com.danzucker.stitchpad.feature.referral.presentation.entry.ReferralCodeRoot
 import com.danzucker.stitchpad.feature.reports.presentation.ReportsRoot
+import com.danzucker.stitchpad.feature.settings.presentation.account.SettingsAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.changeemail.ChangeEmailRoot
 import com.danzucker.stitchpad.feature.settings.presentation.changepassword.ChangePasswordRoot
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
+import com.danzucker.stitchpad.feature.settings.presentation.helpsupport.SettingsHelpSupportRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
+import com.danzucker.stitchpad.feature.settings.presentation.inviterewards.SettingsInviteRewardsRoot
+import com.danzucker.stitchpad.feature.settings.presentation.legalabout.SettingsLegalAboutRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -87,6 +91,10 @@ import com.danzucker.stitchpad.navigation.RedeemGiftRoute
 import com.danzucker.stitchpad.navigation.ReferralCodeRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
+import com.danzucker.stitchpad.navigation.SettingsAccountRoute
+import com.danzucker.stitchpad.navigation.SettingsHelpSupportRoute
+import com.danzucker.stitchpad.navigation.SettingsInviteRewardsRoute
+import com.danzucker.stitchpad.navigation.SettingsLegalAboutRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
@@ -627,6 +635,38 @@ private fun MainNavGraph(
                 onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
                 onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
                 onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
+                onNavigateToAccountSecurity = { navController.navigate(SettingsAccountRoute) },
+                onNavigateToInviteRewards = { navController.navigate(SettingsInviteRewardsRoute) },
+                onNavigateToHelpSupport = { navController.navigate(SettingsHelpSupportRoute) },
+                onNavigateToLegalAbout = { navController.navigate(SettingsLegalAboutRoute) },
+            )
+        }
+        composable<SettingsAccountRoute> {
+            SettingsAccountRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToChangeEmail = { navController.navigate(ChangeEmailRoute) },
+                onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
+                onSignedOut = onSignedOut,
+            )
+        }
+        composable<SettingsInviteRewardsRoute> {
+            SettingsInviteRewardsRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
+                onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
+                onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
+            )
+        }
+        composable<SettingsHelpSupportRoute> {
+            SettingsHelpSupportRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
+            )
+        }
+        composable<SettingsLegalAboutRoute> {
+            SettingsLegalAboutRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
             )
         }
         composable<HelpTutorialsRoute> {
