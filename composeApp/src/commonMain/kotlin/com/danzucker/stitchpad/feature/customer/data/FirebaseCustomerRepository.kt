@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.customer.data
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomer
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
@@ -63,7 +64,7 @@ class FirebaseCustomerRepository(
             .snapshots()
             .map { snapshot ->
                 val customerDtos = snapshot.documents.mapNotNull { doc ->
-                    runCatching { doc.data<CustomerDto>() }.getOrNull()
+                    decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerDto>() }
                 }
                 cacheActiveCustomerCount(userId, countActiveCustomers(customerDtos))
                 val customers = customerDtos.map { it.toCustomer(userId) }

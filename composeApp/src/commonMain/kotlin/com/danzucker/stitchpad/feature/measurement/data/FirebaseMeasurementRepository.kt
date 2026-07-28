@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.measurement.data
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.MeasurementDto
 import com.danzucker.stitchpad.core.data.mapper.toMeasurement
 import com.danzucker.stitchpad.core.data.mapper.toMeasurementDto
@@ -39,7 +40,9 @@ class FirebaseMeasurementRepository(
             .map { snapshot ->
                 val measurements = snapshot.documents
                     .mapNotNull { doc ->
-                        runCatching { doc.data<MeasurementDto>().toMeasurement(customerId) }.getOrNull()
+                        decodeDocOrLog(tag = TAG, docId = doc.id) {
+                            doc.data<MeasurementDto>().toMeasurement(customerId)
+                        }
                     }
                     .sortedByDescending { it.createdAt }
                 Result.Success(measurements) as Result<List<Measurement>, DataError.Network>

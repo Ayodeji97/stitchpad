@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.measurement.data
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomMeasurementFieldDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomMeasurementField
 import com.danzucker.stitchpad.core.data.mapper.toCustomMeasurementFieldDto
@@ -36,7 +37,9 @@ class FirebaseCustomMeasurementFieldRepository(
             .map { snapshot ->
                 val fields = snapshot.documents
                     .mapNotNull { doc ->
-                        runCatching { doc.data<CustomMeasurementFieldDto>().toCustomMeasurementField() }.getOrNull()
+                        decodeDocOrLog(tag = TAG, docId = doc.id) {
+                            doc.data<CustomMeasurementFieldDto>().toCustomMeasurementField()
+                        }
                     }
                     .sortedBy { it.createdAt }
                 Result.Success(fields) as Result<List<CustomMeasurementField>, DataError.Network>

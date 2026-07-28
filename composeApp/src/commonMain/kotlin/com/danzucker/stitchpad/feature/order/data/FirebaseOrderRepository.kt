@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.data
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
@@ -190,11 +191,11 @@ class FirebaseOrderRepository(
     private fun List<dev.gitlive.firebase.firestore.DocumentSnapshot>.toOrders(
         userId: String,
     ): List<Order> = mapNotNull { doc ->
-        runCatching {
+        decodeDocOrLog(tag = TAG, docId = doc.id) {
             doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
                 .toOrder(userId)
                 .withLocalPendingImages()
-        }.getOrNull()
+        }
     }
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
