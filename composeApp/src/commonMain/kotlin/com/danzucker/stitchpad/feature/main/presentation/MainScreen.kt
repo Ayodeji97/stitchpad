@@ -59,6 +59,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.Founde
 import com.danzucker.stitchpad.feature.settings.presentation.helpsupport.SettingsHelpSupportRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.inviterewards.SettingsInviteRewardsRoot
+import com.danzucker.stitchpad.feature.settings.presentation.legalabout.SettingsLegalAboutRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -93,6 +94,7 @@ import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
 import com.danzucker.stitchpad.navigation.SettingsAccountRoute
 import com.danzucker.stitchpad.navigation.SettingsHelpSupportRoute
 import com.danzucker.stitchpad.navigation.SettingsInviteRewardsRoute
+import com.danzucker.stitchpad.navigation.SettingsLegalAboutRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
@@ -636,6 +638,7 @@ private fun MainNavGraph(
                 onNavigateToAccountSecurity = { navController.navigate(SettingsAccountRoute) },
                 onNavigateToInviteRewards = { navController.navigate(SettingsInviteRewardsRoute) },
                 onNavigateToHelpSupport = { navController.navigate(SettingsHelpSupportRoute) },
+                onNavigateToLegalAbout = { navController.navigate(SettingsLegalAboutRoute) },
             )
         }
         composable<SettingsAccountRoute> {
@@ -658,6 +661,12 @@ private fun MainNavGraph(
             SettingsHelpSupportRoot(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
+            )
+        }
+        composable<SettingsLegalAboutRoute> {
+            SettingsLegalAboutRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToFoundersNote = { navController.navigate(FoundersNoteRoute) },
             )
         }
         composable<HelpTutorialsRoute> {
