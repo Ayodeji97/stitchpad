@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.data
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomGarmentTypeDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomGarmentType
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -55,7 +56,9 @@ class FirebaseCustomGarmentTypeRepository(
             .map<_, Result<List<CustomGarmentType>, DataError.Network>> { snapshot ->
                 val customs = snapshot.documents
                     .mapNotNull { doc ->
-                        runCatching { doc.data<CustomGarmentTypeDto>().toCustomGarmentType() }.getOrNull()
+                        decodeDocOrLog(tag = TAG, docId = doc.id) {
+                            doc.data<CustomGarmentTypeDto>().toCustomGarmentType()
+                        }
                     }
                     .sortedWith(
                         compareByDescending<CustomGarmentType> { it.lastUsedAt }
