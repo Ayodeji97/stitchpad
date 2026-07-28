@@ -58,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -83,6 +84,7 @@ import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
@@ -120,11 +122,16 @@ fun StyleFoldersRoot(
         }
     }
 
+    val scope = rememberCoroutineScope()
     val errorMessage = state.errorMessage?.asString()
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
-            snackbarHostState.showSnackbar(errorMessage)
+            // Clear state before showing so a config change (rotation) during the
+            // snackbar's display window can't re-trigger this effect and re-show it.
+            // showSnackbar runs on scope (not this state-keyed effect), so clearing
+            // state can't cancel the in-flight snackbar.
             viewModel.onAction(StyleFoldersAction.OnErrorDismiss)
+            scope.launch { snackbarHostState.showSnackbar(errorMessage) }
         }
     }
 
