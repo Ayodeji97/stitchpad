@@ -42,6 +42,11 @@ data class AppConfig(
     val maintenanceMode: Boolean = false,
     /** Remote copy for the maintenance screen. */
     val maintenanceMessage: String? = null,
+    /** Remote toggle for the restructured Settings hub (drill-down categories).
+     * Default false — fail-open to the legacy flat layout on a missing/unreadable
+     * config, matching [communityEnabled]. Flip `config/app.settingsHubEnabled`
+     * to roll out; flip back to revert with no app release. */
+    val settingsHubEnabled: Boolean = false,
 ) {
     companion object {
         /** Safe fallback used before config loads or on read failure: feature hidden. */

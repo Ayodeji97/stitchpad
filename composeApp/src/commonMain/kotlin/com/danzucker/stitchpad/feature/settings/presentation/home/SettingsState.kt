@@ -52,6 +52,7 @@ data class SettingsState(
     val isSigningOut: Boolean = false,
     val communityEnabled: Boolean = false,
     val communityUrl: String? = null,
+    val settingsHubEnabled: Boolean = false,
 ) {
 
     /** Settings community row shows only when remotely enabled with a usable link. */

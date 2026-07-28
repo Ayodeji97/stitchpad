@@ -263,6 +263,7 @@ class SettingsViewModel(
             isSigningOut = ui.isSigningOut,
             communityEnabled = appConfig.communityEnabled,
             communityUrl = appConfig.communityInviteUrl,
+            settingsHubEnabled = appConfig.settingsHubEnabled,
         )
     }
 
