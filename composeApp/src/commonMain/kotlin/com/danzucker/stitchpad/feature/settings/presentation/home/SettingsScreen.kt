@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.compose.foundation.layout.Column
@@ -76,6 +78,8 @@ import stitchpad.composeapp.generated.resources.referral_code_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_back_cd
 import stitchpad.composeapp.generated.resources.settings_receipt_image_dark
 import stitchpad.composeapp.generated.resources.settings_receipt_image_light
+import stitchpad.composeapp.generated.resources.settings_row_account_security
+import stitchpad.composeapp.generated.resources.settings_row_account_security_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_community
@@ -89,8 +93,14 @@ import stitchpad.composeapp.generated.resources.settings_row_delete_account
 import stitchpad.composeapp.generated.resources.settings_row_email
 import stitchpad.composeapp.generated.resources.settings_row_founders_note
 import stitchpad.composeapp.generated.resources.settings_row_founders_note_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_help_support
+import stitchpad.composeapp.generated.resources.settings_row_help_support_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_invite
+import stitchpad.composeapp.generated.resources.settings_row_invite_rewards
+import stitchpad.composeapp.generated.resources.settings_row_invite_rewards_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_invite_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_legal_about
+import stitchpad.composeapp.generated.resources.settings_row_legal_about_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_centimeters
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units_inches
@@ -104,6 +114,7 @@ import stitchpad.composeapp.generated.resources.settings_row_tutorials_subtitle
 import stitchpad.composeapp.generated.resources.settings_section_account
 import stitchpad.composeapp.generated.resources.settings_section_business
 import stitchpad.composeapp.generated.resources.settings_section_legal
+import stitchpad.composeapp.generated.resources.settings_section_manage
 import stitchpad.composeapp.generated.resources.settings_section_preferences
 import stitchpad.composeapp.generated.resources.settings_section_support
 import stitchpad.composeapp.generated.resources.settings_theme_dark
@@ -158,254 +169,11 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = DesignTokens.space3),
         ) {
-            Spacer(Modifier.height(DesignTokens.space2))
-
-            ProfileHeroCard(
-                businessName = state.businessName.ifBlank { "—" },
-                logoUrl = state.businessLogoUrl,
-                subtitle = state.heroSubtitle.ifBlank { state.email },
-                avatarColorIndex = state.avatarColorIndex,
-                onClick = { onAction(SettingsAction.OnProfileClick) },
-                planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
-            )
-
-            Spacer(Modifier.height(DesignTokens.space3))
-
-            PlanCard(
-                tier = state.subscriptionTier,
-                customerCount = state.customerCount,
-                customerLimit = state.customerLimit,
-                aiDraftsUsed = state.aiDraftsUsed,
-                aiDraftLimit = state.aiDraftLimit,
-                isFirstMonth = state.isFirstMonth,
-                welcomeDaysLeft = state.welcomeDaysLeft,
-                onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
-                modifier = Modifier,
-                subscriptionStatus = state.subscriptionStatus,
-            )
-
-            SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
-                SettingsRow(
-                    icon = Icons.Outlined.PersonAddAlt,
-                    label = stringResource(Res.string.settings_row_invite),
-                    subtitle = stringResource(Res.string.settings_row_invite_subtitle),
-                    onClick = { onAction(SettingsAction.OnInviteClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-                SettingsRow(
-                    icon = Icons.Outlined.Redeem,
-                    label = stringResource(Res.string.referral_code_settings_row),
-                    subtitle = stringResource(Res.string.referral_code_settings_subtitle),
-                    onClick = { onAction(SettingsAction.OnReferralCodeClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-                // Gifting entry points are hidden while payments are paused — see
-                // GIFTING_ENABLED at the top of this file.
-                if (GIFTING_ENABLED) {
-                    SettingsRow(
-                        icon = Icons.Outlined.CardGiftcard,
-                        label = stringResource(Res.string.gift_share_settings_row),
-                        subtitle = stringResource(Res.string.gift_share_settings_subtitle),
-                        onClick = { onAction(SettingsAction.OnGetGiftedClick) },
-                        trailing = { SettingsRowChevron() },
-                    )
-                    SettingsRow(
-                        icon = Icons.Outlined.Redeem,
-                        label = stringResource(Res.string.gift_redeem_title),
-                        subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
-                        onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
-                        trailing = { SettingsRowChevron() },
-                    )
-                }
+            if (state.settingsHubEnabled) {
+                SettingsLandingHub(state = state, onAction = onAction)
+            } else {
+                SettingsLandingLegacy(state = state, onAction = onAction)
             }
-
-            SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
-                SettingsRow(
-                    icon = Icons.Outlined.Straighten,
-                    label = stringResource(Res.string.settings_row_measurement_units),
-                    onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
-                    trailing = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SettingsRowValue(
-                                text = stringResource(
-                                    when (state.measurementUnit) {
-                                        MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
-                                        MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
-                                    }
-                                ),
-                            )
-                        }
-                    },
-                )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Brightness6,
-                    label = stringResource(Res.string.settings_row_appearance),
-                    onClick = { onAction(SettingsAction.OnAppearanceClick) },
-                    trailing = {
-                        SettingsRowValue(
-                            text = stringResource(
-                                when (state.themePreference) {
-                                    ThemePreference.SYSTEM -> Res.string.settings_theme_system
-                                    ThemePreference.LIGHT -> Res.string.settings_theme_light
-                                    ThemePreference.DARK -> Res.string.settings_theme_dark
-                                }
-                            ),
-                        )
-                    },
-                )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Image,
-                    label = stringResource(Res.string.settings_row_receipt_image),
-                    onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
-                    trailing = {
-                        SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
-                    },
-                )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Notifications,
-                    label = stringResource(Res.string.settings_row_daily_digest),
-                    onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
-                    trailing = {
-                        Switch(
-                            checked = state.dailyDigestEmailEnabled,
-                            onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
-                        )
-                    },
-                )
-                if (state.pushReminderSupported) {
-                    SettingsRowDivider()
-                    SettingsRow(
-                        icon = Icons.Outlined.Notifications,
-                        label = stringResource(Res.string.settings_row_daily_push),
-                        onClick = { onAction(SettingsAction.OnDailyPushToggle(!state.dailyPushEnabled)) },
-                        trailing = {
-                            Switch(
-                                checked = state.dailyPushEnabled,
-                                onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
-                            )
-                        },
-                    )
-                }
-            }
-
-            SettingsSectionCard(label = stringResource(Res.string.settings_section_account)) {
-                SettingsRow(
-                    icon = Icons.Outlined.AccountCircle,
-                    label = stringResource(Res.string.settings_row_signin_method),
-                    onClick = null,
-                    subtitle = providerSubtitle(state.signInProvider, state.maskedSignInIdentifier),
-                )
-                if (state.showChangeEmailRow) {
-                    SettingsRowDivider()
-                    SettingsRow(
-                        icon = Icons.Outlined.Email,
-                        label = stringResource(Res.string.settings_row_email),
-                        subtitle = state.email,
-                        onClick = { onAction(SettingsAction.OnEmailRowClick) },
-                        trailing = { SettingsRowChevron() },
-                    )
-                }
-                if (state.showChangePasswordRow) {
-                    SettingsRowDivider()
-                    SettingsRow(
-                        icon = Icons.Outlined.Lock,
-                        label = stringResource(Res.string.settings_row_change_password),
-                        onClick = { onAction(SettingsAction.OnChangePasswordClick) },
-                        trailing = { SettingsRowChevron() },
-                    )
-                }
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Logout,
-                    label = stringResource(Res.string.settings_row_sign_out),
-                    onClick = { onAction(SettingsAction.OnSignOutRowClick) },
-                )
-            }
-
-            SettingsSectionCard(label = stringResource(Res.string.settings_section_support)) {
-                SettingsRow(
-                    icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                    label = stringResource(Res.string.settings_row_tutorials),
-                    subtitle = stringResource(Res.string.settings_row_tutorials_subtitle),
-                    onClick = { onAction(SettingsAction.OnHelpTutorialsClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.AutoMirrored.Outlined.Chat,
-                    label = stringResource(Res.string.settings_row_contact),
-                    subtitle = stringResource(Res.string.settings_row_contact_subtitle),
-                    onClick = { onAction(SettingsAction.OnContactClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-                if (state.showCommunityRow) {
-                    SettingsRowDivider()
-                    SettingsRow(
-                        icon = Icons.Outlined.Groups,
-                        label = stringResource(Res.string.settings_row_community),
-                        subtitle = stringResource(Res.string.settings_row_community_subtitle),
-                        onClick = { onAction(SettingsAction.OnCommunityClick) },
-                        trailing = { SettingsRowChevron() },
-                    )
-                }
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Info,
-                    label = stringResource(Res.string.settings_row_founders_note),
-                    subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
-                    onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-            }
-
-            SettingsSectionCard(label = stringResource(Res.string.settings_section_legal)) {
-                SettingsRow(
-                    icon = Icons.Outlined.PrivacyTip,
-                    label = stringResource(Res.string.settings_row_privacy),
-                    onClick = { onAction(SettingsAction.OnPrivacyClick) },
-                    trailing = { SettingsRowExternalIcon() },
-                )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Description,
-                    label = stringResource(Res.string.settings_row_terms),
-                    onClick = { onAction(SettingsAction.OnTermsClick) },
-                    trailing = { SettingsRowExternalIcon() },
-                )
-            }
-
-            // Visual gap so the headerless Delete account card reads as its own
-            // standalone section rather than a third row in Legal. Without this
-            // the two cards render flush because the section card only pads above
-            // when it has a label.
-            Spacer(Modifier.height(DesignTokens.space4))
-
-            SettingsSectionCard {
-                SettingsRow(
-                    icon = Icons.Outlined.Delete,
-                    label = stringResource(Res.string.settings_row_delete_account),
-                    onClick = { onAction(SettingsAction.OnDeleteAccountClick) },
-                    isDanger = true,
-                    trailing = { SettingsRowChevron() },
-                )
-            }
-
-            if (isDebugBuild) {
-                Spacer(Modifier.height(DesignTokens.space4))
-                SettingsSectionCard {
-                    SettingsRow(
-                        icon = Icons.Outlined.BugReport,
-                        label = stringResource(Res.string.settings_row_debug_menu),
-                        onClick = { onAction(SettingsAction.OnDebugMenuClick) },
-                        trailing = { SettingsRowChevron() },
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(DesignTokens.space5))
         }
 
         if (state.showSignOutDialog) {
@@ -415,6 +183,442 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+/**
+ * The flag-off (legacy) Settings landing: hero + plan + the six flat sections
+ * (Business, Preferences, Account, Support, Legal) + pinned Delete-account and
+ * debug cards. Kept byte-for-byte identical to the pre-hub layout.
+ */
+@Composable
+private fun SettingsLandingLegacy(
+    state: SettingsState,
+    onAction: (SettingsAction) -> Unit,
+) {
+    Spacer(Modifier.height(DesignTokens.space2))
+
+    ProfileHeroCard(
+        businessName = state.businessName.ifBlank { "—" },
+        logoUrl = state.businessLogoUrl,
+        subtitle = state.heroSubtitle.ifBlank { state.email },
+        avatarColorIndex = state.avatarColorIndex,
+        onClick = { onAction(SettingsAction.OnProfileClick) },
+        planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
+    )
+
+    Spacer(Modifier.height(DesignTokens.space3))
+
+    PlanCard(
+        tier = state.subscriptionTier,
+        customerCount = state.customerCount,
+        customerLimit = state.customerLimit,
+        aiDraftsUsed = state.aiDraftsUsed,
+        aiDraftLimit = state.aiDraftLimit,
+        isFirstMonth = state.isFirstMonth,
+        welcomeDaysLeft = state.welcomeDaysLeft,
+        onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
+        modifier = Modifier,
+        subscriptionStatus = state.subscriptionStatus,
+    )
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
+        SettingsRow(
+            icon = Icons.Outlined.PersonAddAlt,
+            label = stringResource(Res.string.settings_row_invite),
+            subtitle = stringResource(Res.string.settings_row_invite_subtitle),
+            onClick = { onAction(SettingsAction.OnInviteClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        SettingsRow(
+            icon = Icons.Outlined.Redeem,
+            label = stringResource(Res.string.referral_code_settings_row),
+            subtitle = stringResource(Res.string.referral_code_settings_subtitle),
+            onClick = { onAction(SettingsAction.OnReferralCodeClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        // Gifting entry points are hidden while payments are paused — see
+        // GIFTING_ENABLED at the top of this file.
+        if (GIFTING_ENABLED) {
+            SettingsRow(
+                icon = Icons.Outlined.CardGiftcard,
+                label = stringResource(Res.string.gift_share_settings_row),
+                subtitle = stringResource(Res.string.gift_share_settings_subtitle),
+                onClick = { onAction(SettingsAction.OnGetGiftedClick) },
+                trailing = { SettingsRowChevron() },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Redeem,
+                label = stringResource(Res.string.gift_redeem_title),
+                subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
+                onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+    }
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
+        SettingsRow(
+            icon = Icons.Outlined.Straighten,
+            label = stringResource(Res.string.settings_row_measurement_units),
+            onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
+            trailing = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingsRowValue(
+                        text = stringResource(
+                            when (state.measurementUnit) {
+                                MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
+                                MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
+                            }
+                        ),
+                    )
+                }
+            },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Brightness6,
+            label = stringResource(Res.string.settings_row_appearance),
+            onClick = { onAction(SettingsAction.OnAppearanceClick) },
+            trailing = {
+                SettingsRowValue(
+                    text = stringResource(
+                        when (state.themePreference) {
+                            ThemePreference.SYSTEM -> Res.string.settings_theme_system
+                            ThemePreference.LIGHT -> Res.string.settings_theme_light
+                            ThemePreference.DARK -> Res.string.settings_theme_dark
+                        }
+                    ),
+                )
+            },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Image,
+            label = stringResource(Res.string.settings_row_receipt_image),
+            onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
+            trailing = {
+                SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
+            },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Notifications,
+            label = stringResource(Res.string.settings_row_daily_digest),
+            onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
+            trailing = {
+                Switch(
+                    checked = state.dailyDigestEmailEnabled,
+                    onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
+                )
+            },
+        )
+        if (state.pushReminderSupported) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_daily_push),
+                onClick = { onAction(SettingsAction.OnDailyPushToggle(!state.dailyPushEnabled)) },
+                trailing = {
+                    Switch(
+                        checked = state.dailyPushEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
+                    )
+                },
+            )
+        }
+    }
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_account)) {
+        SettingsRow(
+            icon = Icons.Outlined.AccountCircle,
+            label = stringResource(Res.string.settings_row_signin_method),
+            onClick = null,
+            subtitle = providerSubtitle(state.signInProvider, state.maskedSignInIdentifier),
+        )
+        if (state.showChangeEmailRow) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Email,
+                label = stringResource(Res.string.settings_row_email),
+                subtitle = state.email,
+                onClick = { onAction(SettingsAction.OnEmailRowClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+        if (state.showChangePasswordRow) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Lock,
+                label = stringResource(Res.string.settings_row_change_password),
+                onClick = { onAction(SettingsAction.OnChangePasswordClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Logout,
+            label = stringResource(Res.string.settings_row_sign_out),
+            onClick = { onAction(SettingsAction.OnSignOutRowClick) },
+        )
+    }
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_support)) {
+        SettingsRow(
+            icon = Icons.AutoMirrored.Outlined.HelpOutline,
+            label = stringResource(Res.string.settings_row_tutorials),
+            subtitle = stringResource(Res.string.settings_row_tutorials_subtitle),
+            onClick = { onAction(SettingsAction.OnHelpTutorialsClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.AutoMirrored.Outlined.Chat,
+            label = stringResource(Res.string.settings_row_contact),
+            subtitle = stringResource(Res.string.settings_row_contact_subtitle),
+            onClick = { onAction(SettingsAction.OnContactClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        if (state.showCommunityRow) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Groups,
+                label = stringResource(Res.string.settings_row_community),
+                subtitle = stringResource(Res.string.settings_row_community_subtitle),
+                onClick = { onAction(SettingsAction.OnCommunityClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Info,
+            label = stringResource(Res.string.settings_row_founders_note),
+            subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
+            onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
+            trailing = { SettingsRowChevron() },
+        )
+    }
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_legal)) {
+        SettingsRow(
+            icon = Icons.Outlined.PrivacyTip,
+            label = stringResource(Res.string.settings_row_privacy),
+            onClick = { onAction(SettingsAction.OnPrivacyClick) },
+            trailing = { SettingsRowExternalIcon() },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Description,
+            label = stringResource(Res.string.settings_row_terms),
+            onClick = { onAction(SettingsAction.OnTermsClick) },
+            trailing = { SettingsRowExternalIcon() },
+        )
+    }
+
+    // Visual gap so the headerless Delete account card reads as its own
+    // standalone section rather than a third row in Legal. Without this
+    // the two cards render flush because the section card only pads above
+    // when it has a label.
+    Spacer(Modifier.height(DesignTokens.space4))
+
+    SettingsSectionCard {
+        SettingsRow(
+            icon = Icons.Outlined.Delete,
+            label = stringResource(Res.string.settings_row_delete_account),
+            onClick = { onAction(SettingsAction.OnDeleteAccountClick) },
+            isDanger = true,
+            trailing = { SettingsRowChevron() },
+        )
+    }
+
+    if (isDebugBuild) {
+        Spacer(Modifier.height(DesignTokens.space4))
+        SettingsSectionCard {
+            SettingsRow(
+                icon = Icons.Outlined.BugReport,
+                label = stringResource(Res.string.settings_row_debug_menu),
+                onClick = { onAction(SettingsAction.OnDebugMenuClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+    }
+
+    Spacer(Modifier.height(DesignTokens.space5))
+}
+
+/**
+ * The flag-on (hub) Settings landing: hero + plan + Preferences (unchanged rows)
+ * + a single Manage section that routes into the four category sub-screens
+ * (Account & security, Invite & rewards, Help & support, Legal & about) + the
+ * pinned Delete-account and debug cards. Sign-out lives in the Account &
+ * security sub-screen, not here, so this layout never dispatches
+ * [SettingsAction.OnSignOutRowClick].
+ */
+@Composable
+private fun SettingsLandingHub(
+    state: SettingsState,
+    onAction: (SettingsAction) -> Unit,
+) {
+    Spacer(Modifier.height(DesignTokens.space2))
+
+    ProfileHeroCard(
+        businessName = state.businessName.ifBlank { "—" },
+        logoUrl = state.businessLogoUrl,
+        subtitle = state.heroSubtitle.ifBlank { state.email },
+        avatarColorIndex = state.avatarColorIndex,
+        onClick = { onAction(SettingsAction.OnProfileClick) },
+        planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
+    )
+
+    Spacer(Modifier.height(DesignTokens.space3))
+
+    PlanCard(
+        tier = state.subscriptionTier,
+        customerCount = state.customerCount,
+        customerLimit = state.customerLimit,
+        aiDraftsUsed = state.aiDraftsUsed,
+        aiDraftLimit = state.aiDraftLimit,
+        isFirstMonth = state.isFirstMonth,
+        welcomeDaysLeft = state.welcomeDaysLeft,
+        onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
+        modifier = Modifier,
+        subscriptionStatus = state.subscriptionStatus,
+    )
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
+        SettingsRow(
+            icon = Icons.Outlined.Straighten,
+            label = stringResource(Res.string.settings_row_measurement_units),
+            onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
+            trailing = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingsRowValue(
+                        text = stringResource(
+                            when (state.measurementUnit) {
+                                MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
+                                MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
+                            }
+                        ),
+                    )
+                }
+            },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Brightness6,
+            label = stringResource(Res.string.settings_row_appearance),
+            onClick = { onAction(SettingsAction.OnAppearanceClick) },
+            trailing = {
+                SettingsRowValue(
+                    text = stringResource(
+                        when (state.themePreference) {
+                            ThemePreference.SYSTEM -> Res.string.settings_theme_system
+                            ThemePreference.LIGHT -> Res.string.settings_theme_light
+                            ThemePreference.DARK -> Res.string.settings_theme_dark
+                        }
+                    ),
+                )
+            },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Image,
+            label = stringResource(Res.string.settings_row_receipt_image),
+            onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
+            trailing = {
+                SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
+            },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.Notifications,
+            label = stringResource(Res.string.settings_row_daily_digest),
+            onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
+            trailing = {
+                Switch(
+                    checked = state.dailyDigestEmailEnabled,
+                    onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
+                )
+            },
+        )
+        if (state.pushReminderSupported) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_daily_push),
+                onClick = { onAction(SettingsAction.OnDailyPushToggle(!state.dailyPushEnabled)) },
+                trailing = {
+                    Switch(
+                        checked = state.dailyPushEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
+                    )
+                },
+            )
+        }
+    }
+
+    SettingsSectionCard(label = stringResource(Res.string.settings_section_manage)) {
+        SettingsRow(
+            icon = Icons.Outlined.AccountCircle,
+            label = stringResource(Res.string.settings_row_account_security),
+            subtitle = stringResource(Res.string.settings_row_account_security_subtitle),
+            onClick = { onAction(SettingsAction.OnAccountSecurityClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.PersonAddAlt,
+            label = stringResource(Res.string.settings_row_invite_rewards),
+            subtitle = stringResource(Res.string.settings_row_invite_rewards_subtitle),
+            onClick = { onAction(SettingsAction.OnInviteRewardsClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.AutoMirrored.Outlined.HelpOutline,
+            label = stringResource(Res.string.settings_row_help_support),
+            subtitle = stringResource(Res.string.settings_row_help_support_subtitle),
+            onClick = { onAction(SettingsAction.OnHelpSupportClick) },
+            trailing = { SettingsRowChevron() },
+        )
+        SettingsRowDivider()
+        SettingsRow(
+            icon = Icons.Outlined.PrivacyTip,
+            label = stringResource(Res.string.settings_row_legal_about),
+            subtitle = stringResource(Res.string.settings_row_legal_about_subtitle),
+            onClick = { onAction(SettingsAction.OnLegalAboutClick) },
+            trailing = { SettingsRowChevron() },
+        )
+    }
+
+    // Visual gap so the headerless Delete account card reads as its own
+    // standalone section rather than a fifth row in Manage. Without this
+    // the two cards render flush because the section card only pads above
+    // when it has a label.
+    Spacer(Modifier.height(DesignTokens.space4))
+
+    SettingsSectionCard {
+        SettingsRow(
+            icon = Icons.Outlined.Delete,
+            label = stringResource(Res.string.settings_row_delete_account),
+            onClick = { onAction(SettingsAction.OnDeleteAccountClick) },
+            isDanger = true,
+            trailing = { SettingsRowChevron() },
+        )
+    }
+
+    if (isDebugBuild) {
+        Spacer(Modifier.height(DesignTokens.space4))
+        SettingsSectionCard {
+            SettingsRow(
+                icon = Icons.Outlined.BugReport,
+                label = stringResource(Res.string.settings_row_debug_menu),
+                onClick = { onAction(SettingsAction.OnDebugMenuClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+    }
+
+    Spacer(Modifier.height(DesignTokens.space5))
 }
 
 @Composable
@@ -491,6 +695,56 @@ private fun SettingsScreenDarkPreview() {
                 subscriptionTier = SubscriptionTier.FREE,
                 customerCount = 13,
                 customerLimit = 15,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun SettingsScreenHubPreview() {
+    StitchPadTheme {
+        SettingsScreen(
+            state = SettingsState(
+                isLoading = false,
+                businessName = "Folake's Atelier",
+                email = "folake@stitchpad.app",
+                whatsappNumber = "+234 803 555 0142",
+                avatarColorIndex = 0,
+                signInProvider = SignInProvider.EMAIL_PASSWORD,
+                maskedSignInIdentifier = "folake@stitchpad.app",
+                subscriptionTier = SubscriptionTier.FREE,
+                customerCount = 8,
+                customerLimit = 15,
+                measurementUnit = MeasurementUnit.INCHES,
+                settingsHubEnabled = true,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun SettingsScreenHubDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        SettingsScreen(
+            state = SettingsState(
+                isLoading = false,
+                businessName = "Folake's Atelier",
+                email = "folake@stitchpad.app",
+                whatsappNumber = "+234 803 555 0142",
+                avatarColorIndex = 4,
+                signInProvider = SignInProvider.EMAIL_PASSWORD,
+                maskedSignInIdentifier = "folake@stitchpad.app",
+                subscriptionTier = SubscriptionTier.PRO,
+                customerCount = 42,
+                customerLimit = null,
+                measurementUnit = MeasurementUnit.CM,
+                settingsHubEnabled = true,
             ),
             onAction = {},
         )
