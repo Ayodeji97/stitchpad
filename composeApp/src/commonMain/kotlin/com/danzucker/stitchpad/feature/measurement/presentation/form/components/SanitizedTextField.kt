@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.form.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,9 +40,15 @@ fun rememberSanitizedTextFieldValue(
     var tfv by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
 
     // Reconcile external (programmatic) changes: value seeding, gender switch, load.
-    // Caret-to-end is correct here — the user is not mid-edit.
-    if (tfv.text != value) {
-        tfv = TextFieldValue(value, TextRange(value.length))
+    // Caret-to-end is correct here — the user is not mid-edit. Gated in a
+    // LaunchedEffect (not a body check) so an unrelated recomposition while a
+    // keystroke round-trip is still in flight (local tfv ahead of the
+    // not-yet-echoed value) doesn't snap the field back to the stale value and
+    // push the caret to the end — see the project's TextFieldValue cursor note.
+    LaunchedEffect(value) {
+        if (tfv.text != value) {
+            tfv = TextFieldValue(value, TextRange(value.length))
+        }
     }
 
     val onChange: (TextFieldValue) -> Unit = onChange@{ raw ->
