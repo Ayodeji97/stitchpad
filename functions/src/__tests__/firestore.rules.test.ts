@@ -54,6 +54,12 @@ function db(uid: string) {
   return testEnv.authenticatedContext(uid).firestore();
 }
 
+// A signed-in STAFF member of `workshopUid`, i.e. carrying the custom claims the
+// approve-staff Cloud Function will set: role='staff', workshopUid=<owner uid>.
+function staffDb(staffUid: string, workshopUid: string) {
+  return testEnv.authenticatedContext(staffUid, { role: 'staff', workshopUid }).firestore();
+}
+
 const SEED_DEFAULTS = {
   subscriptionTier: 'free',
   subscriptionStatus: 'active',
@@ -707,5 +713,76 @@ describe('owner-only /private sub-docs (money + contact wall)', () => {
     await assertFails(
       setDoc(doc(db('bob'), 'users/alice/orders/o1/private/money'), { totalPrice: 1 }),
     );
+  });
+});
+
+// Owner + Staff feature: an active member (custom claims role='staff',
+// workshopUid=<owner>) may READ the owner's base work and advance an order's
+// production status — but never the /private sub-docs, never non-status writes,
+// and never another workshop's tree. `chidi` is alice's staff throughout.
+describe('active staff member access', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/customers/c1'), { name: 'Ada' });
+      await setDoc(doc(admin, 'users/alice/customers/c1/private/contact'), { phone: '+234' });
+      await setDoc(doc(admin, 'users/alice/customers/c1/measurements/m1'), { gender: 'FEMALE' });
+      await setDoc(doc(admin, 'users/alice/orders/o1'), {
+        status: 'PENDING',
+        customerName: 'Ada',
+        serverCreatedAt: serverTimestamp(),
+        createdAt: 1000,
+      });
+      await setDoc(doc(admin, 'users/alice/orders/o1/private/money'), { totalPrice: 40000 });
+    });
+  });
+
+  it('reads the base customer, measurement, and order', async () => {
+    await assertSucceeds(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1')));
+    await assertSucceeds(
+      getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1/measurements/m1')),
+    );
+    await assertSucceeds(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1')));
+  });
+
+  it('is denied the /private money and contact sub-docs (the wall)', async () => {
+    await assertFails(
+      getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1/private/contact')),
+    );
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1/private/money')));
+  });
+
+  it('may advance an order status (status-only update)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1'), {
+        status: 'IN_PROGRESS',
+        subStatus: 'SEWING',
+        updatedAt: 123,
+      }),
+    );
+  });
+
+  it('cannot make a non-status order edit (money/customer/items stay owner-only)', async () => {
+    await assertFails(
+      updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1'), { totalPrice: 999 }),
+    );
+    await assertFails(
+      updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1'), { customerName: 'x' }),
+    );
+  });
+
+  it('cannot create or delete orders or customers', async () => {
+    await assertFails(
+      setDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o2'), { status: 'PENDING' }),
+    );
+    await assertFails(deleteDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1')));
+    await assertFails(deleteDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1')));
+  });
+
+  it('cannot read a workshop it is not a member of', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/bob/orders/ob1'), { status: 'PENDING' });
+    });
+    // chidi's claim scopes to alice, so bob's tree is off-limits.
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/bob/orders/ob1')));
   });
 });

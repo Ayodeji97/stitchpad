@@ -35,6 +35,24 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // Owner + Staff feature: a signed-in STAFF member operating on their owner's
+    // (uid's) workshop tree. Identified by custom auth claims set server-side when
+    // an owner approves them — `role == 'staff'` and `workshopUid == <owner uid>`.
+    // `.get(key, default)` tolerates the claims being absent (owners have neither),
+    // so a normal owner session simply evaluates this to false. Money and customer
+    // contact live in /private sub-docs that stay isOwner-only, so members reach the
+    // work (orders, customers, measurements) but never the sensitive fields.
+    function isActiveMember(uid) {
+      return request.auth != null
+        && request.auth.token.get('role', '') == 'staff'
+        && request.auth.token.get('workshopUid', '') == uid;
+    }
+
+    // Read access to a workshop's non-private data: the owner, or an active member.
+    function canReadWorkshop(uid) {
+      return isOwner(uid) || isActiveMember(uid);
+    }
+
     // True iff the incoming update keeps `field` at its existing value (i.e. the
     // client did not attempt to change it). Compatible with merge-true updates
     // where `request.resource.data` is the full merged result. NOTE: this returns
@@ -213,13 +231,16 @@ service cloud.firestore {
       // slotState/lockedAt stay client-writable in V1.0 because the SwapSheet
       // mutates them directly via Firestore batch. See top-level comment.
       match /customers/{customerId} {
-        allow read: if isOwner(uid);
+        // Members read the base customer (name + slot); contact is walled off in
+        // /private/contact below. Create/update/delete stay owner-only.
+        allow read: if canReadWorkshop(uid);
         allow create: if activityCreateOk();
         allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
         allow delete: if isOwner(uid);
 
         match /measurements/{measurementId} {
-          allow read: if isOwner(uid);
+          // Members read measurements (needed to sew); writes stay owner-only.
+          allow read: if canReadWorkshop(uid);
           allow create: if activityCreateOk();
           allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
           allow delete: if isOwner(uid);
@@ -250,9 +271,21 @@ service cloud.firestore {
 
       // ── Orders subcollection ─────────────────────────────────────────────
       match /orders/{orderId} {
-        allow read: if isOwner(uid);
+        // Members read the base order (garment, status, dates); money is walled
+        // off in /private/money below.
+        allow read: if canReadWorkshop(uid);
         allow create: if activityCreateOk();
-        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
+        // Owner: full update. Active staff: may ONLY advance production status —
+        // status/subStatus/statusHistory/updatedAt — never money, customer, or
+        // items, and still can't backdate the server-stamp fields.
+        allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate())
+          || (
+            isActiveMember(uid)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'subStatus', 'statusHistory', 'updatedAt'])
+            && serverCreatedAtProtectedOnUpdate()
+            && activityCreatedAtStableOnUpdate()
+          );
         allow delete: if isOwner(uid);
 
         // Owner-only money sub-doc (Owner + Staff feature) — price/discount/
