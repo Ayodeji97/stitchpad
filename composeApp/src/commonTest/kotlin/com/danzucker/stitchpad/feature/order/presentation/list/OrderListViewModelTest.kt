@@ -11,7 +11,6 @@ import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -35,7 +34,6 @@ class OrderListViewModelTest {
 
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
-    private lateinit var authRepository: FakeAuthRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
 
     @BeforeTest
@@ -43,17 +41,12 @@ class OrderListViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
-        authRepository = FakeAuthRepository()
         activeWorkshopProvider = FakeActiveWorkshopProvider()
     }
 
     @AfterTest
     fun tearDown() {
         Dispatchers.resetMain()
-    }
-
-    private suspend fun signIn() {
-        authRepository.signUpWithEmail("t@t.com", "pass", "Ade Bello")
     }
 
     private fun fakeCustomer(
@@ -106,7 +99,6 @@ class OrderListViewModelTest {
     fun onAddOrderClick_withNoCustomers_emitsNavigateToAddCustomerFirst() = runTest {
         // Brand-new user: the Orders-tab FAB must gate to "add a customer first"
         // instead of dropping the user on an empty customer picker.
-        signIn()
         val vm = createViewModel()
 
         vm.onAction(OrderListAction.OnAddOrderClick)
@@ -116,7 +108,6 @@ class OrderListViewModelTest {
 
     @Test
     fun onAddOrderClick_withActiveCustomer_emitsNavigateToOrderForm() = runTest {
-        signIn()
         customerRepository.customersList = listOf(fakeCustomer())
         val vm = createViewModel()
 
@@ -130,7 +121,6 @@ class OrderListViewModelTest {
         // Locked customers aren't selectable in the order form's picker, so a
         // user whose customers are all locked must be gated rather than dropped
         // on an empty picker dead-end.
-        signIn()
         customerRepository.customersList =
             listOf(fakeCustomer(slotState = CustomerSlotState.LOCKED))
         val vm = createViewModel()
@@ -144,7 +134,6 @@ class OrderListViewModelTest {
     fun onAddOrderClick_whenCustomerQueryErrors_failsOpenToOrderForm() = runTest {
         // If we can't resolve the customer list, route to the form (which surfaces
         // whatever's cached) rather than wrongly gating a customer-owning user.
-        signIn()
         customerRepository.shouldReturnError = DataError.Network.NO_INTERNET
         val vm = createViewModel()
 
@@ -157,7 +146,6 @@ class OrderListViewModelTest {
 
     @Test
     fun defaultView_showsActiveOrdersOnly_archivedHidden() = runTest {
-        signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(id = "active"),
             fakeOrder(id = "archived", archivedAt = 100L),
@@ -170,7 +158,6 @@ class OrderListViewModelTest {
 
     @Test
     fun onShowArchived_switchesToArchivedOrders() = runTest {
-        signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(id = "active"),
             fakeOrder(id = "archived", archivedAt = 100L),
@@ -185,7 +172,6 @@ class OrderListViewModelTest {
 
     @Test
     fun selectingStatusFilter_exitsArchivedView() = runTest {
-        signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(id = "active"),
             fakeOrder(id = "archived", archivedAt = 100L),
@@ -201,7 +187,6 @@ class OrderListViewModelTest {
 
     @Test
     fun archivedLoading_clearsAfterSnapshotLoads() = runTest {
-        signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(id = "active"),
             fakeOrder(id = "archived", archivedAt = 100L),
@@ -215,7 +200,6 @@ class OrderListViewModelTest {
 
     @Test
     fun archivedError_clearsLoading_andSurfacesWhileViewingArchived() = runTest {
-        signIn()
         orderRepository.ordersList = listOf(fakeOrder(id = "archived", archivedAt = 100L))
         val vm = createViewModel()
         vm.onAction(OrderListAction.OnShowArchived)
@@ -230,7 +214,6 @@ class OrderListViewModelTest {
 
     @Test
     fun archivedError_onActiveView_doesNotSurface_butClearsLoading() = runTest {
-        signIn()
         orderRepository.archivedError = DataError.Network.UNKNOWN
         val vm = createViewModel()
 
@@ -243,7 +226,6 @@ class OrderListViewModelTest {
 
     @Test
     fun onRestoreOrderClick_callsUnarchive_andEmitsOrderRestored() = runTest {
-        signIn()
         val archived = fakeOrder(id = "archived", archivedAt = 100L)
         orderRepository.ordersList = listOf(archived)
         val vm = createViewModel()

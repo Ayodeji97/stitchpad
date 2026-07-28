@@ -11,7 +11,6 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +41,6 @@ import kotlin.test.assertTrue
 class CustomerFormViewModelTest {
 
     private lateinit var customerRepository: FakeCustomerRepository
-    private lateinit var authRepository: FakeAuthRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var emailValidator: FakePatternValidator
 
@@ -50,7 +48,6 @@ class CustomerFormViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         customerRepository = FakeCustomerRepository()
-        authRepository = FakeAuthRepository()
         activeWorkshopProvider = FakeActiveWorkshopProvider()
         emailValidator = FakePatternValidator(shouldMatch = true)
     }
@@ -327,7 +324,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_withBlankEmail_isValidAndDoesNotSetEmailError() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -345,7 +341,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_createMode_callsCreateCustomer_andNavigatesToCustomerList() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -367,7 +362,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_editMode_callsUpdateCustomer_andNavigatesBack() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.storedCustomer = Customer(
             id = "customer-123",
             userId = "test-uid",
@@ -391,7 +385,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_withRepositoryError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.UNKNOWN
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
@@ -419,7 +412,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun loadCustomer_populatesStateFromRepository() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.storedCustomer = Customer(
             id = "customer-123",
             userId = "test-uid",
@@ -440,7 +432,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun loadCustomer_onRepositoryError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.UNKNOWN
         val viewModel = createViewModel(customerId = "customer-123")
 
@@ -450,7 +441,8 @@ class CustomerFormViewModelTest {
 
     @Test
     fun loadCustomer_withNoAuthUser_doesNotLoadAndResetsLoading() = runTest {
-        // No user — auth check fails early in loadCustomer
+        // Signed out — no workshop tree, so loadCustomer bails before reading.
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         val viewModel = createViewModel(customerId = "customer-123")
 
         assertEquals("", viewModel.state.value.name)
@@ -471,7 +463,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.UNKNOWN
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade"))
@@ -515,7 +506,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_addMode_checkboxChecked_emitsNavigateToNewCustomerMeasurement() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -533,7 +523,6 @@ class CustomerFormViewModelTest {
 
     @Test
     fun save_addMode_checkboxUnchecked_emitsNavigateToCustomerList() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -546,7 +535,6 @@ class CustomerFormViewModelTest {
     @Test
     fun save_editMode_checkboxChecked_stillEmitsNavigateBack() = runTest {
         // Edit mode wins regardless of addMeasurementsNext value.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.storedCustomer = Customer(
             id = "customer-123",
             userId = "test-uid",
@@ -566,7 +554,6 @@ class CustomerFormViewModelTest {
     fun save_addMode_passesNonBlankIdToRepository() = runTest {
         // Independent of routing — the id is minted client-side so the screen
         // can forward the new customer's id to the measurement form.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -582,7 +569,6 @@ class CustomerFormViewModelTest {
         // Cap-reached must still take precedence over the new addMeasurementsNext
         // routing — no navigation to the measurement form, and the create call
         // is short-circuited by the repository so no customer is persisted.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.CAP_REACHED
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))

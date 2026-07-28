@@ -12,7 +12,6 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
-import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.sharing.FakeMeasurementSharer
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
@@ -54,18 +53,6 @@ class MeasurementDetailViewModelTest {
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
         activeWorkshopProvider = FakeActiveWorkshopProvider()
-        // Fakes ignore the userId value itself (they key off customerId/measurementId),
-        // but the ViewModel bails out of every observe*() early when getCurrentUser()
-        // is null — so a signed-in user must be present for these tests to reach them.
-        authRepository.currentUser = User(
-            id = "user-1",
-            email = "tailor@example.com",
-            displayName = "Test Tailor",
-            businessName = null,
-            phoneNumber = null,
-            whatsappNumber = null,
-            avatarColorIndex = 0,
-        )
         analytics = FakeAnalytics()
         measurementSharer = FakeMeasurementSharer()
     }

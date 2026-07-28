@@ -10,7 +10,6 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +34,6 @@ import kotlin.test.assertNull
 class CustomerFormViewModelCelebrationTest {
 
     private lateinit var customerRepository: FakeCustomerRepository
-    private lateinit var authRepository: FakeAuthRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var celebrationPrefs: FakeOnboardingPreferences
     private lateinit var celebrations: CelebrationController
@@ -44,7 +42,6 @@ class CustomerFormViewModelCelebrationTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         customerRepository = FakeCustomerRepository()
-        authRepository = FakeAuthRepository()
         activeWorkshopProvider = FakeActiveWorkshopProvider()
         celebrationPrefs = FakeOnboardingPreferences()
         celebrations = CelebrationController(
@@ -94,7 +91,6 @@ class CustomerFormViewModelCelebrationTest {
 
     @Test
     fun `plain create with measurements next OFF triggers FirstCustomer`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
         vm.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -109,7 +105,6 @@ class CustomerFormViewModelCelebrationTest {
 
     @Test
     fun `default create with measurements next ON carries addingMeasurementsNext`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
         vm.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -123,7 +118,6 @@ class CustomerFormViewModelCelebrationTest {
 
     @Test
     fun `second create does NOT re-trigger`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm1 = createViewModel()
         vm1.onAction(CustomerFormAction.OnNameChange("Adaeze Obi"))
         vm1.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -140,7 +134,6 @@ class CustomerFormViewModelCelebrationTest {
 
     @Test
     fun `upgrade path - create with pre-existing customers does NOT trigger`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(
             Customer(id = "existing-1", userId = "test-uid", name = "Old Client", phone = "+2340000000001"),
         )
@@ -154,7 +147,6 @@ class CustomerFormViewModelCelebrationTest {
 
     @Test
     fun `edit does NOT trigger celebration`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.storedCustomer = Customer(
             id = "customer-123",
             userId = "test-uid",
