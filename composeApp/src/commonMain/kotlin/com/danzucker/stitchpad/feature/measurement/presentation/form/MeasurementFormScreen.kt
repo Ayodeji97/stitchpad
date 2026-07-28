@@ -253,9 +253,13 @@ fun MeasurementFormScreen(
             // ── Fixed header ─────────────────────────────────────────────
             Column(modifier = Modifier.padding(horizontal = DesignTokens.space4)) {
                 Spacer(Modifier.height(DesignTokens.space4))
-                OutlinedTextField(
+                val (nameFieldValue, onNameFieldChange) = rememberSanitizedTextFieldValue(
                     value = state.name,
                     onValueChange = { onAction(MeasurementFormAction.OnNameChange(it)) },
+                )
+                OutlinedTextField(
+                    value = nameFieldValue,
+                    onValueChange = onNameFieldChange,
                     label = { Text(stringResource(Res.string.measurement_name_label)) },
                     placeholder = { Text(stringResource(Res.string.measurement_name_placeholder)) },
                     singleLine = true,

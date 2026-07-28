@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.feature.measurement.presentation.form.CustomFieldDraft
+import com.danzucker.stitchpad.feature.measurement.presentation.form.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
@@ -99,9 +100,14 @@ fun AddCustomFieldSheet(
                 )
             }
 
-            OutlinedTextField(
+            val (labelFieldValue, onLabelFieldChange) = rememberSanitizedTextFieldValue(
                 value = draft.label,
-                onValueChange = { if (it.length <= MAX_LABEL_LENGTH) onLabelChange(it) },
+                maxLength = MAX_LABEL_LENGTH,
+                onValueChange = onLabelChange,
+            )
+            OutlinedTextField(
+                value = labelFieldValue,
+                onValueChange = onLabelFieldChange,
                 label = { Text(stringResource(Res.string.custom_field_sheet_label)) },
                 placeholder = { Text(stringResource(Res.string.custom_field_sheet_label_placeholder)) },
                 singleLine = true,
@@ -109,11 +115,14 @@ fun AddCustomFieldSheet(
             )
 
             if (initial == null) {
-                OutlinedTextField(
+                val (valueFieldValue, onValueFieldChange) = rememberSanitizedTextFieldValue(
                     value = draft.initialValue,
-                    onValueChange = { newValue ->
-                        onInitialValueChange(sanitizeMeasurementInput(newValue))
-                    },
+                    sanitize = ::sanitizeMeasurementInput,
+                    onValueChange = onInitialValueChange,
+                )
+                OutlinedTextField(
+                    value = valueFieldValue,
+                    onValueChange = onValueFieldChange,
                     label = { Text(stringResource(Res.string.custom_field_sheet_value)) },
                     placeholder = { Text(stringResource(Res.string.custom_field_sheet_value_placeholder)) },
                     suffix = { Text(unitSuffix) },
