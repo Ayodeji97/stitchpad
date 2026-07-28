@@ -30,6 +30,7 @@ data class DashboardState(
     val ready: List<DashboardOrderRow> = emptyList(),
     val outstandingAmount: Double = 0.0,
     val outstandingOrderCount: Int = 0,
+    val outstandingOverdueCount: Int = 0,
     val nextBestActions: List<NextBestAction> = emptyList(),
     val pipelineInProgress: List<DashboardOrderRow> = emptyList(),
     val pipelineInProgressTotal: Int = 0,

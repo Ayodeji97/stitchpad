@@ -83,6 +83,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepKey
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.YoureOwedCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
@@ -772,6 +773,17 @@ private fun DashboardContent(
                 ctaSubtitle = state.focusCtaSubtitle?.asString(),
                 sectionLabel = state.focusSectionLabel?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
+            )
+        }
+
+        // 2b. "You're owed" — money to collect on Ready/Delivered orders with a
+        // balance (sourced from CollectionCalculator). Taps into the To-Collect list.
+        if (state.outstandingOrderCount > 0) {
+            YoureOwedCard(
+                amount = state.outstandingAmount,
+                orderCount = state.outstandingOrderCount,
+                overdueCount = state.outstandingOverdueCount,
+                onClick = { onAction(DashboardAction.OnOutstandingClick) },
             )
         }
 

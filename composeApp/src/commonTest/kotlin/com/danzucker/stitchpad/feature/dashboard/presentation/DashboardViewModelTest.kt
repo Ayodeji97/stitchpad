@@ -394,12 +394,16 @@ class DashboardViewModelTest {
 
     // --- Outstanding balance ---
 
+    // "Outstanding" is now sourced from CollectionCalculator: only Ready/Delivered
+    // orders with a positive balance are collectible money. Pending/In-progress
+    // orders no longer count, even with a balance, because the work isn't done yet.
+
     @Test
-    fun outstandingAmount_sumsBalancesOfActiveOrdersWithRemainingBalance() = runTest {
+    fun outstandingAmount_sumsBalancesOfReadyAndDeliveredOrdersWithRemainingBalance() = runTest {
         signIn()
         orderRepository.ordersList = listOf(
-            fakeOrder(id = "a", balanceRemaining = 15_000.0, status = OrderStatus.PENDING),
-            fakeOrder(id = "b", balanceRemaining = 30_000.0, status = OrderStatus.IN_PROGRESS),
+            fakeOrder(id = "a", balanceRemaining = 15_000.0, status = OrderStatus.READY),
+            fakeOrder(id = "b", balanceRemaining = 30_000.0, status = OrderStatus.DELIVERED),
             fakeOrder(id = "c", balanceRemaining = 5_000.0, status = OrderStatus.READY)
         )
 
@@ -410,7 +414,7 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun outstandingAmount_excludesDeliveredOrders() = runTest {
+    fun outstandingAmount_includesDeliveredButExcludesPendingOrders() = runTest {
         signIn()
         orderRepository.ordersList = listOf(
             fakeOrder(id = "delivered", balanceRemaining = 50_000.0, status = OrderStatus.DELIVERED),
@@ -419,7 +423,7 @@ class DashboardViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(10_000.0, vm.state.value.outstandingAmount)
+        assertEquals(50_000.0, vm.state.value.outstandingAmount)
         assertEquals(1, vm.state.value.outstandingOrderCount)
     }
 
@@ -427,14 +431,36 @@ class DashboardViewModelTest {
     fun outstandingAmount_excludesOrdersWithZeroBalance() = runTest {
         signIn()
         orderRepository.ordersList = listOf(
-            fakeOrder(id = "paid", balanceRemaining = 0.0, status = OrderStatus.IN_PROGRESS),
-            fakeOrder(id = "unpaid", balanceRemaining = 20_000.0, status = OrderStatus.PENDING)
+            fakeOrder(id = "paid", balanceRemaining = 0.0, status = OrderStatus.READY),
+            fakeOrder(id = "unpaid", balanceRemaining = 20_000.0, status = OrderStatus.READY)
         )
 
         val vm = createViewModel()
 
         assertEquals(20_000.0, vm.state.value.outstandingAmount)
         assertEquals(1, vm.state.value.outstandingOrderCount)
+    }
+
+    @Test
+    fun deliveredUnpaidOrderCountsTowardOutstanding() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        orderRepository.ordersList = listOf(
+            // Became collectible (entered Delivered) 10 days before "today" —
+            // past the 7-day OVERDUE_THRESHOLD_DAYS in CollectionCalculator.
+            fakeOrder(
+                id = "delivered-unpaid",
+                status = OrderStatus.DELIVERED,
+                balanceRemaining = 5_000.0,
+                statusEnteredOn = LocalDate(2026, 4, 12),
+            )
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(5_000.0, vm.state.value.outstandingAmount)
+        assertEquals(1, vm.state.value.outstandingOrderCount)
+        assertEquals(1, vm.state.value.outstandingOverdueCount)
     }
 
     // --- Quiet day (formerly "all clear") ---

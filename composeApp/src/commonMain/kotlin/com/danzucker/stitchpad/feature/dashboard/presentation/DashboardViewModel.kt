@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.collection.domain.CollectionCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
@@ -502,6 +503,8 @@ class DashboardViewModel(
                     .toLocalDateTime(timeZone).date
                 val customersById = customers.associateBy { it.id }
                 val buckets = BucketCalculator.compute(orders, today, timeZone)
+                val collectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
+                val collectionSummary = CollectionCalculator.summarize(collectibles)
                 val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
                 val uiState = FocusResolver.resolveUiState(buckets, nextBestActions, orders, customers)
                 val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
@@ -553,8 +556,9 @@ class DashboardViewModel(
                         overdue = buckets.overdue,
                         dueToday = buckets.dueToday,
                         ready = buckets.ready,
-                        outstandingAmount = buckets.outstandingAmount,
-                        outstandingOrderCount = buckets.outstandingOrderCount,
+                        outstandingAmount = collectionSummary.totalOutstanding,
+                        outstandingOrderCount = collectionSummary.orderCount,
+                        outstandingOverdueCount = collectionSummary.overdueCount,
                         nextBestActions = nextBestActions,
                         pipelineInProgress = buckets.pipelineInProgress,
                         pipelineInProgressTotal = buckets.pipelineInProgressTotal,
