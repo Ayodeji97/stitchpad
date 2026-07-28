@@ -103,6 +103,7 @@ Create `SanitizedTextField.kt`:
 package com.danzucker.stitchpad.feature.measurement.presentation.form.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -140,10 +141,17 @@ fun rememberSanitizedTextFieldValue(
 ): Pair<TextFieldValue, (TextFieldValue) -> Unit> {
     var tfv by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
 
-    // Reconcile external (programmatic) changes: value seeding, gender switch, load.
-    // Caret-to-end is correct here — the user is not mid-edit.
-    if (tfv.text != value) {
-        tfv = TextFieldValue(value, TextRange(value.length))
+    // Reconcile external (programmatic) changes only — value seeding, gender switch,
+    // load. Gated in LaunchedEffect(value), NOT an unconditional body check: an
+    // unrelated recomposition while a keystroke round-trip is still in flight (local
+    // ahead of the echoed value) would otherwise snap the field back to the stale
+    // value with the caret at the end — the exact cursor bug this helper prevents.
+    // Matches the codebase's established TextFieldValue pattern
+    // (feedback_compose_textfieldvalue_cursor; GarmentPickerSheet, CostsEditorSheet).
+    LaunchedEffect(value) {
+        if (tfv.text != value) {
+            tfv = TextFieldValue(value, TextRange(value.length))
+        }
     }
 
     val onChange: (TextFieldValue) -> Unit = onChange@{ raw ->
@@ -380,13 +388,11 @@ Replace the value `OutlinedTextField` block (111-124) with:
             }
 ```
 
-Add imports to `AddCustomFieldSheet.kt`:
-
-```kotlin
-import com.danzucker.stitchpad.feature.measurement.presentation.form.components.rememberSanitizedTextFieldValue
-```
-
-(`sanitizeMeasurementInput` is already imported; `KeyboardOptions`/`KeyboardType` already imported.)
+Do NOT add an import for `rememberSanitizedTextFieldValue` here: `AddCustomFieldSheet.kt`
+is in the SAME package (`...form.components`) as the helper, so the symbol is already
+visible unqualified — a same-package import is redundant and detekt's `NoUnusedImports`
+rule (with `maxIssues: 0`) fails the build on it. (`sanitizeMeasurementInput`,
+`KeyboardOptions`/`KeyboardType` are already imported.)
 
 - [ ] **Step 4: Build to verify it compiles and tests pass**
 
