@@ -1,0 +1,156 @@
+import * as functions from 'firebase-functions/v1';
+import * as admin from 'firebase-admin';
+
+const REGION = 'europe-west1';
+
+// One-time, idempotent backfill for the Owner + Staff data restructure.
+//
+// Copies the money on every existing order into its owner-only
+// `.../orders/{oid}/private/money` sub-doc, and every customer's contact into
+// `.../customers/{cid}/private/contact`, deriving both from the base docs (which
+// remain the source of truth during the dual-write window). Writes are `merge:
+// true` so the backfill completes any partial sub-docs the app already wrote and
+// is safe to re-run. `dryRun` (default true) counts without writing.
+//
+// Admin-gated (`admin: true` custom claim) like the other operational callables.
+
+const USER_PAGE_SIZE = 200;
+const BATCH_LIMIT = 500;
+
+export interface MigrateSensitiveFieldsRequest {
+  dryRun?: unknown;
+}
+
+export interface MigrateSensitiveFieldsResponse {
+  dryRun: boolean;
+  users: number;
+  customersWritten: number;
+  ordersWritten: number;
+}
+
+export interface MigrateSensitiveFieldsDeps {
+  db: admin.firestore.Firestore;
+}
+
+/**
+ * Owner-only contact payload derived from a base customer doc. Mirrors the
+ * client `CustomerContactDto` defaults (phone "", email/address null).
+ */
+export function buildContactDoc(customer: admin.firestore.DocumentData): Record<string, unknown> {
+  return {
+    phone: typeof customer.phone === 'string' ? customer.phone : '',
+    email: customer.email ?? null,
+    address: customer.address ?? null,
+  };
+}
+
+/**
+ * Owner-only money payload derived from a base order doc. Mirrors the client
+ * `OrderMoneyDto`; `itemPrices` relocates each item's `price` keyed by item id.
+ */
+export function buildMoneyDoc(order: admin.firestore.DocumentData): Record<string, unknown> {
+  const items: admin.firestore.DocumentData[] = Array.isArray(order.items) ? order.items : [];
+  const itemPrices: Record<string, number> = {};
+  for (const item of items) {
+    if (item && typeof item.id === 'string') {
+      itemPrices[item.id] = typeof item.price === 'number' ? item.price : 0;
+    }
+  }
+  return {
+    totalPrice: typeof order.totalPrice === 'number' ? order.totalPrice : 0,
+    discount: typeof order.discount === 'number' ? order.discount : 0,
+    discountReason: order.discountReason ?? null,
+    payments: Array.isArray(order.payments) ? order.payments : [],
+    costs: Array.isArray(order.costs) ? order.costs : [],
+    itemPrices,
+  };
+}
+
+async function commitBatched(
+  db: admin.firestore.Firestore,
+  writes: Array<{ ref: admin.firestore.DocumentReference; data: Record<string, unknown> }>,
+): Promise<void> {
+  for (let i = 0; i < writes.length; i += BATCH_LIMIT) {
+    const chunk = writes.slice(i, i + BATCH_LIMIT);
+    const batch = db.batch();
+    for (const w of chunk) {
+      batch.set(w.ref, w.data, { merge: true });
+    }
+    await batch.commit();
+  }
+}
+
+export async function migrateSensitiveFieldsHandler(
+  data: MigrateSensitiveFieldsRequest,
+  context: functions.https.CallableContext,
+  deps: MigrateSensitiveFieldsDeps,
+): Promise<MigrateSensitiveFieldsResponse> {
+  if (context.auth?.token?.admin !== true) {
+    throw new functions.https.HttpsError('permission-denied', 'admin_only');
+  }
+  // Default to a dry run: only an explicit `dryRun: false` writes anything.
+  const dryRun = data.dryRun !== false;
+
+  let users = 0;
+  let customersWritten = 0;
+  let ordersWritten = 0;
+
+  let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let query = deps.db
+      .collection('users')
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(USER_PAGE_SIZE);
+    if (cursor) {
+      query = query.startAfter(cursor);
+    }
+    const page = await query.get();
+    if (page.empty) {
+      break;
+    }
+
+    for (const userDoc of page.docs) {
+      users += 1;
+      const uid = userDoc.id;
+
+      const customersSnap = await deps.db.collection(`users/${uid}/customers`).get();
+      const contactWrites = customersSnap.docs.map((d) => ({
+        ref: deps.db.doc(`users/${uid}/customers/${d.id}/private/contact`),
+        data: buildContactDoc(d.data()),
+      }));
+      customersWritten += contactWrites.length;
+      if (!dryRun) {
+        await commitBatched(deps.db, contactWrites);
+      }
+
+      const ordersSnap = await deps.db.collection(`users/${uid}/orders`).get();
+      const moneyWrites = ordersSnap.docs.map((d) => ({
+        ref: deps.db.doc(`users/${uid}/orders/${d.id}/private/money`),
+        data: buildMoneyDoc(d.data()),
+      }));
+      ordersWritten += moneyWrites.length;
+      if (!dryRun) {
+        await commitBatched(deps.db, moneyWrites);
+      }
+    }
+
+    if (page.size < USER_PAGE_SIZE) {
+      break;
+    }
+    cursor = page.docs[page.docs.length - 1];
+  }
+
+  const result: MigrateSensitiveFieldsResponse = { dryRun, users, customersWritten, ordersWritten };
+  functions.logger.info('migrateSensitiveFields complete', { ...result });
+  return result;
+}
+
+export const migrateSensitiveFields = functions
+  .region(REGION)
+  .https.onCall(
+    async (data, context): Promise<MigrateSensitiveFieldsResponse> =>
+      migrateSensitiveFieldsHandler(data as MigrateSensitiveFieldsRequest, context, {
+        db: admin.firestore(),
+      }),
+  );

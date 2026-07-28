@@ -89,3 +89,4 @@ export { markReferralPaid } from './referral/markReferralPaid';
 export { setMarketerStatus } from './referral/setMarketerStatus';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
 export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
+export { migrateSensitiveFields } from './staff/migrateSensitiveFields';
