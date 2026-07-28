@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,10 +75,9 @@ fun ToCollectScreen(
             SummaryHeader(state.summary)
             FilterRow(state.filter, state.customerOptions, onAction)
             HorizontalDivider()
-            if (state.items.isEmpty()) {
-                EmptyState()
-            } else {
-                LazyColumn(
+            when {
+                state.isLoading && state.items.isEmpty() -> LoadingState()
+                state.items.isNotEmpty() -> LazyColumn(
                     Modifier.fillMaxSize().padding(DesignTokens.space4),
                     verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
                 ) {
@@ -89,6 +89,10 @@ fun ToCollectScreen(
                         )
                     }
                 }
+                // No items left, but the underlying totals still say money is
+                // owed → a filter hid every row, not "all paid up".
+                state.summary.orderCount > 0 -> FilteredEmptyState(onAction)
+                else -> EmptyState()
             }
         }
     }
@@ -275,6 +279,32 @@ private fun EmptyState() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun LoadingState() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun FilteredEmptyState(onAction: (ToCollectAction) -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(DesignTokens.space6),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("No orders match this filter", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "You still have money to collect — clear the filter to see it.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = { onAction(ToCollectAction.OnFilterSelected(CollectionFilter.None)) }) {
+            Text("Show all")
+        }
     }
 }
 
