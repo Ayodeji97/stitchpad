@@ -102,7 +102,7 @@ class ToCollectViewModel(
                     }
                     signature = firestoreUser?.businessName?.takeIf { it.isNotBlank() }
                         ?: firestoreUser?.displayName?.takeIf { it.isNotBlank() }
-                        ?: ""
+                        ?: user.displayName
                     ordersById = orders.associateBy { it.id }
                     customersById = customers.associateBy { it.id }
                     allCollectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
